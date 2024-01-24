@@ -1,0 +1,39 @@
+name: universal_ble
+description: A cross-platform (Android/iOS/MacOS/Windows/Linux/Web) Bluetooth Low Energy (BLE) plugin for Flutter
+version: 0.8.0
+homepage: https://navideck.com
+repository: https://github.com/Navideck/universal_ble
+issue_tracker: https://github.com/Navideck/universal_ble/issues
+
+environment:
+  sdk: ">=3.1.3 <4.0.0"
+  flutter: ">=3.3.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  plugin_platform_interface: ^2.1.6
+  collection: ^1.17.2
+  convert: ^3.1.1
+  flutter_web_bluetooth: ^0.2.2
+  bluez: ^0.8.1
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^2.0.0
+  pigeon: ^13.0.0
+flutter:
+  plugin:
+    platforms:
+      android:
+        package: com.navideck.universal_ble
+        pluginClass: UniversalBlePlugin
+      ios:
+        pluginClass: UniversalBlePlugin
+        sharedDarwinSource: true
+      macos:
+        pluginClass: UniversalBlePlugin
+        sharedDarwinSource: true
+      windows:
+        pluginClass: UniversalBlePluginCApi

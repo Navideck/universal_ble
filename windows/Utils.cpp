@@ -1,0 +1,130 @@
+#include "Utils.h"
+
+#include <iomanip>
+#include <iostream>
+#include <sstream>
+
+#include <sdkddkver.h>
+
+#if WDK_NTDDI_VERSION < NTDDI_WIN10_VB
+#error "Windows SDK version before 10.0.19041.0 is not supported"
+#elif WDK_NTDDI_VERSION == NTDDI_WIN10_VB
+// For Windows SDK version before 10.0.19041.0, remap functions to post-10.0.19041.0 versions
+#define WINRT_IMPL_CoGetApartmentType WINRT_CoGetApartmentType
+#endif
+
+#define MAC_ADDRESS_STR_LENGTH (size_t)17 // Two chars per byte, 5 chars for colon
+
+namespace universal_ble
+{
+
+    std::string _mac_address_to_str(uint64_t mac_address)
+    {
+        uint8_t *mac_ptr = (uint8_t *)&mac_address;
+        char mac_str[MAC_ADDRESS_STR_LENGTH + 1] = {0};
+        snprintf(mac_str, MAC_ADDRESS_STR_LENGTH + 1, "%02x:%02x:%02x:%02x:%02x:%02x", mac_ptr[5], mac_ptr[4], mac_ptr[3],
+                 mac_ptr[2], mac_ptr[1], mac_ptr[0]);
+        return std::string(mac_str);
+    }
+
+    uint64_t _str_to_mac_address(std::string mac_str)
+    {
+        // TODO: Validate input - Expected Format: XX:XX:XX:XX:XX:XX
+        uint64_t mac_address_number = 0;
+        uint8_t *mac_ptr = (uint8_t *)&mac_address_number;
+        sscanf_s(mac_str.c_str(), "%02hhx:%02hhx:%02hhx:%02hhx:%02hhx:%02hhx", &mac_ptr[5], &mac_ptr[4], &mac_ptr[3],
+                 &mac_ptr[2], &mac_ptr[1], &mac_ptr[0]);
+        return mac_address_number;
+    }
+
+    winrt::guid uuid_to_guid(const std::string &uuid)
+    {
+        // TODO: Add proper cleanup / validation
+        std::stringstream helper;
+        for (int i = 0; i < uuid.length(); i++)
+        {
+            if (uuid[i] != '-')
+            {
+                helper << uuid[i];
+            }
+        }
+        std::string clean_uuid = helper.str();
+        winrt::guid guid;
+        uint64_t *data4_ptr = (uint64_t *)guid.Data4;
+
+        guid.Data1 = static_cast<uint32_t>(std::strtoul(clean_uuid.substr(0, 8).c_str(), nullptr, 16));
+        guid.Data2 = static_cast<uint16_t>(std::strtoul(clean_uuid.substr(8, 4).c_str(), nullptr, 16));
+        guid.Data3 = static_cast<uint16_t>(std::strtoul(clean_uuid.substr(12, 4).c_str(), nullptr, 16));
+        *data4_ptr = _byteswap_uint64(std::strtoull(clean_uuid.substr(16, 16).c_str(), nullptr, 16));
+
+        return guid;
+    }
+
+    std::string guid_to_uuid(const winrt::guid &guid)
+    {
+        std::stringstream helper;
+        // TODO: It might be cleaner to use snprintf instead of string streams.
+
+        for (uint32_t i = 0; i < 4; i++)
+        {
+            // * NOTE: We're performing a byte swap!
+            helper << std::hex << std::setw(2) << std::setfill('0') << (int)((uint8_t *)&guid.Data1)[3 - i];
+        }
+        helper << '-';
+        for (uint32_t i = 0; i < 2; i++)
+        {
+            // * NOTE: We're performing a byte swap!
+            helper << std::hex << std::setw(2) << std::setfill('0') << (int)((uint8_t *)&guid.Data2)[1 - i];
+        }
+        helper << '-';
+        for (uint32_t i = 0; i < 2; i++)
+        {
+            // * NOTE: We're performing a byte swap!
+            helper << std::hex << std::setw(2) << std::setfill('0') << (int)((uint8_t *)&guid.Data3)[1 - i];
+        }
+        helper << '-';
+        for (uint32_t i = 0; i < 2; i++)
+        {
+            helper << std::hex << std::setw(2) << std::setfill('0') << (int)guid.Data4[i];
+        }
+        helper << '-';
+        for (uint32_t i = 0; i < 6; i++)
+        {
+            helper << std::hex << std::setw(2) << std::setfill('0') << (int)guid.Data4[2 + i];
+        }
+        return helper.str();
+    }
+
+    std::vector<uint8_t> to_bytevc(IBuffer buffer)
+    {
+        auto reader = DataReader::FromBuffer(buffer);
+        auto result = std::vector<uint8_t>(reader.UnconsumedBufferLength());
+        reader.ReadBytes(result);
+        return result;
+    }
+
+    IBuffer from_bytevc(std::vector<uint8_t> bytes)
+    {
+        auto writer = DataWriter();
+        writer.WriteBytes(bytes);
+        return writer.DetachBuffer();
+    }
+
+    std::string to_hexstring(std::vector<uint8_t> bytes)
+    {
+        auto ss = std::stringstream();
+        for (auto b : bytes)
+            ss << std::setw(2) << std::setfill('0') << std::hex << static_cast<int>(b);
+        return ss.str();
+    }
+
+    std::string to_uuidstr(winrt::guid guid)
+    {
+        char chars[36 + 1];
+        sprintf_s(chars, "%08x-%04hx-%04hx-%02hhx%02hhx-%02hhx%02hhx%02hhx%02hhx%02hhx%02hhx",
+                  guid.Data1, guid.Data2, guid.Data3, guid.Data4[0], guid.Data4[1], guid.Data4[2],
+                  guid.Data4[3], guid.Data4[4], guid.Data4[5], guid.Data4[6], guid.Data4[7]);
+        return std::string{chars};
+    }
+
+} // namespace SimpleBLE
