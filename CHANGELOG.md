@@ -1,3 +1,7 @@
+## 0.8.2
+
+* Improve readme.
+
 ## 0.8.1
 
 * Update supported platforms.

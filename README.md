@@ -1,15 +1,17 @@
-# Universal Ble
+# Universal BLE
 
-A cross-platform (Android/iOS/MacOS/Windows/Linux/Web) BluetoothLE plugin for Flutter
+A cross-platform (Android/iOS/macOS/Windows/Linux/Web) Bluetooth Low Energy (BLE) plugin for Flutter
 
-# Usage
+## Features
 
-- [Receive BLE availability changes](#receive-ble-availability-changes)
-- [Scan BLE peripheral](#scan-ble-peripheral)
-- [Connect BLE peripheral](#connect-ble-peripheral)
-- [Discover services of BLE peripheral](#discover-services-of-ble-peripheral)
-- [Transfer data between BLE central & peripheral](#transfer-data-between-ble-central--peripheral)
-- [Pair BLE peripheral](#pair-ble-central--peripheral)
+- [Scanning for BLE Peripherals](#scanning-for-ble-peripherals)
+- [Connecting to BLE Peripheral](#connecting-to-ble-peripheral)
+- [Discovering Services of BLE Peripheral](#discovering-services-of-ble-peripheral)
+- [Transferring Data between BLE Central & Peripheral](#transferring-data-between-ble-central--peripheral)
+- [Pairing BLE Peripheral](#pairing-ble-central--peripheral)
+- [Receiving BLE Availability Changes](#receiving-ble-availability-changes)
+
+### API Support Matrix
 
 | API                  | Android | iOS | macOS | Windows (beta) | Linux (beta) | Web |
 | :------------------- | :-----: | :-: | :---: | :-----: | :---: | :-: |
@@ -24,13 +26,122 @@ A cross-platform (Android/iOS/MacOS/Windows/Linux/Web) BluetoothLE plugin for Fl
 | onPairStateChange    |   ✔️    | ❌  |  ❌   |   ✔️    |  ✔️   | ❌  |
 | enableBluetooth      |   ✔️    | ❌  |  ❌   |   ✔️    |  ✔️   | ❌  |
 | onAvailabilityChange |   ✔️    | ✔️  |  ✔️   |   ✔️    |  ✔️   | ✔️  |
-| requestMtu           |   ✔️    | ✔️  |  ✔️   |   ✔️    |  ❌   | ❌  |
+| requestMtu           |   ✔️    | ✔️  |  ✔️   |   ✔️    |  ❌   | 🚧  |
 
 ## Getting Started
 
+### Scanning for BLE Peripherals
+
+```dart
+// Set a scan result handler
+UniversalBle.onScanResult = (scanResult) {
+  // e.g. Use scan result to connect
+}
+
+// Perform a scan
+UniversalBle.startScan();
+
+// On web, you can add filters and specify optional services to discover after connection. The parameter is ignored on other platforms.
+UniversalBle.startScan(
+  webRequestOptions: WebRequestOptionsBuilder.acceptAllDevices(
+    optionalServices: ["SERVICE_UUID"],
+  ),
+);
+
+// Stop scanning
+UniversalBle.stopScan();
+```
+
+Already connected devices won't show up as scan results.
+You can list the already connected devices using `getConnectedDevices()`. You still need to explicitly connect before using them.
+
+```dart
+// You can set `withServices` to narrow down the results
+await UniversalBle.getConnectedDevices(withServices: []);
+```
+
+### Connecting to BLE Peripheral
+
+```dart
+// Connect to a peripheral using the `deviceId` of the scanResult received from `UniversalBle.onScanResult`
+String deviceId = scanResult.deviceId;
+UniversalBle.connect(deviceId);
+
+// Disconnect from a peripheral
+UniversalBle.disconnect(deviceId);
+
+// Get notified for connection state changes
+UniversalBle.onConnectionChanged = (String deviceId, BleConnectionState state) {
+  print('OnConnectionChanged $deviceId, $state');
+}
+```
+
+### Discovering Services of BLE Peripheral
+
+```dart
+// Discover services of a specific `deviceId`
+UniversalBle.discoverServices(deviceId);
+```
+
+### Transferring Data between BLE Central & Peripheral
+
+```dart
+// Read data from a characteristic
+UniversalBle.readValue(deviceId, serviceId, characteristicId);
+
+// Write data to a characteristic
+UniversalBle.writeValue(deviceId, serviceId, characteristicId, value);
+
+// Subscribe to a characteristic
+UniversalBle.setNotifiable(deviceId, serviceId, characteristicId, BleInputProperty.notification);
+
+// Get characteristic updates in `onValueChanged`
+UniversalBle.onValueChanged = (String deviceId, String characteristicId, Uint8List value) {
+  print('onValueChanged $deviceId, $characteristicId, ${hex.encode(value)}');
+}
+
+// Unsubscribe from a characteristic
+UniversalBle.setNotifiable(deviceId, serviceId, characteristicId, BleInputProperty.disabled);
+```
+
+### Pairing BLE Central & Peripheral
+
+```dart
+// Pair
+UniversalBle.pair(deviceId);
+
+// Get the pairing result
+UniversalBle.onPairStateChange = (String deviceId, bool isPaired, String? error) {
+  // Handle Pairing state change
+}
+
+// Unpair
+UniversalBle.unPair(deviceId);
+
+// Check current pairing status
+bool isPaired = UniversalBle.isPaired(deviceId);
+```
+
+### Enable Bluetooth Programmatically
+
+```dart
+UniversalBle.enableBluetooth();
+```
+
+### Receiving BLE Availability Changes
+
+```dart
+UniversalBle.onAvailabilityChange = (state) {
+  // Handle BLE availability states
+  // e.g. poweredOff or poweredOn,
+};
+```
+
+## Platform-Specific Setup
+
 ### Android
 
-You need to add the following permissions to your AndroidManifest.xml file:
+Add the following permissions to your AndroidManifest.xml file:
 
 ```xml
 <uses-permission android:name="android.permission.BLUETOOTH_SCAN" android:usesPermissionFlags="neverForLocation" />
@@ -45,132 +156,18 @@ If you use `BLUETOOTH_SCAN` to determine location, modify your AndroidManifest.x
  <uses-permission android:name="android.permission.BLUETOOTH_SCAN" tools:remove="android:usesPermissionFlags" tools:targetApi="s" />
 ```
 
-If you use location services in your app, remove `android:maxSdkVersion="30"` from the location permission tags
+If your app uses location services, remove `android:maxSdkVersion="30"` from the location permission tags.
 
-### iOS / MacOS
+### iOS / macOS
 
-Add `NSBluetoothPeripheralUsageDescription` and `NSBluetoothAlwaysUsageDescription` in Info.plist of your iOS and MacOS app,
+Add `NSBluetoothPeripheralUsageDescription` and `NSBluetoothAlwaysUsageDescription` to Info.plist of your iOS and macOS app.
 
-Add `Bluetooth` capability to MacOS app from Xcode
+Add the `Bluetooth` capability to the macOS app from Xcode.
 
-## Scan BLE peripheral
-
-Android/iOS/macOS/Windows/Linux
+## Customizing Platform Implementation of UniversalBle
 
 ```dart
-UniversalBle.onScanResult = (scanResult) {
-  // Handle scan result
-}
-
-UniversalBle.startScan();
-
-// To scan on web, you can optionally add filters, and `optionalServices` required to discover those services after connection, for more info check [this](https://developer.mozilla.org/en-US/docs/Web/API/Bluetooth/requestDevice)
-UniversalBle.startScan(
-  webRequestOptions: WebRequestOptionsBuilder.acceptAllDevices(
-    optionalServices: [
-      "SERVICE_UUID",
-    ],
-  )
-);
-
-UniversalBle.stopScan();
-```
-
-## Connect to BLE peripheral
-
-Connect to `deviceId`, received from `UniversalBle.onScanResult`
-
-```dart
-UniversalBle.onConnectionChanged = (String deviceId, BleConnectionState state) {
-  print('onConnectionChanged $deviceId, $state');
-}
-
-UniversalBle.connect(deviceId);
-
-UniversalBle.disconnect(deviceId);
-```
-
-Get connected devices ( These devices might be connected through another applications, connect using `connect` method to use in your application ), use `withServices` to filter devices
-
-```dart
-await UniversalBle.getConnectedDevices(withServices: []);
-```
-
-## Discover services of BLE peripheral
-
-Discover services of `deviceId`
-
-```dart
-UniversalBle.discoverServices(deviceId);
-```
-
-## Transfer data between BLE central & peripheral
-
-- Pull data from peripheral of `deviceId`
-
-```dart
-UniversalBle.readValue(deviceId, serviceId, characteristicId);
-```
-
-- Send data to peripheral of `deviceId`
-
-```dart
-UniversalBle.writeValue(deviceId, serviceId, characteristicId, value);
-```
-
-- Receive data from peripheral of `deviceId`
-
-```dart
-UniversalBle.onValueChanged = (String deviceId, String characteristicId, Uint8List value) {
-  print('onValueChanged $deviceId, $characteristicId, ${hex.encode(value)}');
-}
-
-// To get characteristic updates in `onValueChanged`
-UniversalBle.setNotifiable(deviceId, serviceId, characteristicId, BleInputProperty.notification);
-
-// To stop updates
-UniversalBle.setNotifiable(deviceId, serviceId, characteristicId, BleInputProperty.disabled);
-```
-
-## Pair BLE central & peripheral
-
-- Pair apis
-
-```dart
-UniversalBle.onPairStateChange = (String deviceId, bool isPaired, String? error) {
-  // Handle Pairing state change
-}
-
-// Get result in [onPairStateChange]
-UniversalBle.pair(deviceId);
-
-UniversalBle.unPair(deviceId);
-
-UniversalBle.isPaired(deviceId);
-```
-
-## Enable bluetooth programatically
-
-```dart
-UniversalBle.enableBluetooth();
-```
-
-## Receive BLE availability changes
-
-```dart
-UniversalBle.onAvailabilityChange = (state) {
-  // Handle ble availability states
-  // e.g. poweredOff or poweredOn,
-};
-```
-
-## To set your own implementation of UniversalBle for any specific platform
-
-```dart
-// Create a class which extends `UniversalBlePlatform`
+// Create a class that extends UniversalBlePlatform
 class UniversalBleMock extends UniversalBlePlatform {
   // Implement all methods
 }
-
-UniversalBle.setInstance(UniversalBleMock());
-```
