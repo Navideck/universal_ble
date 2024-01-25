@@ -39,9 +39,9 @@ class _PeripheralDetailPageState extends State<PeripheralDetailPage> {
     super.initState();
     UniversalBle.onConnectionChanged = _handleConnectionChange;
     UniversalBle.onValueChanged = _handleValueChange;
-    UniversalBle.onPairStateChange =
+    UniversalBle.onPairingStateChange =
         (String deviceId, bool isPaired, String? error) {
-      print('OnPairStateChange $deviceId, $isPaired');
+      print('OnPairingStateChange $deviceId, $isPaired');
       setState(() {
         if (error != null) {
           results.add("PairStateChangeError (Paired: $isPaired): $error ");

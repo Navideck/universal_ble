@@ -48,5 +48,5 @@ abstract class UniversalBlePlatform {
   OnScanResult? onScanResult;
   OnConnectionChanged? onConnectionChanged;
   OnValueChanged? onValueChanged;
-  OnPairStateChange? onPairStateChange;
+  OnPairingStateChange? onPairingStateChange;
 }
