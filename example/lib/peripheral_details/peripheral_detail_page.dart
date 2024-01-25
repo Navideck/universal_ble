@@ -98,21 +98,16 @@ class _PeripheralDetailPageState extends State<PeripheralDetailPage> {
       print("Error: No value to write");
       return null;
     }
-    List<int>? value;
-    String text = binaryCode.text;
-    if (text.contains(",") || text.contains("[") || text.contains("]")) {
-      text = text.replaceAll("[", "").replaceAll("]", "").trim();
-      value = text.split(',').map(int.parse).toList();
-    } else {
-      try {
-        value = hex.decode(text);
-      } catch (e) {
-        print("Error parsing hex $e");
-        print("Trying utf8 encoding");
-        value = utf8.encode(text);
-      }
+
+    List<int> hexList = [];
+
+    try {
+      hexList = hex.decode(binaryCode.text);
+    } catch (e) {
+      print("Error parsing hex $e");
     }
-    return Uint8List.fromList(value);
+
+    return Uint8List.fromList(hexList);
   }
 
   Future<void> _discoverServices() async {
@@ -325,7 +320,7 @@ class _PeripheralDetailPageState extends State<PeripheralDetailPage> {
                                 },
                                 decoration: const InputDecoration(
                                   hintText:
-                                      "Enter Value (String, Hex or List<int>)",
+                                      "Enter Hex values without spaces or 0x (e.g. F0BB)",
                                   border: OutlineInputBorder(),
                                 ),
                               ),
