@@ -160,8 +160,8 @@ class UniversalBle {
       _platform.onValueChanged = onValueChanged;
 
   /// To get pair state changes,
-  static set onPairStateChange(OnPairStateChange pairStateChange) =>
-      _platform.onPairStateChange = pairStateChange;
+  static set onPairingStateChange(OnPairingStateChange pairingStateChange) =>
+      _platform.onPairingStateChange = pairingStateChange;
 
   static UniversalBlePlatform _defaultPlatform() {
     if (kIsWeb) return UniversalBleWeb.instance;
@@ -181,5 +181,5 @@ typedef OnScanResult = void Function(BleScanResult scanResult);
 
 typedef OnAvailabilityChange = void Function(AvailabilityState state);
 
-typedef OnPairStateChange = void Function(
+typedef OnPairingStateChange = void Function(
     String deviceId, bool isPaired, String? error);

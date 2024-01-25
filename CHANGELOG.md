@@ -1,11 +1,12 @@
-## 0.8.2
+## 0.8.3
+* Rename onPairStateChange -> onPairingStateChange
+* Improve readme
 
-* Improve readme.
+## 0.8.2
+* Improve readme
 
 ## 0.8.1
-
-* Update supported platforms.
+* Update supported platforms
 
 ## 0.8.0
-
-* Initial release.
+* Initial release

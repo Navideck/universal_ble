@@ -42,7 +42,7 @@ class _PeripheralDetailPageState extends State<PeripheralDetailPage> {
     super.initState();
     UniversalBle.onConnectionChanged = _handleConnectionChange;
     UniversalBle.onValueChanged = _handleValueChange;
-    UniversalBle.onPairStateChange = _handlePairingStateChange;
+    UniversalBle.onPairingStateChange = _handlePairingStateChange;
   }
 
   @override
