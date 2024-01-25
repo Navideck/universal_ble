@@ -314,7 +314,7 @@ class UniversalBleLinux extends UniversalBlePlatform {
             onScanResult?.call(device.toBleScanResult());
             break;
           case BluezProperty.paired:
-            onPairStateChange?.call(device.address, device.paired, null);
+            onPairingStateChange?.call(device.address, device.paired, null);
             break;
           case BluezProperty.legacyPairing:
           case BluezProperty.servicesResolved:
