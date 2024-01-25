@@ -6,9 +6,7 @@ import 'dart:io';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:flutter/foundation.dart';
 import 'package:permission_handler/permission_handler.dart';
-
-class Validator {
-  /*
+/*
   Required Permissions : 
   <----------->
    IOS :
@@ -31,7 +29,7 @@ class Validator {
     Web : 
      Check if Browser Supports Bluetooth
   */
-
+class PermissionHandler {
   static Future<bool> arePermissionsGranted() async {
     if (!isMobilePlatform) return true;
 

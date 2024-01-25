@@ -13,6 +13,7 @@ dependencies:
   cupertino_icons: ^1.0.2
   permission_handler: ^10.4.3
   device_info_plus: ^9.0.2
+  flutter_adaptive_scaffold: ^0.1.7+2
   universal_ble:
     path: ../
 

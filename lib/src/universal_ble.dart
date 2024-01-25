@@ -138,8 +138,14 @@ class UniversalBle {
   }
 
   /// To get Bluetooth state availability
-  static set onAvailabilityChange(OnAvailabilityChange? onAvailabilityChange) =>
-      _platform.onAvailabilityChange = onAvailabilityChange;
+  static set onAvailabilityChange(OnAvailabilityChange? onAvailabilityChange) {
+    _platform.onAvailabilityChange = onAvailabilityChange;
+    if (onAvailabilityChange != null) {
+      getBluetoothAvailabilityState().then((value) {
+        onAvailabilityChange(value);
+      }).onError((error, stackTrace) => null);
+    }
+  }
 
   /// To get scan results
   static set onScanResult(OnScanResult? onScanResult) =>
