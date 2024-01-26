@@ -47,6 +47,20 @@ class WebRequestOptionsBuilder {
       );
     }
   }
+
+  /// List of common services
+  static List<String> get defaultServices {
+    return BluetoothDefaultServiceUUIDS.values
+        .map((e) => e.uuid.toString())
+        .toList();
+  }
+
+  /// List of common services in 16 bit
+  static List<String> get defaultServices16Bit {
+    return BluetoothDefaultServiceUUIDS.values
+        .map((e) => e.uuid16.toString())
+        .toList();
+  }
 }
 
 /// To filter by name, namePrefix, services, manufacturerData

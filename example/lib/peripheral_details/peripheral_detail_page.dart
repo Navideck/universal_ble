@@ -115,6 +115,11 @@ class _PeripheralDetailPageState extends State<PeripheralDetailPage> {
     setState(() {
       discoveredServices = services;
     });
+
+    if (kIsWeb) {
+      _addLog("DiscoverServices",
+          '${services.length} services discovered,\nNote: Only services added in WebRequestOptionsBuilder will be discoverd');
+    }
   }
 
   Future<void> _readValue() async {
@@ -337,15 +342,16 @@ class _PeripheralDetailPageState extends State<PeripheralDetailPage> {
                               enabled: isConnected,
                               text: 'Discover Services',
                             ),
-                            PlatformButton(
-                              enabled: isConnected,
-                              onPressed: () async {
-                                int mtu = await UniversalBle.requestMtu(
-                                    widget.deviceId, 247);
-                                _addLog('MTU', mtu);
-                              },
-                              text: 'Request Mtu',
-                            ),
+                            if (Capabilities.supportsRequestMtuApi)
+                              PlatformButton(
+                                enabled: isConnected,
+                                onPressed: () async {
+                                  int mtu = await UniversalBle.requestMtu(
+                                      widget.deviceId, 247);
+                                  _addLog('MTU', mtu);
+                                },
+                                text: 'Request Mtu',
+                              ),
                             PlatformButton(
                               enabled: isConnected &&
                                   discoveredServices.isNotEmpty &&
