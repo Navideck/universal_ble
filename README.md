@@ -2,7 +2,9 @@
 
 [![universal_ble version](https://img.shields.io/pub/v/universal_ble?label=universal_ble)](https://pub.dev/packages/universal_ble)
 
-A cross-platform (Android/iOS/macOS/Windows/Linux/Web) Bluetooth Low Energy (BLE) plugin for Flutter
+A cross-platform (Android/iOS/macOS/Windows/Linux/Web) Bluetooth Low Energy (BLE) plugin for Flutter.
+
+[Try it online](https://navideck.github.io/universal_ble/), provided your browser supports [Web Bluetooth](https://caniuse.com/web-bluetooth).
 
 ## Features
 
@@ -12,8 +14,6 @@ A cross-platform (Android/iOS/macOS/Windows/Linux/Web) Bluetooth Low Energy (BLE
 - [Reading & Writing data](#reading--writing-data)
 - [Pairing](#pairing)
 - [Bluetooth Availability](#bluetooth-availability)
-
-The example code in this project is hosted on Github pages. Checkout [WebApp Example](https://navideck.github.io/universal_ble/)
 
 ### API Support Matrix
 

@@ -1,5 +1,5 @@
 
-name: Host on GitHub Pages
+name: Build web app
 
 on:
   push:
