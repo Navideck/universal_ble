@@ -13,6 +13,8 @@ A cross-platform (Android/iOS/macOS/Windows/Linux/Web) Bluetooth Low Energy (BLE
 - [Pairing](#pairing)
 - [Bluetooth Availability](#bluetooth-availability)
 
+The example code in this project is hosted on Github pages. Checkout [WebApp Example](https://navideck.github.io/universal_ble/)
+
 ### API Support Matrix
 
 | API                  | Android | iOS | macOS | Windows (beta) | Linux (beta) | Web |
