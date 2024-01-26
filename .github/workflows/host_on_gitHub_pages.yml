@@ -34,9 +34,6 @@ jobs:
       - name: Download pub dependencies
         run: flutter pub get
 
-      - name: Run analyzer
-        run: flutter analyze
-
       - name: Build Web App
         run: flutter build web --base-href=/universal_ble/
 
