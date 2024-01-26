@@ -35,7 +35,7 @@ jobs:
         run: flutter pub get
 
       - name: Build Web App
-        run: flutter build web --base-href=/universal_ble/
+        run: flutter build web --base-href=/universal_ble/example/
 
       - name: Deploy to GitHub Pages 🚀
         uses: JamesIves/github-pages-deploy-action@v4
