@@ -90,24 +90,6 @@ class _PeripheralDetailPageState extends State<PeripheralDetailPage> {
     }
   }
 
-  Uint8List? _getWriteValue() {
-    if (!valueFormKey.currentState!.validate()) return null;
-    if (binaryCode.text.isEmpty) {
-      print("Error: No value to write");
-      return null;
-    }
-
-    List<int> hexList = [];
-
-    try {
-      hexList = hex.decode(binaryCode.text);
-    } catch (e) {
-      print("Error parsing hex $e");
-    }
-
-    return Uint8List.fromList(hexList);
-  }
-
   Future<void> _discoverServices() async {
     var services = await UniversalBle.discoverServices(widget.deviceId);
     print('${services.length} services discovered');
@@ -115,6 +97,11 @@ class _PeripheralDetailPageState extends State<PeripheralDetailPage> {
     setState(() {
       discoveredServices = services;
     });
+
+    if (kIsWeb) {
+      _addLog("DiscoverServices",
+          '${services.length} services discovered,\nNote: Only services added in WebRequestOptionsBuilder will be discoverd');
+    }
   }
 
   Future<void> _readValue() async {
@@ -134,9 +121,20 @@ class _PeripheralDetailPageState extends State<PeripheralDetailPage> {
   }
 
   Future<void> _writeValue() async {
-    Uint8List? value = _getWriteValue();
-    if (value == null || selectedCharacteristic == null) return;
-    print("Writing $value");
+    if (selectedCharacteristic == null ||
+        !valueFormKey.currentState!.validate() ||
+        binaryCode.text.isEmpty) {
+      return;
+    }
+
+    Uint8List value;
+    try {
+      value = Uint8List.fromList(hex.decode(binaryCode.text));
+    } catch (e) {
+      _addLog('WriteError', "Error parsing hex $e");
+      return;
+    }
+
     try {
       await UniversalBle.writeValue(
         widget.deviceId,
@@ -314,7 +312,12 @@ class _PeripheralDetailPageState extends State<PeripheralDetailPage> {
                                   if (value == null || value.isEmpty) {
                                     return 'Please enter a value';
                                   }
-                                  return null;
+                                  try {
+                                    hex.decode(binaryCode.text);
+                                    return null;
+                                  } catch (e) {
+                                    return 'Please enter a valid hex value ( without spaces or 0x (e.g. F0BB) )';
+                                  }
                                 },
                                 decoration: const InputDecoration(
                                   hintText:
@@ -337,15 +340,16 @@ class _PeripheralDetailPageState extends State<PeripheralDetailPage> {
                               enabled: isConnected,
                               text: 'Discover Services',
                             ),
-                            PlatformButton(
-                              enabled: isConnected,
-                              onPressed: () async {
-                                int mtu = await UniversalBle.requestMtu(
-                                    widget.deviceId, 247);
-                                _addLog('MTU', mtu);
-                              },
-                              text: 'Request Mtu',
-                            ),
+                            if (Capabilities.supportsRequestMtuApi)
+                              PlatformButton(
+                                enabled: isConnected,
+                                onPressed: () async {
+                                  int mtu = await UniversalBle.requestMtu(
+                                      widget.deviceId, 247);
+                                  _addLog('MTU', mtu);
+                                },
+                                text: 'Request Mtu',
+                              ),
                             PlatformButton(
                               enabled: isConnected &&
                                   discoveredServices.isNotEmpty &&

@@ -1,5 +1,11 @@
+## 0.8.4
+* Add `WebRequestOptionsBuilder.defaultServices` for convenience when setting `optionalServices` when scanning on web
+* Add "try online" URL in readme
+* Improve readme
+* Improve example app
+
 ## 0.8.3
-* Rename onPairStateChange -> onPairingStateChange
+* Rename onPairStateChange *> onPairingStateChange
 * Improve readme
 
 ## 0.8.2

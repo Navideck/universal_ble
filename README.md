@@ -2,7 +2,9 @@
 
 [![universal_ble version](https://img.shields.io/pub/v/universal_ble?label=universal_ble)](https://pub.dev/packages/universal_ble)
 
-A cross-platform (Android/iOS/macOS/Windows/Linux/Web) Bluetooth Low Energy (BLE) plugin for Flutter
+A cross-platform (Android/iOS/macOS/Windows/Linux/Web) Bluetooth Low Energy (BLE) plugin for Flutter.
+
+[Try it online](https://navideck.github.io/universal_ble/), provided your browser supports [Web Bluetooth](https://caniuse.com/web-bluetooth).
 
 ## Features
 
@@ -16,29 +18,31 @@ A cross-platform (Android/iOS/macOS/Windows/Linux/Web) Bluetooth Low Energy (BLE
 ### API Support Matrix
 
 | API                  | Android | iOS | macOS | Windows (beta) | Linux (beta) | Web |
-| :------------------- | :-----: | :-: | :---: | :-----: | :---: | :-: |
-| startScan/stopScan   |   ✔️    | ✔️  |  ✔️   |   ✔️    |  ✔️   | ✔️  |
-| connect/disconnect   |   ✔️    | ✔️  |  ✔️   |   ✔️    |  ✔️   | ✔️  |
-| getConnectedDevices  |   ✔️    | ✔️  |  ✔️   |   ✔️    |  ✔️   | ❌  |
-| discoverServices     |   ✔️    | ✔️  |  ✔️   |   ✔️    |  ✔️   | ✔️  |
-| readValue            |   ✔️    | ✔️  |  ✔️   |   ✔️    |  ✔️   | ✔️  |
-| writeValue           |   ✔️    | ✔️  |  ✔️   |   ✔️    |  ✔️   | ✔️  |
-| setNotifiable        |   ✔️    | ✔️  |  ✔️   |   ✔️    |  ✔️   | ✔️  |
-| pair/unPair          |   ✔️    | ❌  |  ❌   |   ✔️    |  ✔️   | ❌  |
-| onPairingStateChange    |   ✔️    | ❌  |  ❌   |   ✔️    |  ✔️   | ❌  |
-| enableBluetooth      |   ✔️    | ❌  |  ❌   |   ✔️    |  ✔️   | ❌  |
-| onAvailabilityChange |   ✔️    | ✔️  |  ✔️   |   ✔️    |  ✔️   | ✔️  |
-| requestMtu           |   ✔️    | ✔️  |  ✔️   |   ✔️    |  🚧   | ❌  |
+| :------------------- | :-----: | :-: | :---: | :------------: | :----------: | :-: |
+| startScan/stopScan   |   ✔️    | ✔️  |  ✔️   |       ✔️       |      ✔️      | ✔️  |
+| connect/disconnect   |   ✔️    | ✔️  |  ✔️   |       ✔️       |      ✔️      | ✔️  |
+| getConnectedDevices  |   ✔️    | ✔️  |  ✔️   |       ✔️       |      ✔️      | ❌  |
+| discoverServices     |   ✔️    | ✔️  |  ✔️   |       ✔️       |      ✔️      | ✔️  |
+| readValue            |   ✔️    | ✔️  |  ✔️   |       ✔️       |      ✔️      | ✔️  |
+| writeValue           |   ✔️    | ✔️  |  ✔️   |       ✔️       |      ✔️      | ✔️  |
+| setNotifiable        |   ✔️    | ✔️  |  ✔️   |       ✔️       |      ✔️      | ✔️  |
+| pair/unPair          |   ✔️    | ❌  |  ❌   |       ✔️       |      ✔️      | ❌  |
+| onPairingStateChange |   ✔️    | ❌  |  ❌   |       ✔️       |      ✔️      | ❌  |
+| enableBluetooth      |   ✔️    | ❌  |  ❌   |       ✔️       |      ✔️      | ❌  |
+| onAvailabilityChange |   ✔️    | ✔️  |  ✔️   |       ✔️       |      ✔️      | ✔️  |
+| requestMtu           |   ✔️    | ✔️  |  ✔️   |       ✔️       |      🚧      | ❌  |
 
 ## Getting Started
 
 Add universal_ble in your pubspec.yaml:
+
 ```yaml
 dependencies:
   universal_ble:
 ```
 
 and import it wherever you want to use it:
+
 ```dart
 import 'package:universal_ble/universal_ble.dart';
 ```
@@ -189,3 +193,6 @@ UniversalBle.startScan(
 class UniversalBleMock extends UniversalBlePlatform {
   // Implement all methods
 }
+
+UniversalBle.setInstance(UniversalBleMock());
+```
