@@ -28,16 +28,13 @@ jobs:
           key: ${{ runner.os }}-pub-${{ hashFiles('**/pubspec.lock') }}
           restore-keys: ${{ runner.os }}-pub-
 
-      - name: Opening example app
-        run: cd example
-
       - name: Download pub dependencies
         run: flutter pub get
 
       - name: Build Web App
-        run: flutter build web --base-href=/universal_ble/example/
+        run: cd example && flutter build web --base-href=/universal_ble/
 
       - name: Deploy to GitHub Pages 🚀
         uses: JamesIves/github-pages-deploy-action@v4
         with:
-          folder: build/web
+          folder: example/build/web
