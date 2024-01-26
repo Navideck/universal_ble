@@ -312,7 +312,12 @@ class _PeripheralDetailPageState extends State<PeripheralDetailPage> {
                                   if (value == null || value.isEmpty) {
                                     return 'Please enter a value';
                                   }
-                                  return null;
+                                  try {
+                                    hex.decode(binaryCode.text);
+                                    return null;
+                                  } catch (e) {
+                                    return 'Please enter a valid hex value ( without spaces or 0x (e.g. F0BB) )';
+                                  }
                                 },
                                 decoration: const InputDecoration(
                                   hintText:

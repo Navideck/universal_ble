@@ -95,8 +95,17 @@ class _MyAppState extends State<MyApp> {
                       _scanResults.clear();
                       _isScanning = true;
                     });
-                    await UniversalBle.startScan(
-                        webRequestOptions: _requestOptions);
+                    try {
+                      await UniversalBle.startScan(
+                          webRequestOptions: _requestOptions);
+                    } catch (e) {
+                      setState(() {
+                        _isScanning = false;
+                      });
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text(e.toString())),
+                      );
+                    }
                   },
                 ),
                 PlatformButton(
