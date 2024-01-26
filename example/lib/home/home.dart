@@ -67,7 +67,7 @@ class _MyAppState extends State<MyApp> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Universal Ble'),
+        title: const Text('Universal BLE'),
         elevation: 4,
         actions: [
           if (_isScanning)
