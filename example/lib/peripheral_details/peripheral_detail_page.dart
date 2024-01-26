@@ -90,24 +90,6 @@ class _PeripheralDetailPageState extends State<PeripheralDetailPage> {
     }
   }
 
-  Uint8List? _getWriteValue() {
-    if (!valueFormKey.currentState!.validate()) return null;
-    if (binaryCode.text.isEmpty) {
-      print("Error: No value to write");
-      return null;
-    }
-
-    List<int> hexList = [];
-
-    try {
-      hexList = hex.decode(binaryCode.text);
-    } catch (e) {
-      print("Error parsing hex $e");
-    }
-
-    return Uint8List.fromList(hexList);
-  }
-
   Future<void> _discoverServices() async {
     var services = await UniversalBle.discoverServices(widget.deviceId);
     print('${services.length} services discovered');
@@ -139,9 +121,20 @@ class _PeripheralDetailPageState extends State<PeripheralDetailPage> {
   }
 
   Future<void> _writeValue() async {
-    Uint8List? value = _getWriteValue();
-    if (value == null || selectedCharacteristic == null) return;
-    print("Writing $value");
+    if (selectedCharacteristic == null ||
+        !valueFormKey.currentState!.validate() ||
+        binaryCode.text.isEmpty) {
+      return;
+    }
+
+    Uint8List value;
+    try {
+      value = Uint8List.fromList(hex.decode(binaryCode.text));
+    } catch (e) {
+      _addLog('WriteError', "Error parsing hex $e");
+      return;
+    }
+
     try {
       await UniversalBle.writeValue(
         widget.deviceId,

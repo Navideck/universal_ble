@@ -108,7 +108,8 @@ class _MyAppState extends State<MyApp> {
                     });
                   },
                 ),
-                if (Capabilities.supportsBluetoothEnableApi)
+                if (Capabilities.supportsBluetoothEnableApi &&
+                    bleAvailabilityState == AvailabilityState.poweredOff)
                   PlatformButton(
                     text: 'Enable Bluetooth',
                     onPressed: () async {
