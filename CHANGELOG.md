@@ -1,9 +1,9 @@
 ## 0.8.3
 
-* Add example web app in readme
-* Add `WebRequestOptionsBuilder.defaultServices` to get default services list for using as optionalServices in webApps
-* Improve example app
+* Add `WebRequestOptionsBuilder.defaultServices` for convenience when setting `optionalServices` when scanning on web
+* Add "try online" URL in readme
 * Improve readme
+* Improve example app
 
 ## 0.8.3
 
