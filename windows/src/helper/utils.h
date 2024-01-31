@@ -7,10 +7,7 @@
 #include "winrt/Windows.Foundation.h"
 #include "winrt/Windows.Storage.Streams.h"
 #include "winrt/base.h"
-#include "UniversalBle.g.h"
-
-using namespace winrt::Windows;
-using namespace winrt::Windows::Storage::Streams;
+#include "universal_ble_base.h"
 
 constexpr uint32_t TEN_SECONDS_IN_MSECS = 10000;
 
@@ -56,7 +53,7 @@ namespace universal_ble
             : deviceId(deviceId), characteristicId(characteristicId), value(value) {}
     };
 
-     /// To call async functions synchronously
+    /// To call async functions synchronously
     template <typename async_t>
     static auto async_get(async_t const &async)
     {

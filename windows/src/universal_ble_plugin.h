@@ -16,42 +16,32 @@
 #include <winrt/Windows.Devices.Bluetooth.GenericAttributeProfile.h>
 
 #include <memory>
-#include "Utils.h"
-#include "UniversalBle.g.h"
-#include "universal_enum.h"
+#include "helper/utils.h"
+#include "helper/universal_enum.h"
+#include "helper/universal_ble_base.h"
+#include "generated/UniversalBle.g.h"
 
 namespace universal_ble
 {
-    using namespace winrt;
-    using namespace winrt::Windows::Devices;
-    using namespace winrt::Windows::Foundation;
-    using namespace winrt::Windows::Foundation::Collections;
-    using namespace winrt::Windows::Storage::Streams;
-    using namespace winrt::Windows::Devices::Radios;
-    using namespace winrt::Windows::Devices::Bluetooth;
-    using namespace winrt::Windows::Devices::Bluetooth::Advertisement;
-    using namespace winrt::Windows::Devices::Bluetooth::GenericAttributeProfile;
-    using namespace Windows::Devices::Enumeration;
-
-    struct gatt_characteristic_t
+    struct GattCharacteristicObject
     {
         GattCharacteristic obj = nullptr;
         // winrt::event_token value_changed_token;
     };
 
-    struct gatt_service_t
+    struct GattServiceObject
     {
         GattDeviceService obj = nullptr;
-        std::map<std::string, gatt_characteristic_t> characteristics;
+        std::map<std::string, GattCharacteristicObject> characteristics;
     };
 
     struct BluetoothDeviceAgent
     {
         BluetoothLEDevice device;
         winrt::event_token connnectionStatusChangedToken;
-        std::map<std::string, gatt_service_t> gatt_map_;
+        std::map<std::string, GattServiceObject> gatt_map_;
 
-        BluetoothDeviceAgent(BluetoothLEDevice device, winrt::event_token connnectionStatusChangedToken, std::map<std::string, gatt_service_t> gatt_map_)
+        BluetoothDeviceAgent(BluetoothLEDevice device, winrt::event_token connnectionStatusChangedToken, std::map<std::string, GattServiceObject> gatt_map_)
             : device(device),
               connnectionStatusChangedToken(connnectionStatusChangedToken),
               gatt_map_(gatt_map_) {}
@@ -61,19 +51,13 @@ namespace universal_ble
             device = nullptr;
         }
 
-        gatt_characteristic_t &_fetch_characteristic(const std::string &service_uuid,
-                                                     const std::string &characteristic_uuid)
+        GattCharacteristicObject &_fetch_characteristic(const std::string &service_uuid,
+                                                        const std::string &characteristic_uuid)
         {
             if (gatt_map_.count(service_uuid) == 0)
-            {
                 throw FlutterError("Service not found");
-            }
-
             if (gatt_map_[service_uuid].characteristics.count(characteristic_uuid) == 0)
-            {
                 throw FlutterError("Characteristic not found");
-            }
-
             return gatt_map_[service_uuid].characteristics.at(characteristic_uuid);
         }
     };

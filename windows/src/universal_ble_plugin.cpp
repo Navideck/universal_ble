@@ -9,10 +9,12 @@
 #include <algorithm>
 #include <iomanip>
 #include <thread>
-#include "UniversalBle.g.h"
-#include "Utils.h"
-#include "universal_enum.h"
 #include <regex>
+
+#include "bluetooth_device_discovery.h"
+#include "helper/utils.h"
+#include "helper/universal_enum.h"
+#include "generated/UniversalBle.g.h"
 
 #define WM_AVAILABILITY_CHANGE WM_USER + 101
 #define WM_PAIR_CHANGE WM_USER + 102
@@ -171,8 +173,9 @@ namespace universal_ble
       {
         bluetoothLEWatcher = BluetoothLEAdvertisementWatcher();
         bluetoothLEWatcher.ScanningMode(BluetoothLEScanningMode::Active);
-        bluetoothLEWatcherReceivedToken = bluetoothLEWatcher.Received({this, &UniversalBlePlugin::BluetoothLEWatcher_Received});
-        // auto filter = BluetoothLEAdvertisementFilter();
+        auto filter = BluetoothLEAdvertisementFilter();
+        // filter.Advertisement().Flags(BluetoothLEAdvertisementFlags::GeneralDiscoverableMode);
+
         // auto serviceUuid = uuid_to_guid("00001101-0000-1000-8000-00805F9B34FB");
         // filter.Advertisement().ServiceUuids().Append(serviceUuid);
         // filter.Advertisement().ManufacturerData().Append(Bluetooth::Advertisement::BluetoothLEManufacturerData{0x004C});
@@ -182,6 +185,7 @@ namespace universal_ble
         //                              std::cout << "BluetoothLEAdvertisementWatcher Stopped" << std::endl;
         //                              bluetoothLEWatcher.Received(bluetoothLEWatcherReceivedToken);
         //                              bluetoothLEWatcher = nullptr; });
+        bluetoothLEWatcherReceivedToken = bluetoothLEWatcher.Received({this, &UniversalBlePlugin::BluetoothLEWatcher_Received});
       }
       bluetoothLEWatcher.Start();
       setupDeviceWatcher();
@@ -270,7 +274,7 @@ namespace universal_ble
       if (it == connectedDevices.end())
         return FlutterError("IllegalArgument", "Unknown devicesId:" + device_id);
       auto bluetoothAgent = *it->second;
-      gatt_characteristic_t &gatt_characteristic_holder = bluetoothAgent._fetch_characteristic(service, characteristic);
+      GattCharacteristicObject &gatt_characteristic_holder = bluetoothAgent._fetch_characteristic(service, characteristic);
       GattCharacteristic gattCharacteristic = gatt_characteristic_holder.obj;
       auto descriptorValue = GattClientCharacteristicConfigurationDescriptorValue::None;
       auto properties = gattCharacteristic.CharacteristicProperties();
@@ -320,7 +324,7 @@ namespace universal_ble
         return;
       }
       auto bluetoothAgent = *it->second;
-      gatt_characteristic_t &gatt_characteristic_holder = bluetoothAgent._fetch_characteristic(service, characteristic);
+      GattCharacteristicObject &gatt_characteristic_holder = bluetoothAgent._fetch_characteristic(service, characteristic);
       GattCharacteristic gattCharacteristic = gatt_characteristic_holder.obj;
       auto properties = gattCharacteristic.CharacteristicProperties();
       if ((properties & GattCharacteristicProperties::Read) == GattCharacteristicProperties::None)
@@ -378,7 +382,7 @@ namespace universal_ble
         return;
       }
       auto bluetoothAgent = *it->second;
-      gatt_characteristic_t &gatt_characteristic_holder = bluetoothAgent._fetch_characteristic(service, characteristic);
+      GattCharacteristicObject &gatt_characteristic_holder = bluetoothAgent._fetch_characteristic(service, characteristic);
       GattCharacteristic gattCharacteristic = gatt_characteristic_holder.obj;
       auto properties = gattCharacteristic.CharacteristicProperties();
       auto writeOption = GattWriteOption::WriteWithResponse;
@@ -797,9 +801,9 @@ namespace universal_ble
         universalScanResult.set_manufacturer_data_head(manufacturerData);
         universalScanResult.set_rssi(args.RawSignalStrengthInDBm());
 
-        // std::cout << "Received: " << deviceId << " Manf: " << std::endl;
-        std::copy(manufacturerData.begin(), manufacturerData.end(), std::ostream_iterator<int>(std::cout, " "));
-        std::cout << std::endl;
+        // std::cout << "Received: " << deviceId << " Manuf: " << std::endl;
+        // std::copy(manufacturerData.begin(), manufacturerData.end(), std::ostream_iterator<int>(std::cout, " "));
+        // std::cout << std::endl;
 
         // check if this device already discovered in deviceWatcher
         if (deviceWatcherDevices.count(deviceId) > 0)
@@ -910,11 +914,11 @@ namespace universal_ble
       co_return;
     }
 
-    std::map<std::string, gatt_service_t> gatt_map_;
+    std::map<std::string, GattServiceObject> gatt_map_;
     auto gatt_services = servicesResult.Services();
     for (GattDeviceService &&service : gatt_services)
     {
-      gatt_service_t gatt_service;
+      GattServiceObject gatt_service;
       gatt_service.obj = service;
       std::string service_uuid = guid_to_uuid(service.Uuid());
       auto characteristics_result = co_await service.GetCharacteristicsAsync(BluetoothCacheMode::Uncached);
@@ -928,7 +932,7 @@ namespace universal_ble
       auto gatt_characteristics = characteristics_result.Characteristics();
       for (GattCharacteristic &&characteristic : gatt_characteristics)
       {
-        gatt_characteristic_t gatt_characteristic;
+        GattCharacteristicObject gatt_characteristic;
         gatt_characteristic.obj = characteristic;
         std::string characteristic_uuid = guid_to_uuid(characteristic.Uuid());
         gatt_service.characteristics.emplace(characteristic_uuid, std::move(gatt_characteristic));
@@ -965,7 +969,7 @@ namespace universal_ble
         auto &service = servicePair.second;
         for (auto &characteristicPair : service.characteristics)
         {
-          gatt_characteristic_t &characteristic = characteristicPair.second;
+          GattCharacteristicObject &characteristic = characteristicPair.second;
           auto gattCharacteristic = characteristic.obj;
           auto uniqTokenKey = to_uuidstr(gattCharacteristic.Uuid()) + _mac_address_to_str(gattCharacteristic.Service().Device().BluetoothAddress());
           if (characteristicsTokens.count(uniqTokenKey) != 0)
@@ -1123,7 +1127,7 @@ namespace universal_ble
   winrt::fire_and_forget UniversalBlePlugin::SetNotifiableAsync(BluetoothDeviceAgent &bluetoothDeviceAgent, const std::string &service,
                                                                 const std::string &characteristic, GattClientCharacteristicConfigurationDescriptorValue descriptorValue)
   {
-    gatt_characteristic_t &gatt_characteristic_holder = bluetoothDeviceAgent._fetch_characteristic(service, characteristic);
+    GattCharacteristicObject &gatt_characteristic_holder = bluetoothDeviceAgent._fetch_characteristic(service, characteristic);
     GattCharacteristic gattCharacteristic = gatt_characteristic_holder.obj;
 
     auto uuid = to_uuidstr(gattCharacteristic.Uuid());
