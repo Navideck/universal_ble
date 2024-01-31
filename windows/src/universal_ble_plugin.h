@@ -20,13 +20,13 @@
 #include "helper/universal_enum.h"
 #include "helper/universal_ble_base.h"
 #include "generated/universal_ble.g.h"
+#include "ui_thread_handler.hpp"
 
 namespace universal_ble
 {
     struct GattCharacteristicObject
     {
         GattCharacteristic obj = nullptr;
-        // winrt::event_token value_changed_token;
     };
 
     struct GattServiceObject
@@ -82,34 +82,31 @@ namespace universal_ble
         UniversalBlePlugin &operator=(const UniversalBlePlugin &) = delete;
 
         flutter::PluginRegistrarWindows *registrar_;
-        int64_t window_proc_delegate_id_ = -1;
 
-        HWND GetWindow();
-        std::optional<LRESULT> WindowProcDelegate(HWND hwnd, UINT message, WPARAM wparam, LPARAM lparam);
-        winrt::fire_and_forget InitializeAsync();
+        UniversalBleUiThreadHandler uiThreadHandler_;
         Radio bluetoothRadio{nullptr};
-        void Radio_StateChanged(Radio sender, IInspectable args);
         RadioState oldRadioState = RadioState::Unknown;
         BluetoothLEAdvertisementWatcher bluetoothLEWatcher{nullptr};
         DeviceWatcher deviceWatcher{nullptr};
+        std::map<uint64_t, std::unique_ptr<BluetoothDeviceAgent>> connectedDevices{};
+        std::map<std::string, DeviceInformation> deviceWatcherDevices{};
+
         winrt::event_token bluetoothLEWatcherReceivedToken;
-        void BluetoothLEWatcher_Received(BluetoothLEAdvertisementWatcher sender, BluetoothLEAdvertisementReceivedEventArgs args);
-        void setupDeviceWatcher();
-        void disposeDeviceWatcher();
-        void pushUniversalScanResult(UniversalBleScanResult scanResult);
         winrt::event_token deviceWatcherAddedToken;
         winrt::event_token deviceWatcherUpdatedToken;
         winrt::event_token deviceWatcherRemovedToken;
-        winrt::event_token deviceWatcherEnumerationCompletedToken;
-        void onDeviceAdded(DeviceWatcher sender, DeviceInformation deviceInfo);
-        void onDeviceUpdated(DeviceWatcher sender, DeviceInformationUpdate deviceInfoUpdate);
-        void onDeviceRemoved(DeviceWatcher sender, DeviceInformationUpdate args);
+
+        winrt::fire_and_forget InitializeAsync();
+        void Radio_StateChanged(Radio sender, IInspectable args);
+
+        void setupDeviceWatcher();
+        void disposeDeviceWatcher();
+        void pushUniversalScanResult(UniversalBleScanResult scanResult);
+        void BluetoothLEWatcher_Received(BluetoothLEAdvertisementWatcher sender, BluetoothLEAdvertisementReceivedEventArgs args);
         void onDeviceInfoRecieved(DeviceInformation deviceInfo);
-        std::map<uint64_t, std::unique_ptr<BluetoothDeviceAgent>> connectedDevices{};
-        // std::map<uint64_t, bool> deviceConnectableStatus{};
+
         std::string GattCommunicationStatusToString(GattCommunicationStatus status);
         std::map<std::string, UniversalBleScanResult> scanResults{};
-        std::map<std::string, DeviceInformation> deviceWatcherDevices{};
         winrt::event_revoker<IRadio> radioStateChangedRevoker;
         winrt::fire_and_forget ConnectAsync(uint64_t bluetoothAddress);
         void BluetoothLEDevice_ConnectionStatusChanged(BluetoothLEDevice sender, IInspectable args);
@@ -120,7 +117,6 @@ namespace universal_ble
         void GattCharacteristic_ValueChanged(GattCharacteristic sender, GattValueChangedEventArgs args);
         AvailabilityState getAvailabilityStateFromRadio(RadioState radioState);
         std::string parsePairingFailError(Enumeration::DevicePairingResult result);
-        void PostConnectionUpdate(uint64_t bluetoothAddress, ConnectionState connectionState);
         winrt::fire_and_forget GetConnectedDevicesAsync(std::vector<std::string> with_services,
                                                         std::function<void(ErrorOr<flutter::EncodableList> reply)> result);
         winrt::fire_and_forget IsPairedAsync(std::string device_id, std::function<void(ErrorOr<bool> reply)> result);

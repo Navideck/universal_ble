@@ -34,12 +34,11 @@ endif()
 list(APPEND PLUGIN_SOURCES
   "src/universal_ble_plugin.cpp"
   "src/universal_ble_plugin.h"
-  "src/bluetooth_device_discovery.cpp"
-  "src/bluetooth_device_discovery.h"
   "src/helper/universal_enum.h"
   "src/helper/universal_ble_base.h"
   "src/helper/utils.cpp"
   "src/helper/utils.h"
+  "src/ui_thread_handler.hpp"
   "src/generated/universal_ble.g.cpp"
   "src/generated/universal_ble.g.h"
 )
