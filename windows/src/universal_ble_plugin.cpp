@@ -14,7 +14,7 @@
 #include "bluetooth_device_discovery.h"
 #include "helper/utils.h"
 #include "helper/universal_enum.h"
-#include "generated/UniversalBle.g.h"
+#include "generated/universal_ble.g.h"
 
 #define WM_AVAILABILITY_CHANGE WM_USER + 101
 #define WM_PAIR_CHANGE WM_USER + 102

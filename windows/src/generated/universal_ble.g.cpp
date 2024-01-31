@@ -3,7 +3,7 @@
 
 #undef _HAS_EXCEPTIONS
 
-#include "UniversalBle.g.h"
+#include "universal_ble.g.h"
 
 #include <flutter/basic_message_channel.h>
 #include <flutter/binary_messenger.h>

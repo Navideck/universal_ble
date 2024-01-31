@@ -40,8 +40,8 @@ list(APPEND PLUGIN_SOURCES
   "src/helper/universal_ble_base.h"
   "src/helper/utils.cpp"
   "src/helper/utils.h"
-  "src/generated/UniversalBle.g.cpp"
-  "src/generated/UniversalBle.g.h"
+  "src/generated/universal_ble.g.cpp"
+  "src/generated/universal_ble.g.h"
 )
 
 add_library(${PLUGIN_NAME} SHARED
