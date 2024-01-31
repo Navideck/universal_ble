@@ -27,6 +27,13 @@ namespace universal_ble
   using universal_ble::UniversalBlePlatformChannel;
   using universal_ble::UniversalBleScanResult;
 
+  auto isConnectableKey = L"System.Devices.Aep.Bluetooth.Le.IsConnectable";
+  auto isConnectedKey = L"System.Devices.Aep.IsConnected";
+  auto isPairedKey = L"System.Devices.Aep.IsPaired";
+  auto isPresentKey = L"System.Devices.Aep.IsPresent";
+  auto deviceAddressKey = L"System.Devices.Aep.DeviceAddress";
+  auto signalStrengthKey = L"System.Devices.Aep.SignalStrength";
+
   std::unique_ptr<UniversalBleCallbackChannel> callbackChannel;
   std::map<std::string, winrt::event_token> characteristicsTokens{};
 
@@ -163,9 +170,26 @@ namespace universal_ble
       if (!bluetoothLEWatcher)
       {
         bluetoothLEWatcher = BluetoothLEAdvertisementWatcher();
+        bluetoothLEWatcher.ScanningMode(BluetoothLEScanningMode::Active);
         bluetoothLEWatcherReceivedToken = bluetoothLEWatcher.Received({this, &UniversalBlePlugin::BluetoothLEWatcher_Received});
+        // auto filter = BluetoothLEAdvertisementFilter();
+        // auto serviceUuid = uuid_to_guid("00001101-0000-1000-8000-00805F9B34FB");
+        // filter.Advertisement().ServiceUuids().Append(serviceUuid);
+        // filter.Advertisement().ManufacturerData().Append(Bluetooth::Advertisement::BluetoothLEManufacturerData{0x004C});
+        // bluetoothLEWatcher.AdvertisementFilter(filter);
+        // bluetoothLEWatcher.Stopped([this](BluetoothLEAdvertisementWatcher sender, BluetoothLEAdvertisementWatcherStoppedEventArgs args)
+        //                            {
+        //                              std::cout << "BluetoothLEAdvertisementWatcher Stopped" << std::endl;
+        //                              bluetoothLEWatcher.Received(bluetoothLEWatcherReceivedToken);
+        //                              bluetoothLEWatcher = nullptr; });
       }
       bluetoothLEWatcher.Start();
+      setupDeviceWatcher();
+      DeviceWatcherStatus status = deviceWatcher.Status();
+      if (status != DeviceWatcherStatus::Started)
+        deviceWatcher.Start();
+      else
+        return FlutterError("Already scanning");
       return std::nullopt;
     }
     else
@@ -176,6 +200,7 @@ namespace universal_ble
 
   std::optional<FlutterError> UniversalBlePlugin::StopScan()
   {
+
     if (bluetoothRadio && bluetoothRadio.State() == RadioState::On)
     {
       if (bluetoothLEWatcher)
@@ -184,6 +209,7 @@ namespace universal_ble
         bluetoothLEWatcher.Received(bluetoothLEWatcherReceivedToken);
       }
       bluetoothLEWatcher = nullptr;
+      disposeDeviceWatcher();
       return std::nullopt;
     }
     else
@@ -194,12 +220,6 @@ namespace universal_ble
 
   std::optional<FlutterError> UniversalBlePlugin::Connect(const std::string &device_id)
   {
-    auto isConnectable = deviceConnectableStatus[_str_to_mac_address(device_id)];
-    if (isConnectable == false)
-    {
-      return FlutterError("Device is not connectable");
-    }
-
     ConnectAsync(_str_to_mac_address(device_id));
     return std::nullopt;
   };
@@ -208,6 +228,7 @@ namespace universal_ble
   {
     auto deviceAddress = _str_to_mac_address(device_id);
     CleanConnection(deviceAddress);
+    // TODO: send disconnect event only after disconnect is complete
     PostConnectionUpdate(deviceAddress, ConnectionState::disconnected);
     return std::nullopt;
   };
@@ -528,6 +549,46 @@ namespace universal_ble
   }
 
   /// Helper Methods
+
+  std::vector<uint8_t> parseManufacturerDataHead(BluetoothLEAdvertisement advertisement, std::string deviceId)
+  {
+    try
+    {
+      if (advertisement.ManufacturerData().Size() == 0)
+      {
+        return std::vector<uint8_t>();
+      }
+      auto manufacturerData = advertisement.ManufacturerData().GetAt(0);
+      // FIXME Compat with REG_DWORD_BIG_ENDIAN
+      uint8_t *prefix = uint16_t_union{manufacturerData.CompanyId()}.bytes;
+      auto result = std::vector<uint8_t>{prefix, prefix + sizeof(uint16_t_union)};
+
+      auto data = to_bytevc(manufacturerData.Data());
+      result.insert(result.end(), data.begin(), data.end());
+      return result;
+    }
+    catch (...)
+    {
+      std::cout << "Error in parsing manufacturer data: " << deviceId << std::endl;
+      return std::vector<uint8_t>();
+    }
+  }
+
+  hstring parseBluetoothDeviceId(hstring deviceId)
+  {
+    auto deviceIdString = winrt::to_string(deviceId);
+    std::regex macAddressRegex("-([0-9A-Fa-f]{2}[:-]){5}([0-9A-Fa-f]{2})");
+    std::smatch match;
+    if (std::regex_search(deviceIdString, match, macAddressRegex))
+    {
+      auto formattedDeviceId = match.str();
+      if (formattedDeviceId[0] == '-')
+        formattedDeviceId.erase(0, 1);
+      return winrt::to_hstring(formattedDeviceId);
+    }
+    return hstring(L"");
+  }
+
   winrt::fire_and_forget UniversalBlePlugin::InitializeAsync()
   {
     auto bluetoothAdapter = co_await BluetoothAdapter::GetDefaultAsync();
@@ -535,6 +596,242 @@ namespace universal_ble
     if (bluetoothRadio)
     {
       radioStateChangedRevoker = bluetoothRadio.StateChanged(winrt::auto_revoke, {this, &UniversalBlePlugin::Radio_StateChanged});
+    }
+  }
+
+  void UniversalBlePlugin::pushUniversalScanResult(UniversalBleScanResult scanResult)
+  {
+    // first check if present in scanResults, if yes then merge the scan result
+    if (scanResults.count(scanResult.device_id()) > 0)
+    {
+      auto _scanResult = scanResults.at(scanResult.device_id());
+      auto _rssi = _scanResult.rssi();
+      auto _name = _scanResult.name();
+      auto _isPaired = _scanResult.is_paired();
+      auto _manufacturerData = _scanResult.manufacturer_data_head();
+
+      bool shouldUpdate = false;
+      if (scanResult.rssi() == nullptr && _rssi != nullptr)
+      {
+        scanResult.set_rssi(_rssi);
+        shouldUpdate = true;
+      }
+      if ((scanResult.name() == nullptr || scanResult.name()->empty()) && (_name != nullptr && !_name->empty()))
+      {
+        scanResult.set_name(*_name);
+        shouldUpdate = true;
+      }
+      if (scanResult.is_paired() == nullptr && _isPaired != nullptr)
+      {
+        scanResult.set_is_paired(_isPaired);
+        shouldUpdate = true;
+      }
+      if (scanResult.manufacturer_data_head() == nullptr && _manufacturerData != nullptr)
+      {
+        scanResult.set_manufacturer_data_head(_manufacturerData);
+        shouldUpdate = true;
+      }
+
+      // if nothing to update then return
+      // if (!shouldUpdate)
+      // {
+      //   return;
+      // }
+
+      // remove old scan result
+      scanResults.erase(scanResult.device_id());
+    }
+
+    scanResults.insert(std::make_pair(scanResult.device_id(), scanResult));
+    UniversalBleScanResult *scanResultPtr = new UniversalBleScanResult(scanResult);
+    ::PostMessage(GetWindow(), WM_SCAN_RESULT, reinterpret_cast<WPARAM>(scanResultPtr), 0);
+  }
+
+  void UniversalBlePlugin::setupDeviceWatcher()
+  {
+    if (deviceWatcher != nullptr)
+    {
+      return;
+    }
+    auto BTLEDeviceWatcherAQSString = L"(System.Devices.Aep.ProtocolId:=\"{bb7bb05e-5972-42b5-94fc-76eaa7084d49}\")";
+    std::vector<hstring> requestedProperties = {
+        deviceAddressKey,
+        isConnectedKey,
+        isPairedKey,
+        isPresentKey,
+        isConnectableKey,
+        signalStrengthKey,
+    };
+    deviceWatcher = DeviceInformation::CreateWatcher(
+        BTLEDeviceWatcherAQSString,
+        requestedProperties,
+        DeviceInformationKind::AssociationEndpoint);
+    // deviceWatcher = DeviceInformation::CreateWatcher(BluetoothLEDevice::GetDeviceSelector());
+    deviceWatcherAddedToken = deviceWatcher.Added({this, &UniversalBlePlugin::onDeviceAdded});
+    deviceWatcherUpdatedToken = deviceWatcher.Updated({this, &UniversalBlePlugin::onDeviceUpdated});
+    deviceWatcherRemovedToken = deviceWatcher.Removed({this, &UniversalBlePlugin::onDeviceRemoved});
+    deviceWatcherEnumerationCompletedToken = deviceWatcher.EnumerationCompleted([this](DeviceWatcher sender, IInspectable args)
+                                                                                {
+                                                                                  std::cout << "DeviceWatcher EnumerationCompleted" << std::endl;
+                                                                                  // disposeDeviceWatcher();
+                                                                                  // keep deviceWatcher running
+                                                                                });
+  }
+
+  void UniversalBlePlugin::disposeDeviceWatcher()
+  {
+    if (deviceWatcher != nullptr)
+    {
+      if (deviceWatcher.Status() == DeviceWatcherStatus::Started)
+        deviceWatcher.Stop();
+      deviceWatcher.Added(deviceWatcherAddedToken);
+      deviceWatcher.Updated(deviceWatcherUpdatedToken);
+      deviceWatcher.Removed(deviceWatcherRemovedToken);
+      deviceWatcher = nullptr;
+      // Dispose tokens
+      deviceWatcherDevices.clear();
+      // scanResults.clear();
+    }
+  }
+
+  void UniversalBlePlugin::onDeviceInfoRecieved(DeviceInformation deviceInfo)
+  {
+    auto properties = deviceInfo.Properties();
+    auto IsConnectable = properties.HasKey(isConnectableKey) && (properties.Lookup(isConnectableKey).as<IPropertyValue>()).GetBoolean();
+    // auto IsPresent = properties.HasKey(isPresentKey) && (properties.Lookup(isPresentKey).as<IPropertyValue>()).GetBoolean();
+    // Avoid devices if not connectable
+    if (!IsConnectable || !properties.HasKey(deviceAddressKey))
+    {
+      return;
+    }
+    auto bluetoothAddressPropertyValue = properties.Lookup(deviceAddressKey).as<IPropertyValue>();
+    std::string deviceAddress = winrt::to_string(bluetoothAddressPropertyValue.GetString());
+    bool isPaired = deviceInfo.Pairing().IsPaired();
+    if (properties.HasKey(isPairedKey))
+    {
+      auto isPairedPropertyValue = properties.Lookup(isPairedKey).as<IPropertyValue>();
+      isPaired = isPairedPropertyValue.GetBoolean();
+    }
+    auto universalScanResult = UniversalBleScanResult(deviceAddress);
+    universalScanResult.set_is_paired(isPaired);
+    if (!deviceInfo.Name().empty())
+      universalScanResult.set_name(winrt::to_string(deviceInfo.Name()));
+    if (properties.HasKey(signalStrengthKey))
+    {
+      auto rssiPropertyValue = properties.Lookup(signalStrengthKey).as<IPropertyValue>();
+      int16_t rssi = rssiPropertyValue.GetInt16();
+      universalScanResult.set_rssi(rssi);
+    }
+
+    // Avoid devices if not reported by advertisement watcher
+    if (scanResults.count(deviceAddress) == 0)
+    {
+      return;
+    }
+
+    // deviceConnectableStatus[_str_to_mac_address(deviceAddress)] = IsConnectable;
+    pushUniversalScanResult(universalScanResult);
+  }
+
+  /// Device Added from DeviceWatcher
+  void UniversalBlePlugin::onDeviceAdded(DeviceWatcher sender, DeviceInformation deviceInfo)
+  {
+    std::string deviceId = winrt::to_string(deviceInfo.Id());
+    if (deviceWatcherDevices.count(deviceId) > 0)
+      deviceWatcherDevices.erase(deviceId);
+    deviceWatcherDevices.insert(std::make_pair(deviceId, deviceInfo));
+    onDeviceInfoRecieved(deviceInfo);
+  }
+
+  void UniversalBlePlugin::onDeviceUpdated(DeviceWatcher sender, DeviceInformationUpdate deviceInfoUpdate)
+  {
+    std::string deviceId = winrt::to_string(deviceInfoUpdate.Id());
+    // Update only if device is already discovered in deviceWatcher.Added
+    if (deviceWatcherDevices.count(deviceId) > 0)
+    {
+      DeviceInformation deviceInfo = deviceWatcherDevices.at(deviceId);
+      deviceInfo.Update(deviceInfoUpdate);
+      onDeviceInfoRecieved(deviceInfo);
+    }
+  }
+
+  void UniversalBlePlugin::onDeviceRemoved(DeviceWatcher sender, DeviceInformationUpdate args)
+  {
+    std::string deviceId = winrt::to_string(args.Id());
+    if (deviceWatcherDevices.count(deviceId) > 0)
+      deviceWatcherDevices.erase(deviceId);
+  }
+
+  /// Advertisement received from advertisementWatcher
+  void UniversalBlePlugin::BluetoothLEWatcher_Received(BluetoothLEAdvertisementWatcher sender, BluetoothLEAdvertisementReceivedEventArgs args)
+  {
+    try
+    {
+      // Avoid devices if they are not connectable
+      if (args.IsConnectable())
+      {
+        auto deviceId = _mac_address_to_str(args.BluetoothAddress());
+        auto universalScanResult = UniversalBleScanResult(deviceId);
+        std::string name = winrt::to_string(args.Advertisement().LocalName());
+
+        // Use CompleteName from dataType if localName is empty
+        if (name.empty())
+        {
+          auto dataSection = args.Advertisement().DataSections();
+          for (auto &&data : dataSection)
+          {
+            auto dataBytes = to_bytevc(data.Data());
+            if (data.DataType() == 0x09)
+            {
+              name = std::string(dataBytes.begin(), dataBytes.end());
+              break;
+            }
+          }
+        }
+
+        if (!name.empty())
+        {
+          universalScanResult.set_name(name);
+        }
+        auto manufacturerData = parseManufacturerDataHead(args.Advertisement(), deviceId);
+        universalScanResult.set_manufacturer_data_head(manufacturerData);
+        universalScanResult.set_rssi(args.RawSignalStrengthInDBm());
+
+        // std::cout << "Received: " << deviceId << " Manf: " << std::endl;
+        std::copy(manufacturerData.begin(), manufacturerData.end(), std::ostream_iterator<int>(std::cout, " "));
+        std::cout << std::endl;
+
+        // check if this device already discovered in deviceWatcher
+        if (deviceWatcherDevices.count(deviceId) > 0)
+        {
+          auto deviceInfo = deviceWatcherDevices.at(deviceId);
+          auto properties = deviceInfo.Properties();
+          // Update Paired Status
+          if (properties.HasKey(isPairedKey))
+          {
+            auto IsPaired = (properties.Lookup(isPairedKey).as<IPropertyValue>()).GetBoolean();
+            universalScanResult.set_is_paired(IsPaired);
+          }
+          else
+          {
+            universalScanResult.set_is_paired(deviceInfo.Pairing().IsPaired());
+          }
+
+          // Update Name
+          if (name.empty() && !deviceInfo.Name().empty())
+          {
+            universalScanResult.set_name(winrt::to_string(deviceInfo.Name()));
+          }
+        }
+
+        // Cache connectable status
+        // deviceConnectableStatus[_str_to_mac_address(deviceId)] = args.IsConnectable();
+        pushUniversalScanResult(universalScanResult);
+      }
+    }
+    catch (...)
+    {
+      std::cout << "ScanResultErrorInParsing" << std::endl;
     }
   }
 
@@ -578,53 +875,7 @@ namespace universal_ble
     ::PostMessage(GetWindow(), WM_AVAILABILITY_CHANGE, static_cast<int>(state), 0);
   }
 
-  std::vector<uint8_t> parseManufacturerDataHead(BluetoothLEAdvertisement advertisement, std::string deviceId)
-  {
-    try
-    {
-      if (advertisement.ManufacturerData().Size() == 0)
-      {
-        return std::vector<uint8_t>();
-      }
-      auto manufacturerData = advertisement.ManufacturerData().GetAt(0);
-      // FIXME Compat with REG_DWORD_BIG_ENDIAN
-      uint8_t *prefix = uint16_t_union{manufacturerData.CompanyId()}.bytes;
-      auto result = std::vector<uint8_t>{prefix, prefix + sizeof(uint16_t_union)};
-
-      auto data = to_bytevc(manufacturerData.Data());
-      result.insert(result.end(), data.begin(), data.end());
-      return result;
-    }
-    catch (...)
-    {
-      std::cout << "Error in parsing manufacturer data: " << deviceId << std::endl;
-      return std::vector<uint8_t>();
-    }
-  }
-
-  void UniversalBlePlugin::BluetoothLEWatcher_Received(BluetoothLEAdvertisementWatcher sender, BluetoothLEAdvertisementReceivedEventArgs args)
-  {
-    try
-    {
-      auto deviceId = _mac_address_to_str(args.BluetoothAddress());
-      auto universalScanResult = new UniversalBleScanResult(deviceId);
-      hstring localName = args.Advertisement().LocalName();
-      if (!localName.empty())
-        universalScanResult->set_name(winrt::to_string(localName));
-
-      universalScanResult->set_manufacturer_data_head(parseManufacturerDataHead(args.Advertisement(), deviceId));
-      universalScanResult->set_rssi(args.RawSignalStrengthInDBm());
-      // Cache connectable status
-      deviceConnectableStatus[_str_to_mac_address(deviceId)] = args.IsConnectable();
-      ::PostMessage(GetWindow(), WM_SCAN_RESULT, reinterpret_cast<WPARAM>(universalScanResult), 0);
-    }
-    catch (...)
-    {
-      std::cout << "ScanResultErrorInParsing" << std::endl;
-    }
-  }
-
-  std::string GattCommunicationStatusToString(GattCommunicationStatus status)
+  std::string UniversalBlePlugin::GattCommunicationStatusToString(GattCommunicationStatus status)
   {
     switch (status)
     {
@@ -643,10 +894,18 @@ namespace universal_ble
 
   winrt::fire_and_forget UniversalBlePlugin::ConnectAsync(uint64_t bluetoothAddress)
   {
-    auto device = co_await BluetoothLEDevice::FromBluetoothAddressAsync(bluetoothAddress);
-    auto servicesResult = co_await device.GetGattServicesAsync((BluetoothCacheMode::Uncached));
-    if (servicesResult.Status() != GattCommunicationStatus::Success)
+    BluetoothLEDevice device = co_await BluetoothLEDevice::FromBluetoothAddressAsync(bluetoothAddress);
+    if (!device)
     {
+      std::cout << "ConnectionFailed: Failed to get device" << std::endl;
+      PostConnectionUpdate(bluetoothAddress, ConnectionState::disconnected);
+      co_return;
+    }
+    auto servicesResult = co_await device.GetGattServicesAsync((BluetoothCacheMode::Uncached));
+    auto status = servicesResult.Status();
+    if (status != GattCommunicationStatus::Success)
+    {
+      std::cout << "ConnectionFailed: Failed to get services: " << GattCommunicationStatusToString(status) << std::endl;
       PostConnectionUpdate(bluetoothAddress, ConnectionState::disconnected);
       co_return;
     }
@@ -677,7 +936,7 @@ namespace universal_ble
       gatt_map_.emplace(service_uuid, std::move(gatt_service));
     }
 
-    auto connnectionStatusChangedToken = device.ConnectionStatusChanged({this, &UniversalBlePlugin::BluetoothLEDevice_ConnectionStatusChanged});
+    winrt::event_token connnectionStatusChangedToken = device.ConnectionStatusChanged({this, &UniversalBlePlugin::BluetoothLEDevice_ConnectionStatusChanged});
     auto deviceAgent = std::make_unique<BluetoothDeviceAgent>(device, connnectionStatusChangedToken, gatt_map_);
     auto pair = std::make_pair(bluetoothAddress, std::move(deviceAgent));
     connectedDevices.insert(std::move(pair));
@@ -758,7 +1017,7 @@ namespace universal_ble
         universalScanResult.set_name(winrt::to_string(deviceInfo.Name()));
         universalScanResult.set_is_paired(deviceInfo.Pairing().IsPaired());
         results.push_back(flutter::CustomEncodableValue(universalScanResult));
-        deviceConnectableStatus[_str_to_mac_address(deviceId)] = true;
+        // deviceConnectableStatus[_str_to_mac_address(deviceId)] = true;
       }
       result(results);
     }

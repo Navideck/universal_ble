@@ -12,7 +12,7 @@ platforms:
   macos:
   web:
   windows:
-  
+
 environment:
   sdk: ">=3.1.3 <4.0.0"
   flutter: ">=3.3.0"
@@ -30,7 +30,7 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^2.0.0
-  pigeon: ^13.0.0
+  pigeon: ^16.0.5
 
 flutter:
   plugin:
@@ -46,5 +46,3 @@ flutter:
         sharedDarwinSource: true
       windows:
         pluginClass: UniversalBlePluginCApi
-
-

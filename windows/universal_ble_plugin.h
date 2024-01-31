@@ -5,6 +5,7 @@
 #include <flutter/plugin_registrar_windows.h>
 
 #include <windows.h>
+#include <winrt/base.h>
 #include <winrt/Windows.Foundation.h>
 #include <winrt/Windows.Foundation.Collections.h>
 #include <winrt/Windows.Storage.Streams.h>
@@ -106,10 +107,25 @@ namespace universal_ble
         void Radio_StateChanged(Radio sender, IInspectable args);
         RadioState oldRadioState = RadioState::Unknown;
         BluetoothLEAdvertisementWatcher bluetoothLEWatcher{nullptr};
+        DeviceWatcher deviceWatcher{nullptr};
         winrt::event_token bluetoothLEWatcherReceivedToken;
         void BluetoothLEWatcher_Received(BluetoothLEAdvertisementWatcher sender, BluetoothLEAdvertisementReceivedEventArgs args);
+        void setupDeviceWatcher();
+        void disposeDeviceWatcher();
+        void pushUniversalScanResult(UniversalBleScanResult scanResult);
+        winrt::event_token deviceWatcherAddedToken;
+        winrt::event_token deviceWatcherUpdatedToken;
+        winrt::event_token deviceWatcherRemovedToken;
+        winrt::event_token deviceWatcherEnumerationCompletedToken;
+        void onDeviceAdded(DeviceWatcher sender, DeviceInformation deviceInfo);
+        void onDeviceUpdated(DeviceWatcher sender, DeviceInformationUpdate deviceInfoUpdate);
+        void onDeviceRemoved(DeviceWatcher sender, DeviceInformationUpdate args);
+        void onDeviceInfoRecieved(DeviceInformation deviceInfo);
         std::map<uint64_t, std::unique_ptr<BluetoothDeviceAgent>> connectedDevices{};
-        std::map<uint64_t, bool> deviceConnectableStatus{};
+        // std::map<uint64_t, bool> deviceConnectableStatus{};
+        std::string GattCommunicationStatusToString(GattCommunicationStatus status);
+        std::map<std::string, UniversalBleScanResult> scanResults{};
+        std::map<std::string, DeviceInformation> deviceWatcherDevices{};
         winrt::event_revoker<IRadio> radioStateChangedRevoker;
         winrt::fire_and_forget ConnectAsync(uint64_t bluetoothAddress);
         void BluetoothLEDevice_ConnectionStatusChanged(BluetoothLEDevice sender, IInspectable args);
