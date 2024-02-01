@@ -34,7 +34,6 @@ endif()
 list(APPEND PLUGIN_SOURCES
   "src/universal_ble_plugin.cpp"
   "src/universal_ble_plugin.h"
-  "src/helper/universal_enum.h"
   "src/helper/universal_ble_base.h"
   "src/helper/utils.cpp"
   "src/helper/utils.h"

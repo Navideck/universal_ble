@@ -17,41 +17,15 @@ namespace universal_ble
     std::string _mac_address_to_str(uint64_t mac_address);
     uint64_t _str_to_mac_address(std::string mac_address);
 
-    winrt::guid uuid_to_guid(const std::string &uuid);
     std::string guid_to_uuid(const winrt::guid &guid);
 
     std::vector<uint8_t> to_bytevc(IBuffer buffer);
     IBuffer from_bytevc(std::vector<uint8_t> bytes);
+
+    winrt::guid uuid_to_guid(const std::string &uuid);
     std::string to_hexstring(std::vector<uint8_t> bytes);
 
     std::string to_uuidstr(winrt::guid guid);
-
-    /// Structs for passing data between background to ui thread
-    struct ConnectionStateStruct
-    {
-        std::string deviceId;
-        int64_t connectionState;
-        ConnectionStateStruct(std::string deviceId, int64_t connectionState)
-            : deviceId(deviceId), connectionState(connectionState) {}
-    };
-
-    struct PairStateStruct
-    {
-        std::string deviceId;
-        bool isPaired;
-        std::string errorMessage;
-        PairStateStruct(std::string deviceId, bool isPaired, std::string errorMessage)
-            : deviceId(deviceId), isPaired(isPaired), errorMessage(errorMessage) {}
-    };
-
-    struct ValueChangeStruct
-    {
-        std::string deviceId;
-        std::string characteristicId;
-        std::vector<uint8_t> value;
-        ValueChangeStruct(std::string deviceId, std::string characteristicId, std::vector<uint8_t> value)
-            : deviceId(deviceId), characteristicId(characteristicId), value(value) {}
-    };
 
     /// To call async functions synchronously
     template <typename async_t>

@@ -17,7 +17,6 @@
 
 #include <memory>
 #include "helper/utils.h"
-#include "helper/universal_enum.h"
 #include "helper/universal_ble_base.h"
 #include "generated/universal_ble.g.h"
 #include "ui_thread_handler.hpp"

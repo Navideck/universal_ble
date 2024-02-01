@@ -12,7 +12,7 @@
 #include <regex>
 
 #include "helper/utils.h"
-#include "helper/universal_enum.h"
+#include "helper/universal_ble_base.h"
 #include "generated/universal_ble.g.h"
 
 namespace universal_ble
