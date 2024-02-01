@@ -22,12 +22,12 @@ namespace universal_ble
   using universal_ble::UniversalBlePlatformChannel;
   using universal_ble::UniversalBleScanResult;
 
-  auto isConnectableKey = L"System.Devices.Aep.Bluetooth.Le.IsConnectable";
-  auto isConnectedKey = L"System.Devices.Aep.IsConnected";
-  auto isPairedKey = L"System.Devices.Aep.IsPaired";
-  auto isPresentKey = L"System.Devices.Aep.IsPresent";
-  auto deviceAddressKey = L"System.Devices.Aep.DeviceAddress";
-  auto signalStrengthKey = L"System.Devices.Aep.SignalStrength";
+  const auto isConnectableKey = L"System.Devices.Aep.Bluetooth.Le.IsConnectable";
+  const auto isConnectedKey = L"System.Devices.Aep.IsConnected";
+  const auto isPairedKey = L"System.Devices.Aep.IsPaired";
+  const auto isPresentKey = L"System.Devices.Aep.IsPresent";
+  const auto deviceAddressKey = L"System.Devices.Aep.DeviceAddress";
+  const auto signalStrengthKey = L"System.Devices.Aep.SignalStrength";
 
   std::unique_ptr<UniversalBleCallbackChannel> callbackChannel;
   std::map<std::string, winrt::event_token> characteristicsTokens{};
@@ -512,21 +512,21 @@ namespace universal_ble
     auto it = scanResults.find(scanResult.device_id());
     if (it != scanResults.end())
     {
-      UniversalBleScanResult &_scanResult = it->second;
+      UniversalBleScanResult &existingScanResult = it->second;
       bool shouldUpdate = false;
-      if ((scanResult.name() == nullptr || scanResult.name()->empty()) && (_scanResult.name() != nullptr && !_scanResult.name()->empty()))
+      if ((scanResult.name() == nullptr || scanResult.name()->empty()) && (existingScanResult.name() != nullptr && !existingScanResult.name()->empty()))
       {
-        scanResult.set_name(*_scanResult.name());
+        scanResult.set_name(*existingScanResult.name());
         shouldUpdate = true;
       }
-      if (scanResult.is_paired() == nullptr && _scanResult.is_paired() != nullptr)
+      if (scanResult.is_paired() == nullptr && existingScanResult.is_paired() != nullptr)
       {
-        scanResult.set_is_paired(_scanResult.is_paired());
+        scanResult.set_is_paired(existingScanResult.is_paired());
         shouldUpdate = true;
       }
-      if (scanResult.manufacturer_data_head() == nullptr && _scanResult.manufacturer_data_head() != nullptr)
+      if (scanResult.manufacturer_data_head() == nullptr && existingScanResult.manufacturer_data_head() != nullptr)
       {
-        scanResult.set_manufacturer_data_head(_scanResult.manufacturer_data_head());
+        scanResult.set_manufacturer_data_head(existingScanResult.manufacturer_data_head());
         shouldUpdate = true;
       }
 
@@ -535,7 +535,7 @@ namespace universal_ble
         return;
 
       // update the existing scan result
-      _scanResult = scanResult;
+      existingScanResult = scanResult;
     }
     else
     {
@@ -569,7 +569,7 @@ namespace universal_ble
                                                   {
                                                     std::string deviceId = winrt::to_string(deviceInfo.Id());
                                                     deviceWatcherDevices.insert_or_assign(deviceId, deviceInfo);
-                                                    onDeviceInfoRecieved(deviceInfo);
+                                                    onDeviceInfoReceived(deviceInfo);
                                                     // On Device Added
                                                   });
 
@@ -581,7 +581,7 @@ namespace universal_ble
                                                         if (it != deviceWatcherDevices.end())
                                                         {
                                                           it->second.Update(deviceInfoUpdate);
-                                                          onDeviceInfoRecieved(it->second);
+                                                          onDeviceInfoReceived(it->second);
                                                         }
                                                         // On Device Updated
                                                       });
@@ -609,7 +609,7 @@ namespace universal_ble
     }
   }
 
-  void UniversalBlePlugin::onDeviceInfoRecieved(DeviceInformation deviceInfo)
+  void UniversalBlePlugin::onDeviceInfoReceived(DeviceInformation deviceInfo)
   {
     auto properties = deviceInfo.Properties();
 

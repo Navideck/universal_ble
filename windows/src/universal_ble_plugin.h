@@ -103,7 +103,7 @@ namespace universal_ble
         void disposeDeviceWatcher();
         void pushUniversalScanResult(UniversalBleScanResult scanResult);
         void BluetoothLEWatcher_Received(BluetoothLEAdvertisementWatcher sender, BluetoothLEAdvertisementReceivedEventArgs args);
-        void onDeviceInfoRecieved(DeviceInformation deviceInfo);
+        void onDeviceInfoReceived(DeviceInformation deviceInfo);
 
         std::string GattCommunicationStatusToString(GattCommunicationStatus status);
         std::map<std::string, UniversalBleScanResult> scanResults{};
