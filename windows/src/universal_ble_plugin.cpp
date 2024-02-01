@@ -568,7 +568,7 @@ namespace universal_ble
     deviceWatcherAddedToken = deviceWatcher.Added([this](DeviceWatcher sender, DeviceInformation deviceInfo)
                                                   {
                                                     std::string deviceId = winrt::to_string(deviceInfo.Id());
-                                                    deviceWatcherDevices.emplace(deviceId, deviceInfo);
+                                                    deviceWatcherDevices.insert_or_assign(deviceId, deviceInfo);
                                                     onDeviceInfoRecieved(deviceInfo);
                                                     // On Device Added
                                                   });
@@ -810,9 +810,9 @@ namespace universal_ble
         GattCharacteristicObject gatt_characteristic;
         gatt_characteristic.obj = characteristic;
         std::string characteristic_uuid = guid_to_uuid(characteristic.Uuid());
-        gatt_service.characteristics.emplace(characteristic_uuid, std::move(gatt_characteristic));
+        gatt_service.characteristics.insert_or_assign(characteristic_uuid, std::move(gatt_characteristic));
       }
-      gatt_map_.emplace(service_uuid, std::move(gatt_service));
+      gatt_map_.insert_or_assign(service_uuid, std::move(gatt_service));
     }
 
     winrt::event_token connnectionStatusChangedToken = device.ConnectionStatusChanged({this, &UniversalBlePlugin::BluetoothLEDevice_ConnectionStatusChanged});
