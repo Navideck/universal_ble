@@ -120,6 +120,7 @@ namespace universal_ble
         winrt::fire_and_forget GetConnectedDevicesAsync(std::vector<std::string> with_services,
                                                         std::function<void(ErrorOr<flutter::EncodableList> reply)> result);
         winrt::fire_and_forget IsPairedAsync(std::string device_id, std::function<void(ErrorOr<bool> reply)> result);
+        bool updateScanResultFromCache(UniversalBleScanResult &scanResult);
 
         // UniversalBlePlatformChannel implementation.
         void GetBluetoothAvailabilityState(std::function<void(ErrorOr<int64_t> reply)> result) override;
