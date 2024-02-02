@@ -9,11 +9,10 @@
 #if WDK_NTDDI_VERSION < NTDDI_WIN10_VB
 #error "Windows SDK version before 10.0.19041.0 is not supported"
 #elif WDK_NTDDI_VERSION == NTDDI_WIN10_VB
-// For Windows SDK version before 10.0.19041.0, remap functions to post-10.0.19041.0 versions
 #define WINRT_IMPL_CoGetApartmentType WINRT_CoGetApartmentType
 #endif
 
-#define MAC_ADDRESS_STR_LENGTH (size_t)17 // Two chars per byte, 5 chars for colon
+#define MAC_ADDRESS_STR_LENGTH (size_t)17
 
 namespace universal_ble
 {
@@ -29,7 +28,6 @@ namespace universal_ble
 
     uint64_t _str_to_mac_address(std::string mac_str)
     {
-        // TODO: Validate input - Expected Format: XX:XX:XX:XX:XX:XX
         uint64_t mac_address_number = 0;
         uint8_t *mac_ptr = (uint8_t *)&mac_address_number;
         sscanf_s(mac_str.c_str(), "%02hhx:%02hhx:%02hhx:%02hhx:%02hhx:%02hhx", &mac_ptr[5], &mac_ptr[4], &mac_ptr[3],
@@ -39,7 +37,6 @@ namespace universal_ble
 
     winrt::guid uuid_to_guid(const std::string &uuid)
     {
-        // TODO: Add proper cleanup / validation
         std::stringstream helper;
         for (int i = 0; i < uuid.length(); i++)
         {
@@ -63,23 +60,18 @@ namespace universal_ble
     std::string guid_to_uuid(const winrt::guid &guid)
     {
         std::stringstream helper;
-        // TODO: It might be cleaner to use snprintf instead of string streams.
-
         for (uint32_t i = 0; i < 4; i++)
         {
-            // * NOTE: We're performing a byte swap!
             helper << std::hex << std::setw(2) << std::setfill('0') << (int)((uint8_t *)&guid.Data1)[3 - i];
         }
         helper << '-';
         for (uint32_t i = 0; i < 2; i++)
         {
-            // * NOTE: We're performing a byte swap!
             helper << std::hex << std::setw(2) << std::setfill('0') << (int)((uint8_t *)&guid.Data2)[1 - i];
         }
         helper << '-';
         for (uint32_t i = 0; i < 2; i++)
         {
-            // * NOTE: We're performing a byte swap!
             helper << std::hex << std::setw(2) << std::setfill('0') << (int)((uint8_t *)&guid.Data3)[1 - i];
         }
         helper << '-';

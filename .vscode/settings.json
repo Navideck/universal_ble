@@ -1,18 +1,31 @@
 {
   "cSpell.words": [
+    "BTLE",
+    "bytevc",
     "connnection",
     "DSIMPLEBLE",
+    "hresult",
+    "hstring",
+    "HWND",
     "Inspectable",
+    "LPARAM",
+    "LRESULT",
     "microtask",
     "modalias",
+    "navideck",
     "NSUUID",
+    "NTDDI",
     "pairable",
     "rssi",
     "simpleble",
     "unawaited",
+    "UNIVERSALBLE",
     "Unpair",
+    "Unpairing",
     "unwatch",
-    "uuidstr"
+    "uuidstr",
+    "winrt",
+    "WPARAM"
   ],
   "cmake.configureOnOpen": false,
   "files.associations": {

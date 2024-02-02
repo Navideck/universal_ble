@@ -5,6 +5,7 @@
 #include <flutter/plugin_registrar_windows.h>
 
 #include <windows.h>
+#include <winrt/base.h>
 #include <winrt/Windows.Foundation.h>
 #include <winrt/Windows.Foundation.Collections.h>
 #include <winrt/Windows.Storage.Streams.h>
@@ -15,42 +16,32 @@
 #include <winrt/Windows.Devices.Bluetooth.GenericAttributeProfile.h>
 
 #include <memory>
-#include "Utils.h"
-#include "UniversalBle.g.h"
-#include "universal_enum.h"
+#include "helper/utils.h"
+#include "helper/universal_enum.h"
+#include "helper/universal_ble_base.h"
+#include "generated/universal_ble.g.h"
+#include "ui_thread_handler.hpp"
 
 namespace universal_ble
 {
-    using namespace winrt;
-    using namespace winrt::Windows::Devices;
-    using namespace winrt::Windows::Foundation;
-    using namespace winrt::Windows::Foundation::Collections;
-    using namespace winrt::Windows::Storage::Streams;
-    using namespace winrt::Windows::Devices::Radios;
-    using namespace winrt::Windows::Devices::Bluetooth;
-    using namespace winrt::Windows::Devices::Bluetooth::Advertisement;
-    using namespace winrt::Windows::Devices::Bluetooth::GenericAttributeProfile;
-    using namespace Windows::Devices::Enumeration;
-
-    struct gatt_characteristic_t
+    struct GattCharacteristicObject
     {
         GattCharacteristic obj = nullptr;
-        // winrt::event_token value_changed_token;
     };
 
-    struct gatt_service_t
+    struct GattServiceObject
     {
         GattDeviceService obj = nullptr;
-        std::map<std::string, gatt_characteristic_t> characteristics;
+        std::unordered_map<std::string, GattCharacteristicObject> characteristics;
     };
 
     struct BluetoothDeviceAgent
     {
         BluetoothLEDevice device;
         winrt::event_token connnectionStatusChangedToken;
-        std::map<std::string, gatt_service_t> gatt_map_;
+        std::unordered_map<std::string, GattServiceObject> gatt_map_;
 
-        BluetoothDeviceAgent(BluetoothLEDevice device, winrt::event_token connnectionStatusChangedToken, std::map<std::string, gatt_service_t> gatt_map_)
+        BluetoothDeviceAgent(BluetoothLEDevice device, winrt::event_token connnectionStatusChangedToken, std::unordered_map<std::string, GattServiceObject> gatt_map_)
             : device(device),
               connnectionStatusChangedToken(connnectionStatusChangedToken),
               gatt_map_(gatt_map_) {}
@@ -60,19 +51,13 @@ namespace universal_ble
             device = nullptr;
         }
 
-        gatt_characteristic_t &_fetch_characteristic(const std::string &service_uuid,
-                                                     const std::string &characteristic_uuid)
+        GattCharacteristicObject &_fetch_characteristic(const std::string &service_uuid,
+                                                        const std::string &characteristic_uuid)
         {
             if (gatt_map_.count(service_uuid) == 0)
-            {
                 throw FlutterError("Service not found");
-            }
-
             if (gatt_map_[service_uuid].characteristics.count(characteristic_uuid) == 0)
-            {
                 throw FlutterError("Characteristic not found");
-            }
-
             return gatt_map_[service_uuid].characteristics.at(characteristic_uuid);
         }
     };
@@ -97,19 +82,31 @@ namespace universal_ble
         UniversalBlePlugin &operator=(const UniversalBlePlugin &) = delete;
 
         flutter::PluginRegistrarWindows *registrar_;
-        int64_t window_proc_delegate_id_ = -1;
 
-        HWND GetWindow();
-        std::optional<LRESULT> WindowProcDelegate(HWND hwnd, UINT message, WPARAM wparam, LPARAM lparam);
-        winrt::fire_and_forget InitializeAsync();
+        UniversalBleUiThreadHandler uiThreadHandler_;
         Radio bluetoothRadio{nullptr};
-        void Radio_StateChanged(Radio sender, IInspectable args);
         RadioState oldRadioState = RadioState::Unknown;
         BluetoothLEAdvertisementWatcher bluetoothLEWatcher{nullptr};
+        DeviceWatcher deviceWatcher{nullptr};
+        std::unordered_map<uint64_t, std::unique_ptr<BluetoothDeviceAgent>> connectedDevices{};
+        std::unordered_map<std::string, DeviceInformation> deviceWatcherDevices{};
+
         winrt::event_token bluetoothLEWatcherReceivedToken;
+        winrt::event_token deviceWatcherAddedToken;
+        winrt::event_token deviceWatcherUpdatedToken;
+        winrt::event_token deviceWatcherRemovedToken;
+
+        winrt::fire_and_forget InitializeAsync();
+        void Radio_StateChanged(Radio sender, IInspectable args);
+
+        void setupDeviceWatcher();
+        void disposeDeviceWatcher();
+        void pushUniversalScanResult(UniversalBleScanResult scanResult);
         void BluetoothLEWatcher_Received(BluetoothLEAdvertisementWatcher sender, BluetoothLEAdvertisementReceivedEventArgs args);
-        std::map<uint64_t, std::unique_ptr<BluetoothDeviceAgent>> connectedDevices{};
-        std::map<uint64_t, bool> deviceConnectableStatus{};
+        void onDeviceInfoReceived(DeviceInformation deviceInfo);
+
+        std::string GattCommunicationStatusToString(GattCommunicationStatus status);
+        std::unordered_map<std::string, UniversalBleScanResult> scanResults{};
         winrt::event_revoker<IRadio> radioStateChangedRevoker;
         winrt::fire_and_forget ConnectAsync(uint64_t bluetoothAddress);
         void BluetoothLEDevice_ConnectionStatusChanged(BluetoothLEDevice sender, IInspectable args);
@@ -120,7 +117,6 @@ namespace universal_ble
         void GattCharacteristic_ValueChanged(GattCharacteristic sender, GattValueChangedEventArgs args);
         AvailabilityState getAvailabilityStateFromRadio(RadioState radioState);
         std::string parsePairingFailError(Enumeration::DevicePairingResult result);
-        void PostConnectionUpdate(uint64_t bluetoothAddress, ConnectionState connectionState);
         winrt::fire_and_forget GetConnectedDevicesAsync(std::vector<std::string> with_services,
                                                         std::function<void(ErrorOr<flutter::EncodableList> reply)> result);
         winrt::fire_and_forget IsPairedAsync(std::string device_id, std::function<void(ErrorOr<bool> reply)> result);

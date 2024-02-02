@@ -12,8 +12,8 @@ import 'package:pigeon/pigeon.dart';
     kotlinOptions: KotlinOptions(package: 'com.navideck.universal_ble'),
     swiftOptions: SwiftOptions(),
     cppOptions: CppOptions(namespace: 'universal_ble'),
-    cppHeaderOut: 'windows/UniversalBle.g.h',
-    cppSourceOut: 'windows/UniversalBle.g.cpp',
+    cppHeaderOut: 'windows/src/generated/universal_ble.g.h',
+    cppSourceOut: 'windows/src/generated/universal_ble.g.cpp',
     debugGenerators: true,
   ),
 )

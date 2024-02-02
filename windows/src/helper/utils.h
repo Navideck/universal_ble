@@ -7,10 +7,7 @@
 #include "winrt/Windows.Foundation.h"
 #include "winrt/Windows.Storage.Streams.h"
 #include "winrt/base.h"
-#include "UniversalBle.g.h"
-
-using namespace winrt::Windows;
-using namespace winrt::Windows::Storage::Streams;
+#include "universal_ble_base.h"
 
 constexpr uint32_t TEN_SECONDS_IN_MSECS = 10000;
 
@@ -29,34 +26,8 @@ namespace universal_ble
 
     std::string to_uuidstr(winrt::guid guid);
 
-    /// Structs for passing data between background to ui thread
-    struct ConnectionStateStruct
-    {
-        std::string deviceId;
-        int64_t connectionState;
-        ConnectionStateStruct(std::string deviceId, int64_t connectionState)
-            : deviceId(deviceId), connectionState(connectionState) {}
-    };
 
-    struct PairStateStruct
-    {
-        std::string deviceId;
-        bool isPaired;
-        std::string errorMessage;
-        PairStateStruct(std::string deviceId, bool isPaired, std::string errorMessage)
-            : deviceId(deviceId), isPaired(isPaired), errorMessage(errorMessage) {}
-    };
-
-    struct ValueChangeStruct
-    {
-        std::string deviceId;
-        std::string characteristicId;
-        std::vector<uint8_t> value;
-        ValueChangeStruct(std::string deviceId, std::string characteristicId, std::vector<uint8_t> value)
-            : deviceId(deviceId), characteristicId(characteristicId), value(value) {}
-    };
-
-     /// To call async functions synchronously
+    /// To call async functions synchronously
     template <typename async_t>
     static auto async_get(async_t const &async)
     {
