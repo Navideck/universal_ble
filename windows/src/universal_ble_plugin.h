@@ -32,16 +32,16 @@ namespace universal_ble
     struct GattServiceObject
     {
         GattDeviceService obj = nullptr;
-        std::map<std::string, GattCharacteristicObject> characteristics;
+        std::unordered_map<std::string, GattCharacteristicObject> characteristics;
     };
 
     struct BluetoothDeviceAgent
     {
         BluetoothLEDevice device;
         winrt::event_token connnectionStatusChangedToken;
-        std::map<std::string, GattServiceObject> gatt_map_;
+        std::unordered_map<std::string, GattServiceObject> gatt_map_;
 
-        BluetoothDeviceAgent(BluetoothLEDevice device, winrt::event_token connnectionStatusChangedToken, std::map<std::string, GattServiceObject> gatt_map_)
+        BluetoothDeviceAgent(BluetoothLEDevice device, winrt::event_token connnectionStatusChangedToken, std::unordered_map<std::string, GattServiceObject> gatt_map_)
             : device(device),
               connnectionStatusChangedToken(connnectionStatusChangedToken),
               gatt_map_(gatt_map_) {}
@@ -88,8 +88,8 @@ namespace universal_ble
         RadioState oldRadioState = RadioState::Unknown;
         BluetoothLEAdvertisementWatcher bluetoothLEWatcher{nullptr};
         DeviceWatcher deviceWatcher{nullptr};
-        std::map<uint64_t, std::unique_ptr<BluetoothDeviceAgent>> connectedDevices{};
-        std::map<std::string, DeviceInformation> deviceWatcherDevices{};
+        std::unordered_map<uint64_t, std::unique_ptr<BluetoothDeviceAgent>> connectedDevices{};
+        std::unordered_map<std::string, DeviceInformation> deviceWatcherDevices{};
 
         winrt::event_token bluetoothLEWatcherReceivedToken;
         winrt::event_token deviceWatcherAddedToken;
@@ -106,7 +106,7 @@ namespace universal_ble
         void onDeviceInfoReceived(DeviceInformation deviceInfo);
 
         std::string GattCommunicationStatusToString(GattCommunicationStatus status);
-        std::map<std::string, UniversalBleScanResult> scanResults{};
+        std::unordered_map<std::string, UniversalBleScanResult> scanResults{};
         winrt::event_revoker<IRadio> radioStateChangedRevoker;
         winrt::fire_and_forget ConnectAsync(uint64_t bluetoothAddress);
         void BluetoothLEDevice_ConnectionStatusChanged(BluetoothLEDevice sender, IInspectable args);

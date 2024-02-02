@@ -30,7 +30,7 @@ namespace universal_ble
   const auto signalStrengthKey = L"System.Devices.Aep.SignalStrength";
 
   std::unique_ptr<UniversalBleCallbackChannel> callbackChannel;
-  std::map<std::string, winrt::event_token> characteristicsTokens{};
+  std::unordered_map<std::string, winrt::event_token> characteristicsTokens{}; // TODO: Remove the map and store the token inside the characteristic object object
 
   union uint16_t_union
   {
@@ -174,6 +174,7 @@ namespace universal_ble
     }
     catch (...)
     {
+      std::cout << "DiscoverServicesLog: Unknown error" << std::endl;
       return result(FlutterError("Unknown error"));
     }
   }
@@ -221,6 +222,7 @@ namespace universal_ble
     }
     catch (...)
     {
+      std::cout << "SetNotifiableLog: Unknown error" << std::endl;
       return FlutterError("Unknown error");
     }
   };
@@ -277,6 +279,7 @@ namespace universal_ble
     }
     catch (...)
     {
+      std::cout << "ReadValueLog: Unknown error" << std::endl;
       return result(FlutterError("Unknown error"));
     }
   }
@@ -348,6 +351,7 @@ namespace universal_ble
     }
     catch (...)
     {
+      std::cout << "WriteValue: Unknown error" << std::endl;
       result(FlutterError("Unknown error"));
     }
   }
@@ -390,13 +394,14 @@ namespace universal_ble
     try
     {
       auto device = async_get(BluetoothLEDevice::FromBluetoothAddressAsync(_str_to_mac_address(device_id)));
+      std::cout << "PairLog: Device to be paired was found" << std::endl;
       auto deviceInformation = device.DeviceInformation();
       bool isPaired = deviceInformation.Pairing().IsPaired();
       if (isPaired)
-        return FlutterError("Device is already paired");
+        return FlutterError("PairLog: Device is already paired");
       bool canPair = deviceInformation.Pairing().CanPair();
       if (!canPair)
-        return FlutterError("Device is not pairable");
+        return FlutterError("PairLog: Device is not pairable");
 
       auto customPairing = deviceInformation.Pairing().Custom();
       winrt::event_token token = customPairing.PairingRequested([this](const Enumeration::DeviceInformationCustomPairing &sender, const Enumeration::DevicePairingRequestedEventArgs &eventArgs)
@@ -407,12 +412,14 @@ namespace universal_ble
                                                                 eventArgs.Accept(); });
       // DevicePairingKinds => None, ConfirmOnly, DisplayPin, ProvidePin, ConfirmPinMatch, ProvidePasswordCredential
       // DevicePairingProtectionLevel =>  Default, None, Encryption, EncryptionAndAuthentication
+      std::cout << "PairLog: Trying to pair" << std::endl;
       auto async_c = customPairing.PairAsync(
           Enumeration::DevicePairingKinds::ConfirmOnly,
           Enumeration::DevicePairingProtectionLevel::None);
       async_c.Completed([this, customPairing, token, device_id](IAsyncOperation<DevicePairingResult> const &sender, AsyncStatus const args)
                         {
                           auto result = sender.GetResults();
+                          std::cout << "PairLog: Received pairing status" << std::endl;
                           customPairing.PairingRequested(token);
                           auto isPaired = result.Status() == Enumeration::DevicePairingResultStatus::Paired;
 
@@ -770,9 +777,10 @@ namespace universal_ble
   winrt::fire_and_forget UniversalBlePlugin::ConnectAsync(uint64_t bluetoothAddress)
   {
     BluetoothLEDevice device = co_await BluetoothLEDevice::FromBluetoothAddressAsync(bluetoothAddress);
+    std::cout << "ConnectionLog: Device found" << std::endl;
     if (!device)
     {
-      std::cout << "ConnectionFailed: Failed to get device" << std::endl;
+      std::cout << "ConnectionLog: ConnectionFailed: Failed to get device" << std::endl;
       uiThreadHandler_.Post([bluetoothAddress]
                             { callbackChannel->OnConnectionChanged(_mac_address_to_str(bluetoothAddress), static_cast<int>(ConnectionState::disconnected), SuccessCallback, ErrorCallback); });
 
@@ -788,8 +796,8 @@ namespace universal_ble
 
       co_return;
     }
-
-    std::map<std::string, GattServiceObject> gatt_map_;
+    std::cout << "ConnectionLog: Services discovered" << std::endl;
+    std::unordered_map<std::string, GattServiceObject> gatt_map_;
     auto gatt_services = servicesResult.Services();
     for (GattDeviceService &&service : gatt_services)
     {
@@ -819,6 +827,7 @@ namespace universal_ble
     auto deviceAgent = std::make_unique<BluetoothDeviceAgent>(device, connnectionStatusChangedToken, gatt_map_);
     auto pair = std::make_pair(bluetoothAddress, std::move(deviceAgent));
     connectedDevices.insert(std::move(pair));
+    std::cout << "ConnectionLog: Connected" << std::endl;
     uiThreadHandler_.Post([bluetoothAddress]
                           { callbackChannel->OnConnectionChanged(_mac_address_to_str(bluetoothAddress), static_cast<int>(ConnectionState::connected), SuccessCallback, ErrorCallback); });
   }
@@ -849,7 +858,9 @@ namespace universal_ble
         {
           GattCharacteristicObject &characteristic = characteristicPair.second;
           auto gattCharacteristic = characteristic.obj;
-          auto uniqTokenKey = to_uuidstr(gattCharacteristic.Uuid()) + _mac_address_to_str(gattCharacteristic.Service().Device().BluetoothAddress());
+          std::stringstream uniqTokenKeyStream;
+          uniqTokenKeyStream << to_uuidstr(gattCharacteristic.Uuid()) << _mac_address_to_str(gattCharacteristic.Service().Device().BluetoothAddress());
+          std::string uniqTokenKey = uniqTokenKeyStream.str();
           if (characteristicsTokens.count(uniqTokenKey) != 0)
           {
             characteristic.obj.ValueChanged(characteristicsTokens[uniqTokenKey]);
@@ -905,6 +916,7 @@ namespace universal_ble
     }
     catch (...)
     {
+      std::cout << "Unknown error GetConnectedDevicesAsync" << std::endl;
       result(FlutterError("Unknown error"));
     }
   }
@@ -981,7 +993,7 @@ namespace universal_ble
     catch (...)
     {
       result(FlutterError("DiscoverServiceError: Unknown error"));
-      std::cerr << "DiscoverServiceError: Unknown error" << '\n';
+      std::cout << "DiscoverServiceError: Unknown error" << '\n';
     }
   }
 
@@ -1039,7 +1051,9 @@ namespace universal_ble
     }
     // create uniqKey with uuid and deviceId
     // TODO: store token key in gatt_characteristic_t struct instead of using map
-    auto uniqTokenKey = uuid + _mac_address_to_str(gattCharacteristic.Service().Device().BluetoothAddress());
+    std::stringstream uniqTokenKeyStream;
+    uniqTokenKeyStream << uuid << _mac_address_to_str(gattCharacteristic.Service().Device().BluetoothAddress());
+    auto uniqTokenKey = uniqTokenKeyStream.str();
 
     // Register/UnRegister handler for the ValueChanged event.
     if (descriptorValue == GattClientCharacteristicConfigurationDescriptorValue::None)
