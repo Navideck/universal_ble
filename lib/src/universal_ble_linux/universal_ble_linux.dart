@@ -84,7 +84,12 @@ class UniversalBleLinux extends UniversalBlePlatform {
 
   @override
   Future<void> disconnect(String deviceId) async {
-    await _findDeviceById(deviceId).disconnect();
+    var device = _findDeviceById(deviceId);
+    if (!device.connected) {
+      onConnectionChanged?.call(deviceId, BleConnectionState.disconnected);
+      return;
+    }
+    await device.disconnect();
   }
 
   @override
