@@ -232,19 +232,19 @@ class UniversalBleLinux extends UniversalBlePlatform {
   Future<List<BleScanResult>> getConnectedDevices(
     List<String>? withServices,
   ) async {
-    List<BlueZDevice> devices = _client.devices;
+    List<BlueZDevice> devices =
+        _client.devices.where((device) => device.connected).toList();
     if (withServices != null && withServices.isNotEmpty) {
-      return devices
-          .where((device) {
-            if (device.servicesResolved) {
-              return device.gattServices
-                  .map((e) => e.uuid.toString())
-                  .any((service) => withServices.contains(service));
-            }
-            return true;
-          })
-          .map((device) => device.toBleScanResult())
-          .toList();
+      devices = devices.where((device) {
+        if (device.servicesResolved) {
+          return device.gattServices
+              .map((e) => e.uuid.toString())
+              .any((service) => withServices.contains(service));
+        } else {
+          print('Skipping: ${device.address}: Services not resolved yet.');
+          return false;
+        }
+      }).toList();
     }
     return devices.map((device) => device.toBleScanResult()).toList();
   }
@@ -296,6 +296,7 @@ class UniversalBleLinux extends UniversalBlePlatform {
               break;
             case BluezProperty.discoverable:
             case BluezProperty.discovering:
+              print("Adapter Discovering: ${_activeAdapter?.discovering}");
               break;
             default:
               print("UnhandledPropertyChanged: $property");
@@ -318,6 +319,9 @@ class UniversalBleLinux extends UniversalBlePlatform {
   }
 
   void _onDeviceAdd(BlueZDevice device) {
+    // Check if device actually advertising
+    if (device.rssi == 0) return;
+
     // Update ScanResults
     onScanResult?.call(device.toBleScanResult());
 
@@ -328,6 +332,7 @@ class UniversalBleLinux extends UniversalBlePlatform {
     if (_deviceStreamSubscriptions[device.address] != null) {
       _deviceStreamSubscriptions[device.address]?.cancel();
     }
+
     _deviceStreamSubscriptions[device.address] =
         device.propertiesChanged.listen((properties) {
       for (var property in properties) {
@@ -352,9 +357,11 @@ class UniversalBleLinux extends UniversalBlePlatform {
           case BluezProperty.legacyPairing:
           case BluezProperty.servicesResolved:
           case BluezProperty.uuids:
+          case BluezProperty.txPower:
             break;
           default:
-            print("UnhandledDevicePropertyChanged: $property");
+            print(
+                "UnhandledDevicePropertyChanged ${device.name} ${device.address}: $property");
             break;
         }
       }
@@ -374,6 +381,7 @@ class UniversalBleLinux extends UniversalBlePlatform {
 class BluezProperty {
   static const String rssi = 'RSSI';
   static const String connected = 'Connected';
+  static const String txPower = 'TxPower';
   static const String manufacturerData = 'ManufacturerData';
   static const String legacyPairing = 'LegacyPairing';
   static const String servicesResolved = 'ServicesResolved';
