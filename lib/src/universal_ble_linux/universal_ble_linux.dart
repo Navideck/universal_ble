@@ -398,11 +398,20 @@ class BluezProperty {
 
 extension BlueZDeviceExtension on BlueZDevice {
   Uint8List get manufacturerDataHead {
-    if (manufacturerData.isEmpty) return Uint8List(0);
-
-    final sorted = manufacturerData.entries.toList()
-      ..sort((a, b) => a.key.id - b.key.id);
-    return Uint8List.fromList(sorted.first.value);
+    try {
+      if (manufacturerData.isEmpty) return Uint8List(0);
+      final sorted = manufacturerData.entries.toList()
+        ..sort((a, b) => a.key.id - b.key.id);
+      int companyId = sorted.first.key.id;
+      List<int> manufacturerDataValue = sorted.first.value;
+      var byteData = ByteData(2);
+      byteData.setInt16(0, companyId, Endian.little);
+      List<int> bytes = byteData.buffer.asUint8List();
+      return Uint8List.fromList(bytes + manufacturerDataValue);
+    } catch (e) {
+      print('Error parsing manufacturerData: $e');
+      return Uint8List(0);
+    }
   }
 
   BleScanResult toBleScanResult() {
