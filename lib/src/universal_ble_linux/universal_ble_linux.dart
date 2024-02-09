@@ -211,7 +211,9 @@ class UniversalBleLinux extends UniversalBlePlatform {
   @override
   Future<void> pair(String deviceId) async {
     BlueZDevice device = _findDeviceById(deviceId);
-    await device.pair();
+    device.pair().onError((error, _) {
+      onPairingStateChange?.call(deviceId, false, error.toString());
+    });
   }
 
   @override
@@ -352,10 +354,13 @@ class UniversalBleLinux extends UniversalBlePlatform {
             onPairingStateChange?.call(device.address, device.paired, null);
             break;
           // Ignored these properties updates
+          case BluezProperty.bonded:
           case BluezProperty.legacyPairing:
           case BluezProperty.servicesResolved:
           case BluezProperty.uuids:
           case BluezProperty.txPower:
+          case BluezProperty.address:
+          case BluezProperty.addressType:
             break;
           default:
             print(
@@ -379,6 +384,7 @@ class BluezProperty {
   static const String rssi = 'RSSI';
   static const String connected = 'Connected';
   static const String txPower = 'TxPower';
+  static const String bonded = 'Bonded';
   static const String manufacturerData = 'ManufacturerData';
   static const String legacyPairing = 'LegacyPairing';
   static const String servicesResolved = 'ServicesResolved';
