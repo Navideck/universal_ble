@@ -74,7 +74,12 @@ class UniversalBleLinux extends UniversalBlePlatform {
 
   @override
   Future<void> connect(String deviceId, {Duration? connectionTimeout}) async {
-    await _findDeviceById(deviceId).connect();
+    var device = _findDeviceById(deviceId);
+    if (device.connected) {
+      onConnectionChanged?.call(deviceId, BleConnectionState.connected);
+      return;
+    }
+    await device.connect();
   }
 
   @override
