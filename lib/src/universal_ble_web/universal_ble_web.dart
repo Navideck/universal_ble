@@ -5,7 +5,7 @@ import 'dart:typed_data';
 import 'package:flutter_web_bluetooth/flutter_web_bluetooth.dart';
 import 'package:universal_ble/src/models/model_exports.dart';
 import 'package:universal_ble/src/universal_ble_platform_interface.dart';
-import 'package:universal_ble/src/universal_ble_web/queue.dart';
+import 'package:universal_ble/src/queue.dart';
 
 class UniversalBleWeb extends UniversalBlePlatform {
   static UniversalBleWeb? _instance;

@@ -6,6 +6,7 @@ import 'dart:typed_data';
 import 'package:bluez/bluez.dart';
 import 'package:collection/collection.dart';
 import 'package:universal_ble/src/models/model_exports.dart';
+import 'package:universal_ble/src/queue.dart';
 import 'package:universal_ble/src/universal_ble_platform_interface.dart';
 
 class UniversalBleLinux extends UniversalBlePlatform {
@@ -18,14 +19,17 @@ class UniversalBleLinux extends UniversalBlePlatform {
   final BlueZClient _client = BlueZClient();
 
   BlueZAdapter? _activeAdapter;
+  Completer<void>? _initializationCompleter;
   final Map<String, BlueZDevice> _devices = {};
   final Map<String, StreamSubscription> _deviceStreamSubscriptions = {};
   final Map<String, StreamSubscription> _characteristicPropertiesSubscriptions =
       {};
+  final Queue _queue = Queue();
 
   @override
   Future<AvailabilityState> getBluetoothAvailabilityState() async {
     await _ensureInitialized();
+
     BlueZAdapter? adapter = _activeAdapter;
     if (adapter == null) {
       return AvailabilityState.unsupported;
@@ -39,8 +43,12 @@ class UniversalBleLinux extends UniversalBlePlatform {
   Future<bool> enableBluetooth() async {
     await _ensureInitialized();
     if (_activeAdapter?.powered == true) return true;
-    await _activeAdapter?.setPowered(true);
-    return _activeAdapter?.powered ?? false;
+    try {
+      await _activeAdapter?.setPowered(true);
+      return _activeAdapter?.powered ?? false;
+    } catch (e) {
+      return false;
+    }
   }
 
   @override
@@ -48,9 +56,8 @@ class UniversalBleLinux extends UniversalBlePlatform {
     WebRequestOptionsBuilder? webRequestOptions,
   }) async {
     await _ensureInitialized();
-
-    if (!_activeAdapter!.discovering) {
-      _activeAdapter!.startDiscovery();
+    if (_activeAdapter?.discovering != true) {
+      await _activeAdapter?.startDiscovery();
       _client.devices.forEach(_onDeviceAdd);
     }
   }
@@ -58,10 +65,11 @@ class UniversalBleLinux extends UniversalBlePlatform {
   @override
   Future<void> stopScan() async {
     await _ensureInitialized();
-    var adapter = _activeAdapter;
-    if (adapter != null && adapter.discovering) {
-      adapter.stopDiscovery();
-    }
+    try {
+      if (_activeAdapter?.discovering == true) {
+        await _activeAdapter?.stopDiscovery();
+      }
+    } catch (_) {}
   }
 
   @override
@@ -121,7 +129,9 @@ class UniversalBleLinux extends UniversalBlePlatform {
       String characteristic, BleInputProperty bleInputProperty) async {
     var char = _getCharacteristic(deviceId, service, characteristic);
     if (bleInputProperty != BleInputProperty.disabled) {
-      char.startNotify();
+      if (char.notifying) throw Exception('Characteristic already notifying');
+
+      await char.startNotify();
 
       if (_characteristicPropertiesSubscriptions[characteristic] != null) {
         _characteristicPropertiesSubscriptions[characteristic]?.cancel();
@@ -144,7 +154,8 @@ class UniversalBleLinux extends UniversalBlePlatform {
         }
       });
     } else {
-      char.stopNotify();
+      if (!char.notifying) throw Exception('Characteristic not notifying');
+      await char.stopNotify();
       _characteristicPropertiesSubscriptions.remove(characteristic)?.cancel();
     }
   }
@@ -153,8 +164,10 @@ class UniversalBleLinux extends UniversalBlePlatform {
   Future<Uint8List> readValue(
       String deviceId, String service, String characteristic) async {
     var c = _getCharacteristic(deviceId, service, characteristic);
-    var data = await c.readValue();
-    return Uint8List.fromList(data);
+    return _queue.add<Uint8List>(() async {
+      var data = await c.readValue();
+      return Uint8List.fromList(data);
+    });
   }
 
   @override
@@ -164,13 +177,20 @@ class UniversalBleLinux extends UniversalBlePlatform {
       String characteristic,
       Uint8List value,
       BleOutputProperty bleOutputProperty) async {
-    var c = _getCharacteristic(deviceId, service, characteristic);
-
-    if (bleOutputProperty == BleOutputProperty.withResponse) {
-      await c.writeValue(value, type: BlueZGattCharacteristicWriteType.request);
-    } else {
-      await c.writeValue(value, type: BlueZGattCharacteristicWriteType.command);
-    }
+    return _queue.add<void>(() async {
+      var c = _getCharacteristic(deviceId, service, characteristic);
+      if (bleOutputProperty == BleOutputProperty.withResponse) {
+        await c.writeValue(
+          value,
+          type: BlueZGattCharacteristicWriteType.request,
+        );
+      } else {
+        await c.writeValue(
+          value,
+          type: BlueZGattCharacteristicWriteType.command,
+        );
+      }
+    });
   }
 
   @override
@@ -230,7 +250,7 @@ class UniversalBleLinux extends UniversalBlePlatform {
   }
 
   AvailabilityState get _availabilityState {
-    return _activeAdapter!.powered
+    return _activeAdapter?.powered == true
         ? AvailabilityState.poweredOn
         : AvailabilityState.poweredOff;
   }
@@ -246,22 +266,26 @@ class UniversalBleLinux extends UniversalBlePlatform {
   }
 
   Future<void> _ensureInitialized() async {
-    if (!isInitialized) {
+    if (isInitialized) return;
+
+    if (_initializationCompleter != null) {
+      await _initializationCompleter?.future;
+      return;
+    }
+
+    _initializationCompleter = Completer<void>();
+    try {
       await _client.connect();
 
-      _activeAdapter ??=
-          _client.adapters.firstWhereOrNull((adapter) => adapter.powered);
-
-      if (_activeAdapter == null) {
+      if (_client.adapters.isEmpty) {
+        // wait for few seconds to see if adapter becomes available
+        await Future.delayed(const Duration(milliseconds: 500));
         if (_client.adapters.isEmpty) {
           throw Exception('Bluetooth adapter unavailable');
         }
-        await _client.adapters.first.setPowered(true);
-        _activeAdapter = _client.adapters.first;
       }
 
-      _client.deviceAdded.listen(_onDeviceAdd);
-      _client.deviceRemoved.listen(_onDeviceRemoved);
+      _activeAdapter ??= _client.adapters.first;
 
       _activeAdapter?.propertiesChanged.listen((List<String> properties) {
         // Handle pairing state change
@@ -279,8 +303,17 @@ class UniversalBleLinux extends UniversalBlePlatform {
         }
       });
 
+      _client.deviceAdded.listen(_onDeviceAdd);
+      _client.deviceRemoved.listen(_onDeviceRemoved);
+
       onAvailabilityChange?.call(_availabilityState);
       isInitialized = true;
+      _initializationCompleter?.complete();
+      _initializationCompleter = null;
+    } catch (e) {
+      _initializationCompleter?.completeError(e);
+      await _client.close();
+      rethrow;
     }
   }
 
