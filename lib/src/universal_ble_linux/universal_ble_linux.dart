@@ -296,7 +296,7 @@ class UniversalBleLinux extends UniversalBlePlatform {
               break;
             case BluezProperty.discoverable:
             case BluezProperty.discovering:
-              print("Adapter Discovering: ${_activeAdapter?.discovering}");
+              //  print("Adapter Discovering: ${_activeAdapter?.discovering}");
               break;
             default:
               print("UnhandledPropertyChanged: $property");
@@ -319,11 +319,8 @@ class UniversalBleLinux extends UniversalBlePlatform {
   }
 
   void _onDeviceAdd(BlueZDevice device) {
-    // Check if device actually advertising
-    if (device.rssi == 0) return;
-
-    // Update ScanResults
-    onScanResult?.call(device.toBleScanResult());
+    // Update scan results only if rssi is available
+    if (device.rssi != 0) onScanResult?.call(device.toBleScanResult());
 
     // Setup Cache
     _devices[device.address] = device;
@@ -354,6 +351,7 @@ class UniversalBleLinux extends UniversalBlePlatform {
           case BluezProperty.paired:
             onPairingStateChange?.call(device.address, device.paired, null);
             break;
+          // Ignored these properties updates
           case BluezProperty.legacyPairing:
           case BluezProperty.servicesResolved:
           case BluezProperty.uuids:
@@ -370,7 +368,6 @@ class UniversalBleLinux extends UniversalBlePlatform {
 
   void _onDeviceRemoved(BlueZDevice device) {
     _devices.remove(device.address);
-
     // Stop listener
     _deviceStreamSubscriptions[device.address]?.cancel();
     _deviceStreamSubscriptions
