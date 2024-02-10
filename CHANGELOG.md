@@ -1,3 +1,8 @@
+## 0.9.0
+* Improve windows device name discovery
+* Improve linux implementation
+* Improve titles in example app
+
 ## 0.8.4
 * Add `WebRequestOptionsBuilder.defaultServices` for convenience when setting `optionalServices` when scanning on web
 * Add "try online" URL in readme
