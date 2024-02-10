@@ -4,7 +4,6 @@ import 'dart:typed_data';
 import 'package:bluez/bluez.dart';
 import 'package:collection/collection.dart';
 import 'package:universal_ble/src/models/model_exports.dart';
-import 'package:universal_ble/src/queue.dart';
 import 'package:universal_ble/src/universal_ble_platform_interface.dart';
 
 class UniversalBleLinux extends UniversalBlePlatform {
@@ -22,7 +21,6 @@ class UniversalBleLinux extends UniversalBlePlatform {
   final Map<String, StreamSubscription> _deviceStreamSubscriptions = {};
   final Map<String, StreamSubscription> _characteristicPropertiesSubscriptions =
       {};
-  final Queue _queue = Queue();
 
   @override
   Future<AvailabilityState> getBluetoothAvailabilityState() async {
@@ -173,10 +171,8 @@ class UniversalBleLinux extends UniversalBlePlatform {
   Future<Uint8List> readValue(
       String deviceId, String service, String characteristic) async {
     var c = _getCharacteristic(deviceId, service, characteristic);
-    return _queue.add<Uint8List>(() async {
-      var data = await c.readValue();
-      return Uint8List.fromList(data);
-    });
+    var data = await c.readValue();
+    return Uint8List.fromList(data);
   }
 
   @override
@@ -186,20 +182,18 @@ class UniversalBleLinux extends UniversalBlePlatform {
       String characteristic,
       Uint8List value,
       BleOutputProperty bleOutputProperty) async {
-    return _queue.add<void>(() async {
-      var c = _getCharacteristic(deviceId, service, characteristic);
-      if (bleOutputProperty == BleOutputProperty.withResponse) {
-        await c.writeValue(
-          value,
-          type: BlueZGattCharacteristicWriteType.request,
-        );
-      } else {
-        await c.writeValue(
-          value,
-          type: BlueZGattCharacteristicWriteType.command,
-        );
-      }
-    });
+    var c = _getCharacteristic(deviceId, service, characteristic);
+    if (bleOutputProperty == BleOutputProperty.withResponse) {
+      await c.writeValue(
+        value,
+        type: BlueZGattCharacteristicWriteType.request,
+      );
+    } else {
+      await c.writeValue(
+        value,
+        type: BlueZGattCharacteristicWriteType.command,
+      );
+    }
   }
 
   @override
