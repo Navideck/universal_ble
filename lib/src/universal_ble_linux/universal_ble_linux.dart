@@ -1,5 +1,3 @@
-// ignore_for_file: avoid_print
-
 import 'dart:async';
 import 'dart:typed_data';
 
@@ -18,6 +16,7 @@ class UniversalBleLinux extends UniversalBlePlatform {
   final BlueZClient _client = BlueZClient();
 
   BlueZAdapter? _activeAdapter;
+  Completer<void>? _initializationCompleter;
   final Map<String, BlueZDevice> _devices = {};
   final Map<String, StreamSubscription> _deviceStreamSubscriptions = {};
   final Map<String, StreamSubscription> _characteristicPropertiesSubscriptions =
@@ -26,6 +25,7 @@ class UniversalBleLinux extends UniversalBlePlatform {
   @override
   Future<AvailabilityState> getBluetoothAvailabilityState() async {
     await _ensureInitialized();
+
     BlueZAdapter? adapter = _activeAdapter;
     if (adapter == null) {
       return AvailabilityState.unsupported;
@@ -39,8 +39,13 @@ class UniversalBleLinux extends UniversalBlePlatform {
   Future<bool> enableBluetooth() async {
     await _ensureInitialized();
     if (_activeAdapter?.powered == true) return true;
-    await _activeAdapter?.setPowered(true);
-    return _activeAdapter?.powered ?? false;
+    try {
+      await _activeAdapter?.setPowered(true);
+      return _activeAdapter?.powered ?? false;
+    } catch (e) {
+      logInfo('Error enabling bluetooth: $e');
+      return false;
+    }
   }
 
   @override
@@ -48,9 +53,8 @@ class UniversalBleLinux extends UniversalBlePlatform {
     WebRequestOptionsBuilder? webRequestOptions,
   }) async {
     await _ensureInitialized();
-
-    if (!_activeAdapter!.discovering) {
-      _activeAdapter!.startDiscovery();
+    if (_activeAdapter?.discovering != true) {
+      await _activeAdapter?.startDiscovery();
       _client.devices.forEach(_onDeviceAdd);
     }
   }
@@ -58,20 +62,33 @@ class UniversalBleLinux extends UniversalBlePlatform {
   @override
   Future<void> stopScan() async {
     await _ensureInitialized();
-    var adapter = _activeAdapter;
-    if (adapter != null && adapter.discovering) {
-      adapter.stopDiscovery();
+    try {
+      if (_activeAdapter?.discovering == true) {
+        await _activeAdapter?.stopDiscovery();
+      }
+    } catch (e) {
+      logInfo("stopScan error: $e");
     }
   }
 
   @override
   Future<void> connect(String deviceId, {Duration? connectionTimeout}) async {
-    await _findDeviceById(deviceId).connect();
+    var device = _findDeviceById(deviceId);
+    if (device.connected) {
+      onConnectionChanged?.call(deviceId, BleConnectionState.connected);
+      return;
+    }
+    await device.connect();
   }
 
   @override
   Future<void> disconnect(String deviceId) async {
-    await _findDeviceById(deviceId).disconnect();
+    var device = _findDeviceById(deviceId);
+    if (!device.connected) {
+      onConnectionChanged?.call(deviceId, BleConnectionState.disconnected);
+      return;
+    }
+    await device.disconnect();
   }
 
   @override
@@ -121,7 +138,9 @@ class UniversalBleLinux extends UniversalBlePlatform {
       String characteristic, BleInputProperty bleInputProperty) async {
     var char = _getCharacteristic(deviceId, service, characteristic);
     if (bleInputProperty != BleInputProperty.disabled) {
-      char.startNotify();
+      if (char.notifying) throw Exception('Characteristic already notifying');
+
+      await char.startNotify();
 
       if (_characteristicPropertiesSubscriptions[characteristic] != null) {
         _characteristicPropertiesSubscriptions[characteristic]?.cancel();
@@ -139,12 +158,13 @@ class UniversalBleLinux extends UniversalBlePlatform {
               );
               break;
             default:
-              print("UnhandledCharValuePropertyChange: $property");
+              logInfo("UnhandledCharValuePropertyChange: $property");
           }
         }
       });
     } else {
-      char.stopNotify();
+      if (!char.notifying) throw Exception('Characteristic not notifying');
+      await char.stopNotify();
       _characteristicPropertiesSubscriptions.remove(characteristic)?.cancel();
     }
   }
@@ -165,11 +185,16 @@ class UniversalBleLinux extends UniversalBlePlatform {
       Uint8List value,
       BleOutputProperty bleOutputProperty) async {
     var c = _getCharacteristic(deviceId, service, characteristic);
-
     if (bleOutputProperty == BleOutputProperty.withResponse) {
-      await c.writeValue(value, type: BlueZGattCharacteristicWriteType.request);
+      await c.writeValue(
+        value,
+        type: BlueZGattCharacteristicWriteType.request,
+      );
     } else {
-      await c.writeValue(value, type: BlueZGattCharacteristicWriteType.command);
+      await c.writeValue(
+        value,
+        type: BlueZGattCharacteristicWriteType.command,
+      );
     }
   }
 
@@ -191,7 +216,9 @@ class UniversalBleLinux extends UniversalBlePlatform {
   @override
   Future<void> pair(String deviceId) async {
     BlueZDevice device = _findDeviceById(deviceId);
-    await device.pair();
+    device.pair().onError((error, _) {
+      onPairingStateChange?.call(deviceId, false, error.toString());
+    });
   }
 
   @override
@@ -212,25 +239,25 @@ class UniversalBleLinux extends UniversalBlePlatform {
   Future<List<BleScanResult>> getConnectedDevices(
     List<String>? withServices,
   ) async {
-    List<BlueZDevice> devices = _client.devices;
+    List<BlueZDevice> devices =
+        _client.devices.where((device) => device.connected).toList();
     if (withServices != null && withServices.isNotEmpty) {
-      return devices
-          .where((device) {
-            if (device.servicesResolved) {
-              return device.gattServices
-                  .map((e) => e.uuid.toString())
-                  .any((service) => withServices.contains(service));
-            }
-            return true;
-          })
-          .map((device) => device.toBleScanResult())
-          .toList();
+      devices = devices.where((device) {
+        if (device.servicesResolved) {
+          return device.gattServices
+              .map((e) => e.uuid.toString())
+              .any((service) => withServices.contains(service));
+        } else {
+          logInfo('Skipping: ${device.address}: Services not resolved yet.');
+          return false;
+        }
+      }).toList();
     }
     return devices.map((device) => device.toBleScanResult()).toList();
   }
 
   AvailabilityState get _availabilityState {
-    return _activeAdapter!.powered
+    return _activeAdapter?.powered == true
         ? AvailabilityState.poweredOn
         : AvailabilityState.poweredOff;
   }
@@ -246,22 +273,23 @@ class UniversalBleLinux extends UniversalBlePlatform {
   }
 
   Future<void> _ensureInitialized() async {
-    if (!isInitialized) {
+    if (isInitialized) return;
+
+    if (_initializationCompleter != null) {
+      await _initializationCompleter?.future;
+      return;
+    }
+
+    _initializationCompleter = Completer<void>();
+    try {
       await _client.connect();
+      await _waitForAdapter(_client);
 
-      _activeAdapter ??=
-          _client.adapters.firstWhereOrNull((adapter) => adapter.powered);
+      _activeAdapter ??= _client.adapters.first;
 
-      if (_activeAdapter == null) {
-        if (_client.adapters.isEmpty) {
-          throw Exception('Bluetooth adapter unavailable');
-        }
-        await _client.adapters.first.setPowered(true);
-        _activeAdapter = _client.adapters.first;
-      }
-
-      _client.deviceAdded.listen(_onDeviceAdd);
-      _client.deviceRemoved.listen(_onDeviceRemoved);
+      logInfo(
+        'BleAdapter: ${_activeAdapter?.name} - ${_activeAdapter?.address}',
+      );
 
       _activeAdapter?.propertiesChanged.listen((List<String> properties) {
         // Handle pairing state change
@@ -272,21 +300,47 @@ class UniversalBleLinux extends UniversalBlePlatform {
               break;
             case BluezProperty.discoverable:
             case BluezProperty.discovering:
+              //  print("Adapter Discovering: ${_activeAdapter?.discovering}");
               break;
+            case BluezProperty.propertyClass:
             default:
-              print("UnhandledPropertyChanged: $property");
+              logInfo("UnhandledPropertyChanged: $property");
           }
         }
       });
 
+      _client.deviceAdded.listen(_onDeviceAdd);
+      _client.deviceRemoved.listen(_onDeviceRemoved);
+
       onAvailabilityChange?.call(_availabilityState);
       isInitialized = true;
+      _initializationCompleter?.complete();
+      _initializationCompleter = null;
+    } catch (e) {
+      logInfo('Error initializing: $e');
+      _initializationCompleter?.completeError(e);
+      await _client.close();
+      rethrow;
+    }
+  }
+
+  Future<void> _waitForAdapter(BlueZClient client) async {
+    if (client.adapters.isNotEmpty) return;
+
+    int attempts = 0;
+    while (attempts < 10 && client.adapters.isEmpty) {
+      await Future.delayed(const Duration(milliseconds: 100));
+      attempts++;
+    }
+
+    if (client.adapters.isEmpty) {
+      throw Exception('Bluetooth adapter unavailable');
     }
   }
 
   void _onDeviceAdd(BlueZDevice device) {
-    // Update ScanResults
-    onScanResult?.call(device.toBleScanResult());
+    // Update scan results only if rssi is available
+    if (device.rssi != 0) onScanResult?.call(device.toBleScanResult());
 
     // Setup Cache
     _devices[device.address] = device;
@@ -295,6 +349,7 @@ class UniversalBleLinux extends UniversalBlePlatform {
     if (_deviceStreamSubscriptions[device.address] != null) {
       _deviceStreamSubscriptions[device.address]?.cancel();
     }
+
     _deviceStreamSubscriptions[device.address] =
         device.propertiesChanged.listen((properties) {
       for (var property in properties) {
@@ -316,12 +371,18 @@ class UniversalBleLinux extends UniversalBlePlatform {
           case BluezProperty.paired:
             onPairingStateChange?.call(device.address, device.paired, null);
             break;
+          // Ignored these properties updates
+          case BluezProperty.bonded:
           case BluezProperty.legacyPairing:
           case BluezProperty.servicesResolved:
           case BluezProperty.uuids:
+          case BluezProperty.txPower:
+          case BluezProperty.address:
+          case BluezProperty.addressType:
             break;
           default:
-            print("UnhandledDevicePropertyChanged: $property");
+            logInfo(
+                "UnhandledDevicePropertyChanged ${device.name} ${device.address}: $property");
             break;
         }
       }
@@ -330,7 +391,6 @@ class UniversalBleLinux extends UniversalBlePlatform {
 
   void _onDeviceRemoved(BlueZDevice device) {
     _devices.remove(device.address);
-
     // Stop listener
     _deviceStreamSubscriptions[device.address]?.cancel();
     _deviceStreamSubscriptions
@@ -341,6 +401,8 @@ class UniversalBleLinux extends UniversalBlePlatform {
 class BluezProperty {
   static const String rssi = 'RSSI';
   static const String connected = 'Connected';
+  static const String txPower = 'TxPower';
+  static const String bonded = 'Bonded';
   static const String manufacturerData = 'ManufacturerData';
   static const String legacyPairing = 'LegacyPairing';
   static const String servicesResolved = 'ServicesResolved';
@@ -353,15 +415,26 @@ class BluezProperty {
   static const String powered = 'Powered';
   static const String discoverable = 'Discoverable';
   static const String discovering = 'Discovering';
+  static const String propertyClass = 'Class';
 }
 
 extension BlueZDeviceExtension on BlueZDevice {
   Uint8List get manufacturerDataHead {
-    if (manufacturerData.isEmpty) return Uint8List(0);
-
-    final sorted = manufacturerData.entries.toList()
-      ..sort((a, b) => a.key.id - b.key.id);
-    return Uint8List.fromList(sorted.first.value);
+    try {
+      if (manufacturerData.isEmpty) return Uint8List(0);
+      final sorted = manufacturerData.entries.toList()
+        ..sort((a, b) => a.key.id - b.key.id);
+      int companyId = sorted.first.key.id;
+      List<int> manufacturerDataValue = sorted.first.value;
+      var byteData = ByteData(2);
+      byteData.setInt16(
+          0, companyId, Endian.host); // TODO: Verify that this works regardless of the endianess
+      List<int> bytes = byteData.buffer.asUint8List();
+      return Uint8List.fromList(bytes + manufacturerDataValue);
+    } catch (e) {
+      logInfo('Error parsing manufacturerData: $e');
+      return Uint8List(0);
+    }
   }
 
   BleScanResult toBleScanResult() {

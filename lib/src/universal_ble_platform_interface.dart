@@ -1,3 +1,4 @@
+import 'dart:developer';
 import 'dart:typed_data';
 
 import 'package:universal_ble/universal_ble.dart';
@@ -49,4 +50,8 @@ abstract class UniversalBlePlatform {
   OnConnectionChanged? onConnectionChanged;
   OnValueChanged? onValueChanged;
   OnPairingStateChange? onPairingStateChange;
+}
+
+void logInfo(String message) {
+  log(message, name: 'UniversalBle');
 }
