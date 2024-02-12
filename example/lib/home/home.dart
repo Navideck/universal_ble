@@ -50,6 +50,7 @@ class _MyAppState extends State<MyApp> {
     };
 
     UniversalBle.onScanResult = (result) {
+      debugPrint("${result.name} ${result.manufacturerData}");
       int index = _scanResults.indexWhere((e) => e.deviceId == result.deviceId);
       if (index == -1) {
         _scanResults.add(result);
