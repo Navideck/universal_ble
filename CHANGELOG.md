@@ -1,3 +1,6 @@
+## 0.9.1
+* Improve logging
+
 ## 0.9.0
 * Improve windows device name discovery
 * Improve linux implementation
