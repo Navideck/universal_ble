@@ -66,7 +66,9 @@ class UniversalBleLinux extends UniversalBlePlatform {
       if (_activeAdapter?.discovering == true) {
         await _activeAdapter?.stopDiscovery();
       }
-    } catch (_) {}
+    } catch (e) {
+      logInfo("stopScan error: $e");
+    }
   }
 
   @override
@@ -425,7 +427,8 @@ extension BlueZDeviceExtension on BlueZDevice {
       int companyId = sorted.first.key.id;
       List<int> manufacturerDataValue = sorted.first.value;
       var byteData = ByteData(2);
-      byteData.setInt16(0, companyId, Endian.little);
+      byteData.setInt16(
+          0, companyId, Endian.host); // TODO: Verify that this works regardless of the endianess
       List<int> bytes = byteData.buffer.asUint8List();
       return Uint8List.fromList(bytes + manufacturerDataValue);
     } catch (e) {
