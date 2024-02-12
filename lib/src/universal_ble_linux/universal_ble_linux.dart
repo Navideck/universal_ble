@@ -1,5 +1,3 @@
-// ignore_for_file: avoid_print
-
 import 'dart:async';
 import 'dart:typed_data';
 
@@ -47,6 +45,7 @@ class UniversalBleLinux extends UniversalBlePlatform {
       await _activeAdapter?.setPowered(true);
       return _activeAdapter?.powered ?? false;
     } catch (e) {
+      logInfo('Error enabling bluetooth: $e');
       return false;
     }
   }
@@ -159,7 +158,7 @@ class UniversalBleLinux extends UniversalBlePlatform {
               );
               break;
             default:
-              print("UnhandledCharValuePropertyChange: $property");
+              logInfo("UnhandledCharValuePropertyChange: $property");
           }
         }
       });
@@ -253,7 +252,7 @@ class UniversalBleLinux extends UniversalBlePlatform {
               .map((e) => e.uuid.toString())
               .any((service) => withServices.contains(service));
         } else {
-          print('Skipping: ${device.address}: Services not resolved yet.');
+          logInfo('Skipping: ${device.address}: Services not resolved yet.');
           return false;
         }
       }).toList();
@@ -288,16 +287,13 @@ class UniversalBleLinux extends UniversalBlePlatform {
     _initializationCompleter = Completer<void>();
     try {
       await _client.connect();
-
-      if (_client.adapters.isEmpty) {
-        // wait for few seconds to see if adapter becomes available
-        await Future.delayed(const Duration(milliseconds: 500));
-        if (_client.adapters.isEmpty) {
-          throw Exception('Bluetooth adapter unavailable');
-        }
-      }
+      await _waitForAdapter(_client);
 
       _activeAdapter ??= _client.adapters.first;
+
+      logInfo(
+        'BleAdapter: ${_activeAdapter?.name} - ${_activeAdapter?.address}',
+      );
 
       _activeAdapter?.propertiesChanged.listen((List<String> properties) {
         // Handle pairing state change
@@ -310,8 +306,9 @@ class UniversalBleLinux extends UniversalBlePlatform {
             case BluezProperty.discovering:
               //  print("Adapter Discovering: ${_activeAdapter?.discovering}");
               break;
+            case BluezProperty.propertyClass:
             default:
-              print("UnhandledPropertyChanged: $property");
+              logInfo("UnhandledPropertyChanged: $property");
           }
         }
       });
@@ -324,9 +321,24 @@ class UniversalBleLinux extends UniversalBlePlatform {
       _initializationCompleter?.complete();
       _initializationCompleter = null;
     } catch (e) {
+      logInfo('Error initializing: $e');
       _initializationCompleter?.completeError(e);
       await _client.close();
       rethrow;
+    }
+  }
+
+  Future<void> _waitForAdapter(BlueZClient client) async {
+    if (client.adapters.isNotEmpty) return;
+
+    int attempts = 0;
+    while (attempts < 10 && client.adapters.isEmpty) {
+      await Future.delayed(const Duration(milliseconds: 100));
+      attempts++;
+    }
+
+    if (client.adapters.isEmpty) {
+      throw Exception('Bluetooth adapter unavailable');
     }
   }
 
@@ -373,7 +385,7 @@ class UniversalBleLinux extends UniversalBlePlatform {
           case BluezProperty.addressType:
             break;
           default:
-            print(
+            logInfo(
                 "UnhandledDevicePropertyChanged ${device.name} ${device.address}: $property");
             break;
         }
@@ -407,6 +419,7 @@ class BluezProperty {
   static const String powered = 'Powered';
   static const String discoverable = 'Discoverable';
   static const String discovering = 'Discovering';
+  static const String propertyClass = 'Class';
 }
 
 extension BlueZDeviceExtension on BlueZDevice {
@@ -422,7 +435,7 @@ extension BlueZDeviceExtension on BlueZDevice {
       List<int> bytes = byteData.buffer.asUint8List();
       return Uint8List.fromList(bytes + manufacturerDataValue);
     } catch (e) {
-      print('Error parsing manufacturerData: $e');
+      logInfo('Error parsing manufacturerData: $e');
       return Uint8List(0);
     }
   }
