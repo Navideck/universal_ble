@@ -50,8 +50,9 @@ abstract class UniversalBlePlatform {
   OnConnectionChanged? onConnectionChanged;
   OnValueChanged? onValueChanged;
   OnPairingStateChange? onPairingStateChange;
-}
 
-void logInfo(String message) {
-  log(message, name: 'UniversalBle');
+  static void logInfo(String message, {bool isError = false}) {
+    if (isError) message = '\x1B[31m$message\x1B[31m';
+    log(message, name: 'UniversalBle');
+  }
 }
