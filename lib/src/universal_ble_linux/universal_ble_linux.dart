@@ -43,7 +43,10 @@ class UniversalBleLinux extends UniversalBlePlatform {
       await _activeAdapter?.setPowered(true);
       return _activeAdapter?.powered ?? false;
     } catch (e) {
-      logInfo('Error enabling bluetooth: $e');
+      UniversalBlePlatform.logInfo(
+        'Error enabling bluetooth: $e',
+        isError: true,
+      );
       return false;
     }
   }
@@ -67,7 +70,10 @@ class UniversalBleLinux extends UniversalBlePlatform {
         await _activeAdapter?.stopDiscovery();
       }
     } catch (e) {
-      logInfo("stopScan error: $e");
+      UniversalBlePlatform.logInfo(
+        "stopScan error: $e",
+        isError: true,
+      );
     }
   }
 
@@ -158,7 +164,8 @@ class UniversalBleLinux extends UniversalBlePlatform {
               );
               break;
             default:
-              logInfo("UnhandledCharValuePropertyChange: $property");
+              UniversalBlePlatform.logInfo(
+                  "UnhandledCharValuePropertyChange: $property");
           }
         }
       });
@@ -248,7 +255,8 @@ class UniversalBleLinux extends UniversalBlePlatform {
               .map((e) => e.uuid.toString())
               .any((service) => withServices.contains(service));
         } else {
-          logInfo('Skipping: ${device.address}: Services not resolved yet.');
+          UniversalBlePlatform.logInfo(
+              'Skipping: ${device.address}: Services not resolved yet.');
           return false;
         }
       }).toList();
@@ -287,7 +295,7 @@ class UniversalBleLinux extends UniversalBlePlatform {
 
       _activeAdapter ??= _client.adapters.first;
 
-      logInfo(
+      UniversalBlePlatform.logInfo(
         'BleAdapter: ${_activeAdapter?.name} - ${_activeAdapter?.address}',
       );
 
@@ -304,7 +312,9 @@ class UniversalBleLinux extends UniversalBlePlatform {
               break;
             case BluezProperty.propertyClass:
             default:
-              logInfo("UnhandledPropertyChanged: $property");
+              UniversalBlePlatform.logInfo(
+                "UnhandledPropertyChanged: $property",
+              );
           }
         }
       });
@@ -317,7 +327,10 @@ class UniversalBleLinux extends UniversalBlePlatform {
       _initializationCompleter?.complete();
       _initializationCompleter = null;
     } catch (e) {
-      logInfo('Error initializing: $e');
+      UniversalBlePlatform.logInfo(
+        'Error initializing: $e',
+        isError: true,
+      );
       _initializationCompleter?.completeError(e);
       await _client.close();
       rethrow;
@@ -381,7 +394,7 @@ class UniversalBleLinux extends UniversalBlePlatform {
           case BluezProperty.addressType:
             break;
           default:
-            logInfo(
+            UniversalBlePlatform.logInfo(
                 "UnhandledDevicePropertyChanged ${device.name} ${device.address}: $property");
             break;
         }
@@ -428,11 +441,17 @@ extension BlueZDeviceExtension on BlueZDevice {
       List<int> manufacturerDataValue = sorted.first.value;
       var byteData = ByteData(2);
       byteData.setInt16(
-          0, companyId, Endian.host); // TODO: Verify that this works regardless of the endianess
+          0,
+          companyId,
+          Endian
+              .host); // TODO: Verify that this works regardless of the endianess
       List<int> bytes = byteData.buffer.asUint8List();
       return Uint8List.fromList(bytes + manufacturerDataValue);
     } catch (e) {
-      logInfo('Error parsing manufacturerData: $e');
+      UniversalBlePlatform.logInfo(
+        'Error parsing manufacturerData: $e',
+        isError: true,
+      );
       return Uint8List(0);
     }
   }
