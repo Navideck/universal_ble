@@ -56,3 +56,17 @@ abstract class UniversalBlePlatform {
     log(message, name: 'UniversalBle');
   }
 }
+
+// Callback types
+typedef OnConnectionChanged = void Function(
+    String deviceId, BleConnectionState state);
+
+typedef OnValueChanged = void Function(
+    String deviceId, String characteristicId, Uint8List value);
+
+typedef OnScanResult = void Function(BleScanResult scanResult);
+
+typedef OnAvailabilityChange = void Function(AvailabilityState state);
+
+typedef OnPairingStateChange = void Function(
+    String deviceId, bool isPaired, String? error);

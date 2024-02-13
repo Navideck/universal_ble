@@ -5,7 +5,7 @@ import 'dart:typed_data';
 import 'package:flutter_web_bluetooth/flutter_web_bluetooth.dart';
 import 'package:universal_ble/src/models/model_exports.dart';
 import 'package:universal_ble/src/universal_ble_platform_interface.dart';
-import 'package:universal_ble/src/universal_ble_web/queue.dart';
+import 'package:universal_ble/src/ble_command_queue.dart';
 
 class UniversalBleWeb extends UniversalBlePlatform {
   static UniversalBleWeb? _instance;
@@ -15,7 +15,7 @@ class UniversalBleWeb extends UniversalBlePlatform {
     _setupListeners();
   }
 
-  late final _queue = Queue();
+  late final _queue = BleCommandQueue();
   final Map<String, BluetoothDevice> _bluetoothDeviceList = {};
   final Map<String, StreamSubscription> _deviceAdvertisementStreamList = {};
   final Map<String, StreamSubscription> _connectedDeviceStreamList = {};

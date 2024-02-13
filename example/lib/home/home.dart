@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:universal_ble/universal_ble.dart';
 import 'package:universal_ble_example/data/capabilities.dart';
+import 'package:universal_ble_example/data/mock_universal_ble.dart';
 import 'package:universal_ble_example/home/widgets/scanned_devices_placeholder_widget.dart';
 import 'package:universal_ble_example/home/widgets/scanned_item_widget.dart';
 import 'package:universal_ble_example/data/permission_handler.dart';
@@ -35,6 +36,15 @@ class _MyAppState extends State<MyApp> {
   @override
   void initState() {
     super.initState();
+
+    /// Set mock instance for testing
+    if (const bool.fromEnvironment('MOCK')) {
+      UniversalBle.setInstance(MockUniversalBle());
+    }
+
+    /// Setup queue and timeout
+    // UniversalBle.setupQueue();
+    // UniversalBle.timeout = const Duration(seconds: 10);
 
     /// Add common services for web
     if (kIsWeb) {
