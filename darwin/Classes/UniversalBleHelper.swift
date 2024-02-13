@@ -101,6 +101,15 @@ extension CBManagerState {
     }
 }
 
+extension Error {
+    func toFlutterError() -> FlutterError {
+        let nsError = self as NSError
+        let errorCode: String = .init(nsError.code)
+        let errorDescription: String = nsError.localizedDescription
+        return FlutterError(code: errorCode, message: errorDescription, details: nil)
+    }
+}
+
 public extension CBUUID {
     var uuidStr: String {
         uuidString.lowercased()

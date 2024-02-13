@@ -36,7 +36,7 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
       oldValue?(Result.success(AvailabilityState.unknown.rawValue))
     }
   }
-  
+
   init(callbackChannel: UniversalBleCallbackChannel) {
     self.callbackChannel = callbackChannel
     super.init()
@@ -44,14 +44,14 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
 
   func getBluetoothAvailabilityState(completion: @escaping (Result<Int64, Error>) -> Void) {
     let managerState = manager.state
-    
+
     if managerState == .unknown {
       bluetoothAvailabilityStateCallback = completion
     } else {
       completion(.success(managerState.toAvailabilityState().rawValue))
     }
   }
-    
+
   func enableBluetooth(completion: @escaping (Result<Bool, Error>) -> Void) {
     completion(Result.failure(FlutterError(code: "NotSupported", message: nil, details: nil)))
   }
@@ -280,8 +280,8 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
     // Update futures for writeValue
     characteristicWriteFutures.removeAll { future in
       if future.deviceId == peripheral.uuid.uuidString && future.characteristicId == characteristic.uuid.uuidStr && future.serviceId == characteristic.service?.uuid.uuidStr {
-        if error != nil {
-          future.result(Result.failure(FlutterError(code: "WriteFailed", message: String(describing: error), details: nil)))
+        if let flutterError = error?.toFlutterError() {
+          future.result(Result.failure(flutterError))
         } else {
           future.result(Result.success({}()))
         }
@@ -306,8 +306,8 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
     // Update futures for readValue
     characteristicReadFutures.removeAll { future in
       if future.deviceId == peripheral.uuid.uuidString && future.characteristicId == characteristic.uuid.uuidStr && future.serviceId == characteristic.service?.uuid.uuidStr {
-        if error != nil {
-          future.result(Result.failure(FlutterError(code: "ReadFailed", message: String(describing: error), details: nil)))
+        if let flutterError = error?.toFlutterError() {
+          future.result(Result.failure(flutterError))
         } else {
           if let characteristicValue = characteristic.value {
             future.result(Result.success(FlutterStandardTypedData(bytes: characteristicValue)))

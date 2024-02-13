@@ -267,7 +267,20 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
                     it.serviceId == characteristic.service.uuid.toString()
         }.forEach {
             bleCharacteristicFutureList.remove(it)
-            it.result(Result.success(value))
+            if (status == BluetoothGatt.GATT_SUCCESS) {
+                it.result(Result.success(value))
+            } else {
+                it.result(
+                    Result.failure(
+                        FlutterError(
+                            status.toString(),
+                            "Failed to read: (${status.parseGattErrorCode()})",
+                            null,
+                        )
+                    )
+                )
+            }
+
         }
     }
 
@@ -374,9 +387,9 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
                 it.result(
                     Result.failure(
                         FlutterError(
-                            "Failed",
-                            "Failed to write ($status)",
-                            "status $status"
+                            status.toString(),
+                            "Failed to write: (${status.parseGattErrorCode()})",
+                            null,
                         )
                     )
                 )

@@ -106,6 +106,33 @@ fun Int.parseBluetoothStatusCodeError(): String? {
     }
 }
 
+fun Int.parseGattErrorCode(): String? {
+    return when (this) {
+        BluetoothGatt.GATT_SUCCESS -> null
+        BluetoothGatt.GATT_READ_NOT_PERMITTED -> "GATT_READ_NOT_PERMITTED"
+        BluetoothGatt.GATT_WRITE_NOT_PERMITTED -> "GATT_WRITE_NOT_PERMITTED"
+        BluetoothGatt.GATT_INSUFFICIENT_AUTHENTICATION -> "GATT_INSUFFICIENT_AUTHENTICATION"
+        BluetoothGatt.GATT_REQUEST_NOT_SUPPORTED -> "GATT_REQUEST_NOT_SUPPORTED"
+        BluetoothGatt.GATT_INVALID_OFFSET -> "GATT_INVALID_OFFSET"
+        BluetoothGatt.GATT_INSUFFICIENT_AUTHORIZATION -> "GATT_INSUFFICIENT_AUTHORIZATION"
+        BluetoothGatt.GATT_INVALID_ATTRIBUTE_LENGTH -> "GATT_INVALID_ATTRIBUTE_LENGTH"
+        BluetoothGatt.GATT_INSUFFICIENT_ENCRYPTION -> "GATT_INSUFFICIENT_ENCRYPTION"
+        BluetoothGatt.GATT_CONNECTION_CONGESTED -> "GATT_CONNECTION_CONGESTED"
+        BluetoothGatt.GATT_FAILURE -> "GATT_FAILURE"
+        0x01 -> "GATT_INVALID_HANDLE"
+        0x04 -> "GATT_INVALID_PDU"
+        0x09 -> "GATT_PREPARE_QUEUE_FULL"
+        0x0a -> "GATT_ATTR_NOT_FOUND"
+        0x0b -> "GATT_ATTR_NOT_LONG"
+        0x0c -> "GATT_INSUFFICIENT_KEY_SIZE"
+        0x0e -> "GATT_UNLIKELY"
+        0x10 -> "GATT_UNSUPPORTED_GROUP"
+        0x11 -> "GATT_INSUFFICIENT_RESOURCES"
+        else -> "Unknown Error: $this"
+    }
+}
+
+
 val ScanResult.manufacturerDataHead: ByteArray?
     get() {
         val sparseArray = scanRecord?.manufacturerSpecificData ?: return null

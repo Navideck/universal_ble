@@ -386,7 +386,7 @@ packages:
       path: ".."
       relative: true
     source: path
-    version: "0.9.0"
+    version: "0.9.1"
   vector_math:
     dependency: transitive
     description:
