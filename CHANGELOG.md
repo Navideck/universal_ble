@@ -1,3 +1,7 @@
+## 0.9.2
+* Add command queue
+* Improve error handling on Android and Apple
+
 ## 0.9.1
 * Improve logging
 

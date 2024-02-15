@@ -14,6 +14,8 @@ A cross-platform (Android/iOS/macOS/Windows/Linux/Web) Bluetooth Low Energy (BLE
 - [Reading & Writing data](#reading--writing-data)
 - [Pairing](#pairing)
 - [Bluetooth Availability](#bluetooth-availability)
+- [Command Queue](#command-queue)
+- [Timeout](#timeout)
 
 ### API Support Matrix
 
@@ -45,25 +47,6 @@ and import it wherever you want to use it:
 
 ```dart
 import 'package:universal_ble/universal_ble.dart';
-```
-
-## Queue
-
-By default all commands will be executed in queue
-
-```dart
-// To disable queue
-UniversalBle.queuesCommands = false;
-```
-
-By default all commands have timeout
-
-```dart
-// To change timeout
-UniversalBle.timeout = const Duration(seconds: 5);
-
-// To disable timeout
-UniversalBle.timeout = null;
 ```
 
 ### Scanning
@@ -164,6 +147,28 @@ UniversalBle.onAvailabilityChange = (state) {
 
 // Enable Bluetooth programmatically
 UniversalBle.enableBluetooth();
+```
+
+## Command Queue
+
+By default, all commands will be executed in a queue. Each command will wait for the previous one to finish.
+Some platforms (e.g. Android) will fail to send consecutive commands without any delay between them so it is a good idea to leave to queue enabled.
+
+```dart
+// Disable queue
+UniversalBle.queuesCommands = false;
+```
+
+## Timeout
+
+By default, all commands have a timeout of 10 seconds.
+
+```dart
+// Change timeout
+UniversalBle.timeout = const Duration(seconds: 10);
+
+// Disable timeout
+UniversalBle.timeout = null;
 ```
 
 ## Platform-Specific Setup
