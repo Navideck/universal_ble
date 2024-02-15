@@ -11,13 +11,13 @@
             "type": "dart"
         },
         {
-            "name": "example_auto_connect",
+            "name": "example_mock",
             "cwd": "example",
             "request": "launch",
             "type": "dart",
             "args": [
                 "--dart-define",
-                "AUTO_CONNECT=true",
+                "MOCK=true",
             ]
         }
     ]

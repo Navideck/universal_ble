@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:universal_ble/universal_ble.dart';
 import 'package:universal_ble_example/data/capabilities.dart';
+import 'package:universal_ble_example/data/mock_universal_ble.dart';
 import 'package:universal_ble_example/home/widgets/scanned_devices_placeholder_widget.dart';
 import 'package:universal_ble_example/home/widgets/scanned_item_widget.dart';
 import 'package:universal_ble_example/data/permission_handler.dart';
@@ -21,6 +22,8 @@ class MyApp extends StatefulWidget {
 class _MyAppState extends State<MyApp> {
   final _scanResults = <BleScanResult>[];
   bool _isScanning = false;
+  bool _isQueueEnabled = true;
+
   AvailabilityState? bleAvailabilityState;
   late WebRequestOptionsBuilder _requestOptions;
   final List<String> _services = [
@@ -35,6 +38,15 @@ class _MyAppState extends State<MyApp> {
   @override
   void initState() {
     super.initState();
+
+    /// Set mock instance for testing
+    if (const bool.fromEnvironment('MOCK')) {
+      UniversalBle.setInstance(MockUniversalBle());
+    }
+
+    /// Setup queue and timeout
+    UniversalBle.queuesCommands = _isQueueEnabled;
+    UniversalBle.timeout = const Duration(seconds: 10);
 
     /// Add common services for web
     if (kIsWeb) {
@@ -162,6 +174,15 @@ class _MyAppState extends State<MyApp> {
                       });
                     },
                   ),
+                PlatformButton(
+                  text: _isQueueEnabled ? 'Disable Queue' : 'Enable Queue',
+                  onPressed: () {
+                    setState(() {
+                      _isQueueEnabled = !_isQueueEnabled;
+                      UniversalBle.queuesCommands = _isQueueEnabled;
+                    });
+                  },
+                ),
                 if (_scanResults.isNotEmpty)
                   PlatformButton(
                     text: 'Clear List',
