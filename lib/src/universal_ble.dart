@@ -14,13 +14,13 @@ class UniversalBle {
   static void setInstance(UniversalBlePlatform instance) =>
       _platform = instance;
 
-  /// Set global timeout for all methods
+  /// Set global timeout for all commands
   static Duration? timeout = const Duration(seconds: 10);
 
   static BleCommandQueue? _queue = BleCommandQueue();
 
-  /// Setup global queue for all methods, by default queue is enabled
-  static set queuesRequests(bool value) {
+  /// Setup global queue for all commands, by default queue is enabled
+  static set queuesCommands(bool value) {
     if (value) {
       _queue ??= BleCommandQueue();
       UniversalBlePlatform.logInfo('Queue enabled');
@@ -152,7 +152,7 @@ class UniversalBle {
     );
   }
 
-  /// Pair methods are not supported on `iOS`, `MacOS` and `Web`
+  /// Pair commands are not supported on `iOS`, `MacOS` and `Web`
   static Future<bool> isPaired(String deviceId) async {
     return await _executeMethod(
       () => _platform.isPaired(deviceId),
@@ -160,7 +160,8 @@ class UniversalBle {
     );
   }
 
-  /// To trigger pair request, might throw errors if device is already paired
+  /// To trigger pair request
+  /// might throw errors if device is already paired
   static Future<void> pair(String deviceId) async {
     return await _executeMethod(
       () => _platform.pair(deviceId),
@@ -168,7 +169,8 @@ class UniversalBle {
     );
   }
 
-  /// To trigger unPair request, might throw errors if device is not paired
+  /// To trigger unPair request
+  /// might throw errors if device is not paired
   static Future<void> unPair(String deviceId) async {
     return await _executeMethod(
       () => _platform.unPair(deviceId),

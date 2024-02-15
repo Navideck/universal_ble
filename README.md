@@ -49,14 +49,14 @@ import 'package:universal_ble/universal_ble.dart';
 
 ## Queue
 
-By default all methods will be executed in queue
+By default all commands will be executed in queue
 
 ```dart
 // To disable queue
-UniversalBle.queuesRequests = false;
+UniversalBle.queuesCommands = false;
 ```
 
-By default all methods have timeout
+By default all commands have timeout
 
 ```dart
 // To change timeout
@@ -210,7 +210,7 @@ UniversalBle.startScan(
 ```dart
 // Create a class that extends UniversalBlePlatform
 class UniversalBleMock extends UniversalBlePlatform {
-  // Implement all methods
+  // Implement all commands
 }
 
 UniversalBle.setInstance(UniversalBleMock());
