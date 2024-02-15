@@ -53,7 +53,7 @@ By default all methods will be executed in queue
 
 ```dart
 // To disable queue
-UniversalBle.useQueue = false;
+UniversalBle.queuesRequests = false;
 ```
 
 By default all methods have timeout

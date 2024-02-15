@@ -45,7 +45,7 @@ class _MyAppState extends State<MyApp> {
     }
 
     /// Setup queue and timeout
-    UniversalBle.useQueue = _enableQueue;
+    UniversalBle.queuesRequests = _enableQueue;
     UniversalBle.timeout = const Duration(seconds: 10);
 
     /// Add common services for web
@@ -179,7 +179,7 @@ class _MyAppState extends State<MyApp> {
                   onPressed: () {
                     setState(() {
                       _enableQueue = !_enableQueue;
-                      UniversalBle.useQueue = _enableQueue;
+                      UniversalBle.queuesRequests = _enableQueue;
                     });
                   },
                 ),

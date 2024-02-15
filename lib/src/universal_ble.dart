@@ -20,7 +20,7 @@ class UniversalBle {
   static BleCommandQueue? _queue = BleCommandQueue();
 
   /// Setup global queue for all methods, by default queue is enabled
-  static set useQueue(bool value) {
+  static set queuesRequests(bool value) {
     if (value) {
       _queue ??= BleCommandQueue();
       UniversalBlePlatform.logInfo('Queue enabled');
