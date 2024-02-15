@@ -47,6 +47,25 @@ and import it wherever you want to use it:
 import 'package:universal_ble/universal_ble.dart';
 ```
 
+## Queue
+
+By default all methods will be executed in queue
+
+```dart
+// To disable queue
+UniversalBle.useQueue = false;
+```
+
+By default all methods have timeout
+
+```dart
+// To change timeout
+UniversalBle.timeout = const Duration(seconds: 5);
+
+// To disable timeout
+UniversalBle.timeout = null;
+```
+
 ### Scanning
 
 ```dart

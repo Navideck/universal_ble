@@ -22,6 +22,8 @@ class MyApp extends StatefulWidget {
 class _MyAppState extends State<MyApp> {
   final _scanResults = <BleScanResult>[];
   bool _isScanning = false;
+  bool _enableQueue = true;
+
   AvailabilityState? bleAvailabilityState;
   late WebRequestOptionsBuilder _requestOptions;
   final List<String> _services = [
@@ -43,8 +45,8 @@ class _MyAppState extends State<MyApp> {
     }
 
     /// Setup queue and timeout
-    // UniversalBle.setupQueue();
-    // UniversalBle.timeout = const Duration(seconds: 10);
+    UniversalBle.useQueue = _enableQueue;
+    UniversalBle.timeout = const Duration(seconds: 10);
 
     /// Add common services for web
     if (kIsWeb) {
@@ -172,6 +174,15 @@ class _MyAppState extends State<MyApp> {
                       });
                     },
                   ),
+                PlatformButton(
+                  text: _enableQueue ? 'Disable Queue' : 'Enable Queue',
+                  onPressed: () {
+                    setState(() {
+                      _enableQueue = !_enableQueue;
+                      UniversalBle.useQueue = _enableQueue;
+                    });
+                  },
+                ),
                 if (_scanResults.isNotEmpty)
                   PlatformButton(
                     text: 'Clear List',

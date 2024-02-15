@@ -5,9 +5,7 @@ import 'dart:async';
 /// Queue to execute Futures in order.
 /// It awaits each future before executing the next one.
 class BleCommandQueue {
-  Set<int> activeItems = {};
-  Function(int)? onRemainingItemsUpdate;
-
+  final Set<int> _activeItems = {};
   int _lastProcessId = 0;
   bool _isCancelled = false;
   final List<_QueuedFuture> _nextCycle = [];
@@ -17,7 +15,7 @@ class BleCommandQueue {
     final completer = Completer<T>();
     _nextCycle.add(_QueuedFuture<T>(closure, completer, timeout));
     _updateRemainingItems();
-    if (activeItems.isEmpty) _queueUpNext();
+    if (_activeItems.isEmpty) _queueUpNext();
     return completer.future;
   }
 
@@ -30,14 +28,14 @@ class BleCommandQueue {
   }
 
   void _queueUpNext() {
-    if (_nextCycle.isNotEmpty && !_isCancelled && activeItems.length <= 1) {
+    if (_nextCycle.isNotEmpty && !_isCancelled && _activeItems.length <= 1) {
       final processId = _lastProcessId;
-      activeItems.add(processId);
+      _activeItems.add(processId);
       final item = _nextCycle.first;
       _lastProcessId++;
       _nextCycle.remove(item);
       item.onComplete = () async {
-        activeItems.remove(processId);
+        _activeItems.remove(processId);
         _updateRemainingItems();
         _queueUpNext();
       };
@@ -45,8 +43,10 @@ class BleCommandQueue {
     }
   }
 
-  void _updateRemainingItems() =>
-      onRemainingItemsUpdate?.call(_nextCycle.length + activeItems.length);
+  void _updateRemainingItems() {
+    // int remainingQueueItems = _nextCycle.length + _activeItems.length;
+    // onRemainingItemsUpdate?.call(_);
+  }
 }
 
 class _QueuedFuture<T> {

@@ -10,26 +10,25 @@ class UniversalBle {
   /// Get platform specific implementation
   static UniversalBlePlatform _platform = _defaultPlatform();
 
-  static BleCommandQueue? _queue;
-
-  /// Set timeout for all methods
-  static Duration? timeout = const Duration(seconds: 10);
-
   /// Set custom platform specific implementation (e.g. for testing)
   static void setInstance(UniversalBlePlatform instance) =>
       _platform = instance;
 
-  /// Setup queue to execute all methods in queue
-  static void setupQueue({Function(int)? onRemainingItemsUpdate}) {
-    _queue ??= BleCommandQueue();
-    _queue?.onRemainingItemsUpdate = onRemainingItemsUpdate;
-  }
+  /// Set global timeout for all methods
+  static Duration? timeout = const Duration(seconds: 10);
 
-  /// Dispose queue
-  static void disposeQueue() {
-    _queue?.onRemainingItemsUpdate = null;
-    _queue?.dispose();
-    _queue = null;
+  static BleCommandQueue? _queue = BleCommandQueue();
+
+  /// Setup global queue for all methods, by default queue is enabled
+  static set useQueue(bool value) {
+    if (value) {
+      _queue ??= BleCommandQueue();
+      UniversalBlePlatform.logInfo('Queue enabled');
+    } else {
+      _queue?.dispose();
+      _queue = null;
+      UniversalBlePlatform.logInfo('Queue disabled');
+    }
   }
 
   /// To get Bluetooth state availability

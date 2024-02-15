@@ -5,7 +5,6 @@ import 'dart:typed_data';
 import 'package:flutter_web_bluetooth/flutter_web_bluetooth.dart';
 import 'package:universal_ble/src/models/model_exports.dart';
 import 'package:universal_ble/src/universal_ble_platform_interface.dart';
-import 'package:universal_ble/src/ble_command_queue.dart';
 
 class UniversalBleWeb extends UniversalBlePlatform {
   static UniversalBleWeb? _instance;
@@ -15,7 +14,6 @@ class UniversalBleWeb extends UniversalBlePlatform {
     _setupListeners();
   }
 
-  late final _queue = BleCommandQueue();
   final Map<String, BluetoothDevice> _bluetoothDeviceList = {};
   final Map<String, StreamSubscription> _deviceAdvertisementStreamList = {};
   final Map<String, StreamSubscription> _connectedDeviceStreamList = {};
@@ -222,27 +220,24 @@ class UniversalBleWeb extends UniversalBlePlatform {
     Uint8List value,
     BleOutputProperty bleOutputProperty,
   ) async {
-    await _queue.add(() async {
-      final bleCharacteristic = await _getBleCharacteristic(
-        deviceId: deviceId,
-        serviceId: service,
-        characteristicId: characteristic,
+    final bleCharacteristic = await _getBleCharacteristic(
+      deviceId: deviceId,
+      serviceId: service,
+      characteristicId: characteristic,
+    );
+
+    if (bleCharacteristic == null) {
+      throw Exception(
+        'Characteristic $characteristic for service $service not found',
       );
+    }
 
-      if (bleCharacteristic == null) {
-        throw Exception(
-          'Characteristic $characteristic for service $service not found',
-        );
-      }
-
-      if (bleOutputProperty == BleOutputProperty.withResponse) {
-        await bleCharacteristic
-            .writeValueWithResponse(Uint8List.fromList(value));
-      } else {
-        await bleCharacteristic
-            .writeValueWithoutResponse(Uint8List.fromList(value));
-      }
-    });
+    if (bleOutputProperty == BleOutputProperty.withResponse) {
+      await bleCharacteristic.writeValueWithResponse(Uint8List.fromList(value));
+    } else {
+      await bleCharacteristic
+          .writeValueWithoutResponse(Uint8List.fromList(value));
+    }
   }
 
   @override
@@ -251,19 +246,17 @@ class UniversalBleWeb extends UniversalBlePlatform {
     String service,
     String characteristic,
   ) async {
-    return _queue.add<Uint8List>(() async {
-      var bleCharacteristic = await _getBleCharacteristic(
-        deviceId: deviceId,
-        serviceId: service,
-        characteristicId: characteristic,
-      );
-      if (bleCharacteristic == null) {
-        throw Exception(
-            'Characteristic $characteristic for service $service not found');
-      }
-      var data = await bleCharacteristic.readValue();
-      return data.buffer.asUint8List();
-    });
+    var bleCharacteristic = await _getBleCharacteristic(
+      deviceId: deviceId,
+      serviceId: service,
+      characteristicId: characteristic,
+    );
+    if (bleCharacteristic == null) {
+      throw Exception(
+          'Characteristic $characteristic for service $service not found');
+    }
+    var data = await bleCharacteristic.readValue();
+    return data.buffer.asUint8List();
   }
 
   /// `Unimplemented`
