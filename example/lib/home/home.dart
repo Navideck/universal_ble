@@ -22,7 +22,7 @@ class MyApp extends StatefulWidget {
 class _MyAppState extends State<MyApp> {
   final _scanResults = <BleScanResult>[];
   bool _isScanning = false;
-  bool _enableQueue = true;
+  bool _isQueueEnabled = true;
 
   AvailabilityState? bleAvailabilityState;
   late WebRequestOptionsBuilder _requestOptions;
@@ -45,7 +45,7 @@ class _MyAppState extends State<MyApp> {
     }
 
     /// Setup queue and timeout
-    UniversalBle.queuesCommands = _enableQueue;
+    UniversalBle.queuesCommands = _isQueueEnabled;
     UniversalBle.timeout = const Duration(seconds: 10);
 
     /// Add common services for web
@@ -175,11 +175,11 @@ class _MyAppState extends State<MyApp> {
                     },
                   ),
                 PlatformButton(
-                  text: _enableQueue ? 'Disable Queue' : 'Enable Queue',
+                  text: _isQueueEnabled ? 'Disable Queue' : 'Enable Queue',
                   onPressed: () {
                     setState(() {
-                      _enableQueue = !_enableQueue;
-                      UniversalBle.queuesCommands = _enableQueue;
+                      _isQueueEnabled = !_isQueueEnabled;
+                      UniversalBle.queuesCommands = _isQueueEnabled;
                     });
                   },
                 ),
