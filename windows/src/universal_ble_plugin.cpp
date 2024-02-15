@@ -322,28 +322,8 @@ namespace universal_ble
           return;
         }
       }
-      auto async_c = gatt_characteristic_holder.obj.WriteValueAsync(from_bytevc(value), writeOption);
-      async_c.Completed([&, result](IAsyncOperation<GattCommunicationStatus> const &sender, AsyncStatus const args)
-                        {
-                          auto writeResult = sender.GetResults();
-                          switch (writeResult)
-                          {
-                          case GenericAttributeProfile::GattCommunicationStatus::Success:
-                            result(std::nullopt);
-                            return;
-                          case GenericAttributeProfile::GattCommunicationStatus::Unreachable:
-                            result(FlutterError("Unreachable", "Failed to write value"));
-                            return;
-                          case GenericAttributeProfile::GattCommunicationStatus::ProtocolError:
-                            result(FlutterError("ProtocolError", "Failed to write value"));
-                            return;
-                          case GenericAttributeProfile::GattCommunicationStatus::AccessDenied:
-                            result(FlutterError("AccessDenied", "Failed to write value"));
-                            return;
-                          default:
-                            result(FlutterError("Failed", "Failed to write value"));
-                            return;
-                          } });
+
+      WriteAsync(gatt_characteristic_holder.obj, writeOption, value, result);
     }
     catch (const FlutterError &err)
     {
@@ -771,6 +751,47 @@ namespace universal_ble
       return "AccessDenied";
     default:
       return "Unknown";
+    }
+  }
+
+  winrt::fire_and_forget UniversalBlePlugin::WriteAsync(GattCharacteristic characteristic, GattWriteOption writeOption,
+                                                        const std::vector<uint8_t> &value, std::function<void(std::optional<FlutterError> reply)> result)
+  {
+    try
+    {
+      auto writeResult = co_await characteristic.WriteValueAsync(from_bytevc(value), writeOption);
+      switch (writeResult)
+      {
+      case GenericAttributeProfile::GattCommunicationStatus::Success:
+        result(std::nullopt);
+        co_return;
+      case GenericAttributeProfile::GattCommunicationStatus::Unreachable:
+        result(FlutterError("Unreachable", "Failed to write value"));
+        co_return;
+      case GenericAttributeProfile::GattCommunicationStatus::ProtocolError:
+        result(FlutterError("ProtocolError", "Failed to write value"));
+        co_return;
+      case GenericAttributeProfile::GattCommunicationStatus::AccessDenied:
+        result(FlutterError("AccessDenied", "Failed to write value"));
+        co_return;
+      default:
+        result(FlutterError("Failed", "Failed to write value"));
+        co_return;
+      }
+    }
+    catch (const winrt::hresult_error &err)
+    {
+      int errorCode = err.code();
+      std::cout << "WriteValueLog: " << winrt::to_string(err.message()) << " ErrorCode: " << std::to_string(errorCode) << std::endl;
+      result(FlutterError("WriteFailed", winrt::to_string(err.message())));
+    }
+    catch (const std::exception &err)
+    {
+      result(FlutterError("WriteFailed", err.what()));
+    }
+    catch (...)
+    {
+      result(FlutterError("WriteFailed", "Unknown error"));
     }
   }
 
