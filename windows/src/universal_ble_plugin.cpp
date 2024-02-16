@@ -904,36 +904,47 @@ namespace universal_ble
       flutter::EncodableList results = flutter::EncodableList();
       for (auto &&deviceInfo : devices)
       {
-        BluetoothLEDevice device = co_await BluetoothLEDevice::FromIdAsync(deviceInfo.Id());
-        auto deviceId = _mac_address_to_str(device.BluetoothAddress());
-        // Filter by services
-        if (!with_services.empty())
-        {
-          auto serviceResult = co_await device.GetGattServicesAsync(BluetoothCacheMode::Cached);
-          if (serviceResult.Status() == GattCommunicationStatus::Success)
+        try{
+          BluetoothLEDevice device = co_await BluetoothLEDevice::FromIdAsync(deviceInfo.Id());
+          auto deviceId = _mac_address_to_str(device.BluetoothAddress());
+          // Filter by services
+          if (!with_services.empty())
           {
-            bool hasService = false;
-            for (auto service : serviceResult.Services())
+            auto serviceResult = co_await device.GetGattServicesAsync(BluetoothCacheMode::Cached);
+            if (serviceResult.Status() == GattCommunicationStatus::Success)
             {
-              std::string serviceUUID = to_uuidstr(service.Uuid());
-              if (std::find(with_services.begin(), with_services.end(), serviceUUID) != with_services.end())
+              bool hasService = false;
+              for (auto service : serviceResult.Services())
               {
-                hasService = true;
-                break;
+                std::string serviceUUID = to_uuidstr(service.Uuid());
+                if (std::find(with_services.begin(), with_services.end(), serviceUUID) != with_services.end())
+                {
+                  hasService = true;
+                  break;
+                }
               }
+              if (!hasService)
+                continue;
             }
-            if (!hasService)
-              continue;
           }
-        }
-        // Add to results, if pass all filters
-        auto universalScanResult = UniversalBleScanResult(deviceId);
-        universalScanResult.set_name(winrt::to_string(deviceInfo.Name()));
-        universalScanResult.set_is_paired(deviceInfo.Pairing().IsPaired());
-        results.push_back(flutter::CustomEncodableValue(universalScanResult));
-        // deviceConnectableStatus[_str_to_mac_address(deviceId)] = true;
+          // Add to results, if pass all filters
+          auto universalScanResult = UniversalBleScanResult(deviceId);
+          universalScanResult.set_name(winrt::to_string(deviceInfo.Name()));
+          universalScanResult.set_is_paired(deviceInfo.Pairing().IsPaired());
+          results.push_back(flutter::CustomEncodableValue(universalScanResult));
+        }catch(...){ }
       }
       result(results);
+    }
+    catch (const winrt::hresult_error &err)
+    {
+      int errorCode = err.code();
+      std::cout << "GetConnectedDeviceLog: " << winrt::to_string(err.message()) << " ErrorCode: " << std::to_string(errorCode) << std::endl;
+      result(FlutterError(std::to_string(errorCode), winrt::to_string(err.message())));
+    }
+    catch (const std::exception &err)
+    {
+      result(FlutterError(err.what()));
     }
     catch (...)
     {
