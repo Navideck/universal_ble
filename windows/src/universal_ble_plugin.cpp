@@ -783,7 +783,7 @@ namespace universal_ble
     {
       int errorCode = err.code();
       std::cout << "WriteValueLog: " << winrt::to_string(err.message()) << " ErrorCode: " << std::to_string(errorCode) << std::endl;
-      result(FlutterError("WriteFailed", winrt::to_string(err.message())));
+      result(FlutterError(std::to_string(errorCode), winrt::to_string(err.message())));
     }
     catch (const std::exception &err)
     {
