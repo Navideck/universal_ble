@@ -3,6 +3,7 @@ import 'dart:typed_data';
 
 import 'package:bluez/bluez.dart';
 import 'package:collection/collection.dart';
+import 'package:flutter/services.dart';
 import 'package:universal_ble/src/models/model_exports.dart';
 import 'package:universal_ble/src/universal_ble_platform_interface.dart';
 
@@ -179,9 +180,16 @@ class UniversalBleLinux extends UniversalBlePlatform {
   @override
   Future<Uint8List> readValue(
       String deviceId, String service, String characteristic) async {
-    var c = _getCharacteristic(deviceId, service, characteristic);
-    var data = await c.readValue();
-    return Uint8List.fromList(data);
+    try {
+      var c = _getCharacteristic(deviceId, service, characteristic);
+      var data = await c.readValue();
+      return Uint8List.fromList(data);
+    } on BlueZFailedException catch (e) {
+      throw PlatformException(
+        code: e.errorCode ?? "ReadFailed",
+        message: e.message,
+      );
+    }
   }
 
   @override
@@ -191,16 +199,23 @@ class UniversalBleLinux extends UniversalBlePlatform {
       String characteristic,
       Uint8List value,
       BleOutputProperty bleOutputProperty) async {
-    var c = _getCharacteristic(deviceId, service, characteristic);
-    if (bleOutputProperty == BleOutputProperty.withResponse) {
-      await c.writeValue(
-        value,
-        type: BlueZGattCharacteristicWriteType.request,
-      );
-    } else {
-      await c.writeValue(
-        value,
-        type: BlueZGattCharacteristicWriteType.command,
+    try {
+      var c = _getCharacteristic(deviceId, service, characteristic);
+      if (bleOutputProperty == BleOutputProperty.withResponse) {
+        await c.writeValue(
+          value,
+          type: BlueZGattCharacteristicWriteType.request,
+        );
+      } else {
+        await c.writeValue(
+          value,
+          type: BlueZGattCharacteristicWriteType.command,
+        );
+      }
+    } on BlueZFailedException catch (e) {
+      throw PlatformException(
+        code: e.errorCode ?? "WriteFailed",
+        message: e.message,
       );
     }
   }
@@ -484,5 +499,25 @@ extension on BlueZGattCharacteristicFlag {
         CharacteristicProperty.extendedProperties,
       _ => null,
     };
+  }
+}
+
+extension on BlueZFailedException {
+  /// Extract error code from message and parse into decimal
+  /// example: 'Operation failed with ATT error: 0x90' => 144
+  String? get errorCode {
+    try {
+      RegExp regExp = RegExp(r'0x\w+');
+      Match? match = regExp.firstMatch(message);
+      String? code = match?.group(0);
+      if (code == null) return null;
+      int? decimalValue = int.tryParse(
+        code.replaceFirst('0x', ''),
+        radix: 16,
+      );
+      return decimalValue?.toString() ?? code;
+    } catch (e) {
+      return null;
+    }
   }
 }
