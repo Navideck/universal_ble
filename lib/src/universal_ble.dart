@@ -178,7 +178,7 @@ class UniversalBle {
     );
   }
 
-  /// To get connected devices to the system ( connected by any app )
+  /// To get connected devices to the system (connected by any app)
   /// use [withServices] to filter devices by services
   /// on `iOS`, `MacOS` [withServices] is required to get connected devices, else [1800] service will be used as default filter
   /// on `Android`, `Linux` and `Windows`, if [withServices] is used, then internally all services will be discovered for each device first (either by connecting or by using cached services)
