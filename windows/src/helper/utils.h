@@ -26,7 +26,6 @@ namespace universal_ble
 
     std::string to_uuidstr(winrt::guid guid);
 
-
     /// To call async functions synchronously
     template <typename async_t>
     static auto async_get(async_t const &async)
@@ -43,9 +42,9 @@ namespace universal_ble
         {
             throw FlutterError(winrt::to_string(err.message()));
         }
-        catch (const std::exception &err)
+        catch (...)
         {
-            throw FlutterError(err.what());
+            throw FlutterError("Unknown error");
         }
     }
 
