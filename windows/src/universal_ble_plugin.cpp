@@ -785,10 +785,6 @@ namespace universal_ble
       std::cout << "WriteValueLog: " << winrt::to_string(err.message()) << " ErrorCode: " << std::to_string(errorCode) << std::endl;
       result(FlutterError(std::to_string(errorCode), winrt::to_string(err.message())));
     }
-    catch (const std::exception &err)
-    {
-      result(FlutterError("WriteFailed", err.what()));
-    }
     catch (...)
     {
       result(FlutterError("WriteFailed", "Unknown error"));
@@ -904,7 +900,8 @@ namespace universal_ble
       flutter::EncodableList results = flutter::EncodableList();
       for (auto &&deviceInfo : devices)
       {
-        try{
+        try
+        {
           BluetoothLEDevice device = co_await BluetoothLEDevice::FromIdAsync(deviceInfo.Id());
           auto deviceId = _mac_address_to_str(device.BluetoothAddress());
           // Filter by services
@@ -932,7 +929,10 @@ namespace universal_ble
           universalScanResult.set_name(winrt::to_string(deviceInfo.Name()));
           universalScanResult.set_is_paired(deviceInfo.Pairing().IsPaired());
           results.push_back(flutter::CustomEncodableValue(universalScanResult));
-        }catch(...){ }
+        }
+        catch (...)
+        {
+        }
       }
       result(results);
     }
@@ -941,10 +941,6 @@ namespace universal_ble
       int errorCode = err.code();
       std::cout << "GetConnectedDeviceLog: " << winrt::to_string(err.message()) << " ErrorCode: " << std::to_string(errorCode) << std::endl;
       result(FlutterError(std::to_string(errorCode), winrt::to_string(err.message())));
-    }
-    catch (const std::exception &err)
-    {
-      result(FlutterError(err.what()));
     }
     catch (...)
     {
