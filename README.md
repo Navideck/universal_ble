@@ -60,6 +60,13 @@ UniversalBle.onScanResult = (scanResult) {
 // Perform a scan
 UniversalBle.startScan();
 
+// Or optionally add a scan filter
+UniversalBle.startScan(
+  scanFilter: ScanFilter(
+      withServices: ["SERVICE_UUID"],
+  )
+);
+
 // Stop scanning
 UniversalBle.stopScan();
 ```

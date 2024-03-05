@@ -1,6 +1,5 @@
 import 'dart:developer';
 import 'dart:typed_data';
-
 import 'package:universal_ble/universal_ble.dart';
 
 abstract class UniversalBlePlatform {
@@ -10,6 +9,7 @@ abstract class UniversalBlePlatform {
 
   Future<void> startScan({
     WebRequestOptionsBuilder? webRequestOptions,
+    ScanFilter? scanFilter,
   });
 
   Future<void> stopScan();

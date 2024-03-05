@@ -62,6 +62,7 @@ class _MyAppState extends State<MyApp> {
     };
 
     UniversalBle.onScanResult = (result) {
+      // debugPrint("ScanResult: ${result.name}  ${result.services}");
       // debugPrint("${result.name} ${result.manufacturerData}");
       int index = _scanResults.indexWhere((e) => e.deviceId == result.deviceId);
       if (index == -1) {
@@ -110,7 +111,9 @@ class _MyAppState extends State<MyApp> {
                     });
                     try {
                       await UniversalBle.startScan(
-                          webRequestOptions: _requestOptions);
+                        webRequestOptions: _requestOptions,
+                        // scanFilter: ScanFilter(withServices: ['180f']),
+                      );
                     } catch (e) {
                       setState(() {
                         _isScanning = false;

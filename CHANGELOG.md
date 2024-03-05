@@ -1,3 +1,8 @@
+## 0.9.3
+* Add scan filter (withServices:) in `startScan()`
+* Add service UUIDs from advertisements in `BleScanResult`
+* Fix Windows release build compilation
+
 ## 0.9.2
 * Add command queue
 * Improve error handling on Android, iOS, macOS, Windows, Linux and web

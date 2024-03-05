@@ -123,11 +123,12 @@ namespace universal_ble
         winrt::fire_and_forget WriteAsync(GattCharacteristic characteristic, GattWriteOption writeOption,
                                           const std::vector<uint8_t> &value,
                                           std::function<void(std::optional<FlutterError> reply)> result);
+        void ApplyScanFilter(const UniversalScanFilter *filter, BluetoothLEAdvertisementWatcher &bluetoothWatcher);
 
         // UniversalBlePlatformChannel implementation.
         void GetBluetoothAvailabilityState(std::function<void(ErrorOr<int64_t> reply)> result) override;
         void EnableBluetooth(std::function<void(ErrorOr<bool> reply)> result) override;
-        std::optional<FlutterError> StartScan() override;
+        std::optional<FlutterError> StartScan(const UniversalScanFilter *filter) override;
         std::optional<FlutterError> StopScan() override;
         std::optional<FlutterError> Connect(const std::string &device_id) override;
         std::optional<FlutterError> Disconnect(const std::string &device_id) override;

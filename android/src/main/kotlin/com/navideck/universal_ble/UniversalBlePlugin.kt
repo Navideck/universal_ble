@@ -6,7 +6,9 @@ import android.bluetooth.*
 import android.bluetooth.BluetoothDevice.BOND_BONDED
 import android.bluetooth.BluetoothDevice.BOND_NONE
 import android.bluetooth.le.ScanCallback
+import android.bluetooth.le.ScanFilter
 import android.bluetooth.le.ScanResult
+import android.bluetooth.le.ScanSettings
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Context.RECEIVER_EXPORTED
@@ -15,6 +17,7 @@ import android.content.IntentFilter
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
+import android.os.ParcelUuid
 import android.util.Log
 import io.flutter.embedding.engine.plugins.FlutterPlugin
 import io.flutter.embedding.engine.plugins.activity.ActivityAware
@@ -23,6 +26,7 @@ import io.flutter.plugin.common.*
 import java.util.*
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
+
 
 private const val TAG = "UniversalBlePlugin"
 
@@ -95,12 +99,24 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
         bluetoothEnableRequestFuture = callback
     }
 
-    override fun startScan() {
+    override fun startScan(filter: UniversalScanFilter?) {
         if (!isBluetoothAvailable()) throw FlutterError(
             "BluetoothNotEnabled",
             "Bluetooth not enabled",
         )
-        bluetoothManager.adapter.bluetoothLeScanner?.startScan(scanCallback)
+
+        val builder = ScanSettings.Builder()
+        if (Build.VERSION.SDK_INT >= 26) {
+            builder.setPhy(ScanSettings.PHY_LE_ALL_SUPPORTED)
+            builder.setLegacy(false)
+        }
+        val settings = builder.build()
+
+        bluetoothManager.adapter.bluetoothLeScanner?.startScan(
+            filter?.toScanFilters() ?: emptyList<ScanFilter>(),
+            settings,
+            scanCallback
+        )
     }
 
     override fun stopScan() {
@@ -656,7 +672,9 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
                         deviceId = result.device.address,
                         isPaired = result.device.bondState == BOND_BONDED,
                         manufacturerDataHead = result.manufacturerDataHead,
-                        rssi = result.rssi.toLong()
+                        rssi = result.rssi.toLong(),
+                        services = result.device.uuids?.map { it.uuid?.toString() ?: "" }
+                            ?: emptyList()
                     )
                 ) {}
             }

@@ -55,9 +55,14 @@ class UniversalBleLinux extends UniversalBlePlatform {
   @override
   Future<void> startScan({
     WebRequestOptionsBuilder? webRequestOptions,
+    ScanFilter? scanFilter,
   }) async {
     await _ensureInitialized();
     if (_activeAdapter?.discovering != true) {
+      // Add services filter
+      _activeAdapter?.setDiscoveryFilter(
+        uuids: scanFilter?.withServices.toValidUUIDList(),
+      );
       await _activeAdapter?.startDiscovery();
       _client.devices.forEach(_onDeviceAdd);
     }
@@ -455,11 +460,8 @@ extension BlueZDeviceExtension on BlueZDevice {
       int companyId = sorted.first.key.id;
       List<int> manufacturerDataValue = sorted.first.value;
       var byteData = ByteData(2);
-      byteData.setInt16(
-          0,
-          companyId,
-          Endian
-              .host); // TODO: Verify that this works regardless of the endianess
+      // TODO: Verify that this works regardless of the endianess
+      byteData.setInt16(0, companyId, Endian.host);
       List<int> bytes = byteData.buffer.asUint8List();
       return Uint8List.fromList(bytes + manufacturerDataValue);
     } catch (e) {
@@ -479,6 +481,7 @@ extension BlueZDeviceExtension on BlueZDevice {
       manufacturerData: manufacturerDataHead,
       manufacturerDataHead: manufacturerDataHead,
       rssi: rssi,
+      services: uuids.map((e) => e.toString()).toList(),
     );
   }
 }

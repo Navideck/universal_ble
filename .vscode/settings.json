@@ -1,5 +1,6 @@
 {
   "cSpell.words": [
+    "bluez",
     "BTLE",
     "bytevc",
     "connnection",
@@ -25,7 +26,8 @@
     "unwatch",
     "uuidstr",
     "winrt",
-    "WPARAM"
+    "WPARAM",
+    "ZUUID"
   ],
   "cmake.configureOnOpen": false,
   "files.associations": {

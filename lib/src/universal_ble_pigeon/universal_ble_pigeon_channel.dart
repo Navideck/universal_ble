@@ -30,8 +30,12 @@ class UniversalBlePigeonChannel extends UniversalBlePlatform {
   @override
   Future<void> startScan({
     WebRequestOptionsBuilder? webRequestOptions,
-  }) =>
-      _channel.startScan();
+    ScanFilter? scanFilter,
+  }) async {
+    await _channel.startScan(
+      scanFilter.toUniversalScanFilter(),
+    );
+  }
 
   @override
   Future<void> stopScan() => _channel.stopScan();
@@ -192,6 +196,23 @@ extension _UniversalBleScanResultExtension on UniversalBleScanResult {
       manufacturerData: mnfData,
       manufacturerDataHead: mnfDataHead,
       rssi: rssi,
+      services: services
+              ?.where((e) => e != null)
+              .map((e) => UUID(e!).toString())
+              .toList() ??
+          [],
+    );
+  }
+}
+
+extension _ScanFilterExtension on ScanFilter? {
+  UniversalScanFilter? toUniversalScanFilter() {
+    // Windows crashes if it's null, so we need to pass empty scan filter in this case
+    if (this == null && Platform.isWindows) {
+      return UniversalScanFilter(withServices: []);
+    }
+    return UniversalScanFilter(
+      withServices: this?.withServices.toValidUUIDList() ?? [],
     );
   }
 }

@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
+import 'package:universal_ble/src/models/scan_filter.dart';
 import 'package:universal_ble/src/universal_ble_linux/universal_ble_linux.dart';
 import 'package:universal_ble/src/universal_ble_pigeon/universal_ble_pigeon_channel.dart';
 import 'package:universal_ble/src/universal_ble_web/universal_ble_web.dart';
@@ -45,9 +46,13 @@ class UniversalBle {
   /// `webRequestOptions` supported on Web only
   static Future<void> startScan({
     WebRequestOptionsBuilder? webRequestOptions,
+    ScanFilter? scanFilter,
   }) async {
     return await _executeCommand(
-      () => _platform.startScan(webRequestOptions: webRequestOptions),
+      () => _platform.startScan(
+        webRequestOptions: webRequestOptions,
+        scanFilter: scanFilter,
+      ),
       timeout: null,
     );
   }

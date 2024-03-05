@@ -27,7 +27,7 @@ abstract class UniversalBlePlatformChannel {
   @async
   bool enableBluetooth();
 
-  void startScan();
+  void startScan(UniversalScanFilter? filter);
 
   void stopScan();
 
@@ -105,6 +105,7 @@ class UniversalBleScanResult {
   final int? rssi;
   final Uint8List? manufacturerData;
   final Uint8List? manufacturerDataHead;
+  final List<String?>? services;
 
   UniversalBleScanResult({
     required this.name,
@@ -113,6 +114,7 @@ class UniversalBleScanResult {
     required this.rssi,
     required this.manufacturerData,
     required this.manufacturerDataHead,
+    required this.services,
   });
 }
 
@@ -126,4 +128,10 @@ class UniversalBleCharacteristic {
   String uuid;
   List<int?> properties;
   UniversalBleCharacteristic(this.uuid, this.properties);
+}
+
+class UniversalScanFilter {
+  final List<String?> withServices;
+
+  UniversalScanFilter(this.withServices);
 }
