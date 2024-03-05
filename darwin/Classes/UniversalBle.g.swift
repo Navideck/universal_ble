@@ -51,6 +51,7 @@ struct UniversalBleScanResult {
   var rssi: Int64? = nil
   var manufacturerData: FlutterStandardTypedData? = nil
   var manufacturerDataHead: FlutterStandardTypedData? = nil
+  var services: [String?]? = nil
 
   static func fromList(_ list: [Any?]) -> UniversalBleScanResult? {
     let deviceId = list[0] as! String
@@ -59,6 +60,7 @@ struct UniversalBleScanResult {
     let rssi: Int64? = isNullish(list[3]) ? nil : (list[3] is Int64? ? list[3] as! Int64? : Int64(list[3] as! Int32))
     let manufacturerData: FlutterStandardTypedData? = nilOrValue(list[4])
     let manufacturerDataHead: FlutterStandardTypedData? = nilOrValue(list[5])
+    let services: [String?]? = nilOrValue(list[6])
 
     return UniversalBleScanResult(
       deviceId: deviceId,
@@ -66,7 +68,8 @@ struct UniversalBleScanResult {
       isPaired: isPaired,
       rssi: rssi,
       manufacturerData: manufacturerData,
-      manufacturerDataHead: manufacturerDataHead
+      manufacturerDataHead: manufacturerDataHead,
+      services: services
     )
   }
   func toList() -> [Any?] {
@@ -77,6 +80,7 @@ struct UniversalBleScanResult {
       rssi,
       manufacturerData,
       manufacturerDataHead,
+      services,
     ]
   }
 }
@@ -125,6 +129,24 @@ struct UniversalBleCharacteristic {
   }
 }
 
+/// Generated class from Pigeon that represents data sent in messages.
+struct UniversalScanFilter {
+  var withServices: [String?]
+
+  static func fromList(_ list: [Any?]) -> UniversalScanFilter? {
+    let withServices = list[0] as! [String?]
+
+    return UniversalScanFilter(
+      withServices: withServices
+    )
+  }
+  func toList() -> [Any?] {
+    return [
+      withServices
+    ]
+  }
+}
+
 private class UniversalBlePlatformChannelCodecReader: FlutterStandardReader {
   override func readValue(ofType type: UInt8) -> Any? {
     switch type {
@@ -134,6 +156,8 @@ private class UniversalBlePlatformChannelCodecReader: FlutterStandardReader {
       return UniversalBleScanResult.fromList(self.readValue() as! [Any?])
     case 130:
       return UniversalBleService.fromList(self.readValue() as! [Any?])
+    case 131:
+      return UniversalScanFilter.fromList(self.readValue() as! [Any?])
     default:
       return super.readValue(ofType: type)
     }
@@ -150,6 +174,9 @@ private class UniversalBlePlatformChannelCodecWriter: FlutterStandardWriter {
       super.writeValue(value.toList())
     } else if let value = value as? UniversalBleService {
       super.writeByte(130)
+      super.writeValue(value.toList())
+    } else if let value = value as? UniversalScanFilter {
+      super.writeByte(131)
       super.writeValue(value.toList())
     } else {
       super.writeValue(value)
@@ -177,7 +204,7 @@ class UniversalBlePlatformChannelCodec: FlutterStandardMessageCodec {
 protocol UniversalBlePlatformChannel {
   func getBluetoothAvailabilityState(completion: @escaping (Result<Int64, Error>) -> Void)
   func enableBluetooth(completion: @escaping (Result<Bool, Error>) -> Void)
-  func startScan() throws
+  func startScan(filter: UniversalScanFilter?) throws
   func stopScan() throws
   func connect(deviceId: String) throws
   func disconnect(deviceId: String) throws
@@ -230,9 +257,11 @@ class UniversalBlePlatformChannelSetup {
     }
     let startScanChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.universal_ble.UniversalBlePlatformChannel.startScan", binaryMessenger: binaryMessenger, codec: codec)
     if let api = api {
-      startScanChannel.setMessageHandler { _, reply in
+      startScanChannel.setMessageHandler { message, reply in
+        let args = message as! [Any?]
+        let filterArg: UniversalScanFilter? = nilOrValue(args[0])
         do {
-          try api.startScan()
+          try api.startScan(filter: filterArg)
           reply(wrapResult(nil))
         } catch {
           reply(wrapError(error))

@@ -1,3 +1,5 @@
+export 'package:universal_ble/src/models/uuid.dart';
+export 'package:universal_ble/src/models/scan_filter.dart';
 export 'package:universal_ble/src/models/web_request_options_builder.dart';
 export 'package:universal_ble/src/models/ble_property.dart';
 export 'package:universal_ble/src/models/ble_service.dart';

@@ -5,6 +5,7 @@ import 'package:bluez/bluez.dart';
 import 'package:collection/collection.dart';
 import 'package:flutter/services.dart';
 import 'package:universal_ble/src/models/model_exports.dart';
+import 'package:universal_ble/src/models/scan_filter.dart';
 import 'package:universal_ble/src/universal_ble_platform_interface.dart';
 
 class UniversalBleLinux extends UniversalBlePlatform {
@@ -55,10 +56,16 @@ class UniversalBleLinux extends UniversalBlePlatform {
   @override
   Future<void> startScan({
     WebRequestOptionsBuilder? webRequestOptions,
+    ScanFilter? scanFilter,
   }) async {
     await _ensureInitialized();
     if (_activeAdapter?.discovering != true) {
+      // TODO: Test
+      _activeAdapter?.setDiscoveryFilter(
+        uuids: scanFilter?.withServices.toValidUUIDList(),
+      );
       await _activeAdapter?.startDiscovery();
+
       _client.devices.forEach(_onDeviceAdd);
     }
   }
@@ -479,6 +486,8 @@ extension BlueZDeviceExtension on BlueZDevice {
       manufacturerData: manufacturerDataHead,
       manufacturerDataHead: manufacturerDataHead,
       rssi: rssi,
+      // TODO: Test
+      services: uuids.map((e) => e.toString()).toList(),
     );
   }
 }

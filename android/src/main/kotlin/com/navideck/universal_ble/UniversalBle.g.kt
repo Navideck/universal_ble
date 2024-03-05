@@ -53,7 +53,8 @@ data class UniversalBleScanResult (
   val isPaired: Boolean? = null,
   val rssi: Long? = null,
   val manufacturerData: ByteArray? = null,
-  val manufacturerDataHead: ByteArray? = null
+  val manufacturerDataHead: ByteArray? = null,
+  val services: List<String?>? = null
 
 ) {
   companion object {
@@ -65,7 +66,8 @@ data class UniversalBleScanResult (
       val rssi = list[3].let { if (it is Int) it.toLong() else it as Long? }
       val manufacturerData = list[4] as ByteArray?
       val manufacturerDataHead = list[5] as ByteArray?
-      return UniversalBleScanResult(deviceId, name, isPaired, rssi, manufacturerData, manufacturerDataHead)
+      val services = list[6] as List<String?>?
+      return UniversalBleScanResult(deviceId, name, isPaired, rssi, manufacturerData, manufacturerDataHead, services)
     }
   }
   fun toList(): List<Any?> {
@@ -76,6 +78,7 @@ data class UniversalBleScanResult (
       rssi,
       manufacturerData,
       manufacturerDataHead,
+      services,
     )
   }
 }
@@ -124,6 +127,25 @@ data class UniversalBleCharacteristic (
   }
 }
 
+/** Generated class from Pigeon that represents data sent in messages. */
+data class UniversalScanFilter (
+  val withServices: List<String?>
+
+) {
+  companion object {
+    @Suppress("UNCHECKED_CAST")
+    fun fromList(list: List<Any?>): UniversalScanFilter {
+      val withServices = list[0] as List<String?>
+      return UniversalScanFilter(withServices)
+    }
+  }
+  fun toList(): List<Any?> {
+    return listOf<Any?>(
+      withServices,
+    )
+  }
+}
+
 @Suppress("UNCHECKED_CAST")
 private object UniversalBlePlatformChannelCodec : StandardMessageCodec() {
   override fun readValueOfType(type: Byte, buffer: ByteBuffer): Any? {
@@ -143,6 +165,11 @@ private object UniversalBlePlatformChannelCodec : StandardMessageCodec() {
           UniversalBleService.fromList(it)
         }
       }
+      131.toByte() -> {
+        return (readValue(buffer) as? List<Any?>)?.let {
+          UniversalScanFilter.fromList(it)
+        }
+      }
       else -> super.readValueOfType(type, buffer)
     }
   }
@@ -160,6 +187,10 @@ private object UniversalBlePlatformChannelCodec : StandardMessageCodec() {
         stream.write(130)
         writeValue(stream, value.toList())
       }
+      is UniversalScanFilter -> {
+        stream.write(131)
+        writeValue(stream, value.toList())
+      }
       else -> super.writeValue(stream, value)
     }
   }
@@ -173,7 +204,7 @@ private object UniversalBlePlatformChannelCodec : StandardMessageCodec() {
 interface UniversalBlePlatformChannel {
   fun getBluetoothAvailabilityState(callback: (Result<Long>) -> Unit)
   fun enableBluetooth(callback: (Result<Boolean>) -> Unit)
-  fun startScan()
+  fun startScan(filter: UniversalScanFilter?)
   fun stopScan()
   fun connect(deviceId: String)
   fun disconnect(deviceId: String)
@@ -234,10 +265,12 @@ interface UniversalBlePlatformChannel {
       run {
         val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.universal_ble.UniversalBlePlatformChannel.startScan", codec)
         if (api != null) {
-          channel.setMessageHandler { _, reply ->
+          channel.setMessageHandler { message, reply ->
+            val args = message as List<Any?>
+            val filterArg = args[0] as UniversalScanFilter?
             var wrapped: List<Any?>
             try {
-              api.startScan()
+              api.startScan(filterArg)
               wrapped = listOf<Any?>(null)
             } catch (exception: Throwable) {
               wrapped = wrapError(exception)

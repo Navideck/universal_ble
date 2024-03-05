@@ -25,7 +25,8 @@
     "unwatch",
     "uuidstr",
     "winrt",
-    "WPARAM"
+    "WPARAM",
+    "ZUUID"
   ],
   "cmake.configureOnOpen": false,
   "files.associations": {

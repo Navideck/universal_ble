@@ -13,7 +13,9 @@ import android.bluetooth.le.ScanCallback.SCAN_FAILED_FEATURE_UNSUPPORTED
 import android.bluetooth.le.ScanCallback.SCAN_FAILED_INTERNAL_ERROR
 import android.bluetooth.le.ScanCallback.SCAN_FAILED_OUT_OF_HARDWARE_RESOURCES
 import android.bluetooth.le.ScanCallback.SCAN_FAILED_SCANNING_TOO_FREQUENTLY
+import android.bluetooth.le.ScanFilter
 import android.bluetooth.le.ScanResult
+import android.os.ParcelUuid
 import android.util.Log
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
@@ -59,6 +61,15 @@ enum class CharacteristicProperty(val value: Long) {
     Indicate(5),
     AuthenticatedSignedWrites(6),
     ExtendedProperties(7)
+}
+
+
+fun String.validFullUUID(): String {
+    return when (this.count()) {
+        4 -> "0000$this-0000-1000-8000-00805F9B34FB"
+        8 -> "$this-0000-1000-8000-00805F9B34FB"
+        else -> this
+    }
 }
 
 fun String.toBluetoothGatt(): BluetoothGatt {
@@ -132,6 +143,32 @@ fun Int.parseGattErrorCode(): String? {
     }
 }
 
+fun UniversalScanFilter.toScanFilters(): List<ScanFilter> {
+    var scanFilters: List<ScanFilter> = emptyList()
+
+    // Add withServices Filter
+    for (service in this.withServices) {
+        try {
+            val serviceUUID = service?.validFullUUID()
+            serviceUUID?.let {
+                val parcelUUId = ParcelUuid.fromString(it)
+                scanFilters = scanFilters.plus(
+                    ScanFilter.Builder().setServiceUuid(parcelUUId).build()
+                )
+                Log.e(TAG, "scanFilters: $parcelUUId")
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, e.toString())
+            throw FlutterError(
+                "illegalIllegalArgument",
+                "Invalid serviceId: $service",
+                e.toString()
+            )
+        }
+    }
+
+    return scanFilters
+}
 
 val ScanResult.manufacturerDataHead: ByteArray?
     get() {

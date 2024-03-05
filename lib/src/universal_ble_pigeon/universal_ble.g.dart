@@ -33,6 +33,7 @@ class UniversalBleScanResult {
     this.rssi,
     this.manufacturerData,
     this.manufacturerDataHead,
+    this.services,
   });
 
   String deviceId;
@@ -47,6 +48,8 @@ class UniversalBleScanResult {
 
   Uint8List? manufacturerDataHead;
 
+  List<String?>? services;
+
   Object encode() {
     return <Object?>[
       deviceId,
@@ -55,6 +58,7 @@ class UniversalBleScanResult {
       rssi,
       manufacturerData,
       manufacturerDataHead,
+      services,
     ];
   }
 
@@ -67,6 +71,7 @@ class UniversalBleScanResult {
       rssi: result[3] as int?,
       manufacturerData: result[4] as Uint8List?,
       manufacturerDataHead: result[5] as Uint8List?,
+      services: (result[6] as List<Object?>?)?.cast<String?>(),
     );
   }
 }
@@ -123,6 +128,27 @@ class UniversalBleCharacteristic {
   }
 }
 
+class UniversalScanFilter {
+  UniversalScanFilter({
+    required this.withServices,
+  });
+
+  List<String?> withServices;
+
+  Object encode() {
+    return <Object?>[
+      withServices,
+    ];
+  }
+
+  static UniversalScanFilter decode(Object result) {
+    result as List<Object?>;
+    return UniversalScanFilter(
+      withServices: (result[0] as List<Object?>?)!.cast<String?>(),
+    );
+  }
+}
+
 class _UniversalBlePlatformChannelCodec extends StandardMessageCodec {
   const _UniversalBlePlatformChannelCodec();
   @override
@@ -135,6 +161,9 @@ class _UniversalBlePlatformChannelCodec extends StandardMessageCodec {
       writeValue(buffer, value.encode());
     } else if (value is UniversalBleService) {
       buffer.putUint8(130);
+      writeValue(buffer, value.encode());
+    } else if (value is UniversalScanFilter) {
+      buffer.putUint8(131);
       writeValue(buffer, value.encode());
     } else {
       super.writeValue(buffer, value);
@@ -150,6 +179,8 @@ class _UniversalBlePlatformChannelCodec extends StandardMessageCodec {
         return UniversalBleScanResult.decode(readValue(buffer)!);
       case 130: 
         return UniversalBleService.decode(readValue(buffer)!);
+      case 131: 
+        return UniversalScanFilter.decode(readValue(buffer)!);
       default:
         return super.readValueOfType(type, buffer);
     }
@@ -221,7 +252,7 @@ class UniversalBlePlatformChannel {
     }
   }
 
-  Future<void> startScan() async {
+  Future<void> startScan(UniversalScanFilter? filter) async {
     const String __pigeon_channelName = 'dev.flutter.pigeon.universal_ble.UniversalBlePlatformChannel.startScan';
     final BasicMessageChannel<Object?> __pigeon_channel = BasicMessageChannel<Object?>(
       __pigeon_channelName,
@@ -229,7 +260,7 @@ class UniversalBlePlatformChannel {
       binaryMessenger: __pigeon_binaryMessenger,
     );
     final List<Object?>? __pigeon_replyList =
-        await __pigeon_channel.send(null) as List<Object?>?;
+        await __pigeon_channel.send(<Object?>[filter]) as List<Object?>?;
     if (__pigeon_replyList == null) {
       throw _createConnectionError(__pigeon_channelName);
     } else if (__pigeon_replyList.length > 1) {

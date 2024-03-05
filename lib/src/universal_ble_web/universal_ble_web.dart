@@ -110,10 +110,20 @@ class UniversalBleWeb extends UniversalBlePlatform {
   @override
   Future<void> startScan({
     WebRequestOptionsBuilder? webRequestOptions,
+    ScanFilter? scanFilter,
   }) async {
+    RequestOptionsBuilder requestFilterBuilder;
+    if (webRequestOptions != null) {
+      requestFilterBuilder = webRequestOptions.toRequestOptionsBuilder(
+        scanFilter: scanFilter,
+      );
+    } else {
+      requestFilterBuilder = scanFilter?.toRequestOptionsBuilder() ??
+          RequestOptionsBuilder.acceptAllDevices();
+    }
+
     BluetoothDevice device = await FlutterWebBluetooth.instance.requestDevice(
-      webRequestOptions?.toRequestOptionsBuilder() ??
-          RequestOptionsBuilder.acceptAllDevices(),
+      requestFilterBuilder,
     );
 
     // Update local device list
@@ -137,6 +147,7 @@ class UniversalBleWeb extends UniversalBlePlatform {
             device.toBleScanResult(
               rssi: event.rssi,
               manufacturerDataMap: event.manufacturerData,
+              services: event.uuids,
             ),
           );
         });
@@ -346,6 +357,7 @@ extension _BluetoothDeviceExtension on BluetoothDevice {
   BleScanResult toBleScanResult({
     int? rssi,
     UnmodifiableMapView<int, ByteData>? manufacturerDataMap,
+    List<String> services = const [],
   }) {
     return BleScanResult(
       name: name,
@@ -353,6 +365,7 @@ extension _BluetoothDeviceExtension on BluetoothDevice {
       manufacturerData: manufacturerDataMap?.toUint8List(),
       manufacturerDataHead: manufacturerDataMap?.toUint8List(),
       rssi: rssi,
+      services: services,
     );
   }
 }
@@ -370,5 +383,14 @@ extension _UnmodifiableMapViewExtension on UnmodifiableMapView<int, ByteData> {
       offset += sublist.length;
     }
     return result;
+  }
+}
+
+extension ScanFilterExtension on ScanFilter {
+  RequestOptionsBuilder toRequestOptionsBuilder() {
+    return RequestOptionsBuilder(
+      [RequestFilterBuilder(services: withServices.toValidUUIDList())],
+      optionalServices: withServices.toValidUUIDList(),
+    );
   }
 }

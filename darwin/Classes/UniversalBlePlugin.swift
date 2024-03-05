@@ -56,8 +56,20 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
     completion(Result.failure(FlutterError(code: "NotSupported", message: nil, details: nil)))
   }
 
-  func startScan() throws {
-    manager.scanForPeripherals(withServices: nil)
+  func startScan(filter: UniversalScanFilter?) throws {
+    
+    // Apply services filter
+    var withServices: [CBUUID] = []
+    for service in filter?.withServices ?? [] {
+      if let service = service {
+          if UUID(uuidString: service.validFullUUID) == nil {
+          throw FlutterError(code: "IllegalArgument", message: "Invalid service UUID:\(service)", details: nil)
+        }
+        withServices.append(CBUUID(string: service))
+      }
+    }
+
+    manager.scanForPeripherals(withServices: withServices)
   }
 
   func stopScan() throws {
@@ -228,12 +240,14 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
   public func centralManager(_: CBCentralManager, didDiscover peripheral: CBPeripheral, advertisementData: [String: Any], rssi RSSI: NSNumber) {
     discoveredPeripherals[peripheral.uuid.uuidString] = peripheral
     let manufacturerData = advertisementData[CBAdvertisementDataManufacturerDataKey] as? Data
+    let services = advertisementData[CBAdvertisementDataServiceUUIDsKey] as? [CBUUID]
     callbackChannel.onScanResult(result: UniversalBleScanResult(
       deviceId: peripheral.uuid.uuidString,
       name: peripheral.name,
       isPaired: nil,
       rssi: RSSI as? Int64,
-      manufacturerData: FlutterStandardTypedData(bytes: manufacturerData ?? Data())
+      manufacturerData: FlutterStandardTypedData(bytes: manufacturerData ?? Data()),
+      services: services?.map { $0.uuidStr }
     )) { _ in }
   }
 

@@ -1,20 +1,21 @@
 import 'dart:typed_data';
 import 'package:flutter_web_bluetooth/flutter_web_bluetooth.dart';
+import 'package:universal_ble/universal_ble.dart';
 
 class WebRequestOptionsBuilder {
   final bool _acceptAllDevices;
   final List<WebRequestFilterBuilder> _requestFilters;
   final List<WebRequestFilterBuilder>? _exclusionFilters;
-  final List<String>? _optionalServices;
+  List<String>? _optionalServices;
 
   WebRequestOptionsBuilder(
     List<WebRequestFilterBuilder> requestFilters, {
     List<WebRequestFilterBuilder>? exclusionFilters,
     List<String>? optionalServices,
-  })  : _requestFilters = requestFilters,
+  })  : _optionalServices = optionalServices,
+        _requestFilters = requestFilters,
         _exclusionFilters = exclusionFilters,
-        _acceptAllDevices = false,
-        _optionalServices = optionalServices {
+        _acceptAllDevices = false {
     if (_requestFilters.isEmpty) {
       throw StateError(
         'No filters have been set, consider using '
@@ -26,25 +27,38 @@ class WebRequestOptionsBuilder {
   /// To accept all devices
   WebRequestOptionsBuilder.acceptAllDevices({
     List<String>? optionalServices,
-  })  : _acceptAllDevices = true,
+  })  : _optionalServices = optionalServices,
+        _acceptAllDevices = true,
         _requestFilters = [],
-        _exclusionFilters = null,
-        _optionalServices = optionalServices;
+        _exclusionFilters = null;
 
   /// For internal use
   /// To convert UniversalBleRequestOptions to FlutterWebBluetoothRequestOptions
-  RequestOptionsBuilder toRequestOptionsBuilder() {
+  RequestOptionsBuilder toRequestOptionsBuilder({ScanFilter? scanFilter}) {
+    if (scanFilter != null) _applyScanFilter(scanFilter);
+
     if (_acceptAllDevices) {
       return RequestOptionsBuilder.acceptAllDevices(
         optionalServices: _optionalServices,
       );
-    } else {
-      return RequestOptionsBuilder(
-        _requestFilters.map((e) => e.getRequestFilterBuilder()).toList(),
-        exclusionFilters:
-            _exclusionFilters?.map((e) => e.getRequestFilterBuilder()).toList(),
-        optionalServices: _optionalServices,
-      );
+    }
+
+    return RequestOptionsBuilder(
+      _requestFilters.map((e) => e.getRequestFilterBuilder()).toList(),
+      exclusionFilters:
+          _exclusionFilters?.map((e) => e.getRequestFilterBuilder()).toList(),
+      optionalServices: _optionalServices,
+    );
+  }
+
+  /// To apply scan filter
+  void _applyScanFilter(ScanFilter scanFilter) {
+    List<String> filterServices = scanFilter.withServices;
+    _optionalServices ??= filterServices.toValidUUIDList();
+
+    for (var requestFilter in _requestFilters) {
+      // Apply services filter
+      requestFilter.services ??= filterServices.toValidUUIDList();
     }
   }
 

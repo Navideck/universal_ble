@@ -39,13 +39,15 @@ UniversalBleScanResult::UniversalBleScanResult(
   const bool* is_paired,
   const int64_t* rssi,
   const std::vector<uint8_t>* manufacturer_data,
-  const std::vector<uint8_t>* manufacturer_data_head)
+  const std::vector<uint8_t>* manufacturer_data_head,
+  const EncodableList* services)
  : device_id_(device_id),
     name_(name ? std::optional<std::string>(*name) : std::nullopt),
     is_paired_(is_paired ? std::optional<bool>(*is_paired) : std::nullopt),
     rssi_(rssi ? std::optional<int64_t>(*rssi) : std::nullopt),
     manufacturer_data_(manufacturer_data ? std::optional<std::vector<uint8_t>>(*manufacturer_data) : std::nullopt),
-    manufacturer_data_head_(manufacturer_data_head ? std::optional<std::vector<uint8_t>>(*manufacturer_data_head) : std::nullopt) {}
+    manufacturer_data_head_(manufacturer_data_head ? std::optional<std::vector<uint8_t>>(*manufacturer_data_head) : std::nullopt),
+    services_(services ? std::optional<EncodableList>(*services) : std::nullopt) {}
 
 const std::string& UniversalBleScanResult::device_id() const {
   return device_id_;
@@ -121,15 +123,29 @@ void UniversalBleScanResult::set_manufacturer_data_head(const std::vector<uint8_
 }
 
 
+const EncodableList* UniversalBleScanResult::services() const {
+  return services_ ? &(*services_) : nullptr;
+}
+
+void UniversalBleScanResult::set_services(const EncodableList* value_arg) {
+  services_ = value_arg ? std::optional<EncodableList>(*value_arg) : std::nullopt;
+}
+
+void UniversalBleScanResult::set_services(const EncodableList& value_arg) {
+  services_ = value_arg;
+}
+
+
 EncodableList UniversalBleScanResult::ToEncodableList() const {
   EncodableList list;
-  list.reserve(6);
+  list.reserve(7);
   list.push_back(EncodableValue(device_id_));
   list.push_back(name_ ? EncodableValue(*name_) : EncodableValue());
   list.push_back(is_paired_ ? EncodableValue(*is_paired_) : EncodableValue());
   list.push_back(rssi_ ? EncodableValue(*rssi_) : EncodableValue());
   list.push_back(manufacturer_data_ ? EncodableValue(*manufacturer_data_) : EncodableValue());
   list.push_back(manufacturer_data_head_ ? EncodableValue(*manufacturer_data_head_) : EncodableValue());
+  list.push_back(services_ ? EncodableValue(*services_) : EncodableValue());
   return list;
 }
 
@@ -155,6 +171,10 @@ UniversalBleScanResult UniversalBleScanResult::FromEncodableList(const Encodable
   auto& encodable_manufacturer_data_head = list[5];
   if (!encodable_manufacturer_data_head.IsNull()) {
     decoded.set_manufacturer_data_head(std::get<std::vector<uint8_t>>(encodable_manufacturer_data_head));
+  }
+  auto& encodable_services = list[6];
+  if (!encodable_services.IsNull()) {
+    decoded.set_services(std::get<EncodableList>(encodable_services));
   }
   return decoded;
 }
@@ -251,6 +271,33 @@ UniversalBleCharacteristic UniversalBleCharacteristic::FromEncodableList(const E
   return decoded;
 }
 
+// UniversalScanFilter
+
+UniversalScanFilter::UniversalScanFilter(const EncodableList& with_services)
+ : with_services_(with_services) {}
+
+const EncodableList& UniversalScanFilter::with_services() const {
+  return with_services_;
+}
+
+void UniversalScanFilter::set_with_services(const EncodableList& value_arg) {
+  with_services_ = value_arg;
+}
+
+
+EncodableList UniversalScanFilter::ToEncodableList() const {
+  EncodableList list;
+  list.reserve(1);
+  list.push_back(EncodableValue(with_services_));
+  return list;
+}
+
+UniversalScanFilter UniversalScanFilter::FromEncodableList(const EncodableList& list) {
+  UniversalScanFilter decoded(
+    std::get<EncodableList>(list[0]));
+  return decoded;
+}
+
 
 UniversalBlePlatformChannelCodecSerializer::UniversalBlePlatformChannelCodecSerializer() {}
 
@@ -264,6 +311,8 @@ EncodableValue UniversalBlePlatformChannelCodecSerializer::ReadValueOfType(
       return CustomEncodableValue(UniversalBleScanResult::FromEncodableList(std::get<EncodableList>(ReadValue(stream))));
     case 130:
       return CustomEncodableValue(UniversalBleService::FromEncodableList(std::get<EncodableList>(ReadValue(stream))));
+    case 131:
+      return CustomEncodableValue(UniversalScanFilter::FromEncodableList(std::get<EncodableList>(ReadValue(stream))));
     default:
       return flutter::StandardCodecSerializer::ReadValueOfType(type, stream);
   }
@@ -286,6 +335,11 @@ void UniversalBlePlatformChannelCodecSerializer::WriteValue(
     if (custom_value->type() == typeid(UniversalBleService)) {
       stream->WriteByte(130);
       WriteValue(EncodableValue(std::any_cast<UniversalBleService>(*custom_value).ToEncodableList()), stream);
+      return;
+    }
+    if (custom_value->type() == typeid(UniversalScanFilter)) {
+      stream->WriteByte(131);
+      WriteValue(EncodableValue(std::any_cast<UniversalScanFilter>(*custom_value).ToEncodableList()), stream);
       return;
     }
   }
@@ -350,7 +404,10 @@ void UniversalBlePlatformChannel::SetUp(
     if (api != nullptr) {
       channel->SetMessageHandler([api](const EncodableValue& message, const flutter::MessageReply<EncodableValue>& reply) {
         try {
-          std::optional<FlutterError> output = api->StartScan();
+          const auto& args = std::get<EncodableList>(message);
+          const auto& encodable_filter_arg = args.at(0);
+          const auto* filter_arg = &(std::any_cast<const UniversalScanFilter&>(std::get<CustomEncodableValue>(encodable_filter_arg)));
+          std::optional<FlutterError> output = api->StartScan(filter_arg);
           if (output.has_value()) {
             reply(WrapError(output.value()));
             return;
