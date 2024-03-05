@@ -62,9 +62,6 @@ class _MyAppState extends State<MyApp> {
     };
 
     UniversalBle.onScanResult = (result) {
-      // TODO: remove after testing
-      print("Added new device: ${result.name} ${result.services}");
-
       // debugPrint("${result.name} ${result.manufacturerData}");
       int index = _scanResults.indexWhere((e) => e.deviceId == result.deviceId);
       if (index == -1) {
@@ -114,12 +111,6 @@ class _MyAppState extends State<MyApp> {
                     try {
                       await UniversalBle.startScan(
                         webRequestOptions: _requestOptions,
-                        scanFilter: ScanFilter(
-                          // TODO: remove after testing
-                          withServices: [
-                            '180f',
-                          ],
-                        ),
                       );
                     } catch (e) {
                       setState(() {
