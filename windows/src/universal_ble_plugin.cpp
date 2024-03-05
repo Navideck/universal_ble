@@ -91,7 +91,7 @@ namespace universal_ble
                         } });
   }
 
-  std::optional<FlutterError> UniversalBlePlugin::StartScan()
+  std::optional<FlutterError> UniversalBlePlugin::StartScan(const UniversalScanFilter *filter)
   {
     if (bluetoothRadio && bluetoothRadio.State() == RadioState::On)
     {
@@ -99,6 +99,7 @@ namespace universal_ble
       {
         bluetoothLEWatcher = BluetoothLEAdvertisementWatcher();
         bluetoothLEWatcher.ScanningMode(BluetoothLEScanningMode::Active);
+        ApplyScanFilter(filter, bluetoothLEWatcher);
         bluetoothLEWatcherReceivedToken = bluetoothLEWatcher.Received({this, &UniversalBlePlugin::BluetoothLEWatcher_Received});
       }
       bluetoothLEWatcher.Start();
@@ -115,6 +116,23 @@ namespace universal_ble
       return FlutterError("Bluetooth is not available");
     }
   };
+
+  void UniversalBlePlugin::ApplyScanFilter(const UniversalScanFilter *filter, BluetoothLEAdvertisementWatcher &bluetoothWatcher)
+  {
+    if (!filter)
+      return;
+
+    // Apply Services filter
+    const auto &services = filter->with_services();
+    if (!services.empty())
+    {
+      for (const auto &uuid : services)
+      {
+        std::string uuid_str = std::get<std::string>(uuid);
+        bluetoothWatcher.AdvertisementFilter().Advertisement().ServiceUuids().Append(uuid_to_guid(uuid_str));
+      }
+    }
+  }
 
   std::optional<FlutterError> UniversalBlePlugin::StopScan()
   {
@@ -516,6 +534,11 @@ namespace universal_ble
         scanResult.set_manufacturer_data_head(existingScanResult.manufacturer_data_head());
         shouldUpdate = true;
       }
+      if (scanResult.services() == nullptr && existingScanResult.services() != nullptr)
+      {
+        scanResult.set_services(existingScanResult.services());
+        shouldUpdate = true;
+      }
 
       // if nothing to update then return
       if (!shouldUpdate)
@@ -629,6 +652,7 @@ namespace universal_ble
         int16_t rssi = rssiPropertyValue.GetInt16();
         universalScanResult.set_rssi(rssi);
       }
+
       pushUniversalScanResult(universalScanResult);
     }
   }
@@ -668,6 +692,12 @@ namespace universal_ble
       universalScanResult.set_manufacturer_data_head(manufacturerData);
       universalScanResult.set_rssi(args.RawSignalStrengthInDBm());
 
+      // Add services
+      flutter::EncodableList services = flutter::EncodableList();
+      for (auto &&uuid : args.Advertisement().ServiceUuids())
+        services.push_back(guid_to_uuid(uuid));
+      universalScanResult.set_services(services);
+
       // check if this device already discovered in deviceWatcher
       auto it = deviceWatcherDevices.find(deviceId);
       if (it != deviceWatcherDevices.end())
@@ -686,7 +716,6 @@ namespace universal_ble
           universalScanResult.set_name(winrt::to_string(deviceInfo.Name()));
       }
 
-      // Cache connectable status
       pushUniversalScanResult(universalScanResult);
     }
     catch (...)

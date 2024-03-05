@@ -107,7 +107,6 @@ class _MyAppState extends State<MyApp> {
                 PlatformButton(
                   text: 'Start Scan',
                   onPressed: () async {
-                    UUID('180f');
                     setState(() {
                       _scanResults.clear();
                       _isScanning = true;
