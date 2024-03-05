@@ -5,7 +5,6 @@ import 'package:bluez/bluez.dart';
 import 'package:collection/collection.dart';
 import 'package:flutter/services.dart';
 import 'package:universal_ble/src/models/model_exports.dart';
-import 'package:universal_ble/src/models/scan_filter.dart';
 import 'package:universal_ble/src/universal_ble_platform_interface.dart';
 
 class UniversalBleLinux extends UniversalBlePlatform {

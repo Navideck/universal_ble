@@ -117,9 +117,10 @@ class UniversalBleWeb extends UniversalBlePlatform {
       requestFilterBuilder = webRequestOptions.toRequestOptionsBuilder(
         scanFilter: scanFilter,
       );
+    } else if (scanFilter != null) {
+      requestFilterBuilder = scanFilter.toRequestOptionsBuilder();
     } else {
-      requestFilterBuilder = scanFilter?.toRequestOptionsBuilder() ??
-          RequestOptionsBuilder.acceptAllDevices();
+      requestFilterBuilder = RequestOptionsBuilder.acceptAllDevices();
     }
 
     BluetoothDevice device = await FlutterWebBluetooth.instance.requestDevice(

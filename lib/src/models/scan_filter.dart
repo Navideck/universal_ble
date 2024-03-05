@@ -1,4 +1,4 @@
 class ScanFilter {
-  List<String> withServices;
+  final List<String> withServices;
   ScanFilter({required this.withServices});
 }
