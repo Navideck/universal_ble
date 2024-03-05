@@ -99,7 +99,8 @@ namespace universal_ble
       {
         bluetoothLEWatcher = BluetoothLEAdvertisementWatcher();
         bluetoothLEWatcher.ScanningMode(BluetoothLEScanningMode::Active);
-        ApplyScanFilter(filter, bluetoothLEWatcher);
+        if (filter != nullptr)
+          ApplyScanFilter(filter, bluetoothLEWatcher);
         bluetoothLEWatcherReceivedToken = bluetoothLEWatcher.Received({this, &UniversalBlePlugin::BluetoothLEWatcher_Received});
       }
       bluetoothLEWatcher.Start();
@@ -119,9 +120,6 @@ namespace universal_ble
 
   void UniversalBlePlugin::ApplyScanFilter(const UniversalScanFilter *filter, BluetoothLEAdvertisementWatcher &bluetoothWatcher)
   {
-    if (!filter)
-      return;
-
     // Apply Services filter
     const auto &services = filter->with_services();
     if (!services.empty())

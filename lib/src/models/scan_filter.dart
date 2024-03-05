@@ -1,4 +1,7 @@
 class ScanFilter {
   final List<String> withServices;
-  ScanFilter({required this.withServices});
+
+  ScanFilter({
+    this.withServices = const [],
+  });
 }
