@@ -158,8 +158,7 @@ UniversalBle.enableBluetooth();
 
 ## Command Queue
 
-By default, all commands will be executed in a queue. Each command will wait for the previous one to finish.
-Some platforms (e.g. Android) will fail to send consecutive commands without any delay between them so it is a good idea to leave to queue enabled.
+By default, all commands are executed in a queue, with each command waiting for the previous one to finish. This is because some platforms (e.g. Android) may fail to send consecutive commands without a delay between them. Therefore, it is a good idea to leave the queue enabled.
 
 ```dart
 // Disable queue
