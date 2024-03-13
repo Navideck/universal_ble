@@ -1,3 +1,6 @@
+## 0.9.4
+* Fix Windows crash when no Bluetooth adapter is present
+
 ## 0.9.3
 * Add scan filter (withServices:) in `startScan()`
 * Add service UUIDs from advertisements in `BleScanResult`
