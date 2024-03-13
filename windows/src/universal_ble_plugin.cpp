@@ -500,11 +500,19 @@ namespace universal_ble
 
   winrt::fire_and_forget UniversalBlePlugin::InitializeAsync()
   {
-    auto bluetoothAdapter = co_await BluetoothAdapter::GetDefaultAsync();
-    bluetoothRadio = co_await bluetoothAdapter.GetRadioAsync();
-    if (bluetoothRadio)
+    auto radios = co_await Radio::GetRadiosAsync();
+    for (auto &&radio : radios)
     {
-      radioStateChangedRevoker = bluetoothRadio.StateChanged(winrt::auto_revoke, {this, &UniversalBlePlugin::Radio_StateChanged});
+      if (radio.Kind() == RadioKind::Bluetooth)
+      {
+        bluetoothRadio = radio;
+        radioStateChangedRevoker = bluetoothRadio.StateChanged(winrt::auto_revoke, {this, &UniversalBlePlugin::Radio_StateChanged});
+        break;
+      }
+    }
+    if (!bluetoothRadio)
+    {
+      std::cout << "Bluetooth is not available" << std::endl;
     }
   }
 
