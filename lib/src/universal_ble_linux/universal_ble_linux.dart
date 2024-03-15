@@ -227,17 +227,17 @@ class UniversalBleLinux extends UniversalBlePlatform {
 
   @override
   Future<int> requestMtu(String deviceId, int expectedMtu) async {
-    // var device = _findDeviceById(deviceId);
-    // if (!device.connected) return 0;
-    // for (BlueZGattService service in device.gattServices) {
-    //   for (BlueZGattCharacteristic characteristic in service.characteristics) {
-    //     // The value provided by Bluez includes an extra 3 bytes from the GATT header, which needs to be removed.
-    //     // requires `int? get mtu => _object.getUint16Property(_gattCharacteristicInterfaceName, 'MTU');` to add in bluez.dart
-    //      return characteristic.mtu - 3;
-    //   }
-    // }
-    // return 0;
-    throw UnimplementedError();
+    var device = _findDeviceById(deviceId);
+    if (!device.connected) return 0;
+    for (BlueZGattService service in device.gattServices) {
+      for (BlueZGattCharacteristic characteristic in service.characteristics) {
+        int? mtu = characteristic.mtu;
+        if (mtu == null) continue;
+        // The value provided by Bluez includes an extra 3 bytes from the GATT header, which needs to be removed.
+        return mtu - 3;
+      }
+    }
+    return 0;
   }
 
   @override
