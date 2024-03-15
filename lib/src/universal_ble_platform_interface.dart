@@ -8,7 +8,6 @@ abstract class UniversalBlePlatform {
   Future<bool> enableBluetooth();
 
   Future<void> startScan({
-    WebRequestOptionsBuilder? webRequestOptions,
     ScanFilter? scanFilter,
   });
 

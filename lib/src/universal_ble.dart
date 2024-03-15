@@ -44,14 +44,10 @@ class UniversalBle {
   /// might throw errors if Bluetooth is not available
   /// `webRequestOptions` supported on Web only
   static Future<void> startScan({
-    WebRequestOptionsBuilder? webRequestOptions,
     ScanFilter? scanFilter,
   }) async {
     return await _executeCommand(
-      () => _platform.startScan(
-        webRequestOptions: webRequestOptions,
-        scanFilter: scanFilter,
-      ),
+      () => _platform.startScan(scanFilter: scanFilter),
       timeout: null,
     );
   }

@@ -144,7 +144,7 @@ fun Int.parseGattErrorCode(): String? {
 }
 
 fun UniversalScanFilter.toScanFilters(): List<ScanFilter> {
-    var scanFilters: List<ScanFilter> = emptyList()
+    var scanFilters: ArrayList<ScanFilter> = arrayListOf()
 
     // Add withServices Filter
     for (service in this.withServices) {
@@ -152,7 +152,7 @@ fun UniversalScanFilter.toScanFilters(): List<ScanFilter> {
             val serviceUUID = service?.validFullUUID()
             serviceUUID?.let {
                 val parcelUUId = ParcelUuid.fromString(it)
-                scanFilters = scanFilters.plus(
+                scanFilters.add(
                     ScanFilter.Builder().setServiceUuid(parcelUUId).build()
                 )
                 Log.e(TAG, "scanFilters: $parcelUUId")
@@ -167,7 +167,37 @@ fun UniversalScanFilter.toScanFilters(): List<ScanFilter> {
         }
     }
 
-    return scanFilters
+    // Add ManufacturerData Filter
+    for (manufacturerData in this.withManufacturerData) {
+        try {
+            manufacturerData?.companyIdentifier?.let {
+                val data: ByteArray = manufacturerData.data ?: ByteArray(0)
+                val mask: ByteArray? = manufacturerData.mask
+                if (mask == null) {
+                    scanFilters.add(
+                        ScanFilter.Builder().setManufacturerData(
+                            it.toInt(), data
+                        ).build()
+                    )
+                } else {
+                    scanFilters.add(
+                        ScanFilter.Builder().setManufacturerData(
+                            it.toInt(), data, mask
+                        ).build()
+                    )
+                }
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, e.toString())
+            throw FlutterError(
+                "illegalIllegalArgument",
+                "Invalid manufacturerData: ${manufacturerData?.companyIdentifier} ${manufacturerData?.data} ${manufacturerData?.mask}",
+                e.toString()
+            )
+        }
+    }
+
+    return scanFilters.toList()
 }
 
 val ScanResult.manufacturerDataHead: ByteArray?

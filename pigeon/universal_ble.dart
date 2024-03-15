@@ -130,8 +130,24 @@ class UniversalBleCharacteristic {
   UniversalBleCharacteristic(this.uuid, this.properties);
 }
 
+/// Scan Filters
 class UniversalScanFilter {
   final List<String?> withServices;
+  final List<UniversalManufacturerDataFilter?> withManufacturerData;
 
-  UniversalScanFilter(this.withServices);
+  UniversalScanFilter(
+    this.withServices,
+    this.withManufacturerData,
+  );
+}
+
+class UniversalManufacturerDataFilter {
+  int? companyIdentifier;
+  Uint8List? data;
+  Uint8List? mask;
+  UniversalManufacturerDataFilter({
+    this.companyIdentifier,
+    this.data,
+    this.mask,
+  });
 }

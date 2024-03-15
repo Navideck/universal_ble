@@ -25,9 +25,9 @@ class _MyAppState extends State<MyApp> {
   bool _isQueueEnabled = true;
 
   AvailabilityState? bleAvailabilityState;
-  late WebRequestOptionsBuilder _requestOptions;
   final List<String> _services = [
     "00001800-0000-1000-8000-00805f9b34fb",
+    "0000180f-0000-1000-8000-00805f9b34fb",
     "00002a00-0000-1000-8000-00805f9b34fb",
     "00002a01-0000-1000-8000-00805f9b34fb",
     "00002a19-0000-1000-8000-00805f9b34fb",
@@ -47,13 +47,6 @@ class _MyAppState extends State<MyApp> {
     /// Setup queue and timeout
     UniversalBle.queuesCommands = _isQueueEnabled;
     UniversalBle.timeout = const Duration(seconds: 10);
-
-    /// Add common services for web
-    if (kIsWeb) {
-      _services.addAll(WebRequestOptionsBuilder.defaultServices);
-    }
-    _requestOptions =
-        WebRequestOptionsBuilder.acceptAllDevices(optionalServices: _services);
 
     UniversalBle.onAvailabilityChange = (state) {
       setState(() {
@@ -75,6 +68,30 @@ class _MyAppState extends State<MyApp> {
       }
       setState(() {});
     };
+  }
+
+  Future<void> startScan() async {
+    await UniversalBle.startScan(
+      scanFilter: ScanFilter(
+        // withServices: ['180f'],
+        //  withServices: kIsWeb ? _services : [],
+        withManufacturerData: [
+          ManufacturerDataFilter(
+            companyIdentifier: 0x012D,
+            data: Uint8List.fromList(
+              [0x03, 0x00, 0x64, 0x00],
+            ),
+            // mask: Uint8List.fromList([0xff]),
+          ),
+          ManufacturerDataFilter(
+            companyIdentifier: 0x012D,
+            data: Uint8List.fromList(
+              [0x03, 0x00, 0x65, 0x00],
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -110,10 +127,7 @@ class _MyAppState extends State<MyApp> {
                       _isScanning = true;
                     });
                     try {
-                      await UniversalBle.startScan(
-                        webRequestOptions: _requestOptions,
-                        // scanFilter: ScanFilter(withServices: ['180f']),
-                      );
+                      await startScan();
                     } catch (e) {
                       setState(() {
                         _isScanning = false;

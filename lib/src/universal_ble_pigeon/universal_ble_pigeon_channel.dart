@@ -29,7 +29,6 @@ class UniversalBlePigeonChannel extends UniversalBlePlatform {
 
   @override
   Future<void> startScan({
-    WebRequestOptionsBuilder? webRequestOptions,
     ScanFilter? scanFilter,
   }) async {
     await _channel.startScan(
@@ -207,12 +206,19 @@ extension _UniversalBleScanResultExtension on UniversalBleScanResult {
 
 extension _ScanFilterExtension on ScanFilter? {
   UniversalScanFilter? toUniversalScanFilter() {
+    List<UniversalManufacturerDataFilter>? manufacturerDataFilters = this
+        ?.withManufacturerData
+        .map((e) => UniversalManufacturerDataFilter(
+              companyIdentifier: e.companyIdentifier,
+              data: e.data,
+              mask: e.mask,
+            ))
+        .toList();
+
     // Windows crashes if it's null, so we need to pass empty scan filter in this case
-    if (this == null && Platform.isWindows) {
-      return UniversalScanFilter(withServices: []);
-    }
     return UniversalScanFilter(
       withServices: this?.withServices.toValidUUIDList() ?? [],
+      withManufacturerData: manufacturerDataFilters ?? [],
     );
   }
 }

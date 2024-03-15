@@ -24,7 +24,6 @@ class MockUniversalBle extends UniversalBlePlatform {
 
   @override
   Future<void> startScan({
-    WebRequestOptionsBuilder? webRequestOptions,
     ScanFilter? scanFilter,
   }) async {
     onScanResult?.call(_mockBleScanResult);

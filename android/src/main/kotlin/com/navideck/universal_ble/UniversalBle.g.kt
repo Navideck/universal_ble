@@ -127,21 +127,53 @@ data class UniversalBleCharacteristic (
   }
 }
 
-/** Generated class from Pigeon that represents data sent in messages. */
+/**
+ * Scan Filters
+ *
+ * Generated class from Pigeon that represents data sent in messages.
+ */
 data class UniversalScanFilter (
-  val withServices: List<String?>
+  val withServices: List<String?>,
+  val withManufacturerData: List<UniversalManufacturerDataFilter?>
 
 ) {
   companion object {
     @Suppress("UNCHECKED_CAST")
     fun fromList(list: List<Any?>): UniversalScanFilter {
       val withServices = list[0] as List<String?>
-      return UniversalScanFilter(withServices)
+      val withManufacturerData = list[1] as List<UniversalManufacturerDataFilter?>
+      return UniversalScanFilter(withServices, withManufacturerData)
     }
   }
   fun toList(): List<Any?> {
     return listOf<Any?>(
       withServices,
+      withManufacturerData,
+    )
+  }
+}
+
+/** Generated class from Pigeon that represents data sent in messages. */
+data class UniversalManufacturerDataFilter (
+  val companyIdentifier: Long? = null,
+  val data: ByteArray? = null,
+  val mask: ByteArray? = null
+
+) {
+  companion object {
+    @Suppress("UNCHECKED_CAST")
+    fun fromList(list: List<Any?>): UniversalManufacturerDataFilter {
+      val companyIdentifier = list[0].let { if (it is Int) it.toLong() else it as Long? }
+      val data = list[1] as ByteArray?
+      val mask = list[2] as ByteArray?
+      return UniversalManufacturerDataFilter(companyIdentifier, data, mask)
+    }
+  }
+  fun toList(): List<Any?> {
+    return listOf<Any?>(
+      companyIdentifier,
+      data,
+      mask,
     )
   }
 }
@@ -167,6 +199,11 @@ private object UniversalBlePlatformChannelCodec : StandardMessageCodec() {
       }
       131.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
+          UniversalManufacturerDataFilter.fromList(it)
+        }
+      }
+      132.toByte() -> {
+        return (readValue(buffer) as? List<Any?>)?.let {
           UniversalScanFilter.fromList(it)
         }
       }
@@ -187,8 +224,12 @@ private object UniversalBlePlatformChannelCodec : StandardMessageCodec() {
         stream.write(130)
         writeValue(stream, value.toList())
       }
-      is UniversalScanFilter -> {
+      is UniversalManufacturerDataFilter -> {
         stream.write(131)
+        writeValue(stream, value.toList())
+      }
+      is UniversalScanFilter -> {
+        stream.write(132)
         writeValue(stream, value.toList())
       }
       else -> super.writeValue(stream, value)
