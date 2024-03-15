@@ -95,6 +95,17 @@ namespace universal_ble
   {
     if (bluetoothRadio && bluetoothRadio.State() == RadioState::On)
     {
+      setupDeviceWatcher();
+      DeviceWatcherStatus status = deviceWatcher.Status();
+      if (status != DeviceWatcherStatus::Started)
+      {
+        deviceWatcher.Start();
+      }
+      else
+      {
+        return FlutterError("Already scanning");
+      }
+
       if (!bluetoothLEWatcher)
       {
         bluetoothLEWatcher = BluetoothLEAdvertisementWatcher();
@@ -104,12 +115,7 @@ namespace universal_ble
         bluetoothLEWatcherReceivedToken = bluetoothLEWatcher.Received({this, &UniversalBlePlugin::BluetoothLEWatcher_Received});
       }
       bluetoothLEWatcher.Start();
-      setupDeviceWatcher();
-      DeviceWatcherStatus status = deviceWatcher.Status();
-      if (status != DeviceWatcherStatus::Started)
-        deviceWatcher.Start();
-      else
-        return FlutterError("Already scanning");
+
       return std::nullopt;
     }
     else
@@ -120,6 +126,8 @@ namespace universal_ble
 
   void UniversalBlePlugin::ApplyScanFilter(const UniversalScanFilter *filter, BluetoothLEAdvertisementWatcher &bluetoothWatcher)
   {
+    BluetoothLEAdvertisementFilter advertisementFilter = bluetoothLEWatcher.AdvertisementFilter();
+
     // Apply Services filter
     const auto &services = filter->with_services();
     if (!services.empty())
@@ -128,6 +136,27 @@ namespace universal_ble
       {
         std::string uuid_str = std::get<std::string>(uuid);
         bluetoothWatcher.AdvertisementFilter().Advertisement().ServiceUuids().Append(uuid_to_guid(uuid_str));
+      }
+    }
+
+    // Apply ManufacturerData filter
+    const auto &manufacturerData = filter->with_manufacturer_data();
+    if (!manufacturerData.empty())
+    {
+      // TODO: FIX: multiple manufacturer data filter results in no scan result
+      for (const flutter::EncodableValue &data : manufacturerData)
+      {
+        UniversalManufacturerDataFilter manufacturerDataFilter = std::any_cast<UniversalManufacturerDataFilter>(std::get<flutter::CustomEncodableValue>(data));
+        const int64_t *company_identifier = manufacturerDataFilter.company_identifier();
+        const std::vector<uint8_t> *data_filter = manufacturerDataFilter.data();
+        // const std::vector<uint8_t> *mask = manufacturerDataFilter.mask();
+        if (company_identifier == nullptr || data_filter == nullptr)
+          continue;
+
+        uint16_t companyId = static_cast<uint16_t>(*company_identifier);
+        IBuffer mfData = from_bytevc(*data_filter);
+        auto bluetoothLeMfData = BluetoothLEManufacturerData(companyId, mfData);
+        bluetoothWatcher.AdvertisementFilter().Advertisement().ManufacturerData().Append(bluetoothLeMfData);
       }
     }
   }
@@ -482,7 +511,7 @@ namespace universal_ble
       {
         return std::vector<uint8_t>();
       }
-      auto manufacturerData = advertisement.ManufacturerData().GetAt(0);
+      BluetoothLEManufacturerData manufacturerData = advertisement.ManufacturerData().GetAt(0);
       // FIXME Compat with REG_DWORD_BIG_ENDIAN
       uint8_t *prefix = uint16_t_union{manufacturerData.CompanyId()}.bytes;
       auto result = std::vector<uint8_t>{prefix, prefix + sizeof(uint16_t_union)};
