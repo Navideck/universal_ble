@@ -474,27 +474,22 @@ namespace universal_ble
 
   /// Helper Methods
 
-  std::vector<uint8_t> parseManufacturerDataHead(BluetoothLEAdvertisement advertisement, std::string deviceId)
-  {
-    try
-    {
-      if (advertisement.ManufacturerData().Size() == 0)
-      {
+  std::vector<uint8_t> parseManufacturerDataHead(BluetoothLEAdvertisement advertisement, std::string deviceId) {
+    try {
+        if (advertisement.ManufacturerData().Size() == 0) {
+            return std::vector<uint8_t>();
+        }
+        auto manufacturerData = advertisement.ManufacturerData().GetAt(0);
+        uint16_t companyId = manufacturerData.CompanyId();
+        uint16_t_union companyIdUnion;
+        companyIdUnion.uint16 = companyId; // Ensure proper endianness if needed
+        auto result = std::vector<uint8_t>{companyIdUnion.bytes, companyIdUnion.bytes + sizeof(companyIdUnion.bytes)};
+        auto data = to_bytevc(manufacturerData.Data());
+        result.insert(result.end(), data.begin(), data.end());
+        return result;
+    } catch (...) {
+        std::cout << "Error in parsing manufacturer data: " << deviceId << std::endl;
         return std::vector<uint8_t>();
-      }
-      auto manufacturerData = advertisement.ManufacturerData().GetAt(0);
-      // FIXME Compat with REG_DWORD_BIG_ENDIAN
-      uint8_t *prefix = uint16_t_union{manufacturerData.CompanyId()}.bytes;
-      auto result = std::vector<uint8_t>{prefix, prefix + sizeof(uint16_t_union)};
-
-      auto data = to_bytevc(manufacturerData.Data());
-      result.insert(result.end(), data.begin(), data.end());
-      return result;
-    }
-    catch (...)
-    {
-      std::cout << "Error in parsing manufacturer data: " << deviceId << std::endl;
-      return std::vector<uint8_t>();
     }
   }
 
