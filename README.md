@@ -204,8 +204,12 @@ Add `NSBluetoothPeripheralUsageDescription` and `NSBluetoothAlwaysUsageDescripti
 
 Add the `Bluetooth` capability to the macOS app from Xcode.
 
-### Web
+### Windows
 
+When publishing on Windows you need to declare the following [capabilities](https://learn.microsoft.com/en-us/windows/uwp/packaging/app-capability-declarations): `bluetooth, radios`
+
+### Web
+`
 On web, you have to add filters and specify optional services when scanning for devices. The parameter is ignored on other platforms.
 
 ```dart
