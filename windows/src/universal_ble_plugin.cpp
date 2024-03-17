@@ -474,23 +474,41 @@ namespace universal_ble
 
   /// Helper Methods
 
-  std::vector<uint8_t> parseManufacturerDataHead(BluetoothLEAdvertisement advertisement, std::string deviceId) {
+  std::vector<uint8_t> parseManufacturerDataHead(BluetoothLEAdvertisement advertisement, std::string deviceId)
+  {
     try {
-        if (advertisement.ManufacturerData().Size() == 0) {
-            return std::vector<uint8_t>();
+        if (advertisement == nullptr) {
+            std::cerr << "Advertisement is null." << std::endl;
+            return {};
         }
+
+        if (advertisement.ManufacturerData().Size() == 0) {
+            std::cerr << "No ManufacturerData found." << std::endl;
+            return {};
+        }
+
         auto manufacturerData = advertisement.ManufacturerData().GetAt(0);
+        if (manufacturerData == nullptr) {
+            std::cerr << "ManufacturerData is null." << std::endl;
+            return {};
+        }
+
         uint16_t companyId = manufacturerData.CompanyId();
-        uint16_t_union companyIdUnion;
-        companyIdUnion.uint16 = companyId; // Ensure proper endianness if needed
-        auto result = std::vector<uint8_t>{companyIdUnion.bytes, companyIdUnion.bytes + sizeof(companyIdUnion.bytes)};
+        uint8_t prefix[2];
+        prefix[0] = static_cast<uint8_t>(companyId >> 8);
+        prefix[1] = static_cast<uint8_t>(companyId & 0xFF);
+
+        std::vector<uint8_t> result = {prefix[0], prefix[1]};
         auto data = to_bytevc(manufacturerData.Data());
         result.insert(result.end(), data.begin(), data.end());
+
         return result;
+    } catch (const std::exception& e) {
+        std::cerr << "Error in parsing manufacturer data for device " << deviceId << ": " << e.what() << std::endl;
     } catch (...) {
-        std::cout << "Error in parsing manufacturer data: " << deviceId << std::endl;
-        return std::vector<uint8_t>();
+        std::cerr << "Unknown error occurred in parsing manufacturer data for device " << deviceId << std::endl;
     }
+    return {};
   }
 
   winrt::fire_and_forget UniversalBlePlugin::InitializeAsync()
