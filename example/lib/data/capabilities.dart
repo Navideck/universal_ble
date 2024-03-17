@@ -11,7 +11,7 @@ class Capabilities {
 
   static bool supportsPairingApi = !_Platform.isWeb && !_Platform.isCupertino;
 
-  static bool supportsRequestMtuApi = !_Platform.isWeb && !_Platform.isLinux;
+  static bool supportsRequestMtuApi = !_Platform.isWeb;
 }
 
 class _Platform {
