@@ -692,18 +692,19 @@ namespace universal_ble
       auto universalScanResult = UniversalBleScanResult(deviceId);
       std::string name = winrt::to_string(args.Advertisement().LocalName());
 
-      // Use CompleteName from dataType if localName is empty
-      if (name.empty())
+      auto dataSection = args.Advertisement().DataSections();
+      for (auto &&data : dataSection)
       {
-        auto dataSection = args.Advertisement().DataSections();
-        for (auto &&data : dataSection)
+        auto dataBytes = to_bytevc(data.Data());
+        // Use CompleteName from dataType if localName is empty
+        if (name.empty() && data.DataType() == static_cast<uint8_t>(AdvertisementSectionType::CompleteLocalName))
         {
-          auto dataBytes = to_bytevc(data.Data());
-          if (data.DataType() == 0x09)
-          {
-            name = std::string(dataBytes.begin(), dataBytes.end());
-            break;
-          }
+          name = std::string(dataBytes.begin(), dataBytes.end());
+        }
+        // Use ShortenedLocalName from dataType if localName is empty
+        else if (name.empty() && data.DataType() == static_cast<uint8_t>(AdvertisementSectionType::ShortenedLocalName))
+        {
+          name = std::string(dataBytes.begin(), dataBytes.end());
         }
       }
 

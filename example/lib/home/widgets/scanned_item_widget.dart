@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:universal_ble/universal_ble.dart';
 import 'package:universal_ble_example/data/capabilities.dart';
@@ -26,7 +25,7 @@ class ScannedItemWidget extends StatelessWidget {
               // Show manufacturer data only on web and desktop
               Visibility(
                 visible: (Platform.isWeb || Platform.isDesktop) &&
-                    scanResult.manufacturerData != null,
+                    scanResult.manufacturerData?.isNotEmpty == true,
                 child: Text(
                   ManufacturerData.fromData(scanResult.manufacturerData!)
                       .toString(),
