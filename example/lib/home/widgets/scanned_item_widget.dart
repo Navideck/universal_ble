@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:universal_ble/universal_ble.dart';
+import 'package:universal_ble_example/data/capabilities.dart';
 
 class ScannedItemWidget extends StatelessWidget {
   final BleScanResult scanResult;
@@ -17,23 +18,33 @@ class ScannedItemWidget extends StatelessWidget {
           title: Text(
             '$name (${scanResult.rssi})',
           ),
-          subtitle: scanResult.isPaired != null
-              ? Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text("${scanResult.deviceId} "),
-                    scanResult.isPaired == true
-                        ? const Text(
-                            "Paired",
-                            style: TextStyle(color: Colors.green),
-                          )
-                        : const Text(
-                            "Not Paired",
-                            style: TextStyle(color: Colors.red),
-                          ),
-                  ],
-                )
-              : Text(scanResult.deviceId),
+          subtitle: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(scanResult.deviceId),
+              // Show manufacturer data only on web and desktop
+              Visibility(
+                visible: (Platform.isWeb || Platform.isDesktop) &&
+                    scanResult.manufacturerData?.isNotEmpty == true,
+                child: Text(
+                  ManufacturerData.fromData(scanResult.manufacturerData!)
+                      .toString(),
+                ),
+              ),
+              Visibility(
+                visible: scanResult.isPaired != null,
+                child: scanResult.isPaired == true
+                    ? const Text(
+                        "Paired",
+                        style: TextStyle(color: Colors.green),
+                      )
+                    : const Text(
+                        "Not Paired",
+                        style: TextStyle(color: Colors.red),
+                      ),
+              ),
+            ],
+          ),
           trailing: const Icon(Icons.arrow_forward_ios),
           onTap: onTap,
         ),

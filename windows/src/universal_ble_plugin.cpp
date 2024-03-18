@@ -32,12 +32,6 @@ namespace universal_ble
   std::unique_ptr<UniversalBleCallbackChannel> callbackChannel;
   std::unordered_map<std::string, winrt::event_token> characteristicsTokens{}; // TODO: Remove the map and store the token inside the characteristic object object
 
-  union uint16_t_union
-  {
-    uint16_t uint16;
-    byte bytes[sizeof(uint16_t)];
-  };
-
   void UniversalBlePlugin::RegisterWithRegistrar(flutter::PluginRegistrarWindows *registrar)
   {
     auto plugin = std::make_unique<UniversalBlePlugin>(registrar);
@@ -478,24 +472,46 @@ namespace universal_ble
   {
     try
     {
+      if (advertisement == nullptr)
+        return {};
+
       if (advertisement.ManufacturerData().Size() == 0)
-      {
-        return std::vector<uint8_t>();
-      }
+        return {};
+
       auto manufacturerData = advertisement.ManufacturerData().GetAt(0);
-      // FIXME Compat with REG_DWORD_BIG_ENDIAN
-      uint8_t *prefix = uint16_t_union{manufacturerData.CompanyId()}.bytes;
-      auto result = std::vector<uint8_t>{prefix, prefix + sizeof(uint16_t_union)};
+      if (manufacturerData == nullptr)
+        return {};
+
+      uint16_t companyId = manufacturerData.CompanyId();
+      uint8_t prefix[2];
+      auto leastSignificantBit = static_cast<uint8_t>(companyId & 0xFF);
+      auto mostSignificantBit = static_cast<uint8_t>(companyId >> 8);
+      if (isLittleEndian())
+      {
+        prefix[0] = leastSignificantBit;
+        prefix[1] = mostSignificantBit;
+      }
+      else
+      {
+        prefix[0] = mostSignificantBit;
+        prefix[1] = leastSignificantBit;
+      }
+      std::vector<uint8_t> result = {prefix[0], prefix[1]};
 
       auto data = to_bytevc(manufacturerData.Data());
       result.insert(result.end(), data.begin(), data.end());
+
       return result;
+    }
+    catch (const std::exception &e)
+    {
+      std::cerr << "Error in parsing manufacturer data for device " << deviceId << ": " << e.what() << std::endl;
     }
     catch (...)
     {
-      std::cout << "Error in parsing manufacturer data: " << deviceId << std::endl;
-      return std::vector<uint8_t>();
+      std::cerr << "Unknown error occurred in parsing manufacturer data for device " << deviceId << std::endl;
     }
+    return {};
   }
 
   winrt::fire_and_forget UniversalBlePlugin::InitializeAsync()
@@ -676,18 +692,19 @@ namespace universal_ble
       auto universalScanResult = UniversalBleScanResult(deviceId);
       std::string name = winrt::to_string(args.Advertisement().LocalName());
 
-      // Use CompleteName from dataType if localName is empty
-      if (name.empty())
+      auto dataSection = args.Advertisement().DataSections();
+      for (auto &&data : dataSection)
       {
-        auto dataSection = args.Advertisement().DataSections();
-        for (auto &&data : dataSection)
+        auto dataBytes = to_bytevc(data.Data());
+        // Use CompleteName from dataType if localName is empty
+        if (name.empty() && data.DataType() == static_cast<uint8_t>(AdvertisementSectionType::CompleteLocalName))
         {
-          auto dataBytes = to_bytevc(data.Data());
-          if (data.DataType() == 0x09)
-          {
-            name = std::string(dataBytes.begin(), dataBytes.end());
-            break;
-          }
+          name = std::string(dataBytes.begin(), dataBytes.end());
+        }
+        // Use ShortenedLocalName from dataType if localName is empty
+        else if (name.empty() && data.DataType() == static_cast<uint8_t>(AdvertisementSectionType::ShortenedLocalName))
+        {
+          name = std::string(dataBytes.begin(), dataBytes.end());
         }
       }
 

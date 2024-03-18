@@ -25,6 +25,7 @@ namespace universal_ble
     std::string to_hexstring(std::vector<uint8_t> bytes);
 
     std::string to_uuidstr(winrt::guid guid);
+    bool isLittleEndian();
 
     /// To call async functions synchronously
     template <typename async_t>
