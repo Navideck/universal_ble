@@ -143,16 +143,59 @@ public extension CBPeripheral {
 
 extension String {
     var validFullUUID: String {
-        let uuidLength = self.count
+        let uuidLength = count
         if uuidLength == 4 || uuidLength == 8 {
             let baseUuid = "00000000-0000-1000-8000-00805F9B34FB"
             let start = baseUuid.startIndex
-            let range = baseUuid.index(start, offsetBy: 4-uuidLength)..<baseUuid.index(start, offsetBy: 4)
+            let range = baseUuid.index(start, offsetBy: 4 - uuidLength) ..< baseUuid.index(start, offsetBy: 4)
             return baseUuid.replacingCharacters(in: range, with: self)
         } else {
             return self
         }
     }
+}
+
+extension FlutterStandardTypedData {
+    func toData() -> Data {
+        return Data(data)
+    }
+}
+
+func isManufacturerDataMatchingFilters(filters: [UniversalManufacturerDataFilter], msd: Data?) -> Bool {
+    guard let msd = msd, !msd.isEmpty else {
+        return false
+    }
+    for filter in filters {
+        guard let companyIdentifier: Int64 = filter.companyIdentifier else {
+            continue
+        }
+        let manufacturerId = msd.subdata(in: 0 ..< 2).withUnsafeBytes { $0.load(as: UInt16.self) }
+        let manufacturerData = msd.subdata(in: 2 ..< msd.count)
+        if manufacturerId == companyIdentifier && findData(find: filter.data?.toData(), inData: manufacturerData, usingMask: filter.mask?.toData()) {
+            return true
+        }
+    }
+    return false
+}
+
+func findData(find: Data?, inData data: Data, usingMask mask: Data?) -> Bool {
+    if let find = find {
+        // If mask is null, use a default mask of all 1s
+        let mask = mask ?? Data(repeating: 0xFF, count: find.count)
+
+        // Ensure find & mask are same length
+        guard find.count == mask.count else {
+            return false
+        }
+
+        for i in 0 ..< find.count {
+            // Perform bitwise AND with mask and then compare
+            if (find[i] & mask[i]) != (data[i] & mask[i]) {
+                return false
+            }
+        }
+    }
+    return true
 }
 
 // Future classes

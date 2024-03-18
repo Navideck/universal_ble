@@ -129,20 +129,52 @@ struct UniversalBleCharacteristic {
   }
 }
 
+/// Scan Filters
+///
 /// Generated class from Pigeon that represents data sent in messages.
 struct UniversalScanFilter {
   var withServices: [String?]
+  var withManufacturerData: [UniversalManufacturerDataFilter?]
 
   static func fromList(_ list: [Any?]) -> UniversalScanFilter? {
     let withServices = list[0] as! [String?]
+    let withManufacturerData = list[1] as! [UniversalManufacturerDataFilter?]
 
     return UniversalScanFilter(
-      withServices: withServices
+      withServices: withServices,
+      withManufacturerData: withManufacturerData
     )
   }
   func toList() -> [Any?] {
     return [
-      withServices
+      withServices,
+      withManufacturerData,
+    ]
+  }
+}
+
+/// Generated class from Pigeon that represents data sent in messages.
+struct UniversalManufacturerDataFilter {
+  var companyIdentifier: Int64? = nil
+  var data: FlutterStandardTypedData? = nil
+  var mask: FlutterStandardTypedData? = nil
+
+  static func fromList(_ list: [Any?]) -> UniversalManufacturerDataFilter? {
+    let companyIdentifier: Int64? = isNullish(list[0]) ? nil : (list[0] is Int64? ? list[0] as! Int64? : Int64(list[0] as! Int32))
+    let data: FlutterStandardTypedData? = nilOrValue(list[1])
+    let mask: FlutterStandardTypedData? = nilOrValue(list[2])
+
+    return UniversalManufacturerDataFilter(
+      companyIdentifier: companyIdentifier,
+      data: data,
+      mask: mask
+    )
+  }
+  func toList() -> [Any?] {
+    return [
+      companyIdentifier,
+      data,
+      mask,
     ]
   }
 }
@@ -157,6 +189,8 @@ private class UniversalBlePlatformChannelCodecReader: FlutterStandardReader {
     case 130:
       return UniversalBleService.fromList(self.readValue() as! [Any?])
     case 131:
+      return UniversalManufacturerDataFilter.fromList(self.readValue() as! [Any?])
+    case 132:
       return UniversalScanFilter.fromList(self.readValue() as! [Any?])
     default:
       return super.readValue(ofType: type)
@@ -175,8 +209,11 @@ private class UniversalBlePlatformChannelCodecWriter: FlutterStandardWriter {
     } else if let value = value as? UniversalBleService {
       super.writeByte(130)
       super.writeValue(value.toList())
-    } else if let value = value as? UniversalScanFilter {
+    } else if let value = value as? UniversalManufacturerDataFilter {
       super.writeByte(131)
+      super.writeValue(value.toList())
+    } else if let value = value as? UniversalScanFilter {
+      super.writeByte(132)
       super.writeValue(value.toList())
     } else {
       super.writeValue(value)

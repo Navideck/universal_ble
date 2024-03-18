@@ -27,6 +27,7 @@ private var discoveredPeripherals = [String: CBPeripheral]()
 private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentralManagerDelegate, CBPeripheralDelegate {
   var callbackChannel: UniversalBleCallbackChannel
   private lazy var manager: CBCentralManager = .init(delegate: self, queue: nil)
+  private var scanFilter: UniversalScanFilter? = nil
   private var discoveredServicesProgressMap: [String: [UniversalBleService]] = [:]
   private var characteristicReadFutures = [CharacteristicReadFuture]()
   private var characteristicWriteFutures = [CharacteristicWriteFuture]()
@@ -57,17 +58,19 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
   }
 
   func startScan(filter: UniversalScanFilter?) throws {
-    
     // Apply services filter
     var withServices: [CBUUID] = []
     for service in filter?.withServices ?? [] {
       if let service = service {
-          if UUID(uuidString: service.validFullUUID) == nil {
+        if UUID(uuidString: service.validFullUUID) == nil {
           throw FlutterError(code: "IllegalArgument", message: "Invalid service UUID:\(service)", details: nil)
         }
         withServices.append(CBUUID(string: service))
       }
     }
+
+    // Save scanFilter for later user
+    scanFilter = filter
 
     manager.scanForPeripherals(withServices: withServices)
   }
@@ -241,6 +244,16 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
     discoveredPeripherals[peripheral.uuid.uuidString] = peripheral
     let manufacturerData = advertisementData[CBAdvertisementDataManufacturerDataKey] as? Data
     let services = advertisementData[CBAdvertisementDataServiceUUIDsKey] as? [CBUUID]
+
+    // Handle ScanFilters
+    if let filter = scanFilter {
+      let manufacturerFilter = filter.withManufacturerData.compactMap { $0 }
+      // If scan filters are not empty, check if manufacturer data matches filters
+      if !manufacturerFilter.isEmpty, !isManufacturerDataMatchingFilters(filters: manufacturerFilter, msd: manufacturerData) {
+        return
+      }
+    }
+
     callbackChannel.onScanResult(result: UniversalBleScanResult(
       deviceId: peripheral.uuid.uuidString,
       name: peripheral.name,

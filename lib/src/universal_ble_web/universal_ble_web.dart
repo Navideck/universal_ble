@@ -109,22 +109,11 @@ class UniversalBleWeb extends UniversalBlePlatform {
 
   @override
   Future<void> startScan({
-    WebRequestOptionsBuilder? webRequestOptions,
     ScanFilter? scanFilter,
   }) async {
-    RequestOptionsBuilder requestFilterBuilder;
-    if (webRequestOptions != null) {
-      requestFilterBuilder = webRequestOptions.toRequestOptionsBuilder(
-        scanFilter: scanFilter,
-      );
-    } else if (scanFilter != null) {
-      requestFilterBuilder = scanFilter.toRequestOptionsBuilder();
-    } else {
-      requestFilterBuilder = RequestOptionsBuilder.acceptAllDevices();
-    }
-
     BluetoothDevice device = await FlutterWebBluetooth.instance.requestDevice(
-      requestFilterBuilder,
+      scanFilter?.toRequestOptionsBuilder() ??
+          RequestOptionsBuilder.acceptAllDevices(),
     );
 
     // Update local device list
@@ -389,8 +378,37 @@ extension _UnmodifiableMapViewExtension on UnmodifiableMapView<int, ByteData> {
 
 extension ScanFilterExtension on ScanFilter {
   RequestOptionsBuilder toRequestOptionsBuilder() {
+    List<RequestFilterBuilder> filters = [];
+    // Add services filter
+    for (var service in withServices.toValidUUIDList()) {
+      filters.add(
+        RequestFilterBuilder(
+          services: [service],
+        ),
+      );
+    }
+
+    // Add manufacturer data filter
+    for (var manufacturerData in withManufacturerData) {
+      filters.add(
+        RequestFilterBuilder(
+          manufacturerData: [
+            ManufacturerDataFilterBuilder(
+              companyIdentifier: manufacturerData.companyIdentifier,
+              dataPrefix: manufacturerData.data,
+              mask: manufacturerData.mask,
+            ),
+          ],
+        ),
+      );
+    }
+
+    if (filters.isEmpty) {
+      return RequestOptionsBuilder.acceptAllDevices();
+    }
+
     return RequestOptionsBuilder(
-      [RequestFilterBuilder(services: withServices.toValidUUIDList())],
+      filters,
       optionalServices: withServices.toValidUUIDList(),
     );
   }

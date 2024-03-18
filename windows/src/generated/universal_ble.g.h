@@ -179,14 +179,21 @@ class UniversalBleCharacteristic {
 };
 
 
+// Scan Filters
+//
 // Generated class from Pigeon that represents data sent in messages.
 class UniversalScanFilter {
  public:
   // Constructs an object setting all fields.
-  explicit UniversalScanFilter(const flutter::EncodableList& with_services);
+  explicit UniversalScanFilter(
+    const flutter::EncodableList& with_services,
+    const flutter::EncodableList& with_manufacturer_data);
 
   const flutter::EncodableList& with_services() const;
   void set_with_services(const flutter::EncodableList& value_arg);
+
+  const flutter::EncodableList& with_manufacturer_data() const;
+  void set_with_manufacturer_data(const flutter::EncodableList& value_arg);
 
 
  private:
@@ -197,6 +204,46 @@ class UniversalScanFilter {
   friend class UniversalBleCallbackChannel;
   friend class UniversalBleCallbackChannelCodecSerializer;
   flutter::EncodableList with_services_;
+  flutter::EncodableList with_manufacturer_data_;
+
+};
+
+
+// Generated class from Pigeon that represents data sent in messages.
+class UniversalManufacturerDataFilter {
+ public:
+  // Constructs an object setting all non-nullable fields.
+  UniversalManufacturerDataFilter();
+
+  // Constructs an object setting all fields.
+  explicit UniversalManufacturerDataFilter(
+    const int64_t* company_identifier,
+    const std::vector<uint8_t>* data,
+    const std::vector<uint8_t>* mask);
+
+  const int64_t* company_identifier() const;
+  void set_company_identifier(const int64_t* value_arg);
+  void set_company_identifier(int64_t value_arg);
+
+  const std::vector<uint8_t>* data() const;
+  void set_data(const std::vector<uint8_t>* value_arg);
+  void set_data(const std::vector<uint8_t>& value_arg);
+
+  const std::vector<uint8_t>* mask() const;
+  void set_mask(const std::vector<uint8_t>* value_arg);
+  void set_mask(const std::vector<uint8_t>& value_arg);
+
+
+ private:
+  static UniversalManufacturerDataFilter FromEncodableList(const flutter::EncodableList& list);
+  flutter::EncodableList ToEncodableList() const;
+  friend class UniversalBlePlatformChannel;
+  friend class UniversalBlePlatformChannelCodecSerializer;
+  friend class UniversalBleCallbackChannel;
+  friend class UniversalBleCallbackChannelCodecSerializer;
+  std::optional<int64_t> company_identifier_;
+  std::optional<std::vector<uint8_t>> data_;
+  std::optional<std::vector<uint8_t>> mask_;
 
 };
 

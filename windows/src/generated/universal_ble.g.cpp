@@ -273,8 +273,11 @@ UniversalBleCharacteristic UniversalBleCharacteristic::FromEncodableList(const E
 
 // UniversalScanFilter
 
-UniversalScanFilter::UniversalScanFilter(const EncodableList& with_services)
- : with_services_(with_services) {}
+UniversalScanFilter::UniversalScanFilter(
+  const EncodableList& with_services,
+  const EncodableList& with_manufacturer_data)
+ : with_services_(with_services),
+    with_manufacturer_data_(with_manufacturer_data) {}
 
 const EncodableList& UniversalScanFilter::with_services() const {
   return with_services_;
@@ -285,16 +288,104 @@ void UniversalScanFilter::set_with_services(const EncodableList& value_arg) {
 }
 
 
+const EncodableList& UniversalScanFilter::with_manufacturer_data() const {
+  return with_manufacturer_data_;
+}
+
+void UniversalScanFilter::set_with_manufacturer_data(const EncodableList& value_arg) {
+  with_manufacturer_data_ = value_arg;
+}
+
+
 EncodableList UniversalScanFilter::ToEncodableList() const {
   EncodableList list;
-  list.reserve(1);
+  list.reserve(2);
   list.push_back(EncodableValue(with_services_));
+  list.push_back(EncodableValue(with_manufacturer_data_));
   return list;
 }
 
 UniversalScanFilter UniversalScanFilter::FromEncodableList(const EncodableList& list) {
   UniversalScanFilter decoded(
-    std::get<EncodableList>(list[0]));
+    std::get<EncodableList>(list[0]),
+    std::get<EncodableList>(list[1]));
+  return decoded;
+}
+
+// UniversalManufacturerDataFilter
+
+UniversalManufacturerDataFilter::UniversalManufacturerDataFilter() {}
+
+UniversalManufacturerDataFilter::UniversalManufacturerDataFilter(
+  const int64_t* company_identifier,
+  const std::vector<uint8_t>* data,
+  const std::vector<uint8_t>* mask)
+ : company_identifier_(company_identifier ? std::optional<int64_t>(*company_identifier) : std::nullopt),
+    data_(data ? std::optional<std::vector<uint8_t>>(*data) : std::nullopt),
+    mask_(mask ? std::optional<std::vector<uint8_t>>(*mask) : std::nullopt) {}
+
+const int64_t* UniversalManufacturerDataFilter::company_identifier() const {
+  return company_identifier_ ? &(*company_identifier_) : nullptr;
+}
+
+void UniversalManufacturerDataFilter::set_company_identifier(const int64_t* value_arg) {
+  company_identifier_ = value_arg ? std::optional<int64_t>(*value_arg) : std::nullopt;
+}
+
+void UniversalManufacturerDataFilter::set_company_identifier(int64_t value_arg) {
+  company_identifier_ = value_arg;
+}
+
+
+const std::vector<uint8_t>* UniversalManufacturerDataFilter::data() const {
+  return data_ ? &(*data_) : nullptr;
+}
+
+void UniversalManufacturerDataFilter::set_data(const std::vector<uint8_t>* value_arg) {
+  data_ = value_arg ? std::optional<std::vector<uint8_t>>(*value_arg) : std::nullopt;
+}
+
+void UniversalManufacturerDataFilter::set_data(const std::vector<uint8_t>& value_arg) {
+  data_ = value_arg;
+}
+
+
+const std::vector<uint8_t>* UniversalManufacturerDataFilter::mask() const {
+  return mask_ ? &(*mask_) : nullptr;
+}
+
+void UniversalManufacturerDataFilter::set_mask(const std::vector<uint8_t>* value_arg) {
+  mask_ = value_arg ? std::optional<std::vector<uint8_t>>(*value_arg) : std::nullopt;
+}
+
+void UniversalManufacturerDataFilter::set_mask(const std::vector<uint8_t>& value_arg) {
+  mask_ = value_arg;
+}
+
+
+EncodableList UniversalManufacturerDataFilter::ToEncodableList() const {
+  EncodableList list;
+  list.reserve(3);
+  list.push_back(company_identifier_ ? EncodableValue(*company_identifier_) : EncodableValue());
+  list.push_back(data_ ? EncodableValue(*data_) : EncodableValue());
+  list.push_back(mask_ ? EncodableValue(*mask_) : EncodableValue());
+  return list;
+}
+
+UniversalManufacturerDataFilter UniversalManufacturerDataFilter::FromEncodableList(const EncodableList& list) {
+  UniversalManufacturerDataFilter decoded;
+  auto& encodable_company_identifier = list[0];
+  if (!encodable_company_identifier.IsNull()) {
+    decoded.set_company_identifier(encodable_company_identifier.LongValue());
+  }
+  auto& encodable_data = list[1];
+  if (!encodable_data.IsNull()) {
+    decoded.set_data(std::get<std::vector<uint8_t>>(encodable_data));
+  }
+  auto& encodable_mask = list[2];
+  if (!encodable_mask.IsNull()) {
+    decoded.set_mask(std::get<std::vector<uint8_t>>(encodable_mask));
+  }
   return decoded;
 }
 
@@ -312,6 +403,8 @@ EncodableValue UniversalBlePlatformChannelCodecSerializer::ReadValueOfType(
     case 130:
       return CustomEncodableValue(UniversalBleService::FromEncodableList(std::get<EncodableList>(ReadValue(stream))));
     case 131:
+      return CustomEncodableValue(UniversalManufacturerDataFilter::FromEncodableList(std::get<EncodableList>(ReadValue(stream))));
+    case 132:
       return CustomEncodableValue(UniversalScanFilter::FromEncodableList(std::get<EncodableList>(ReadValue(stream))));
     default:
       return flutter::StandardCodecSerializer::ReadValueOfType(type, stream);
@@ -337,8 +430,13 @@ void UniversalBlePlatformChannelCodecSerializer::WriteValue(
       WriteValue(EncodableValue(std::any_cast<UniversalBleService>(*custom_value).ToEncodableList()), stream);
       return;
     }
-    if (custom_value->type() == typeid(UniversalScanFilter)) {
+    if (custom_value->type() == typeid(UniversalManufacturerDataFilter)) {
       stream->WriteByte(131);
+      WriteValue(EncodableValue(std::any_cast<UniversalManufacturerDataFilter>(*custom_value).ToEncodableList()), stream);
+      return;
+    }
+    if (custom_value->type() == typeid(UniversalScanFilter)) {
+      stream->WriteByte(132);
       WriteValue(EncodableValue(std::any_cast<UniversalScanFilter>(*custom_value).ToEncodableList()), stream);
       return;
     }

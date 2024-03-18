@@ -17,6 +17,7 @@ class UniversalBleLinux extends UniversalBlePlatform {
   final BlueZClient _client = BlueZClient();
 
   BlueZAdapter? _activeAdapter;
+  ScanFilter? _scanFilter;
   Completer<void>? _initializationCompleter;
   final Map<String, BlueZDevice> _devices = {};
   final Map<String, StreamSubscription> _deviceStreamSubscriptions = {};
@@ -54,7 +55,6 @@ class UniversalBleLinux extends UniversalBlePlatform {
 
   @override
   Future<void> startScan({
-    WebRequestOptionsBuilder? webRequestOptions,
     ScanFilter? scanFilter,
   }) async {
     await _ensureInitialized();
@@ -63,6 +63,7 @@ class UniversalBleLinux extends UniversalBlePlatform {
       _activeAdapter?.setDiscoveryFilter(
         uuids: scanFilter?.withServices.toValidUUIDList(),
       );
+      _scanFilter = scanFilter;
       await _activeAdapter?.startDiscovery();
       _client.devices.forEach(_onDeviceAdd);
     }
@@ -371,6 +372,16 @@ class UniversalBleLinux extends UniversalBlePlatform {
   }
 
   void _onDeviceAdd(BlueZDevice device) {
+    if (!_isValidDevice(device)) return;
+
+    // Apply Filters
+    if (_scanFilter != null) {
+      List<ManufacturerDataFilter>? manufacturerDataFilter =
+          _scanFilter?.withManufacturerData;
+      if (manufacturerDataFilter != null &&
+          manufacturerDataFilter.isNotEmpty) {}
+    }
+
     // Update scan results only if rssi is available
     if (device.rssi != 0) onScanResult?.call(device.toBleScanResult());
 
@@ -421,6 +432,79 @@ class UniversalBleLinux extends UniversalBlePlatform {
     });
   }
 
+  bool _isValidDevice(BlueZDevice device) {
+    ScanFilter? scanFilter = _scanFilter;
+    if (scanFilter == null) return true;
+
+    // Check manufacturerData filter
+    if (!_isValidManufacturerData(
+      scanFilter.withManufacturerData,
+      device.manufacturerDataFilter,
+    )) {
+      return false;
+    }
+
+    return true;
+  }
+
+  bool _isValidManufacturerData(
+    List<ManufacturerDataFilter> filterMfdList,
+    List<ManufacturerDataFilter> deviceMfdList,
+  ) {
+    if (filterMfdList.isEmpty) return true;
+    if (deviceMfdList.isEmpty) return false;
+
+    // Check all filters
+    for (var filterMfd in filterMfdList) {
+      // Check if device have manufacturerData for this filter
+      for (var deviceMfd in deviceMfdList) {
+        // Check companyIdentifier
+        if (filterMfd.companyIdentifier != deviceMfd.companyIdentifier) {
+          continue;
+        }
+
+        // Check data
+        Uint8List? filterData = filterMfd.data;
+        Uint8List? deviceData = deviceMfd.data;
+
+        // If filter data is null and device data is not, continue to next deviceMfd
+        if (filterData != null && deviceData == null) continue;
+
+        if (filterData == null || deviceData == null) {
+          return true;
+        }
+
+        if (filterData.length > deviceData.length) continue;
+
+        // Apply mask
+        Uint8List? filterMask = filterMfd.mask;
+        bool dataMatched = true;
+        if (filterMask != null && (filterMask.length == filterData.length)) {
+          for (int i = 0; i < filterData.length; i++) {
+            if ((filterData[i] & filterMask[i]) !=
+                (deviceData[i] & filterMask[i])) {
+              dataMatched = false;
+              break;
+            }
+          }
+        }
+        // Compare data directly
+        else {
+          for (int i = 0; i < filterData.length; i++) {
+            if (filterData[i] != deviceData[i]) {
+              dataMatched = false;
+              break;
+            }
+          }
+        }
+
+        if (dataMatched) return true;
+      }
+    }
+
+    return false;
+  }
+
   void _onDeviceRemoved(BlueZDevice device) {
     _devices.remove(device.address);
     // Stop listener
@@ -451,6 +535,24 @@ class BluezProperty {
 }
 
 extension BlueZDeviceExtension on BlueZDevice {
+  List<ManufacturerDataFilter> get manufacturerDataFilter {
+    try {
+      if (manufacturerData.isEmpty) return [];
+      return manufacturerData.entries
+          .map((e) => ManufacturerDataFilter(
+                companyIdentifier: e.key.id,
+                data: Uint8List.fromList(e.value),
+              ))
+          .toList();
+    } catch (e) {
+      UniversalBlePlatform.logInfo(
+        'Error parsing manufacturerData: $e',
+        isError: true,
+      );
+      return [];
+    }
+  }
+
   Uint8List get manufacturerDataHead {
     try {
       if (manufacturerData.isEmpty) return Uint8List(0);
