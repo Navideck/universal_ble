@@ -22,3 +22,30 @@ class BleScanResult {
     this.manufacturerData = manufacturerData ?? manufacturerDataHead;
   }
 }
+
+/// Represents the manufacturer data of a BLE device.
+/// Use [BleScanResult.manufacturerData] with [ManufacturerData.fromData] to create an instance of this class.
+class ManufacturerData {
+  final int? companyId;
+  final Uint8List? data;
+  String? companyIdRadix16;
+  ManufacturerData(this.companyId, this.data) {
+    if (companyId != null) {
+      companyIdRadix16 = "0x0${companyId!.toRadixString(16)}";
+    }
+  }
+
+  factory ManufacturerData.fromData(Uint8List data) {
+    if (data.length < 2) return ManufacturerData(null, data);
+    int manufacturerIdInt = (data[0] + (data[1] << 8));
+    return ManufacturerData(
+      manufacturerIdInt,
+      data.sublist(2),
+    );
+  }
+
+  @override
+  String toString() {
+    return 'ManufacturerData: companyId: $companyIdRadix16, data: $data';
+  }
+}

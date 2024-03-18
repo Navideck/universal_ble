@@ -32,7 +32,7 @@ A cross-platform (Android/iOS/macOS/Windows/Linux/Web) Bluetooth Low Energy (BLE
 | onPairingStateChange |   ✔️    | ❌  |  ❌   |       ✔️       |      ✔️      | ❌  |
 | enableBluetooth      |   ✔️    | ❌  |  ❌   |       ✔️       |      ✔️      | ❌  |
 | onAvailabilityChange |   ✔️    | ✔️  |  ✔️   |       ✔️       |      ✔️      | ✔️  |
-| requestMtu           |   ✔️    | ✔️  |  ✔️   |       ✔️       |      🚧      | ❌  |
+| requestMtu           |   ✔️    | ✔️  |  ✔️   |       ✔️       |      ✔️      | ❌  |
 
 ## Getting Started
 
@@ -158,8 +158,7 @@ UniversalBle.enableBluetooth();
 
 ## Command Queue
 
-By default, all commands will be executed in a queue. Each command will wait for the previous one to finish.
-Some platforms (e.g. Android) will fail to send consecutive commands without any delay between them so it is a good idea to leave to queue enabled.
+By default, all commands are executed in a queue, with each command waiting for the previous one to finish. This is because some platforms (e.g. Android) may fail to send consecutive commands without a delay between them. Therefore, it is a good idea to leave the queue enabled.
 
 ```dart
 // Disable queue
@@ -205,8 +204,12 @@ Add `NSBluetoothPeripheralUsageDescription` and `NSBluetoothAlwaysUsageDescripti
 
 Add the `Bluetooth` capability to the macOS app from Xcode.
 
-### Web
+### Windows
 
+When publishing on Windows you need to declare the following [capabilities](https://learn.microsoft.com/en-us/windows/uwp/packaging/app-capability-declarations): `bluetooth, radios`
+
+### Web
+`
 On web, you have to add filters and specify optional services when scanning for devices. The parameter is ignored on other platforms.
 
 ```dart
