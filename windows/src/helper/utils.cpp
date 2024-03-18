@@ -119,4 +119,11 @@ namespace universal_ble
         return std::string{chars};
     }
 
+    bool isLittleEndian()
+    {
+        uint16_t number = 0x1;
+        char *numPtr = (char *)&number;
+        return (numPtr[0] == 1);
+    }
+
 } // namespace SimpleBLE

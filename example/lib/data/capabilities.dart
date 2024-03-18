@@ -2,19 +2,19 @@ import 'package:flutter/foundation.dart';
 
 class Capabilities {
   static bool requiresRuntimePermission =
-      !_Platform.isWeb && !_Platform.isWindows && !_Platform.isLinux;
+      !Platform.isWeb && !Platform.isWindows && !Platform.isLinux;
 
   static bool supportsBluetoothEnableApi =
-      !_Platform.isWeb && !_Platform.isCupertino;
+      !Platform.isWeb && !Platform.isCupertino;
 
-  static bool supportsConnectedDevicesApi = !_Platform.isWeb;
+  static bool supportsConnectedDevicesApi = !Platform.isWeb;
 
-  static bool supportsPairingApi = !_Platform.isWeb && !_Platform.isCupertino;
+  static bool supportsPairingApi = !Platform.isWeb && !Platform.isCupertino;
 
-  static bool supportsRequestMtuApi = !_Platform.isWeb && !_Platform.isLinux;
+  static bool supportsRequestMtuApi = !Platform.isWeb && !Platform.isLinux;
 }
 
-class _Platform {
+class Platform {
   static bool isWeb = kIsWeb;
   static bool isIOS = !isWeb && defaultTargetPlatform == TargetPlatform.iOS;
   static bool isAndroid =

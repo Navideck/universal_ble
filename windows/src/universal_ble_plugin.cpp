@@ -32,12 +32,6 @@ namespace universal_ble
   std::unique_ptr<UniversalBleCallbackChannel> callbackChannel;
   std::unordered_map<std::string, winrt::event_token> characteristicsTokens{}; // TODO: Remove the map and store the token inside the characteristic object object
 
-  union uint16_t_union
-  {
-    uint16_t uint16;
-    byte bytes[sizeof(uint16_t)];
-  };
-
   void UniversalBlePlugin::RegisterWithRegistrar(flutter::PluginRegistrarWindows *registrar)
   {
     auto plugin = std::make_unique<UniversalBlePlugin>(registrar);
@@ -476,37 +470,46 @@ namespace universal_ble
 
   std::vector<uint8_t> parseManufacturerDataHead(BluetoothLEAdvertisement advertisement, std::string deviceId)
   {
-    try {
-        if (advertisement == nullptr) {
-            std::cerr << "Advertisement is null." << std::endl;
-            return {};
-        }
+    try
+    {
+      if (advertisement == nullptr)
+        return {};
 
-        if (advertisement.ManufacturerData().Size() == 0) {
-            std::cerr << "No ManufacturerData found." << std::endl;
-            return {};
-        }
+      if (advertisement.ManufacturerData().Size() == 0)
+        return {};
 
-        auto manufacturerData = advertisement.ManufacturerData().GetAt(0);
-        if (manufacturerData == nullptr) {
-            std::cerr << "ManufacturerData is null." << std::endl;
-            return {};
-        }
+      auto manufacturerData = advertisement.ManufacturerData().GetAt(0);
+      if (manufacturerData == nullptr)
+        return {};
 
-        uint16_t companyId = manufacturerData.CompanyId();
-        uint8_t prefix[2];
-        prefix[0] = static_cast<uint8_t>(companyId >> 8);
-        prefix[1] = static_cast<uint8_t>(companyId & 0xFF);
+      uint16_t companyId = manufacturerData.CompanyId();
+      uint8_t prefix[2];
+      auto leastSignificantBit = static_cast<uint8_t>(companyId & 0xFF);
+      auto mostSignificantBit = static_cast<uint8_t>(companyId >> 8);
+      if (isLittleEndian())
+      {
+        prefix[0] = leastSignificantBit;
+        prefix[1] = mostSignificantBit;
+      }
+      else
+      {
+        prefix[0] = mostSignificantBit;
+        prefix[1] = leastSignificantBit;
+      }
+      std::vector<uint8_t> result = {prefix[0], prefix[1]};
 
-        std::vector<uint8_t> result = {prefix[0], prefix[1]};
-        auto data = to_bytevc(manufacturerData.Data());
-        result.insert(result.end(), data.begin(), data.end());
+      auto data = to_bytevc(manufacturerData.Data());
+      result.insert(result.end(), data.begin(), data.end());
 
-        return result;
-    } catch (const std::exception& e) {
-        std::cerr << "Error in parsing manufacturer data for device " << deviceId << ": " << e.what() << std::endl;
-    } catch (...) {
-        std::cerr << "Unknown error occurred in parsing manufacturer data for device " << deviceId << std::endl;
+      return result;
+    }
+    catch (const std::exception &e)
+    {
+      std::cerr << "Error in parsing manufacturer data for device " << deviceId << ": " << e.what() << std::endl;
+    }
+    catch (...)
+    {
+      std::cerr << "Unknown error occurred in parsing manufacturer data for device " << deviceId << std::endl;
     }
     return {};
   }
