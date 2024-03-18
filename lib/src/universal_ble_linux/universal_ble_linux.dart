@@ -432,7 +432,6 @@ class UniversalBleLinux extends UniversalBlePlatform {
     });
   }
 
-  // TODO: Test this
   bool _isValidDevice(BlueZDevice device) {
     ScanFilter? scanFilter = _scanFilter;
     if (scanFilter == null) return true;

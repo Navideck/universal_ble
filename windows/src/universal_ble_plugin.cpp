@@ -30,7 +30,7 @@ namespace universal_ble
   const auto signalStrengthKey = L"System.Devices.Aep.SignalStrength";
 
   std::unique_ptr<UniversalBleCallbackChannel> callbackChannel;
-  std::unordered_map<std::string, winrt::event_token> characteristicsTokens{}; // TODO: Remove the map and store the token inside the characteristic object object
+  std::unordered_map<std::string, winrt::event_token> characteristicsTokens{}; // TODO: Remove the map and store the token inside the characteristic object
   std::vector<UniversalManufacturerDataFilter> manufacturerScanFilter = std::vector<UniversalManufacturerDataFilter>();
 
   void UniversalBlePlugin::RegisterWithRegistrar(flutter::PluginRegistrarWindows *registrar)
