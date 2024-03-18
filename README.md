@@ -32,7 +32,7 @@ A cross-platform (Android/iOS/macOS/Windows/Linux/Web) Bluetooth Low Energy (BLE
 | onPairingStateChange |   ✔️    | ❌  |  ❌   |       ✔️       |      ✔️      | ❌  |
 | enableBluetooth      |   ✔️    | ❌  |  ❌   |       ✔️       |      ✔️      | ❌  |
 | onAvailabilityChange |   ✔️    | ✔️  |  ✔️   |       ✔️       |      ✔️      | ✔️  |
-| requestMtu           |   ✔️    | ✔️  |  ✔️   |       ✔️       |      🚧      | ❌  |
+| requestMtu           |   ✔️    | ✔️  |  ✔️   |       ✔️       |      ✔️      | ❌  |
 
 ## Getting Started
 

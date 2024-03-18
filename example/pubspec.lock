@@ -29,10 +29,10 @@ packages:
     dependency: transitive
     description:
       name: bluez
-      sha256: bfd004c81e3de0f06dce8580bc39a4600e4a6efe465a866b31d4d954c9f356aa
+      sha256: "203a1924e818a9dd74af2b2c7a8f375ab8e5edf0e486bba8f90a0d8a17ed9fce"
       url: "https://pub.dev"
     source: hosted
-    version: "0.8.1"
+    version: "0.8.2"
   boolean_selector:
     dependency: transitive
     description:

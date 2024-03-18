@@ -26,7 +26,7 @@ dependencies:
   collection: ^1.17.2
   convert: ^3.1.1
   flutter_web_bluetooth: ^0.2.2
-  bluez: ^0.8.1
+  bluez: ^0.8.2
 
 dev_dependencies:
   flutter_test:
