@@ -31,6 +31,7 @@ namespace universal_ble
 
   std::unique_ptr<UniversalBleCallbackChannel> callbackChannel;
   std::unordered_map<std::string, winrt::event_token> characteristicsTokens{}; // TODO: Remove the map and store the token inside the characteristic object object
+  std::vector<UniversalManufacturerDataFilter> manufacturerScanFilter = std::vector<UniversalManufacturerDataFilter>();
 
   union uint16_t_union
   {
@@ -110,8 +111,30 @@ namespace universal_ble
       {
         bluetoothLEWatcher = BluetoothLEAdvertisementWatcher();
         bluetoothLEWatcher.ScanningMode(BluetoothLEScanningMode::Active);
+
+        // reset scan filters
+        manufacturerScanFilter.clear();
         if (filter != nullptr)
-          ApplyScanFilter(filter, bluetoothLEWatcher);
+        {
+          // Apply Services filter
+          const auto &services = filter->with_services();
+          if (!services.empty())
+          {
+            for (const auto &uuid : services)
+            {
+              std::string uuid_str = std::get<std::string>(uuid);
+              bluetoothLEWatcher.AdvertisementFilter().Advertisement().ServiceUuids().Append(uuid_to_guid(uuid_str));
+            }
+          }
+
+          // Set ManufacturerData filter
+          const auto &manufacturerData = filter->with_manufacturer_data();
+          for (const flutter::EncodableValue &data : manufacturerData)
+          {
+            UniversalManufacturerDataFilter manufacturerDataFilter = std::any_cast<UniversalManufacturerDataFilter>(std::get<flutter::CustomEncodableValue>(data));
+            manufacturerScanFilter.push_back(manufacturerDataFilter);
+          }
+        }
         bluetoothLEWatcherReceivedToken = bluetoothLEWatcher.Received({this, &UniversalBlePlugin::BluetoothLEWatcher_Received});
       }
       bluetoothLEWatcher.Start();
@@ -123,43 +146,6 @@ namespace universal_ble
       return FlutterError("Bluetooth is not available");
     }
   };
-
-  void UniversalBlePlugin::ApplyScanFilter(const UniversalScanFilter *filter, BluetoothLEAdvertisementWatcher &bluetoothWatcher)
-  {
-    BluetoothLEAdvertisementFilter advertisementFilter = bluetoothLEWatcher.AdvertisementFilter();
-
-    // Apply Services filter
-    const auto &services = filter->with_services();
-    if (!services.empty())
-    {
-      for (const auto &uuid : services)
-      {
-        std::string uuid_str = std::get<std::string>(uuid);
-        bluetoothWatcher.AdvertisementFilter().Advertisement().ServiceUuids().Append(uuid_to_guid(uuid_str));
-      }
-    }
-
-    // Apply ManufacturerData filter
-    const auto &manufacturerData = filter->with_manufacturer_data();
-    if (!manufacturerData.empty())
-    {
-      // TODO: FIX: multiple manufacturer data filter results in no scan result
-      for (const flutter::EncodableValue &data : manufacturerData)
-      {
-        UniversalManufacturerDataFilter manufacturerDataFilter = std::any_cast<UniversalManufacturerDataFilter>(std::get<flutter::CustomEncodableValue>(data));
-        const int64_t *company_identifier = manufacturerDataFilter.company_identifier();
-        const std::vector<uint8_t> *data_filter = manufacturerDataFilter.data();
-        // const std::vector<uint8_t> *mask = manufacturerDataFilter.mask();
-        if (company_identifier == nullptr || data_filter == nullptr)
-          continue;
-
-        uint16_t companyId = static_cast<uint16_t>(*company_identifier);
-        IBuffer mfData = from_bytevc(*data_filter);
-        auto bluetoothLeMfData = BluetoothLEManufacturerData(companyId, mfData);
-        bluetoothWatcher.AdvertisementFilter().Advertisement().ManufacturerData().Append(bluetoothLeMfData);
-      }
-    }
-  }
 
   std::optional<FlutterError> UniversalBlePlugin::StopScan()
   {
@@ -701,6 +687,17 @@ namespace universal_ble
       if (!args.IsConnectable())
         return;
 
+      // Apply ManufacturerData filter
+      if (!manufacturerScanFilter.empty())
+      {
+        // Avoid devices if ManufacturerData is not present
+        if (args.Advertisement().ManufacturerData().Size() == 0)
+          return;
+        // Avoid devices if ManufacturerData does not match the filter
+        if (!filterByManufacturerData(args.Advertisement().ManufacturerData()))
+          return;
+      }
+
       auto deviceId = _mac_address_to_str(args.BluetoothAddress());
       auto universalScanResult = UniversalBleScanResult(deviceId);
       std::string name = winrt::to_string(args.Advertisement().LocalName());
@@ -757,6 +754,63 @@ namespace universal_ble
     {
       std::cout << "ScanResultErrorInParsing" << std::endl;
     }
+  }
+
+  bool UniversalBlePlugin::filterByManufacturerData(IVector<BluetoothLEManufacturerData> deviceManufactureData)
+  {
+    if (manufacturerScanFilter.empty())
+      return true;
+
+    for (auto &&filter : manufacturerScanFilter)
+    {
+      const int64_t *company_identifier = filter.company_identifier();
+      const std::vector<uint8_t> *data_filter = filter.data();
+      const std::vector<uint8_t> *mask = filter.mask();
+
+      if (company_identifier == nullptr)
+        continue;
+
+      uint16_t companyId = static_cast<uint16_t>(*company_identifier);
+
+      for (auto &&deviceMfData : deviceManufactureData)
+      {
+        if (deviceMfData.CompanyId() == companyId)
+        {
+          // If data filter is not present then return true
+          if (data_filter == nullptr)
+            return true;
+
+          auto deviceData = to_bytevc(deviceMfData.Data());
+          if (deviceData.size() < data_filter->size())
+            continue;
+
+          bool isMatch = true;
+          for (size_t i = 0; i < data_filter->size(); i++)
+          {
+            if (mask != nullptr && mask->size() > i)
+            {
+              if (((*mask)[i] & (*data_filter)[i]) != ((*mask)[i] & deviceData[i]))
+              {
+                isMatch = false;
+                break;
+              }
+            }
+            else
+            {
+              if ((*data_filter)[i] != deviceData[i])
+              {
+                isMatch = false;
+                break;
+              }
+            }
+          }
+          if (isMatch)
+            return true;
+        }
+      }
+    }
+
+    return false;
   }
 
   AvailabilityState UniversalBlePlugin::getAvailabilityStateFromRadio(RadioState radioState)
