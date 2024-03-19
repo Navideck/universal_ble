@@ -72,6 +72,26 @@ UniversalBle.startScan(
 UniversalBle.stopScan();
 ```
 
+Before initiating a scan, ensure that Bluetooth is available:
+```dart
+AvailabilityState state = await UniversalBle.getBluetoothAvailabilityState()
+// Start scan only if Bluetooth is powered on
+if (state != AvailabilityState.poweredOn) {
+  UniversalBle.startScan();
+}
+
+// Or listen to bluetooth availability changes
+UniversalBle.onAvailabilityChange = (state) {
+  if (state == AvailabilityState.poweredOn) {
+    UniversalBle.startScan();
+  }
+};
+```
+
+See the [Bluetooth Availability](#bluetooth-availability) section for more.
+
+#### Connected Devices
+
 Already connected devices, either through previous sessions or connected through system settings, won't show up as scan results.
 You can list those devices using `getConnectedDevices()`. You still need to explicitly connect before using them.
 
@@ -80,11 +100,13 @@ You can list those devices using `getConnectedDevices()`. You still need to expl
 await UniversalBle.getConnectedDevices(withServices: []);
 ```
 
-## Scan Filters
+#### Scan Filter
 
-### withServices
+You can optionally set filters when scanning.
 
-This is the primary filter. All devices are first filtered by services, then further filtered by other criteria.
+##### With Services
+
+When setting this parameter, the scan results will only include devices that advertize any of the specified services. This is the primary filter. All devices are first filtered by services, then further filtered by other criteria.
 
 On web, the `withServices` parameter is used as [optional_services](https://developer.mozilla.org/en-US/docs/Web/API/Bluetooth/requestDevice#optionalservices) as well as a services filter. You have to set this parameter on web to ensure that you can access the specified services after connecting to the device.
 
@@ -92,7 +114,7 @@ On web, the `withServices` parameter is used as [optional_services](https://deve
 List<String> withServices;
 ```
 
-### withManufacturerData
+##### With ManufacturerData
 
 Use the `withManufacturerData` parameter to filter devices by manufacturer data. When you pass a list of `ManufacturerDataFilter` objects to this parameter, the scan results will only include devices that contain any of the specified manufacturer data.
 
@@ -228,24 +250,6 @@ Add the `Bluetooth` capability to the macOS app from Xcode.
 ### Windows
 
 When publishing on Windows you need to declare the following [capabilities](https://learn.microsoft.com/en-us/windows/uwp/packaging/app-capability-declarations): `bluetooth, radios`
-
-Before initiating a scan, ensure that Bluetooth is available. You can monitor the status of Bluetooth availability by referring to the [Bluetooth Availability](#bluetooth-availability) section.
-
-```dart
-AvailabilityState state = await UniversalBle.getBluetoothAvailabilityState()
-// Start scan only if Bluetooth is powered on
-if (state != AvailabilityState.poweredOn) {
-  UniversalBle.startScan();
-}
-
-// Or listen to bluetooth availability change
-UniversalBle.onAvailabilityChange = (state) {
-  // Handle if already scanning, or other cases
-  if (state == AvailabilityState.poweredOn) {
-    UniversalBle.startScan();
-  }
-};
-```
 
 ## Customizing Platform Implementation of UniversalBle
 
