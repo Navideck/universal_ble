@@ -19,20 +19,20 @@ A cross-platform (Android/iOS/macOS/Windows/Linux/Web) Bluetooth Low Energy (BLE
 
 ### API Support Matrix
 
-| API                  | Android | iOS | macOS | Windows (beta) | Linux (beta) | Web |
-| :------------------- | :-----: | :-: | :---: | :------------: | :----------: | :-: |
-| startScan/stopScan   |   ✔️    | ✔️  |  ✔️   |       ✔️       |      ✔️      | ✔️  |
-| connect/disconnect   |   ✔️    | ✔️  |  ✔️   |       ✔️       |      ✔️      | ✔️  |
-| getConnectedDevices  |   ✔️    | ✔️  |  ✔️   |       ✔️       |      ✔️      | ❌  |
-| discoverServices     |   ✔️    | ✔️  |  ✔️   |       ✔️       |      ✔️      | ✔️  |
-| readValue            |   ✔️    | ✔️  |  ✔️   |       ✔️       |      ✔️      | ✔️  |
-| writeValue           |   ✔️    | ✔️  |  ✔️   |       ✔️       |      ✔️      | ✔️  |
-| setNotifiable        |   ✔️    | ✔️  |  ✔️   |       ✔️       |      ✔️      | ✔️  |
-| pair/unPair          |   ✔️    | ❌  |  ❌   |       ✔️       |      ✔️      | ❌  |
-| onPairingStateChange |   ✔️    | ❌  |  ❌   |       ✔️       |      ✔️      | ❌  |
-| enableBluetooth      |   ✔️    | ❌  |  ❌   |       ✔️       |      ✔️      | ❌  |
-| onAvailabilityChange |   ✔️    | ✔️  |  ✔️   |       ✔️       |      ✔️      | ✔️  |
-| requestMtu           |   ✔️    | ✔️  |  ✔️   |       ✔️       |      ✔️      | ❌  |
+| API                  | Android | iOS | macOS | Windows | Linux (beta) | Web |
+| :------------------- | :-----: | :-: | :---: | :-----: | :----------: | :-: |
+| startScan/stopScan   |   ✔️    | ✔️  |  ✔️   |   ✔️    |      ✔️      | ✔️  |
+| connect/disconnect   |   ✔️    | ✔️  |  ✔️   |   ✔️    |      ✔️      | ✔️  |
+| getConnectedDevices  |   ✔️    | ✔️  |  ✔️   |   ✔️    |      ✔️      | ❌  |
+| discoverServices     |   ✔️    | ✔️  |  ✔️   |   ✔️    |      ✔️      | ✔️  |
+| readValue            |   ✔️    | ✔️  |  ✔️   |   ✔️    |      ✔️      | ✔️  |
+| writeValue           |   ✔️    | ✔️  |  ✔️   |   ✔️    |      ✔️      | ✔️  |
+| setNotifiable        |   ✔️    | ✔️  |  ✔️   |   ✔️    |      ✔️      | ✔️  |
+| pair/unPair          |   ✔️    | ❌  |  ❌   |   ✔️    |      ✔️      | ❌  |
+| onPairingStateChange |   ✔️    | ❌  |  ❌   |   ✔️    |      ✔️      | ❌  |
+| enableBluetooth      |   ✔️    | ❌  |  ❌   |   ✔️    |      ✔️      | ❌  |
+| onAvailabilityChange |   ✔️    | ✔️  |  ✔️   |   ✔️    |      ✔️      | ✔️  |
+| requestMtu           |   ✔️    | ✔️  |  ✔️   |   ✔️    |      ✔️      | ❌  |
 
 ## Getting Started
 
@@ -63,7 +63,8 @@ UniversalBle.startScan();
 // Or optionally add a scan filter
 UniversalBle.startScan(
   scanFilter: ScanFilter(
-      withServices: ["SERVICE_UUID"],
+    withServices: ["SERVICE_UUID"],
+    withManufacturerData: ["MANUFACTURER_DATA"]
   )
 );
 
@@ -71,12 +72,52 @@ UniversalBle.startScan(
 UniversalBle.stopScan();
 ```
 
+Before initiating a scan, ensure that Bluetooth is available:
+```dart
+AvailabilityState state = await UniversalBle.getBluetoothAvailabilityState()
+// Start scan only if Bluetooth is powered on
+if (state != AvailabilityState.poweredOn) {
+  UniversalBle.startScan();
+}
+
+// Or listen to bluetooth availability changes
+UniversalBle.onAvailabilityChange = (state) {
+  if (state == AvailabilityState.poweredOn) {
+    UniversalBle.startScan();
+  }
+};
+```
+
+See the [Bluetooth Availability](#bluetooth-availability) section for more.
+
+#### Connected Devices
+
 Already connected devices, either through previous sessions or connected through system settings, won't show up as scan results.
 You can list those devices using `getConnectedDevices()`. You still need to explicitly connect before using them.
 
 ```dart
 // You can set `withServices` to narrow down the results
 await UniversalBle.getConnectedDevices(withServices: []);
+```
+
+#### Scan Filter
+
+You can optionally set filters when scanning.
+
+##### With Services
+
+When setting this parameter, the scan results will only include devices that advertize any of the specified services. This is the primary filter. All devices are first filtered by services, then further filtered by other criteria. This parameter is mandatory on [web](#web) if you want to access those services.
+
+```dart
+List<String> withServices;
+```
+
+##### With ManufacturerData
+
+Use the `withManufacturerData` parameter to filter devices by manufacturer data. When you pass a list of `ManufacturerDataFilter` objects to this parameter, the scan results will only include devices that contain any of the specified manufacturer data.
+
+```dart
+List<ManufacturerDataFilter> withManufacturerData;
 ```
 
 ### Connecting
@@ -209,15 +250,13 @@ Add the `Bluetooth` capability to the macOS app from Xcode.
 When publishing on Windows you need to declare the following [capabilities](https://learn.microsoft.com/en-us/windows/uwp/packaging/app-capability-declarations): `bluetooth, radios`
 
 ### Web
-`
-On web, you have to add filters and specify optional services when scanning for devices. The parameter is ignored on other platforms.
+
+On web, the `withServices` parameter in the ScanFilter is used as [optional_services](https://developer.mozilla.org/en-US/docs/Web/API/Bluetooth/requestDevice#optionalservices) as well as a services filter. On web you have to set this parameter to ensure that you can access the specified services after connecting to the device. You can leave it empty for the rest of the platforms if your device does not advertize services.
 
 ```dart
-UniversalBle.startScan(
-  webRequestOptions: WebRequestOptionsBuilder.acceptAllDevices(
-    optionalServices: ["SERVICE_UUID"],
-  ),
-);
+ScanFilter(
+      withServices: kIsWeb ?  ["SERVICE_UUID"] : [],
+)
 ```
 
 ## Customizing Platform Implementation of UniversalBle
