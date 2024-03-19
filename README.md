@@ -106,9 +106,7 @@ You can optionally set filters when scanning.
 
 ##### With Services
 
-When setting this parameter, the scan results will only include devices that advertize any of the specified services. This is the primary filter. All devices are first filtered by services, then further filtered by other criteria.
-
-On web, the `withServices` parameter is used as [optional_services](https://developer.mozilla.org/en-US/docs/Web/API/Bluetooth/requestDevice#optionalservices) as well as a services filter. You have to set this parameter on web to ensure that you can access the specified services after connecting to the device.
+When setting this parameter, the scan results will only include devices that advertize any of the specified services. This is the primary filter. All devices are first filtered by services, then further filtered by other criteria. This parameter is mandatory on [web](#web) if you want to access those services.
 
 ```dart
 List<String> withServices;
@@ -250,6 +248,16 @@ Add the `Bluetooth` capability to the macOS app from Xcode.
 ### Windows
 
 When publishing on Windows you need to declare the following [capabilities](https://learn.microsoft.com/en-us/windows/uwp/packaging/app-capability-declarations): `bluetooth, radios`
+
+### Web
+
+On web, the `withServices` parameter in the ScanFilter is used as [optional_services](https://developer.mozilla.org/en-US/docs/Web/API/Bluetooth/requestDevice#optionalservices) as well as a services filter. On web you have to set this parameter to ensure that you can access the specified services after connecting to the device. You can leave it empty for the rest of the platforms if your device does not advertize services.
+
+```dart
+ScanFilter(
+      withServices: kIsWeb ?  ["SERVICE_UUID"] : [],
+)
+```
 
 ## Customizing Platform Implementation of UniversalBle
 
