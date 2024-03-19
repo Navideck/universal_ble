@@ -19,7 +19,7 @@ A cross-platform (Android/iOS/macOS/Windows/Linux/Web) Bluetooth Low Energy (BLE
 
 ### API Support Matrix
 
-| API                  | Android | iOS | macOS | Windows (beta) | Linux (beta) | Web |
+| API                  | Android | iOS | macOS | Windows | Linux (beta) | Web |
 | :------------------- | :-----: | :-: | :---: | :------------: | :----------: | :-: |
 | startScan/stopScan   |   ✔️    | ✔️  |  ✔️   |       ✔️       |      ✔️      | ✔️  |
 | connect/disconnect   |   ✔️    | ✔️  |  ✔️   |       ✔️       |      ✔️      | ✔️  |

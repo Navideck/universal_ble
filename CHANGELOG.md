@@ -1,3 +1,11 @@
+## 0.9.5
+* Windows support has graduated from beta to stable
+* Support filtering by manufacturer data
+* Unify web's optionalServices API with filtering API
+* Implement requestMtu in Linux 
+* Fix wrong manufacturer data in Windows release builds
+* Improve logging
+
 ## 0.9.4
 * Fix Windows crash when no Bluetooth adapter is present
 
