@@ -64,7 +64,7 @@ UniversalBle.startScan();
 UniversalBle.startScan(
   scanFilter: ScanFilter(
     withServices: ["SERVICE_UUID"],
-    withManufacturerData: ["ManufacturerDataFilters"]
+    withManufacturerData: ["MANUFACTURER_DATA"]
   )
 );
 
