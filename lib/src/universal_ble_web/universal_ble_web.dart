@@ -113,7 +113,7 @@ class UniversalBleWeb extends UniversalBlePlatform {
   }) async {
     if (scanFilter == null || scanFilter.withServices.isEmpty) {
       UniversalBlePlatform.logInfo(
-        "Error: services list empty. On web you have to specify services in the ScanFilter in order to be able to access those after connecting",
+        "Service list empty: on web you have to specify services in the ScanFilter in order to be able to access those after connecting",
         isError: true,
       );
     }
