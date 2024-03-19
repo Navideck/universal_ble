@@ -20,19 +20,19 @@ A cross-platform (Android/iOS/macOS/Windows/Linux/Web) Bluetooth Low Energy (BLE
 ### API Support Matrix
 
 | API                  | Android | iOS | macOS | Windows | Linux (beta) | Web |
-| :------------------- | :-----: | :-: | :---: | :------------: | :----------: | :-: |
-| startScan/stopScan   |   ✔️    | ✔️  |  ✔️   |       ✔️       |      ✔️      | ✔️  |
-| connect/disconnect   |   ✔️    | ✔️  |  ✔️   |       ✔️       |      ✔️      | ✔️  |
-| getConnectedDevices  |   ✔️    | ✔️  |  ✔️   |       ✔️       |      ✔️      | ❌  |
-| discoverServices     |   ✔️    | ✔️  |  ✔️   |       ✔️       |      ✔️      | ✔️  |
-| readValue            |   ✔️    | ✔️  |  ✔️   |       ✔️       |      ✔️      | ✔️  |
-| writeValue           |   ✔️    | ✔️  |  ✔️   |       ✔️       |      ✔️      | ✔️  |
-| setNotifiable        |   ✔️    | ✔️  |  ✔️   |       ✔️       |      ✔️      | ✔️  |
-| pair/unPair          |   ✔️    | ❌  |  ❌   |       ✔️       |      ✔️      | ❌  |
-| onPairingStateChange |   ✔️    | ❌  |  ❌   |       ✔️       |      ✔️      | ❌  |
-| enableBluetooth      |   ✔️    | ❌  |  ❌   |       ✔️       |      ✔️      | ❌  |
-| onAvailabilityChange |   ✔️    | ✔️  |  ✔️   |       ✔️       |      ✔️      | ✔️  |
-| requestMtu           |   ✔️    | ✔️  |  ✔️   |       ✔️       |      ✔️      | ❌  |
+| :------------------- | :-----: | :-: | :---: | :-----: | :----------: | :-: |
+| startScan/stopScan   |   ✔️    | ✔️  |  ✔️   |   ✔️    |      ✔️      | ✔️  |
+| connect/disconnect   |   ✔️    | ✔️  |  ✔️   |   ✔️    |      ✔️      | ✔️  |
+| getConnectedDevices  |   ✔️    | ✔️  |  ✔️   |   ✔️    |      ✔️      | ❌  |
+| discoverServices     |   ✔️    | ✔️  |  ✔️   |   ✔️    |      ✔️      | ✔️  |
+| readValue            |   ✔️    | ✔️  |  ✔️   |   ✔️    |      ✔️      | ✔️  |
+| writeValue           |   ✔️    | ✔️  |  ✔️   |   ✔️    |      ✔️      | ✔️  |
+| setNotifiable        |   ✔️    | ✔️  |  ✔️   |   ✔️    |      ✔️      | ✔️  |
+| pair/unPair          |   ✔️    | ❌  |  ❌   |   ✔️    |      ✔️      | ❌  |
+| onPairingStateChange |   ✔️    | ❌  |  ❌   |   ✔️    |      ✔️      | ❌  |
+| enableBluetooth      |   ✔️    | ❌  |  ❌   |   ✔️    |      ✔️      | ❌  |
+| onAvailabilityChange |   ✔️    | ✔️  |  ✔️   |   ✔️    |      ✔️      | ✔️  |
+| requestMtu           |   ✔️    | ✔️  |  ✔️   |   ✔️    |      ✔️      | ❌  |
 
 ## Getting Started
 
@@ -51,8 +51,6 @@ import 'package:universal_ble/universal_ble.dart';
 
 ### Scanning
 
-Before initiating a scan, ensure that Bluetooth is available. You can monitor the status of Bluetooth availability by referring to the [Bluetooth Availability](#bluetooth-availability) section.
-
 ```dart
 // Set a scan result handler
 UniversalBle.onScanResult = (scanResult) {
@@ -64,7 +62,10 @@ UniversalBle.startScan();
 
 // Or optionally add a scan filter
 UniversalBle.startScan(
-  scanFilter: ScanFilter()
+  scanFilter: ScanFilter(
+    withServices: ["SERVICE_UUID"],
+    withManufacturerData: ["ManufacturerDataFilters"]
+  )
 );
 
 // Stop scanning
@@ -228,6 +229,24 @@ Add the `Bluetooth` capability to the macOS app from Xcode.
 
 When publishing on Windows you need to declare the following [capabilities](https://learn.microsoft.com/en-us/windows/uwp/packaging/app-capability-declarations): `bluetooth, radios`
 
+Before initiating a scan, ensure that Bluetooth is available. You can monitor the status of Bluetooth availability by referring to the [Bluetooth Availability](#bluetooth-availability) section.
+
+```dart
+AvailabilityState state = await UniversalBle.getBluetoothAvailabilityState()
+// Start scan only if Bluetooth is powered on
+if (state != AvailabilityState.poweredOn) {
+  UniversalBle.startScan();
+}
+
+// Or listen to bluetooth availability change
+UniversalBle.onAvailabilityChange = (state) {
+  // Handle if already scanning, or other cases
+  if (state == AvailabilityState.poweredOn) {
+    UniversalBle.startScan();
+  }
+};
+```
+
 ## Customizing Platform Implementation of UniversalBle
 
 ```dart
@@ -237,8 +256,4 @@ class UniversalBleMock extends UniversalBlePlatform {
 }
 
 UniversalBle.setInstance(UniversalBleMock());
-```
-
-```
-
 ```
