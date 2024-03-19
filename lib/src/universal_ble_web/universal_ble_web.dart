@@ -111,6 +111,13 @@ class UniversalBleWeb extends UniversalBlePlatform {
   Future<void> startScan({
     ScanFilter? scanFilter,
   }) async {
+    if (scanFilter == null || scanFilter.withServices.isEmpty) {
+      UniversalBlePlatform.logInfo(
+        "It is recommended to use ScanFilter.withServices on the web to ensure the specified services can be used after connecting",
+        isError: true,
+      );
+    }
+
     BluetoothDevice device = await FlutterWebBluetooth.instance.requestDevice(
       scanFilter?.toRequestOptionsBuilder() ??
           RequestOptionsBuilder.acceptAllDevices(),

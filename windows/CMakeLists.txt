@@ -16,7 +16,7 @@ FetchContent_Declare(nuget
 find_program(NUGET nuget)
 
 if(NOT NUGET)
-  message("Nuget.exe not found, trying to download or use cached version.")
+  # message("Nuget.exe not found, trying to download or use cached version.")
   FetchContent_MakeAvailable(nuget)
   set(NUGET ${nuget_SOURCE_DIR}/nuget.exe)
 endif()

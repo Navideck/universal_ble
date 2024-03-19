@@ -51,6 +51,8 @@ import 'package:universal_ble/universal_ble.dart';
 
 ### Scanning
 
+Before initiating a scan, ensure that Bluetooth is available. You can monitor the status of Bluetooth availability by referring to the [Bluetooth Availability](#bluetooth-availability) section.
+
 ```dart
 // Set a scan result handler
 UniversalBle.onScanResult = (scanResult) {
@@ -62,9 +64,7 @@ UniversalBle.startScan();
 
 // Or optionally add a scan filter
 UniversalBle.startScan(
-  scanFilter: ScanFilter(
-      withServices: ["SERVICE_UUID"],
-  )
+  scanFilter: ScanFilter()
 );
 
 // Stop scanning
@@ -77,6 +77,26 @@ You can list those devices using `getConnectedDevices()`. You still need to expl
 ```dart
 // You can set `withServices` to narrow down the results
 await UniversalBle.getConnectedDevices(withServices: []);
+```
+
+## Scan Filters
+
+### withServices:
+
+This is the primary filter. All devices are first filtered by services, then further filtered by other criteria.
+
+On Web, the `withServices` property is used as [optional_services](https://developer.mozilla.org/en-US/docs/Web/API/Bluetooth/requestDevice#optionalservices) as well as a services filter. It is recommended to use this property on the web to ensure that you can use the specified services after connecting to the device.
+
+```dart
+List<String> withServices;
+```
+
+### withManufacturerData
+
+Use the `withManufacturerData` property to filter devices by manufacturer data. When you pass a list of `ManufacturerDataFilter` objects to this property, the scan results will only include devices that contain any of the specified manufacturer data.
+
+```dart
+List<ManufacturerDataFilter> withManufacturerData;
 ```
 
 ### Connecting
@@ -208,18 +228,6 @@ Add the `Bluetooth` capability to the macOS app from Xcode.
 
 When publishing on Windows you need to declare the following [capabilities](https://learn.microsoft.com/en-us/windows/uwp/packaging/app-capability-declarations): `bluetooth, radios`
 
-### Web
-`
-On web, you have to add filters and specify optional services when scanning for devices. The parameter is ignored on other platforms.
-
-```dart
-UniversalBle.startScan(
-  webRequestOptions: WebRequestOptionsBuilder.acceptAllDevices(
-    optionalServices: ["SERVICE_UUID"],
-  ),
-);
-```
-
 ## Customizing Platform Implementation of UniversalBle
 
 ```dart
@@ -229,4 +237,8 @@ class UniversalBleMock extends UniversalBlePlatform {
 }
 
 UniversalBle.setInstance(UniversalBleMock());
+```
+
+```
+
 ```

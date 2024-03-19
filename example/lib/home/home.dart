@@ -75,18 +75,12 @@ class _MyAppState extends State<MyApp> {
       scanFilter: ScanFilter(
         withServices: kIsWeb ? _services : [],
         withManufacturerData: [
-          ManufacturerDataFilter(
-            companyIdentifier: 0x012D,
-            data: Uint8List.fromList(
-              [0x03, 0x00, 0x64, 0x00],
-            ),
-          ),
-          ManufacturerDataFilter(
-            companyIdentifier: 0x012D,
-            data: Uint8List.fromList(
-              [0x03, 0x00, 0x65, 0x00],
-            ),
-          ),
+          // ManufacturerDataFilter(
+          //   companyIdentifier: 0x012D,
+          //   data: Uint8List.fromList(
+          //     [0x03, 0x00, 0x64, 0x00],
+          //   ),
+          // ),
         ],
       ),
     );
