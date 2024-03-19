@@ -81,11 +81,11 @@ await UniversalBle.getConnectedDevices(withServices: []);
 
 ## Scan Filters
 
-### withServices:
+### withServices
 
 This is the primary filter. All devices are first filtered by services, then further filtered by other criteria.
 
-On Web, the `withServices` property is used as [optional_services](https://developer.mozilla.org/en-US/docs/Web/API/Bluetooth/requestDevice#optionalservices) as well as a services filter. It is recommended to use this property on the web to ensure that you can use the specified services after connecting to the device.
+On web, the `withServices` parameter is used as [optional_services](https://developer.mozilla.org/en-US/docs/Web/API/Bluetooth/requestDevice#optionalservices) as well as a services filter. You have to set this parameter on web to ensure that you can access the specified services after connecting to the device.
 
 ```dart
 List<String> withServices;
@@ -93,7 +93,7 @@ List<String> withServices;
 
 ### withManufacturerData
 
-Use the `withManufacturerData` property to filter devices by manufacturer data. When you pass a list of `ManufacturerDataFilter` objects to this property, the scan results will only include devices that contain any of the specified manufacturer data.
+Use the `withManufacturerData` parameter to filter devices by manufacturer data. When you pass a list of `ManufacturerDataFilter` objects to this parameter, the scan results will only include devices that contain any of the specified manufacturer data.
 
 ```dart
 List<ManufacturerDataFilter> withManufacturerData;
