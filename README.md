@@ -245,9 +245,11 @@ Add `NSBluetoothPeripheralUsageDescription` and `NSBluetoothAlwaysUsageDescripti
 
 Add the `Bluetooth` capability to the macOS app from Xcode.
 
-### Windows
+### Windows / Linux
 
-When publishing on Windows you need to declare the following [capabilities](https://learn.microsoft.com/en-us/windows/uwp/packaging/app-capability-declarations): `bluetooth, radios`
+Your Bluetooth adapter needs to support at least Bluetooth 4.0. If you have more than 1 adapters, the first one returned from the system will be picked.
+
+When publishing on Windows you need to declare the following [capabilities](https://learn.microsoft.com/en-us/windows/uwp/packaging/app-capability-declarations): `bluetooth, radios`.
 
 ### Web
 
