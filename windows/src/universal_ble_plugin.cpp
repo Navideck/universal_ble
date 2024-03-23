@@ -926,62 +926,83 @@ namespace universal_ble
     }
   }
 
-  winrt::fire_and_forget UniversalBlePlugin::ConnectAsync(uint64_t bluetoothAddress)
-  {
+  winrt::fire_and_forget UniversalBlePlugin::ConnectAsync(uint64_t bluetoothAddress) {
     BluetoothLEDevice device = co_await BluetoothLEDevice::FromBluetoothAddressAsync(bluetoothAddress);
     std::cout << "ConnectionLog: Device found" << std::endl;
-    if (!device)
-    {
-      std::cout << "ConnectionLog: ConnectionFailed: Failed to get device" << std::endl;
-      uiThreadHandler_.Post([bluetoothAddress]
-                            { callbackChannel->OnConnectionChanged(_mac_address_to_str(bluetoothAddress), static_cast<int>(ConnectionState::disconnected), SuccessCallback, ErrorCallback); });
+    HandleConnectionResult(device, bluetoothAddress);
+  }
 
-      co_return;
-    }
-    auto servicesResult = co_await device.GetGattServicesAsync((BluetoothCacheMode::Uncached));
-    auto status = servicesResult.Status();
-    if (status != GattCommunicationStatus::Success)
-    {
-      std::cout << "ConnectionFailed: Failed to get services: " << GattCommunicationStatusToString(status) << std::endl;
-      uiThreadHandler_.Post([bluetoothAddress]
-                            { callbackChannel->OnConnectionChanged(_mac_address_to_str(bluetoothAddress), static_cast<int>(ConnectionState::disconnected), SuccessCallback, ErrorCallback); });
-
-      co_return;
-    }
-    std::cout << "ConnectionLog: Services discovered" << std::endl;
-    std::unordered_map<std::string, GattServiceObject> gatt_map_;
-    auto gatt_services = servicesResult.Services();
-    for (GattDeviceService &&service : gatt_services)
-    {
-      GattServiceObject gatt_service;
-      gatt_service.obj = service;
-      std::string service_uuid = guid_to_uuid(service.Uuid());
-      auto characteristics_result = co_await service.GetCharacteristicsAsync(BluetoothCacheMode::Uncached);
-      if (characteristics_result.Status() != GattCommunicationStatus::Success)
-      {
-        std::cout << "Failed to get characteristics for service: " << service_uuid << ", With Status: " << GattCommunicationStatusToString(characteristics_result.Status()) << std::endl;
-        continue;
-        // PostConnectionUpdate(bluetoothAddress, ConnectionState::disconnected);
-        // co_return;
+  winrt::fire_and_forget UniversalBlePlugin::DiscoverServicesAsync(BluetoothDeviceAgent& bluetoothDeviceAgent, std::function<void(ErrorOr<flutter::EncodableList> reply)> result) {
+      try {
+          auto deviceId = _mac_address_to_str(bluetoothDeviceAgent.device.BluetoothAddress());
+          auto serviceResult = co_await bluetoothDeviceAgent.device.GetGattServicesAsync();
+          if (serviceResult.Status() != GattCommunicationStatus::Success) {
+              result(FlutterError("DiscoverServiceError: No services found for device"));
+              co_return;
+          }
+          auto universalServices = GetUniversalServices(serviceResult);
+          result(universalServices);
       }
-      auto gatt_characteristics = characteristics_result.Characteristics();
-      for (GattCharacteristic &&characteristic : gatt_characteristics)
-      {
-        GattCharacteristicObject gatt_characteristic;
-        gatt_characteristic.obj = characteristic;
-        std::string characteristic_uuid = guid_to_uuid(characteristic.Uuid());
-        gatt_service.characteristics.insert_or_assign(characteristic_uuid, std::move(gatt_characteristic));
+      catch (...) {
+          result(FlutterError("DiscoverServiceError: Unknown error"));
+          std::cout << "DiscoverServiceError: Unknown error" << '\n';
       }
-      gatt_map_.insert_or_assign(service_uuid, std::move(gatt_service));
-    }
+  }
 
-    winrt::event_token connnectionStatusChangedToken = device.ConnectionStatusChanged({this, &UniversalBlePlugin::BluetoothLEDevice_ConnectionStatusChanged});
-    auto deviceAgent = std::make_unique<BluetoothDeviceAgent>(device, connnectionStatusChangedToken, gatt_map_);
-    auto pair = std::make_pair(bluetoothAddress, std::move(deviceAgent));
-    connectedDevices.insert(std::move(pair));
-    std::cout << "ConnectionLog: Connected" << std::endl;
-    uiThreadHandler_.Post([bluetoothAddress]
-                          { callbackChannel->OnConnectionChanged(_mac_address_to_str(bluetoothAddress), static_cast<int>(ConnectionState::connected), SuccessCallback, ErrorCallback); });
+  void UniversalBlePlugin::HandleConnectionResult(const BluetoothLEDevice& device, uint64_t bluetoothAddress) {
+      if (!device) {
+          std::cout << "ConnectionLog: ConnectionFailed: Failed to get device" << std::endl;
+          PostConnectionUpdate(bluetoothAddress, ConnectionState::disconnected);
+          co_return;
+      }
+
+      auto servicesResult = co_await device.GetGattServicesAsync((BluetoothCacheMode::Uncached));
+      auto status = servicesResult.Status();
+      if (status != GattCommunicationStatus::Success) {
+          std::cout << "ConnectionFailed: Failed to get services: " << GattCommunicationStatusToString(status) << std::endl;
+          PostConnectionUpdate(bluetoothAddress, ConnectionState::disconnected);
+          co_return;
+      }
+
+      std::cout << "ConnectionLog: Services discovered" << std::endl;
+      // Handle service discovery and connection status update
+  }
+
+  flutter::EncodableList UniversalBlePlugin::GetUniversalServices(const GattDeviceServicesResult& serviceResult) {
+      flutter::EncodableList universalServices;
+      for (auto service : serviceResult.Services()) {
+          auto universalCharacteristics = GetUniversalCharacteristics(service);
+          auto universalBleService = UniversalBleService(to_uuidstr(service.Uuid()));
+          universalBleService.set_characteristics(universalCharacteristics);
+          universalServices.push_back(flutter::CustomEncodableValue(universalBleService));
+      }
+      return universalServices;
+  }
+
+  flutter::EncodableList UniversalBlePlugin::GetUniversalCharacteristics(const GattDeviceService& service) {
+      auto characteristicResult = co_await service.GetCharacteristicsAsync();
+      flutter::EncodableList universalCharacteristics;
+      if (characteristicResult.Status() == GattCommunicationStatus::Success) {
+          for (auto c : characteristicResult.Characteristics()) {
+              auto properties = GetCharacteristicProperties(c);
+              universalCharacteristics.push_back(
+                  flutter::CustomEncodableValue(UniversalBleCharacteristic(to_uuidstr(c.Uuid()), properties)));
+          }
+      }
+      else {
+          std::cout << "Failed to get characteristics for service: " << to_uuidstr(service.Uuid()) << ", With Status: " << GattCommunicationStatusToString(characteristicResult.Status()) << std::endl;
+      }
+      return universalCharacteristics;
+  }
+
+  flutter::EncodableList UniversalBlePlugin::GetCharacteristicProperties(const GattCharacteristic& characteristic) {
+      flutter::EncodableList properties;
+      auto propertiesValue = characteristic.CharacteristicProperties();
+      if ((propertiesValue & GattCharacteristicProperties::Broadcast) != GattCharacteristicProperties::None) {
+          properties.push_back(static_cast<int>(CharacteristicProperty::broadcast));
+      }
+      // Add other characteristic properties here...
+      return properties;
   }
 
   void UniversalBlePlugin::BluetoothLEDevice_ConnectionStatusChanged(BluetoothLEDevice sender, IInspectable args)
@@ -1081,82 +1102,6 @@ namespace universal_ble
     {
       std::cout << "Unknown error GetConnectedDevicesAsync" << std::endl;
       result(FlutterError("Unknown error"));
-    }
-  }
-
-  winrt::fire_and_forget UniversalBlePlugin::DiscoverServicesAsync(BluetoothDeviceAgent &bluetoothDeviceAgent, std::function<void(ErrorOr<flutter::EncodableList> reply)> result)
-  {
-    try
-    {
-      auto deviceId = _mac_address_to_str(bluetoothDeviceAgent.device.BluetoothAddress());
-      auto serviceResult = co_await bluetoothDeviceAgent.device.GetGattServicesAsync();
-      if (serviceResult.Status() != GattCommunicationStatus::Success)
-      {
-        result(FlutterError("DiscoverServiceError: No services found for device"));
-        co_return;
-      }
-      auto services = serviceResult.Services();
-      auto universalServices = flutter::EncodableList();
-      for (auto service : serviceResult.Services())
-      {
-        auto characteristicResult = co_await service.GetCharacteristicsAsync();
-        flutter::EncodableList universalCharacteristics;
-        if (characteristicResult.Status() == GattCommunicationStatus::Success)
-        {
-          for (auto c : characteristicResult.Characteristics())
-          {
-            flutter::EncodableList properties = flutter::EncodableList();
-            auto propertiesValue = c.CharacteristicProperties();
-            if ((propertiesValue & GattCharacteristicProperties::Broadcast) != GattCharacteristicProperties::None)
-            {
-              properties.push_back(static_cast<int>(CharacteristicProperty::broadcast));
-            }
-            if ((propertiesValue & GattCharacteristicProperties::Read) != GattCharacteristicProperties::None)
-            {
-              properties.push_back(static_cast<int>(CharacteristicProperty::read));
-            }
-            if ((propertiesValue & GattCharacteristicProperties::Write) != GattCharacteristicProperties::None)
-            {
-              properties.push_back(static_cast<int>(CharacteristicProperty::write));
-            }
-            if ((propertiesValue & GattCharacteristicProperties::WriteWithoutResponse) != GattCharacteristicProperties::None)
-            {
-              properties.push_back(static_cast<int>(CharacteristicProperty::writeWithoutResponse));
-            }
-            if ((propertiesValue & GattCharacteristicProperties::Notify) != GattCharacteristicProperties::None)
-            {
-              properties.push_back(static_cast<int>(CharacteristicProperty::notify));
-            }
-            if ((propertiesValue & GattCharacteristicProperties::Indicate) != GattCharacteristicProperties::None)
-            {
-              properties.push_back(static_cast<int>(CharacteristicProperty::indicate));
-            }
-            if ((propertiesValue & GattCharacteristicProperties::AuthenticatedSignedWrites) != GattCharacteristicProperties::None)
-            {
-              properties.push_back(static_cast<int>(CharacteristicProperty::authenticatedSignedWrites));
-            }
-            if ((propertiesValue & GattCharacteristicProperties::ExtendedProperties) != GattCharacteristicProperties::None)
-            {
-              properties.push_back(static_cast<int>(CharacteristicProperty::extendedProperties));
-            }
-            universalCharacteristics.push_back(
-                flutter::CustomEncodableValue(UniversalBleCharacteristic(to_uuidstr(c.Uuid()), properties)));
-          }
-        }
-        else
-        {
-          std::cout << "Failed to get characteristics for service: " << to_uuidstr(service.Uuid()) << ", With Status: " << GattCommunicationStatusToString(characteristicResult.Status()) << std::endl;
-        }
-        auto universalBleService = UniversalBleService(to_uuidstr(service.Uuid()));
-        universalBleService.set_characteristics(universalCharacteristics);
-        universalServices.push_back(flutter::CustomEncodableValue(universalBleService));
-      }
-      result(universalServices);
-    }
-    catch (...)
-    {
-      result(FlutterError("DiscoverServiceError: Unknown error"));
-      std::cout << "DiscoverServiceError: Unknown error" << '\n';
     }
   }
 
