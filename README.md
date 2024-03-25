@@ -76,7 +76,7 @@ Before initiating a scan, ensure that Bluetooth is available:
 ```dart
 AvailabilityState state = await UniversalBle.getBluetoothAvailabilityState()
 // Start scan only if Bluetooth is powered on
-if (state != AvailabilityState.poweredOn) {
+if (state == AvailabilityState.poweredOn) {
   UniversalBle.startScan();
 }
 
