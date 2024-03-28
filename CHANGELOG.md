@@ -1,3 +1,7 @@
+## 0.9.6
+* Fix a Windows issue where characteristics of certain services would not be discovered
+* Improve readme
+
 ## 0.9.5
 * Windows support has graduated from beta to stable
 * Support filtering by manufacturer data
