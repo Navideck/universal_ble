@@ -1084,70 +1084,56 @@ namespace universal_ble
     }
   }
 
-  winrt::fire_and_forget UniversalBlePlugin::DiscoverServicesAsync(BluetoothDeviceAgent &bluetoothDeviceAgent, std::function<void(ErrorOr<flutter::EncodableList> reply)> result)
+  void UniversalBlePlugin::DiscoverServicesAsync(BluetoothDeviceAgent &bluetoothDeviceAgent, std::function<void(ErrorOr<flutter::EncodableList> reply)> result)
   {
     try
     {
-      auto deviceId = _mac_address_to_str(bluetoothDeviceAgent.device.BluetoothAddress());
-      auto serviceResult = co_await bluetoothDeviceAgent.device.GetGattServicesAsync();
-      if (serviceResult.Status() != GattCommunicationStatus::Success)
-      {
-        result(FlutterError("DiscoverServiceError: No services found for device"));
-        co_return;
-      }
-      auto services = serviceResult.Services();
       auto universalServices = flutter::EncodableList();
-      for (auto service : serviceResult.Services())
+      for (auto &service : bluetoothDeviceAgent.gatt_map_)
       {
-        auto characteristicResult = co_await service.GetCharacteristicsAsync();
         flutter::EncodableList universalCharacteristics;
-        if (characteristicResult.Status() == GattCommunicationStatus::Success)
+        for (auto characteristicsMap : service.second.characteristics)
         {
-          for (auto c : characteristicResult.Characteristics())
+          auto &c = characteristicsMap.second.obj;
+          flutter::EncodableList properties = flutter::EncodableList();
+          auto propertiesValue = c.CharacteristicProperties();
+          if ((propertiesValue & GattCharacteristicProperties::Broadcast) != GattCharacteristicProperties::None)
           {
-            flutter::EncodableList properties = flutter::EncodableList();
-            auto propertiesValue = c.CharacteristicProperties();
-            if ((propertiesValue & GattCharacteristicProperties::Broadcast) != GattCharacteristicProperties::None)
-            {
-              properties.push_back(static_cast<int>(CharacteristicProperty::broadcast));
-            }
-            if ((propertiesValue & GattCharacteristicProperties::Read) != GattCharacteristicProperties::None)
-            {
-              properties.push_back(static_cast<int>(CharacteristicProperty::read));
-            }
-            if ((propertiesValue & GattCharacteristicProperties::Write) != GattCharacteristicProperties::None)
-            {
-              properties.push_back(static_cast<int>(CharacteristicProperty::write));
-            }
-            if ((propertiesValue & GattCharacteristicProperties::WriteWithoutResponse) != GattCharacteristicProperties::None)
-            {
-              properties.push_back(static_cast<int>(CharacteristicProperty::writeWithoutResponse));
-            }
-            if ((propertiesValue & GattCharacteristicProperties::Notify) != GattCharacteristicProperties::None)
-            {
-              properties.push_back(static_cast<int>(CharacteristicProperty::notify));
-            }
-            if ((propertiesValue & GattCharacteristicProperties::Indicate) != GattCharacteristicProperties::None)
-            {
-              properties.push_back(static_cast<int>(CharacteristicProperty::indicate));
-            }
-            if ((propertiesValue & GattCharacteristicProperties::AuthenticatedSignedWrites) != GattCharacteristicProperties::None)
-            {
-              properties.push_back(static_cast<int>(CharacteristicProperty::authenticatedSignedWrites));
-            }
-            if ((propertiesValue & GattCharacteristicProperties::ExtendedProperties) != GattCharacteristicProperties::None)
-            {
-              properties.push_back(static_cast<int>(CharacteristicProperty::extendedProperties));
-            }
-            universalCharacteristics.push_back(
-                flutter::CustomEncodableValue(UniversalBleCharacteristic(to_uuidstr(c.Uuid()), properties)));
+            properties.push_back(static_cast<int>(CharacteristicProperty::broadcast));
           }
+          if ((propertiesValue & GattCharacteristicProperties::Read) != GattCharacteristicProperties::None)
+          {
+            properties.push_back(static_cast<int>(CharacteristicProperty::read));
+          }
+          if ((propertiesValue & GattCharacteristicProperties::Write) != GattCharacteristicProperties::None)
+          {
+            properties.push_back(static_cast<int>(CharacteristicProperty::write));
+          }
+          if ((propertiesValue & GattCharacteristicProperties::WriteWithoutResponse) != GattCharacteristicProperties::None)
+          {
+            properties.push_back(static_cast<int>(CharacteristicProperty::writeWithoutResponse));
+          }
+          if ((propertiesValue & GattCharacteristicProperties::Notify) != GattCharacteristicProperties::None)
+          {
+            properties.push_back(static_cast<int>(CharacteristicProperty::notify));
+          }
+          if ((propertiesValue & GattCharacteristicProperties::Indicate) != GattCharacteristicProperties::None)
+          {
+            properties.push_back(static_cast<int>(CharacteristicProperty::indicate));
+          }
+          if ((propertiesValue & GattCharacteristicProperties::AuthenticatedSignedWrites) != GattCharacteristicProperties::None)
+          {
+            properties.push_back(static_cast<int>(CharacteristicProperty::authenticatedSignedWrites));
+          }
+          if ((propertiesValue & GattCharacteristicProperties::ExtendedProperties) != GattCharacteristicProperties::None)
+          {
+            properties.push_back(static_cast<int>(CharacteristicProperty::extendedProperties));
+          }
+          universalCharacteristics.push_back(
+              flutter::CustomEncodableValue(UniversalBleCharacteristic(to_uuidstr(c.Uuid()), properties)));
         }
-        else
-        {
-          std::cout << "Failed to get characteristics for service: " << to_uuidstr(service.Uuid()) << ", With Status: " << GattCommunicationStatusToString(characteristicResult.Status()) << std::endl;
-        }
-        auto universalBleService = UniversalBleService(to_uuidstr(service.Uuid()));
+
+        auto universalBleService = UniversalBleService(to_uuidstr(service.second.obj.Uuid()));
         universalBleService.set_characteristics(universalCharacteristics);
         universalServices.push_back(flutter::CustomEncodableValue(universalBleService));
       }
