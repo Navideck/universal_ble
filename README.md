@@ -138,12 +138,16 @@ UniversalBle.onConnectionChanged = (String deviceId, BleConnectionState state) {
 
 ### Discovering Services
 
+After establishing a connection, you need to discover services. This method will discover all services and their characteristics.
+
 ```dart
 // Discover services of a specific device
 UniversalBle.discoverServices(deviceId);
 ```
 
 ### Reading & Writing data
+
+You need to first [discover services](#discovering-services) before you are able to read and write to characteristics.
 
 ```dart
 // Read data from a characteristic
