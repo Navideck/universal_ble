@@ -111,7 +111,7 @@ namespace universal_ble
         winrt::fire_and_forget ConnectAsync(uint64_t bluetoothAddress);
         void BluetoothLEDevice_ConnectionStatusChanged(BluetoothLEDevice sender, IInspectable args);
         void CleanConnection(uint64_t bluetoothAddress);
-        winrt::fire_and_forget DiscoverServicesAsync(BluetoothDeviceAgent &bluetoothDeviceAgent, std::function<void(ErrorOr<flutter::EncodableList> reply)>);
+        void DiscoverServicesAsync(BluetoothDeviceAgent &bluetoothDeviceAgent, std::function<void(ErrorOr<flutter::EncodableList> reply)>);
         winrt::fire_and_forget SetNotifiableAsync(BluetoothDeviceAgent &bluetoothDeviceAgent, const std::string &service,
                                                   const std::string &characteristic, GattClientCharacteristicConfigurationDescriptorValue descriptorValue);
         void GattCharacteristic_ValueChanged(GattCharacteristic sender, GattValueChangedEventArgs args);
