@@ -147,20 +147,20 @@ class UniversalBleLinux extends UniversalBlePlatform {
   }
 
   @override
-  Future<void> setNotifiable(String deviceId, String service,
-      String characteristic, BleInputProperty bleInputProperty) async {
+  Future<void> setNotifiable(String deviceId, String service, String characteristic, BleInputProperty bleInputProperty) async {
+    var key = "$deviceId-$service-$characteristic";
+
     var char = _getCharacteristic(deviceId, service, characteristic);
     if (bleInputProperty != BleInputProperty.disabled) {
       if (char.notifying) throw Exception('Characteristic already notifying');
 
       await char.startNotify();
 
-      if (_characteristicPropertiesSubscriptions[characteristic] != null) {
-        _characteristicPropertiesSubscriptions[characteristic]?.cancel();
+      if (_characteristicPropertiesSubscriptions[key] != null) {
+        _characteristicPropertiesSubscriptions[key]?.cancel();
       }
 
-      _characteristicPropertiesSubscriptions[characteristic] =
-          char.propertiesChanged.listen((List<String> properties) {
+      _characteristicPropertiesSubscriptions[key] = char.propertiesChanged.listen((List<String> properties) {
         for (String property in properties) {
           switch (property) {
             case BluezProperty.value:
@@ -171,15 +171,14 @@ class UniversalBleLinux extends UniversalBlePlatform {
               );
               break;
             default:
-              UniversalBlePlatform.logInfo(
-                  "UnhandledCharValuePropertyChange: $property");
+              UniversalBlePlatform.logInfo("UnhandledCharValuePropertyChange: $property");
           }
         }
       });
     } else {
       if (!char.notifying) throw Exception('Characteristic not notifying');
       await char.stopNotify();
-      _characteristicPropertiesSubscriptions.remove(characteristic)?.cancel();
+      _characteristicPropertiesSubscriptions.remove(key)?.cancel();
     }
   }
 
