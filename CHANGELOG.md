@@ -1,3 +1,6 @@
+## 0.9.7
+* Fix characteristic keying on linux allowing receiving data from multiple BLE devices at the same time
+
 ## 0.9.6
 * Fix a Windows issue where characteristics of certain services would not be discovered
 * Improve readme
