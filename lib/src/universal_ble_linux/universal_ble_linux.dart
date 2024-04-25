@@ -1,3 +1,5 @@
+// ignore_for_file: avoid_print
+
 import 'dart:async';
 import 'dart:typed_data';
 
@@ -7,7 +9,7 @@ import 'package:flutter/services.dart';
 import 'package:universal_ble/src/models/model_exports.dart';
 import 'package:universal_ble/src/universal_ble_platform_interface.dart';
 
-class UniversalBleLinux extends UniversalBlePlatform {
+class UniversalBleLinux extends UniversalBlePlatform with BlueZAgent {
   UniversalBleLinux._();
   static UniversalBleLinux? _instance;
   static UniversalBleLinux get instance => _instance ??= UniversalBleLinux._();
@@ -247,6 +249,8 @@ class UniversalBleLinux extends UniversalBlePlatform {
     BlueZDevice device = _findDeviceById(deviceId);
     device.pair().onError((error, _) {
       onPairingStateChange?.call(deviceId, false, error.toString());
+    }).then((value) {
+      print('Pairing called successfully');
     });
   }
 
@@ -302,6 +306,41 @@ class UniversalBleLinux extends UniversalBlePlatform {
     return device;
   }
 
+  // --------- Custom Bluez Pairing Handler ---------
+  @override
+  Future<BlueZAgentPinCodeResponse> requestPinCode(BlueZDevice device) async {
+    print('Bluez: RequestPinCode');
+    return BlueZAgentPinCodeResponse.success('123456');
+  }
+
+  @override
+  Future<BlueZAgentResponse> displayPinCode(
+      BlueZDevice device, String pinCode) async {
+    print('Bluez: DisplayPinCode $pinCode');
+    return BlueZAgentResponse.success();
+  }
+
+  @override
+  Future<BlueZAgentPasskeyResponse> requestPasskey(BlueZDevice device) async {
+    print('Bluez: Passkey requested');
+    return BlueZAgentPasskeyResponse.success(123456);
+  }
+
+  @override
+  Future<BlueZAgentResponse> displayPasskey(
+      BlueZDevice device, int passkey, int entered) async {
+    print('Bluez: Passkey $passkey');
+    return BlueZAgentResponse.success();
+  }
+
+  @override
+  Future<BlueZAgentResponse> requestConfirmation(
+      BlueZDevice device, int passkey) async {
+    print('Bluez: Confirmed with passkey $passkey');
+    return BlueZAgentResponse.success();
+  }
+  // --------- Custom Bluez Pairing Handler ---------
+
   Future<void> _ensureInitialized() async {
     if (isInitialized) return;
 
@@ -313,6 +352,11 @@ class UniversalBleLinux extends UniversalBlePlatform {
     _initializationCompleter = Completer<void>();
     try {
       await _client.connect();
+      // Register agent to handle pairing requests.
+      await _client.registerAgent(this);
+      // Request that our agent is used.
+      await _client.requestDefaultAgent();
+
       await _waitForAdapter(_client);
 
       _activeAdapter ??= _client.adapters.first;
