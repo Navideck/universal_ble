@@ -17,7 +17,6 @@ import android.content.IntentFilter
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
-import android.os.ParcelUuid
 import android.util.Log
 import io.flutter.embedding.engine.plugins.FlutterPlugin
 import io.flutter.embedding.engine.plugins.activity.ActivityAware
@@ -56,10 +55,21 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
 
         val intentFilter = IntentFilter(BluetoothAdapter.ACTION_STATE_CHANGED)
         intentFilter.addAction(BluetoothDevice.ACTION_BOND_STATE_CHANGED)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+
+
+        val pairingRequestIntentFilter = IntentFilter(BluetoothDevice.ACTION_PAIRING_REQUEST)
+        pairingRequestIntentFilter.priority = IntentFilter.SYSTEM_HIGH_PRIORITY
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             context.registerReceiver(broadcastReceiver, intentFilter, RECEIVER_EXPORTED)
+            context.registerReceiver(
+                broadcastReceiver,
+                pairingRequestIntentFilter,
+                RECEIVER_EXPORTED
+            )
         } else {
             context.registerReceiver(broadcastReceiver, intentFilter)
+            context.registerReceiver(broadcastReceiver, pairingRequestIntentFilter)
         }
         cachedServicesMap.putAll(getCachedServicesMap())
     }
@@ -446,7 +456,11 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
                 throw FlutterError("Failed", "Failed to pair", null)
             }
         } else {
-            throw FlutterError("AlreadyPair", "Already paired", null)
+            throw FlutterError(
+                "InvalidBondState",
+                "Invalid BondState: ${remoteDevice.bondState}",
+                null
+            )
         }
     }
 
@@ -607,50 +621,78 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
 
     private val broadcastReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
-            if (intent.action == BluetoothAdapter.ACTION_STATE_CHANGED) {
-                mainThreadHandler?.post {
-                    callbackChannel?.onAvailabilityChanged(
-                        bluetoothManager.adapter?.state?.toAvailabilityState()
-                            ?: AvailabilityState.Unknown.value
-                    ) {}
+            when (intent.action) {
+                BluetoothDevice.ACTION_PAIRING_REQUEST -> {
+                    val device: BluetoothDevice =
+                        intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE) ?: return
+                    val type = intent.getIntExtra(
+                        BluetoothDevice.EXTRA_PAIRING_VARIANT,
+                        BluetoothDevice.ERROR
+                    )
+                    Log.e(TAG, "Got pairing confirmation: $type");
+                    //  if (type == BluetoothDevice.PAIRING_VARIANT_PIN) {
+                    val blePin = "1234"
+                    Log.e(TAG, "Auto-entering pin: $blePin");
+                    val pinBytes = blePin.toByteArray()
+                    device.setPin(pinBytes);
+                    // abortBroadcast();
+                    device.createBond()
+                    Log.e(TAG, "pin entered and request sent...");
+//                    } else {
+//                        Log.e(TAG, "InvalidPin type: $type");
+//                    }
                 }
-            } else if (intent.action == BluetoothDevice.ACTION_BOND_STATE_CHANGED) {
-                val device: BluetoothDevice =
-                    intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE) ?: return
-                // get pairing failed error
-                when (intent.getIntExtra(BluetoothDevice.EXTRA_BOND_STATE, BluetoothDevice.ERROR)) {
-                    BluetoothDevice.BOND_BONDING -> {
-                        Log.v(TAG, "${device.address} BOND_BONDING")
-                    }
 
-                    BluetoothDevice.ERROR -> {
-                        mainThreadHandler?.post {
-                            callbackChannel?.onPairStateChange(
-                                device.address,
-                                false,
-                                "No pairing state received"
-                            ) {}
+                BluetoothAdapter.ACTION_STATE_CHANGED -> {
+                    mainThreadHandler?.post {
+                        callbackChannel?.onAvailabilityChanged(
+                            bluetoothManager.adapter?.state?.toAvailabilityState()
+                                ?: AvailabilityState.Unknown.value
+                        ) {}
+                    }
+                }
+
+                BluetoothDevice.ACTION_BOND_STATE_CHANGED -> {
+                    val device: BluetoothDevice =
+                        intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE) ?: return
+                    // get pairing failed error
+                    when (intent.getIntExtra(
+                        BluetoothDevice.EXTRA_BOND_STATE,
+                        BluetoothDevice.ERROR
+                    )) {
+                        BluetoothDevice.BOND_BONDING -> {
+                            Log.v(TAG, "${device.address} BOND_BONDING")
                         }
-                    }
 
-                    BOND_BONDED -> {
-                        mainThreadHandler?.post {
-                            callbackChannel?.onPairStateChange(
-                                device.address,
-                                true,
-                                null
-                            ) {}
+                        BluetoothDevice.ERROR -> {
+                            mainThreadHandler?.post {
+                                callbackChannel?.onPairStateChange(
+                                    device.address,
+                                    false,
+                                    "No pairing state received"
+                                ) {}
+                            }
                         }
-                    }
+
+                        BOND_BONDED -> {
+                            mainThreadHandler?.post {
+                                callbackChannel?.onPairStateChange(
+                                    device.address,
+                                    true,
+                                    null
+                                ) {}
+                            }
+                        }
 
 
-                    BOND_NONE -> {
-                        mainThreadHandler?.post {
-                            callbackChannel?.onPairStateChange(
-                                device.address,
-                                false,
-                                null
-                            ) {}
+                        BOND_NONE -> {
+                            mainThreadHandler?.post {
+                                callbackChannel?.onPairStateChange(
+                                    device.address,
+                                    false,
+                                    null
+                                ) {}
+                            }
                         }
                     }
                 }

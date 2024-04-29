@@ -24,7 +24,8 @@ class ScannedItemWidget extends StatelessWidget {
               Text(scanResult.deviceId),
               // Show manufacturer data only on web and desktop
               Visibility(
-                visible: (Platform.isWeb || Platform.isDesktop) &&
+                visible:
+                    //(Platform.isWeb || Platform.isDesktop) &&
                     scanResult.manufacturerData?.isNotEmpty == true,
                 child: Text(
                   ManufacturerData.fromData(scanResult.manufacturerData!)
