@@ -411,6 +411,7 @@ namespace universal_ble
       auto customPairing = deviceInformation.Pairing().Custom();
       winrt::event_token token = customPairing.PairingRequested([this](const Enumeration::DeviceInformationCustomPairing &sender, const Enumeration::DevicePairingRequestedEventArgs &eventArgs)
                                                                 {
+                                                                  std::cout << "PairLog: Pairing requested" << std::endl;
                                                                 // eventArgs.AcceptWithPasswordCredential(nullptr, nullptr);
                                                                 // eventArgs.Pin();
                                                                 // Accept all pairing request
@@ -420,7 +421,7 @@ namespace universal_ble
       std::cout << "PairLog: Trying to pair" << std::endl;
       auto async_c = customPairing.PairAsync(
           Enumeration::DevicePairingKinds::ConfirmOnly,
-          Enumeration::DevicePairingProtectionLevel::None);
+          Enumeration::DevicePairingProtectionLevel::Encryption);
       async_c.Completed([this, customPairing, token, device_id](IAsyncOperation<DevicePairingResult> const &sender, AsyncStatus const args)
                         {
                           auto result = sender.GetResults();
