@@ -233,7 +233,9 @@ class _MyAppState extends State<MyApp> {
                                   context,
                                   MaterialPageRoute(
                                     builder: (context) => PeripheralDetailPage(
-                                        scanResult.deviceId),
+                                      scanResult.deviceId,
+                                      scanResult.name ?? "Unknown Peripheral",
+                                    ),
                                   ));
                               UniversalBle.stopScan();
                               setState(() {

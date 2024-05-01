@@ -14,7 +14,9 @@ import 'package:universal_ble_example/widgets/responsive_view.dart';
 
 class PeripheralDetailPage extends StatefulWidget {
   final String deviceId;
-  const PeripheralDetailPage(this.deviceId, {Key? key}) : super(key: key);
+  final String deviceName;
+  const PeripheralDetailPage(this.deviceId, this.deviceName, {Key? key})
+      : super(key: key);
 
   @override
   State<StatefulWidget> createState() {
@@ -191,7 +193,7 @@ class _PeripheralDetailPageState extends State<PeripheralDetailPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Peripheral Details'),
+        title: Text("${widget.deviceName} - ${widget.deviceId}"),
         elevation: 4,
         actions: [
           Padding(
@@ -277,14 +279,14 @@ class _PeripheralDetailPageState extends State<PeripheralDetailPage> {
                               ),
                               child: Card(
                                 child: ListTile(
-                                  title: Text(
-                                    "Char: ${selectedCharacteristic!.characteristic.uuid}",
+                                  title: SelectableText(
+                                    "Characteristic: ${selectedCharacteristic!.characteristic.uuid}",
                                   ),
                                   subtitle: Column(
                                     crossAxisAlignment:
                                         CrossAxisAlignment.start,
                                     children: [
-                                      Text(
+                                      SelectableText(
                                         "Service: ${selectedCharacteristic!.service.uuid}",
                                       ),
                                       Text(
