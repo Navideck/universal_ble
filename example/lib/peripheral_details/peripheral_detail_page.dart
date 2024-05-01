@@ -56,7 +56,7 @@ class _PeripheralDetailPageState extends State<PeripheralDetailPage> {
 
   void _addLog(String type, dynamic data) {
     setState(() {
-      _logs.add('$type : ${data.toString()}');
+      _logs.add('$type: ${data.toString()}');
     });
   }
 
@@ -85,7 +85,7 @@ class _PeripheralDetailPageState extends State<PeripheralDetailPage> {
   void _handlePairingStateChange(
       String deviceId, bool isPaired, String? error) {
     print('OnPairStateChange $deviceId, $isPaired');
-    if (error != null) {
+    if (error != null && error.isNotEmpty) {
       _addLog("PairStateChangeError", "(Paired: $isPaired): $error ");
     } else {
       _addLog("PairStateChange", isPaired);
