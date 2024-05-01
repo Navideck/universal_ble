@@ -420,8 +420,7 @@ namespace universal_ble
       // DevicePairingProtectionLevel =>  Default, None, Encryption, EncryptionAndAuthentication
       std::cout << "PairLog: Trying to pair" << std::endl;
       auto async_c = customPairing.PairAsync(
-          Enumeration::DevicePairingKinds::ConfirmOnly,
-          Enumeration::DevicePairingProtectionLevel::Encryption);
+          Enumeration::DevicePairingKinds::ConfirmOnly);
       async_c.Completed([this, customPairing, token, device_id](IAsyncOperation<DevicePairingResult> const &sender, AsyncStatus const args)
                         {
                           auto result = sender.GetResults();
