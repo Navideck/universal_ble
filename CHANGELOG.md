@@ -1,3 +1,7 @@
+## 0.9.8
+* Improve manufacturer data discovery on Windows
+* Example app improvements
+
 ## 0.9.7
 * Fix characteristic keying on linux allowing receiving data from multiple BLE devices at the same time
 
