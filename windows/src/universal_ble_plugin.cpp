@@ -411,6 +411,7 @@ namespace universal_ble
       auto customPairing = deviceInformation.Pairing().Custom();
       winrt::event_token token = customPairing.PairingRequested([this](const Enumeration::DeviceInformationCustomPairing &sender, const Enumeration::DevicePairingRequestedEventArgs &eventArgs)
                                                                 {
+                                                                  std::cout << "PairLog: Pairing requested" << std::endl;
                                                                 // eventArgs.AcceptWithPasswordCredential(nullptr, nullptr);
                                                                 // eventArgs.Pin();
                                                                 // Accept all pairing request
@@ -419,8 +420,7 @@ namespace universal_ble
       // DevicePairingProtectionLevel =>  Default, None, Encryption, EncryptionAndAuthentication
       std::cout << "PairLog: Trying to pair" << std::endl;
       auto async_c = customPairing.PairAsync(
-          Enumeration::DevicePairingKinds::ConfirmOnly,
-          Enumeration::DevicePairingProtectionLevel::None);
+          Enumeration::DevicePairingKinds::ConfirmOnly);
       async_c.Completed([this, customPairing, token, device_id](IAsyncOperation<DevicePairingResult> const &sender, AsyncStatus const args)
                         {
                           auto result = sender.GetResults();
@@ -549,7 +549,7 @@ namespace universal_ble
 
   // Send device to callback channel
   // if device is already discovered in deviceWatcher then merge the scan result
-  void UniversalBlePlugin::pushUniversalScanResult(UniversalBleScanResult scanResult)
+  void UniversalBlePlugin::pushUniversalScanResult(UniversalBleScanResult scanResult, bool isConnectable)
   {
     auto it = scanResults.find(scanResult.device_id());
     if (it != scanResults.end())
@@ -590,8 +590,11 @@ namespace universal_ble
       scanResults.insert(std::make_pair(scanResult.device_id(), scanResult));
     }
 
-    uiThreadHandler_.Post([scanResult]
-                          { callbackChannel->OnScanResult(scanResult, SuccessCallback, ErrorCallback); });
+    if (isConnectable)
+    {
+      uiThreadHandler_.Post([scanResult]
+                            { callbackChannel->OnScanResult(scanResult, SuccessCallback, ErrorCallback); });
+    }
   }
 
   void UniversalBlePlugin::setupDeviceWatcher()
@@ -690,7 +693,7 @@ namespace universal_ble
         universalScanResult.set_rssi(rssi);
       }
 
-      pushUniversalScanResult(universalScanResult);
+      pushUniversalScanResult(universalScanResult, true);
     }
   }
 
@@ -699,10 +702,6 @@ namespace universal_ble
   {
     try
     {
-      // Avoid devices if they are not connectable
-      if (!args.IsConnectable())
-        return;
-
       // Apply ManufacturerData filter
       if (!manufacturerScanFilter.empty())
       {
@@ -717,6 +716,7 @@ namespace universal_ble
       auto deviceId = _mac_address_to_str(args.BluetoothAddress());
       auto universalScanResult = UniversalBleScanResult(deviceId);
       std::string name = winrt::to_string(args.Advertisement().LocalName());
+      auto manufacturerData = parseManufacturerDataHead(args.Advertisement(), deviceId);
 
       auto dataSection = args.Advertisement().DataSections();
       for (auto &&data : dataSection)
@@ -737,8 +737,9 @@ namespace universal_ble
       if (!name.empty())
         universalScanResult.set_name(name);
 
-      auto manufacturerData = parseManufacturerDataHead(args.Advertisement(), deviceId);
-      universalScanResult.set_manufacturer_data_head(manufacturerData);
+      if (!manufacturerData.empty())
+        universalScanResult.set_manufacturer_data_head(manufacturerData);
+
       universalScanResult.set_rssi(args.RawSignalStrengthInDBm());
 
       // Add services
@@ -765,7 +766,7 @@ namespace universal_ble
           universalScanResult.set_name(winrt::to_string(deviceInfo.Name()));
       }
 
-      pushUniversalScanResult(universalScanResult);
+      pushUniversalScanResult(universalScanResult, args.IsConnectable());
     }
     catch (...)
     {

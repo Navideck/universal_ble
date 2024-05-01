@@ -22,13 +22,13 @@ class ScannedItemWidget extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(scanResult.deviceId),
-              // Show manufacturer data only on web and desktop
               Visibility(
-                visible: (Platform.isWeb || Platform.isDesktop) &&
-                    scanResult.manufacturerData?.isNotEmpty == true,
+                visible: scanResult.manufacturerData?.isNotEmpty == true,
                 child: Text(
-                  ManufacturerData.fromData(scanResult.manufacturerData!)
-                      .toString(),
+                  Platform.isWeb || Platform.isDesktop
+                      ? ManufacturerData.fromData(scanResult.manufacturerData!)
+                          .toString()
+                      : 'ManufacturerCompanyId: ${ManufacturerData.fromData(scanResult.manufacturerData!).companyIdRadix16}',
                 ),
               ),
               Visibility(
