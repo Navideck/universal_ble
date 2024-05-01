@@ -101,7 +101,7 @@ namespace universal_ble
 
         void setupDeviceWatcher();
         void disposeDeviceWatcher();
-        void pushUniversalScanResult(UniversalBleScanResult scanResult,bool isConnectable);
+        void pushUniversalScanResult(UniversalBleScanResult scanResult, bool isConnectable);
         void BluetoothLEWatcher_Received(BluetoothLEAdvertisementWatcher sender, BluetoothLEAdvertisementReceivedEventArgs args);
         void onDeviceInfoReceived(DeviceInformation deviceInfo);
 
