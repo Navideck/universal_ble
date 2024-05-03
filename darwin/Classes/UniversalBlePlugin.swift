@@ -110,7 +110,9 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
       return
     }
     if discoveredServicesProgressMap[deviceId] != nil {
-      completion(Result.failure(FlutterError(code: "AlreadyInProgress", message: "Services discovery already in progress for :\(deviceId)", details: nil)))
+      print("Services discovery already in progress for :\(deviceId), waiting for completion.")
+      discoverServicesFutures.append(DiscoverServicesFuture(deviceId: deviceId, result: completion))
+      // completion(Result.failure(FlutterError(code: "AlreadyInProgress", message: "Services discovery already in progress for :\(deviceId)", details: nil)))
       return
     }
     peripheral.discoverServices(nil)
@@ -265,11 +267,14 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
   }
 
   public func centralManager(_: CBCentralManager, didConnect peripheral: CBPeripheral) {
-    callbackChannel.onConnectionChanged(deviceId: peripheral.uuid.uuidString, state: BlueConnectionState.connected.rawValue) { _ in }
+    callbackChannel.onConnectionChanged(deviceId: peripheral.uuid.uuidString, state: BlueConnectionState.connected.rawValue) { _ in }    
+
   }
 
   public func centralManager(_: CBCentralManager, didDisconnectPeripheral peripheral: CBPeripheral, error _: Error?) {
     callbackChannel.onConnectionChanged(deviceId: peripheral.uuid.uuidString, state: BlueConnectionState.disconnected.rawValue) { _ in }
+    // Cleanup on disconnect
+    cleanUpConnection(deviceId: peripheral.uuid.uuidString)
   }
 
   public func peripheral(_ peripheral: CBPeripheral, didDiscoverServices _: Error?) {
