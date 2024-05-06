@@ -1,3 +1,7 @@
+## 0.9.9
+* Improve service discovery on Apple
+* Example app improvements
+
 ## 0.9.8
 * Improve manufacturer data discovery on Windows
 * Example app improvements
