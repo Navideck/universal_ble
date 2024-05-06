@@ -665,6 +665,15 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
 
         override fun onScanResult(callbackType: Int, result: ScanResult) {
             // Log.v(TAG, "onScanResult: $result")
+            var serviceUuids: Array<String> = arrayOf<String>()
+            result.device.uuids?.forEach {
+                serviceUuids += it.uuid.toString()
+            }
+            result.scanRecord?.serviceUuids?.forEach {
+                if (!serviceUuids.contains(it.uuid.toString())) {
+                    serviceUuids += it.uuid.toString()
+                }
+            }
             mainThreadHandler?.post {
                 callbackChannel?.onScanResult(
                     UniversalBleScanResult(
@@ -673,13 +682,12 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
                         isPaired = result.device.bondState == BOND_BONDED,
                         manufacturerDataHead = result.manufacturerDataHead,
                         rssi = result.rssi.toLong(),
-                        services = result.device.uuids?.map { it.uuid?.toString() ?: "" }
-                            ?: emptyList()
+                        services = serviceUuids.toList()
                     )
                 ) {}
             }
         }
-
+    
         override fun onBatchScanResults(results: MutableList<ScanResult>?) {
             Log.v(TAG, "onBatchScanResults: $results")
         }
