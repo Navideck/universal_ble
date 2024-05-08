@@ -238,7 +238,7 @@ fun BluetoothDevice.removeBond() {
     try {
         javaClass.getMethod("removeBond").invoke(this)
     } catch (e: Exception) {
-        Log.e(TAG, "Removing bond has been failed. ${e.message}")
+        Log.e(TAG, "Removing bond failed. ${e.message}")
     }
 }
 
