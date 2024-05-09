@@ -225,7 +225,8 @@ class _MyAppState extends State<MyApp> {
                         itemCount: _scanResults.length,
                         separatorBuilder: (context, index) => const Divider(),
                         itemBuilder: (context, index) {
-                          BleScanResult scanResult = _scanResults[index];
+                          BleScanResult scanResult =
+                              _scanResults[_scanResults.length - index - 1];
                           return ScannedItemWidget(
                             scanResult: scanResult,
                             onTap: () {

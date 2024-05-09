@@ -95,24 +95,51 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
 
   func cleanUpConnection(deviceId: String) {
     characteristicReadFutures.removeAll { future in
-      future.deviceId == deviceId
+      if future.deviceId == deviceId {
+        future.result(
+          Result.failure(FlutterError(code: "DeviceDisconnected", message: "Device Disconnected", details: nil))
+        )
+        return true
+      }
+      return false
     }
     discoverServicesFutures.removeAll { future in
-      future.deviceId == deviceId
+      if future.deviceId == deviceId {
+        future.result(
+          Result.failure(FlutterError(code: "DeviceDisconnected", message: "Device Disconnected", details: nil))
+        )
+        return true
+      }
+      return false
     }
     discoveredServicesProgressMap[deviceId] = nil
   }
 
   func discoverServices(deviceId: String, completion: @escaping (Result<[UniversalBleService], Error>) -> Void) {
     guard let peripheral = discoveredPeripherals[deviceId] else {
-      completion(Result.failure(
-        FlutterError(code: "IllegalArgument", message: "Unknown deviceId:\(self)", details: nil)))
+      completion(
+        Result.failure(FlutterError(code: "IllegalArgument", message: "Unknown deviceId:\(self)", details: nil))
+      )
       return
     }
+    
     if discoveredServicesProgressMap[deviceId] != nil {
-      completion(Result.failure(FlutterError(code: "AlreadyInProgress", message: "Services discovery already in progress for :\(deviceId)", details: nil)))
+      print("Services discovery already in progress for :\(deviceId), waiting for completion.")
+      discoverServicesFutures.append(DiscoverServicesFuture(deviceId: deviceId, result: completion))
       return
     }
+    
+    if let cachedServices = peripheral.services {
+      // If services already discovered no need to discover again
+      if !cachedServices.isEmpty {
+        // print("Services already cached for this peripheral")
+        discoverServicesFutures.append(DiscoverServicesFuture(deviceId: deviceId, result: completion))
+        self.peripheral(peripheral, didDiscoverServices: nil)
+        return
+      }
+    }
+    
+    
     peripheral.discoverServices(nil)
     discoverServicesFutures.append(DiscoverServicesFuture(deviceId: deviceId, result: completion))
   }
@@ -270,6 +297,8 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
 
   public func centralManager(_: CBCentralManager, didDisconnectPeripheral peripheral: CBPeripheral, error _: Error?) {
     callbackChannel.onConnectionChanged(deviceId: peripheral.uuid.uuidString, state: BlueConnectionState.disconnected.rawValue) { _ in }
+    // Cleanup on disconnect
+    cleanUpConnection(deviceId: peripheral.uuid.uuidString)
   }
 
   public func peripheral(_ peripheral: CBPeripheral, didDiscoverServices _: Error?) {
@@ -280,6 +309,12 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
     }
     discoveredServicesProgressMap[deviceId] = services.map { UniversalBleService(uuid: $0.uuid.uuidString, characteristics: nil) }
     for service in services {
+      if let cachedChar = service.characteristics {
+        if !cachedChar.isEmpty {
+          self.peripheral(peripheral, didDiscoverCharacteristicsFor: service, error: nil)
+          continue
+        }
+      }
       peripheral.discoverCharacteristics(nil, for: service)
     }
   }
@@ -303,7 +338,7 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
   }
 
   public func peripheral(_ peripheral: CBPeripheral, didWriteValueFor characteristic: CBCharacteristic, error: Error?) {
-    print("peripheral:didWriteValueForCharacteristic \(characteristic.uuid.uuidStr) error: \(String(describing: error))")
+    // print("peripheral:didWriteValueForCharacteristic \(characteristic.uuid.uuidStr) error: \(String(describing: error))")
     // Update futures for writeValue
     characteristicWriteFutures.removeAll { future in
       if future.deviceId == peripheral.uuid.uuidString && future.characteristicId == characteristic.uuid.uuidStr && future.serviceId == characteristic.service?.uuid.uuidStr {
