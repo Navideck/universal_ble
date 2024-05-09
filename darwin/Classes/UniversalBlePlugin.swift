@@ -95,24 +95,36 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
 
   func cleanUpConnection(deviceId: String) {
     characteristicReadFutures.removeAll { future in
-      future.deviceId == deviceId
+      if future.deviceId == deviceId {
+        future.result(
+          Result.failure(FlutterError(code: "DeviceDisconnected", message: "Device Disconnected", details: nil))
+        )
+        return true
+      }
+      return false
     }
     discoverServicesFutures.removeAll { future in
-      future.deviceId == deviceId
+      if future.deviceId == deviceId {
+        future.result(
+          Result.failure(FlutterError(code: "DeviceDisconnected", message: "Device Disconnected", details: nil))
+        )
+        return true
+      }
+      return false
     }
     discoveredServicesProgressMap[deviceId] = nil
   }
 
   func discoverServices(deviceId: String, completion: @escaping (Result<[UniversalBleService], Error>) -> Void) {
     guard let peripheral = discoveredPeripherals[deviceId] else {
-      completion(Result.failure(
-        FlutterError(code: "IllegalArgument", message: "Unknown deviceId:\(self)", details: nil)))
+      completion(
+        Result.failure(FlutterError(code: "IllegalArgument", message: "Unknown deviceId:\(self)", details: nil))
+      )
       return
     }
     if discoveredServicesProgressMap[deviceId] != nil {
       print("Services discovery already in progress for :\(deviceId), waiting for completion.")
       discoverServicesFutures.append(DiscoverServicesFuture(deviceId: deviceId, result: completion))
-      // completion(Result.failure(FlutterError(code: "AlreadyInProgress", message: "Services discovery already in progress for :\(deviceId)", details: nil)))
       return
     }
     peripheral.discoverServices(nil)
@@ -267,8 +279,7 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
   }
 
   public func centralManager(_: CBCentralManager, didConnect peripheral: CBPeripheral) {
-    callbackChannel.onConnectionChanged(deviceId: peripheral.uuid.uuidString, state: BlueConnectionState.connected.rawValue) { _ in }    
-
+    callbackChannel.onConnectionChanged(deviceId: peripheral.uuid.uuidString, state: BlueConnectionState.connected.rawValue) { _ in }
   }
 
   public func centralManager(_: CBCentralManager, didDisconnectPeripheral peripheral: CBPeripheral, error _: Error?) {
@@ -308,7 +319,7 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
   }
 
   public func peripheral(_ peripheral: CBPeripheral, didWriteValueFor characteristic: CBCharacteristic, error: Error?) {
-    print("peripheral:didWriteValueForCharacteristic \(characteristic.uuid.uuidStr) error: \(String(describing: error))")
+    // print("peripheral:didWriteValueForCharacteristic \(characteristic.uuid.uuidStr) error: \(String(describing: error))")
     // Update futures for writeValue
     characteristicWriteFutures.removeAll { future in
       if future.deviceId == peripheral.uuid.uuidString && future.characteristicId == characteristic.uuid.uuidStr && future.serviceId == characteristic.service?.uuid.uuidStr {
