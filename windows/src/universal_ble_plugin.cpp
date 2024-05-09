@@ -554,26 +554,37 @@ namespace universal_ble
     auto it = scanResults.find(scanResult.device_id());
     if (it != scanResults.end())
     {
-      UniversalBleScanResult &existingScanResult = it->second;
+      UniversalBleScanResult &currentScanResult = it->second;
       bool shouldUpdate = false;
-      if ((scanResult.name() == nullptr || scanResult.name()->empty()) && (existingScanResult.name() != nullptr && !existingScanResult.name()->empty()))
+
+      // Check if current scanResult name is longer than the received scanResult name
+      if (scanResult.name() != nullptr && !scanResult.name()->empty() && currentScanResult.name() != nullptr && !currentScanResult.name()->empty())
       {
-        scanResult.set_name(*existingScanResult.name());
+        if (currentScanResult.name()->size() > scanResult.name()->size())
+        {
+          scanResult.set_name(*currentScanResult.name()); 
+        }
+      }
+
+      if ((scanResult.name() == nullptr || scanResult.name()->empty()) && (currentScanResult.name() != nullptr && !currentScanResult.name()->empty()))
+      {
+        scanResult.set_name(*currentScanResult.name());
         shouldUpdate = true;
       }
-      if (scanResult.is_paired() == nullptr && existingScanResult.is_paired() != nullptr)
+
+      if (scanResult.is_paired() == nullptr && currentScanResult.is_paired() != nullptr)
       {
-        scanResult.set_is_paired(existingScanResult.is_paired());
+        scanResult.set_is_paired(currentScanResult.is_paired());
         shouldUpdate = true;
       }
-      if (scanResult.manufacturer_data_head() == nullptr && existingScanResult.manufacturer_data_head() != nullptr)
+      if (scanResult.manufacturer_data_head() == nullptr && currentScanResult.manufacturer_data_head() != nullptr)
       {
-        scanResult.set_manufacturer_data_head(existingScanResult.manufacturer_data_head());
+        scanResult.set_manufacturer_data_head(currentScanResult.manufacturer_data_head());
         shouldUpdate = true;
       }
-      if (scanResult.services() == nullptr && existingScanResult.services() != nullptr)
+      if (scanResult.services() == nullptr && currentScanResult.services() != nullptr)
       {
-        scanResult.set_services(existingScanResult.services());
+        scanResult.set_services(currentScanResult.services());
         shouldUpdate = true;
       }
 
@@ -581,8 +592,8 @@ namespace universal_ble
       if (!shouldUpdate)
         return;
 
-      // update the existing scan result
-      existingScanResult = scanResult;
+      // update the current scan result
+      currentScanResult = scanResult;
     }
     else
     {
