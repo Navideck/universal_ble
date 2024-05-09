@@ -107,16 +107,28 @@ class UniversalBleLinux extends UniversalBlePlatform {
   @override
   Future<List<BleService>> discoverServices(String deviceId) async {
     final device = _findDeviceById(deviceId);
-    if (!device.servicesResolved) {
-      await device.propertiesChanged
-          .firstWhere(
-              (element) => element.contains(BluezProperty.servicesResolved))
-          .timeout(const Duration(seconds: 2), onTimeout: () => []);
+    if (device.gattServices.isEmpty && !device.servicesResolved) {
+      await device.propertiesChanged.firstWhere((element) {
+        if (element.contains(BluezProperty.connected)) {
+          if (!device.connected) {
+            UniversalBlePlatform.logInfo(
+              "DiscoverServicesFailed: Device disconnected",
+            );
+            return true;
+          }
+        }
+        return element.contains(BluezProperty.servicesResolved);
+      }).timeout(const Duration(seconds: 10), onTimeout: () {
+        UniversalBlePlatform.logInfo(
+          "DiscoverServicesFailed: Timeout",
+        );
+        return [];
+      });
     }
 
-    // while (!device.servicesResolved) {
-    //   await Future.delayed(const Duration(seconds: 200));
-    // }
+    if (device.gattServices.isEmpty && !device.servicesResolved) {
+      throw "Failed to resolve services";
+    }
 
     List<BleService> services = [];
     for (final service in device.gattServices) {
