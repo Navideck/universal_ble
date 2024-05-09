@@ -122,11 +122,24 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
       )
       return
     }
+    
     if discoveredServicesProgressMap[deviceId] != nil {
       print("Services discovery already in progress for :\(deviceId), waiting for completion.")
       discoverServicesFutures.append(DiscoverServicesFuture(deviceId: deviceId, result: completion))
       return
     }
+    
+    if let cachedServices = peripheral.services {
+      // If services already discovered no need to discover again
+      if !cachedServices.isEmpty {
+        // print("Services already cached for this peripheral")
+        discoverServicesFutures.append(DiscoverServicesFuture(deviceId: deviceId, result: completion))
+        self.peripheral(peripheral, didDiscoverServices: nil)
+        return
+      }
+    }
+    
+    
     peripheral.discoverServices(nil)
     discoverServicesFutures.append(DiscoverServicesFuture(deviceId: deviceId, result: completion))
   }
@@ -296,6 +309,12 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
     }
     discoveredServicesProgressMap[deviceId] = services.map { UniversalBleService(uuid: $0.uuid.uuidString, characteristics: nil) }
     for service in services {
+      if let cachedChar = service.characteristics {
+        if !cachedChar.isEmpty {
+          self.peripheral(peripheral, didDiscoverCharacteristicsFor: service, error: nil)
+          continue
+        }
+      }
       peripheral.discoverCharacteristics(nil, for: service)
     }
   }
