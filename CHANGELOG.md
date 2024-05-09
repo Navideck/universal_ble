@@ -1,5 +1,8 @@
 ## 0.9.9
 * Improve service discovery on Apple
+* Improve reconnection on Apple
+* Persist long scan result name on Windows
+* Fix Android serviceUuids in scanResults
 * Example app improvements
 
 ## 0.9.8
