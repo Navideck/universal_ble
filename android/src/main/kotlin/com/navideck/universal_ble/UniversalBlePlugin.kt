@@ -258,6 +258,16 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
             }
         } catch (e: FlutterError) {
             callback(Result.failure(e))
+        } catch (e: Exception) {
+            callback(
+                Result.failure(
+                    FlutterError(
+                        "Failed",
+                        "Failed to update subscription state",
+                        e.toString()
+                    )
+                )
+            )
         }
     }
 
@@ -293,6 +303,16 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
             )
         } catch (e: FlutterError) {
             callback(Result.failure(e))
+        } catch (e: Exception) {
+            callback(
+                Result.failure(
+                    FlutterError(
+                        "Failed",
+                        "Failed to read value",
+                        e.toString()
+                    )
+                )
+            )
         }
     }
 
