@@ -227,28 +227,37 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
         bleInputProperty: Long,
         callback: (Result<Unit>) -> Unit,
     ) {
-        val gatt = deviceId.toBluetoothGatt()
-        val gattCharacteristic = gatt.getCharacteristic(service, characteristic)
-            ?: throw FlutterError(
-                "IllegalArgument",
-                "Unknown characteristic: $characteristic",
-                null
-            )
-
-
-        if (gatt.setNotifiable(gattCharacteristic, bleInputProperty)) {
-            characteristicSubscriptionFutureList.add(
-                CharacteristicSubscriptionFuture(
-                    gatt.device.address,
-                    gattCharacteristic.uuid.toString(),
-                    gattCharacteristic.service.uuid.toString(),
-                    callback
+        try {
+            val gatt = deviceId.toBluetoothGatt()
+            val gattCharacteristic = gatt.getCharacteristic(service, characteristic)
+                ?: throw FlutterError(
+                    "IllegalArgument",
+                    "Unknown characteristic: $characteristic",
+                    null
                 )
-            )
-        } else {
-            callback(
-                Result.failure(FlutterError("Failed", "Failed to update subscription state", null))
-            )
+
+            if (gatt.setNotifiable(gattCharacteristic, bleInputProperty)) {
+                characteristicSubscriptionFutureList.add(
+                    CharacteristicSubscriptionFuture(
+                        gatt.device.address,
+                        gattCharacteristic.uuid.toString(),
+                        gattCharacteristic.service.uuid.toString(),
+                        callback
+                    )
+                )
+            } else {
+                callback(
+                    Result.failure(
+                        FlutterError(
+                            "Failed",
+                            "Failed to update subscription state",
+                            null
+                        )
+                    )
+                )
+            }
+        } catch (e: FlutterError) {
+            callback(Result.failure(e))
         }
     }
 
