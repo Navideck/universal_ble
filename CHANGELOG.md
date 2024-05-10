@@ -1,3 +1,7 @@
+## 0.9.10
+* Fix Windows scan filter
+* Improve service discovery on Linux
+
 ## 0.9.9
 * Improve service discovery on Apple
 * Improve reconnection on Apple
