@@ -31,6 +31,7 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
   private var discoveredServicesProgressMap: [String: [UniversalBleService]] = [:]
   private var characteristicReadFutures = [CharacteristicReadFuture]()
   private var characteristicWriteFutures = [CharacteristicWriteFuture]()
+  private var characteristicNotifyFutures = [CharacteristicNotifyFuture]()
   private var discoverServicesFutures = [DiscoverServicesFuture]()
   private var bluetoothAvailabilityStateCallback: ((Result<Int64, Error>) -> Void)? {
     didSet {
@@ -122,13 +123,13 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
       )
       return
     }
-    
+
     if discoveredServicesProgressMap[deviceId] != nil {
       print("Services discovery already in progress for :\(deviceId), waiting for completion.")
       discoverServicesFutures.append(DiscoverServicesFuture(deviceId: deviceId, result: completion))
       return
     }
-    
+
     if let cachedServices = peripheral.services {
       // If services already discovered no need to discover again
       if !cachedServices.isEmpty {
@@ -138,8 +139,7 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
         return
       }
     }
-    
-    
+
     peripheral.discoverServices(nil)
     discoverServicesFutures.append(DiscoverServicesFuture(deviceId: deviceId, result: completion))
   }
@@ -154,23 +154,30 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
     }
   }
 
-  func setNotifiable(deviceId: String, service: String, characteristic: String, bleInputProperty: Int64) throws {
-    let peripheral = try deviceId.getPeripheral()
-
-    guard let c = peripheral.getCharacteristic(characteristic, of: service) else {
-      throw FlutterError(code: "IllegalArgument", message: "Unknown characteristic:\(characteristic)", details: nil)
+  func setNotifiable(deviceId: String, service: String, characteristic: String, bleInputProperty: Int64, completion: @escaping (Result<Void, any Error>) -> Void) {
+    guard let peripheral = discoveredPeripherals[deviceId] else {
+      completion(Result.failure(FlutterError(code: "IllegalArgument", message: "Unknown deviceId:\(self)", details: nil)))
+      return
     }
 
-    if bleInputProperty == BleInputProperty.notification.rawValue && !c.properties.contains(.notify) {
-      throw FlutterError(code: "InvalidAction", message: "Characteristic does not support notify", details: nil)
+    guard let gattCharacteristic = peripheral.getCharacteristic(characteristic, of: service) else {
+      completion(Result.failure(FlutterError(code: "IllegalArgument", message: "Unknown characteristic:\(characteristic)", details: nil)))
+      return
     }
 
-    if bleInputProperty == BleInputProperty.indication.rawValue && !c.properties.contains(.indicate) {
-      throw FlutterError(code: "InvalidAction", message: "Characteristic does not support indicate", details: nil)
+    if bleInputProperty == BleInputProperty.notification.rawValue && !gattCharacteristic.properties.contains(.notify) {
+      completion(Result.failure(FlutterError(code: "InvalidAction", message: "Characteristic does not support notify", details: nil)))
+      return
+    }
+
+    if bleInputProperty == BleInputProperty.indication.rawValue && !gattCharacteristic.properties.contains(.indicate) {
+      completion(Result.failure(FlutterError(code: "InvalidAction", message: "Characteristic does not support indicate", details: nil)))
+      return
     }
 
     let shouldNotify = bleInputProperty != BleInputProperty.disabled.rawValue
-    peripheral.setNotifyValue(shouldNotify, for: c)
+    peripheral.setNotifyValue(shouldNotify, for: gattCharacteristic)
+    characteristicNotifyFutures.append(CharacteristicNotifyFuture(deviceId: deviceId, characteristicId: gattCharacteristic.uuid.uuidStr, serviceId: gattCharacteristic.service?.uuid.uuidStr, result: completion))
   }
 
   func readValue(deviceId: String, service: String, characteristic: String, completion: @escaping (Result<FlutterStandardTypedData, Error>) -> Void) {
@@ -338,9 +345,21 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
   }
 
   public func peripheral(_ peripheral: CBPeripheral, didWriteValueFor characteristic: CBCharacteristic, error: Error?) {
-    // print("peripheral:didWriteValueForCharacteristic \(characteristic.uuid.uuidStr) error: \(String(describing: error))")
-    // Update futures for writeValue
     characteristicWriteFutures.removeAll { future in
+      if future.deviceId == peripheral.uuid.uuidString && future.characteristicId == characteristic.uuid.uuidStr && future.serviceId == characteristic.service?.uuid.uuidStr {
+        if let flutterError = error?.toFlutterError() {
+          future.result(Result.failure(flutterError))
+        } else {
+          future.result(Result.success({}()))
+        }
+        return true
+      }
+      return false
+    }
+  }
+
+  public func peripheral(_ peripheral: CBPeripheral, didUpdateNotificationStateFor characteristic: CBCharacteristic, error: Error?) {
+    characteristicNotifyFutures.removeAll { future in
       if future.deviceId == peripheral.uuid.uuidString && future.characteristicId == characteristic.uuid.uuidStr && future.serviceId == characteristic.service?.uuid.uuidStr {
         if let flutterError = error?.toFlutterError() {
           future.result(Result.failure(flutterError))

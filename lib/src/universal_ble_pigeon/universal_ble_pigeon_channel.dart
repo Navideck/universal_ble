@@ -115,7 +115,7 @@ class UniversalBlePigeonChannel extends UniversalBlePlatform {
 
   /// To set listeners
   void _setupListeners() {
-    UniversalBleCallbackChannel.setup(_UniversalBleCallbackHandler(
+    UniversalBleCallbackChannel.setUp(_UniversalBleCallbackHandler(
       scanResult: (BleScanResult scanResult) => onScanResult?.call(scanResult),
       availabilityChange: (AvailabilityState state) =>
           onAvailabilityChange?.call(state),
