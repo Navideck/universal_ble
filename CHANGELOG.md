@@ -2,6 +2,9 @@
 * Fix Windows scan filter
 * Improve service discovery on Linux
 * Use asynchronous callbacks for SetNotifiable
+* Remove dependency on `convert`
+* Remove dependency on `collection`
+* Update Android example app Gradle
 
 ## 0.9.9
 * Improve service discovery on Apple
