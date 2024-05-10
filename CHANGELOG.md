@@ -1,6 +1,7 @@
 ## 0.9.10
 * Fix Windows scan filter
 * Improve service discovery on Linux
+* Use asynchronous callbacks for SetNotifiable
 
 ## 0.9.9
 * Improve service discovery on Apple
