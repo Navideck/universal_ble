@@ -91,6 +91,7 @@ namespace universal_ble
     if (bluetoothRadio && bluetoothRadio.State() == RadioState::On)
     {
       setupDeviceWatcher();
+      scanResults.clear();
       DeviceWatcherStatus status = deviceWatcher.Status();
       if (status != DeviceWatcherStatus::Started)
       {
@@ -153,6 +154,7 @@ namespace universal_ble
       }
       bluetoothLEWatcher = nullptr;
       disposeDeviceWatcher();
+      scanResults.clear();
       return std::nullopt;
     }
     else
@@ -562,7 +564,7 @@ namespace universal_ble
       {
         if (currentScanResult.name()->size() > scanResult.name()->size())
         {
-          scanResult.set_name(*currentScanResult.name()); 
+          scanResult.set_name(*currentScanResult.name());
         }
       }
 
