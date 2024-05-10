@@ -2,7 +2,6 @@ import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:bluez/bluez.dart';
-import 'package:collection/collection.dart';
 import 'package:flutter/services.dart';
 import 'package:universal_ble/src/models/model_exports.dart';
 import 'package:universal_ble/src/universal_ble_platform_interface.dart';
@@ -148,9 +147,11 @@ class UniversalBleLinux extends UniversalBlePlatform {
       String deviceId, String service, String characteristic) {
     final device = _findDeviceById(deviceId);
     final s = device.gattServices
-        .firstWhereOrNull((s) => s.uuid.toString() == service);
-    final c = s?.characteristics
-        .firstWhereOrNull((c) => c.uuid.toString() == characteristic);
+        .cast<BlueZGattService?>()
+        .firstWhere((s) => s?.uuid.toString() == service, orElse: () => null);
+    final c = s?.characteristics.cast<BlueZGattCharacteristic?>().firstWhere(
+        (c) => c?.uuid.toString() == characteristic,
+        orElse: () => null);
 
     if (c == null) {
       throw Exception('Unknown characteristic:$characteristic');
@@ -306,8 +307,9 @@ class UniversalBleLinux extends UniversalBlePlatform {
 
   BlueZDevice _findDeviceById(String deviceId) {
     final device = _devices[deviceId] ??
-        _client.devices
-            .firstWhereOrNull((device) => device.address == deviceId);
+        _client.devices.cast<BlueZDevice?>().firstWhere(
+            (device) => device?.address == deviceId,
+            orElse: () => null);
     if (device == null) {
       throw Exception('Unknown deviceId:$deviceId');
     }
