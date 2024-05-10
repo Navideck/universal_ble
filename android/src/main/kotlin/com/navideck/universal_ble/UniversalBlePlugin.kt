@@ -17,13 +17,11 @@ import android.content.IntentFilter
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
-import android.os.ParcelUuid
 import android.util.Log
 import io.flutter.embedding.engine.plugins.FlutterPlugin
 import io.flutter.embedding.engine.plugins.activity.ActivityAware
 import io.flutter.embedding.engine.plugins.activity.ActivityPluginBinding
 import io.flutter.plugin.common.*
-import java.util.*
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 
@@ -42,6 +40,8 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
     private val mtuResultFutureList = mutableListOf<MtuResultFuture>()
     private val bleCharacteristicFutureList = mutableListOf<BleCharacteristicFuture>()
     private val discoverServicesFutureList = mutableListOf<DiscoverServicesFuture>()
+    private val characteristicSubscriptionFutureList =
+        mutableListOf<CharacteristicSubscriptionFuture>()
     private val writeResultFutureList = mutableListOf<WriteResultFuture>()
     private val cachedServicesMap = mutableMapOf<String, List<String>>()
     private val devicesStateMap = mutableMapOf<String, Int>()
@@ -56,7 +56,7 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
 
         val intentFilter = IntentFilter(BluetoothAdapter.ACTION_STATE_CHANGED)
         intentFilter.addAction(BluetoothDevice.ACTION_BOND_STATE_CHANGED)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             context.registerReceiver(broadcastReceiver, intentFilter, RECEIVER_EXPORTED)
         } else {
             context.registerReceiver(broadcastReceiver, intentFilter)
@@ -225,15 +225,50 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
         service: String,
         characteristic: String,
         bleInputProperty: Long,
+        callback: (Result<Unit>) -> Unit,
     ) {
-        val gatt = deviceId.toBluetoothGatt()
-        val gattCharacteristic = gatt.getCharacteristic(service, characteristic)
-            ?: throw FlutterError(
-                "IllegalArgument",
-                "Unknown characteristic: $characteristic",
-                null
+        try {
+            val gatt = deviceId.toBluetoothGatt()
+            val gattCharacteristic = gatt.getCharacteristic(service, characteristic)
+                ?: throw FlutterError(
+                    "IllegalArgument",
+                    "Unknown characteristic: $characteristic",
+                    null
+                )
+
+            if (gatt.setNotifiable(gattCharacteristic, bleInputProperty)) {
+                characteristicSubscriptionFutureList.add(
+                    CharacteristicSubscriptionFuture(
+                        gatt.device.address,
+                        gattCharacteristic.uuid.toString(),
+                        gattCharacteristic.service.uuid.toString(),
+                        callback
+                    )
+                )
+            } else {
+                callback(
+                    Result.failure(
+                        FlutterError(
+                            "Failed",
+                            "Failed to update subscription state",
+                            null
+                        )
+                    )
+                )
+            }
+        } catch (e: FlutterError) {
+            callback(Result.failure(e))
+        } catch (e: Exception) {
+            callback(
+                Result.failure(
+                    FlutterError(
+                        "Failed",
+                        "Failed to update subscription state",
+                        e.toString()
+                    )
+                )
             )
-        gatt.setNotifiable(gattCharacteristic, bleInputProperty)
+        }
     }
 
     override fun readValue(
@@ -268,6 +303,16 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
             )
         } catch (e: FlutterError) {
             callback(Result.failure(e))
+        } catch (e: Exception) {
+            callback(
+                Result.failure(
+                    FlutterError(
+                        "Failed",
+                        "Failed to read value",
+                        e.toString()
+                    )
+                )
+            )
         }
     }
 
@@ -299,16 +344,6 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
 
         }
     }
-
-    override fun onCharacteristicRead(
-        gatt: BluetoothGatt,
-        characteristic: BluetoothGattCharacteristic,
-        status: Int,
-    ) {
-        // Pass data to new api
-        onCharacteristicRead(gatt, characteristic, characteristic.value, status)
-    }
-
 
     override fun writeValue(
         deviceId: String,
@@ -356,18 +391,23 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
                 }
                 writeType = BluetoothGattCharacteristic.WRITE_TYPE_NO_RESPONSE
             }
-//        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-//            val result = gatt.writeCharacteristic(gattCharacteristic, value, writeType)
-//            Log.v(TAG,"writeResult $characteristic: $result => ${result.parseBluetoothStatusCodeError()}")
-//            return
-//        }
-            gattCharacteristic.value = value
-            gattCharacteristic.writeType = writeType
-            val result = gatt.writeCharacteristic(gattCharacteristic)
+
+            val result = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                val writeResult = gatt.writeCharacteristic(gattCharacteristic, value, writeType)
+                writeResult == BluetoothGatt.GATT_SUCCESS
+            } else {
+                @Suppress("DEPRECATION")
+                gattCharacteristic.value = value
+                gattCharacteristic.writeType = writeType
+                @Suppress("DEPRECATION")
+                gatt.writeCharacteristic(gattCharacteristic)
+            }
+
             if (!result) {
                 callback(Result.failure(FlutterError("Failed", "Failed to write", null)))
                 return
             }
+
             if (writeType == BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT) {
                 // wait for the result
                 writeResultFutureList.add(
@@ -535,13 +575,13 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
         }
 
         // If its a known gatt, just discover services
-        knownGatts.find { it.device.address == device.address }?.let {
-            it.services?.let { services ->
+        knownGatts.find { it.device.address == device.address }?.let { gatt ->
+            gatt.services?.let { services ->
                 updateCallback(services.map { service -> service.uuid.toString() })
                 return
             }
 
-            if (it.discoverServices()) {
+            if (gatt.discoverServices()) {
                 discoverServicesFutureList.add(
                     DiscoverServicesFuture(device.address) { uuids: Result<List<UniversalBleService>> ->
                         if (uuids.isSuccess) {
@@ -616,7 +656,16 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
                 }
             } else if (intent.action == BluetoothDevice.ACTION_BOND_STATE_CHANGED) {
                 val device: BluetoothDevice =
-                    intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE) ?: return
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                        intent.getParcelableExtra(
+                            BluetoothDevice.EXTRA_DEVICE,
+                            BluetoothDevice::class.java
+                        )
+                            ?: return
+                    } else {
+                        @Suppress("DEPRECATION")
+                        intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE) ?: return
+                    }
                 // get pairing failed error
                 when (intent.getIntExtra(BluetoothDevice.EXTRA_BOND_STATE, BluetoothDevice.ERROR)) {
                     BluetoothDevice.BOND_BONDING -> {
@@ -665,7 +714,7 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
 
         override fun onScanResult(callbackType: Int, result: ScanResult) {
             // Log.v(TAG, "onScanResult: $result")
-            var serviceUuids: Array<String> = arrayOf<String>()
+            var serviceUuids: Array<String> = arrayOf()
             result.device.uuids?.forEach {
                 serviceUuids += it.uuid.toString()
             }
@@ -687,7 +736,7 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
                 ) {}
             }
         }
-    
+
         override fun onBatchScanResults(results: MutableList<ScanResult>?) {
             Log.v(TAG, "onBatchScanResults: $results")
         }
@@ -717,13 +766,59 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
     override fun onCharacteristicChanged(
         gatt: BluetoothGatt,
         characteristic: BluetoothGattCharacteristic,
+        value: ByteArray,
     ) {
         mainThreadHandler?.post {
             callbackChannel?.onValueChanged(
                 deviceIdArg = gatt.device.address,
                 characteristicIdArg = characteristic.uuid.toString(),
-                valueArg = characteristic.value
+                valueArg = value
             ) {}
+        }
+    }
+
+    override fun onDescriptorWrite(
+        gatt: BluetoothGatt?,
+        descriptor: BluetoothGattDescriptor?,
+        status: Int,
+    ) {
+        super.onDescriptorWrite(gatt, descriptor, status)
+        if (descriptor?.uuid.toString() == ccdCharacteristic) {
+            val char: String? = descriptor?.characteristic?.uuid?.toString()
+            val service: String? = descriptor?.characteristic?.service?.uuid?.toString()
+            val deviceId: String? = gatt?.device?.address;
+            if (deviceId != null && char != null && service != null) {
+                updateSubscriptionState(deviceId, char, service, status)
+            }
+        }
+    }
+
+    private fun updateSubscriptionState(
+        deviceId: String,
+        characteristic: String,
+        service: String,
+        status: Int,
+    ) {
+        characteristicSubscriptionFutureList.filter {
+            it.deviceId == deviceId &&
+                    it.characteristicId == characteristic &&
+                    it.serviceId == service
+        }.forEach {
+            characteristicSubscriptionFutureList.remove(it)
+            val error: String? = status.parseGattErrorCode()
+            if (error != null) {
+                it.result(
+                    Result.failure(
+                        FlutterError(
+                            status.toString(),
+                            "Failed to update subscription state: $error",
+                            null,
+                        )
+                    )
+                )
+            } else {
+                it.result(Result.success(Unit))
+            }
         }
     }
 
@@ -748,6 +843,24 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
         return cachedServicesSharedPref.all.mapValues { (_, value) ->
             (value as? Set<*>)?.map { it.toString() } ?: emptyList()
         }
+    }
+
+    /// Depreciated Members, ( Requires to support older android devices )
+    @Suppress("OVERRIDE_DEPRECATION", "DEPRECATION")
+    override fun onCharacteristicRead(
+        gatt: BluetoothGatt,
+        characteristic: BluetoothGattCharacteristic,
+        status: Int,
+    ) {
+        onCharacteristicRead(gatt, characteristic, characteristic.value, status)
+    }
+
+    @Suppress("OVERRIDE_DEPRECATION", "DEPRECATION")
+    override fun onCharacteristicChanged(
+        gatt: BluetoothGatt,
+        characteristic: BluetoothGattCharacteristic,
+    ) {
+        onCharacteristicChanged(gatt, characteristic, characteristic.value)
     }
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?): Boolean {

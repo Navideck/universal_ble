@@ -15,6 +15,7 @@ import android.bluetooth.le.ScanCallback.SCAN_FAILED_OUT_OF_HARDWARE_RESOURCES
 import android.bluetooth.le.ScanCallback.SCAN_FAILED_SCANNING_TOO_FREQUENTLY
 import android.bluetooth.le.ScanFilter
 import android.bluetooth.le.ScanResult
+import android.os.Build
 import android.os.ParcelUuid
 import android.util.Log
 import java.nio.ByteBuffer
@@ -24,7 +25,7 @@ import java.util.UUID
 private const val TAG = "UniversalBlePlugin"
 
 val knownGatts = mutableListOf<BluetoothGatt>()
-
+val ccdCharacteristic = "00002902-0000-1000-8000-00805f9b34fb"
 
 enum class BleConnectionState(val value: Long) {
     Connected(0),
@@ -216,12 +217,12 @@ fun BluetoothGatt.getCharacteristic(
 
 
 @SuppressLint("MissingPermission")
+@Suppress("DEPRECATION")
 fun BluetoothGatt.setNotifiable(
     gattCharacteristic: BluetoothGattCharacteristic,
     bleInputProperty: Long,
-) {
-    val descClientCharConfirmation =
-        UUID.fromString("00002902-0000-1000-8000-00805f9b34fb")
+): Boolean {
+    val descClientCharConfirmation = UUID.fromString(ccdCharacteristic)
     val descriptor = gattCharacteristic.getDescriptor(descClientCharConfirmation)
     val bleInputPropertyEnum: BleInputProperty =
         BleInputProperty.values().first { it.value == bleInputProperty }
@@ -230,8 +231,13 @@ fun BluetoothGatt.setNotifiable(
         BleInputProperty.Indication -> BluetoothGattDescriptor.ENABLE_INDICATION_VALUE to true
         else -> BluetoothGattDescriptor.DISABLE_NOTIFICATION_VALUE to false
     }
-    descriptor.value = value
-    setCharacteristicNotification(descriptor.characteristic, enable) && writeDescriptor(descriptor)
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+        writeDescriptor(descriptor, value)
+    } else {
+        descriptor.value = value
+        writeDescriptor(descriptor)
+    }
+    return setCharacteristicNotification(descriptor.characteristic, enable)
 }
 
 fun BluetoothDevice.removeBond() {
@@ -299,6 +305,13 @@ class MtuResultFuture(
 )
 
 class WriteResultFuture(
+    val deviceId: String,
+    val characteristicId: String,
+    val serviceId: String,
+    val result: (Result<Unit>) -> Unit,
+)
+
+class CharacteristicSubscriptionFuture(
     val deviceId: String,
     val characteristicId: String,
     val serviceId: String,

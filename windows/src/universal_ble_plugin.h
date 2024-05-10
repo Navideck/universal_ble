@@ -113,7 +113,8 @@ namespace universal_ble
         void CleanConnection(uint64_t bluetoothAddress);
         void DiscoverServicesAsync(BluetoothDeviceAgent &bluetoothDeviceAgent, std::function<void(ErrorOr<flutter::EncodableList> reply)>);
         winrt::fire_and_forget SetNotifiableAsync(BluetoothDeviceAgent &bluetoothDeviceAgent, const std::string &service,
-                                                  const std::string &characteristic, GattClientCharacteristicConfigurationDescriptorValue descriptorValue);
+                                                  const std::string &characteristic, GattClientCharacteristicConfigurationDescriptorValue descriptorValue,
+                                                   std::function<void(std::optional<FlutterError> reply)> result );
         void GattCharacteristic_ValueChanged(GattCharacteristic sender, GattValueChangedEventArgs args);
         AvailabilityState getAvailabilityStateFromRadio(RadioState radioState);
         std::string parsePairingFailError(Enumeration::DevicePairingResult result);
@@ -135,11 +136,12 @@ namespace universal_ble
         void DiscoverServices(
             const std::string &device_id,
             std::function<void(ErrorOr<flutter::EncodableList> reply)> result) override;
-        std::optional<FlutterError> SetNotifiable(
+        void SetNotifiable(
             const std::string &device_id,
             const std::string &service,
             const std::string &characteristic,
-            int64_t ble_input_property) override;
+            int64_t ble_input_property,
+            std::function<void(std::optional<FlutterError> reply)> result) override;
         void ReadValue(
             const std::string &device_id,
             const std::string &service,

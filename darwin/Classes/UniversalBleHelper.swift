@@ -227,6 +227,20 @@ class CharacteristicWriteFuture {
     }
 }
 
+class CharacteristicNotifyFuture {
+    let deviceId: String
+    let characteristicId: String
+    let serviceId: String?
+    let result: (Result<Void, Error>) -> Void
+
+    init(deviceId: String, characteristicId: String, serviceId: String?, result: @escaping (Result<Void, Error>) -> Void) {
+        self.deviceId = deviceId
+        self.characteristicId = characteristicId
+        self.serviceId = serviceId
+        self.result = result
+    }
+}
+
 class DiscoverServicesFuture {
     let deviceId: String
     let result: (Result<[UniversalBleService], Error>) -> Void

@@ -206,17 +206,21 @@ namespace universal_ble
     }
   }
 
-  std::optional<FlutterError> UniversalBlePlugin::SetNotifiable(
+  void UniversalBlePlugin::SetNotifiable(
       const std::string &device_id,
       const std::string &service,
       const std::string &characteristic,
-      int64_t ble_input_property)
+      int64_t ble_input_property,
+      std::function<void(std::optional<FlutterError> reply)> result)
   {
     try
     {
       auto it = connectedDevices.find(_str_to_mac_address(device_id));
       if (it == connectedDevices.end())
-        return FlutterError("IllegalArgument", "Unknown devicesId:" + device_id);
+      {
+        result(FlutterError("IllegalArgument", "Unknown devicesId:" + device_id));
+        return;
+      }
       auto bluetoothAgent = *it->second;
       GattCharacteristicObject &gatt_characteristic_holder = bluetoothAgent._fetch_characteristic(service, characteristic);
       GattCharacteristic gattCharacteristic = gatt_characteristic_holder.obj;
@@ -228,7 +232,8 @@ namespace universal_ble
         descriptorValue = GattClientCharacteristicConfigurationDescriptorValue::Notify;
         if ((properties & GattCharacteristicProperties::Notify) == GattCharacteristicProperties::None)
         {
-          return FlutterError("Characteristic does not support notify");
+          result(FlutterError("Characteristic does not support notify"));
+          return;
         }
       }
       else if (ble_input_property == static_cast<int>(BleInputProperty::indication))
@@ -236,21 +241,21 @@ namespace universal_ble
         descriptorValue = GattClientCharacteristicConfigurationDescriptorValue::Indicate;
         if ((properties & GattCharacteristicProperties::Indicate) == GattCharacteristicProperties::None)
         {
-          return FlutterError("Characteristic does not support indicate");
+          result(FlutterError("Characteristic does not support indicate"));
+          return;
         }
       }
 
-      SetNotifiableAsync(bluetoothAgent, service, characteristic, descriptorValue);
-      return std::nullopt;
+      SetNotifiableAsync(bluetoothAgent, service, characteristic, descriptorValue, result);
     }
     catch (const FlutterError &err)
     {
-      return err;
+      return result(err);
     }
     catch (...)
     {
       std::cout << "SetNotifiableLog: Unknown error" << std::endl;
-      return FlutterError("Unknown error");
+      return result(FlutterError("Unknown error"));
     }
   };
 
@@ -1178,7 +1183,9 @@ namespace universal_ble
   };
 
   winrt::fire_and_forget UniversalBlePlugin::SetNotifiableAsync(BluetoothDeviceAgent &bluetoothDeviceAgent, const std::string &service,
-                                                                const std::string &characteristic, GattClientCharacteristicConfigurationDescriptorValue descriptorValue)
+                                                                const std::string &characteristic,
+                                                                GattClientCharacteristicConfigurationDescriptorValue descriptorValue,
+                                                                std::function<void(std::optional<FlutterError> reply)> result)
   {
     GattCharacteristicObject &gatt_characteristic_holder = bluetoothDeviceAgent._fetch_characteristic(service, characteristic);
     GattCharacteristic gattCharacteristic = gatt_characteristic_holder.obj;
@@ -1205,11 +1212,15 @@ namespace universal_ble
         std::cout << "FailedToSubscribe: Unknown" << to_uuidstr(gattCharacteristic.Uuid()) << std::endl;
       }
       if (status != GattCommunicationStatus::Success)
+      {
+        result(FlutterError("Failed to update notification state"));
         co_return;
+      }
     }
     catch (...)
     {
       std::cout << "FailedToPerformThisOperationOn: " << to_uuidstr(gattCharacteristic.Uuid()) << std::endl;
+      result(FlutterError("Failed to update notification state"));
       co_return;
     }
     // create uniqKey with uuid and deviceId
@@ -1239,6 +1250,7 @@ namespace universal_ble
       }
       characteristicsTokens[uniqTokenKey] = gattCharacteristic.ValueChanged({this, &UniversalBlePlugin::GattCharacteristic_ValueChanged});
     }
+    result(std::nullopt);
   }
 
   void UniversalBlePlugin::GattCharacteristic_ValueChanged(GattCharacteristic sender, GattValueChangedEventArgs args)
