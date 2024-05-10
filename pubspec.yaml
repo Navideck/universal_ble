@@ -24,7 +24,6 @@ dependencies:
     sdk: flutter
   plugin_platform_interface: ^2.1.6
   collection: ^1.17.2
-  convert: ^3.1.1
   flutter_web_bluetooth: ^0.2.2
   bluez: ^0.8.2
 
