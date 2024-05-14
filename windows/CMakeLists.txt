@@ -38,6 +38,7 @@ list(APPEND PLUGIN_SOURCES
   "src/helper/universal_ble_base.h"
   "src/helper/utils.cpp"
   "src/helper/utils.h"
+  "src/helper/magic_enum.hpp"
   "src/ui_thread_handler.hpp"
   "src/generated/universal_ble.g.cpp"
   "src/generated/universal_ble.g.h"

@@ -13,6 +13,7 @@
 
 #include "helper/utils.h"
 #include "helper/universal_enum.h"
+#include "helper/magic_enum.hpp"
 #include "generated/universal_ble.g.h"
 
 namespace universal_ble
@@ -415,30 +416,7 @@ namespace universal_ble
       if (!canPair)
         return FlutterError("PairLog: Device is not pairable");
 
-      auto customPairing = deviceInformation.Pairing().Custom();
-      winrt::event_token token = customPairing.PairingRequested([this](const Enumeration::DeviceInformationCustomPairing &sender, const Enumeration::DevicePairingRequestedEventArgs &eventArgs)
-                                                                {
-                                                                  std::cout << "PairLog: Pairing requested" << std::endl;
-                                                                // eventArgs.AcceptWithPasswordCredential(nullptr, nullptr);
-                                                                // eventArgs.Pin();
-                                                                // Accept all pairing request
-                                                                eventArgs.Accept(); });
-      // DevicePairingKinds => None, ConfirmOnly, DisplayPin, ProvidePin, ConfirmPinMatch, ProvidePasswordCredential
-      // DevicePairingProtectionLevel =>  Default, None, Encryption, EncryptionAndAuthentication
-      std::cout << "PairLog: Trying to pair" << std::endl;
-      auto async_c = customPairing.PairAsync(
-          Enumeration::DevicePairingKinds::ConfirmOnly);
-      async_c.Completed([this, customPairing, token, device_id](IAsyncOperation<DevicePairingResult> const &sender, AsyncStatus const args)
-                        {
-                          auto result = sender.GetResults();
-                          std::cout << "PairLog: Received pairing status" << std::endl;
-                          customPairing.PairingRequested(token);
-                          auto isPaired = result.Status() == Enumeration::DevicePairingResultStatus::Paired;
-
-                          // Post to main thread
-                          std::string errorStr = parsePairingFailError(result);
-                          uiThreadHandler_.Post([device_id, isPaired, errorStr]
-                                                { callbackChannel->OnPairStateChange(device_id, isPaired, &errorStr, SuccessCallback, ErrorCallback); }); });
+      PairAsync(device_id, deviceInformation);
       return std::nullopt;
     }
     catch (const FlutterError &err)
@@ -446,6 +424,70 @@ namespace universal_ble
       return err;
     }
   };
+
+  winrt::fire_and_forget UniversalBlePlugin::PairAsync(std::string device_id, DeviceInformation deviceInformation)
+  {
+    try
+    {
+      auto customPairing = deviceInformation.Pairing().Custom();
+      winrt::event_token token = customPairing.PairingRequested({this, &UniversalBlePlugin::PairingRequestedHandler});
+
+      std::cout << "PairLog: Trying to pair" << std::endl;
+
+      DevicePairingProtectionLevel protectionLevel = deviceInformation.Pairing().ProtectionLevel();
+      std::cout << "PairLog: ProtectionLevel: " << std::string(magic_enum::enum_name(protectionLevel)) << std::endl;
+
+      // DevicePairingKinds => None, ConfirmOnly, DisplayPin, ProvidePin, ConfirmPinMatch, ProvidePasswordCredential
+      // DevicePairingProtectionLevel =>  Default, None, Encryption, EncryptionAndAuthentication
+      auto result = co_await customPairing.PairAsync(DevicePairingKinds::ProvidePin, protectionLevel);
+      DevicePairingResultStatus status = result.Status();
+
+      std::cout << "PairLog: Received pairing status: " << std::string(magic_enum::enum_name(status)) << std::endl;
+      customPairing.PairingRequested(token);
+
+      auto isPaired = status == Enumeration::DevicePairingResultStatus::Paired;
+      std::string errorStr = parsePairingFailError(result);
+      uiThreadHandler_.Post([device_id, isPaired, errorStr]
+                            { callbackChannel->OnPairStateChange(device_id, isPaired, &errorStr, SuccessCallback, ErrorCallback); });
+    }
+    catch (...)
+    {
+      std::cout << "PairLog Error: Pairing Failed" << std::endl;
+    }
+  }
+
+  void UniversalBlePlugin::PairingRequestedHandler(DeviceInformationCustomPairing sender, DevicePairingRequestedEventArgs eventArgs)
+  {
+    DevicePairingKinds kind = eventArgs.PairingKind();
+    std::cout << "PairLog: Pairing requested " << std::string(magic_enum::enum_name(kind)) << std::endl;
+    // eventArgs.AcceptWithPasswordCredential(nullptr, nullptr);
+    switch (kind)
+    {
+    case DevicePairingKinds::ProvidePin:
+    {
+      // Maybe pass this to flutter, to let the user handle the key
+
+      // winrt::hstring const &pin = eventArgs.Pin();
+      winrt::hstring const &pin = L"1234";
+      std::wcout << "Accepting Pair Request : " << pin.c_str() << std::endl;
+      eventArgs.Accept(pin);
+      break;
+    }
+    case DevicePairingKinds::DisplayPin:
+    {
+      // Maybe pass this to flutter, to let the user handle the key
+      winrt::hstring const &pin = eventArgs.Pin();
+      // winrt::hstring const &pin = L"1234";
+      std::wcout << "Accepting Pair Request : " << pin.c_str() << std::endl;
+      eventArgs.Accept(pin);
+      break;
+    }
+    default:
+      // Accept all pairing request
+      eventArgs.Accept();
+      break;
+    }
+  }
 
   std::optional<FlutterError> UniversalBlePlugin::UnPair(const std::string &device_id)
   {
