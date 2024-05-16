@@ -3,10 +3,12 @@ import 'dart:typed_data';
 class ScanFilter {
   final List<String> withServices;
   final List<ManufacturerDataFilter> withManufacturerData;
+  final List<String> withName;
 
   ScanFilter({
     this.withServices = const [],
     this.withManufacturerData = const [],
+    this.withName = const [],
   });
 }
 

@@ -57,6 +57,7 @@ class UniversalBleLinux extends UniversalBlePlatform {
     ScanFilter? scanFilter,
   }) async {
     await _ensureInitialized();
+    await super.startScan(scanFilter: scanFilter);
     if (_activeAdapter?.discovering != true) {
       // Add services filter
       _activeAdapter?.setDiscoveryFilter(
@@ -399,7 +400,7 @@ class UniversalBleLinux extends UniversalBlePlatform {
     }
 
     // Update scan results only if rssi is available
-    if (device.rssi != 0) onScanResult?.call(device.toBleScanResult());
+    if (device.rssi != 0) updateScanResult(device.toBleScanResult());
 
     // Setup Cache
     _devices[device.address] = device;
@@ -414,7 +415,7 @@ class UniversalBleLinux extends UniversalBlePlatform {
       for (final property in properties) {
         switch (property) {
           case BluezProperty.rssi:
-            onScanResult?.call(device.toBleScanResult());
+            updateScanResult(device.toBleScanResult());
             break;
           case BluezProperty.connected:
             onConnectionChanged?.call(
@@ -425,7 +426,7 @@ class UniversalBleLinux extends UniversalBlePlatform {
             );
             break;
           case BluezProperty.manufacturerData:
-            onScanResult?.call(device.toBleScanResult());
+            updateScanResult(device.toBleScanResult());
             break;
           case BluezProperty.paired:
             onPairingStateChange?.call(device.address, device.paired, null);

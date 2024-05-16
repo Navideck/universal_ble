@@ -127,7 +127,7 @@ class UniversalBleWeb extends UniversalBlePlatform {
     _bluetoothDeviceList[device.id] = device;
 
     // Update Scan Result
-    onScanResult?.call(device.toBleScanResult());
+    updateScanResult(device.toBleScanResult());
 
     /// This will work only if `chrome://flags/#enable-experimental-web-platform-features` is enabled
     if (FlutterWebBluetooth.instance.hasRequestLEScan) {
@@ -140,7 +140,7 @@ class UniversalBleWeb extends UniversalBlePlatform {
 
         _deviceAdvertisementStreamList[device.id] =
             device.advertisements.listen((event) {
-          onScanResult?.call(
+          updateScanResult(
             device.toBleScanResult(
               rssi: event.rssi,
               manufacturerDataMap: event.manufacturerData,
@@ -407,6 +407,13 @@ extension ScanFilterExtension on ScanFilter {
             ),
           ],
         ),
+      );
+    }
+
+    // Add name filter
+    for (var name in withName) {
+      filters.add(
+        RequestFilterBuilder(name: name),
       );
     }
 

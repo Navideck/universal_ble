@@ -3,13 +3,17 @@ import 'dart:typed_data';
 import 'package:universal_ble/universal_ble.dart';
 
 abstract class UniversalBlePlatform {
+  ScanFilter? _scanFilter;
+
   Future<AvailabilityState> getBluetoothAvailabilityState();
 
   Future<bool> enableBluetooth();
 
   Future<void> startScan({
     ScanFilter? scanFilter,
-  });
+  }) async {
+    _scanFilter = scanFilter;
+  }
 
   Future<void> stopScan();
 
@@ -43,6 +47,19 @@ abstract class UniversalBlePlatform {
   Future<List<BleScanResult>> getConnectedDevices(
     List<String>? withServices,
   );
+
+  void updateScanResult(BleScanResult scanResult) {
+    /// Filter by name ( Temporarily on dart side )
+    ScanFilter? scanFilter = _scanFilter;
+    if (scanFilter != null && scanFilter.withName.isNotEmpty) {
+      if (scanResult.name == null ||
+          !scanFilter.withName
+              .any((e) => e.toLowerCase() == scanResult.name?.toLowerCase())) {
+        return;
+      }
+    }
+    onScanResult?.call(scanResult);
+  }
 
   OnAvailabilityChange? onAvailabilityChange;
   OnScanResult? onScanResult;
