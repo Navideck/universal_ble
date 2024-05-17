@@ -31,6 +31,7 @@ class UniversalBlePigeonChannel extends UniversalBlePlatform {
   Future<void> startScan({
     ScanFilter? scanFilter,
   }) async {
+    await super.startScan(scanFilter: scanFilter);
     await _channel.startScan(
       scanFilter.toUniversalScanFilter(),
     );
@@ -116,7 +117,7 @@ class UniversalBlePigeonChannel extends UniversalBlePlatform {
   /// To set listeners
   void _setupListeners() {
     UniversalBleCallbackChannel.setUp(_UniversalBleCallbackHandler(
-      scanResult: (BleScanResult scanResult) => onScanResult?.call(scanResult),
+      scanResult: (BleScanResult scanResult) => updateScanResult(scanResult),
       availabilityChange: (AvailabilityState state) =>
           onAvailabilityChange?.call(state),
       connectionChanged: (String deviceId, BleConnectionState state) =>
