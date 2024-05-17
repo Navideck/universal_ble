@@ -49,7 +49,7 @@ abstract class UniversalBlePlatform {
   );
 
   void updateScanResult(BleScanResult scanResult) {
-    /// Filter by name
+    // Filter by name
     ScanFilter? scanFilter = _scanFilter;
     if (scanFilter != null && scanFilter.withNamePrefix.isNotEmpty) {
       if (scanResult.name == null ||
