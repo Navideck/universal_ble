@@ -1,5 +1,9 @@
+## 0.9.11
+* Add device name prefix filtering
+
 ## 0.9.10
 * Fix Windows scan filter
+* Remove scan result caching on Windows
 * Improve service discovery on Linux
 * Use asynchronous callbacks for SetNotifiable
 * Remove dependency on `convert`

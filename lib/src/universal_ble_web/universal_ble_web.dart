@@ -411,9 +411,9 @@ extension ScanFilterExtension on ScanFilter {
     }
 
     // Add name filter
-    for (var name in withName) {
+    for (var name in withNamePrefix) {
       filters.add(
-        RequestFilterBuilder(name: name),
+        RequestFilterBuilder(namePrefix: name),
       );
     }
 

@@ -119,6 +119,13 @@ Use the `withManufacturerData` parameter to filter devices by manufacturer data.
 ```dart
 List<ManufacturerDataFilter> withManufacturerData;
 ```
+##### With namePrefix
+
+Use the `withNamePrefix` parameter to filter devices by names (case sensitive). When you pass a list of names, the scan results will only include devices that have this name or start with the provided parameter.
+
+```dart
+List<String> withNamePrefix;
+```
 
 ### Connecting
 

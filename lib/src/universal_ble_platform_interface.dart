@@ -51,12 +51,10 @@ abstract class UniversalBlePlatform {
   void updateScanResult(BleScanResult scanResult) {
     /// Filter by name ( Temporarily on dart side )
     ScanFilter? scanFilter = _scanFilter;
-    if (scanFilter != null && scanFilter.withName.isNotEmpty) {
+    if (scanFilter != null && scanFilter.withNamePrefix.isNotEmpty) {
       if (scanResult.name == null ||
-          !scanFilter.withName.any((e) =>
-              scanResult.name!.toLowerCase().startsWith(e.toLowerCase()))) {
-        return;
-      }
+          !scanFilter.withNamePrefix
+              .any((e) => scanResult.name?.startsWith(e) == true)) return;
     }
     onScanResult?.call(scanResult);
   }
