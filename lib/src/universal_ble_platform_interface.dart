@@ -53,8 +53,8 @@ abstract class UniversalBlePlatform {
     ScanFilter? scanFilter = _scanFilter;
     if (scanFilter != null && scanFilter.withName.isNotEmpty) {
       if (scanResult.name == null ||
-          !scanFilter.withName
-              .any((e) => e.toLowerCase() == scanResult.name?.toLowerCase())) {
+          !scanFilter.withName.any((e) =>
+              scanResult.name!.toLowerCase().startsWith(e.toLowerCase()))) {
         return;
       }
     }

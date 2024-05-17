@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:universal_ble/universal_ble.dart';
 import 'package:universal_ble_example/data/capabilities.dart';
@@ -10,6 +11,11 @@ class ScannedItemWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     String? name = scanResult.name;
+    Uint8List? rawManufacturerData = scanResult.manufacturerData;
+    ManufacturerData? manufacturerData;
+    if (rawManufacturerData != null && rawManufacturerData.isNotEmpty) {
+      manufacturerData = ManufacturerData.fromData(rawManufacturerData);
+    }
     if (name == null || name.isEmpty) name = 'NA';
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 8.0),
@@ -23,12 +29,11 @@ class ScannedItemWidget extends StatelessWidget {
             children: [
               Text(scanResult.deviceId),
               Visibility(
-                visible: scanResult.manufacturerData?.isNotEmpty == true,
+                visible: manufacturerData != null,
                 child: Text(
                   Platform.isWeb || Platform.isDesktop
-                      ? ManufacturerData.fromData(scanResult.manufacturerData!)
-                          .toString()
-                      : 'ManufacturerCompanyId: ${ManufacturerData.fromData(scanResult.manufacturerData!).companyIdRadix16}',
+                      ? manufacturerData.toString()
+                      : 'ManufacturerCompanyId: ${manufacturerData?.companyIdRadix16}',
                 ),
               ),
               Visibility(
