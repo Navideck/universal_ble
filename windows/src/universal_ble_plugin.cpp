@@ -548,11 +548,11 @@ namespace universal_ble
     catch (const winrt::hresult_error &err)
     {
       int errorCode = err.code();
-      std::cout << "GetConnectedDeviceLog: " << winrt::to_string(err.message()) << " ErrorCode: " << std::to_string(errorCode) << std::endl;
+      std::cout << "PairLog: " << winrt::to_string(err.message()) << " ErrorCode: " << std::to_string(errorCode) << std::endl;
     }
     catch (...)
     {
-      std::cout << "Unknown error PairAsync" << std::endl;
+      std::cout << "PairLog: Unknown error" << std::endl;
     }
   }
 
