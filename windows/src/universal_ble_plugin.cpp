@@ -408,37 +408,17 @@ namespace universal_ble
       auto device = async_get(BluetoothLEDevice::FromBluetoothAddressAsync(_str_to_mac_address(device_id)));
       std::cout << "PairLog: Device to be paired was found" << std::endl;
       auto deviceInformation = device.DeviceInformation();
-      bool isPaired = deviceInformation.Pairing().IsPaired();
-      if (isPaired)
+
+      if (deviceInformation.Pairing().IsPaired())
+      {
         return FlutterError("PairLog: Device is already paired");
-      bool canPair = deviceInformation.Pairing().CanPair();
-      if (!canPair)
+      }
+      if (!deviceInformation.Pairing().CanPair())
+      {
         return FlutterError("PairLog: Device is not pairable");
+      }
 
-      auto customPairing = deviceInformation.Pairing().Custom();
-      winrt::event_token token = customPairing.PairingRequested([this](const Enumeration::DeviceInformationCustomPairing &sender, const Enumeration::DevicePairingRequestedEventArgs &eventArgs)
-                                                                {
-                                                                  std::cout << "PairLog: Pairing requested" << std::endl;
-                                                                // eventArgs.AcceptWithPasswordCredential(nullptr, nullptr);
-                                                                // eventArgs.Pin();
-                                                                // Accept all pairing request
-                                                                eventArgs.Accept(); });
-      // DevicePairingKinds => None, ConfirmOnly, DisplayPin, ProvidePin, ConfirmPinMatch, ProvidePasswordCredential
-      // DevicePairingProtectionLevel =>  Default, None, Encryption, EncryptionAndAuthentication
-      std::cout << "PairLog: Trying to pair" << std::endl;
-      auto async_c = customPairing.PairAsync(
-          Enumeration::DevicePairingKinds::ConfirmOnly);
-      async_c.Completed([this, customPairing, token, device_id](IAsyncOperation<DevicePairingResult> const &sender, AsyncStatus const args)
-                        {
-                          auto result = sender.GetResults();
-                          std::cout << "PairLog: Received pairing status" << std::endl;
-                          customPairing.PairingRequested(token);
-                          auto isPaired = result.Status() == Enumeration::DevicePairingResultStatus::Paired;
-
-                          // Post to main thread
-                          std::string errorStr = parsePairingFailError(result);
-                          uiThreadHandler_.Post([device_id, isPaired, errorStr]
-                                                { callbackChannel->OnPairStateChange(device_id, isPaired, &errorStr, SuccessCallback, ErrorCallback); }); });
+      PairAsync(device_id, deviceInformation);
       return std::nullopt;
     }
     catch (const FlutterError &err)
@@ -551,6 +531,28 @@ namespace universal_ble
     if (!bluetoothRadio)
     {
       std::cout << "Bluetooth is not available" << std::endl;
+    }
+  }
+
+  winrt::fire_and_forget UniversalBlePlugin::PairAsync(std::string device_id, const DeviceInformation deviceInformation)
+  {
+    try
+    {
+      auto result = co_await deviceInformation.Pairing().PairAsync();
+      std::cout << "PairLog: Received pairing status" << std::endl;
+      auto isPaired = result.Status() == Enumeration::DevicePairingResultStatus::Paired;
+      std::string errorStr = parsePairingFailError(result);
+      uiThreadHandler_.Post([device_id, isPaired, errorStr]
+                            { callbackChannel->OnPairStateChange(device_id, isPaired, &errorStr, SuccessCallback, ErrorCallback); });
+    }
+    catch (const winrt::hresult_error &err)
+    {
+      int errorCode = err.code();
+      std::cout << "GetConnectedDeviceLog: " << winrt::to_string(err.message()) << " ErrorCode: " << std::to_string(errorCode) << std::endl;
+    }
+    catch (...)
+    {
+      std::cout << "Unknown error PairAsync" << std::endl;
     }
   }
 
