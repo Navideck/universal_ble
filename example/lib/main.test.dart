@@ -104,8 +104,8 @@ class _MyAppState extends State<MyApp> {
 
   void onScanResultTap(String deviceId) async {
     for (int i = 0; i < 10; i++) {
-      readWithQueue(deviceId, true);
-      // writeWithQueue(deviceId, true);
+      readWithQueue(deviceId, false);
+      writeWithQueue(deviceId, false);
     }
   }
 
