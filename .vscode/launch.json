@@ -11,6 +11,13 @@
             "type": "dart"
         },
         {
+            "name": "example_test",
+            "cwd": "example",
+            "request": "launch",
+            "program": "lib/main.test.dart",
+            "type": "dart"
+        },
+        {
             "name": "example_mock",
             "cwd": "example",
             "request": "launch",
