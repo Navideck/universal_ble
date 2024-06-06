@@ -1,5 +1,3 @@
-// ignore_for_file: avoid_print
-
 import 'dart:convert';
 import 'dart:developer';
 import 'dart:typed_data';
@@ -30,11 +28,13 @@ class _MyAppState extends State<MyApp> {
   UniversalBle universalBle = UniversalBle();
   bool isScanning = false;
 
-  String readService = "00001800-0000-1000-8000-00805f9b34fb";
-  String readCharacteristic = "00002a00-0000-1000-8000-00805f9b34fb";
+  // String readService = "00001800-0000-1000-8000-00805f9b34fb";
+  // String readCharacteristic = "00002a00-0000-1000-8000-00805f9b34fb";
+  String readService = "8000dd00-dd00-ffff-ffff-ffffffffffff";
+  String readCharacteristic = "0000dd21-0000-1000-8000-00805f9b34fb";
 
-  String writeService = "8000ff00-ff00-ffff-ffff-ffffffffffff";
-  String writeCharacteristic = "0000ff01-0000-1000-8000-00805f9b34fb";
+  String writeService = "8000dd00-dd00-ffff-ffff-ffffffffffff";
+  String writeCharacteristic = "0000dd11-0000-1000-8000-00805f9b34fb";
 
   ScanFilter scanFilter = ScanFilter(
     withManufacturerData: [
@@ -57,6 +57,15 @@ class _MyAppState extends State<MyApp> {
   Map<String, bool> connectionState = {};
   Map<String, BleCommandQueue> commandQueues = {};
   List<BleScanResult> scanResults = [];
+
+  List<String> get connectedDevices =>
+      connectionState.keys.where((e) => connectionState[e] == true).toList();
+
+  @override
+  void dispose() {
+    UniversalBle.stopScan();
+    super.dispose();
+  }
 
   void setupHandlers() {
     UniversalBle.onScanResult = (BleScanResult scanResult) {
@@ -93,34 +102,34 @@ class _MyAppState extends State<MyApp> {
     );
   }
 
-  void onScanResultTap(BleScanResult scanResult) async {
+  void onScanResultTap(String deviceId) async {
     for (int i = 0; i < 10; i++) {
-      readWithQueue(scanResult, true);
-      writeWithQueue(scanResult, true);
+      readWithQueue(deviceId, true);
+      // writeWithQueue(deviceId, true);
     }
   }
 
-  void readWithQueue(BleScanResult scanResult, bool withQueue) async {
+  void readWithQueue(String deviceId, bool withQueue) async {
     _executeCommand(
-      scanResult,
+      deviceId,
       () => UniversalBle.readValue(
-        scanResult.deviceId,
+        deviceId,
         readService,
         readCharacteristic,
       ),
       withQueue: withQueue,
     ).then((value) {
-      log("ReadSuccess: ${scanResult.name} : ${utf8.decode(value)}");
+      log("ReadSuccess: $deviceId : ${utf8.decode(value)}");
     }).catchError((e) {
-      log("ReadError: ${scanResult.name} : ${e.toString()}");
+      log("ReadError: $deviceId : ${e.toString()}");
     });
   }
 
-  void writeWithQueue(BleScanResult scanResult, bool withQueue) async {
+  void writeWithQueue(String deviceId, bool withQueue) async {
     _executeCommand(
-      scanResult,
+      deviceId,
       () => UniversalBle.writeValue(
-        scanResult.deviceId,
+        deviceId,
         writeService,
         writeCharacteristic,
         utf8.encode("Hello World"),
@@ -128,19 +137,19 @@ class _MyAppState extends State<MyApp> {
       ),
       withQueue: withQueue,
     ).then((_) {
-      log("WriteSuccess: ${scanResult.name}");
+      log("WriteSuccess: $deviceId");
     }).catchError((e) {
-      log("WriteError: ${scanResult.name} : ${e.toString()}");
+      log("WriteError: $deviceId : ${e.toString()}");
     });
   }
 
   Future<T> _executeCommand<T>(
-    BleScanResult scanResult,
+    String deviceId,
     Future<T> Function() command, {
     bool withQueue = true,
   }) {
     return withQueue
-        ? commandQueues[scanResult.deviceId]?.add(command) ?? command()
+        ? commandQueues[deviceId]?.add(command) ?? command()
         : command();
   }
 
@@ -160,6 +169,7 @@ class _MyAppState extends State<MyApp> {
         ),
         body: Column(
           children: [
+            const SizedBox(height: 10),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
@@ -183,6 +193,7 @@ class _MyAppState extends State<MyApp> {
                 ),
               ],
             ),
+            const SizedBox(height: 10),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
@@ -204,6 +215,7 @@ class _MyAppState extends State<MyApp> {
                 ),
               ],
             ),
+            const SizedBox(height: 10),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
@@ -217,8 +229,8 @@ class _MyAppState extends State<MyApp> {
                 ),
                 ElevatedButton(
                   onPressed: () async {
-                    for (BleScanResult scanResult in scanResults) {
-                      onScanResultTap(scanResult);
+                    for (String deviceId in connectedDevices) {
+                      onScanResultTap(deviceId);
                     }
                   },
                   child: const Text('Tap All'),
@@ -239,7 +251,7 @@ class _MyAppState extends State<MyApp> {
                           "${scanResult.name} ( ${manufacturerData.companyIdRadix16} )",
                         ),
                         onTap: () {
-                          onScanResultTap(scanResult);
+                          onScanResultTap(scanResult.deviceId);
                         },
                         subtitle: Text(scanResult.deviceId),
                         trailing: Icon(
