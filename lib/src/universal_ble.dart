@@ -16,7 +16,8 @@ class UniversalBle {
   static void setInstance(UniversalBlePlatform instance) =>
       _platform = instance;
 
-  /// Set global timeout for all commands, default timeout is 10 seconds
+  /// Set global timeout for all commands.
+  /// Default timeout is 10 seconds
   static set timeout(Duration? duration) {
     _bleCommandQueue.timeout = duration;
   }
