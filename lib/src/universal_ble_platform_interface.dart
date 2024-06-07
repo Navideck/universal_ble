@@ -84,3 +84,5 @@ typedef OnAvailabilityChange = void Function(AvailabilityState state);
 
 typedef OnPairingStateChange = void Function(
     String deviceId, bool isPaired, String? error);
+
+typedef OnQueueUpdate = void Function(String id, int remainingQueueItems);
