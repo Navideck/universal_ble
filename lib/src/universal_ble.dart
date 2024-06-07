@@ -4,7 +4,6 @@ import 'package:flutter/foundation.dart';
 import 'package:universal_ble/src/ble_command_queue.dart';
 import 'package:universal_ble/src/universal_ble_linux/universal_ble_linux.dart';
 import 'package:universal_ble/src/universal_ble_pigeon/universal_ble_pigeon_channel.dart';
-import 'package:universal_ble/src/universal_ble_platform_interface.dart';
 import 'package:universal_ble/src/universal_ble_web/universal_ble_web.dart';
 import 'package:universal_ble/universal_ble.dart';
 
@@ -22,26 +21,29 @@ class UniversalBle {
     _bleCommandQueue.timeout = duration;
   }
 
-  /// Setup global queue for all commands, by default queue is global
-  /// [QueueType.none] will not execute commands in queue
+  /// Set how commands will be executed. By default, all commands are executed in a global queue (`QueueType.global`),
+  /// with each command waiting for the previous one to finish.
+  /// 
   /// [QueueType.global] will execute commands of all devices in a single queue
-  /// [QueueType.perDevice] will execute command of each device in a separate queue
-  static set queuesCommands(QueueType queueType) {
+  /// [QueueType.perDevice] will execute command of each device in separate queues
+  /// [QueueType.none] will execute all commands in parallel
+  static set queueType(QueueType queueType) {
     _bleCommandQueue.queueType = queueType;
     UniversalBlePlatform.logInfo('Queue ${queueType.name}');
   }
 
-  /// To get Bluetooth state availability
-  /// To get updates, set [onAvailabilityChange] listener
+  /// Get Bluetooth availability state 
+  /// To be notified of updates, set [onAvailabilityChange] listener
   static Future<AvailabilityState> getBluetoothAvailabilityState() async {
     return await _bleCommandQueue.executeCommand(
       () => _platform.getBluetoothAvailabilityState(),
     );
   }
 
-  /// To Start scan, get scan results in [onScanResult] listener
-  /// might throw errors if Bluetooth is not available
-  /// `webRequestOptions` supported on Web only
+  /// Start scan.
+  /// Scan results will arrive in [onScanResult] listener
+  /// It might throw errors if Bluetooth is not available
+  /// `webRequestOptions` is supported on Web only
   static Future<void> startScan({
     ScanFilter? scanFilter,
   }) async {
@@ -51,8 +53,9 @@ class UniversalBle {
     );
   }
 
-  /// To Stop scan, set [onScanResult] listener to `null` if you don't need it anymore
-  /// might throw errors if Bluetooth is not available
+  /// Stop scan.
+  /// Set [onScanResult] listener to `null` if you don't need it anymore
+  /// It might throw errors if Bluetooth is not available
   static Future<void> stopScan() async {
     return await _bleCommandQueue.executeCommand(
       () => _platform.stopScan(),
@@ -60,10 +63,11 @@ class UniversalBle {
     );
   }
 
-  /// To connect to a device, get connection state in [onConnectionChanged] listener
-  /// preferred to stop scan before connecting
-  /// might throw errors if device is not connectable
-  /// `connectionTimeout` supported on Web only
+  /// Connect to a device.
+  /// Get notified of connection state changes in [onConnectionChanged] listener
+  /// It is advised to stop scanning before connecting
+  /// It might throw errors if device is not connectable
+  /// `connectionTimeout` is supported on Web only
   static Future<void> connect(
     String deviceId, {
     Duration? connectionTimeout,
@@ -74,7 +78,8 @@ class UniversalBle {
     );
   }
 
-  /// To disconnect from a device, get connection state in [onConnectionChanged] listener
+  /// Disconnect from a device.
+  /// Get notified of connection state changes in [onConnectionChanged] listener
   static Future<void> disconnect(String deviceId) async {
     return await _bleCommandQueue.executeCommand(
       () => _platform.disconnect(deviceId),
@@ -82,7 +87,7 @@ class UniversalBle {
     );
   }
 
-  /// To discover services of a device
+  /// Discover services of a device
   static Future<List<BleService>> discoverServices(String deviceId) async {
     return await _bleCommandQueue.executeCommand(
       () => _platform.discoverServices(deviceId),
@@ -90,7 +95,9 @@ class UniversalBle {
     );
   }
 
-  /// To set a characteristic notifiable, set `bleInputProperty` to [BleInputProperty.notification] or [BleInputProperty.indication], get updates in [onValueChanged] listener
+  /// Set a characteristic notifiable.
+  /// Set `bleInputProperty` to [BleInputProperty.notification] or [BleInputProperty.indication]
+  /// Updates will arrive in [onValueChanged] listener
   /// To stop listening to a characteristic, set `bleInputProperty` to [BleInputProperty.disabled]
   static Future<void> setNotifiable(
     String deviceId,
@@ -109,8 +116,8 @@ class UniversalBle {
     );
   }
 
-  /// To read a characteristic value
-  /// on iOS and MacOS, this command will also trigger [onValueChanged] listener
+  /// Read a characteristic value
+  /// On iOS and MacOS this command will also trigger [onValueChanged] listener
   static Future<Uint8List> readValue(
     String deviceId,
     String service,
@@ -122,7 +129,7 @@ class UniversalBle {
     );
   }
 
-  /// To write a characteristic value
+  /// Write a characteristic value
   /// To write a characteristic value with response, set `bleOutputProperty` to [BleOutputProperty.withResponse]
   static Future<void> writeValue(
     String deviceId,
@@ -143,7 +150,8 @@ class UniversalBle {
     );
   }
 
-  /// `requestMtu` not supported on `Linux` and `Web
+  /// Request MTU value
+  /// `requestMtu` is not supported on `Linux` and `Web
   static Future<int> requestMtu(String deviceId, int expectedMtu) async {
     return await _bleCommandQueue.executeCommand(
       () => _platform.requestMtu(deviceId, expectedMtu),
@@ -151,7 +159,8 @@ class UniversalBle {
     );
   }
 
-  /// Pair commands are not supported on `iOS`, `MacOS` and `Web`
+  /// Check if a device is paired
+  /// Pair commands are not supported on `Apple` and `Web`
   static Future<bool> isPaired(String deviceId) async {
     return await _bleCommandQueue.executeCommand(
       () => _platform.isPaired(deviceId),
@@ -159,8 +168,8 @@ class UniversalBle {
     );
   }
 
-  /// To trigger pair request
-  /// might throw errors if device is already paired
+  /// Trigger pair request
+  /// It might throw an error if device is already paired
   static Future<void> pair(String deviceId) async {
     return await _bleCommandQueue.executeCommand(
       () => _platform.pair(deviceId),
@@ -168,8 +177,8 @@ class UniversalBle {
     );
   }
 
-  /// To trigger unPair request
-  /// might throw errors if device is not paired
+  /// Unpair a device
+  /// It might throw an error if device is not paired
   static Future<void> unPair(String deviceId) async {
     return await _bleCommandQueue.executeCommand(
       () => _platform.unPair(deviceId),
@@ -177,10 +186,10 @@ class UniversalBle {
     );
   }
 
-  /// To get connected devices to the system (connected by any app)
-  /// use [withServices] to filter devices by services
-  /// on `iOS`, `MacOS` [withServices] is required to get connected devices, else [1800] service will be used as default filter
-  /// on `Android`, `Linux` and `Windows`, if [withServices] is used, then internally all services will be discovered for each device first (either by connecting or by using cached services)
+  /// Get connected devices to the system (connected by any app)
+  /// Use [withServices] to filter devices by services
+  /// On `Apple`, [withServices] is required to get connected devices, else [1800] service will be used as default filter
+  /// On `Android`, `Linux` and `Windows`, if [withServices] is used, then internally all services will be discovered for each device first (either by connecting or by using cached services)
   /// Not supported on `Web`
   static Future<List<BleScanResult>> getConnectedDevices({
     List<String>? withServices,
@@ -190,7 +199,8 @@ class UniversalBle {
     );
   }
 
-  /// Enabling Bluetooth, might throw errors if Bluetooth is not available
+  /// Enable Bluetooth
+  /// It might throw errors if Bluetooth is not available
   /// Not supported on `Web` and `Apple`
   static Future<bool> enableBluetooth() async {
     return await _bleCommandQueue.executeCommand(
@@ -198,7 +208,7 @@ class UniversalBle {
     );
   }
 
-  /// To get Bluetooth state availability
+  /// Get Bluetooth state availability
   static set onAvailabilityChange(OnAvailabilityChange? onAvailabilityChange) {
     _platform.onAvailabilityChange = onAvailabilityChange;
     if (onAvailabilityChange != null) {
@@ -208,23 +218,23 @@ class UniversalBle {
     }
   }
 
-  /// To get updates of remaining items of a queue
+  /// Get updates of remaining items of a queue
   static set onQueueUpdate(OnQueueUpdate? onQueueUpdate) =>
       _bleCommandQueue.onQueueUpdate = onQueueUpdate;
 
-  /// To get scan results
+  /// Get scan results
   static set onScanResult(OnScanResult? onScanResult) =>
       _platform.onScanResult = onScanResult;
 
-  /// To get connection state changes
+  /// Get connection state changes
   static set onConnectionChanged(OnConnectionChanged? onConnectionChanged) =>
       _platform.onConnectionChanged = onConnectionChanged;
 
-  /// To get characteristic value updates, set `bleInputProperty` in [setNotifiable] to [BleInputProperty.notification] or [BleInputProperty.indication]
+  /// Get characteristic value updates, set `bleInputProperty` in [setNotifiable] to [BleInputProperty.notification] or [BleInputProperty.indication]
   static set onValueChanged(OnValueChanged? onValueChanged) =>
       _platform.onValueChanged = onValueChanged;
 
-  /// To get pair state changes,
+  /// Get pair state changes,
   static set onPairingStateChange(OnPairingStateChange pairingStateChange) =>
       _platform.onPairingStateChange = pairingStateChange;
 

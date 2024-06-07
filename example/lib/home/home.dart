@@ -45,7 +45,7 @@ class _MyAppState extends State<MyApp> {
     }
 
     /// Setup queue and timeout
-    UniversalBle.queuesCommands = _queueType;
+    UniversalBle.queueType = _queueType;
     UniversalBle.timeout = const Duration(seconds: 10);
 
     UniversalBle.onAvailabilityChange = (state) {
@@ -196,7 +196,7 @@ class _MyAppState extends State<MyApp> {
                         QueueType.perDevice => QueueType.none,
                         QueueType.none => QueueType.global,
                       };
-                      UniversalBle.queuesCommands = _queueType;
+                      UniversalBle.queueType = _queueType;
                     });
                   },
                 ),
