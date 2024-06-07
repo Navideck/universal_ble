@@ -415,24 +415,11 @@ namespace universal_ble
       if (!canPair)
         return FlutterError("PairLog: Device is not pairable");
 
-      auto customPairing = deviceInformation.Pairing().Custom();
-      winrt::event_token token = customPairing.PairingRequested([this](const Enumeration::DeviceInformationCustomPairing &sender, const Enumeration::DevicePairingRequestedEventArgs &eventArgs)
-                                                                {
-                                                                  std::cout << "PairLog: Pairing requested" << std::endl;
-                                                                // eventArgs.AcceptWithPasswordCredential(nullptr, nullptr);
-                                                                // eventArgs.Pin();
-                                                                // Accept all pairing request
-                                                                eventArgs.Accept(); });
-      // DevicePairingKinds => None, ConfirmOnly, DisplayPin, ProvidePin, ConfirmPinMatch, ProvidePasswordCredential
-      // DevicePairingProtectionLevel =>  Default, None, Encryption, EncryptionAndAuthentication
-      std::cout << "PairLog: Trying to pair" << std::endl;
-      auto async_c = customPairing.PairAsync(
-          Enumeration::DevicePairingKinds::ConfirmOnly);
-      async_c.Completed([this, customPairing, token, device_id](IAsyncOperation<DevicePairingResult> const &sender, AsyncStatus const args)
+      auto async_c = deviceInformation.Pairing().PairAsync();
+      async_c.Completed([this, device_id](IAsyncOperation<DevicePairingResult> const &sender, AsyncStatus const args)
                         {
                           auto result = sender.GetResults();
                           std::cout << "PairLog: Received pairing status" << std::endl;
-                          customPairing.PairingRequested(token);
                           auto isPaired = result.Status() == Enumeration::DevicePairingResultStatus::Paired;
 
                           // Post to main thread

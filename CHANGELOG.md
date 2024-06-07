@@ -1,3 +1,6 @@
+## 0.9.12
+* Support all DevicePairingKinds on Windows
+
 ## 0.9.11
 * Add device name prefix filtering
 
