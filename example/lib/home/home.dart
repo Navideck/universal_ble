@@ -22,7 +22,7 @@ class MyApp extends StatefulWidget {
 class _MyAppState extends State<MyApp> {
   final _scanResults = <BleScanResult>[];
   bool _isScanning = false;
-  bool _isQueueEnabled = true;
+  QueueType _queueType = QueueType.global;
 
   AvailabilityState? bleAvailabilityState;
   final List<String> _services = [
@@ -45,7 +45,7 @@ class _MyAppState extends State<MyApp> {
     }
 
     /// Setup queue and timeout
-    UniversalBle.queuesCommands = _isQueueEnabled;
+    UniversalBle.queuesCommands = _queueType;
     UniversalBle.timeout = const Duration(seconds: 10);
 
     UniversalBle.onAvailabilityChange = (state) {
@@ -68,6 +68,10 @@ class _MyAppState extends State<MyApp> {
       }
       setState(() {});
     };
+
+    // UniversalBle.onQueueUpdate = (String id, int remainingItems) {
+    //   debugPrint("Queue: $id RemainingItems: $remainingItems");
+    // };
   }
 
   Future<void> startScan() async {
@@ -184,11 +188,15 @@ class _MyAppState extends State<MyApp> {
                     },
                   ),
                 PlatformButton(
-                  text: _isQueueEnabled ? 'Disable Queue' : 'Enable Queue',
+                  text: 'Queue: ${_queueType.name.toUpperCase()}',
                   onPressed: () {
                     setState(() {
-                      _isQueueEnabled = !_isQueueEnabled;
-                      UniversalBle.queuesCommands = _isQueueEnabled;
+                      _queueType = switch (_queueType) {
+                        QueueType.global => QueueType.perDevice,
+                        QueueType.perDevice => QueueType.none,
+                        QueueType.none => QueueType.global,
+                      };
+                      UniversalBle.queuesCommands = _queueType;
                     });
                   },
                 ),

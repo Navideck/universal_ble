@@ -1,80 +1,50 @@
-import 'dart:async';
+import 'package:universal_ble/src/queue.dart';
+import 'package:universal_ble/universal_ble.dart';
 
-/// Original Author: Ryan Knell (https://github.com/rknell/dart_queue)
-
-/// Queue to execute Futures in order.
-/// It awaits each future before executing the next one.
+/// Execute Commands in queue, and manage queue per device
 class BleCommandQueue {
-  final Set<int> _activeItems = {};
-  int _lastProcessId = 0;
-  bool _isCancelled = false;
-  final List<_QueuedFuture> _nextCycle = [];
+  QueueType queueType = QueueType.global;
+  Duration? timeout = const Duration(seconds: 10);
+  OnQueueUpdate? onQueueUpdate;
+  final Queue _globalQueue = Queue();
+  final Map<String, Queue> _queueMap = {};
 
-  Future<T> add<T>(Future<T> Function() closure, {Duration? timeout}) {
-    if (_isCancelled) throw Exception('Queue Cancelled');
-    final completer = Completer<T>();
-    _nextCycle.add(_QueuedFuture<T>(closure, completer, timeout));
-    _updateRemainingItems();
-    if (_activeItems.isEmpty) _queueUpNext();
-    return completer.future;
+  BleCommandQueue() {
+    _globalQueue.onRemainingItemsUpdate = (int items) {
+      onQueueUpdate?.call(QueueType.global.name, items);
+    };
   }
 
-  void dispose() {
-    for (final item in _nextCycle) {
-      item.completer.completeError(Exception('Queue Cancelled'));
+  Future<T> executeCommand<T>(
+    Future<T> Function() command, {
+    bool withTimeout = true,
+    String? deviceId,
+  }) {
+    Duration? duration = withTimeout ? timeout : null;
+    switch (queueType) {
+      case QueueType.none:
+        return duration != null ? command().timeout(duration) : command();
+      case QueueType.global:
+        return _globalQueue.add(command, timeout: duration);
+      case QueueType.perDevice:
+        // If deviceId not available, use global queue
+        if (deviceId != null) {
+          return _getQueue(deviceId).add(command, timeout: duration);
+        } else {
+          return _globalQueue.add(command, timeout: duration);
+        }
     }
-    _nextCycle.removeWhere((item) => item.completer.isCompleted);
-    _isCancelled = true;
   }
 
-  void _queueUpNext() {
-    if (_nextCycle.isNotEmpty && !_isCancelled && _activeItems.length <= 1) {
-      final processId = _lastProcessId;
-      _activeItems.add(processId);
-      final item = _nextCycle.first;
-      _lastProcessId++;
-      _nextCycle.remove(item);
-      item.onComplete = () async {
-        _activeItems.remove(processId);
-        _updateRemainingItems();
-        _queueUpNext();
+  Queue _getQueue(String deviceId) {
+    Queue? queue = _queueMap[deviceId];
+    if (queue == null) {
+      queue = Queue();
+      queue.onRemainingItemsUpdate = (int items) {
+        onQueueUpdate?.call(deviceId, items);
       };
-      unawaited(item.execute());
+      _queueMap[deviceId] = queue;
     }
-  }
-
-  void _updateRemainingItems() {
-    // int remainingQueueItems = _nextCycle.length + _activeItems.length;
-    // onRemainingItemsUpdate?.call(_);
-  }
-}
-
-class _QueuedFuture<T> {
-  final Completer completer;
-  final Future<T> Function() closure;
-  Function? onComplete;
-  final Duration? timeout;
-
-  _QueuedFuture(this.closure, this.completer, this.timeout, {this.onComplete});
-
-  Future<void> execute() async {
-    try {
-      T result;
-      if (timeout != null) {
-        result = await closure().timeout(timeout!);
-      } else {
-        result = await closure();
-      }
-      if (result != null) {
-        completer.complete(result);
-      } else {
-        completer.complete(null);
-      }
-      await Future.microtask(() {});
-    } catch (e, stack) {
-      completer.completeError(e, stack);
-    } finally {
-      if (onComplete != null) onComplete?.call();
-    }
+    return queue;
   }
 }
