@@ -1,7 +1,7 @@
 import 'package:universal_ble/src/queue.dart';
 import 'package:universal_ble/universal_ble.dart';
 
-/// Execute Commands in queue, and manage queue per device
+/// Execute commands in queue and manage queue per device
 class BleCommandQueue {
   QueueType queueType = QueueType.global;
   Duration? timeout = const Duration(seconds: 10);
