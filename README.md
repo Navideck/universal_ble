@@ -96,9 +96,12 @@ Already connected devices, either through previous sessions or connected through
 You can list those devices using `getConnectedDevices()`. You still need to explicitly connect before using them.
 
 ```dart
+// Get connected devices
 // You can set `withServices` to narrow down the results
-await UniversalBle.getConnectedDevices(withServices: []);
+List<BleDevice> devices = await UniversalBle.getConnectedDevices(withServices: []);
 ```
+
+For each connected device the `isConnected` property will be `true`.
 
 #### Scan Filter
 

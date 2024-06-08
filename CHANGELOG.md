@@ -1,8 +1,8 @@
 ## 0.9.12
+* BREAKING CHANGE: Rename ScanResult to BleDevice
+* Add isConnected property to BleDevice
 * Add .perDevice queue
 * Improve code level documentation
-* Rename ScanResult to BleDevice
-* Add isConnected property to BleDevice
 
 ## 0.9.11
 * Add device name prefix filtering
