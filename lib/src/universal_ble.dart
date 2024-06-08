@@ -24,7 +24,7 @@ class UniversalBle {
 
   /// Set how commands will be executed. By default, all commands are executed in a global queue (`QueueType.global`),
   /// with each command waiting for the previous one to finish.
-  /// 
+  ///
   /// [QueueType.global] will execute commands of all devices in a single queue
   /// [QueueType.perDevice] will execute command of each device in separate queues
   /// [QueueType.none] will execute all commands in parallel
@@ -33,7 +33,7 @@ class UniversalBle {
     UniversalBlePlatform.logInfo('Queue ${queueType.name}');
   }
 
-  /// Get Bluetooth availability state 
+  /// Get Bluetooth availability state
   /// To be notified of updates, set [onAvailabilityChange] listener
   static Future<AvailabilityState> getBluetoothAvailabilityState() async {
     return await _bleCommandQueue.executeCommand(
@@ -192,7 +192,7 @@ class UniversalBle {
   /// On `Apple`, [withServices] is required to get connected devices, else [1800] service will be used as default filter
   /// On `Android`, `Linux` and `Windows`, if [withServices] is used, then internally all services will be discovered for each device first (either by connecting or by using cached services)
   /// Not supported on `Web`
-  static Future<List<BleScanResult>> getConnectedDevices({
+  static Future<List<BleDevice>> getConnectedDevices({
     List<String>? withServices,
   }) async {
     return await _bleCommandQueue.executeCommand(
@@ -224,8 +224,8 @@ class UniversalBle {
       _bleCommandQueue.onQueueUpdate = onQueueUpdate;
 
   /// Get scan results
-  static set onScanResult(OnScanResult? onScanResult) =>
-      _platform.onScanResult = onScanResult;
+  static set onScanResult(OnScanResult? bleDevice) =>
+      _platform.onScanResult = bleDevice;
 
   /// Get connection state changes
   static set onConnectionChanged(OnConnectionChanged? onConnectionChanged) =>

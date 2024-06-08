@@ -279,7 +279,7 @@ class UniversalBleLinux extends UniversalBlePlatform {
   }
 
   @override
-  Future<List<BleScanResult>> getConnectedDevices(
+  Future<List<BleDevice>> getConnectedDevices(
     List<String>? withServices,
   ) async {
     List<BlueZDevice> devices =
@@ -297,7 +297,7 @@ class UniversalBleLinux extends UniversalBlePlatform {
         }
       }).toList();
     }
-    return devices.map((device) => device.toBleScanResult()).toList();
+    return devices.map((device) => device.toBleDevice()).toList();
   }
 
   AvailabilityState get _availabilityState {
@@ -400,7 +400,7 @@ class UniversalBleLinux extends UniversalBlePlatform {
     }
 
     // Update scan results only if rssi is available
-    if (device.rssi != 0) updateScanResult(device.toBleScanResult());
+    if (device.rssi != 0) updateScanResult(device.toBleDevice());
 
     // Setup Cache
     _devices[device.address] = device;
@@ -415,7 +415,7 @@ class UniversalBleLinux extends UniversalBlePlatform {
       for (final property in properties) {
         switch (property) {
           case BluezProperty.rssi:
-            updateScanResult(device.toBleScanResult());
+            updateScanResult(device.toBleDevice());
             break;
           case BluezProperty.connected:
             onConnectionChanged?.call(
@@ -426,7 +426,7 @@ class UniversalBleLinux extends UniversalBlePlatform {
             );
             break;
           case BluezProperty.manufacturerData:
-            updateScanResult(device.toBleScanResult());
+            updateScanResult(device.toBleDevice());
             break;
           case BluezProperty.paired:
             onPairingStateChange?.call(device.address, device.paired, null);
@@ -591,8 +591,8 @@ extension BlueZDeviceExtension on BlueZDevice {
     }
   }
 
-  BleScanResult toBleScanResult() {
-    return BleScanResult(
+  BleDevice toBleDevice() {
+    return BleDevice(
       name: alias,
       deviceId: address,
       isPaired: paired,

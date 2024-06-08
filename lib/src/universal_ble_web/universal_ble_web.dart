@@ -289,7 +289,7 @@ class UniversalBleWeb extends UniversalBlePlatform {
   }
 
   @override
-  Future<List<BleScanResult>> getConnectedDevices(
+  Future<List<BleDevice>> getConnectedDevices(
     List<String>? withServices,
   ) {
     throw UnimplementedError();
@@ -351,12 +351,12 @@ class UniversalBleWeb extends UniversalBlePlatform {
 }
 
 extension _BluetoothDeviceExtension on BluetoothDevice {
-  BleScanResult toBleScanResult({
+  BleDevice toBleScanResult({
     int? rssi,
     UnmodifiableMapView<int, ByteData>? manufacturerDataMap,
     List<String> services = const [],
   }) {
-    return BleScanResult(
+    return BleDevice(
       name: name,
       deviceId: id,
       manufacturerData: manufacturerDataMap?.toUint8List(),

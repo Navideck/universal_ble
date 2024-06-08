@@ -1,6 +1,6 @@
 import 'dart:typed_data';
 
-class BleScanResult {
+class BleDevice {
   String deviceId;
   String? name;
   bool? isPaired;
@@ -9,7 +9,7 @@ class BleScanResult {
   int? rssi;
   List<String> services;
 
-  BleScanResult({
+  BleDevice({
     required this.name,
     required this.deviceId,
     this.rssi,
@@ -24,7 +24,7 @@ class BleScanResult {
 }
 
 /// Represents the manufacturer data of a BLE device.
-/// Use [BleScanResult.manufacturerData] with [ManufacturerData.fromData] to create an instance of this class.
+/// Use [BleDevice.manufacturerData] with [ManufacturerData.fromData] to create an instance of this class.
 class ManufacturerData {
   final int? companyId;
   final Uint8List? data;

@@ -104,12 +104,12 @@ class UniversalBlePigeonChannel extends UniversalBlePlatform {
   Future<void> unPair(String deviceId) => _channel.unPair(deviceId);
 
   @override
-  Future<List<BleScanResult>> getConnectedDevices(
+  Future<List<BleDevice>> getConnectedDevices(
     List<String>? withServices,
   ) async {
     var devices = await _channel.getConnectedDevices(withServices ?? []);
-    return List<BleScanResult>.from(devices
-        .map((e) => e?.toBleScanResult())
+    return List<BleDevice>.from(devices
+        .map((e) => e?.toBleDevice())
         .where((e) => e != null)
         .toList());
   }
@@ -117,7 +117,7 @@ class UniversalBlePigeonChannel extends UniversalBlePlatform {
   /// To set listeners
   void _setupListeners() {
     UniversalBleCallbackChannel.setUp(_UniversalBleCallbackHandler(
-      scanResult: (BleScanResult scanResult) => updateScanResult(scanResult),
+      scanResult: (BleDevice bleDevice) => updateScanResult(bleDevice),
       availabilityChange: (AvailabilityState state) =>
           onAvailabilityChange?.call(state),
       connectionChanged: (String deviceId, BleConnectionState state) =>
@@ -173,7 +173,7 @@ class _UniversalBleCallbackHandler extends UniversalBleCallbackChannel {
 
   @override
   void onScanResult(UniversalBleScanResult result) =>
-      scanResult(result.toBleScanResult());
+      scanResult(result.toBleDevice());
 
   @override
   void onValueChanged(
@@ -186,10 +186,10 @@ class _UniversalBleCallbackHandler extends UniversalBleCallbackChannel {
 }
 
 extension _UniversalBleScanResultExtension on UniversalBleScanResult {
-  BleScanResult toBleScanResult() {
+  BleDevice toBleDevice() {
     var mnfDataHead = manufacturerDataHead ?? Uint8List.fromList([]);
     var mnfData = manufacturerData ?? mnfDataHead;
-    return BleScanResult(
+    return BleDevice(
       name: name,
       deviceId: deviceId,
       isPaired: isPaired,

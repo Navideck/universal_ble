@@ -5,7 +5,7 @@ import 'package:universal_ble/universal_ble.dart';
 
 /// Mock implementation of [UniversalBlePlatform] for testing
 class MockUniversalBle extends UniversalBlePlatform {
-  final _mockBleScanResult = BleScanResult(
+  final _mockBleDevice = BleDevice(
     name: 'MockDevice',
     deviceId: 'MockDeviceId',
     rssi: 50,
@@ -23,11 +23,8 @@ class MockUniversalBle extends UniversalBlePlatform {
   ]);
 
   @override
-  Future<void> startScan({
-    ScanFilter? scanFilter,
-  }) async {
-    onScanResult?.call(_mockBleScanResult);
-  }
+  Future<void> startScan({ScanFilter? scanFilter}) async =>
+      onScanResult?.call(_mockBleDevice);
 
   @override
   Future<void> stopScan() async {}
@@ -59,7 +56,7 @@ class MockUniversalBle extends UniversalBlePlatform {
   }
 
   @override
-  Future<List<BleScanResult>> getConnectedDevices(
+  Future<List<BleDevice>> getConnectedDevices(
       List<String>? withServices) async {
     return [];
   }

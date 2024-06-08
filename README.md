@@ -53,8 +53,8 @@ import 'package:universal_ble/universal_ble.dart';
 
 ```dart
 // Set a scan result handler
-UniversalBle.onScanResult = (scanResult) {
-  // e.g. Use scan result to connect
+UniversalBle.onScanResult = (bleDevice) {
+  // e.g. Use BleDevice ID to connect
 }
 
 // Perform a scan
@@ -130,8 +130,8 @@ List<String> withNamePrefix;
 ### Connecting
 
 ```dart
-// Connect to a device using the `deviceId` of the scanResult received from `UniversalBle.onScanResult`
-String deviceId = scanResult.deviceId;
+// Connect to a device using the `deviceId` of the BleDevice received from `UniversalBle.onScanResult`
+String deviceId = bleDevice.deviceId;
 UniversalBle.connect(deviceId);
 
 // Disconnect from a device
