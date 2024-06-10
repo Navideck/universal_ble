@@ -85,6 +85,9 @@ abstract class UniversalBleCallbackChannel {
 
   void onPairStateChange(String deviceId, bool isPaired, String? error);
 
+  @async
+  String? onPinPairingRequest();
+
   void onScanResult(UniversalBleScanResult result);
 
   void onValueChanged(

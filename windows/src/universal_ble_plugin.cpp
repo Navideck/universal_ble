@@ -418,7 +418,9 @@ namespace universal_ble
         return FlutterError("PairLog: Device is not pairable");
       }
 
-      PairAsync(device_id, deviceInformation);
+      // TODO: use PairAsync for windows 11
+      // PairAsync(device_id, deviceInformation);
+      CustomPairAsync(device_id, deviceInformation);
       return std::nullopt;
     }
     catch (const FlutterError &err)
@@ -545,15 +547,74 @@ namespace universal_ble
       uiThreadHandler_.Post([device_id, isPaired, errorStr]
                             { callbackChannel->OnPairStateChange(device_id, isPaired, &errorStr, SuccessCallback, ErrorCallback); });
     }
-    catch (const winrt::hresult_error &err)
-    {
-      int errorCode = err.code();
-      std::cout << "PairLog: " << winrt::to_string(err.message()) << " ErrorCode: " << std::to_string(errorCode) << std::endl;
-    }
     catch (...)
     {
       std::cout << "PairLog: Unknown error" << std::endl;
     }
+  }
+
+  winrt::fire_and_forget UniversalBlePlugin::CustomPairAsync(std::string device_id, const DeviceInformation deviceInformation)
+  {
+    try
+    {
+      auto customPairing = deviceInformation.Pairing().Custom();
+      winrt::event_token token = customPairing.PairingRequested({this, &UniversalBlePlugin::PairingRequestedHandler});
+      std::cout << "PairLog: Trying to pair" << std::endl;
+      DevicePairingProtectionLevel protectionLevel = deviceInformation.Pairing().ProtectionLevel();
+      // DevicePairingKinds => None, ConfirmOnly, DisplayPin, ProvidePin, ConfirmPinMatch, ProvidePasswordCredential
+      auto result = co_await customPairing.PairAsync(DevicePairingKinds::ConfirmOnly | DevicePairingKinds::ProvidePin, protectionLevel);
+      std::cout << "PairLog: Got Pair Result" << std::endl;
+      DevicePairingResultStatus status = result.Status();
+      customPairing.PairingRequested(token);
+      auto isPaired = status == Enumeration::DevicePairingResultStatus::Paired;
+      std::string errorStr = parsePairingFailError(result);
+      uiThreadHandler_.Post([device_id, isPaired, errorStr]
+                            { callbackChannel->OnPairStateChange(device_id, isPaired, &errorStr, SuccessCallback, ErrorCallback); });
+    }
+    catch (...)
+    {
+      std::cout << "PairLog Error: Pairing Failed" << std::endl;
+    }
+  }
+
+  void UniversalBlePlugin::PairingRequestedHandler(DeviceInformationCustomPairing sender, DevicePairingRequestedEventArgs eventArgs)
+  {
+    std::cout << "PairLog: Got PairingRequest" << std::endl;
+    DevicePairingKinds kind = eventArgs.PairingKind();
+    if (kind != DevicePairingKinds::ProvidePin)
+    {
+      eventArgs.Accept();
+      return;
+    }
+
+    std::cout << "PairLog: Trying to get pin from Flutter" << std::endl;
+    // auto deferral = eventArgs.GetDeferral();
+    // uiThreadHandler_.Post([eventArgs]
+    //                       {
+    callbackChannel->OnPinPairingRequest(
+        [eventArgs](const std::string *value)
+        {
+          std::cout << "PairLog: Got response from Flutter" << std::endl;
+          if (value != nullptr && value->length() > 0)
+          {
+            hstring pin = winrt::to_hstring(*value);
+            std::wcout << "PairLog: Provided Pin: " << pin.c_str() << std::endl;
+            eventArgs.Accept(pin);
+            std::wcout << "PairLog: Event arg accepted" << std::endl;
+          }
+          else
+          {
+            std::cout << "PairLog: No pin provided" << std::endl;
+            eventArgs.Accept();
+          }
+        },
+        [eventArgs](const FlutterError &error)
+        {
+          std::cout << "PairLog Error: Pairing Failed" << std::endl;
+          eventArgs.Accept();
+        });
+    // Handle Pin from flutter
+    //  });
   }
 
   // Send device to callback channel

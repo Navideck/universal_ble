@@ -227,6 +227,10 @@ class UniversalBle {
   static set onPairingStateChange(OnPairingStateChange pairingStateChange) =>
       _platform.onPairingStateChange = pairingStateChange;
 
+  /// To get pin pair request
+  static set onPinPairRequest(OnPinPairRequest? pinPairRequest) =>
+      _platform.onPinPairRequest = pinPairRequest;
+
   static UniversalBlePlatform _defaultPlatform() {
     if (kIsWeb) return UniversalBleWeb.instance;
     if (defaultTargetPlatform == TargetPlatform.linux) {

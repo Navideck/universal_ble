@@ -1,11 +1,14 @@
 // ignore_for_file: avoid_print, depend_on_referenced_packages
 
+import 'dart:async';
+
 import 'package:convert/convert.dart';
 import 'package:expandable/expandable.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:universal_ble/universal_ble.dart';
 import 'package:universal_ble_example/data/capabilities.dart';
+import 'package:universal_ble_example/peripheral_details/enter_pin_dialog.dart';
 import 'package:universal_ble_example/peripheral_details/widgets/result_widget.dart';
 import 'package:universal_ble_example/peripheral_details/widgets/services_list_widget.dart';
 import 'package:universal_ble_example/widgets/platform_button.dart';
@@ -43,6 +46,7 @@ class _PeripheralDetailPageState extends State<PeripheralDetailPage> {
     UniversalBle.onConnectionChanged = _handleConnectionChange;
     UniversalBle.onValueChanged = _handleValueChange;
     UniversalBle.onPairingStateChange = _handlePairingStateChange;
+    UniversalBle.onPinPairRequest = _handlePairPinRequest;
   }
 
   @override
@@ -52,6 +56,27 @@ class _PeripheralDetailPageState extends State<PeripheralDetailPage> {
     UniversalBle.onValueChanged = null;
     // Disconnect when leaving the page
     if (isConnected) UniversalBle.disconnect(widget.deviceId);
+  }
+
+  Future<String?> _handlePairPinRequest() async {
+    Completer<String?> completer = Completer<String?>();
+    showAdaptiveDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => EnterPinDialog(
+        onPin: (String pin) {
+          if (!completer.isCompleted) {
+            completer.complete(pin);
+          }
+        },
+        onCancel: () {
+          if (!completer.isCompleted) {
+            completer.complete(null);
+          }
+        },
+      ),
+    );
+    return completer.future;
   }
 
   void _addLog(String type, dynamic data) {

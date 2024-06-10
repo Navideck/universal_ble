@@ -116,18 +116,21 @@ class UniversalBlePigeonChannel extends UniversalBlePlatform {
 
   /// To set listeners
   void _setupListeners() {
-    UniversalBleCallbackChannel.setUp(_UniversalBleCallbackHandler(
-      scanResult: (BleScanResult scanResult) => updateScanResult(scanResult),
-      availabilityChange: (AvailabilityState state) =>
-          onAvailabilityChange?.call(state),
-      connectionChanged: (String deviceId, BleConnectionState state) =>
-          onConnectionChanged?.call(deviceId, state),
-      valueChanged:
-          (String deviceId, String characteristicId, Uint8List value) =>
-              onValueChanged?.call(deviceId, characteristicId, value),
-      pairStateChange: (String deviceId, bool isPaired, String? error) =>
-          onPairingStateChange?.call(deviceId, isPaired, error),
-    ));
+    UniversalBleCallbackChannel.setUp(
+      _UniversalBleCallbackHandler(
+        scanResult: (BleScanResult scanResult) => updateScanResult(scanResult),
+        availabilityChange: (AvailabilityState state) =>
+            onAvailabilityChange?.call(state),
+        connectionChanged: (String deviceId, BleConnectionState state) =>
+            onConnectionChanged?.call(deviceId, state),
+        valueChanged:
+            (String deviceId, String characteristicId, Uint8List value) =>
+                onValueChanged?.call(deviceId, characteristicId, value),
+        pairStateChange: (String deviceId, bool isPaired, String? error) =>
+            onPairingStateChange?.call(deviceId, isPaired, error),
+        pinPairRequest: () async => await onPinPairRequest?.call(),
+      ),
+    );
   }
 }
 
@@ -154,6 +157,7 @@ class _UniversalBleCallbackHandler extends UniversalBleCallbackChannel {
   OnConnectionChanged connectionChanged;
   OnValueChanged valueChanged;
   OnPairingStateChange pairStateChange;
+  OnPinPairRequest pinPairRequest;
 
   _UniversalBleCallbackHandler({
     required this.availabilityChange,
@@ -161,6 +165,7 @@ class _UniversalBleCallbackHandler extends UniversalBleCallbackChannel {
     required this.connectionChanged,
     required this.valueChanged,
     required this.pairStateChange,
+    required this.pinPairRequest,
   });
 
   @override
@@ -183,6 +188,9 @@ class _UniversalBleCallbackHandler extends UniversalBleCallbackChannel {
   @override
   void onPairStateChange(String deviceId, bool isPaired, String? error) =>
       pairStateChange(deviceId, isPaired, error);
+
+  @override
+  Future<String?> onPinPairingRequest() => pinPairRequest();
 }
 
 extension _UniversalBleScanResultExtension on UniversalBleScanResult {

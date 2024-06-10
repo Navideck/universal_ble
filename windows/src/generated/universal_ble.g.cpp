@@ -1039,6 +1039,29 @@ void UniversalBleCallbackChannel::OnPairStateChange(
   });
 }
 
+void UniversalBleCallbackChannel::OnPinPairingRequest(
+  std::function<void(const std::string*)>&& on_success,
+  std::function<void(const FlutterError&)>&& on_error) {
+  const std::string channel_name = "dev.flutter.pigeon.universal_ble.UniversalBleCallbackChannel.onPinPairingRequest" + message_channel_suffix_;
+  BasicMessageChannel<> channel(binary_messenger_, channel_name, &GetCodec());
+  EncodableValue encoded_api_arguments = EncodableValue();
+  channel.Send(encoded_api_arguments, [channel_name, on_success = std::move(on_success), on_error = std::move(on_error)](const uint8_t* reply, size_t reply_size) {
+    std::unique_ptr<EncodableValue> response = GetCodec().DecodeMessage(reply, reply_size);
+    const auto& encodable_return_value = *response;
+    const auto* list_return_value = std::get_if<EncodableList>(&encodable_return_value);
+    if (list_return_value) {
+      if (list_return_value->size() > 1) {
+        on_error(FlutterError(std::get<std::string>(list_return_value->at(0)), std::get<std::string>(list_return_value->at(1)), list_return_value->at(2)));
+      } else {
+        const auto* return_value = std::get_if<std::string>(&list_return_value->at(0));
+        on_success(return_value);
+      }
+    } else {
+      on_error(CreateConnectionError(channel_name));
+    } 
+  });
+}
+
 void UniversalBleCallbackChannel::OnScanResult(
   const UniversalBleScanResult& result_arg,
   std::function<void(void)>&& on_success,
