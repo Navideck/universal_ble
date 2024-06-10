@@ -5,6 +5,6 @@ export 'package:universal_ble/src/models/ble_property.dart';
 export 'package:universal_ble/src/models/ble_service.dart';
 export 'package:universal_ble/src/models/availability_state.dart';
 export 'package:universal_ble/src/models/ble_connection_state.dart';
-export 'package:universal_ble/src/models/ble_scan_result.dart';
+export 'package:universal_ble/src/models/ble_device.dart';
 
 

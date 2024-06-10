@@ -4,8 +4,7 @@ class BleDevice {
   String deviceId;
   String? name;
   bool? isPaired;
-  bool
-      isConnected; // TODO: make this read only and perhaps create a getter which returns a real time value
+  bool? isConnected; // TODO: Get value dynamically
   Uint8List? manufacturerDataHead;
   Uint8List? manufacturerData;
   int? rssi;
@@ -16,7 +15,7 @@ class BleDevice {
     required this.deviceId,
     this.rssi,
     this.isPaired,
-    this.isConnected = false,
+    this.isConnected,
     Uint8List? manufacturerData,
     Uint8List? manufacturerDataHead,
     this.services = const [],
