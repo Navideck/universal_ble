@@ -87,3 +87,5 @@ typedef OnPairingStateChange = void Function(
     String deviceId, bool isPaired, String? error);
 
 typedef OnPinPairRequest = Future<String?> Function();
+
+typedef OnQueueUpdate = void Function(String id, int remainingQueueItems);

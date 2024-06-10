@@ -137,9 +137,9 @@ UniversalBle.connect(deviceId);
 // Disconnect from a device
 UniversalBle.disconnect(deviceId);
 
-// Get notified for connection state changes
+// Get connection state updates
 UniversalBle.onConnectionChanged = (String deviceId, BleConnectionState state) {
-  print('OnConnectionChanged $deviceId, $state');
+  debugPrint('OnConnectionChanged $deviceId, $state');
 }
 ```
 
@@ -168,7 +168,7 @@ UniversalBle.setNotifiable(deviceId, serviceId, characteristicId, BleInputProper
 
 // Get characteristic updates in `onValueChanged`
 UniversalBle.onValueChanged = (String deviceId, String characteristicId, Uint8List value) {
-  print('onValueChanged $deviceId, $characteristicId, ${hex.encode(value)}');
+  debugPrint('onValueChanged $deviceId, $characteristicId, ${hex.encode(value)}');
 }
 
 // Unsubscribe from a characteristic
@@ -210,11 +210,31 @@ UniversalBle.enableBluetooth();
 
 ## Command Queue
 
-By default, all commands are executed in a queue, with each command waiting for the previous one to finish. This is because some platforms (e.g. Android) may fail to send consecutive commands without a delay between them. Therefore, it is a good idea to leave the queue enabled.
+By default, all commands are executed in a global queue (`QueueType.global`), with each command waiting for the previous one to finish.
+
+If you want to parallelize commands between multiple devices, you can set:
+
+```dart
+// Create a separate queue for each device. 
+UniversalBle.queueType = QueueType.perDevice;
+```
+
+You can also disable the queue completely and parallelize all commands, even for the same device, by using:
 
 ```dart
 // Disable queue
-UniversalBle.queuesCommands = false;
+UniversalBle.queueType = QueueType.none;
+```
+
+Keep in mind that some platforms (e.g. Android) may not handle well devices that fail to process consecutive commands without a minimum interval. Therefore, it is not advised to set `queueType` to `none`.
+
+You can get queue updates by setting:
+
+```dart
+// Get queue state updates
+UniversalBle.onQueueUpdate = (String id, int remainingItems) {
+  debugPrint("Queue: $id Remaining: $remainingItems");
+};
 ```
 
 ## Timeout
