@@ -14,6 +14,7 @@
 #include "helper/utils.h"
 #include "helper/universal_enum.h"
 #include "generated/universal_ble.g.h"
+#include "dialog_handler.h"
 
 namespace universal_ble
 {
@@ -587,32 +588,36 @@ namespace universal_ble
       return;
     }
 
-    std::cout << "PairLog: Trying to get pin from Flutter" << std::endl;
+    std::cout << "PairLog: Trying to get pin from user" << std::endl;
+    hstring pin = askForPairingPin();
+    std::wcout << "PairLog: Got Pin: " << pin.c_str() << std::endl;
+    eventArgs.Accept(pin);
+
     // auto deferral = eventArgs.GetDeferral();
     // uiThreadHandler_.Post([eventArgs]
     //                       {
-    callbackChannel->OnPinPairingRequest(
-        [eventArgs](const std::string *value)
-        {
-          std::cout << "PairLog: Got response from Flutter" << std::endl;
-          if (value != nullptr && value->length() > 0)
-          {
-            hstring pin = winrt::to_hstring(*value);
-            std::wcout << "PairLog: Provided Pin: " << pin.c_str() << std::endl;
-            eventArgs.Accept(pin);
-            std::wcout << "PairLog: Event arg accepted" << std::endl;
-          }
-          else
-          {
-            std::cout << "PairLog: No pin provided" << std::endl;
-            eventArgs.Accept();
-          }
-        },
-        [eventArgs](const FlutterError &error)
-        {
-          std::cout << "PairLog Error: Pairing Failed" << std::endl;
-          eventArgs.Accept();
-        });
+    // callbackChannel->OnPinPairingRequest(
+    //     [eventArgs](const std::string *value)
+    //     {
+    //       std::cout << "PairLog: Got response from Flutter" << std::endl;
+    //       if (value != nullptr && value->length() > 0)
+    //       {
+    //         hstring pin = winrt::to_hstring(*value);
+    //         std::wcout << "PairLog: Provided Pin: " << pin.c_str() << std::endl;
+    //         eventArgs.Accept(pin);
+    //         std::wcout << "PairLog: Event arg accepted" << std::endl;
+    //       }
+    //       else
+    //       {
+    //         std::cout << "PairLog: No pin provided" << std::endl;
+    //         eventArgs.Accept();
+    //       }
+    //     },
+    //     [eventArgs](const FlutterError &error)
+    //     {
+    //       std::cout << "PairLog Error: Pairing Failed" << std::endl;
+    //       eventArgs.Accept();
+    //     });
     // Handle Pin from flutter
     //  });
   }
