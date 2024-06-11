@@ -14,7 +14,7 @@
 #include "helper/utils.h"
 #include "helper/universal_enum.h"
 #include "generated/universal_ble.g.h"
-#include "dialog_handler.h"
+#include "pin_entry.h"
 
 namespace universal_ble
 {

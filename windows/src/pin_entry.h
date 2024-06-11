@@ -21,9 +21,9 @@ namespace universal_ble
     TCHAR textBoxText[256];
 
     // Location and Dimensions of ui elements: X, Y, Width, Height
-    const SizeAndPos_t mainWindow = {150, 150, 450, 200};
-    const SizeAndPos_t txtEdit = {60, 40, 300, 25};
-    const SizeAndPos_t btnOK = {60, 80, 300, 25};
+    const SizeAndPos_t mainWindow = {150, 150, 350, 300};
+    const SizeAndPos_t txtEdit = {60, 40, 200, 60};
+    const SizeAndPos_t btnOK = {60, 120, 200, 60};
 
     LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
     {
