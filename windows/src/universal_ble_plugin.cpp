@@ -419,9 +419,14 @@ namespace universal_ble
         return FlutterError("PairLog: Device is not pairable");
       }
 
-      // TODO: use PairAsync for windows 11
-      // PairAsync(device_id, deviceInformation);
-      CustomPairAsync(device_id, deviceInformation);
+      if (isWindows11OrGreater())
+      {
+        PairAsync(device_id, deviceInformation);
+      }
+      else
+      {
+        CustomPairAsync(device_id, deviceInformation);
+      }
       return std::nullopt;
     }
     catch (const FlutterError &err)
