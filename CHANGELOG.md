@@ -1,6 +1,7 @@
 ## 0.9.12
 * Add .perDevice queue
 * Improve code level documentation
+* Support "ProvidePin" pairing on Windows 10/11
 
 ## 0.9.11
 * Add device name prefix filtering

@@ -24,7 +24,7 @@ class UniversalBle {
 
   /// Set how commands will be executed. By default, all commands are executed in a global queue (`QueueType.global`),
   /// with each command waiting for the previous one to finish.
-  /// 
+  ///
   /// [QueueType.global] will execute commands of all devices in a single queue
   /// [QueueType.perDevice] will execute command of each device in separate queues
   /// [QueueType.none] will execute all commands in parallel
@@ -33,7 +33,7 @@ class UniversalBle {
     UniversalBlePlatform.logInfo('Queue ${queueType.name}');
   }
 
-  /// Get Bluetooth availability state 
+  /// Get Bluetooth availability state
   /// To be notified of updates, set [onAvailabilityChange] listener
   static Future<AvailabilityState> getBluetoothAvailabilityState() async {
     return await _bleCommandQueue.executeCommand(

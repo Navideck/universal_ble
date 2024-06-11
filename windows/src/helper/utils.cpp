@@ -3,7 +3,8 @@
 #include <iomanip>
 #include <iostream>
 #include <sstream>
-
+#include <windows.h>
+#include <stdio.h>
 #include <sdkddkver.h>
 
 #if WDK_NTDDI_VERSION < NTDDI_WIN10_VB
@@ -13,6 +14,9 @@
 #endif
 
 #define MAC_ADDRESS_STR_LENGTH (size_t)17
+typedef LONG NTSTATUS, *PNTSTATUS;
+#define STATUS_SUCCESS (0x00000000)
+typedef NTSTATUS(WINAPI *RtlGetVersionPtr)(PRTL_OSVERSIONINFOW);
 
 namespace universal_ble
 {
@@ -124,6 +128,34 @@ namespace universal_ble
         uint16_t number = 0x1;
         char *numPtr = (char *)&number;
         return (numPtr[0] == 1);
+    }
+
+    bool isWindows11OrGreater()
+    {
+        HMODULE hMod = ::GetModuleHandleW(L"ntdll.dll");
+        if (!hMod)
+        {
+            std::cout << "Failed to get ntdll" << std::endl;
+            return false;
+        }
+
+        RtlGetVersionPtr fxPtr = (RtlGetVersionPtr)::GetProcAddress(hMod, "RtlGetVersion");
+        if (fxPtr == nullptr)
+        {
+            std::cout << "Failed to get RtlGetVersionPtr" << std::endl;
+            return false;
+        }
+
+        RTL_OSVERSIONINFOW rove = {0};
+        rove.dwOSVersionInfoSize = sizeof(rove);
+        if (STATUS_SUCCESS != fxPtr(&rove))
+        {
+            std::cout << "Failed to get RTL_OSVERSIONINFOW" << std::endl;
+            return false;
+        }
+
+        // Windows 11 => MajorVersion = 10 and BuildNumber >= 22000
+        return rove.dwMajorVersion == 10 && rove.dwBuildNumber >= 22000;
     }
 
 } // namespace SimpleBLE
