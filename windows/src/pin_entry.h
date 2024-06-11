@@ -31,27 +31,6 @@ namespace universal_ble
                 WS_CHILD | WS_VISIBLE | WS_BORDER | ES_NUMBER,
                 txtEdit.x, txtEdit.y, txtEdit.width, txtEdit.height,
                 hwnd, (HMENU)ID_txtEdit, NULL, NULL);
-
-            // Create a font with the desired size
-            HFONT hFont = CreateFont(
-                36,                        // Height of the font
-                0,                         // Width of the font
-                0,                         // Angle of escapement
-                0,                         // Orientation angle
-                FW_NORMAL,                 // Font weight
-                FALSE,                     // Italic attribute option
-                FALSE,                     // Underline attribute option
-                FALSE,                     // Strikeout attribute option
-                DEFAULT_CHARSET,           // Character set identifier
-                OUT_DEFAULT_PRECIS,        // Output precision
-                CLIP_DEFAULT_PRECIS,       // Clipping precision
-                DEFAULT_QUALITY,           // Output quality
-                DEFAULT_PITCH | FF_SWISS,  // Pitch and family
-                TEXT("Arial"));            // Font name
-
-            // Set the font to the edit control
-            SendMessage(txtEditHandle, WM_SETFONT, (WPARAM)hFont, TRUE);
-
             CreateWindow(
                 TEXT("Button"), TEXT("OK"),
                 WS_CHILD | WS_VISIBLE | BS_FLAT,
@@ -90,7 +69,13 @@ namespace universal_ble
         mainWindowClass.hbrBackground = GetSysColorBrush(COLOR_BTNHIGHLIGHT);
         mainWindowClass.lpfnWndProc = WndProc;
         mainWindowClass.hCursor = LoadCursor(0, IDC_ARROW);
-        RegisterClass(&mainWindowClass);
+
+        // Register the window class
+        if (!RegisterClass(&mainWindowClass))
+        {
+            std::cout << "PinPairDialog: Failed to register window class" << std::endl;
+            return L"";
+        }
 
         HWND hwnd = CreateWindow(
             mainWindowClass.lpszClassName,
@@ -98,16 +83,52 @@ namespace universal_ble
             mainWindow.x, mainWindow.y, mainWindow.width, mainWindow.height,
             NULL, 0, hInstance, NULL);
 
+        if (hwnd == NULL)
+        {
+            std::cout << "PinPairDialog: Failed to create window" << std::endl;
+            return L"";
+        }
+
         // After creating the window, make it topmost
         SetWindowPos(hwnd, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE);
 
         ShowWindow(hwnd, SW_SHOW);
+
+        // Create a font with the desired size
+        HFONT hFont = CreateFont(
+            36,                       // Height of the font
+            0,                        // Width of the font
+            0,                        // Angle of escapement
+            0,                        // Orientation angle
+            FW_NORMAL,                // Font weight
+            FALSE,                    // Italic attribute option
+            FALSE,                    // Underline attribute option
+            FALSE,                    // Strikeout attribute option
+            DEFAULT_CHARSET,          // Character set identifier
+            OUT_DEFAULT_PRECIS,       // Output precision
+            CLIP_DEFAULT_PRECIS,      // Clipping precision
+            DEFAULT_QUALITY,          // Output quality
+            DEFAULT_PITCH | FF_SWISS, // Pitch and family
+            TEXT("Arial")             // Font name
+        );
+
+        // Set the font to the edit control
+        SendMessage(txtEditHandle, WM_SETFONT, (WPARAM)hFont, TRUE);
 
         while (GetMessage(&msg, NULL, 0, 0))
         {
             TranslateMessage(&msg);
             DispatchMessage(&msg);
         }
+
+        if (msg.wParam != 0)
+        {
+            std::wcout << "PinPairDialog: Got invalid result" << std::endl;
+        }
+
+        DeleteObject(hFont);
+        DestroyWindow(hwnd);
+        UnregisterClass(mainWindowClass.lpszClassName, hInstance);
         return winrt::to_hstring(textBoxText);
     }
 }
