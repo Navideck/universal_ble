@@ -98,6 +98,9 @@ namespace universal_ble
             mainWindow.x, mainWindow.y, mainWindow.width, mainWindow.height,
             NULL, 0, hInstance, NULL);
 
+        // After creating the window, make it topmost
+        SetWindowPos(hwnd, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE);
+
         ShowWindow(hwnd, SW_SHOW);
 
         while (GetMessage(&msg, NULL, 0, 0))
