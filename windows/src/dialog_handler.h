@@ -15,7 +15,7 @@ namespace universal_ble
     // const WORD ID_deviceId = 2;
     // HWND textTitleHandle = NULL;
 
-    const WORD ID_btnOk = 1;
+    const WORD ID_btnOK = 1;
     const WORD ID_txtEdit = 4;
     HWND txtEditHandle = NULL;
     TCHAR textBoxText[256];
@@ -23,7 +23,7 @@ namespace universal_ble
     // Location and Dimensions of ui elements: X, Y, Width, Height
     const SizeAndPos_t mainWindow = {150, 150, 450, 200};
     const SizeAndPos_t txtEdit = {60, 40, 300, 25};
-    const SizeAndPos_t btnOk = {60, 80, 300, 25};
+    const SizeAndPos_t btnOK = {60, 80, 300, 25};
 
     LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
     {
@@ -41,13 +41,13 @@ namespace universal_ble
                 txtEdit.x, txtEdit.y, txtEdit.width, txtEdit.height,
                 hwnd, (HMENU)ID_txtEdit, NULL, NULL);
             CreateWindow(
-                TEXT("Button"), TEXT("Ok"),
+                TEXT("Button"), TEXT("OK"),
                 WS_CHILD | WS_VISIBLE | BS_FLAT,
-                btnOk.x, btnOk.y, btnOk.width, btnOk.height,
-                hwnd, (HMENU)ID_btnOk, NULL, NULL);
+                btnOK.x, btnOK.y, btnOK.width, btnOK.height,
+                hwnd, (HMENU)ID_btnOK, NULL, NULL);
             break;
         case WM_COMMAND:
-            if (LOWORD(wParam) == ID_btnOk)
+            if (LOWORD(wParam) == ID_btnOK)
             {
                 GetWindowText(txtEditHandle, textBoxText, sizeof(textBoxText) / sizeof(TCHAR));
                 DestroyWindow(hwnd);
