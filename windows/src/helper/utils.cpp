@@ -5,7 +5,6 @@
 #include <sstream>
 #include <windows.h>
 #include <stdio.h>
-#include <iostream>
 #include <sdkddkver.h>
 
 #if WDK_NTDDI_VERSION < NTDDI_WIN10_VB
