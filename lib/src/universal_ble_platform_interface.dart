@@ -64,7 +64,6 @@ abstract class UniversalBlePlatform {
   OnConnectionChanged? onConnectionChanged;
   OnValueChanged? onValueChanged;
   OnPairingStateChange? onPairingStateChange;
-  OnPinPairRequest? onPinPairRequest;
 
   static void logInfo(String message, {bool isError = false}) {
     if (isError) message = '\x1B[31m$message\x1B[31m';
@@ -85,7 +84,5 @@ typedef OnAvailabilityChange = void Function(AvailabilityState state);
 
 typedef OnPairingStateChange = void Function(
     String deviceId, bool isPaired, String? error);
-
-typedef OnPinPairRequest = Future<String?> Function();
 
 typedef OnQueueUpdate = void Function(String id, int remainingQueueItems);

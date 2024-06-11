@@ -640,8 +640,6 @@ abstract class UniversalBleCallbackChannel {
 
   void onPairStateChange(String deviceId, bool isPaired, String? error);
 
-  Future<String?> onPinPairingRequest();
-
   void onScanResult(UniversalBleScanResult result);
 
   void onValueChanged(String deviceId, String characteristicId, Uint8List value);
@@ -696,25 +694,6 @@ abstract class UniversalBleCallbackChannel {
           try {
             api.onPairStateChange(arg_deviceId!, arg_isPaired!, arg_error);
             return wrapResponse(empty: true);
-          } on PlatformException catch (e) {
-            return wrapResponse(error: e);
-          }          catch (e) {
-            return wrapResponse(error: PlatformException(code: 'error', message: e.toString()));
-          }
-        });
-      }
-    }
-    {
-      final BasicMessageChannel<Object?> __pigeon_channel = BasicMessageChannel<Object?>(
-          'dev.flutter.pigeon.universal_ble.UniversalBleCallbackChannel.onPinPairingRequest$messageChannelSuffix', pigeonChannelCodec,
-          binaryMessenger: binaryMessenger);
-      if (api == null) {
-        __pigeon_channel.setMessageHandler(null);
-      } else {
-        __pigeon_channel.setMessageHandler((Object? message) async {
-          try {
-            final String? output = await api.onPinPairingRequest();
-            return wrapResponse(result: output);
           } on PlatformException catch (e) {
             return wrapResponse(error: e);
           }          catch (e) {

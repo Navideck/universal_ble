@@ -370,9 +370,6 @@ class UniversalBleCallbackChannel {
     const std::string* error,
     std::function<void(void)>&& on_success,
     std::function<void(const FlutterError&)>&& on_error);
-  void OnPinPairingRequest(
-    std::function<void(const std::string*)>&& on_success,
-    std::function<void(const FlutterError&)>&& on_error);
   void OnScanResult(
     const UniversalBleScanResult& result,
     std::function<void(void)>&& on_success,
