@@ -5,47 +5,60 @@
 
 namespace universal_ble
 {
-
     typedef struct SizeAndPos_s
     {
         int x, y, width, height;
     } SizeAndPos_t;
 
-    // const SizeAndPos_t txtDeviceId = {60, 10, 300, 20};
-    // const WORD ID_deviceId = 2;
-    // HWND textTitleHandle = NULL;
-
     const WORD ID_btnOK = 1;
     const WORD ID_txtEdit = 4;
     HWND txtEditHandle = NULL;
-    TCHAR textBoxText[256];
+    TCHAR textBoxText[16];
 
     // Location and Dimensions of ui elements: X, Y, Width, Height
-    const SizeAndPos_t mainWindow = {150, 150, 350, 300};
-    const SizeAndPos_t txtEdit = {60, 40, 200, 60};
-    const SizeAndPos_t btnOK = {60, 120, 200, 60};
+    const SizeAndPos_t mainWindow = {150, 150, 450, 260};
+    const SizeAndPos_t txtEdit = {50, 40, 320, 40};
+    const SizeAndPos_t btnOK = {50, 100, 320, 40};
 
     LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
     {
         switch (msg)
         {
         case WM_CREATE:
-            // textTitleHandle = CreateWindow(
-            //     TEXT("STATIC"), TEXT("Bluetooth Device"),
-            //     WS_CHILD | WS_VISIBLE | SS_CENTER,
-            //     txtDeviceId.x, txtDeviceId.y, txtDeviceId.width, txtDeviceId.height,
-            //     hwnd, (HMENU)ID_deviceId, NULL, NULL);
+        {
             txtEditHandle = CreateWindow(
                 TEXT("Edit"), TEXT(""),
-                WS_CHILD | WS_VISIBLE | WS_BORDER,
+                WS_CHILD | WS_VISIBLE | WS_BORDER | ES_NUMBER,
                 txtEdit.x, txtEdit.y, txtEdit.width, txtEdit.height,
                 hwnd, (HMENU)ID_txtEdit, NULL, NULL);
+
+            // Create a font with the desired size
+            HFONT hFont = CreateFont(
+                36,                        // Height of the font
+                0,                         // Width of the font
+                0,                         // Angle of escapement
+                0,                         // Orientation angle
+                FW_NORMAL,                 // Font weight
+                FALSE,                     // Italic attribute option
+                FALSE,                     // Underline attribute option
+                FALSE,                     // Strikeout attribute option
+                DEFAULT_CHARSET,           // Character set identifier
+                OUT_DEFAULT_PRECIS,        // Output precision
+                CLIP_DEFAULT_PRECIS,       // Clipping precision
+                DEFAULT_QUALITY,           // Output quality
+                DEFAULT_PITCH | FF_SWISS,  // Pitch and family
+                TEXT("Arial"));            // Font name
+
+            // Set the font to the edit control
+            SendMessage(txtEditHandle, WM_SETFONT, (WPARAM)hFont, TRUE);
+
             CreateWindow(
                 TEXT("Button"), TEXT("OK"),
                 WS_CHILD | WS_VISIBLE | BS_FLAT,
                 btnOK.x, btnOK.y, btnOK.width, btnOK.height,
                 hwnd, (HMENU)ID_btnOK, NULL, NULL);
             break;
+        }
         case WM_COMMAND:
             if (LOWORD(wParam) == ID_btnOK)
             {
@@ -86,9 +99,6 @@ namespace universal_ble
             NULL, 0, hInstance, NULL);
 
         ShowWindow(hwnd, SW_SHOW);
-
-        // TCHAR newText[] = TEXT("Bluetooth 73:32:8b:d5:a3");
-        // SendMessage(textTitleHandle, WM_SETTEXT, 0, (LPARAM)newText);
 
         while (GetMessage(&msg, NULL, 0, 0))
         {
