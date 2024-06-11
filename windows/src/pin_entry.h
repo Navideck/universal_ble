@@ -79,7 +79,7 @@ namespace universal_ble
 
         HWND hwnd = CreateWindow(
             mainWindowClass.lpszClassName,
-            TEXT("PIN"), (WS_OVERLAPPEDWINDOW & ~WS_THICKFRAME & ~WS_MINIMIZEBOX & ~WS_MAXIMIZEBOX) | WS_VISIBLE,
+            TEXT("PIN"), WS_OVERLAPPEDWINDOW | WS_VISIBLE,
             mainWindow.x, mainWindow.y, mainWindow.width, mainWindow.height,
             NULL, 0, hInstance, NULL);
 
