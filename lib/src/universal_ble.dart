@@ -200,6 +200,12 @@ class UniversalBle {
     );
   }
 
+  static Future<bool> isConnected(String deviceId) async {
+    return await _bleCommandQueue.executeCommand(
+      () => _platform.isConnected(deviceId),
+    );
+  }
+
   /// Enable Bluetooth
   /// It might throw errors if Bluetooth is not available
   /// Not supported on `Web` and `Apple`

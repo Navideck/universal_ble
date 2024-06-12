@@ -85,6 +85,15 @@ class UniversalBleLinux extends UniversalBlePlatform {
   }
 
   @override
+  Future<bool> isConnected(String deviceId) async {
+    BlueZDevice? device = _devices[deviceId] ??
+        _client.devices.cast<BlueZDevice?>().firstWhere(
+            (device) => device?.address == deviceId,
+            orElse: () => null);
+    return device?.connected ?? false;
+  }
+
+  @override
   Future<void> connect(String deviceId, {Duration? connectionTimeout}) async {
     final device = _findDeviceById(deviceId);
     if (device.connected) {

@@ -258,6 +258,7 @@ interface UniversalBlePlatformChannel {
   fun pair(deviceId: String)
   fun unPair(deviceId: String)
   fun getConnectedDevices(withServices: List<String>, callback: (Result<List<UniversalBleScanResult>>) -> Unit)
+  fun isConnected(deviceId: String): Boolean
 
   companion object {
     /** The codec used by UniversalBlePlatformChannel. */
@@ -552,6 +553,23 @@ interface UniversalBlePlatformChannel {
                 reply.reply(wrapResult(data))
               }
             }
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.universal_ble.UniversalBlePlatformChannel.isConnected$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { message, reply ->
+            val args = message as List<Any?>
+            val deviceIdArg = args[0] as String
+            val wrapped: List<Any?> = try {
+              listOf<Any?>(api.isConnected(deviceIdArg))
+            } catch (exception: Throwable) {
+              wrapError(exception)
+            }
+            reply.reply(wrapped)
           }
         } else {
           channel.setMessageHandler(null)

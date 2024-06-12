@@ -107,4 +107,10 @@ class MockUniversalBle extends UniversalBlePlatform {
   Future<void> unPair(String deviceId) async {
     onPairingStateChange?.call(deviceId, false, null);
   }
+
+  @override
+  Future<bool> isConnected(String deviceId) {
+    // TODO: implement isConnected
+    throw UnimplementedError();
+  }
 }

@@ -94,6 +94,13 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
     }
     cleanUpConnection(deviceId: deviceId)
   }
+    
+  func isConnected(deviceId: String) -> Bool {
+    guard let peripheral = discoveredPeripherals[deviceId] else {
+        return false;
+    }
+    return peripheral.state == CBPeripheralState.connected
+  }
 
   func cleanUpConnection(deviceId: String) {
     characteristicReadFutures.removeAll { future in
