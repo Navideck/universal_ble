@@ -46,7 +46,7 @@ abstract class UniversalBlePlatform {
 
   Future<bool> isConnected(String deviceId);
 
-  Future<List<BleScanResult>> getConnectedDevices(
+  Future<List<BleDevice>> getConnectedDevices(
     List<String>? withServices,
   );
 
