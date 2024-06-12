@@ -73,7 +73,8 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
     // Save scanFilter for later user
     scanFilter = filter
 
-    manager.scanForPeripherals(withServices: withServices)
+    let options = [CBCentralManagerScanOptionAllowDuplicatesKey: true]
+    manager.scanForPeripherals(withServices: withServices, options: options)
   }
 
   func stopScan() throws {
