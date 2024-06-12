@@ -897,7 +897,7 @@ void UniversalBlePlatformChannel::SetUp(
     }
   }
   {
-    BasicMessageChannel<> channel(binary_messenger, "dev.flutter.pigeon.universal_ble.UniversalBlePlatformChannel.getConnectedDevices" + prepended_suffix, &GetCodec());
+    BasicMessageChannel<> channel(binary_messenger, "dev.flutter.pigeon.universal_ble.UniversalBlePlatformChannel.getSystemDevices" + prepended_suffix, &GetCodec());
     if (api != nullptr) {
       channel.SetMessageHandler([api](const EncodableValue& message, const flutter::MessageReply<EncodableValue>& reply) {
         try {
@@ -908,7 +908,7 @@ void UniversalBlePlatformChannel::SetUp(
             return;
           }
           const auto& with_services_arg = std::get<EncodableList>(encodable_with_services_arg);
-          api->GetConnectedDevices(with_services_arg, [reply](ErrorOr<EncodableList>&& output) {
+          api->GetSystemDevices(with_services_arg, [reply](ErrorOr<EncodableList>&& output) {
             if (output.has_error()) {
               reply(WrapError(output.error()));
               return;

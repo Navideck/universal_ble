@@ -23,7 +23,7 @@ A cross-platform (Android/iOS/macOS/Windows/Linux/Web) Bluetooth Low Energy (BLE
 | :------------------- | :-----: | :-: | :---: | :-----: | :----------: | :-: |
 | startScan/stopScan   |   ✔️    | ✔️  |  ✔️   |   ✔️    |      ✔️      | ✔️  |
 | connect/disconnect   |   ✔️    | ✔️  |  ✔️   |   ✔️    |      ✔️      | ✔️  |
-| getConnectedDevices  |   ✔️    | ✔️  |  ✔️   |   ✔️    |      ✔️      | ❌  |
+| getSystemDevices     |   ✔️    | ✔️  |  ✔️   |   ✔️    |      ✔️      | ❌  |
 | discoverServices     |   ✔️    | ✔️  |  ✔️   |   ✔️    |      ✔️      | ✔️  |
 | readValue            |   ✔️    | ✔️  |  ✔️   |   ✔️    |      ✔️      | ✔️  |
 | writeValue           |   ✔️    | ✔️  |  ✔️   |   ✔️    |      ✔️      | ✔️  |
@@ -73,6 +73,7 @@ UniversalBle.stopScan();
 ```
 
 Before initiating a scan, ensure that Bluetooth is available:
+
 ```dart
 AvailabilityState state = await UniversalBle.getBluetoothAvailabilityState()
 // Start scan only if Bluetooth is powered on
@@ -93,12 +94,12 @@ See the [Bluetooth Availability](#bluetooth-availability) section for more.
 #### Connected Devices
 
 Already connected devices, either through previous sessions or connected through system settings, won't show up as scan results.
-You can list those devices using `getConnectedDevices()`. You still need to explicitly connect before using them.
+You can list those devices using `getSystemDevices()`. You still need to explicitly connect before using them.
 
 ```dart
 // Get connected devices
 // You can set `withServices` to narrow down the results
-List<BleDevice> devices = await UniversalBle.getConnectedDevices(withServices: []);
+List<BleDevice> devices = await UniversalBle.getSystemDevices(withServices: []);
 ```
 
 For each connected device the `isConnected` property will be `true`.
@@ -122,6 +123,7 @@ Use the `withManufacturerData` parameter to filter devices by manufacturer data.
 ```dart
 List<ManufacturerDataFilter> withManufacturerData;
 ```
+
 ##### With namePrefix
 
 Use the `withNamePrefix` parameter to filter devices by names (case sensitive). When you pass a list of names, the scan results will only include devices that have this name or start with the provided parameter.
@@ -218,7 +220,7 @@ By default, all commands are executed in a global queue (`QueueType.global`), wi
 If you want to parallelize commands between multiple devices, you can set:
 
 ```dart
-// Create a separate queue for each device. 
+// Create a separate queue for each device.
 UniversalBle.queueType = QueueType.perDevice;
 ```
 

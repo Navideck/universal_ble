@@ -192,11 +192,11 @@ class UniversalBle {
   /// On `Apple`, [withServices] is required to get connected devices, else [1800] service will be used as default filter
   /// On `Android`, `Linux` and `Windows`, if [withServices] is used, then internally all services will be discovered for each device first (either by connecting or by using cached services)
   /// Not supported on `Web`
-  static Future<List<BleDevice>> getConnectedDevices({
+  static Future<List<BleDevice>> getSystemDevices({
     List<String>? withServices,
   }) async {
     return await _bleCommandQueue.executeCommand(
-      () => _platform.getConnectedDevices(withServices),
+      () => _platform.getSystemDevices(withServices),
     );
   }
 

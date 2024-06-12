@@ -581,8 +581,8 @@ class UniversalBlePlatformChannel {
     }
   }
 
-  Future<List<UniversalBleScanResult?>> getConnectedDevices(List<String?> withServices) async {
-    final String __pigeon_channelName = 'dev.flutter.pigeon.universal_ble.UniversalBlePlatformChannel.getConnectedDevices$__pigeon_messageChannelSuffix';
+  Future<List<UniversalBleScanResult?>> getSystemDevices(List<String?> withServices) async {
+    final String __pigeon_channelName = 'dev.flutter.pigeon.universal_ble.UniversalBlePlatformChannel.getSystemDevices$__pigeon_messageChannelSuffix';
     final BasicMessageChannel<Object?> __pigeon_channel = BasicMessageChannel<Object?>(
       __pigeon_channelName,
       pigeonChannelCodec,

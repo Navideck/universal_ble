@@ -56,8 +56,7 @@ class MockUniversalBle extends UniversalBlePlatform {
   }
 
   @override
-  Future<List<BleDevice>> getConnectedDevices(
-      List<String>? withServices) async {
+  Future<List<BleDevice>> getSystemDevices(List<String>? withServices) async {
     return [];
   }
 
@@ -107,7 +106,6 @@ class MockUniversalBle extends UniversalBlePlatform {
 
   @override
   Future<bool> isConnected(String deviceId) {
-    // TODO: implement isConnected
     throw UnimplementedError();
   }
 }

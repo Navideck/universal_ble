@@ -171,7 +171,8 @@ class _MyAppState extends State<MyApp> {
                   PlatformButton(
                     text: 'Connected Devices',
                     onPressed: () async {
-                      List<BleDevice> devices = await UniversalBle.getConnectedDevices(
+                      List<BleDevice> devices =
+                          await UniversalBle.getSystemDevices(
                         withServices: _services,
                       );
                       if (devices.isEmpty) {

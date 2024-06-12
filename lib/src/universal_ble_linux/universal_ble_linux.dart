@@ -288,7 +288,7 @@ class UniversalBleLinux extends UniversalBlePlatform {
   }
 
   @override
-  Future<List<BleDevice>> getConnectedDevices(
+  Future<List<BleDevice>> getSystemDevices(
     List<String>? withServices,
   ) async {
     List<BlueZDevice> devices =

@@ -502,7 +502,7 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
         }
     }
 
-    override fun getConnectedDevices(
+    override fun getSystemDevices(
         withServices: List<String>,
         callback: (Result<List<UniversalBleScanResult>>) -> Unit,
     ) {

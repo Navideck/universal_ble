@@ -258,7 +258,7 @@ protocol UniversalBlePlatformChannel {
   func isPaired(deviceId: String, completion: @escaping (Result<Bool, Error>) -> Void)
   func pair(deviceId: String) throws
   func unPair(deviceId: String) throws
-  func getConnectedDevices(withServices: [String], completion: @escaping (Result<[UniversalBleScanResult], Error>) -> Void)
+  func getSystemDevices(withServices: [String], completion: @escaping (Result<[UniversalBleScanResult], Error>) -> Void)
   func isConnected(deviceId: String) throws -> Bool
 }
 
@@ -499,12 +499,12 @@ class UniversalBlePlatformChannelSetup {
     } else {
       unPairChannel.setMessageHandler(nil)
     }
-    let getConnectedDevicesChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.universal_ble.UniversalBlePlatformChannel.getConnectedDevices\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    let getSystemDevicesChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.universal_ble.UniversalBlePlatformChannel.getSystemDevices\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
     if let api = api {
-      getConnectedDevicesChannel.setMessageHandler { message, reply in
+      getSystemDevicesChannel.setMessageHandler { message, reply in
         let args = message as! [Any?]
         let withServicesArg = args[0] as! [String]
-        api.getConnectedDevices(withServices: withServicesArg) { result in
+        api.getSystemDevices(withServices: withServicesArg) { result in
           switch result {
           case .success(let res):
             reply(wrapResult(res))
@@ -514,7 +514,7 @@ class UniversalBlePlatformChannelSetup {
         }
       }
     } else {
-      getConnectedDevicesChannel.setMessageHandler(nil)
+      getSystemDevicesChannel.setMessageHandler(nil)
     }
     let isConnectedChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.universal_ble.UniversalBlePlatformChannel.isConnected\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
     if let api = api {

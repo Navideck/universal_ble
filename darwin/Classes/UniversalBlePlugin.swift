@@ -94,10 +94,10 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
     }
     cleanUpConnection(deviceId: deviceId)
   }
-    
+
   func isConnected(deviceId: String) -> Bool {
     guard let peripheral = discoveredPeripherals[deviceId] else {
-        return false;
+      return false
     }
     return peripheral.state == CBPeripheralState.connected
   }
@@ -261,7 +261,7 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
     throw FlutterError(code: "NotSupported", message: nil, details: nil)
   }
 
-  func getConnectedDevices(withServices: [String], completion: @escaping (Result<[UniversalBleScanResult], Error>) -> Void) {
+  func getSystemDevices(withServices: [String], completion: @escaping (Result<[UniversalBleScanResult], Error>) -> Void) {
     var filterCBUUID = withServices.map { CBUUID(string: $0) }
     // We can't keep this filter empty, so adding a default filter
     if filterCBUUID.isEmpty { filterCBUUID.append(CBUUID(string: "1800")) }

@@ -21,7 +21,7 @@ class UniversalBleWeb extends UniversalBlePlatform {
 
   @override
   Future<bool> isConnected(String deviceId) async {
-    // TODO: test this
+    // TODO: Test this on Web (All platforms)
     BluetoothDevice? device = _getDeviceById(deviceId);
     return await device?.connected.first ?? false;
   }
@@ -296,7 +296,7 @@ class UniversalBleWeb extends UniversalBlePlatform {
   }
 
   @override
-  Future<List<BleDevice>> getConnectedDevices(
+  Future<List<BleDevice>> getSystemDevices(
     List<String>? withServices,
   ) {
     throw UnimplementedError();
