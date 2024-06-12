@@ -194,7 +194,6 @@ extension _UniversalBleScanResultExtension on UniversalBleScanResult {
     return BleDevice(
       name: name,
       deviceId: deviceId,
-      isPaired: isPaired,
       manufacturerData: mnfData,
       manufacturerDataHead: mnfDataHead,
       rssi: rssi,

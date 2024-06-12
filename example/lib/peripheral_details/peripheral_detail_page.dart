@@ -416,7 +416,7 @@ class _PeripheralDetailPageState extends State<PeripheralDetailPage> {
                             if (Capabilities.supportsPairingApi)
                               PlatformButton(
                                 onPressed: () async {
-                                  bool isPaired = await UniversalBle.isPaired(
+                                  bool? isPaired = await UniversalBle.isPaired(
                                       widget.deviceId);
                                   _addLog('IsPaired', isPaired);
                                 },

@@ -1,6 +1,6 @@
 ## 0.9.12
 * BREAKING CHANGE: Rename ScanResult to BleDevice
-* Add isConnected property to BleDevice
+* Add isPaired, isConnected properties to BleDevice
 * Add .perDevice queue
 * Improve code level documentation
 * Support "ProvidePin" pairing on Windows 10/11

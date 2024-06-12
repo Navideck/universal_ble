@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:universal_ble/src/ble_command_queue.dart';
@@ -161,8 +162,10 @@ class UniversalBle {
   }
 
   /// Check if a device is paired
-  /// Pair commands are not supported on `Apple` and `Web`
-  static Future<bool> isPaired(String deviceId) async {
+  /// Returns null on `Apple` and `Web`
+  static Future<bool?> isPaired(String deviceId) async {
+    if (Platform.isIOS || Platform.isMacOS || kIsWeb) return null;
+
     return await _bleCommandQueue.executeCommand(
       () => _platform.isPaired(deviceId),
       deviceId: deviceId,
