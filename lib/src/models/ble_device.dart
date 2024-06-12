@@ -1,21 +1,23 @@
 import 'dart:typed_data';
 
+import 'package:universal_ble/universal_ble.dart';
+
 class BleDevice {
   String deviceId;
   String? name;
   bool? isPaired;
-  bool? isConnected; // TODO: Get value dynamically
   Uint8List? manufacturerDataHead;
   Uint8List? manufacturerData;
   int? rssi;
   List<String> services;
+
+  Future<bool> get isConnected => UniversalBle.isConnected(deviceId);
 
   BleDevice({
     required this.name,
     required this.deviceId,
     this.rssi,
     this.isPaired,
-    this.isConnected,
     Uint8List? manufacturerData,
     Uint8List? manufacturerDataHead,
     this.services = const [],
