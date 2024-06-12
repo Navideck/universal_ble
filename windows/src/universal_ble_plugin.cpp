@@ -164,6 +164,15 @@ namespace universal_ble
     }
   };
 
+  ErrorOr<bool> UniversalBlePlugin::IsConnected(const std::string &device_id)
+  {
+    auto it = connectedDevices.find(_str_to_mac_address(device_id));
+    if (it == connectedDevices.end())
+      return false;
+    auto deviceAgent = *it->second;
+    return deviceAgent.device.ConnectionStatus() == BluetoothConnectionStatus::Connected;
+  }
+
   std::optional<FlutterError> UniversalBlePlugin::Connect(const std::string &device_id)
   {
     ConnectAsync(_str_to_mac_address(device_id));
