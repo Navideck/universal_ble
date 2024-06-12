@@ -3,6 +3,8 @@
 * Add isConnected property to BleDevice
 * Add .perDevice queue
 * Improve code level documentation
+* Support "ProvidePin" pairing on Windows 10/11
+* Get RRSI updates on Apple platforms
 
 ## 0.9.11
 * Add device name prefix filtering

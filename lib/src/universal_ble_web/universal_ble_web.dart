@@ -20,6 +20,13 @@ class UniversalBleWeb extends UniversalBlePlatform {
   final Map<String, StreamSubscription> _characteristicStreamList = {};
 
   @override
+  Future<bool> isConnected(String deviceId) async {
+    // TODO: test this
+    BluetoothDevice? device = _getDeviceById(deviceId);
+    return await device?.connected.first ?? false;
+  }
+
+  @override
   Future<void> connect(
     String deviceId, {
     Duration? connectionTimeout = const Duration(seconds: 10),

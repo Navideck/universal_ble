@@ -114,7 +114,7 @@ namespace universal_ble
         void DiscoverServicesAsync(BluetoothDeviceAgent &bluetoothDeviceAgent, std::function<void(ErrorOr<flutter::EncodableList> reply)>);
         winrt::fire_and_forget SetNotifiableAsync(BluetoothDeviceAgent &bluetoothDeviceAgent, const std::string &service,
                                                   const std::string &characteristic, GattClientCharacteristicConfigurationDescriptorValue descriptorValue,
-                                                   std::function<void(std::optional<FlutterError> reply)> result );
+                                                  std::function<void(std::optional<FlutterError> reply)> result);
         void GattCharacteristic_ValueChanged(GattCharacteristic sender, GattValueChangedEventArgs args);
         AvailabilityState getAvailabilityStateFromRadio(RadioState radioState);
         std::string parsePairingFailError(Enumeration::DevicePairingResult result);
@@ -125,10 +125,14 @@ namespace universal_ble
                                           const std::vector<uint8_t> &value,
                                           std::function<void(std::optional<FlutterError> reply)> result);
         bool filterByManufacturerData(IVector<BluetoothLEManufacturerData> deviceManufactureData);
+        winrt::fire_and_forget PairAsync(std::string device_id, const DeviceInformation deviceInformation);
+        winrt::fire_and_forget CustomPairAsync(std::string device_id, const DeviceInformation deviceInformation);
+        void PairingRequestedHandler(DeviceInformationCustomPairing sender, DevicePairingRequestedEventArgs eventArgs);
 
         // UniversalBlePlatformChannel implementation.
         void GetBluetoothAvailabilityState(std::function<void(ErrorOr<int64_t> reply)> result) override;
         void EnableBluetooth(std::function<void(ErrorOr<bool> reply)> result) override;
+        ErrorOr<bool> IsConnected(const std::string& device_id) override;
         std::optional<FlutterError> StartScan(const UniversalScanFilter *filter) override;
         std::optional<FlutterError> StopScan() override;
         std::optional<FlutterError> Connect(const std::string &device_id) override;

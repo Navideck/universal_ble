@@ -41,6 +41,7 @@ list(APPEND PLUGIN_SOURCES
   "src/ui_thread_handler.hpp"
   "src/generated/universal_ble.g.cpp"
   "src/generated/universal_ble.g.h"
+  "src/pin_entry.h"
 )
 
 add_library(${PLUGIN_NAME} SHARED

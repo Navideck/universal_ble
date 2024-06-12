@@ -925,6 +925,34 @@ void UniversalBlePlatformChannel::SetUp(
       channel.SetMessageHandler(nullptr);
     }
   }
+  {
+    BasicMessageChannel<> channel(binary_messenger, "dev.flutter.pigeon.universal_ble.UniversalBlePlatformChannel.isConnected" + prepended_suffix, &GetCodec());
+    if (api != nullptr) {
+      channel.SetMessageHandler([api](const EncodableValue& message, const flutter::MessageReply<EncodableValue>& reply) {
+        try {
+          const auto& args = std::get<EncodableList>(message);
+          const auto& encodable_device_id_arg = args.at(0);
+          if (encodable_device_id_arg.IsNull()) {
+            reply(WrapError("device_id_arg unexpectedly null."));
+            return;
+          }
+          const auto& device_id_arg = std::get<std::string>(encodable_device_id_arg);
+          ErrorOr<bool> output = api->IsConnected(device_id_arg);
+          if (output.has_error()) {
+            reply(WrapError(output.error()));
+            return;
+          }
+          EncodableList wrapped;
+          wrapped.push_back(EncodableValue(std::move(output).TakeValue()));
+          reply(EncodableValue(std::move(wrapped)));
+        } catch (const std::exception& exception) {
+          reply(WrapError(exception.what()));
+        }
+      });
+    } else {
+      channel.SetMessageHandler(nullptr);
+    }
+  }
 }
 
 EncodableValue UniversalBlePlatformChannel::WrapError(std::string_view error_message) {

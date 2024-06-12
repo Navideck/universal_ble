@@ -76,6 +76,8 @@ abstract class UniversalBlePlatformChannel {
   List<UniversalBleScanResult> getConnectedDevices(
     List<String> withServices,
   );
+
+  bool isConnected(String deviceId);
 }
 
 /// Native -> Flutter

@@ -73,7 +73,8 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
     // Save scanFilter for later user
     scanFilter = filter
 
-    manager.scanForPeripherals(withServices: withServices)
+    let options = [CBCentralManagerScanOptionAllowDuplicatesKey: true]
+    manager.scanForPeripherals(withServices: withServices, options: options)
   }
 
   func stopScan() throws {
@@ -92,6 +93,13 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
       manager.cancelPeripheralConnection(peripheral)
     }
     cleanUpConnection(deviceId: deviceId)
+  }
+    
+  func isConnected(deviceId: String) -> Bool {
+    guard let peripheral = discoveredPeripherals[deviceId] else {
+        return false;
+    }
+    return peripheral.state == CBPeripheralState.connected
   }
 
   func cleanUpConnection(deviceId: String) {

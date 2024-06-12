@@ -1,5 +1,7 @@
 // ignore_for_file: avoid_print, depend_on_referenced_packages
 
+import 'dart:async';
+
 import 'package:convert/convert.dart';
 import 'package:expandable/expandable.dart';
 import 'package:flutter/foundation.dart';
@@ -341,6 +343,17 @@ class _PeripheralDetailPageState extends State<PeripheralDetailPage> {
                               },
                               enabled: isConnected,
                               text: 'Discover Services',
+                            ),
+                            PlatformButton(
+                              onPressed: () async {
+                                _addLog(
+                                  'IsConnected',
+                                  await UniversalBle.isConnected(
+                                    widget.deviceId,
+                                  ),
+                                );
+                              },
+                              text: 'IsConnected',
                             ),
                             if (Capabilities.supportsRequestMtuApi)
                               PlatformButton(
