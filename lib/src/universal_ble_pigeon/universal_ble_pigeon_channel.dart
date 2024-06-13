@@ -197,6 +197,7 @@ extension _UniversalBleScanResultExtension on UniversalBleScanResult {
       manufacturerData: mnfData,
       manufacturerDataHead: mnfDataHead,
       rssi: rssi,
+      isPaired: isPaired,
       services: services
               ?.where((e) => e != null)
               .map((e) => UUID(e!).toString())

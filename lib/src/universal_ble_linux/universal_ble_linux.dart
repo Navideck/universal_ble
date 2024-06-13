@@ -604,6 +604,7 @@ extension BlueZDeviceExtension on BlueZDevice {
     return BleDevice(
       name: alias,
       deviceId: address,
+      isPaired: paired,
       manufacturerData: manufacturerDataHead,
       manufacturerDataHead: manufacturerDataHead,
       rssi: rssi,

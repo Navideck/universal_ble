@@ -36,21 +36,15 @@ class ScannedItemWidget extends StatelessWidget {
                       : 'ManufacturerCompanyId: ${manufacturerData?.companyIdRadix16}',
                 ),
               ),
-              FutureBuilder<bool?>(
-                future: bleDevice.isPaired,
-                builder: (context, snapshot) => Visibility(
-                  visible: snapshot.data ?? false,
-                  child: snapshot.data == true
-                      ? const Text(
-                          "Paired",
-                          style: TextStyle(color: Colors.green),
-                        )
-                      : const Text(
-                          "Not Paired",
-                          style: TextStyle(color: Colors.red),
-                        ),
-                ),
-              ),
+              bleDevice.isPaired == true
+                  ? const Text(
+                      "Paired",
+                      style: TextStyle(color: Colors.green),
+                    )
+                  : const Text(
+                      "Not Paired",
+                      style: TextStyle(color: Colors.red),
+                    ),
             ],
           ),
           trailing: const Icon(Icons.arrow_forward_ios),
