@@ -8,6 +8,7 @@ class BleDevice {
   int? rssi;
   bool? isPaired;
   List<String> services;
+  bool? isSystemDevice;
   Uint8List? manufacturerDataHead;
   Uint8List? manufacturerData;
 
@@ -19,6 +20,7 @@ class BleDevice {
     this.rssi,
     this.isPaired,
     this.services = const [],
+    this.isSystemDevice,
     Uint8List? manufacturerData,
     Uint8List? manufacturerDataHead,
   }) {

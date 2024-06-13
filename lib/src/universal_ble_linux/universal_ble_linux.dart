@@ -306,7 +306,9 @@ class UniversalBleLinux extends UniversalBlePlatform {
         }
       }).toList();
     }
-    return devices.map((device) => device.toBleDevice()).toList();
+    return devices
+        .map((device) => device.toBleDevice(isSystemDevice: true))
+        .toList();
   }
 
   AvailabilityState get _availabilityState {
@@ -600,7 +602,9 @@ extension BlueZDeviceExtension on BlueZDevice {
     }
   }
 
-  BleDevice toBleDevice() {
+  BleDevice toBleDevice({
+    bool? isSystemDevice,
+  }) {
     return BleDevice(
       name: alias,
       deviceId: address,
@@ -608,6 +612,7 @@ extension BlueZDeviceExtension on BlueZDevice {
       manufacturerData: manufacturerDataHead,
       manufacturerDataHead: manufacturerDataHead,
       rssi: rssi,
+      isSystemDevice: isSystemDevice,
       services: uuids.map((e) => e.toString()).toList(),
     );
   }

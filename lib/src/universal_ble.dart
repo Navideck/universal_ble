@@ -164,8 +164,7 @@ class UniversalBle {
   /// Check if a device is paired
   /// Returns null on `Apple` and `Web`
   static Future<bool?> isPaired(String deviceId) async {
-    if (Platform.isIOS || Platform.isMacOS || kIsWeb) return null;
-
+    if (kIsWeb || Platform.isIOS || Platform.isMacOS) return null;
     return await _bleCommandQueue.executeCommand(
       () => _platform.isPaired(deviceId),
       deviceId: deviceId,

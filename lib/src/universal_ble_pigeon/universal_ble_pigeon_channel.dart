@@ -112,7 +112,10 @@ class UniversalBlePigeonChannel extends UniversalBlePlatform {
   ) async {
     var devices = await _channel.getSystemDevices(withServices ?? []);
     return List<BleDevice>.from(
-      devices.map((e) => e?.toBleDevice()).where((e) => e != null).toList(),
+      devices
+          .map((e) => e?.toBleDevice(isSystemDevice: true))
+          .where((e) => e != null)
+          .toList(),
     );
   }
 
@@ -188,7 +191,9 @@ class _UniversalBleCallbackHandler extends UniversalBleCallbackChannel {
 }
 
 extension _UniversalBleScanResultExtension on UniversalBleScanResult {
-  BleDevice toBleDevice() {
+  BleDevice toBleDevice({
+    bool? isSystemDevice,
+  }) {
     var mnfDataHead = manufacturerDataHead ?? Uint8List.fromList([]);
     var mnfData = manufacturerData ?? mnfDataHead;
     return BleDevice(
@@ -198,6 +203,7 @@ extension _UniversalBleScanResultExtension on UniversalBleScanResult {
       manufacturerDataHead: mnfDataHead,
       rssi: rssi,
       isPaired: isPaired,
+      isSystemDevice: isSystemDevice,
       services: services
               ?.where((e) => e != null)
               .map((e) => UUID(e!).toString())
