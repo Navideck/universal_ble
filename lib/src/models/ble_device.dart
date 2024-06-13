@@ -1,22 +1,28 @@
 import 'dart:typed_data';
 
-class BleScanResult {
+import 'package:universal_ble/universal_ble.dart';
+
+class BleDevice {
   String deviceId;
   String? name;
+  int? rssi;
   bool? isPaired;
+  List<String> services;
+  bool? isSystemDevice;
   Uint8List? manufacturerDataHead;
   Uint8List? manufacturerData;
-  int? rssi;
-  List<String> services;
 
-  BleScanResult({
-    required this.name,
+  Future<BleConnectionState> get connectionState async => await UniversalBle.isConnected(deviceId) ? BleConnectionState.connected : BleConnectionState.disconnected;
+
+  BleDevice({
     required this.deviceId,
+    required this.name,
     this.rssi,
     this.isPaired,
+    this.services = const [],
+    this.isSystemDevice,
     Uint8List? manufacturerData,
     Uint8List? manufacturerDataHead,
-    this.services = const [],
   }) {
     this.manufacturerDataHead = manufacturerDataHead ?? Uint8List.fromList([]);
     this.manufacturerData = manufacturerData ?? manufacturerDataHead;
@@ -24,7 +30,7 @@ class BleScanResult {
 }
 
 /// Represents the manufacturer data of a BLE device.
-/// Use [BleScanResult.manufacturerData] with [ManufacturerData.fromData] to create an instance of this class.
+/// Use [BleDevice.manufacturerData] with [ManufacturerData.fromData] to create an instance of this class.
 class ManufacturerData {
   final int? companyId;
   final Uint8List? data;

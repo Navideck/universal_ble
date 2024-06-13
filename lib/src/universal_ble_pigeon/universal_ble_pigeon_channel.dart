@@ -41,6 +41,9 @@ class UniversalBlePigeonChannel extends UniversalBlePlatform {
   Future<void> stopScan() => _channel.stopScan();
 
   @override
+  Future<bool> isConnected(String deviceId) => _channel.isConnected(deviceId);
+
+  @override
   Future<void> connect(String deviceId, {Duration? connectionTimeout}) =>
       _channel.connect(deviceId);
 
@@ -64,7 +67,7 @@ class UniversalBlePigeonChannel extends UniversalBlePlatform {
       deviceId,
       service,
       characteristic,
-      bleInputProperty.value,
+      bleInputProperty.index,
     );
   }
 
@@ -86,7 +89,7 @@ class UniversalBlePigeonChannel extends UniversalBlePlatform {
       service,
       characteristic,
       value,
-      bleOutputProperty.value,
+      bleOutputProperty.index,
     );
   }
 
@@ -104,32 +107,32 @@ class UniversalBlePigeonChannel extends UniversalBlePlatform {
   Future<void> unPair(String deviceId) => _channel.unPair(deviceId);
 
   @override
-  Future<List<BleScanResult>> getConnectedDevices(
+  Future<List<BleDevice>> getSystemDevices(
     List<String>? withServices,
   ) async {
-    var devices = await _channel.getConnectedDevices(withServices ?? []);
-    return List<BleScanResult>.from(devices
-        .map((e) => e?.toBleScanResult())
-        .where((e) => e != null)
-        .toList());
+    var devices = await _channel.getSystemDevices(withServices ?? []);
+    return List<BleDevice>.from(
+      devices
+          .map((e) => e?.toBleDevice(isSystemDevice: true))
+          .where((e) => e != null)
+          .toList(),
+    );
   }
 
   /// To set listeners
   void _setupListeners() {
-    UniversalBleCallbackChannel.setUp(
-      _UniversalBleCallbackHandler(
-        scanResult: (BleScanResult scanResult) => updateScanResult(scanResult),
-        availabilityChange: (AvailabilityState state) =>
-            onAvailabilityChange?.call(state),
-        connectionChanged: (String deviceId, BleConnectionState state) =>
-            onConnectionChanged?.call(deviceId, state),
-        valueChanged:
-            (String deviceId, String characteristicId, Uint8List value) =>
-                onValueChanged?.call(deviceId, characteristicId, value),
-        pairStateChange: (String deviceId, bool isPaired, String? error) =>
-            onPairingStateChange?.call(deviceId, isPaired, error),
-      ),
-    );
+    UniversalBleCallbackChannel.setUp(_UniversalBleCallbackHandler(
+      scanResult: (BleDevice bleDevice) => updateScanResult(bleDevice),
+      availabilityChange: (AvailabilityState state) =>
+          onAvailabilityChange?.call(state),
+      connectionChanged: (String deviceId, BleConnectionState state) =>
+          onConnectionChanged?.call(deviceId, state),
+      valueChanged:
+          (String deviceId, String characteristicId, Uint8List value) =>
+              onValueChanged?.call(deviceId, characteristicId, value),
+      pairStateChange: (String deviceId, bool isPaired, String? error) =>
+          onPairingStateChange?.call(deviceId, isPaired, error),
+    ));
   }
 }
 
@@ -175,7 +178,7 @@ class _UniversalBleCallbackHandler extends UniversalBleCallbackChannel {
 
   @override
   void onScanResult(UniversalBleScanResult result) =>
-      scanResult(result.toBleScanResult());
+      scanResult(result.toBleDevice());
 
   @override
   void onValueChanged(
@@ -188,16 +191,19 @@ class _UniversalBleCallbackHandler extends UniversalBleCallbackChannel {
 }
 
 extension _UniversalBleScanResultExtension on UniversalBleScanResult {
-  BleScanResult toBleScanResult() {
+  BleDevice toBleDevice({
+    bool? isSystemDevice,
+  }) {
     var mnfDataHead = manufacturerDataHead ?? Uint8List.fromList([]);
     var mnfData = manufacturerData ?? mnfDataHead;
-    return BleScanResult(
+    return BleDevice(
       name: name,
       deviceId: deviceId,
-      isPaired: isPaired,
       manufacturerData: mnfData,
       manufacturerDataHead: mnfDataHead,
       rssi: rssi,
+      isPaired: isPaired,
+      isSystemDevice: isSystemDevice,
       services: services
               ?.where((e) => e != null)
               .map((e) => UUID(e!).toString())

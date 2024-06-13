@@ -44,19 +44,21 @@ abstract class UniversalBlePlatform {
 
   Future<void> unPair(String deviceId);
 
-  Future<List<BleScanResult>> getConnectedDevices(
+  Future<bool> isConnected(String deviceId);
+
+  Future<List<BleDevice>> getSystemDevices(
     List<String>? withServices,
   );
 
-  void updateScanResult(BleScanResult scanResult) {
+  void updateScanResult(BleDevice bleDevice) {
     // Filter by name
     ScanFilter? scanFilter = _scanFilter;
     if (scanFilter != null && scanFilter.withNamePrefix.isNotEmpty) {
-      if (scanResult.name == null ||
+      if (bleDevice.name == null ||
           !scanFilter.withNamePrefix
-              .any((e) => scanResult.name?.startsWith(e) == true)) return;
+              .any((e) => bleDevice.name?.startsWith(e) == true)) return;
     }
-    onScanResult?.call(scanResult);
+    onScanResult?.call(bleDevice);
   }
 
   OnAvailabilityChange? onAvailabilityChange;
@@ -78,7 +80,7 @@ typedef OnConnectionChanged = void Function(
 typedef OnValueChanged = void Function(
     String deviceId, String characteristicId, Uint8List value);
 
-typedef OnScanResult = void Function(BleScanResult scanResult);
+typedef OnScanResult = void Function(BleDevice scanResult);
 
 typedef OnAvailabilityChange = void Function(AvailabilityState state);
 

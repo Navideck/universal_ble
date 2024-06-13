@@ -25,7 +25,7 @@ import java.util.UUID
 private const val TAG = "UniversalBlePlugin"
 
 val knownGatts = mutableListOf<BluetoothGatt>()
-val ccdCharacteristic = "00002902-0000-1000-8000-00805f9b34fb"
+const val ccdCharacteristic = "00002902-0000-1000-8000-00805f9b34fb"
 
 enum class BleConnectionState(val value: Long) {
     Connected(0),

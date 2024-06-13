@@ -344,6 +344,17 @@ class _PeripheralDetailPageState extends State<PeripheralDetailPage> {
                               enabled: isConnected,
                               text: 'Discover Services',
                             ),
+                            PlatformButton(
+                              onPressed: () async {
+                                _addLog(
+                                  'IsConnected',
+                                  await UniversalBle.isConnected(
+                                    widget.deviceId,
+                                  ),
+                                );
+                              },
+                              text: 'IsConnected',
+                            ),
                             if (Capabilities.supportsRequestMtuApi)
                               PlatformButton(
                                 enabled: isConnected,
@@ -405,7 +416,7 @@ class _PeripheralDetailPageState extends State<PeripheralDetailPage> {
                             if (Capabilities.supportsPairingApi)
                               PlatformButton(
                                 onPressed: () async {
-                                  bool isPaired = await UniversalBle.isPaired(
+                                  bool? isPaired = await UniversalBle.isPaired(
                                       widget.deviceId);
                                   _addLog('IsPaired', isPaired);
                                 },

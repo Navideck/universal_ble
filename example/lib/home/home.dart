@@ -20,7 +20,7 @@ class MyApp extends StatefulWidget {
 }
 
 class _MyAppState extends State<MyApp> {
-  final _scanResults = <BleScanResult>[];
+  final _bleDevices = <BleDevice>[];
   bool _isScanning = false;
   QueueType _queueType = QueueType.global;
 
@@ -55,16 +55,16 @@ class _MyAppState extends State<MyApp> {
     };
 
     UniversalBle.onScanResult = (result) {
-      // debugPrint("ScanResult: ${result.name}  ${result.services}");
+      // debugPrint("BleDevice: ${result.name}  ${result.services}");
       // debugPrint("${result.name} ${result.manufacturerData}");
-      int index = _scanResults.indexWhere((e) => e.deviceId == result.deviceId);
+      int index = _bleDevices.indexWhere((e) => e.deviceId == result.deviceId);
       if (index == -1) {
-        _scanResults.add(result);
+        _bleDevices.add(result);
       } else {
-        if (result.name == null && _scanResults[index].name != null) {
-          result.name = _scanResults[index].name;
+        if (result.name == null && _bleDevices[index].name != null) {
+          result.name = _bleDevices[index].name;
         }
-        _scanResults[index] = result;
+        _bleDevices[index] = result;
       }
       setState(() {});
     };
@@ -119,7 +119,7 @@ class _MyAppState extends State<MyApp> {
                   text: 'Start Scan',
                   onPressed: () async {
                     setState(() {
-                      _scanResults.clear();
+                      _bleDevices.clear();
                       _isScanning = true;
                     });
                     try {
@@ -171,7 +171,8 @@ class _MyAppState extends State<MyApp> {
                   PlatformButton(
                     text: 'Connected Devices',
                     onPressed: () async {
-                      var devices = await UniversalBle.getConnectedDevices(
+                      List<BleDevice> devices =
+                          await UniversalBle.getSystemDevices(
                         withServices: _services,
                       );
                       if (devices.isEmpty) {
@@ -182,8 +183,8 @@ class _MyAppState extends State<MyApp> {
                         );
                       }
                       setState(() {
-                        _scanResults.clear();
-                        _scanResults.addAll(devices);
+                        _bleDevices.clear();
+                        _bleDevices.addAll(devices);
                       });
                     },
                   ),
@@ -200,12 +201,12 @@ class _MyAppState extends State<MyApp> {
                     });
                   },
                 ),
-                if (_scanResults.isNotEmpty)
+                if (_bleDevices.isNotEmpty)
                   PlatformButton(
                     text: 'Clear List',
                     onPressed: () {
                       setState(() {
-                        _scanResults.clear();
+                        _bleDevices.clear();
                       });
                     },
                   ),
@@ -225,25 +226,25 @@ class _MyAppState extends State<MyApp> {
           ),
           const Divider(color: Colors.blue),
           Expanded(
-            child: _isScanning && _scanResults.isEmpty
+            child: _isScanning && _bleDevices.isEmpty
                 ? const Center(child: CircularProgressIndicator.adaptive())
-                : !_isScanning && _scanResults.isEmpty
+                : !_isScanning && _bleDevices.isEmpty
                     ? const ScannedDevicesPlaceholderWidget()
                     : ListView.separated(
-                        itemCount: _scanResults.length,
+                        itemCount: _bleDevices.length,
                         separatorBuilder: (context, index) => const Divider(),
                         itemBuilder: (context, index) {
-                          BleScanResult scanResult =
-                              _scanResults[_scanResults.length - index - 1];
+                          BleDevice device =
+                              _bleDevices[_bleDevices.length - index - 1];
                           return ScannedItemWidget(
-                            scanResult: scanResult,
+                            bleDevice: device,
                             onTap: () {
                               Navigator.push(
                                   context,
                                   MaterialPageRoute(
                                     builder: (context) => PeripheralDetailPage(
-                                      scanResult.deviceId,
-                                      scanResult.name ?? "Unknown Peripheral",
+                                      device.deviceId,
+                                      device.name ?? "Unknown Peripheral",
                                     ),
                                   ));
                               UniversalBle.stopScan();

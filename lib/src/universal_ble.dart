@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:universal_ble/src/ble_command_queue.dart';
@@ -161,8 +162,9 @@ class UniversalBle {
   }
 
   /// Check if a device is paired
-  /// Pair commands are not supported on `Apple` and `Web`
-  static Future<bool> isPaired(String deviceId) async {
+  /// Returns null on `Apple` and `Web`
+  static Future<bool?> isPaired(String deviceId) async {
+    if (kIsWeb || Platform.isIOS || Platform.isMacOS) return null;
     return await _bleCommandQueue.executeCommand(
       () => _platform.isPaired(deviceId),
       deviceId: deviceId,
@@ -192,11 +194,18 @@ class UniversalBle {
   /// On `Apple`, [withServices] is required to get connected devices, else [1800] service will be used as default filter
   /// On `Android`, `Linux` and `Windows`, if [withServices] is used, then internally all services will be discovered for each device first (either by connecting or by using cached services)
   /// Not supported on `Web`
-  static Future<List<BleScanResult>> getConnectedDevices({
+  static Future<List<BleDevice>> getSystemDevices({
     List<String>? withServices,
   }) async {
     return await _bleCommandQueue.executeCommand(
-      () => _platform.getConnectedDevices(withServices),
+      () => _platform.getSystemDevices(withServices),
+    );
+  }
+
+  /// Returns true if device is connected to the app
+  static Future<bool> isConnected(String deviceId) async {
+    return await _bleCommandQueue.executeCommand(
+      () => _platform.isConnected(deviceId),
     );
   }
 
@@ -224,8 +233,8 @@ class UniversalBle {
       _bleCommandQueue.onQueueUpdate = onQueueUpdate;
 
   /// Get scan results
-  static set onScanResult(OnScanResult? onScanResult) =>
-      _platform.onScanResult = onScanResult;
+  static set onScanResult(OnScanResult? bleDevice) =>
+      _platform.onScanResult = bleDevice;
 
   /// Get connection state changes
   static set onConnectionChanged(OnConnectionChanged? onConnectionChanged) =>

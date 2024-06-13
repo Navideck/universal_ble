@@ -180,6 +180,10 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
         cleanConnection(deviceId.toBluetoothGatt())
     }
 
+    override fun isConnected(deviceId: String): Boolean {
+        return devicesStateMap[deviceId] == BluetoothGatt.STATE_CONNECTED
+    }
+
     override fun discoverServices(
         deviceId: String,
         callback: (Result<List<UniversalBleService>>) -> Unit,
@@ -498,7 +502,7 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
         }
     }
 
-    override fun getConnectedDevices(
+    override fun getSystemDevices(
         withServices: List<String>,
         callback: (Result<List<UniversalBleScanResult>>) -> Unit,
     ) {

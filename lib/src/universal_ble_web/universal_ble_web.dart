@@ -20,6 +20,13 @@ class UniversalBleWeb extends UniversalBlePlatform {
   final Map<String, StreamSubscription> _characteristicStreamList = {};
 
   @override
+  Future<bool> isConnected(String deviceId) async {
+    // TODO: Test this on Web (All platforms)
+    BluetoothDevice? device = _getDeviceById(deviceId);
+    return await device?.connected.first ?? false;
+  }
+
+  @override
   Future<void> connect(
     String deviceId, {
     Duration? connectionTimeout = const Duration(seconds: 10),
@@ -289,7 +296,7 @@ class UniversalBleWeb extends UniversalBlePlatform {
   }
 
   @override
-  Future<List<BleScanResult>> getConnectedDevices(
+  Future<List<BleDevice>> getSystemDevices(
     List<String>? withServices,
   ) {
     throw UnimplementedError();
@@ -351,12 +358,12 @@ class UniversalBleWeb extends UniversalBlePlatform {
 }
 
 extension _BluetoothDeviceExtension on BluetoothDevice {
-  BleScanResult toBleScanResult({
+  BleDevice toBleScanResult({
     int? rssi,
     UnmodifiableMapView<int, ByteData>? manufacturerDataMap,
     List<String> services = const [],
   }) {
-    return BleScanResult(
+    return BleDevice(
       name: name,
       deviceId: id,
       manufacturerData: manufacturerDataMap?.toUint8List(),

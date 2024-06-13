@@ -4,14 +4,14 @@ import 'package:universal_ble/universal_ble.dart';
 import 'package:universal_ble_example/data/capabilities.dart';
 
 class ScannedItemWidget extends StatelessWidget {
-  final BleScanResult scanResult;
+  final BleDevice bleDevice;
   final VoidCallback? onTap;
-  const ScannedItemWidget({super.key, required this.scanResult, this.onTap});
+  const ScannedItemWidget({super.key, required this.bleDevice, this.onTap});
 
   @override
   Widget build(BuildContext context) {
-    String? name = scanResult.name;
-    Uint8List? rawManufacturerData = scanResult.manufacturerData;
+    String? name = bleDevice.name;
+    Uint8List? rawManufacturerData = bleDevice.manufacturerData;
     ManufacturerData? manufacturerData;
     if (rawManufacturerData != null && rawManufacturerData.isNotEmpty) {
       manufacturerData = ManufacturerData.fromData(rawManufacturerData);
@@ -22,12 +22,12 @@ class ScannedItemWidget extends StatelessWidget {
       child: Card(
         child: ListTile(
           title: Text(
-            '$name (${scanResult.rssi})',
+            '$name (${bleDevice.rssi})',
           ),
           subtitle: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(scanResult.deviceId),
+              Text(bleDevice.deviceId),
               Visibility(
                 visible: manufacturerData != null,
                 child: Text(
@@ -36,18 +36,15 @@ class ScannedItemWidget extends StatelessWidget {
                       : 'ManufacturerCompanyId: ${manufacturerData?.companyIdRadix16}',
                 ),
               ),
-              Visibility(
-                visible: scanResult.isPaired != null,
-                child: scanResult.isPaired == true
-                    ? const Text(
-                        "Paired",
-                        style: TextStyle(color: Colors.green),
-                      )
-                    : const Text(
-                        "Not Paired",
-                        style: TextStyle(color: Colors.red),
-                      ),
-              ),
+              bleDevice.isPaired == true
+                  ? const Text(
+                      "Paired",
+                      style: TextStyle(color: Colors.green),
+                    )
+                  : const Text(
+                      "Not Paired",
+                      style: TextStyle(color: Colors.red),
+                    ),
             ],
           ),
           trailing: const Icon(Icons.arrow_forward_ios),

@@ -164,6 +164,15 @@ namespace universal_ble
     }
   };
 
+  ErrorOr<bool> UniversalBlePlugin::IsConnected(const std::string &device_id)
+  {
+    auto it = connectedDevices.find(_str_to_mac_address(device_id));
+    if (it == connectedDevices.end())
+      return false;
+    auto deviceAgent = *it->second;
+    return deviceAgent.device.ConnectionStatus() == BluetoothConnectionStatus::Connected;
+  }
+
   std::optional<FlutterError> UniversalBlePlugin::Connect(const std::string &device_id)
   {
     ConnectAsync(_str_to_mac_address(device_id));
@@ -463,7 +472,7 @@ namespace universal_ble
     }
   };
 
-  void UniversalBlePlugin::GetConnectedDevices(
+  void UniversalBlePlugin::GetSystemDevices(
       const flutter::EncodableList &with_services,
       std::function<void(ErrorOr<flutter::EncodableList> reply)> result)
   {
@@ -473,7 +482,7 @@ namespace universal_ble
       auto serviceId = std::get<std::string>(item);
       with_services_str.push_back(serviceId);
     }
-    GetConnectedDevicesAsync(with_services_str, result);
+    GetSystemDevicesAsync(with_services_str, result);
   }
 
   /// Helper Methods
@@ -1088,7 +1097,7 @@ namespace universal_ble
     }
   }
 
-  winrt::fire_and_forget UniversalBlePlugin::GetConnectedDevicesAsync(
+  winrt::fire_and_forget UniversalBlePlugin::GetSystemDevicesAsync(
       std::vector<std::string> with_services,
       std::function<void(ErrorOr<flutter::EncodableList> reply)> result)
   {
@@ -1143,7 +1152,7 @@ namespace universal_ble
     }
     catch (...)
     {
-      std::cout << "Unknown error GetConnectedDevicesAsync" << std::endl;
+      std::cout << "Unknown error GetSystemDevicesAsyncAsync" << std::endl;
       result(FlutterError("Unknown error"));
     }
   }

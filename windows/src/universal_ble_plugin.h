@@ -118,7 +118,7 @@ namespace universal_ble
         void GattCharacteristic_ValueChanged(GattCharacteristic sender, GattValueChangedEventArgs args);
         AvailabilityState getAvailabilityStateFromRadio(RadioState radioState);
         std::string parsePairingFailError(Enumeration::DevicePairingResult result);
-        winrt::fire_and_forget GetConnectedDevicesAsync(std::vector<std::string> with_services,
+        winrt::fire_and_forget GetSystemDevicesAsync(std::vector<std::string> with_services,
                                                         std::function<void(ErrorOr<flutter::EncodableList> reply)> result);
         winrt::fire_and_forget IsPairedAsync(std::string device_id, std::function<void(ErrorOr<bool> reply)> result);
         winrt::fire_and_forget WriteAsync(GattCharacteristic characteristic, GattWriteOption writeOption,
@@ -132,6 +132,7 @@ namespace universal_ble
         // UniversalBlePlatformChannel implementation.
         void GetBluetoothAvailabilityState(std::function<void(ErrorOr<int64_t> reply)> result) override;
         void EnableBluetooth(std::function<void(ErrorOr<bool> reply)> result) override;
+        ErrorOr<bool> IsConnected(const std::string& device_id) override;
         std::optional<FlutterError> StartScan(const UniversalScanFilter *filter) override;
         std::optional<FlutterError> StopScan() override;
         std::optional<FlutterError> Connect(const std::string &device_id) override;
@@ -166,7 +167,7 @@ namespace universal_ble
             std::function<void(ErrorOr<bool> reply)> result) override;
         std::optional<FlutterError> Pair(const std::string &device_id) override;
         std::optional<FlutterError> UnPair(const std::string &device_id) override;
-        void GetConnectedDevices(
+        void GetSystemDevices(
             const flutter::EncodableList &with_services,
             std::function<void(ErrorOr<flutter::EncodableList> reply)> result);
     };

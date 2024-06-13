@@ -11,19 +11,17 @@ class BleCharacteristic {
 }
 
 enum CharacteristicProperty {
-  broadcast(0),
-  read(1),
-  writeWithoutResponse(2),
-  write(3),
-  notify(4),
-  indicate(5),
-  authenticatedSignedWrites(6),
-  extendedProperties(7);
+  broadcast,
+  read,
+  writeWithoutResponse,
+  write,
+  notify,
+  indicate,
+  authenticatedSignedWrites,
+  extendedProperties;
 
-  final int value;
-  const CharacteristicProperty(this.value);
+  const CharacteristicProperty();
 
-  factory CharacteristicProperty.parse(int value) =>
-      CharacteristicProperty.values
-          .firstWhere((element) => element.value == value);
+  factory CharacteristicProperty.parse(int index) =>
+      CharacteristicProperty.values[index];
 }

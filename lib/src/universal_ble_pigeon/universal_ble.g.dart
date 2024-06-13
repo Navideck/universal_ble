@@ -581,8 +581,8 @@ class UniversalBlePlatformChannel {
     }
   }
 
-  Future<List<UniversalBleScanResult?>> getConnectedDevices(List<String?> withServices) async {
-    final String __pigeon_channelName = 'dev.flutter.pigeon.universal_ble.UniversalBlePlatformChannel.getConnectedDevices$__pigeon_messageChannelSuffix';
+  Future<List<UniversalBleScanResult?>> getSystemDevices(List<String?> withServices) async {
+    final String __pigeon_channelName = 'dev.flutter.pigeon.universal_ble.UniversalBlePlatformChannel.getSystemDevices$__pigeon_messageChannelSuffix';
     final BasicMessageChannel<Object?> __pigeon_channel = BasicMessageChannel<Object?>(
       __pigeon_channelName,
       pigeonChannelCodec,
@@ -605,6 +605,33 @@ class UniversalBlePlatformChannel {
       );
     } else {
       return (__pigeon_replyList[0] as List<Object?>?)!.cast<UniversalBleScanResult?>();
+    }
+  }
+
+  Future<bool> isConnected(String deviceId) async {
+    final String __pigeon_channelName = 'dev.flutter.pigeon.universal_ble.UniversalBlePlatformChannel.isConnected$__pigeon_messageChannelSuffix';
+    final BasicMessageChannel<Object?> __pigeon_channel = BasicMessageChannel<Object?>(
+      __pigeon_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: __pigeon_binaryMessenger,
+    );
+    final List<Object?>? __pigeon_replyList =
+        await __pigeon_channel.send(<Object?>[deviceId]) as List<Object?>?;
+    if (__pigeon_replyList == null) {
+      throw _createConnectionError(__pigeon_channelName);
+    } else if (__pigeon_replyList.length > 1) {
+      throw PlatformException(
+        code: __pigeon_replyList[0]! as String,
+        message: __pigeon_replyList[1] as String?,
+        details: __pigeon_replyList[2],
+      );
+    } else if (__pigeon_replyList[0] == null) {
+      throw PlatformException(
+        code: 'null-error',
+        message: 'Host platform returned null value for non-null return value.',
+      );
+    } else {
+      return (__pigeon_replyList[0] as bool?)!;
     }
   }
 }
