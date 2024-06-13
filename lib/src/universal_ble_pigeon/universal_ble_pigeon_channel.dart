@@ -67,7 +67,7 @@ class UniversalBlePigeonChannel extends UniversalBlePlatform {
       deviceId,
       service,
       characteristic,
-      bleInputProperty.value,
+      bleInputProperty.index,
     );
   }
 
@@ -89,7 +89,7 @@ class UniversalBlePigeonChannel extends UniversalBlePlatform {
       service,
       characteristic,
       value,
-      bleOutputProperty.value,
+      bleOutputProperty.index,
     );
   }
 

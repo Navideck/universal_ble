@@ -1,10 +1,9 @@
 enum BleConnectionState {
-  connected(0),
-  disconnected(1);
+  connected,
+  disconnected;
 
-  final int value;
-  const BleConnectionState(this.value);
+  const BleConnectionState();
 
-  factory BleConnectionState.parse(int value) =>
-      BleConnectionState.values.firstWhere((element) => element.value == value);
+  factory BleConnectionState.parse(int index) =>
+      BleConnectionState.values[index];
 }

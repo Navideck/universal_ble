@@ -1,14 +1,12 @@
 enum AvailabilityState {
-  unknown(0),
-  resetting(1),
-  unsupported(2),
-  unauthorized(3),
-  poweredOff(4),
-  poweredOn(5);
+  unknown,
+  resetting,
+  unsupported,
+  unauthorized,
+  poweredOff,
+  poweredOn;
 
-  final int value;
-  const AvailabilityState(this.value);
+  const AvailabilityState();
 
-  factory AvailabilityState.parse(int value) =>
-      AvailabilityState.values.firstWhere((element) => element.value == value);
+  factory AvailabilityState.parse(int index) => AvailabilityState.values[index];
 }
