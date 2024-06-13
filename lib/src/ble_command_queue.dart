@@ -1,7 +1,7 @@
 import 'package:universal_ble/src/queue.dart';
 import 'package:universal_ble/universal_ble.dart';
 
-/// Execute commands in queue and manage queue per device
+/// Queue commands and manage queue per device
 class BleCommandQueue {
   QueueType queueType = QueueType.global;
   Duration? timeout = const Duration(seconds: 10);
@@ -15,15 +15,13 @@ class BleCommandQueue {
     };
   }
 
-  Future<T> executeCommand<T>(
+  Future<T> queueCommand<T>(
     Future<T> Function() command, {
     bool withTimeout = true,
     String? deviceId,
   }) {
     Duration? duration = withTimeout ? timeout : null;
     switch (queueType) {
-      case QueueType.none:
-        return duration != null ? command().timeout(duration) : command();
       case QueueType.global:
         return _globalQueue.add(command, timeout: duration);
       case QueueType.perDevice:
@@ -33,6 +31,8 @@ class BleCommandQueue {
         } else {
           return _globalQueue.add(command, timeout: duration);
         }
+      case QueueType.none:
+        return duration != null ? command().timeout(duration) : command();
     }
   }
 
