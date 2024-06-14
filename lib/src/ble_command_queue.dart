@@ -6,7 +6,7 @@ class BleCommandQueue {
   QueueType queueType = QueueType.global;
   Duration? timeout = const Duration(seconds: 10);
   OnQueueUpdate? onQueueUpdate;
-  final Queue _globalQueue = Queue();
+  final Queue _globalQueue = Queue("global");
   final Map<String, Queue> _queueMap = {};
 
   BleCommandQueue() {
@@ -23,13 +23,13 @@ class BleCommandQueue {
     Duration? duration = withTimeout ? timeout : null;
     switch (queueType) {
       case QueueType.global:
-        return _globalQueue.add(command, timeout: duration);
+        return _globalQueue.add(command, deviceId, timeout: duration);
       case QueueType.perDevice:
         // If deviceId not available, use global queue
         if (deviceId != null) {
-          return _getQueue(deviceId).add(command, timeout: duration);
+          return _getQueue(deviceId).add(command, deviceId, timeout: duration);
         } else {
-          return _globalQueue.add(command, timeout: duration);
+          return _globalQueue.add(command, timeout: duration, deviceId);
         }
       case QueueType.none:
         return duration != null ? command().timeout(duration) : command();
@@ -39,7 +39,7 @@ class BleCommandQueue {
   Queue _getQueue(String deviceId) {
     Queue? queue = _queueMap[deviceId];
     if (queue == null) {
-      queue = Queue();
+      queue = Queue(deviceId);
       queue.onRemainingItemsUpdate = (int items) {
         onQueueUpdate?.call(deviceId, items);
       };

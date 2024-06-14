@@ -1,20 +1,31 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
+import 'package:universal_ble/src/stopwatch.dart';
+
 /// Original Author: Ryan Knell (https://github.com/rknell/dart_queue)
 
 /// Queue to execute Futures in order.
 /// It awaits each future before executing the next one.
 class Queue {
+  Queue(this.id);
+
+  final String id;
   final Set<int> _activeItems = {};
   int _lastProcessId = 0;
   bool _isCancelled = false;
   final List<_QueuedFuture> _nextCycle = [];
   Function(int)? onRemainingItemsUpdate;
 
-  Future<T> add<T>(Future<T> Function() closure, {Duration? timeout}) {
+  Future<T> add<T>(Future<T> Function() closure, String? deviceId,
+      {Duration? timeout}) {
+    int remainingQueueItems = _nextCycle.length + _activeItems.length;
+    debugPrint(
+        'Queueing command $remainingQueueItems to $deviceId: ${stopwatch.elapsed}');
     if (_isCancelled) throw Exception('Queue Cancelled');
     final completer = Completer<T>();
-    _nextCycle.add(_QueuedFuture<T>(closure, completer, timeout));
+    _nextCycle.add(_QueuedFuture<T>(
+        closure, completer, timeout, deviceId, remainingQueueItems));
     _updateRemainingItems();
     if (_activeItems.isEmpty) _queueUpNext();
     return completer.future;
@@ -55,10 +66,16 @@ class _QueuedFuture<T> {
   final Future<T> Function() closure;
   Function? onComplete;
   final Duration? timeout;
+  String? deviceId;
+  int id;
 
-  _QueuedFuture(this.closure, this.completer, this.timeout, {this.onComplete});
+  _QueuedFuture(
+      this.closure, this.completer, this.timeout, this.deviceId, this.id,
+      {this.onComplete});
 
   Future<void> execute() async {
+    debugPrint(
+        'Queue executing command $id to $deviceId: ${stopwatch.elapsed}');
     try {
       T result;
       if (timeout != null) {
@@ -71,6 +88,8 @@ class _QueuedFuture<T> {
       } else {
         completer.complete(null);
       }
+      debugPrint(
+          'Queue completed command $id to $deviceId: ${stopwatch.elapsed}');
       await Future.microtask(() {});
     } catch (e, stack) {
       completer.completeError(e, stack);
