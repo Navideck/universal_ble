@@ -66,7 +66,7 @@ class UniversalBle {
   }
 
   /// Connect to a device.
-  /// Get notified of connection state changes in [onConnectionChanged] listener
+  /// Get notified of connection state changes in [onConnectionChange] listener
   /// It is advised to stop scanning before connecting
   /// It might throw errors if device is not connectable
   /// `connectionTimeout` is supported on Web only
@@ -81,7 +81,7 @@ class UniversalBle {
   }
 
   /// Disconnect from a device.
-  /// Get notified of connection state changes in [onConnectionChanged] listener
+  /// Get notified of connection state changes in [onConnectionChange] listener
   static Future<void> disconnect(String deviceId) async {
     return await _bleCommandQueue.queueCommand(
       () => _platform.disconnect(deviceId),
@@ -99,7 +99,7 @@ class UniversalBle {
 
   /// Set a characteristic notifiable.
   /// Set `bleInputProperty` to [BleInputProperty.notification] or [BleInputProperty.indication]
-  /// Updates will arrive in [onValueChanged] listener
+  /// Updates will arrive in [onValueChange] listener
   /// To stop listening to a characteristic, set `bleInputProperty` to [BleInputProperty.disabled]
   static Future<void> setNotifiable(
     String deviceId,
@@ -119,7 +119,7 @@ class UniversalBle {
   }
 
   /// Read a characteristic value
-  /// On iOS and MacOS this command will also trigger [onValueChanged] listener
+  /// On iOS and MacOS this command will also trigger [onValueChange] listener
   static Future<Uint8List> readValue(
     String deviceId,
     String service,
@@ -237,12 +237,12 @@ class UniversalBle {
       _platform.onScanResult = bleDevice;
 
   /// Get connection state changes
-  static set onConnectionChanged(OnConnectionChanged? onConnectionChanged) =>
-      _platform.onConnectionChanged = onConnectionChanged;
+  static set onConnectionChange(OnConnectionChange? onConnectionChange) =>
+      _platform.onConnectionChange = onConnectionChange;
 
   /// Get characteristic value updates, set `bleInputProperty` in [setNotifiable] to [BleInputProperty.notification] or [BleInputProperty.indication]
-  static set onValueChanged(OnValueChanged? onValueChanged) =>
-      _platform.onValueChanged = onValueChanged;
+  static set onValueChange(OnValueChange? onValueChange) =>
+      _platform.onValueChange = onValueChange;
 
   /// Get pair state changes,
   static set onPairingStateChange(OnPairingStateChange pairingStateChange) =>

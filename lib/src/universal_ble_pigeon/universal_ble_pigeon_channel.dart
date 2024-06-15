@@ -126,10 +126,10 @@ class UniversalBlePigeonChannel extends UniversalBlePlatform {
       availabilityChange: (AvailabilityState state) =>
           onAvailabilityChange?.call(state),
       connectionChanged: (String deviceId, BleConnectionState state) =>
-          onConnectionChanged?.call(deviceId, state),
+          onConnectionChange?.call(deviceId, state),
       valueChanged:
           (String deviceId, String characteristicId, Uint8List value) =>
-              onValueChanged?.call(deviceId, characteristicId, value),
+              onValueChange?.call(deviceId, characteristicId, value),
       pairStateChange: (String deviceId, bool isPaired, String? error) =>
           onPairingStateChange?.call(deviceId, isPaired, error),
     ));
@@ -156,8 +156,8 @@ extension _BleServiceExtension on UniversalBleService {
 class _UniversalBleCallbackHandler extends UniversalBleCallbackChannel {
   OnAvailabilityChange availabilityChange;
   OnScanResult scanResult;
-  OnConnectionChanged connectionChanged;
-  OnValueChanged valueChanged;
+  OnConnectionChange connectionChanged;
+  OnValueChange valueChanged;
   OnPairingStateChange pairStateChange;
 
   _UniversalBleCallbackHandler({

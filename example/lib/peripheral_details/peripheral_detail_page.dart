@@ -42,16 +42,16 @@ class _PeripheralDetailPageState extends State<PeripheralDetailPage> {
   @override
   void initState() {
     super.initState();
-    UniversalBle.onConnectionChanged = _handleConnectionChange;
-    UniversalBle.onValueChanged = _handleValueChange;
+    UniversalBle.onConnectionChange = _handleConnectionChange;
+    UniversalBle.onValueChange = _handleValueChange;
     UniversalBle.onPairingStateChange = _handlePairingStateChange;
   }
 
   @override
   void dispose() {
     super.dispose();
-    UniversalBle.onConnectionChanged = null;
-    UniversalBle.onValueChanged = null;
+    UniversalBle.onConnectionChange = null;
+    UniversalBle.onValueChange = null;
     // Disconnect when leaving the page
     if (isConnected) UniversalBle.disconnect(widget.deviceId);
   }

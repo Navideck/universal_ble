@@ -143,8 +143,8 @@ UniversalBle.connect(deviceId);
 UniversalBle.disconnect(deviceId);
 
 // Get connection state updates
-UniversalBle.onConnectionChanged = (String deviceId, BleConnectionState state) {
-  debugPrint('OnConnectionChanged $deviceId, $state');
+UniversalBle.onConnectionChange = (String deviceId, BleConnectionState state) {
+  debugPrint('OnConnectionChange $deviceId, $state');
 }
 ```
 
@@ -171,9 +171,9 @@ UniversalBle.writeValue(deviceId, serviceId, characteristicId, value);
 // Subscribe to a characteristic
 UniversalBle.setNotifiable(deviceId, serviceId, characteristicId, BleInputProperty.notification);
 
-// Get characteristic updates in `onValueChanged`
-UniversalBle.onValueChanged = (String deviceId, String characteristicId, Uint8List value) {
-  debugPrint('onValueChanged $deviceId, $characteristicId, ${hex.encode(value)}');
+// Get characteristic updates in `onValueChange`
+UniversalBle.onValueChange = (String deviceId, String characteristicId, Uint8List value) {
+  debugPrint('onValueChange $deviceId, $characteristicId, ${hex.encode(value)}');
 }
 
 // Unsubscribe from a characteristic

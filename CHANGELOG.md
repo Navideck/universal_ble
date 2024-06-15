@@ -1,12 +1,16 @@
 ## 0.9.12
-* BREAKING CHANGE: Rename ScanResult to BleDevice
+* BREAKING CHANGE: `ScanResult` is now `BleDevice`
+* BREAKING CHANGE: `getConnectedDevices` is now `getSystemDevices`
+* BREAKING CHANGE: `isPaired` is now nullable
+* BREAKING CHANGE: `onValueChanged` is now `onValueChange`
+* BREAKING CHANGE: `onConnectionChanged` is now `onConnectionChange`
 * Add `connectionState` property to BleDevice
 * Add `isSystemDevice` property to BleDevice
 * Add `.perDevice` queue
 * Support "ProvidePin" pairing on Windows 10/11
 * Get RRSI updates on Apple platforms
-* Improve code level documentation
 * Improve enum parsing performance
+* Improve code level documentation
 
 ## 0.9.11
 * Add device name prefix filtering

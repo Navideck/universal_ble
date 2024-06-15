@@ -97,7 +97,7 @@ class UniversalBleLinux extends UniversalBlePlatform {
   Future<void> connect(String deviceId, {Duration? connectionTimeout}) async {
     final device = _findDeviceById(deviceId);
     if (device.connected) {
-      onConnectionChanged?.call(deviceId, BleConnectionState.connected);
+      onConnectionChange?.call(deviceId, BleConnectionState.connected);
       return;
     }
     await device.connect();
@@ -107,7 +107,7 @@ class UniversalBleLinux extends UniversalBlePlatform {
   Future<void> disconnect(String deviceId) async {
     final device = _findDeviceById(deviceId);
     if (!device.connected) {
-      onConnectionChanged?.call(deviceId, BleConnectionState.disconnected);
+      onConnectionChange?.call(deviceId, BleConnectionState.disconnected);
       return;
     }
     await device.disconnect();
@@ -189,7 +189,7 @@ class UniversalBleLinux extends UniversalBlePlatform {
         for (String property in properties) {
           switch (property) {
             case BluezProperty.value:
-              onValueChanged?.call(
+              onValueChange?.call(
                 deviceId,
                 characteristic,
                 Uint8List.fromList(char.value),
@@ -429,7 +429,7 @@ class UniversalBleLinux extends UniversalBlePlatform {
             updateScanResult(device.toBleDevice());
             break;
           case BluezProperty.connected:
-            onConnectionChanged?.call(
+            onConnectionChange?.call(
               device.address,
               device.connected
                   ? BleConnectionState.connected

@@ -63,8 +63,8 @@ abstract class UniversalBlePlatform {
 
   OnAvailabilityChange? onAvailabilityChange;
   OnScanResult? onScanResult;
-  OnConnectionChanged? onConnectionChanged;
-  OnValueChanged? onValueChanged;
+  OnConnectionChange? onConnectionChange;
+  OnValueChange? onValueChange;
   OnPairingStateChange? onPairingStateChange;
 
   static void logInfo(String message, {bool isError = false}) {
@@ -74,10 +74,10 @@ abstract class UniversalBlePlatform {
 }
 
 // Callback types
-typedef OnConnectionChanged = void Function(
+typedef OnConnectionChange = void Function(
     String deviceId, BleConnectionState state);
 
-typedef OnValueChanged = void Function(
+typedef OnValueChange = void Function(
     String deviceId, String characteristicId, Uint8List value);
 
 typedef OnScanResult = void Function(BleDevice scanResult);

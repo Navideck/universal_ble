@@ -42,7 +42,7 @@ class UniversalBleWeb extends UniversalBlePlatform {
 
     _connectedDeviceStreamList[deviceId] = device.connected.listen((event) {
       if (!event) _cleanConnection(deviceId);
-      onConnectionChanged?.call(
+      onConnectionChange?.call(
         deviceId,
         event ? BleConnectionState.connected : BleConnectionState.disconnected,
       );
@@ -52,7 +52,7 @@ class UniversalBleWeb extends UniversalBlePlatform {
   @override
   Future<void> disconnect(String deviceId) async {
     _cleanConnection(deviceId);
-    onConnectionChanged?.call(deviceId, BleConnectionState.disconnected);
+    onConnectionChange?.call(deviceId, BleConnectionState.disconnected);
     _getDeviceById(deviceId)?.disconnect();
   }
 
@@ -214,7 +214,7 @@ class UniversalBleWeb extends UniversalBlePlatform {
       _characteristicStreamList[characteristicKey] = bleCharacteristic.value
           .map((event) => event.buffer.asUint8List())
           .listen((event) {
-        onValueChanged?.call(deviceId, characteristic, event);
+        onValueChange?.call(deviceId, characteristic, event);
       });
     }
     // Cancel Notification
