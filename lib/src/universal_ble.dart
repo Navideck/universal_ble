@@ -19,6 +19,7 @@ class UniversalBle {
 
   /// Set global timeout for all commands.
   /// Default timeout is 10 seconds
+  /// Set to null to disable
   static set timeout(Duration? duration) {
     _bleCommandQueue.timeout = duration;
   }

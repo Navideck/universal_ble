@@ -1,19 +1,15 @@
 import 'package:universal_ble/src/queue.dart';
 import 'package:universal_ble/universal_ble.dart';
 
-/// Queue commands and manage queue per device
+/// Set queue type and queue commands
 class BleCommandQueue {
-  QueueType queueType = QueueType.global;
+  QueueType queueType;
   Duration? timeout = const Duration(seconds: 10);
   OnQueueUpdate? onQueueUpdate;
-  final Queue _globalQueue = Queue();
   final Map<String, Queue> _queueMap = {};
+  static const String globalQueueId = 'global';
 
-  BleCommandQueue() {
-    _globalQueue.onRemainingItemsUpdate = (int items) {
-      onQueueUpdate?.call(QueueType.global.name, items);
-    };
-  }
+  BleCommandQueue({this.queueType = QueueType.global});
 
   Future<T> queueCommand<T>(
     Future<T> Function() command, {
@@ -21,30 +17,24 @@ class BleCommandQueue {
     String? deviceId,
   }) {
     Duration? duration = withTimeout ? timeout : null;
-    switch (queueType) {
-      case QueueType.global:
-        return _globalQueue.add(command, timeout: duration);
-      case QueueType.perDevice:
-        // If deviceId not available, use global queue
-        if (deviceId != null) {
-          return _getQueue(deviceId).add(command, timeout: duration);
-        } else {
-          return _globalQueue.add(command, timeout: duration);
-        }
-      case QueueType.none:
-        return duration != null ? command().timeout(duration) : command();
-    }
+
+    return switch (queueType) {
+      QueueType.global => _queue().add(command, timeout: duration),
+      QueueType.perDevice => _queue(deviceId).add(command, timeout: duration),
+      QueueType.none =>
+        duration != null ? command().timeout(duration) : command(),
+    };
   }
 
-  Queue _getQueue(String deviceId) {
-    Queue? queue = _queueMap[deviceId];
-    if (queue == null) {
-      queue = Queue();
-      queue.onRemainingItemsUpdate = (int items) {
-        onQueueUpdate?.call(deviceId, items);
-      };
-      _queueMap[deviceId] = queue;
-    }
+  Queue _queue([String? id = globalQueueId]) =>
+      _queueMap[id] ?? _newQueue(id ?? globalQueueId);
+
+  Queue _newQueue(String id) {
+    final queue = Queue();
+    queue.onRemainingItemsUpdate = (int items) {
+      onQueueUpdate?.call(id, items);
+    };
+    _queueMap[id] = queue;
     return queue;
   }
 }
