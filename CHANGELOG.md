@@ -1,4 +1,4 @@
-## 0.9.12
+## 0.10.0
 * BREAKING CHANGE: `ScanResult` is now `BleDevice`
 * BREAKING CHANGE: `getConnectedDevices` is now `getSystemDevices`
 * BREAKING CHANGE: `isPaired` is now nullable
