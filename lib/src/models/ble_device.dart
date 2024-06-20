@@ -12,6 +12,9 @@ class BleDevice {
   Uint8List? manufacturerDataHead;
   Uint8List? manufacturerData;
 
+  /// Returns connection state of device,
+  /// All platforms will return `Connected/Disconnected` states
+  /// `Android` and `Apple` can also return `Connecting/Disconnecting` states
   Future<BleConnectionState> get connectionState =>
       UniversalBle.getConnectionState(deviceId);
 
