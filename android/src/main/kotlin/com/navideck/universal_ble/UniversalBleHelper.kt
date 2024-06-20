@@ -29,7 +29,9 @@ const val ccdCharacteristic = "00002902-0000-1000-8000-00805f9b34fb"
 
 enum class BleConnectionState(val value: Long) {
     Connected(0),
-    Disconnected(1)
+    Disconnected(1),
+    Connecting(2),
+    Disconnecting(3)
 }
 
 enum class AvailabilityState(val value: Long) {
@@ -64,6 +66,16 @@ enum class CharacteristicProperty(val value: Long) {
     ExtendedProperties(7)
 }
 
+
+fun Int.toBleConnectionState(): BleConnectionState {
+    return when (this) {
+        BluetoothGatt.STATE_CONNECTED -> BleConnectionState.Connected
+        BluetoothGatt.STATE_CONNECTING -> BleConnectionState.Connecting
+        BluetoothGatt.STATE_DISCONNECTING -> BleConnectionState.Disconnecting
+        BluetoothGatt.STATE_DISCONNECTED -> BleConnectionState.Disconnected
+        else -> BleConnectionState.Disconnected
+    }
+}
 
 fun String.validFullUUID(): String {
     return when (this.count()) {

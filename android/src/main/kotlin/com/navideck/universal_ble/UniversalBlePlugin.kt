@@ -180,8 +180,11 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
         cleanConnection(deviceId.toBluetoothGatt())
     }
 
-    override fun isConnected(deviceId: String): Boolean {
-        return devicesStateMap[deviceId] == BluetoothGatt.STATE_CONNECTED
+    override fun getConnectionState(deviceId: String): Long {
+        return bluetoothManager.getConnectionState(
+            bluetoothManager.adapter.getRemoteDevice(deviceId),
+            BluetoothProfile.GATT
+        ).toBleConnectionState().value
     }
 
     override fun discoverServices(
@@ -749,21 +752,20 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
 
     override fun onConnectionStateChange(gatt: BluetoothGatt, status: Int, newState: Int) {
         devicesStateMap[gatt.device.address] = newState
-        if (newState == BluetoothGatt.STATE_CONNECTED && status == BluetoothGatt.GATT_SUCCESS) {
-            mainThreadHandler?.post {
-                callbackChannel?.onConnectionChanged(
-                    gatt.device.address,
-                    BleConnectionState.Connected.value
-                ) {}
-            }
-        } else {
+        if (status != BluetoothGatt.GATT_SUCCESS) {
+            Log.e(TAG, "Failed to update connected state: $status")
+            return
+        }
+
+        if (newState == BluetoothGatt.STATE_DISCONNECTED) {
             cleanConnection(gatt)
-            mainThreadHandler?.post {
-                callbackChannel?.onConnectionChanged(
-                    gatt.device.address,
-                    BleConnectionState.Disconnected.value
-                ) {}
-            }
+        }
+
+        mainThreadHandler?.post {
+            callbackChannel?.onConnectionChanged(
+                gatt.device.address,
+                newState.toBleConnectionState().value
+            ) {}
         }
     }
 

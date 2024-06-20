@@ -41,7 +41,10 @@ class UniversalBlePigeonChannel extends UniversalBlePlatform {
   Future<void> stopScan() => _channel.stopScan();
 
   @override
-  Future<bool> isConnected(String deviceId) => _channel.isConnected(deviceId);
+  Future<BleConnectionState> getConnectionState(String deviceId) async {
+    int state = await _channel.getConnectionState(deviceId);
+    return BleConnectionState.parse(state);
+  }
 
   @override
   Future<void> connect(String deviceId, {Duration? connectionTimeout}) =>

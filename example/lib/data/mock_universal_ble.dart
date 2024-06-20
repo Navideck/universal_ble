@@ -105,7 +105,7 @@ class MockUniversalBle extends UniversalBlePlatform {
   }
 
   @override
-  Future<bool> isConnected(String deviceId) {
+  Future<BleConnectionState> getConnectionState(String deviceId) {
     throw UnimplementedError();
   }
 }

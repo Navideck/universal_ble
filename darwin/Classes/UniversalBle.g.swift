@@ -259,7 +259,7 @@ protocol UniversalBlePlatformChannel {
   func pair(deviceId: String) throws
   func unPair(deviceId: String) throws
   func getSystemDevices(withServices: [String], completion: @escaping (Result<[UniversalBleScanResult], Error>) -> Void)
-  func isConnected(deviceId: String) throws -> Bool
+  func getConnectionState(deviceId: String) throws -> Int64
 }
 
 /// Generated setup class from Pigeon to handle messages through the `binaryMessenger`.
@@ -516,20 +516,20 @@ class UniversalBlePlatformChannelSetup {
     } else {
       getSystemDevicesChannel.setMessageHandler(nil)
     }
-    let isConnectedChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.universal_ble.UniversalBlePlatformChannel.isConnected\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    let getConnectionStateChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.universal_ble.UniversalBlePlatformChannel.getConnectionState\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
     if let api = api {
-      isConnectedChannel.setMessageHandler { message, reply in
+      getConnectionStateChannel.setMessageHandler { message, reply in
         let args = message as! [Any?]
         let deviceIdArg = args[0] as! String
         do {
-          let result = try api.isConnected(deviceId: deviceIdArg)
+          let result = try api.getConnectionState(deviceId: deviceIdArg)
           reply(wrapResult(result))
         } catch {
           reply(wrapError(error))
         }
       }
     } else {
-      isConnectedChannel.setMessageHandler(nil)
+      getConnectionStateChannel.setMessageHandler(nil)
     }
   }
 }

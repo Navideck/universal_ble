@@ -347,13 +347,13 @@ class _PeripheralDetailPageState extends State<PeripheralDetailPage> {
                             PlatformButton(
                               onPressed: () async {
                                 _addLog(
-                                  'IsConnected',
-                                  await UniversalBle.isConnected(
+                                  'ConnectionState',
+                                  await UniversalBle.getConnectionState(
                                     widget.deviceId,
                                   ),
                                 );
                               },
-                              text: 'IsConnected',
+                              text: 'ConnectionState',
                             ),
                             if (Capabilities.supportsRequestMtuApi)
                               PlatformButton(

@@ -926,7 +926,7 @@ void UniversalBlePlatformChannel::SetUp(
     }
   }
   {
-    BasicMessageChannel<> channel(binary_messenger, "dev.flutter.pigeon.universal_ble.UniversalBlePlatformChannel.isConnected" + prepended_suffix, &GetCodec());
+    BasicMessageChannel<> channel(binary_messenger, "dev.flutter.pigeon.universal_ble.UniversalBlePlatformChannel.getConnectionState" + prepended_suffix, &GetCodec());
     if (api != nullptr) {
       channel.SetMessageHandler([api](const EncodableValue& message, const flutter::MessageReply<EncodableValue>& reply) {
         try {
@@ -937,7 +937,7 @@ void UniversalBlePlatformChannel::SetUp(
             return;
           }
           const auto& device_id_arg = std::get<std::string>(encodable_device_id_arg);
-          ErrorOr<bool> output = api->IsConnected(device_id_arg);
+          ErrorOr<int64_t> output = api->GetConnectionState(device_id_arg);
           if (output.has_error()) {
             reply(WrapError(output.error()));
             return;

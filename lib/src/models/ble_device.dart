@@ -12,10 +12,8 @@ class BleDevice {
   Uint8List? manufacturerDataHead;
   Uint8List? manufacturerData;
 
-  Future<BleConnectionState> get connectionState async =>
-      await UniversalBle.isConnected(deviceId)
-          ? BleConnectionState.connected
-          : BleConnectionState.disconnected;
+  Future<BleConnectionState> get connectionState =>
+      UniversalBle.getConnectionState(deviceId);
 
   BleDevice({
     required this.deviceId,

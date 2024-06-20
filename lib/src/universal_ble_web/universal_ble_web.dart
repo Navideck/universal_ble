@@ -20,10 +20,13 @@ class UniversalBleWeb extends UniversalBlePlatform {
   final Map<String, StreamSubscription> _characteristicStreamList = {};
 
   @override
-  Future<bool> isConnected(String deviceId) async {
+  Future<BleConnectionState> getConnectionState(String deviceId) async {
     // TODO: Test this on Web (All platforms)
     BluetoothDevice? device = _getDeviceById(deviceId);
-    return await device?.connected.first ?? false;
+    bool connected = await device?.connected.first ?? false;
+    return connected
+        ? BleConnectionState.connected
+        : BleConnectionState.disconnected;
   }
 
   @override

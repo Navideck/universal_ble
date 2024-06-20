@@ -95,11 +95,20 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
     cleanUpConnection(deviceId: deviceId)
   }
 
-  func isConnected(deviceId: String) -> Bool {
-    guard let peripheral = discoveredPeripherals[deviceId] else {
-      return false
+  func getConnectionState(deviceId: String) throws -> Int64 {
+    let peripheral = try deviceId.getPeripheral()
+    switch peripheral.state {
+    case .connecting:
+      return BlueConnectionState.connecting.rawValue
+    case .connected:
+      return BlueConnectionState.connected.rawValue
+    case .disconnecting:
+      return BlueConnectionState.disconnecting.rawValue
+    case .disconnected:
+      return BlueConnectionState.disconnected.rawValue
+    @unknown default:
+      fatalError()
     }
-    return peripheral.state == CBPeripheralState.connected
   }
 
   func cleanUpConnection(deviceId: String) {
@@ -314,6 +323,10 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
     callbackChannel.onConnectionChanged(deviceId: peripheral.uuid.uuidString, state: BlueConnectionState.disconnected.rawValue) { _ in }
     // Cleanup on disconnect
     cleanUpConnection(deviceId: peripheral.uuid.uuidString)
+  }
+
+  public func centralManager(_: CBCentralManager, didFailToConnect peripheral: CBPeripheral, error: Error?) {
+    print("Failed to connect: \(peripheral.uuid.uuidString): \(String(describing: error))")
   }
 
   public func peripheral(_ peripheral: CBPeripheral, didDiscoverServices _: Error?) {

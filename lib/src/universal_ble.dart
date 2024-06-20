@@ -204,9 +204,9 @@ class UniversalBle {
   }
 
   /// Returns true if device is connected to the app
-  static Future<bool> isConnected(String deviceId) async {
+  static Future<BleConnectionState> getConnectionState(String deviceId) async {
     return await _bleCommandQueue.queueCommand(
-      () => _platform.isConnected(deviceId),
+      () => _platform.getConnectionState(deviceId),
     );
   }
 
