@@ -316,11 +316,11 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
   }
 
   public func centralManager(_: CBCentralManager, didConnect peripheral: CBPeripheral) {
-    callbackChannel.onConnectionChanged(deviceId: peripheral.uuid.uuidString, state: BlueConnectionState.connected.rawValue) { _ in }
+    callbackChannel.onConnectionChanged(deviceId: peripheral.uuid.uuidString, connected: true) { _ in }
   }
 
   public func centralManager(_: CBCentralManager, didDisconnectPeripheral peripheral: CBPeripheral, error _: Error?) {
-    callbackChannel.onConnectionChanged(deviceId: peripheral.uuid.uuidString, state: BlueConnectionState.disconnected.rawValue) { _ in }
+    callbackChannel.onConnectionChanged(deviceId: peripheral.uuid.uuidString, connected: false) { _ in }
     // Cleanup on disconnect
     cleanUpConnection(deviceId: peripheral.uuid.uuidString)
   }

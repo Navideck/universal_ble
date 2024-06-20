@@ -62,14 +62,14 @@ class _PeripheralDetailPageState extends State<PeripheralDetailPage> {
     });
   }
 
-  void _handleConnectionChange(String deviceId, BleConnectionState state) {
-    print('_handleConnectionChange $deviceId, ${state.name}');
+  void _handleConnectionChange(String deviceId, bool connected) {
+    print('_handleConnectionChange $deviceId, $connected');
     setState(() {
       if (deviceId == widget.deviceId) {
-        isConnected = (state == BleConnectionState.connected);
+        isConnected = connected;
       }
     });
-    _addLog('Connection', state.name.toUpperCase());
+    _addLog('Connection', connected ? "Connected" : "Disconnected");
     // Auto Discover Services
     if (isConnected) {
       _discoverServices();
@@ -353,7 +353,7 @@ class _PeripheralDetailPageState extends State<PeripheralDetailPage> {
                                   ),
                                 );
                               },
-                              text: 'ConnectionState',
+                              text: 'Connection State',
                             ),
                             if (Capabilities.supportsRequestMtuApi)
                               PlatformButton(

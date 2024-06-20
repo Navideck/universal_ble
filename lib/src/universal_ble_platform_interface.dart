@@ -74,8 +74,7 @@ abstract class UniversalBlePlatform {
 }
 
 // Callback types
-typedef OnConnectionChange = void Function(
-    String deviceId, BleConnectionState state);
+typedef OnConnectionChange = void Function(String deviceId, bool connected);
 
 typedef OnValueChange = void Function(
     String deviceId, String characteristicId, Uint8List value);

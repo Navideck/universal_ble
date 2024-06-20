@@ -383,7 +383,7 @@ class UniversalBleCallbackChannel {
     std::function<void(const FlutterError&)>&& on_error);
   void OnConnectionChanged(
     const std::string& device_id,
-    int64_t state,
+    bool connected,
     std::function<void(void)>&& on_success,
     std::function<void(const FlutterError&)>&& on_error);
 

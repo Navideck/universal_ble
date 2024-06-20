@@ -97,7 +97,7 @@ abstract class UniversalBleCallbackChannel {
 
   void onConnectionChanged(
     String deviceId,
-    int state,
+    bool connected,
   );
 }
 

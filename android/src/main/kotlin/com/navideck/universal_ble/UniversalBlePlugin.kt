@@ -137,10 +137,7 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
             if (currentState == BluetoothGatt.STATE_CONNECTED) {
                 Log.e(TAG, "$deviceId Already connected")
                 mainThreadHandler?.post {
-                    callbackChannel?.onConnectionChanged(
-                        deviceId,
-                        BleConnectionState.Connected.value
-                    ) {}
+                    callbackChannel?.onConnectionChanged(deviceId, true) {}
                 }
                 return
             } else if (currentState == BluetoothGatt.STATE_CONNECTING) {
@@ -757,16 +754,22 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
             return
         }
 
-        if (newState == BluetoothGatt.STATE_DISCONNECTED) {
+        if (newState == BluetoothGatt.STATE_CONNECTED) {
+            mainThreadHandler?.post {
+                callbackChannel?.onConnectionChanged(
+                    gatt.device.address, true
+                ) {}
+            }
+        } else if (newState == BluetoothGatt.STATE_DISCONNECTED) {
             cleanConnection(gatt)
+            mainThreadHandler?.post {
+                callbackChannel?.onConnectionChanged(
+                    gatt.device.address, false
+                ) {}
+            }
         }
 
-        mainThreadHandler?.post {
-            callbackChannel?.onConnectionChanged(
-                gatt.device.address,
-                newState.toBleConnectionState().value
-            ) {}
-        }
+
     }
 
     override fun onCharacteristicChanged(
