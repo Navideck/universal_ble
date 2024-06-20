@@ -75,7 +75,7 @@ UniversalBle.stopScan();
 Before initiating a scan, ensure that Bluetooth is available:
 
 ```dart
-AvailabilityState state = await UniversalBle.getBluetoothAvailabilityState()
+AvailabilityState state = await UniversalBle.getBluetoothAvailabilityState();
 // Start scan only if Bluetooth is powered on
 if (state == AvailabilityState.poweredOn) {
   UniversalBle.startScan();
@@ -91,18 +91,19 @@ UniversalBle.onAvailabilityChange = (state) {
 
 See the [Bluetooth Availability](#bluetooth-availability) section for more.
 
-#### Connected Devices
+#### System Devices
 
-Already connected devices, either through previous sessions or connected through system settings, won't show up as scan results.
-You can list those devices using `getSystemDevices()`. You still need to explicitly connect before using them.
+Already connected devices, connected either through previous sessions, other apps or through system settings, won't show up as scan results. You can get those using `getSystemDevices()`.
 
 ```dart
-// Get connected devices
+// Get already connected devices
 // You can set `withServices` to narrow down the results
+// On `Apple`, `withServices` is required to get connected devices, else [1800] service will be used as default filter.
 List<BleDevice> devices = await UniversalBle.getSystemDevices(withServices: []);
 ```
+For each such device the `isSystemDevice` property will be `true`.
 
-For each connected device the `isConnected` property will be `true`.
+You still need to explicitly [connect](#connecting) to them before being able to use them.
 
 #### Scan Filter
 
@@ -142,10 +143,14 @@ UniversalBle.connect(deviceId);
 // Disconnect from a device
 UniversalBle.disconnect(deviceId);
 
-// Get connection state updates
-UniversalBle.onConnectionChange = (String deviceId, BleConnectionState state) {
-  debugPrint('OnConnectionChange $deviceId, $state');
+// Get connection/disconnection updates
+UniversalBle.onConnectionChange = (String deviceId, bool isConnected) {
+  debugPrint('OnConnectionChange $deviceId, $isConnected');
 }
+
+// Get current connection state
+// Can be connected, disconnected, connecting or disconnecting
+BleConnectionState connectionState = await bleDevice.connectionState;
 ```
 
 ### Discovering Services

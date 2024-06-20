@@ -926,7 +926,7 @@ void UniversalBlePlatformChannel::SetUp(
     }
   }
   {
-    BasicMessageChannel<> channel(binary_messenger, "dev.flutter.pigeon.universal_ble.UniversalBlePlatformChannel.isConnected" + prepended_suffix, &GetCodec());
+    BasicMessageChannel<> channel(binary_messenger, "dev.flutter.pigeon.universal_ble.UniversalBlePlatformChannel.getConnectionState" + prepended_suffix, &GetCodec());
     if (api != nullptr) {
       channel.SetMessageHandler([api](const EncodableValue& message, const flutter::MessageReply<EncodableValue>& reply) {
         try {
@@ -937,7 +937,7 @@ void UniversalBlePlatformChannel::SetUp(
             return;
           }
           const auto& device_id_arg = std::get<std::string>(encodable_device_id_arg);
-          ErrorOr<bool> output = api->IsConnected(device_id_arg);
+          ErrorOr<int64_t> output = api->GetConnectionState(device_id_arg);
           if (output.has_error()) {
             reply(WrapError(output.error()));
             return;
@@ -1123,14 +1123,14 @@ void UniversalBleCallbackChannel::OnValueChanged(
 
 void UniversalBleCallbackChannel::OnConnectionChanged(
   const std::string& device_id_arg,
-  int64_t state_arg,
+  bool connected_arg,
   std::function<void(void)>&& on_success,
   std::function<void(const FlutterError&)>&& on_error) {
   const std::string channel_name = "dev.flutter.pigeon.universal_ble.UniversalBleCallbackChannel.onConnectionChanged" + message_channel_suffix_;
   BasicMessageChannel<> channel(binary_messenger_, channel_name, &GetCodec());
   EncodableValue encoded_api_arguments = EncodableValue(EncodableList{
     EncodableValue(device_id_arg),
-    EncodableValue(state_arg),
+    EncodableValue(connected_arg),
   });
   channel.Send(encoded_api_arguments, [channel_name, on_success = std::move(on_success), on_error = std::move(on_error)](const uint8_t* reply, size_t reply_size) {
     std::unique_ptr<EncodableValue> response = GetCodec().DecodeMessage(reply, reply_size);

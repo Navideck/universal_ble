@@ -77,7 +77,7 @@ abstract class UniversalBlePlatformChannel {
     List<String> withServices,
   );
 
-  bool isConnected(String deviceId);
+  int getConnectionState(String deviceId);
 }
 
 /// Native -> Flutter
@@ -97,7 +97,7 @@ abstract class UniversalBleCallbackChannel {
 
   void onConnectionChanged(
     String deviceId,
-    int state,
+    bool connected,
   );
 }
 

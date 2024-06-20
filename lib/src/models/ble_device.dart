@@ -12,10 +12,11 @@ class BleDevice {
   Uint8List? manufacturerDataHead;
   Uint8List? manufacturerData;
 
-  Future<BleConnectionState> get connectionState async =>
-      await UniversalBle.isConnected(deviceId)
-          ? BleConnectionState.connected
-          : BleConnectionState.disconnected;
+  /// Returns connection state of device,
+  /// All platforms will return `Connected/Disconnected` states
+  /// `Android` and `Apple` can also return `Connecting/Disconnecting` states
+  Future<BleConnectionState> get connectionState =>
+      UniversalBle.getConnectionState(deviceId);
 
   BleDevice({
     required this.deviceId,

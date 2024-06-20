@@ -27,6 +27,8 @@ enum BleOutputProperty: Int {
 enum BlueConnectionState: Int64 {
     case connected = 0
     case disconnected = 1
+    case connecting = 2
+    case disconnecting = 3
 }
 
 enum AvailabilityState: Int64 {

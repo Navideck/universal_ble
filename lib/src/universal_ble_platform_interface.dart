@@ -44,7 +44,7 @@ abstract class UniversalBlePlatform {
 
   Future<void> unPair(String deviceId);
 
-  Future<bool> isConnected(String deviceId);
+  Future<BleConnectionState> getConnectionState(String deviceId);
 
   Future<List<BleDevice>> getSystemDevices(
     List<String>? withServices,
@@ -74,8 +74,7 @@ abstract class UniversalBlePlatform {
 }
 
 // Callback types
-typedef OnConnectionChange = void Function(
-    String deviceId, BleConnectionState state);
+typedef OnConnectionChange = void Function(String deviceId, bool isConnected);
 
 typedef OnValueChange = void Function(
     String deviceId, String characteristicId, Uint8List value);

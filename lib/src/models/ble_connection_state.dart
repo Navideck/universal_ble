@@ -1,6 +1,8 @@
 enum BleConnectionState {
   connected,
-  disconnected;
+  disconnected,
+  connecting,
+  disconnecting;
 
   const BleConnectionState();
 

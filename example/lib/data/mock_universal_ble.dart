@@ -31,12 +31,12 @@ class MockUniversalBle extends UniversalBlePlatform {
 
   @override
   Future<void> connect(String deviceId, {Duration? connectionTimeout}) async {
-    onConnectionChange?.call(deviceId, BleConnectionState.connected);
+    onConnectionChange?.call(deviceId, true);
   }
 
   @override
   Future<void> disconnect(String deviceId) async {
-    onConnectionChange?.call(deviceId, BleConnectionState.disconnected);
+    onConnectionChange?.call(deviceId, false);
   }
 
   @override
@@ -105,7 +105,7 @@ class MockUniversalBle extends UniversalBlePlatform {
   }
 
   @override
-  Future<bool> isConnected(String deviceId) {
+  Future<BleConnectionState> getConnectionState(String deviceId) {
     throw UnimplementedError();
   }
 }

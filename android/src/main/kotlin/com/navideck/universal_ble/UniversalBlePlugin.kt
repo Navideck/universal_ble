@@ -137,10 +137,7 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
             if (currentState == BluetoothGatt.STATE_CONNECTED) {
                 Log.e(TAG, "$deviceId Already connected")
                 mainThreadHandler?.post {
-                    callbackChannel?.onConnectionChanged(
-                        deviceId,
-                        BleConnectionState.Connected.value
-                    ) {}
+                    callbackChannel?.onConnectionChanged(deviceId, true) {}
                 }
                 return
             } else if (currentState == BluetoothGatt.STATE_CONNECTING) {
@@ -180,8 +177,11 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
         cleanConnection(deviceId.toBluetoothGatt())
     }
 
-    override fun isConnected(deviceId: String): Boolean {
-        return devicesStateMap[deviceId] == BluetoothGatt.STATE_CONNECTED
+    override fun getConnectionState(deviceId: String): Long {
+        return bluetoothManager.getConnectionState(
+            bluetoothManager.adapter.getRemoteDevice(deviceId),
+            BluetoothProfile.GATT
+        ).toBleConnectionState().value
     }
 
     override fun discoverServices(
@@ -749,22 +749,27 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
 
     override fun onConnectionStateChange(gatt: BluetoothGatt, status: Int, newState: Int) {
         devicesStateMap[gatt.device.address] = newState
-        if (newState == BluetoothGatt.STATE_CONNECTED && status == BluetoothGatt.GATT_SUCCESS) {
+        if (status != BluetoothGatt.GATT_SUCCESS) {
+            Log.e(TAG, "Failed to update connected state: $status")
+            return
+        }
+
+        if (newState == BluetoothGatt.STATE_CONNECTED) {
             mainThreadHandler?.post {
                 callbackChannel?.onConnectionChanged(
-                    gatt.device.address,
-                    BleConnectionState.Connected.value
+                    gatt.device.address, true
                 ) {}
             }
-        } else {
+        } else if (newState == BluetoothGatt.STATE_DISCONNECTED) {
             cleanConnection(gatt)
             mainThreadHandler?.post {
                 callbackChannel?.onConnectionChanged(
-                    gatt.device.address,
-                    BleConnectionState.Disconnected.value
+                    gatt.device.address, false
                 ) {}
             }
         }
+
+
     }
 
     override fun onCharacteristicChanged(

@@ -62,16 +62,16 @@ class _PeripheralDetailPageState extends State<PeripheralDetailPage> {
     });
   }
 
-  void _handleConnectionChange(String deviceId, BleConnectionState state) {
-    print('_handleConnectionChange $deviceId, ${state.name}');
+  void _handleConnectionChange(String deviceId, bool isConnected) {
+    print('_handleConnectionChange $deviceId, $isConnected');
     setState(() {
       if (deviceId == widget.deviceId) {
-        isConnected = (state == BleConnectionState.connected);
+        this.isConnected = isConnected;
       }
     });
-    _addLog('Connection', state.name.toUpperCase());
+    _addLog('Connection', isConnected ? "Connected" : "Disconnected");
     // Auto Discover Services
-    if (isConnected) {
+    if (this.isConnected) {
       _discoverServices();
     }
   }
@@ -347,13 +347,13 @@ class _PeripheralDetailPageState extends State<PeripheralDetailPage> {
                             PlatformButton(
                               onPressed: () async {
                                 _addLog(
-                                  'IsConnected',
-                                  await UniversalBle.isConnected(
+                                  'ConnectionState',
+                                  await UniversalBle.getConnectionState(
                                     widget.deviceId,
                                   ),
                                 );
                               },
-                              text: 'IsConnected',
+                              text: 'Connection State',
                             ),
                             if (Capabilities.supportsRequestMtuApi)
                               PlatformButton(

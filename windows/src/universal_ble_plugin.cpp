@@ -164,13 +164,18 @@ namespace universal_ble
     }
   };
 
-  ErrorOr<bool> UniversalBlePlugin::IsConnected(const std::string &device_id)
+  ErrorOr<int64_t> UniversalBlePlugin::GetConnectionState(const std::string &device_id)
   {
     auto it = connectedDevices.find(_str_to_mac_address(device_id));
     if (it == connectedDevices.end())
-      return false;
+      return static_cast<int>(ConnectionState::disconnected);
+
     auto deviceAgent = *it->second;
-    return deviceAgent.device.ConnectionStatus() == BluetoothConnectionStatus::Connected;
+
+    if (deviceAgent.device.ConnectionStatus() == BluetoothConnectionStatus::Connected)
+      return static_cast<int>(ConnectionState::connected);
+    else
+      return static_cast<int>(ConnectionState::disconnected);
   }
 
   std::optional<FlutterError> UniversalBlePlugin::Connect(const std::string &device_id)
@@ -185,7 +190,7 @@ namespace universal_ble
     CleanConnection(deviceAddress);
     // TODO: send disconnect event only after disconnect is complete
     uiThreadHandler_.Post([deviceAddress]
-                          { callbackChannel->OnConnectionChanged(_mac_address_to_str(deviceAddress), static_cast<int>(ConnectionState::disconnected), SuccessCallback, ErrorCallback); });
+                          { callbackChannel->OnConnectionChanged(_mac_address_to_str(deviceAddress), false, SuccessCallback, ErrorCallback); });
 
     return std::nullopt;
   };
@@ -1007,7 +1012,7 @@ namespace universal_ble
     {
       std::cout << "ConnectionLog: ConnectionFailed: Failed to get device" << std::endl;
       uiThreadHandler_.Post([bluetoothAddress]
-                            { callbackChannel->OnConnectionChanged(_mac_address_to_str(bluetoothAddress), static_cast<int>(ConnectionState::disconnected), SuccessCallback, ErrorCallback); });
+                            { callbackChannel->OnConnectionChanged(_mac_address_to_str(bluetoothAddress), false, SuccessCallback, ErrorCallback); });
 
       co_return;
     }
@@ -1017,7 +1022,7 @@ namespace universal_ble
     {
       std::cout << "ConnectionFailed: Failed to get services: " << GattCommunicationStatusToString(status) << std::endl;
       uiThreadHandler_.Post([bluetoothAddress]
-                            { callbackChannel->OnConnectionChanged(_mac_address_to_str(bluetoothAddress), static_cast<int>(ConnectionState::disconnected), SuccessCallback, ErrorCallback); });
+                            { callbackChannel->OnConnectionChanged(_mac_address_to_str(bluetoothAddress), false, SuccessCallback, ErrorCallback); });
 
       co_return;
     }
@@ -1054,7 +1059,7 @@ namespace universal_ble
     connectedDevices.insert(std::move(pair));
     std::cout << "ConnectionLog: Connected" << std::endl;
     uiThreadHandler_.Post([bluetoothAddress]
-                          { callbackChannel->OnConnectionChanged(_mac_address_to_str(bluetoothAddress), static_cast<int>(ConnectionState::connected), SuccessCallback, ErrorCallback); });
+                          { callbackChannel->OnConnectionChanged(_mac_address_to_str(bluetoothAddress), true, SuccessCallback, ErrorCallback); });
   }
 
   void UniversalBlePlugin::BluetoothLEDevice_ConnectionStatusChanged(BluetoothLEDevice sender, IInspectable args)
@@ -1064,7 +1069,7 @@ namespace universal_ble
       CleanConnection(sender.BluetoothAddress());
       auto bluetoothAddress = sender.BluetoothAddress();
       uiThreadHandler_.Post([bluetoothAddress]
-                            { callbackChannel->OnConnectionChanged(_mac_address_to_str(bluetoothAddress), static_cast<int>(ConnectionState::disconnected), SuccessCallback, ErrorCallback); });
+                            { callbackChannel->OnConnectionChanged(_mac_address_to_str(bluetoothAddress), false, SuccessCallback, ErrorCallback); });
     }
   }
 

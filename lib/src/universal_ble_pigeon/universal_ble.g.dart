@@ -657,9 +657,9 @@ class UniversalBlePlatformChannel {
     }
   }
 
-  Future<bool> isConnected(String deviceId) async {
+  Future<int> getConnectionState(String deviceId) async {
     final String __pigeon_channelName =
-        'dev.flutter.pigeon.universal_ble.UniversalBlePlatformChannel.isConnected$__pigeon_messageChannelSuffix';
+        'dev.flutter.pigeon.universal_ble.UniversalBlePlatformChannel.getConnectionState$__pigeon_messageChannelSuffix';
     final BasicMessageChannel<Object?> __pigeon_channel =
         BasicMessageChannel<Object?>(
       __pigeon_channelName,
@@ -682,7 +682,7 @@ class UniversalBlePlatformChannel {
         message: 'Host platform returned null value for non-null return value.',
       );
     } else {
-      return (__pigeon_replyList[0] as bool?)!;
+      return (__pigeon_replyList[0] as int?)!;
     }
   }
 }
@@ -724,7 +724,7 @@ abstract class UniversalBleCallbackChannel {
   void onValueChanged(
       String deviceId, String characteristicId, Uint8List value);
 
-  void onConnectionChanged(String deviceId, int state);
+  void onConnectionChanged(String deviceId, bool connected);
 
   static void setUp(
     UniversalBleCallbackChannel? api, {
@@ -873,11 +873,11 @@ abstract class UniversalBleCallbackChannel {
           final String? arg_deviceId = (args[0] as String?);
           assert(arg_deviceId != null,
               'Argument for dev.flutter.pigeon.universal_ble.UniversalBleCallbackChannel.onConnectionChanged was null, expected non-null String.');
-          final int? arg_state = (args[1] as int?);
-          assert(arg_state != null,
-              'Argument for dev.flutter.pigeon.universal_ble.UniversalBleCallbackChannel.onConnectionChanged was null, expected non-null int.');
+          final bool? arg_connected = (args[1] as bool?);
+          assert(arg_connected != null,
+              'Argument for dev.flutter.pigeon.universal_ble.UniversalBleCallbackChannel.onConnectionChanged was null, expected non-null bool.');
           try {
-            api.onConnectionChanged(arg_deviceId!, arg_state!);
+            api.onConnectionChanged(arg_deviceId!, arg_connected!);
             return wrapResponse(empty: true);
           } on PlatformException catch (e) {
             return wrapResponse(error: e);
