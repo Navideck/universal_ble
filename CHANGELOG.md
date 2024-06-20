@@ -3,7 +3,7 @@
 * BREAKING CHANGE: `getConnectedDevices` is now `getSystemDevices`
 * BREAKING CHANGE: `isPaired` is now nullable
 * BREAKING CHANGE: `onValueChanged` is now `onValueChange`
-* BREAKING CHANGE: `onConnectionChanged` is now `onConnectionChange`
+* BREAKING CHANGE: `onConnectionChanged` is now `onConnectionChange` and updates with boolean instead of `BleConnectionState`
 * Add `connectionState` property to BleDevice
 * Add `isSystemDevice` property to BleDevice
 * Add `.perDevice` queue
