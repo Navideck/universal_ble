@@ -1,34 +1,33 @@
 import 'package:bluez/bluez.dart';
 
-class UUID {
-  late String value;
-
-  UUID(String uuid) {
-    // To validate the short UUID
+class Uuid {
+  /// Parse a String to valid UUID and convert a 16 bit UUID to 128 bit UUID
+  /// Might throw `FormatException` if the UUID is invalid
+  static String parse(String uuid) {
     if (uuid.length <= 4) {
       try {
-        int shortValue = int.parse(uuid, radix: 16);
-        value = BlueZUUID.short(shortValue).toString();
-        return;
+        return BlueZUUID.short(
+          int.parse(uuid, radix: 16),
+        ).toString();
       } catch (_) {}
     }
-    // To validate the UUID
-    BlueZUUID.fromString(uuid);
-    value = uuid;
+    return BlueZUUID.fromString(uuid).toString();
   }
 
-  factory UUID.fromShort(int short) {
+  /// Parse 16 bit uuid like `0x1800` to 128 bit uuid like `00001800-0000-1000-8000-00805f9b34fb`
+  static String parseShort(int short) {
     BlueZUUID blueZUUID = BlueZUUID.short(short);
-    return UUID(blueZUUID.toString());
+    return blueZUUID.toString();
   }
 
-  @override
-  String toString() {
-    return value;
+  /// Compare two UUIDs to automatically convert both to 128 bit UUIDs
+  /// Might throw `FormatException` if the UUID is invalid
+  static bool equals(String uuid1, String uuid2) {
+    return parse(uuid1) == parse(uuid2);
   }
 }
 
 /// Parse a list of strings to a list of UUIDs
 extension StringListToUUID on List<String> {
-  List<String> toValidUUIDList() => map((e) => UUID(e).value).toList();
+  List<String> toValidUUIDList() => map(Uuid.parse).toList();
 }
