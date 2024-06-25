@@ -177,7 +177,7 @@ UniversalBle.writeValue(deviceId, serviceId, characteristicId, value);
 // Subscribe to a characteristic
 UniversalBle.setNotifiable(deviceId, serviceId, characteristicId, BleInputProperty.notification);
 
-// Get characteristic updates in `onValueChange`
+// Get characteristic updates in `onValueChange`, `characteristicId` will be a 128bit lowercase UUID
 UniversalBle.onValueChange = (String deviceId, String characteristicId, Uint8List value) {
   debugPrint('onValueChange $deviceId, $characteristicId, ${hex.encode(value)}');
 }
@@ -305,9 +305,21 @@ ScanFilter(
 
 ## Note
 
-All Characteristic and Services UUID's will be in 128 bit format in lowercase across all platforms, so its best to always use 128 bit lowercase UUID strings with the plugin
+All Characteristic and Services UUID's will be in 128 bit format in lowercase across all platforms
 
-You can also use `Uuid.parse` to convert a string to a valid 128 bit UUID string, or `Uuid.parseShort` to creates a valid 128 bit Bluetooth UUID from the short (16 or 32 bit) encoding.
+You can also use `Uuid.parse` to convert a string to a valid 128 bit UUID string, for example
+
+```dart
+Uuid.parse("180A") = "0000180a-0000-1000-8000-00805f9b34fb"
+
+Uuid.parse("0000180A-0000-1000-8000-00805F9B34FB") = "0000180a-0000-1000-8000-00805f9b34fb"
+```
+
+Or `Uuid.parseShort` to creates a valid 128 bit Bluetooth UUID from the short (16 or 32 bit) encoding, for example
+
+```dart
+Uuid.parseShort(0x180A) = "0000180a-0000-1000-8000-00805f9b34fb"
+```
 
 ## Customizing Platform Implementation of UniversalBle
 
