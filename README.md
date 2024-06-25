@@ -101,6 +101,7 @@ Already connected devices, connected either through previous sessions, other app
 // On `Apple`, `withServices` is required to get connected devices, else [1800] service will be used as default filter.
 List<BleDevice> devices = await UniversalBle.getSystemDevices(withServices: []);
 ```
+
 For each such device the `isSystemDevice` property will be `true`.
 
 You still need to explicitly [connect](#connecting) to them before being able to use them.
@@ -301,6 +302,12 @@ ScanFilter(
       withServices: kIsWeb ?  ["SERVICE_UUID"] : [],
 )
 ```
+
+## Note
+
+All Characteristic and Services UUID's will be in 128 bit format in lowercase across all platforms, so its best to always use 128 bit lowercase UUID strings with the plugin
+
+You can also use `Uuid.parse` to convert a string to a valid 128 bit UUID string, or `Uuid.parseShort` to creates a valid 128 bit Bluetooth UUID from the short (16 or 32 bit) encoding.
 
 ## Customizing Platform Implementation of UniversalBle
 
