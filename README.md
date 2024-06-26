@@ -260,6 +260,27 @@ UniversalBle.timeout = const Duration(seconds: 10);
 UniversalBle.timeout = null;
 ```
 
+## UUID format
+
+All characteristic and service UUIDs will be returned in lowercase and in 128 bit format, across all platforms.
+e.g. `0000180a-0000-1000-8000-00805f9b34fb`
+
+When passing a UUID you can pass it in any character case or format (long/short) you want.
+
+You can use `Uuid.parse()` to convert a string to 128 bit UUID format. For example:
+
+```dart
+Uuid.parse("180A"); // "0000180a-0000-1000-8000-00805f9b34fb"
+
+Uuid.parse("0000180A-0000-1000-8000-00805F9B34FB"); // "0000180a-0000-1000-8000-00805f9b34fb"
+```
+
+or `Uuid.extend()` to create a valid 128 bit Bluetooth UUID from short (16 or 32 bit) encoding. For example:
+
+```dart
+Uuid.extend(0x180A); // "0000180a-0000-1000-8000-00805f9b34fb"
+```
+
 ## Platform-Specific Setup
 
 ### Android
@@ -301,27 +322,6 @@ On web, the `withServices` parameter in the ScanFilter is used as [optional_serv
 ScanFilter(
       withServices: kIsWeb ?  ["SERVICE_UUID"] : [],
 )
-```
-
-## UUID format
-
-All characteristic and service UUIDs will be returned in lowercase and in 128 bit format, across all platforms.
-e.g. `0000180a-0000-1000-8000-00805f9b34fb`
-
-When passing a UUID you can pass it in any character case or format (long/short) you want.
-
-You can use `Uuid.parse()` to convert a string to 128 bit UUID format. For example:
-
-```dart
-Uuid.parse("180A"); // "0000180a-0000-1000-8000-00805f9b34fb"
-
-Uuid.parse("0000180A-0000-1000-8000-00805F9B34FB"); // "0000180a-0000-1000-8000-00805f9b34fb"
-```
-
-or `Uuid.extend()` to create a valid 128 bit Bluetooth UUID from short (16 or 32 bit) encoding. For example:
-
-```dart
-Uuid.extend(0x180A); // "0000180a-0000-1000-8000-00805f9b34fb"
 ```
 
 ## Customizing Platform Implementation of UniversalBle

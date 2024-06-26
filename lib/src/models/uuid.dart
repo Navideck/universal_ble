@@ -14,8 +14,8 @@ class Uuid {
     return BlueZUUID.fromString(uuid).toString();
   }
 
-  /// Parse 16 bit uuid like `0x1800` to 128 bit uuid like `00001800-0000-1000-8000-00805f9b34fb`
-  static String parseShort(int short) {
+  /// Parse 16/32 bit uuid like `0x1800` to 128 bit uuid like `00001800-0000-1000-8000-00805f9b34fb`
+  static String extend(int short) {
     BlueZUUID blueZUUID = BlueZUUID.short(short);
     return blueZUUID.toString();
   }
