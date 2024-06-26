@@ -2,7 +2,7 @@ import 'package:bluez/bluez.dart';
 
 class Uuid {
   /// Parse a String to valid UUID and convert a 16 bit UUID to 128 bit UUID
-  /// Might throw `FormatException` if the UUID is invalid
+  /// Throws `FormatException` if the UUID is invalid
   static String parse(String uuid) {
     if (uuid.length <= 4) {
       try {
@@ -21,7 +21,7 @@ class Uuid {
   }
 
   /// Compare two UUIDs to automatically convert both to 128 bit UUIDs
-  /// Might throw `FormatException` if the UUID is invalid
+  /// Throws `FormatException` if the UUID is invalid
   static bool equals(String uuid1, String uuid2) {
     return parse(uuid1) == parse(uuid2);
   }
