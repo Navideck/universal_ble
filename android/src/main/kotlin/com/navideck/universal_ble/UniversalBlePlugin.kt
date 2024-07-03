@@ -37,12 +37,11 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
     private lateinit var context: Context
     private var activity: Activity? = null
     private lateinit var bluetoothManager: BluetoothManager
-    private val mtuResultFutureList = mutableListOf<MtuResultFuture>()
-    private val bleCharacteristicFutureList = mutableListOf<BleCharacteristicFuture>()
     private val discoverServicesFutureList = mutableListOf<DiscoverServicesFuture>()
-    private val characteristicSubscriptionFutureList =
-        mutableListOf<CharacteristicSubscriptionFuture>()
+    private val mtuResultFutureList = mutableListOf<MtuResultFuture>()
+    private val readResultFutureList = mutableListOf<ReadResultFuture>()
     private val writeResultFutureList = mutableListOf<WriteResultFuture>()
+    private val subscriptionResultFutureList = mutableListOf<SubscriptionResultFuture>()
     private val cachedServicesMap = mutableMapOf<String, List<String>>()
     private val devicesStateMap = mutableMapOf<String, Int>()
     private var bluetoothEnableRequestFuture: ((Result<Boolean>) -> Unit)? = null
@@ -161,19 +160,6 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
     }
 
     override fun disconnect(deviceId: String) {
-        // val currentState = devicesStateMap[deviceId]
-        // If `disconnect` is called before BluetoothGatt.STATE_CONNECTED or BluetoothGatt.STATE_CONNECTING
-        // there will be no `disconnected` message any more from callback
-        //        if (currentState != null && currentState != BluetoothGatt.STATE_CONNECTED) {
-        //            Log.e(TAG, "$deviceId Already disconnected or disconnecting")
-        //            mainThreadHandler?.post {
-        //                callbackChannel?.onConnectionChanged(
-        //                    deviceId,
-        //                    BleConnectionState.Disconnected.value
-        //                ) {}
-        //            }
-        //            return
-        //}
         cleanConnection(deviceId.toBluetoothGatt())
     }
 
@@ -188,11 +174,23 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
         deviceId: String,
         callback: (Result<List<UniversalBleService>>) -> Unit,
     ) {
-        if (!deviceId.toBluetoothGatt().discoverServices()) {
-            callback(Result.failure(FlutterError("Failed", "Failed to discover services", null)))
-            return
+        try {
+            if (!deviceId.toBluetoothGatt().discoverServices()) {
+                callback(
+                    Result.failure(
+                        FlutterError(
+                            "Failed",
+                            "Failed to discover services",
+                            null
+                        )
+                    )
+                )
+                return
+            }
+            discoverServicesFutureList.add(DiscoverServicesFuture(deviceId, callback))
+        } catch (e: FlutterError) {
+            callback(Result.failure(e))
         }
-        discoverServicesFutureList.add(DiscoverServicesFuture(deviceId, callback))
     }
 
     override fun onServicesDiscovered(gatt: BluetoothGatt, status: Int) {
@@ -241,8 +239,8 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
                 )
 
             if (gatt.setNotifiable(gattCharacteristic, bleInputProperty)) {
-                characteristicSubscriptionFutureList.add(
-                    CharacteristicSubscriptionFuture(
+                subscriptionResultFutureList.add(
+                    SubscriptionResultFuture(
                         gatt.device.address,
                         gattCharacteristic.uuid.toString(),
                         gattCharacteristic.service.uuid.toString(),
@@ -297,8 +295,8 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
                 return
             }
 
-            bleCharacteristicFutureList.add(
-                BleCharacteristicFuture(
+            readResultFutureList.add(
+                ReadResultFuture(
                     gatt.device.address,
                     gattCharacteristic.uuid.toString(),
                     gattCharacteristic.service.uuid.toString(),
@@ -326,12 +324,12 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
         value: ByteArray,
         status: Int,
     ) {
-        bleCharacteristicFutureList.filter {
+        readResultFutureList.filter {
             it.deviceId == gatt.device.address &&
                     it.characteristicId == characteristic.uuid.toString() &&
                     it.serviceId == characteristic.service.uuid.toString()
         }.forEach {
-            bleCharacteristicFutureList.remove(it)
+            readResultFutureList.remove(it)
             if (status == BluetoothGatt.GATT_SUCCESS) {
                 it.result(Result.success(value))
             } else {
@@ -459,9 +457,13 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
 
 
     override fun requestMtu(deviceId: String, expectedMtu: Long, callback: (Result<Long>) -> Unit) {
-        val gatt = deviceId.toBluetoothGatt()
-        gatt.requestMtu(expectedMtu.toInt())
-        mtuResultFutureList.add(MtuResultFuture(deviceId, callback))
+        try {
+            val gatt = deviceId.toBluetoothGatt()
+            gatt.requestMtu(expectedMtu.toInt())
+            mtuResultFutureList.add(MtuResultFuture(deviceId, callback))
+        } catch (e: FlutterError) {
+            callback(Result.failure(e))
+        }
     }
 
     override fun onMtuChanged(gatt: BluetoothGatt?, mtu: Int, status: Int) {
@@ -638,14 +640,45 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
     private fun cleanConnection(gatt: BluetoothGatt) {
         knownGatts.remove(gatt)
         gatt.disconnect()
-        bleCharacteristicFutureList.removeAll {
-            it.deviceId == gatt.device.address
+        readResultFutureList.removeAll {
+            if (it.deviceId == gatt.device.address) {
+                it.result(Result.failure(DeviceDisconnectedError))
+                true
+            } else {
+                false
+            }
+        }
+        writeResultFutureList.removeAll {
+            if (it.deviceId == gatt.device.address) {
+                it.result(Result.failure(DeviceDisconnectedError))
+                true
+            } else {
+                false
+            }
+        }
+        subscriptionResultFutureList.removeAll {
+            if (it.deviceId == gatt.device.address) {
+                it.result(Result.failure(DeviceDisconnectedError))
+                true
+            } else {
+                false
+            }
         }
         mtuResultFutureList.removeAll {
-            it.deviceId == gatt.device.address
+            if (it.deviceId == gatt.device.address) {
+                it.result(Result.failure(DeviceDisconnectedError))
+                true
+            } else {
+                false
+            }
         }
         discoverServicesFutureList.removeAll {
-            it.deviceId == gatt.device.address
+            if (it.deviceId == gatt.device.address) {
+                it.result(Result.failure(DeviceDisconnectedError))
+                true
+            } else {
+                false
+            }
         }
     }
 
@@ -749,10 +782,7 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
 
     override fun onConnectionStateChange(gatt: BluetoothGatt, status: Int, newState: Int) {
         devicesStateMap[gatt.device.address] = newState
-        if (status != BluetoothGatt.GATT_SUCCESS) {
-            Log.e(TAG, "Failed to update connected state: $status")
-            return
-        }
+        Log.d(TAG, "onConnectionStateChange-> Status: ${status}, NewState: $newState")
 
         if (newState == BluetoothGatt.STATE_CONNECTED) {
             mainThreadHandler?.post {
@@ -768,8 +798,6 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
                 ) {}
             }
         }
-
-
     }
 
     override fun onCharacteristicChanged(
@@ -808,12 +836,12 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
         service: String,
         status: Int,
     ) {
-        characteristicSubscriptionFutureList.filter {
+        subscriptionResultFutureList.filter {
             it.deviceId == deviceId &&
                     it.characteristicId == characteristic &&
                     it.serviceId == service
         }.forEach {
-            characteristicSubscriptionFutureList.remove(it)
+            subscriptionResultFutureList.remove(it)
             val error: String? = status.parseGattErrorCode()
             if (error != null) {
                 it.result(
@@ -894,11 +922,3 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
     override fun onDetachedFromActivityForConfigChanges() {}
     override fun onReattachedToActivityForConfigChanges(binding: ActivityPluginBinding) {}
 }
-
-
-
-
-
-
-
-
