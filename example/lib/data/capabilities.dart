@@ -9,7 +9,7 @@ class Capabilities {
 
   static bool supportsConnectedDevicesApi = !Platform.isWeb;
 
-  static bool supportsPairingApi = !Platform.isWeb && !Platform.isCupertino;
+  static bool supportsPairingApi = !Platform.isWeb;
 
   static bool supportsRequestMtuApi = !Platform.isWeb;
 }

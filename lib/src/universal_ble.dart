@@ -180,8 +180,10 @@ class UniversalBle {
     );
   }
 
-  /// Trigger pair request
-  /// It might throw an error if device is already paired
+  /// Pair a device.
+  /// It might throw an error if device is already paired.
+  /// On Apple, it only works on devices with encrypted `read` characteristics.
+  /// On Apple, it throws an error if the device is not already connected.
   static Future<void> pair(String deviceId) async {
     return await _bleCommandQueue.queueCommand(
       () => _platform.pair(deviceId),

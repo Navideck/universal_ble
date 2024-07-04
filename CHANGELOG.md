@@ -14,6 +14,7 @@
 * Improve Android error handling
 * Fix Android disconnection events sometimes missed
 * Improve cleanup after disconnection on Apple and Android
+* Support pairing on Apple
 
 ## 0.10.0
 * BREAKING CHANGE: `ScanResult` is now `BleDevice`

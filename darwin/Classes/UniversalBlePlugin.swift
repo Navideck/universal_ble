@@ -280,8 +280,19 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
     completion(Result.failure(FlutterError(code: "NotSupported", message: nil, details: nil)))
   }
 
-  func pair(deviceId _: String) throws {
-    throw FlutterError(code: "NotSupported", message: nil, details: nil)
+  func pair(deviceId: String) throws {
+    guard let peripheral = discoveredPeripherals[deviceId] else { return }
+    
+    guard peripheral.state == .connected else { throw FlutterError(code: "NotConnected", message: nil, details: nil)} // TODO: Connect before attempting to pair, to align the behavior with the rest of the platforms
+    guard let services = peripheral.services else { throw FlutterError(code: "ServicesNotDiscovered", message: nil, details: nil)}
+
+    services.forEach { service in
+      service.characteristics?.forEach { characteristic in
+        if characteristic.properties.contains(.read) {
+          peripheral.readValue(for: characteristic)
+        }
+      }
+    }
   }
 
   func unPair(deviceId _: String) throws {
@@ -412,28 +423,31 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
   }
 
   public func peripheral(_ peripheral: CBPeripheral, didUpdateValueFor characteristic: CBCharacteristic, error: Error?) {
+    // Logging for debugging
+    print("didUpdateValueFor called for characteristic: \(characteristic.uuid.uuidString) on peripheral: \(peripheral.identifier.uuidString)")
+    
     // Update callbackChannel if notifying
     if characteristic.isNotifying {
       if let characteristicValue = characteristic.value {
-        callbackChannel.onValueChanged(deviceId: peripheral.uuid.uuidString, characteristicId: characteristic.uuid.uuidStr, value: FlutterStandardTypedData(bytes: characteristicValue)) { _ in }
+        callbackChannel.onValueChanged(deviceId: peripheral.identifier.uuidString, characteristicId: characteristic.uuid.uuidString, value: FlutterStandardTypedData(bytes: characteristicValue)) { _ in }
       }
     }
-
-    if characteristicReadFutures.count == 0 {
+    
+    // Check if there are any pending futures
+    guard !characteristicReadFutures.isEmpty else {
+      print("No pending characteristicReadFutures")
       return
     }
-
+    
     // Update futures for readValue
     characteristicReadFutures.removeAll { future in
-      if future.deviceId == peripheral.uuid.uuidString && future.characteristicId == characteristic.uuid.uuidStr && future.serviceId == characteristic.service?.uuid.uuidStr {
+      if future.deviceId == peripheral.identifier.uuidString && future.characteristicId == characteristic.uuid.uuidString && future.serviceId == characteristic.service?.uuid.uuidString {
         if let flutterError = error?.toFlutterError() {
-          future.result(Result.failure(flutterError))
+          future.result(.failure(flutterError))
+        } else if let characteristicValue = characteristic.value {
+          future.result(.success(FlutterStandardTypedData(bytes: characteristicValue)))
         } else {
-          if let characteristicValue = characteristic.value {
-            future.result(Result.success(FlutterStandardTypedData(bytes: characteristicValue)))
-          } else {
-            future.result(Result.failure(FlutterError(code: "ReadFailed", message: "No value", details: nil)))
-          }
+          future.result(.failure(FlutterError(code: "ReadFailed", message: "No value", details: nil)))
         }
         return true
       }

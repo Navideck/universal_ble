@@ -31,7 +31,8 @@ A cross-platform (Android/iOS/macOS/Windows/Linux/Web) Bluetooth Low Energy (BLE
 | readValue            |   ✔️    | ✔️  |  ✔️   |   ✔️    |      ✔️      | ✔️  |
 | writeValue           |   ✔️    | ✔️  |  ✔️   |   ✔️    |      ✔️      | ✔️  |
 | setNotifiable        |   ✔️    | ✔️  |  ✔️   |   ✔️    |      ✔️      | ✔️  |
-| pair/unPair          |   ✔️    | ❌  |  ❌   |   ✔️    |      ✔️      | ❌  |
+| pair                 |   ✔️    | ✔️  |  ✔️   |   ✔️    |      ✔️      | ❌  |
+| unPair               |   ✔️    | ❌  |  ❌   |   ✔️    |      ✔️      | ❌  |
 | onPairingStateChange |   ✔️    | ❌  |  ❌   |   ✔️    |      ✔️      | ❌  |
 | enableBluetooth      |   ✔️    | ❌  |  ❌   |   ✔️    |      ✔️      | ❌  |
 | onAvailabilityChange |   ✔️    | ✔️  |  ✔️   |   ✔️    |      ✔️      | ✔️  |
