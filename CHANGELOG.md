@@ -1,8 +1,8 @@
 ## 0.10.1
-* Queue only discoverServices, setNotifiable, read & write commands
+* Queue only `discoverServices`, `setNotifiable`, `read` & `write` commands
 * Improve Android error handling
 * Fix: Android disconnection events were sometimes missed
-* Improve cleanup after disconnection on Apple
+* Improve cleanup after disconnection on Apple and Android
 
 ## 0.10.0
 * BREAKING CHANGE: `ScanResult` is now `BleDevice`
