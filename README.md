@@ -220,7 +220,7 @@ UniversalBle.enableBluetooth();
 
 ## Command Queue
 
-By default, all commands are executed in a global queue (`QueueType.global`), with each command waiting for the previous one to finish.
+By default, commands are executed in a global queue (`QueueType.global`), with each command waiting for the previous one to finish.
 
 If you want to parallelize commands between multiple devices, you can set:
 
@@ -228,6 +228,12 @@ If you want to parallelize commands between multiple devices, you can set:
 // Create a separate queue for each device.
 UniversalBle.queueType = QueueType.perDevice;
 ```
+
+The commands that are being queued are:
+- discoverServices
+- setNotifiable
+- read
+- write
 
 You can also disable the queue completely and parallelize all commands, even for the same device, by using:
 

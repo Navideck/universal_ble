@@ -36,12 +36,9 @@ class UniversalBle {
   }
 
   /// Get Bluetooth availability state
-  /// To be notified of updates, set [onAvailabilityChange] listener
-  static Future<AvailabilityState> getBluetoothAvailabilityState() async {
-    return await _bleCommandQueue.queueCommand(
-      () => _platform.getBluetoothAvailabilityState(),
-    );
-  }
+  /// To be notified of updates set [onAvailabilityChange] listener
+  static Future<AvailabilityState> getBluetoothAvailabilityState() =>
+      _platform.getBluetoothAvailabilityState();
 
   /// Start scan.
   /// Scan results will arrive in [onScanResult] listener
@@ -49,22 +46,13 @@ class UniversalBle {
   /// `webRequestOptions` is supported on Web only
   static Future<void> startScan({
     ScanFilter? scanFilter,
-  }) async {
-    return await _bleCommandQueue.queueCommand(
-      () => _platform.startScan(scanFilter: scanFilter),
-      withTimeout: false,
-    );
-  }
+  }) =>
+      _platform.startScan(scanFilter: scanFilter);
 
   /// Stop scan.
   /// Set [onScanResult] listener to `null` if you don't need it anymore
   /// It might throw errors if Bluetooth is not available
-  static Future<void> stopScan() async {
-    return await _bleCommandQueue.queueCommand(
-      () => _platform.stopScan(),
-      withTimeout: false,
-    );
-  }
+  static Future<void> stopScan() => _platform.stopScan();
 
   /// Connect to a device.
   /// Get notified of connection state changes in [onConnectionChange] listener
@@ -74,21 +62,13 @@ class UniversalBle {
   static Future<void> connect(
     String deviceId, {
     Duration? connectionTimeout,
-  }) async {
-    return await _bleCommandQueue.queueCommand(
-      () => _platform.connect(deviceId, connectionTimeout: connectionTimeout),
-      deviceId: deviceId,
-    );
-  }
+  }) =>
+      _platform.connect(deviceId, connectionTimeout: connectionTimeout);
 
   /// Disconnect from a device.
   /// Get notified of connection state changes in [onConnectionChange] listener
-  static Future<void> disconnect(String deviceId) async {
-    return await _bleCommandQueue.queueCommand(
-      () => _platform.disconnect(deviceId),
-      deviceId: deviceId,
-    );
-  }
+  static Future<void> disconnect(String deviceId) =>
+      _platform.disconnect(deviceId);
 
   /// Discover services of a device
   static Future<List<BleService>> discoverServices(String deviceId) async {
@@ -155,40 +135,23 @@ class UniversalBle {
 
   /// Request MTU value
   /// `requestMtu` is not supported on `Linux` and `Web
-  static Future<int> requestMtu(String deviceId, int expectedMtu) async {
-    return await _bleCommandQueue.queueCommand(
-      () => _platform.requestMtu(deviceId, expectedMtu),
-      deviceId: deviceId,
-    );
-  }
+  static Future<int> requestMtu(String deviceId, int expectedMtu) =>
+      _platform.requestMtu(deviceId, expectedMtu);
 
   /// Check if a device is paired
   /// Returns null on `Apple` and `Web`
   static Future<bool?> isPaired(String deviceId) async {
     if (kIsWeb || Platform.isIOS || Platform.isMacOS) return null;
-    return await _bleCommandQueue.queueCommand(
-      () => _platform.isPaired(deviceId),
-      deviceId: deviceId,
-    );
+    return _platform.isPaired(deviceId);
   }
 
   /// Trigger pair request
   /// It might throw an error if device is already paired
-  static Future<void> pair(String deviceId) async {
-    return await _bleCommandQueue.queueCommand(
-      () => _platform.pair(deviceId),
-      deviceId: deviceId,
-    );
-  }
+  static Future<void> pair(String deviceId) => _platform.pair(deviceId);
 
   /// Unpair a device
   /// It might throw an error if device is not paired
-  static Future<void> unPair(String deviceId) async {
-    return await _bleCommandQueue.queueCommand(
-      () => _platform.unPair(deviceId),
-      deviceId: deviceId,
-    );
-  }
+  static Future<void> unPair(String deviceId) => _platform.unPair(deviceId);
 
   /// Get connected devices to the system (connected by any app)
   /// Use [withServices] to filter devices by services
@@ -197,29 +160,19 @@ class UniversalBle {
   /// Not supported on `Web`
   static Future<List<BleDevice>> getSystemDevices({
     List<String>? withServices,
-  }) async {
-    return await _bleCommandQueue.queueCommand(
-      () => _platform.getSystemDevices(withServices),
-    );
-  }
+  }) =>
+      _platform.getSystemDevices(withServices);
 
   /// Returns connection state of device,
   /// All platforms will return `Connected/Disconnected` states
   /// `Android` and `Apple` can also return `Connecting/Disconnecting` states
-  static Future<BleConnectionState> getConnectionState(String deviceId) async {
-    return await _bleCommandQueue.queueCommand(
-      () => _platform.getConnectionState(deviceId),
-    );
-  }
+  static Future<BleConnectionState> getConnectionState(String deviceId) =>
+      _platform.getConnectionState(deviceId);
 
   /// Enable Bluetooth
   /// It might throw errors if Bluetooth is not available
   /// Not supported on `Web` and `Apple`
-  static Future<bool> enableBluetooth() async {
-    return await _bleCommandQueue.queueCommand(
-      () => _platform.enableBluetooth(),
-    );
-  }
+  static Future<bool> enableBluetooth() => _platform.enableBluetooth();
 
   /// Get Bluetooth state availability
   static set onAvailabilityChange(OnAvailabilityChange? onAvailabilityChange) {

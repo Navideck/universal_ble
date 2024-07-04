@@ -641,6 +641,8 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
     private fun cleanConnection(gatt: BluetoothGatt) {
         knownGatts.remove(gatt)
         gatt.disconnect()
+        // TODO: Complete futures as well, not just remove, 
+        // throw error of device disconnected, or test if OS auto complete these futures on disconnect
         bleCharacteristicFutureList.removeAll {
             it.deviceId == gatt.device.address
         }
@@ -752,10 +754,7 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
 
     override fun onConnectionStateChange(gatt: BluetoothGatt, status: Int, newState: Int) {
         devicesStateMap[gatt.device.address] = newState
-        if (status != BluetoothGatt.GATT_SUCCESS) {
-            Log.e(TAG, "Failed to update connected state: $status")
-            return
-        }
+        Log.d(TAG, "onConnectionStateChange-> Status: ${status}, NewState: $newState")
 
         if (newState == BluetoothGatt.STATE_CONNECTED) {
             mainThreadHandler?.post {
@@ -771,8 +770,6 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
                 ) {}
             }
         }
-
-
     }
 
     override fun onCharacteristicChanged(
