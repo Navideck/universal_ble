@@ -62,13 +62,21 @@ class UniversalBle {
   static Future<void> connect(
     String deviceId, {
     Duration? connectionTimeout,
-  }) =>
-      _platform.connect(deviceId, connectionTimeout: connectionTimeout);
+  }) async {
+    return await _bleCommandQueue.queueCommand(
+      () => _platform.connect(deviceId, connectionTimeout: connectionTimeout),
+      deviceId: deviceId,
+    );
+  }
 
   /// Disconnect from a device.
   /// Get notified of connection state changes in [onConnectionChange] listener
-  static Future<void> disconnect(String deviceId) =>
-      _platform.disconnect(deviceId);
+  static Future<void> disconnect(String deviceId) async {
+    return await _bleCommandQueue.queueCommand(
+      () => _platform.disconnect(deviceId),
+      deviceId: deviceId,
+    );
+  }
 
   /// Discover services of a device
   static Future<List<BleService>> discoverServices(String deviceId) async {
@@ -142,12 +150,18 @@ class UniversalBle {
   /// Returns null on `Apple` and `Web`
   static Future<bool?> isPaired(String deviceId) async {
     if (kIsWeb || Platform.isIOS || Platform.isMacOS) return null;
-    return _platform.isPaired(deviceId);
+    return await _bleCommandQueue.queueCommand(
+      () => _platform.isPaired(deviceId),
+      deviceId: deviceId,
+    );
   }
 
   /// Trigger pair request
   /// It might throw an error if device is already paired
-  static Future<void> pair(String deviceId) => _platform.pair(deviceId);
+  static Future<void> pair(String deviceId) => _bleCommandQueue.queueCommand(
+        () => _platform.pair(deviceId),
+        deviceId: deviceId,
+      );
 
   /// Unpair a device
   /// It might throw an error if device is not paired
