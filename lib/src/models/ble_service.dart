@@ -1,13 +1,21 @@
+import 'package:universal_ble/universal_ble.dart';
+
 class BleService {
-  String uuid;
+  late String uuid;
   List<BleCharacteristic> characteristics;
-  BleService(this.uuid, this.characteristics);
+
+  BleService(String uuid, this.characteristics) {
+    this.uuid = BleUuid.parse(uuid);
+  }
 }
 
 class BleCharacteristic {
-  String uuid;
+  late String uuid;
   List<CharacteristicProperty> properties;
-  BleCharacteristic(this.uuid, this.properties);
+
+  BleCharacteristic(String uuid, this.properties) {
+    this.uuid = BleUuid.parse(uuid);
+  }
 }
 
 enum CharacteristicProperty {

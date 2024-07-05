@@ -1,5 +1,5 @@
 export 'package:universal_ble/src/models/queue_type.dart';
-export 'package:universal_ble/src/models/uuid.dart';
+export 'package:universal_ble/src/models/ble_uuid.dart';
 export 'package:universal_ble/src/models/scan_filter.dart';
 export 'package:universal_ble/src/models/ble_property.dart';
 export 'package:universal_ble/src/models/ble_service.dart';

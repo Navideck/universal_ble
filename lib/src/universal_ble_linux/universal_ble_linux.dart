@@ -192,7 +192,7 @@ class UniversalBleLinux extends UniversalBlePlatform {
         for (String property in properties) {
           switch (property) {
             case BluezProperty.value:
-              onValueChange?.call(
+              updateCharacteristicValue(
                 deviceId,
                 characteristic,
                 Uint8List.fromList(char.value),

@@ -21,7 +21,6 @@ class UniversalBleWeb extends UniversalBlePlatform {
 
   @override
   Future<BleConnectionState> getConnectionState(String deviceId) async {
-    // TODO: Test this on Web (All platforms)
     BluetoothDevice? device = _getDeviceById(deviceId);
     bool connected = await device?.connected.first ?? false;
     return connected
@@ -214,7 +213,7 @@ class UniversalBleWeb extends UniversalBlePlatform {
       _characteristicStreamList[characteristicKey] = bleCharacteristic.value
           .map((event) => event.buffer.asUint8List())
           .listen((event) {
-        onValueChange?.call(deviceId, characteristic, event);
+        updateCharacteristicValue(deviceId, characteristic, event);
       });
     }
     // Cancel Notification

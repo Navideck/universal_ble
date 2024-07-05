@@ -101,6 +101,7 @@ Already connected devices, connected either through previous sessions, other app
 // On `Apple`, `withServices` is required to get connected devices, else [1800] service will be used as default filter.
 List<BleDevice> devices = await UniversalBle.getSystemDevices(withServices: []);
 ```
+
 For each such device the `isSystemDevice` property will be `true`.
 
 You still need to explicitly [connect](#connecting) to them before being able to use them.
@@ -257,6 +258,33 @@ UniversalBle.timeout = const Duration(seconds: 10);
 
 // Disable timeout
 UniversalBle.timeout = null;
+```
+
+## UUID format
+
+All characteristic and service UUIDs will be returned in lowercase and in 128 bit format, across all platforms.
+e.g. `0000180a-0000-1000-8000-00805f9b34fb`
+
+When passing a UUID you can pass it in any character case or format (long/short) you want.
+
+You can use `BleUuid.parse()` to convert a string to 128 bit UUID format. For example:
+
+```dart
+BleUuid.parse("180A"); // "0000180a-0000-1000-8000-00805f9b34fb"
+
+BleUuid.parse("0000180A-0000-1000-8000-00805F9B34FB"); // "0000180a-0000-1000-8000-00805f9b34fb"
+```
+
+or `BleUuid.extend()` to create a valid 128 bit Bluetooth UUID from short (16 or 32 bit) encoding. For example:
+
+```dart
+BleUuid.extend(0x180A); // "0000180a-0000-1000-8000-00805f9b34fb"
+```
+
+or `BleUuid.equals()` to compare two UUIDs. For example:
+
+```dart
+BleUuid.equals("180a","0000180A-0000-1000-8000-00805F9B34FB"); // true
 ```
 
 ## Platform-Specific Setup
