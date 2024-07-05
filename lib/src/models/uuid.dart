@@ -4,12 +4,13 @@ class Uuid {
   /// Parse a String to valid UUID and convert a 16 bit UUID to 128 bit UUID
   /// Throws `FormatException` if the UUID is invalid
   static String parse(String uuid) {
-    if (uuid.length <= 4) {
-      try {
-        return BlueZUUID.short(
-          int.parse(uuid, radix: 16),
-        ).toString();
-      } catch (_) {}
+    if (uuid.length < 4) throw const FormatException("Invalid UUID");
+    if (uuid.length <= 8) {
+      uuid = "${uuid.padLeft(8, '0')}-0000-1000-8000-00805f9b34fb";
+    } else if (!uuid.contains("-")) {
+      if (uuid.length != 32) throw const FormatException("Invalid UUID");
+      uuid = "${uuid.substring(0, 8)}-${uuid.substring(8, 12)}"
+          "-${uuid.substring(12, 16)}-${uuid.substring(16, 20)}-${uuid.substring(20, 32)}";
     }
     return BlueZUUID.fromString(uuid).toString();
   }
