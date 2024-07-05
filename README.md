@@ -281,6 +281,12 @@ or `BleUuid.extend()` to create a valid 128 bit Bluetooth UUID from short (16 or
 BleUuid.extend(0x180A); // "0000180a-0000-1000-8000-00805f9b34fb"
 ```
 
+or `BleUuid.equals()` to compare two UUIDs. For example:
+
+```dart
+BleUuid.equals("180a","0000180A-0000-1000-8000-00805F9B34FB"); // true
+```
+
 ## Platform-Specific Setup
 
 ### Android
