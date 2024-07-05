@@ -31,6 +31,19 @@ class BleDevice {
     this.manufacturerDataHead = manufacturerDataHead ?? Uint8List.fromList([]);
     this.manufacturerData = manufacturerData ?? manufacturerDataHead;
   }
+
+  @override
+  String toString() {
+    return 'BleDevice: '
+        'deviceId: $deviceId, '
+        'name: $name, '
+        'rssi: $rssi, '
+        'isPaired: $isPaired, '
+        'services: $services, '
+        'isSystemDevice: $isSystemDevice, '
+        'manufacturerDataHead: $manufacturerDataHead, '
+        'manufacturerData: $manufacturerData';
+  }
 }
 
 /// Represents the manufacturer data of a BLE device.
