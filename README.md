@@ -230,6 +230,8 @@ UniversalBle.queueType = QueueType.perDevice;
 ```
 
 The commands that are being queued are:
+- connect/disconnect
+- pair
 - discoverServices
 - setNotifiable
 - read
