@@ -111,8 +111,8 @@ class UniversalBle {
     return await _bleCommandQueue.queueCommand(
       () => _platform.setNotifiable(
         deviceId,
-        Uuid.parse(service),
-        Uuid.parse(characteristic),
+        BleUuid.parse(service),
+        BleUuid.parse(characteristic),
         bleInputProperty,
       ),
       deviceId: deviceId,
@@ -129,8 +129,8 @@ class UniversalBle {
     return await _bleCommandQueue.queueCommand(
       () => _platform.readValue(
         deviceId,
-        Uuid.parse(service),
-        Uuid.parse(characteristic),
+        BleUuid.parse(service),
+        BleUuid.parse(characteristic),
       ),
       deviceId: deviceId,
     );
@@ -148,8 +148,8 @@ class UniversalBle {
     await _bleCommandQueue.queueCommand(
       () => _platform.writeValue(
         deviceId,
-        Uuid.parse(service),
-        Uuid.parse(characteristic),
+        BleUuid.parse(service),
+        BleUuid.parse(characteristic),
         value,
         bleOutputProperty,
       ),

@@ -65,7 +65,7 @@ abstract class UniversalBlePlatform {
   /// `onValueChange` interceptor to parse the native uuids to 128 bit uuid, to keep consistency
   void updateCharacteristicValue(
       String deviceId, String characteristicId, Uint8List value) {
-    onValueChange?.call(deviceId, Uuid.parse(characteristicId), value);
+    onValueChange?.call(deviceId, BleUuid.parse(characteristicId), value);
   }
 
   OnAvailabilityChange? onAvailabilityChange;

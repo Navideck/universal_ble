@@ -1,6 +1,6 @@
 import 'package:bluez/bluez.dart';
 
-class Uuid {
+class BleUuid {
   /// Parse a String to valid UUID and convert a 16 bit UUID to 128 bit UUID
   /// Throws `FormatException` if the UUID is invalid
   static String parse(String uuid) {
@@ -30,5 +30,5 @@ class Uuid {
 
 /// Parse a list of strings to a list of UUIDs
 extension StringListToUUID on List<String> {
-  List<String> toValidUUIDList() => map(Uuid.parse).toList();
+  List<String> toValidUUIDList() => map(BleUuid.parse).toList();
 }
