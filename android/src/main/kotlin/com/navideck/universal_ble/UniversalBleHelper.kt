@@ -298,14 +298,14 @@ fun Short.toByteArray(byteOrder: ByteOrder = ByteOrder.LITTLE_ENDIAN): ByteArray
 fun unknownCharacteristicError(char: String) =
     FlutterError("IllegalArgument", "Unknown error", null)
 
-// Future result classes
-class BleCharacteristicFuture(
-    val deviceId: String,
-    val characteristicId: String,
-    val serviceId: String,
-    val result: (Result<ByteArray>) -> Unit,
+
+val DeviceDisconnectedError: FlutterError = FlutterError(
+    "DeviceDisconnected",
+    "Device Disconnected",
+    null
 )
 
+// Future result classes
 class DiscoverServicesFuture(
     val deviceId: String,
     val result: (Result<List<UniversalBleService>>) -> Unit,
@@ -316,6 +316,13 @@ class MtuResultFuture(
     val result: (Result<Long>) -> Unit,
 )
 
+class ReadResultFuture(
+    val deviceId: String,
+    val characteristicId: String,
+    val serviceId: String,
+    val result: (Result<ByteArray>) -> Unit,
+)
+
 class WriteResultFuture(
     val deviceId: String,
     val characteristicId: String,
@@ -323,7 +330,7 @@ class WriteResultFuture(
     val result: (Result<Unit>) -> Unit,
 )
 
-class CharacteristicSubscriptionFuture(
+class SubscriptionResultFuture(
     val deviceId: String,
     val characteristicId: String,
     val serviceId: String,

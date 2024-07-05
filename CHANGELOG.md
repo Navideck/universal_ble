@@ -1,3 +1,8 @@
+## 0.10.1
+* Improve Android error handling
+* Fix: Android disconnection events were sometimes missed
+* Improve cleanup after disconnection on Apple and Android
+
 ## 0.10.0
 * BREAKING CHANGE: `ScanResult` is now `BleDevice`
 * BREAKING CHANGE: `getConnectedDevices` is now `getSystemDevices`

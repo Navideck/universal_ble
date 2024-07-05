@@ -121,6 +121,24 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
       }
       return false
     }
+    characteristicWriteFutures.removeAll { future in
+      if future.deviceId == deviceId {
+        future.result(
+          Result.failure(FlutterError(code: "DeviceDisconnected", message: "Device Disconnected", details: nil))
+        )
+        return true
+      }
+      return false
+    }
+    characteristicNotifyFutures.removeAll { future in
+      if future.deviceId == deviceId {
+        future.result(
+          Result.failure(FlutterError(code: "DeviceDisconnected", message: "Device Disconnected", details: nil))
+        )
+        return true
+      }
+      return false
+    }
     discoverServicesFutures.removeAll { future in
       if future.deviceId == deviceId {
         future.result(
