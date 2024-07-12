@@ -41,7 +41,7 @@ class BleUuid {
     return uuid.toLowerCase();
   }
 
-  /// Parse 16/32 bit uuid like `0x1800` to 128 bit uuid like `00001800-0000-1000-8000-00805f9b34fb`
+  /// Parse 16/32 bit UUID like `0x1800` to 128 bit UUID like `00001800-0000-1000-8000-00805f9b34fb`
   static String extend(int short) =>
       parse(short.toRadixString(16).padLeft(4, '0'));
 
