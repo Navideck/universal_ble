@@ -3,7 +3,6 @@
 import 'dart:async';
 
 import 'package:convert/convert.dart';
-import 'package:expandable/expandable.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:universal_ble/universal_ble.dart';
@@ -30,7 +29,6 @@ class _PeripheralDetailPageState extends State<PeripheralDetailPage> {
   bool isConnected = false;
   GlobalKey<FormState> valueFormKey = GlobalKey<FormState>();
   List<BleService> discoveredServices = [];
-  ExpandableController expandableController = ExpandableController();
   final List<String> _logs = [];
   final binaryCode = TextEditingController();
 
@@ -104,7 +102,7 @@ class _PeripheralDetailPageState extends State<PeripheralDetailPage> {
 
     if (kIsWeb) {
       _addLog("DiscoverServices",
-          '${services.length} services discovered,\nNote: Only services added in WebRequestOptionsBuilder will be discoverd');
+          '${services.length} services discovered,\nNote: Only services added in ScanFilter will be discoverd');
     }
   }
 
