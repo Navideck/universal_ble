@@ -20,6 +20,10 @@ void main() {
         BleUuid.parse('0000180a-0000-1000-8000-00805f9b34fb'),
         equals("0000180a-0000-1000-8000-00805f9b34fb"),
       );
+      expect(
+        BleUuid.parse('8000dd00-dd00-ffff-ffff-ffffffffffff'),
+        equals("8000dd00-dd00-ffff-ffff-ffffffffffff"),
+      );
       // Parse 128-bit uppercase uuid
       expect(
         BleUuid.parse('0000180A-0000-1000-8000-00805F9B34FB'),
