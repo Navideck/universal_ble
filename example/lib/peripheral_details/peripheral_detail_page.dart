@@ -102,7 +102,7 @@ class _PeripheralDetailPageState extends State<PeripheralDetailPage> {
 
     if (kIsWeb) {
       _addLog("DiscoverServices",
-          '${services.length} services discovered,\nNote: Only services added in ScanFilter will be discoverd');
+          '${services.length} services discovered,\nNote: Only services added in ScanFilter will be discovered');
     }
   }
 
