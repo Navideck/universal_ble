@@ -1,15 +1,20 @@
 import 'dart:typed_data';
 
 class ScanFilter {
-  final List<String> withServices;
-  final List<ManufacturerDataFilter> withManufacturerData;
-  final List<String> withNamePrefix;
+  List<String> withServices;
+  List<ManufacturerDataFilter> withManufacturerData;
+  List<String> withNamePrefix;
 
   ScanFilter({
     this.withServices = const [],
     this.withManufacturerData = const [],
     this.withNamePrefix = const [],
   });
+
+  @override
+  String toString() {
+    return 'ScanFilter(withServices: $withServices, withManufacturerData: $withManufacturerData, withNamePrefix: $withNamePrefix)';
+  }
 }
 
 class ManufacturerDataFilter {
@@ -28,4 +33,9 @@ class ManufacturerDataFilter {
     this.data,
     this.mask,
   });
+
+  @override
+  String toString() {
+    return 'ManufacturerDataFilter(companyIdentifier: $companyIdentifier, data: $data, mask: $mask)';
+  }
 }
