@@ -84610,7 +84610,7 @@ s=r.c
 s.toString
 A.ow(s,!1).q4(null)},
 L(a){var s,r=this,q=null,p=A.bJ(a,q,t.w).w.f.Rr(20,20),o=t.p
-o=A.b([B.yT,A.lB(A.cV("Scan Filters",q,q,q,A.X(a).p2.r,q,q),q,q),B.Sd,B.dZ,B.du,A.aaD(r.a.d,B.EK,2,q),B.du,A.aaD(r.a.e,B.EL,2,q),B.du,A.aaD(r.a.f,B.EJ,2,q),B.du,A.jl(A.b([A.lH(new A.cK("Apply",r.gadU(),!0,q),1),B.N0,A.lH(new A.cK("Clear",r.gaeD(),!0,q),1)],o),B.as,B.tR,B.an),B.du],o)
+o=A.b([B.yT,A.lB(A.cV("Scan Filters",q,q,q,A.X(a).p2.r,q,q),q,q),B.Sd,B.dZ,B.du,A.aaD(r.a.d,B.EL,2,q),B.du,A.aaD(r.a.e,B.EJ,2,q),B.du,A.aaD(r.a.f,B.EK,2,q),B.du,A.jl(A.b([A.lH(new A.cK("Apply",r.gadU(),!0,q),1),B.N0,A.lH(new A.cK("Clear",r.gaeD(),!0,q),1)],o),B.as,B.tR,B.an),B.du],o)
 s=r.d
 if(s!=null)o.push(A.cV(s,q,q,q,B.zc,q,q))
 o.push(B.du)
@@ -84667,7 +84667,7 @@ o=J.aI(p)
 A.jM(""+o.gC(p)+" services discovered")
 J.azU(q.f)
 q.aa(new A.ahJ(q,p))
-q.f_("DiscoverServices",""+o.gC(p)+" services discovered,\nNote: Only services added in ScanFilter will be discoverd")
+q.f_("DiscoverServices",""+o.gC(p)+" services discovered,\nNote: Only services added in ScanFilter will be discovered")
 return A.G(null,r)}})
 return A.H($async$qV,r)},
 wA(){var s=0,r=A.I(t.H),q,p=2,o,n=this,m,l,k,j,i,h,g,f,e
@@ -88480,10 +88480,10 @@ B.aG=A.b(s([]),t.oU)
 B.EI=new A.kf("\ufffc",null,null,!0,!0,B.aG)
 B.lM=new A.b2(B.n,1,B.z,-1)
 B.ha=new A.id(4,B.dI,B.lM)
-B.EJ=new A.kg(null,null,null,"Manufacturer Data CompanyId's",null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,B.ha,!0,null,null,null)
+B.EJ=new A.kg(null,null,null,"Name Prefixes",null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,B.ha,!0,null,null,null)
+B.EK=new A.kg(null,null,null,"Manufacturer Data Company IDs",null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,B.ha,!0,null,null,null)
 B.VB=new A.kg(null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,!0,null,null,null)
-B.EK=new A.kg(null,null,null,"Services",null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,B.ha,!0,null,null,null)
-B.EL=new A.kg(null,null,null,"Name Prefix's",null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,B.ha,!0,null,null,null)
+B.EL=new A.kg(null,null,null,"Services",null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,B.ha,!0,null,null,null)
 B.EM=new A.kg(null,null,null,null,null,null,null,null,null,null,"Enter Hex values without spaces or 0x (e.g. F0BB)",null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,B.ha,!0,null,null,null)
 B.EO=new A.e6(0.4,1,B.a2)
 B.EP=new A.e6(0.0825,0.2075,B.a2)
