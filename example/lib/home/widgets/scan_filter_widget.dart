@@ -126,7 +126,7 @@ class _ScanFilterWidgetState extends State<ScanFilterWidget> {
             controller: widget.namePrefixController,
             maxLines: 2,
             decoration: const InputDecoration(
-              labelText: "Name Prefix's",
+              labelText: "Name Prefixes",
               border: OutlineInputBorder(),
             ),
           ),
