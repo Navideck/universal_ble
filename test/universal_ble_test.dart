@@ -29,6 +29,20 @@ void main() {
         throwsFormatException,
       );
     });
+
+    test('lowercase 16-bit String to 128-bit starting with 0x', () {
+      expect(
+        () => BleUuid.parse('0x0180a'),
+        throwsFormatException,
+      );
+    });
+
+    test('uppercase 16-bit String to 128-bit starting with 0x', () {
+      expect(
+        () => BleUuid.parse('0x0180A'),
+        throwsFormatException,
+      );
+    });
   });
 
   group('Valid UUID', () {
@@ -56,20 +70,6 @@ void main() {
     test('uppercase 16-bit String to 128-bit', () {
       expect(
         BleUuid.parse('180A'),
-        equals('0000180a-0000-1000-8000-00805f9b34fb'),
-      );
-    });
-
-    test('lowercase 16-bit String to 128-bit starting with 0x', () {
-      expect(
-        () => BleUuid.parse('0x0180a'),
-        equals('0000180a-0000-1000-8000-00805f9b34fb'),
-      );
-    });
-
-    test('uppercase 16-bit String to 128-bit starting with 0x', () {
-      expect(
-        () => BleUuid.parse('0x0180A'),
         equals('0000180a-0000-1000-8000-00805f9b34fb'),
       );
     });
