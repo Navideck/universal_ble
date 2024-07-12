@@ -5,7 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:universal_ble/universal_ble.dart';
 import 'package:universal_ble_example/data/capabilities.dart';
 import 'package:universal_ble_example/data/mock_universal_ble.dart';
-import 'package:universal_ble_example/home/widgets/scan_filter_tile.dart';
+import 'package:universal_ble_example/home/widgets/scan_filter_widget.dart';
 import 'package:universal_ble_example/home/widgets/scanned_devices_placeholder_widget.dart';
 import 'package:universal_ble_example/home/widgets/scanned_item_widget.dart';
 import 'package:universal_ble_example/data/permission_handler.dart';
@@ -24,10 +24,12 @@ class _MyAppState extends State<MyApp> {
   final _bleDevices = <BleDevice>[];
   bool _isScanning = false;
   QueueType _queueType = QueueType.global;
+  TextEditingController servicesFilterController = TextEditingController();
+  TextEditingController namePrefixController = TextEditingController();
+  TextEditingController manufacturerDataController = TextEditingController();
 
   AvailabilityState? bleAvailabilityState;
   ScanFilter? scanFilter;
-  bool showFiltersTile = kIsWeb;
 
   @override
   void initState() {
@@ -70,7 +72,26 @@ class _MyAppState extends State<MyApp> {
 
   Future<void> startScan() async {
     await UniversalBle.startScan(
-      scanFilter: !showFiltersTile ? null : scanFilter,
+      scanFilter: scanFilter,
+    );
+  }
+
+  void _showScanFilterBottomSheet() {
+    showModalBottomSheet(
+      isScrollControlled: true,
+      context: context,
+      builder: (context) {
+        return ScanFilterWidget(
+          servicesFilterController: servicesFilterController,
+          namePrefixController: namePrefixController,
+          manufacturerDataController: manufacturerDataController,
+          onScanFilter: (ScanFilter? filter) {
+            setState(() {
+              scanFilter = filter;
+            });
+          },
+        );
+      },
     );
   }
 
@@ -91,16 +112,6 @@ class _MyAppState extends State<MyApp> {
                     strokeWidth: 2,
                   )),
             ),
-          IconButton(
-            onPressed: () {
-              setState(() {
-                showFiltersTile = !showFiltersTile;
-              });
-            },
-            icon: Icon(
-              showFiltersTile ? Icons.filter_alt_off : Icons.filter_alt,
-            ),
-          )
         ],
       ),
       body: Column(
@@ -193,6 +204,10 @@ class _MyAppState extends State<MyApp> {
                     });
                   },
                 ),
+                PlatformButton(
+                  text: 'Scan Filters',
+                  onPressed: _showScanFilterBottomSheet,
+                ),
                 if (_bleDevices.isNotEmpty)
                   PlatformButton(
                     text: 'Clear List',
@@ -205,12 +220,6 @@ class _MyAppState extends State<MyApp> {
               ],
             ),
           ),
-          if (showFiltersTile)
-            ScanFilterTile(
-              onScanFilter: (ScanFilter? filter) {
-                scanFilter = filter;
-              },
-            ),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
