@@ -135,7 +135,7 @@ class _ScanFilterWidgetState extends State<ScanFilterWidget> {
             controller: widget.manufacturerDataController,
             maxLines: 2,
             decoration: const InputDecoration(
-              labelText: "Manufacturer Data CompanyId's",
+              labelText: "Manufacturer Data CompanyIds",
               border: OutlineInputBorder(),
             ),
           ),
