@@ -265,9 +265,11 @@ UniversalBle.timeout = null;
 All characteristic and service UUIDs will be returned in lowercase and in 128 bit format, across all platforms.
 e.g. `0000180a-0000-1000-8000-00805f9b34fb`
 
-When passing a UUID you can pass it in any character case or format (long/short) you want.
+When passing a UUID you can pass it in any character case or format (long/short) you want. The plugin will take care of conversions.
 
-You can use `BleUuid.parse()` to convert a string to 128 bit UUID format. For example:
+### Utility methods
+
+`BleUuid.parse()` converts a string to 128 bit UUID format:
 
 ```dart
 BleUuid.parse("180A"); // "0000180a-0000-1000-8000-00805f9b34fb"
@@ -275,13 +277,13 @@ BleUuid.parse("180A"); // "0000180a-0000-1000-8000-00805f9b34fb"
 BleUuid.parse("0000180A-0000-1000-8000-00805F9B34FB"); // "0000180a-0000-1000-8000-00805f9b34fb"
 ```
 
-or `BleUuid.extend()` to create a valid 128 bit Bluetooth UUID from short (16 or 32 bit) encoding. For example:
+`BleUuid.extend()` creates a 128 bit Bluetooth UUID from short (16 or 32 bit) format:
 
 ```dart
 BleUuid.extend(0x180A); // "0000180a-0000-1000-8000-00805f9b34fb"
 ```
 
-or `BleUuid.equals()` to compare two UUIDs. For example:
+`BleUuid.equals()` compares two UUIDs:
 
 ```dart
 BleUuid.equals("180a","0000180A-0000-1000-8000-00805F9B34FB"); // true
