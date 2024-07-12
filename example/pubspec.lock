@@ -134,14 +134,6 @@ packages:
     description: flutter
     source: sdk
     version: "0.0.0"
-  flutter_adaptive_scaffold:
-    dependency: "direct main"
-    description:
-      name: flutter_adaptive_scaffold
-      sha256: "794791e6fc0cc23e375d07ea987e76cf7f0eb7cd753532e45dc35b7e90575e2d"
-      url: "https://pub.dev"
-    source: hosted
-    version: "0.1.11"
   flutter_driver:
     dependency: transitive
     description: flutter
@@ -410,7 +402,7 @@ packages:
       path: ".."
       relative: true
     source: path
-    version: "0.10.0"
+    version: "0.11.0"
   vector_math:
     dependency: transitive
     description:
@@ -461,4 +453,4 @@ packages:
     version: "6.5.0"
 sdks:
   dart: ">=3.4.0 <4.0.0"
-  flutter: ">=3.19.0"
+  flutter: ">=3.18.0-18.0.pre.54"
