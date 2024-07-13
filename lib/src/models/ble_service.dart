@@ -5,7 +5,7 @@ class BleService {
   List<BleCharacteristic> characteristics;
 
   BleService(String uuid, this.characteristics) {
-    this.uuid = BleUuid.parse(uuid);
+    this.uuid = BleUuidParser.string(uuid);
   }
 }
 
@@ -14,7 +14,7 @@ class BleCharacteristic {
   List<CharacteristicProperty> properties;
 
   BleCharacteristic(String uuid, this.properties) {
-    this.uuid = BleUuid.parse(uuid);
+    this.uuid = BleUuidParser.string(uuid);
   }
 }
 

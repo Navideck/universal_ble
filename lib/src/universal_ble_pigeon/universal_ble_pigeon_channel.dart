@@ -209,7 +209,7 @@ extension _UniversalBleScanResultExtension on UniversalBleScanResult {
       isSystemDevice: isSystemDevice,
       services: services
               ?.where((e) => e != null)
-              .map((e) => BleUuid.parse(e!))
+              .map((e) => BleUuidParser.string(e!))
               .toList() ??
           [],
     );

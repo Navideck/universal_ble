@@ -1,9 +1,15 @@
-class BleUuid {
-  /// Parse a String to valid UUID and convert a 16 bit UUID to 128 bit UUID
-  /// Throws `FormatException` if the UUID is invalid
-  static String parse(String uuid) {
+class BleUuidParser {
+  BleUuidParser._();
+
+  /// Parse a string to a valid 128-bit UUID.
+  /// Throws `FormatException` if the string does not hold a valid UUID format.
+  static String string(String uuid) {
     if (uuid.length < 4) {
       throw const FormatException('Invalid UUID');
+    }
+
+    if (uuid.startsWith('0x')) {
+      uuid = uuid.substring(2);
     }
 
     if (uuid.length <= 8) {
@@ -41,17 +47,22 @@ class BleUuid {
     return uuid.toLowerCase();
   }
 
-  /// Parse 16/32 bit UUID like `0x1800` to 128 bit UUID like `00001800-0000-1000-8000-00805f9b34fb`
-  static String extend(int short) =>
-      parse(short.toRadixString(16).padLeft(4, '0'));
+  /// Parse an int number into a 128-bit UUID string.
+  /// e.g. `0x1800` to `00001800-0000-1000-8000-00805f9b34fb`.
+  static String number(int short) {
+    if (short <= 0xFF || short > 0xFFFF) {
+      throw const FormatException('Invalid UUID');
+    }
+    return string(short.toRadixString(16).padLeft(4, '0'));
+  }
 
-  /// Compare two UUIDs to automatically convert both to 128 bit UUIDs
-  /// Throws `FormatException` if the UUID is invalid
-  static bool equals(String uuid1, String uuid2) =>
-      parse(uuid1) == parse(uuid2);
+  /// Compare two UUIDs regardless of their format.
+  /// Throws `FormatException` if the UUID is invalid.
+  static bool compareStrings(String uuid1, String uuid2) =>
+      string(uuid1) == string(uuid2);
 }
 
-/// Parse a list of strings to a list of UUIDs
+/// Parse a list of strings to a list of UUIDs.
 extension StringListToUUID on List<String> {
-  List<String> toValidUUIDList() => map(BleUuid.parse).toList();
+  List<String> toValidUUIDList() => map(BleUuidParser.string).toList();
 }
