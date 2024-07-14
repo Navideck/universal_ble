@@ -1,4 +1,4 @@
-# Universal BLE
+# UniversalBLE
 
 [![universal_ble version](https://img.shields.io/pub/v/universal_ble?label=universal_ble)](https://pub.dev/packages/universal_ble)
 
@@ -16,6 +16,9 @@ A cross-platform (Android/iOS/macOS/Windows/Linux/Web) Bluetooth Low Energy (BLE
 - [Bluetooth Availability](#bluetooth-availability)
 - [Command Queue](#command-queue)
 - [Timeout](#timeout)
+- [UUID Format Agnostic](#uuid-format-agnostic)
+
+## Usage
 
 ### API Support Matrix
 
@@ -260,16 +263,17 @@ UniversalBle.timeout = const Duration(seconds: 10);
 UniversalBle.timeout = null;
 ```
 
-## UUID format
+## UUID Format Agnostic
 
-All characteristic and service UUIDs will be returned in lowercase and in 128 bit format, across all platforms.
-e.g. `0000180a-0000-1000-8000-00805f9b34fb`
+UniversalBLE is agnostic to the UUID format of services and characteristics regardless of the platform the app runs on. When passing a UUID, you can pass it in any format (long/short) or character case (upper/lower case) you want. UniversalBLE will take care of necessary conversions, across all platforms, so that you don't need to worry about underlying platform differences.
 
-When passing a UUID you can pass it in any character case or format (long/short) you want. The plugin will take care of conversions across all platforms so that you don't need to worry about platform differences.
+For consistency, all characteristic and service UUIDs will be returned in **lowercase 128-bit format**, across all platforms, e.g. `0000180a-0000-1000-8000-00805f9b34fb`.
 
-### Utility methods
+### Utility Methods
 
-`BleUuidParser.string()` converts a string to a 128-bit UUID format string:
+If you need to convert any UUIDs in your app you can use the following methods.
+
+- `BleUuidParser.string()` converts a string to a 128-bit UUID formatted string:
 
 ```dart
 BleUuidParser.string("180A"); // "0000180a-0000-1000-8000-00805f9b34fb"
@@ -277,19 +281,19 @@ BleUuidParser.string("180A"); // "0000180a-0000-1000-8000-00805f9b34fb"
 BleUuidParser.string("0000180A-0000-1000-8000-00805F9B34FB"); // "0000180a-0000-1000-8000-00805f9b34fb"
 ```
 
-`BleUuidParser.number()` converts a number to a 128-bit UUID format string:
+- `BleUuidParser.number()` converts a number to a 128-bit UUID formatted string:
 
 ```dart
 BleUuidParser.number(0x180A); // "0000180a-0000-1000-8000-00805f9b34fb"
 ```
 
-`BleUuidParser.compare()` compares two differently formatted UUIDs:
+- `BleUuidParser.compare()` compares two differently formatted UUIDs:
 
 ```dart
 BleUuidParser.compare("180a","0000180A-0000-1000-8000-00805F9B34FB"); // true
 ```
 
-## Platform-Specific Setup
+## Platform-specific Setup
 
 ### Android
 
