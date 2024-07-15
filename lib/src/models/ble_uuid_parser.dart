@@ -4,6 +4,7 @@ class BleUuidParser {
   /// Parse a string to a valid 128-bit UUID.
   /// Throws `FormatException` if the string does not hold a valid UUID format.
   static String string(String uuid) {
+    uuid = uuid.trim();
     if (uuid.length < 4) {
       throw const FormatException('Invalid UUID');
     }

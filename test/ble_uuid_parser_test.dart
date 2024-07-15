@@ -59,6 +59,13 @@ void main() {
           equals('0000180a-0000-1000-8000-00805f9b34fb'),
         );
       });
+
+      test('128-bit UUID with trailing space', () {
+        expect(
+          BleUuidParser.string('0000180a-0000-1000-8000-00805f9b34fb '),
+          equals('0000180a-0000-1000-8000-00805f9b34fb'),
+        );
+      });
     });
     group('Fails', () {
       test('Invalid UUID length is less than 4', () {
