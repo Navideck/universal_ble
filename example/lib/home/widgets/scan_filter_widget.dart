@@ -37,7 +37,7 @@ class _ScanFilterWidgetState extends State<ScanFilterWidget> {
         List<String> services = widget.servicesFilterController.text.split(',');
         for (String service in services) {
           try {
-            serviceUUids.add(BleUuid.parse(service.trim()));
+            serviceUUids.add(BleUuidParser.string(service.trim()));
           } on FormatException catch (_) {
             throw Exception("Invalid Service UUID $service");
           }

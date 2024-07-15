@@ -1,6 +1,6 @@
 ## 0.11.0
 * Unify UUID format across all platforms, 128-bit lowercase
-* Add BleUUID utility methods for UUID parsing
+* Add BleUuidParser utility methods for UUID parsing
 * Improve Android error handling
 * Fix Android disconnection events sometimes missed
 * Improve cleanup after disconnection on Apple and Android
