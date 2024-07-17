@@ -1,5 +1,7 @@
 // ignore_for_file: use_build_context_synchronously
 
+import 'dart:developer';
+
 import 'package:flutter/material.dart';
 import 'package:universal_ble/universal_ble.dart';
 import 'package:universal_ble_example/data/capabilities.dart';
@@ -49,9 +51,15 @@ class _MyAppState extends State<MyApp> {
       });
     };
 
+/*
+"BleDevice: deviceId: /waPB27WBqIhzTsq0YK4Ew==,
+ name: X-T50, rssi: -58, isPaired: null,
+services: [], isSystemDevice: null,
+ manufacturerDataHead: [2, 190, 123, 0, 0], 
+ manufacturerData: [2, 190, 123, 0, 0]"
+*/
     UniversalBle.onScanResult = (result) {
-      // debugPrint("BleDevice: ${result.name}  ${result.services}");
-      // debugPrint("${result.name} ${result.manufacturerData}");
+      log(result.toString());
       int index = _bleDevices.indexWhere((e) => e.deviceId == result.deviceId);
       if (index == -1) {
         _bleDevices.add(result);
@@ -71,7 +79,11 @@ class _MyAppState extends State<MyApp> {
 
   Future<void> startScan() async {
     await UniversalBle.startScan(
-      scanFilter: scanFilter,
+      scanFilter: ScanFilter(withManufacturerData: [
+        ManufacturerDataFilter(
+          companyIdentifier: 0x04D8,
+        )
+      ]),
     );
   }
 

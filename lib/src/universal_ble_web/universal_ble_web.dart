@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:collection';
+import 'dart:developer';
 import 'dart:typed_data';
 
 import 'package:flutter_web_bluetooth/flutter_web_bluetooth.dart';
@@ -375,6 +376,7 @@ extension _BluetoothDeviceExtension on BluetoothDevice {
 
 extension _UnmodifiableMapViewExtension on UnmodifiableMapView<int, ByteData> {
   Uint8List toUint8List() {
+    log('DiscoveredMFD: $this');
     int totalLength =
         values.fold<int>(0, (prev, element) => prev + element.lengthInBytes);
     Uint8List result = Uint8List(totalLength);
@@ -385,6 +387,7 @@ extension _UnmodifiableMapViewExtension on UnmodifiableMapView<int, ByteData> {
       result.setRange(offset, offset + sublist.length, sublist);
       offset += sublist.length;
     }
+    this.keys;
     return result;
   }
 }
@@ -392,6 +395,7 @@ extension _UnmodifiableMapViewExtension on UnmodifiableMapView<int, ByteData> {
 extension ScanFilterExtension on ScanFilter {
   RequestOptionsBuilder toRequestOptionsBuilder() {
     List<RequestFilterBuilder> filters = [];
+    List<int> manufacturerDataCompanyIds = [];
     // Add services filter
     for (var service in withServices.toValidUUIDList()) {
       filters.add(
@@ -414,6 +418,10 @@ extension ScanFilterExtension on ScanFilter {
           ],
         ),
       );
+      int? companyId = manufacturerData.companyIdentifier;
+      if (companyId != null) {
+        manufacturerDataCompanyIds.add(companyId);
+      }
     }
 
     // Add name filter
@@ -430,6 +438,7 @@ extension ScanFilterExtension on ScanFilter {
     return RequestOptionsBuilder(
       filters,
       optionalServices: withServices.toValidUUIDList(),
+      optionalManufacturerData: manufacturerDataCompanyIds,
     );
   }
 }
