@@ -225,6 +225,13 @@ class UniversalBle {
     );
   }
 
+  /// Check to see if the current browser supports the [watchAdvertisements] on `Web`, Rest of the platforms will always return true
+  /// if [canWatchAdvertisements] returns true on `Web`, then you will get scanResult updates of selected device
+  /// Not every browser supports this API yet. this is hidden behind chrome://flags/#enable-experimental-web-platform-features flag.
+  /// Even if the device technically has the method, sometimes it won't update ScanResults even though the device may be sending them
+  static bool canWatchAdvertisements(String deviceId) =>
+      _platform.canWatchAdvertisements(deviceId);
+
   /// Get Bluetooth state availability
   static set onAvailabilityChange(OnAvailabilityChange? onAvailabilityChange) {
     _platform.onAvailabilityChange = onAvailabilityChange;

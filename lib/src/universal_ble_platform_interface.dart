@@ -62,6 +62,8 @@ abstract class UniversalBlePlatform {
     onScanResult?.call(bleDevice);
   }
 
+  bool canWatchAdvertisements(String deviceId) => true;
+
   /// `onValueChange` interceptor to parse the native uuids to 128 bit uuid, to keep consistency
   void updateCharacteristicValue(
       String deviceId, String characteristicId, Uint8List value) {

@@ -138,11 +138,14 @@ class UniversalBleWeb extends UniversalBlePlatform {
     _watchDeviceAdvertisements(device);
   }
 
+  @override
+  bool canWatchAdvertisements(String deviceId) =>
+      _getDeviceById(deviceId)?.hasWatchAdvertisements() ?? false;
+
   /// This will work only if `chrome://flags/#enable-experimental-web-platform-features` is enabled
   Future<void> _watchDeviceAdvertisements(BluetoothDevice device) async {
     try {
-      if (!FlutterWebBluetooth.instance.hasRequestLEScan ||
-          !device.hasWatchAdvertisements()) return;
+      if (!device.hasWatchAdvertisements()) return;
 
       if (_deviceAdvertisementStreamList[device.id] != null) {
         _deviceAdvertisementStreamList[device.id]?.cancel();
@@ -159,7 +162,7 @@ class UniversalBleWeb extends UniversalBlePlatform {
           ),
         );
       });
-
+      device.advertisementsUseMemory = true;
       await device.watchAdvertisements();
     } catch (e) {
       UniversalBlePlatform.logInfo(
