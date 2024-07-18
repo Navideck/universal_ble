@@ -135,29 +135,53 @@ class UniversalBleWeb extends UniversalBlePlatform {
     // Update Scan Result
     updateScanResult(device.toBleScanResult());
 
-    /// This will work only if `chrome://flags/#enable-experimental-web-platform-features` is enabled
-    if (FlutterWebBluetooth.instance.hasRequestLEScan) {
-      // Check if platform can watch advertisements
-      if (device.hasWatchAdvertisements()) {
-        if (_deviceAdvertisementStreamList[device.id] == null) {
-          _deviceAdvertisementStreamList[device.id]?.cancel();
-          await device.unwatchAdvertisements();
-        }
+    _watchDeviceAdvertisements(device);
+  }
 
-        _deviceAdvertisementStreamList[device.id] =
-            device.advertisements.listen((event) {
-          updateScanResult(
-            device.toBleScanResult(
-              rssi: event.rssi,
-              manufacturerDataMap: event.manufacturerData,
-              services: event.uuids,
-            ),
-          );
-        });
+  /// This will work only if `chrome://flags/#enable-experimental-web-platform-features` is enabled
+  Future<void> _watchDeviceAdvertisements(BluetoothDevice device) async {
+    if (!FlutterWebBluetooth.instance.hasRequestLEScan ||
+        !device.hasWatchAdvertisements()) return;
 
-        await device.watchAdvertisements();
-      }
+    if (_deviceAdvertisementStreamList[device.id] != null) {
+      UniversalBlePlatform.logInfo(
+        "Resetting Advertisement watcher for ${device.id}",
+      );
+      _deviceAdvertisementStreamList[device.id]?.cancel();
+      await device.unwatchAdvertisements();
+    } else {
+      UniversalBlePlatform.logInfo(
+        "Setting Advertisement watcher for ${device.id}",
+      );
     }
+
+    _deviceAdvertisementStreamList[device.id] = device.advertisements.listen(
+      (event) {
+        updateScanResult(
+          device.toBleScanResult(
+            rssi: event.rssi,
+            manufacturerDataMap: event.manufacturerData,
+            services: event.uuids,
+          ),
+        );
+      },
+      onError: (e) {
+        UniversalBlePlatform.logInfo(
+          "AdvertisementWatcherError: ${device.id} - $e",
+          isError: true,
+        );
+      },
+      onDone: () {
+        UniversalBlePlatform.logInfo(
+          "AdvertisementWatcherDone: ${device.id}",
+        );
+      },
+    );
+
+    await device.watchAdvertisements();
+    UniversalBlePlatform.logInfo(
+      "AdvertisementWatcherStarted: ${device.id}",
+    );
   }
 
   @override
@@ -374,24 +398,23 @@ extension _BluetoothDeviceExtension on BluetoothDevice {
 }
 
 extension _UnmodifiableMapViewExtension on UnmodifiableMapView<int, ByteData> {
-  Uint8List toUint8List() {
-    int totalLength =
-        values.fold<int>(0, (prev, element) => prev + element.lengthInBytes);
-    Uint8List result = Uint8List(totalLength);
-    int offset = 0;
-    for (var entry in entries) {
-      var byteData = entry.value;
-      var sublist = byteData.buffer.asUint8List();
-      result.setRange(offset, offset + sublist.length, sublist);
-      offset += sublist.length;
-    }
-    return result;
+  Uint8List? toUint8List() {
+    List<MapEntry<int, ByteData>> sorted = entries.toList()
+      ..sort((a, b) => a.key - b.key);
+    if (sorted.isEmpty) return null;
+    int companyId = sorted.first.key;
+    List<int> manufacturerDataValue = sorted.first.value.buffer.asUint8List();
+    final byteData = ByteData(2);
+    byteData.setInt16(0, companyId, Endian.host);
+    List<int> bytes = byteData.buffer.asUint8List();
+    return Uint8List.fromList(bytes + manufacturerDataValue);
   }
 }
 
 extension ScanFilterExtension on ScanFilter {
   RequestOptionsBuilder toRequestOptionsBuilder() {
     List<RequestFilterBuilder> filters = [];
+    List<int> manufacturerCompanyIdentifiers = [];
     // Add services filter
     for (var service in withServices.toValidUUIDList()) {
       filters.add(
@@ -414,6 +437,10 @@ extension ScanFilterExtension on ScanFilter {
           ],
         ),
       );
+      int? companyId = manufacturerData.companyIdentifier;
+      if (companyId != null) {
+        manufacturerCompanyIdentifiers.add(companyId);
+      }
     }
 
     // Add name filter
@@ -430,6 +457,7 @@ extension ScanFilterExtension on ScanFilter {
     return RequestOptionsBuilder(
       filters,
       optionalServices: withServices.toValidUUIDList(),
+      optionalManufacturerData: manufacturerCompanyIdentifiers,
     );
   }
 }

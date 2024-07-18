@@ -19,6 +19,35 @@
                 "--dart-define",
                 "MOCK=true",
             ]
+        },
+        {
+            "name": "example_web",
+            "cwd": "example",
+            "request": "launch",
+            "type": "dart",
+            "program": "lib/main.dart",
+            "args": [
+                "-d",
+                "web-server",
+                "--web-hostname=127.0.0.1",
+                "--web-port=8080"
+            ],
+            "preLaunchTask": "open_chrome"
+        },
+    ],
+    "tasks": [
+        {
+            "label": "open_chrome",
+            "type": "shell",
+            "command": "open",
+            "args": [
+                "-na",
+                "Google Chrome",
+                "--args",
+                "--user-data-dir=/tmp/temporary-chrome-profile-dir",
+                "--disable-web-security",
+                "--disable-site-isolation-trials"
+            ],
         }
-    ]
+    ],
 }
