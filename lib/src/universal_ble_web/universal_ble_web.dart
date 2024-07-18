@@ -145,33 +145,22 @@ class UniversalBleWeb extends UniversalBlePlatform {
           !device.hasWatchAdvertisements()) return;
 
       if (_deviceAdvertisementStreamList[device.id] != null) {
-        UniversalBlePlatform.logInfo(
-          "Resetting Advertisement watcher for ${device.id}",
-        );
         _deviceAdvertisementStreamList[device.id]?.cancel();
         await device.unwatchAdvertisements();
-      } else {
-        UniversalBlePlatform.logInfo(
-          "Setting Advertisement watcher for ${device.id}",
-        );
       }
 
-      _deviceAdvertisementStreamList[device.id] = device.advertisements.listen(
-        (event) {
-          updateScanResult(
-            device.toBleScanResult(
-              rssi: event.rssi,
-              manufacturerDataMap: event.manufacturerData,
-              services: event.uuids,
-            ),
-          );
-        },
-      );
+      _deviceAdvertisementStreamList[device.id] =
+          device.advertisements.listen((event) {
+        updateScanResult(
+          device.toBleScanResult(
+            rssi: event.rssi,
+            manufacturerDataMap: event.manufacturerData,
+            services: event.uuids,
+          ),
+        );
+      });
 
       await device.watchAdvertisements();
-      UniversalBlePlatform.logInfo(
-        "AdvertisementWatcherStarted: ${device.id}",
-      );
     } catch (e) {
       UniversalBlePlatform.logInfo(
         "WebWatchAdvertisementError: $e",
