@@ -174,26 +174,7 @@ class UniversalBleWeb extends UniversalBlePlatform {
 
   @override
   Future<void> stopScan() async {
-    try {
-      // Cancel advertisement streams
-      if (FlutterWebBluetooth.instance.hasRequestLEScan) {
-        _deviceAdvertisementStreamList.removeWhere((key, value) {
-          value.cancel();
-          return true;
-        });
-
-        for (var element in _bluetoothDeviceList.entries) {
-          if (element.value.hasWatchAdvertisements()) {
-            await element.value.unwatchAdvertisements();
-          }
-        }
-      }
-    } catch (e) {
-      UniversalBlePlatform.logInfo(
-        "WebStopScanError: $e",
-        isError: true,
-      );
-    }
+    _disposeAdvertisementWatcher();
   }
 
   @override
@@ -347,6 +328,7 @@ class UniversalBleWeb extends UniversalBlePlatform {
       if (key.contains(deviceId)) value.cancel();
       return key.contains(deviceId);
     });
+    _disposeAdvertisementWatcher(deviceId);
     // _bluetoothDeviceList.removeWhere((element) => element.id == deviceId);
   }
 
@@ -368,6 +350,17 @@ class UniversalBleWeb extends UniversalBlePlatform {
   }
 
   BluetoothDevice? _getDeviceById(String id) => _bluetoothDeviceList[id];
+
+  void _disposeAdvertisementWatcher([String? deviceId]) {
+    _deviceAdvertisementStreamList.removeWhere((key, value) {
+      if (deviceId != null && key != deviceId) return false;
+      value.cancel();
+      _getDeviceById(deviceId ?? key)
+          ?.unwatchAdvertisements()
+          .onError((_, __) {});
+      return true;
+    });
+  }
 
   @override
   Future<bool> enableBluetooth() {
