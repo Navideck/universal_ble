@@ -72,17 +72,7 @@ class _MyAppState extends State<MyApp> {
 
   Future<void> startScan() async {
     await UniversalBle.startScan(
-      scanFilter: ScanFilter(
-        withManufacturerData: [
-          ManufacturerDataFilter(
-            companyIdentifier: 0x012D,
-          )
-        ],
-        withServices: [
-          '180a',
-          '180f',
-        ],
-      ),
+      scanFilter: scanFilter,
     );
   }
 

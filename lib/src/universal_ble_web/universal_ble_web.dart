@@ -140,64 +140,67 @@ class UniversalBleWeb extends UniversalBlePlatform {
 
   /// This will work only if `chrome://flags/#enable-experimental-web-platform-features` is enabled
   Future<void> _watchDeviceAdvertisements(BluetoothDevice device) async {
-    if (!FlutterWebBluetooth.instance.hasRequestLEScan ||
-        !device.hasWatchAdvertisements()) return;
+    try {
+      if (!FlutterWebBluetooth.instance.hasRequestLEScan ||
+          !device.hasWatchAdvertisements()) return;
 
-    if (_deviceAdvertisementStreamList[device.id] != null) {
-      UniversalBlePlatform.logInfo(
-        "Resetting Advertisement watcher for ${device.id}",
+      if (_deviceAdvertisementStreamList[device.id] != null) {
+        UniversalBlePlatform.logInfo(
+          "Resetting Advertisement watcher for ${device.id}",
+        );
+        _deviceAdvertisementStreamList[device.id]?.cancel();
+        await device.unwatchAdvertisements();
+      } else {
+        UniversalBlePlatform.logInfo(
+          "Setting Advertisement watcher for ${device.id}",
+        );
+      }
+
+      _deviceAdvertisementStreamList[device.id] = device.advertisements.listen(
+        (event) {
+          updateScanResult(
+            device.toBleScanResult(
+              rssi: event.rssi,
+              manufacturerDataMap: event.manufacturerData,
+              services: event.uuids,
+            ),
+          );
+        },
       );
-      _deviceAdvertisementStreamList[device.id]?.cancel();
-      await device.unwatchAdvertisements();
-    } else {
+
+      await device.watchAdvertisements();
       UniversalBlePlatform.logInfo(
-        "Setting Advertisement watcher for ${device.id}",
+        "AdvertisementWatcherStarted: ${device.id}",
+      );
+    } catch (e) {
+      UniversalBlePlatform.logInfo(
+        "WebWatchAdvertisementError: $e",
+        isError: true,
       );
     }
-
-    _deviceAdvertisementStreamList[device.id] = device.advertisements.listen(
-      (event) {
-        updateScanResult(
-          device.toBleScanResult(
-            rssi: event.rssi,
-            manufacturerDataMap: event.manufacturerData,
-            services: event.uuids,
-          ),
-        );
-      },
-      onError: (e) {
-        UniversalBlePlatform.logInfo(
-          "AdvertisementWatcherError: ${device.id} - $e",
-          isError: true,
-        );
-      },
-      onDone: () {
-        UniversalBlePlatform.logInfo(
-          "AdvertisementWatcherDone: ${device.id}",
-        );
-      },
-    );
-
-    await device.watchAdvertisements();
-    UniversalBlePlatform.logInfo(
-      "AdvertisementWatcherStarted: ${device.id}",
-    );
   }
 
   @override
   Future<void> stopScan() async {
-    // Cancel advertisement streams
-    if (FlutterWebBluetooth.instance.hasRequestLEScan) {
-      _deviceAdvertisementStreamList.removeWhere((key, value) {
-        value.cancel();
-        return true;
-      });
+    try {
+      // Cancel advertisement streams
+      if (FlutterWebBluetooth.instance.hasRequestLEScan) {
+        _deviceAdvertisementStreamList.removeWhere((key, value) {
+          value.cancel();
+          return true;
+        });
 
-      for (var element in _bluetoothDeviceList.entries) {
-        if (element.value.hasWatchAdvertisements()) {
-          element.value.unwatchAdvertisements();
+        for (var element in _bluetoothDeviceList.entries) {
+          if (element.value.hasWatchAdvertisements()) {
+            await element.value.unwatchAdvertisements();
+          }
         }
       }
+    } catch (e) {
+      UniversalBlePlatform.logInfo(
+        "WebStopScanError: $e",
+        isError: true,
+      );
     }
   }
 
@@ -415,6 +418,7 @@ extension ScanFilterExtension on ScanFilter {
   RequestOptionsBuilder toRequestOptionsBuilder() {
     List<RequestFilterBuilder> filters = [];
     List<int> manufacturerCompanyIdentifiers = [];
+
     // Add services filter
     for (var service in withServices.toValidUUIDList()) {
       filters.add(

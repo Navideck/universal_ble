@@ -74,6 +74,7 @@ class _ScanFilterWidgetState extends State<ScanFilterWidget> {
           ScanFilter(
             withServices: serviceUUids,
             withNamePrefix: namePrefixes,
+            withManufacturerData: manufacturerDataFilters,
           ),
         );
         ScaffoldMessenger.of(context).showSnackBar(
