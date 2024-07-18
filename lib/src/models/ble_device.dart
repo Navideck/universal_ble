@@ -12,14 +12,14 @@ class BleDevice {
   Uint8List? manufacturerDataHead;
   Uint8List? manufacturerData;
 
-  /// Returns connection state of device,
-  /// All platforms will return `Connected/Disconnected` states
-  /// `Android` and `Apple` can also return `Connecting/Disconnecting` states
+  /// Returns connection state of the device.
+  /// All platforms will return `Connected/Disconnected` states.
+  /// `Android` and `Apple` can also return `Connecting/Disconnecting` states.
   Future<BleConnectionState> get connectionState =>
       UniversalBle.getConnectionState(deviceId);
 
-  /// returns true if the current browser supports the [watchAdvertisements] on `Web`,
-  /// rest of the platforms will always return true
+  /// On Web, it returns true if the web browser supports [watchAdvertisements].
+  /// The rest of the platforms will always return true.
   bool get canWatchAdvertisements =>
       UniversalBle.canWatchAdvertisements(deviceId);
 

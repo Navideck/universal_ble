@@ -207,9 +207,9 @@ class UniversalBle {
     );
   }
 
-  /// Returns connection state of device,
-  /// All platforms will return `Connected/Disconnected` states
-  /// `Android` and `Apple` can also return `Connecting/Disconnecting` states
+  /// Returns connection state of the device.
+  /// All platforms will return `Connected/Disconnected` states.
+  /// `Android` and `Apple` can also return `Connecting/Disconnecting` states.
   static Future<BleConnectionState> getConnectionState(String deviceId) async {
     return await _bleCommandQueue.queueCommand(
       () => _platform.getConnectionState(deviceId),
@@ -225,10 +225,10 @@ class UniversalBle {
     );
   }
 
-  /// Check to see if the current browser supports the [watchAdvertisements] on `Web`, Rest of the platforms will always return true
-  /// if [canWatchAdvertisements] returns true on `Web`, then you will get scanResult updates of selected device
-  /// Not every browser supports this API yet. this is hidden behind chrome://flags/#enable-experimental-web-platform-features flag.
-  /// Even if the device technically has the method, sometimes it won't update ScanResults even though the device may be sending them
+  /// On Web, it returns true if the web browser supports [watchAdvertisements]. The rest of the platforms will always return true.
+  /// If [canWatchAdvertisements] returns true on `Web`, then you will get scanResult updates of the selected device.
+  /// Not every browser supports this API yet. It is hidden behind the `chrome://flags/#enable-experimental-web-platform-features` flag.
+  /// Even if the device technically has the method, sometimes it won't update ScanResults even though the device may be sending them.
   static bool canWatchAdvertisements(String deviceId) =>
       _platform.canWatchAdvertisements(deviceId);
 
