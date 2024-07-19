@@ -139,7 +139,7 @@ class UniversalBleWeb extends UniversalBlePlatform {
   }
 
   @override
-  bool canWatchAdvertisements(String deviceId) =>
+  bool receivesAdvertisements(String deviceId) =>
       _getDeviceById(deviceId)?.hasWatchAdvertisements() ?? false;
 
   /// This will work only if `chrome://flags/#enable-experimental-web-platform-features` is enabled

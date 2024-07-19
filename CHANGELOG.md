@@ -1,5 +1,7 @@
 ## 0.11.1
 * Trim spaces in UUIDs
+* Receive advertisement events on web
+* Improve cleanup after disconnection on web
 
 ## 0.11.0
 * Unify UUID format across all platforms, 128-bit lowercase

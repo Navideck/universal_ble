@@ -18,10 +18,10 @@ class BleDevice {
   Future<BleConnectionState> get connectionState =>
       UniversalBle.getConnectionState(deviceId);
 
-  /// On Web, it returns true if the web browser supports [watchAdvertisements].
+  /// On web, it returns true if the web browser supports receiving advertisements from this device.
   /// The rest of the platforms will always return true.
-  bool get canWatchAdvertisements =>
-      UniversalBle.canWatchAdvertisements(deviceId);
+  bool get receivesAdvertisements =>
+      UniversalBle.receivesAdvertisements(deviceId);
 
   BleDevice({
     required this.deviceId,
