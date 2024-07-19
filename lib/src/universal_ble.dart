@@ -207,9 +207,9 @@ class UniversalBle {
     );
   }
 
-  /// Returns connection state of device,
-  /// All platforms will return `Connected/Disconnected` states
-  /// `Android` and `Apple` can also return `Connecting/Disconnecting` states
+  /// Returns connection state of the device.
+  /// All platforms will return `Connected/Disconnected` states.
+  /// `Android` and `Apple` can also return `Connecting/Disconnecting` states.
   static Future<BleConnectionState> getConnectionState(String deviceId) async {
     return await _bleCommandQueue.queueCommand(
       () => _platform.getConnectionState(deviceId),
@@ -224,6 +224,16 @@ class UniversalBle {
       () => _platform.enableBluetooth(),
     );
   }
+
+  /// [receivesAdvertisements] returns true on web if the browser supports receiving advertisements from a certain `deviceId`.
+  /// The rest of the platforms will always return true.
+  /// If true, then you will be getting scanResult updates for this device.
+  ///
+  /// For this feature to work, you need to enable the `chrome://flags/#enable-experimental-web-platform-features` flag.
+  /// Not every browser supports this API yet.
+  /// Even if the browser supports it, sometimes it won't fire any advertisement events even though the device may be sending them.
+  static bool receivesAdvertisements(String deviceId) =>
+      _platform.receivesAdvertisements(deviceId);
 
   /// Get Bluetooth state availability
   static set onAvailabilityChange(OnAvailabilityChange? onAvailabilityChange) {

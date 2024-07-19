@@ -50,7 +50,6 @@ abstract class UniversalBlePlatform {
     List<String>? withServices,
   );
 
-  /// `onScanResult` interceptor to filter by name
   void updateScanResult(BleDevice bleDevice) {
     // Filter by name
     ScanFilter? scanFilter = _scanFilter;
@@ -62,7 +61,8 @@ abstract class UniversalBlePlatform {
     onScanResult?.call(bleDevice);
   }
 
-  /// `onValueChange` interceptor to parse the native uuids to 128 bit uuid, to keep consistency
+  bool receivesAdvertisements(String deviceId) => true;
+
   void updateCharacteristicValue(
       String deviceId, String characteristicId, Uint8List value) {
     onValueChange?.call(

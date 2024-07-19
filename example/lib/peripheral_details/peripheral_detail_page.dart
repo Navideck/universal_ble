@@ -93,16 +93,20 @@ class _PeripheralDetailPageState extends State<PeripheralDetailPage> {
   }
 
   Future<void> _discoverServices() async {
-    var services = await UniversalBle.discoverServices(widget.deviceId);
-    print('${services.length} services discovered');
-    discoveredServices.clear();
-    setState(() {
-      discoveredServices = services;
-    });
+    try {
+      var services = await UniversalBle.discoverServices(widget.deviceId);
+      print('${services.length} services discovered');
+      discoveredServices.clear();
+      setState(() {
+        discoveredServices = services;
+      });
 
-    if (kIsWeb) {
-      _addLog("DiscoverServices",
-          '${services.length} services discovered,\nNote: Only services added in ScanFilter will be discovered');
+      if (kIsWeb) {
+        _addLog("DiscoverServices",
+            '${services.length} services discovered,\nNote: Only services added in ScanFilter will be discovered');
+      }
+    } catch (e) {
+      _addLog("DiscoverServicesError", e);
     }
   }
 

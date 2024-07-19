@@ -135,46 +135,46 @@ class UniversalBleWeb extends UniversalBlePlatform {
     // Update Scan Result
     updateScanResult(device.toBleScanResult());
 
-    /// This will work only if `chrome://flags/#enable-experimental-web-platform-features` is enabled
-    if (FlutterWebBluetooth.instance.hasRequestLEScan) {
-      // Check if platform can watch advertisements
-      if (device.hasWatchAdvertisements()) {
-        if (_deviceAdvertisementStreamList[device.id] == null) {
-          _deviceAdvertisementStreamList[device.id]?.cancel();
-          await device.unwatchAdvertisements();
-        }
+    _watchDeviceAdvertisements(device);
+  }
 
-        _deviceAdvertisementStreamList[device.id] =
-            device.advertisements.listen((event) {
-          updateScanResult(
-            device.toBleScanResult(
-              rssi: event.rssi,
-              manufacturerDataMap: event.manufacturerData,
-              services: event.uuids,
-            ),
-          );
-        });
+  @override
+  bool receivesAdvertisements(String deviceId) =>
+      _getDeviceById(deviceId)?.hasWatchAdvertisements() ?? false;
 
-        await device.watchAdvertisements();
+  /// This will work only if `chrome://flags/#enable-experimental-web-platform-features` is enabled
+  Future<void> _watchDeviceAdvertisements(BluetoothDevice device) async {
+    try {
+      if (!device.hasWatchAdvertisements()) return;
+
+      if (_deviceAdvertisementStreamList[device.id] != null) {
+        _deviceAdvertisementStreamList[device.id]?.cancel();
+        await device.unwatchAdvertisements();
       }
+
+      _deviceAdvertisementStreamList[device.id] =
+          device.advertisements.listen((event) {
+        updateScanResult(
+          device.toBleScanResult(
+            rssi: event.rssi,
+            manufacturerDataMap: event.manufacturerData,
+            services: event.uuids,
+          ),
+        );
+      });
+      device.advertisementsUseMemory = true;
+      await device.watchAdvertisements();
+    } catch (e) {
+      UniversalBlePlatform.logInfo(
+        "WebWatchAdvertisementError: $e",
+        isError: true,
+      );
     }
   }
 
   @override
   Future<void> stopScan() async {
-    // Cancel advertisement streams
-    if (FlutterWebBluetooth.instance.hasRequestLEScan) {
-      _deviceAdvertisementStreamList.removeWhere((key, value) {
-        value.cancel();
-        return true;
-      });
-
-      for (var element in _bluetoothDeviceList.entries) {
-        if (element.value.hasWatchAdvertisements()) {
-          element.value.unwatchAdvertisements();
-        }
-      }
-    }
+    _disposeAdvertisementWatcher();
   }
 
   @override
@@ -328,6 +328,7 @@ class UniversalBleWeb extends UniversalBlePlatform {
       if (key.contains(deviceId)) value.cancel();
       return key.contains(deviceId);
     });
+    _disposeAdvertisementWatcher(deviceId);
     // _bluetoothDeviceList.removeWhere((element) => element.id == deviceId);
   }
 
@@ -349,6 +350,17 @@ class UniversalBleWeb extends UniversalBlePlatform {
   }
 
   BluetoothDevice? _getDeviceById(String id) => _bluetoothDeviceList[id];
+
+  void _disposeAdvertisementWatcher([String? deviceId]) {
+    _deviceAdvertisementStreamList.removeWhere((key, value) {
+      if (deviceId != null && key != deviceId) return false;
+      value.cancel();
+      _getDeviceById(deviceId ?? key)
+          ?.unwatchAdvertisements()
+          .onError((_, __) {});
+      return true;
+    });
+  }
 
   @override
   Future<bool> enableBluetooth() {
@@ -374,24 +386,24 @@ extension _BluetoothDeviceExtension on BluetoothDevice {
 }
 
 extension _UnmodifiableMapViewExtension on UnmodifiableMapView<int, ByteData> {
-  Uint8List toUint8List() {
-    int totalLength =
-        values.fold<int>(0, (prev, element) => prev + element.lengthInBytes);
-    Uint8List result = Uint8List(totalLength);
-    int offset = 0;
-    for (var entry in entries) {
-      var byteData = entry.value;
-      var sublist = byteData.buffer.asUint8List();
-      result.setRange(offset, offset + sublist.length, sublist);
-      offset += sublist.length;
-    }
-    return result;
+  Uint8List? toUint8List() {
+    List<MapEntry<int, ByteData>> sorted = entries.toList()
+      ..sort((a, b) => a.key - b.key);
+    if (sorted.isEmpty) return null;
+    int companyId = sorted.first.key;
+    List<int> manufacturerDataValue = sorted.first.value.buffer.asUint8List();
+    final byteData = ByteData(2);
+    byteData.setInt16(0, companyId, Endian.host);
+    List<int> bytes = byteData.buffer.asUint8List();
+    return Uint8List.fromList(bytes + manufacturerDataValue);
   }
 }
 
 extension ScanFilterExtension on ScanFilter {
   RequestOptionsBuilder toRequestOptionsBuilder() {
     List<RequestFilterBuilder> filters = [];
+    List<int> manufacturerCompanyIdentifiers = [];
+
     // Add services filter
     for (var service in withServices.toValidUUIDList()) {
       filters.add(
@@ -414,6 +426,10 @@ extension ScanFilterExtension on ScanFilter {
           ],
         ),
       );
+      int? companyId = manufacturerData.companyIdentifier;
+      if (companyId != null) {
+        manufacturerCompanyIdentifiers.add(companyId);
+      }
     }
 
     // Add name filter
@@ -430,6 +446,7 @@ extension ScanFilterExtension on ScanFilter {
     return RequestOptionsBuilder(
       filters,
       optionalServices: withServices.toValidUUIDList(),
+      optionalManufacturerData: manufacturerCompanyIdentifiers,
     );
   }
 }
