@@ -1,3 +1,4 @@
+export 'package:universal_ble/src/models/platform_config.dart';
 export 'package:universal_ble/src/models/queue_type.dart';
 export 'package:universal_ble/src/models/ble_uuid_parser.dart';
 export 'package:universal_ble/src/models/scan_filter.dart';

@@ -11,6 +11,7 @@ abstract class UniversalBlePlatform {
 
   Future<void> startScan({
     ScanFilter? scanFilter,
+    PlatformConfig? platformConfig,
   }) async {
     _scanFilter = scanFilter;
   }

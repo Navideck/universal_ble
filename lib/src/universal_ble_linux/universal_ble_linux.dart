@@ -55,6 +55,7 @@ class UniversalBleLinux extends UniversalBlePlatform {
   @override
   Future<void> startScan({
     ScanFilter? scanFilter,
+    PlatformConfig? platformConfig,
   }) async {
     await _ensureInitialized();
     await super.startScan(scanFilter: scanFilter);

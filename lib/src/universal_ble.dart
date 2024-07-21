@@ -49,9 +49,13 @@ class UniversalBle {
   /// `webRequestOptions` is supported on Web only
   static Future<void> startScan({
     ScanFilter? scanFilter,
+    PlatformConfig? platformConfig,
   }) async {
     return await _bleCommandQueue.queueCommand(
-      () => _platform.startScan(scanFilter: scanFilter),
+      () => _platform.startScan(
+        scanFilter: scanFilter,
+        platformConfig: platformConfig,
+      ),
       withTimeout: false,
     );
   }

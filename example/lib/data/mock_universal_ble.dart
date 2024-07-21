@@ -23,7 +23,10 @@ class MockUniversalBle extends UniversalBlePlatform {
   ]);
 
   @override
-  Future<void> startScan({ScanFilter? scanFilter}) async =>
+  Future<void> startScan({
+    ScanFilter? scanFilter,
+    PlatformConfig? platformConfig,
+  }) async =>
       onScanResult?.call(_mockBleDevice);
 
   @override
