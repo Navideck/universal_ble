@@ -1,3 +1,7 @@
+## 0.11.2
+* Add `PlatformConfig` property in `StartScan`
+* Add `WebConfig` property in `PlatformConfig`
+
 ## 0.11.1
 * Trim spaces in UUIDs
 * Receive advertisement events on web
