@@ -30,6 +30,7 @@ class UniversalBlePigeonChannel extends UniversalBlePlatform {
   @override
   Future<void> startScan({
     ScanFilter? scanFilter,
+    PlatformConfig? platformConfig,
   }) async {
     await super.startScan(scanFilter: scanFilter);
     await _channel.startScan(

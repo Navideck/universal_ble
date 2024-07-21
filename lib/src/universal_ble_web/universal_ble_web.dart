@@ -116,17 +116,10 @@ class UniversalBleWeb extends UniversalBlePlatform {
   @override
   Future<void> startScan({
     ScanFilter? scanFilter,
+    PlatformConfig? platformConfig,
   }) async {
-    if (scanFilter == null || scanFilter.withServices.isEmpty) {
-      UniversalBlePlatform.logInfo(
-        "Service list empty: on web you have to specify services in the ScanFilter in order to be able to access those after connecting",
-        isError: true,
-      );
-    }
-
     BluetoothDevice device = await FlutterWebBluetooth.instance.requestDevice(
-      scanFilter?.toRequestOptionsBuilder() ??
-          RequestOptionsBuilder.acceptAllDevices(),
+      _getRequestOptionBuilder(scanFilter, platformConfig?.web),
     );
 
     // Update local device list
@@ -366,6 +359,78 @@ class UniversalBleWeb extends UniversalBlePlatform {
   Future<bool> enableBluetooth() {
     throw UnimplementedError();
   }
+
+  RequestOptionsBuilder _getRequestOptionBuilder(
+    ScanFilter? scanFilter,
+    WebConfig? webConfig,
+  ) {
+    List<RequestFilterBuilder> filters = [];
+    List<int> optionalManufacturerData = [];
+    List<String> optionalServices = [];
+
+    if (scanFilter != null) {
+      // Add services filter
+      for (var service in scanFilter.withServices.toValidUUIDList()) {
+        filters.add(RequestFilterBuilder(services: [service]));
+        if (webConfig == null || webConfig.optionalServices.isEmpty) {
+          optionalServices.add(service);
+        }
+      }
+
+      // Add manufacturer data filter
+      for (var manufacturerData in scanFilter.withManufacturerData) {
+        filters.add(
+          RequestFilterBuilder(
+            manufacturerData: [
+              ManufacturerDataFilterBuilder(
+                companyIdentifier: manufacturerData.companyIdentifier,
+                dataPrefix: manufacturerData.data,
+                mask: manufacturerData.mask,
+              ),
+            ],
+          ),
+        );
+
+        // Add optionalManufacturerData from scanFilter if webConfig is not provided
+        if (webConfig == null || webConfig.optionalManufacturerData.isEmpty) {
+          int? companyId = manufacturerData.companyIdentifier;
+          if (companyId != null) {
+            optionalManufacturerData.add(companyId);
+          }
+        }
+      }
+
+      // Add name filter
+      for (var name in scanFilter.withNamePrefix) {
+        filters.add(RequestFilterBuilder(namePrefix: name));
+      }
+    }
+
+    if (webConfig != null) {
+      optionalServices = webConfig.optionalServices;
+      optionalManufacturerData = webConfig.optionalManufacturerData;
+    }
+
+    if (optionalServices.isEmpty) {
+      UniversalBlePlatform.logInfo(
+        "OptionalServices list is empty on web, you have to specify services in the ScanFilter in order to be able to access those after connecting",
+        isError: true,
+      );
+    }
+
+    if (filters.isEmpty) {
+      return RequestOptionsBuilder.acceptAllDevices(
+        optionalServices: optionalServices,
+        optionalManufacturerData: optionalManufacturerData,
+      );
+    } else {
+      return RequestOptionsBuilder(
+        filters,
+        optionalServices: optionalServices,
+        optionalManufacturerData: optionalManufacturerData,
+      );
+    }
+  }
 }
 
 extension _BluetoothDeviceExtension on BluetoothDevice {
@@ -396,57 +461,5 @@ extension _UnmodifiableMapViewExtension on UnmodifiableMapView<int, ByteData> {
     byteData.setInt16(0, companyId, Endian.host);
     List<int> bytes = byteData.buffer.asUint8List();
     return Uint8List.fromList(bytes + manufacturerDataValue);
-  }
-}
-
-extension ScanFilterExtension on ScanFilter {
-  RequestOptionsBuilder toRequestOptionsBuilder() {
-    List<RequestFilterBuilder> filters = [];
-    List<int> manufacturerCompanyIdentifiers = [];
-
-    // Add services filter
-    for (var service in withServices.toValidUUIDList()) {
-      filters.add(
-        RequestFilterBuilder(
-          services: [service],
-        ),
-      );
-    }
-
-    // Add manufacturer data filter
-    for (var manufacturerData in withManufacturerData) {
-      filters.add(
-        RequestFilterBuilder(
-          manufacturerData: [
-            ManufacturerDataFilterBuilder(
-              companyIdentifier: manufacturerData.companyIdentifier,
-              dataPrefix: manufacturerData.data,
-              mask: manufacturerData.mask,
-            ),
-          ],
-        ),
-      );
-      int? companyId = manufacturerData.companyIdentifier;
-      if (companyId != null) {
-        manufacturerCompanyIdentifiers.add(companyId);
-      }
-    }
-
-    // Add name filter
-    for (var name in withNamePrefix) {
-      filters.add(
-        RequestFilterBuilder(namePrefix: name),
-      );
-    }
-
-    if (filters.isEmpty) {
-      return RequestOptionsBuilder.acceptAllDevices();
-    }
-
-    return RequestOptionsBuilder(
-      filters,
-      optionalServices: withServices.toValidUUIDList(),
-      optionalManufacturerData: manufacturerCompanyIdentifiers,
-    );
   }
 }
