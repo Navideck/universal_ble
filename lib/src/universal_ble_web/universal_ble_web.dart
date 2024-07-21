@@ -151,7 +151,7 @@ class UniversalBleWeb extends UniversalBlePlatform {
           device.toBleScanResult(
             rssi: event.rssi,
             manufacturerDataMap: event.manufacturerData,
-            services: event.uuids,
+            services: event.uuids.toSet().toList(),
           ),
         );
       });
@@ -368,6 +368,11 @@ class UniversalBleWeb extends UniversalBlePlatform {
     List<int> optionalManufacturerData = [];
     List<String> optionalServices = [];
 
+    if (webConfig != null) {
+      optionalServices.addAll(webConfig.optionalServices.toValidUUIDList());
+      optionalManufacturerData.addAll(webConfig.optionalManufacturerData);
+    }
+
     if (scanFilter != null) {
       // Add services filter
       for (var service in scanFilter.withServices.toValidUUIDList()) {
@@ -404,11 +409,6 @@ class UniversalBleWeb extends UniversalBlePlatform {
       for (var name in scanFilter.withNamePrefix) {
         filters.add(RequestFilterBuilder(namePrefix: name));
       }
-    }
-
-    if (webConfig != null) {
-      optionalServices = webConfig.optionalServices;
-      optionalManufacturerData = webConfig.optionalManufacturerData;
     }
 
     if (optionalServices.isEmpty) {

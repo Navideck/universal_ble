@@ -102,11 +102,16 @@ class _PeripheralDetailPageState extends State<PeripheralDetailPage> {
       });
 
       if (kIsWeb) {
-        _addLog("DiscoverServices",
-            '${services.length} services discovered,\nNote: Only services added in ScanFilter will be discovered');
+        _addLog(
+          "DiscoverServices",
+          '${services.length} services discovered,\nNote: Only services added in ScanFilter or WebConfig will be discovered',
+        );
       }
     } catch (e) {
-      _addLog("DiscoverServicesError", e);
+      _addLog(
+        "DiscoverServicesError",
+        '$e\nNote: Only services added in ScanFilter or WebConfig will be discovered',
+      );
     }
   }
 
