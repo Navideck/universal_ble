@@ -152,7 +152,9 @@ class _PeripheralDetailPageState extends State<PeripheralDetailPage> {
         selectedCharacteristic!.service.uuid,
         selectedCharacteristic!.characteristic.uuid,
         value,
-        BleOutputProperty.withResponse,
+        isValidProperty([CharacteristicProperty.writeWithoutResponse])
+            ? BleOutputProperty.withoutResponse
+            : BleOutputProperty.withResponse,
       );
       _addLog('Write', value);
     } catch (e) {
