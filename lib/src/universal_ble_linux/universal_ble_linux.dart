@@ -287,6 +287,14 @@ class UniversalBleLinux extends UniversalBlePlatform {
   }
 
   @override
+  Future<List<BleDevice>> getPairedDevices() async {
+    return _client.devices
+        .where((e) => e.paired)
+        .map((e) => e.toBleDevice())
+        .toList();
+  }
+
+  @override
   Future<bool> isPaired(String deviceId) async {
     return _findDeviceById(deviceId).paired;
   }

@@ -43,6 +43,8 @@ abstract class UniversalBlePlatform {
 
   Future<void> pair(String deviceId);
 
+  Future<List<BleDevice>> getPairedDevices();
+
   Future<void> unPair(String deviceId);
 
   Future<BleConnectionState> getConnectionState(String deviceId);

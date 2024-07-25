@@ -111,6 +111,14 @@ class UniversalBlePigeonChannel extends UniversalBlePlatform {
   Future<void> unPair(String deviceId) => _channel.unPair(deviceId);
 
   @override
+  Future<List<BleDevice>> getPairedDevices() async {
+    List<UniversalBleScanResult?> devices = await _channel.getPairedDevices();
+    return List<BleDevice>.from(
+      devices.where((e) => e != null).map((e) => e!.toBleDevice()).toList(),
+    );
+  }
+
+  @override
   Future<List<BleDevice>> getSystemDevices(
     List<String>? withServices,
   ) async {

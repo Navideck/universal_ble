@@ -256,6 +256,7 @@ interface UniversalBlePlatformChannel {
   fun writeValue(deviceId: String, service: String, characteristic: String, value: ByteArray, bleOutputProperty: Long, callback: (Result<Unit>) -> Unit)
   fun isPaired(deviceId: String, callback: (Result<Boolean>) -> Unit)
   fun pair(deviceId: String)
+  fun getPairedDevices(): List<UniversalBleScanResult>
   fun unPair(deviceId: String)
   fun getSystemDevices(withServices: List<String>, callback: (Result<List<UniversalBleScanResult>>) -> Unit)
   fun getConnectionState(deviceId: String): Long
@@ -511,6 +512,21 @@ interface UniversalBlePlatformChannel {
             val wrapped: List<Any?> = try {
               api.pair(deviceIdArg)
               listOf<Any?>(null)
+            } catch (exception: Throwable) {
+              wrapError(exception)
+            }
+            reply.reply(wrapped)
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.universal_ble.UniversalBlePlatformChannel.getPairedDevices$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { _, reply ->
+            val wrapped: List<Any?> = try {
+              listOf<Any?>(api.getPairedDevices())
             } catch (exception: Throwable) {
               wrapError(exception)
             }

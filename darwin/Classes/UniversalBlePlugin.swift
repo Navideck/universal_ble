@@ -287,7 +287,11 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
   func unPair(deviceId _: String) throws {
     throw FlutterError(code: "NotSupported", message: nil, details: nil)
   }
-
+    
+  func getPairedDevices() throws -> [UniversalBleScanResult] {
+    throw FlutterError(code: "NotSupported", message: nil, details: nil)
+  }
+    
   func getSystemDevices(withServices: [String], completion: @escaping (Result<[UniversalBleScanResult], Error>) -> Void) {
     var filterCBUUID = withServices.map { CBUUID(string: $0) }
     // We can't keep this filter empty, so adding a default filter
