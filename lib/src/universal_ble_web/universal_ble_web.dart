@@ -18,6 +18,7 @@ class UniversalBleWeb extends UniversalBlePlatform {
   final Map<String, StreamSubscription> _deviceAdvertisementStreamList = {};
   final Map<String, StreamSubscription> _connectedDeviceStreamList = {};
   final Map<String, StreamSubscription> _characteristicStreamList = {};
+  final Map<String, List<_UniversalWebBluetoothService>> _serviceCache = {};
 
   @override
   Future<BleConnectionState> getConnectionState(String deviceId) async {
@@ -56,47 +57,8 @@ class UniversalBleWeb extends UniversalBlePlatform {
   }
 
   @override
-  Future<List<BleService>> discoverServices(String deviceId) async {
-    final device = _getDeviceById(deviceId);
-    final services = await device?.discoverServices();
-    if (services == null) return [];
-    var discoveredServices = <BleService>[];
-    for (var service in services) {
-      final characteristics = await service.getCharacteristics();
-      List<BleCharacteristic> bleCharacteristics = [];
-      for (BluetoothCharacteristic characteristic in characteristics) {
-        List<CharacteristicProperty> properties = [];
-        if (characteristic.properties.broadcast) {
-          properties.add(CharacteristicProperty.broadcast);
-        }
-        if (characteristic.properties.read) {
-          properties.add(CharacteristicProperty.read);
-        }
-        if (characteristic.properties.writeWithoutResponse) {
-          properties.add(CharacteristicProperty.writeWithoutResponse);
-        }
-        if (characteristic.properties.write) {
-          properties.add(CharacteristicProperty.write);
-        }
-        if (characteristic.properties.notify) {
-          properties.add(CharacteristicProperty.notify);
-        }
-        if (characteristic.properties.indicate) {
-          properties.add(CharacteristicProperty.indicate);
-        }
-        if (characteristic.properties.authenticatedSignedWrites) {
-          properties.add(CharacteristicProperty.authenticatedSignedWrites);
-        }
-        bleCharacteristics.add(
-          BleCharacteristic(characteristic.uuid.toString(), properties),
-        );
-      }
-      discoveredServices.add(
-        BleService(service.uuid.toString(), bleCharacteristics),
-      );
-    }
-    return discoveredServices;
-  }
+  Future<List<BleService>> discoverServices(String deviceId) async =>
+      (await _getServices(deviceId)).map((e) => e._bleService).toList();
 
   @override
   Future<AvailabilityState> getBluetoothAvailabilityState() async {
@@ -118,6 +80,7 @@ class UniversalBleWeb extends UniversalBlePlatform {
     ScanFilter? scanFilter,
     PlatformConfig? platformConfig,
   }) async {
+    FlutterWebBluetooth.instance.isAvailable;
     BluetoothDevice device = await FlutterWebBluetooth.instance.requestDevice(
       _getRequestOptionBuilder(scanFilter, platformConfig?.web),
     );
@@ -322,6 +285,7 @@ class UniversalBleWeb extends UniversalBlePlatform {
       return key.contains(deviceId);
     });
     _disposeAdvertisementWatcher(deviceId);
+    _serviceCache.remove(deviceId);
     // _bluetoothDeviceList.removeWhere((element) => element.id == deviceId);
   }
 
@@ -330,19 +294,32 @@ class UniversalBleWeb extends UniversalBlePlatform {
     required String serviceId,
     required String characteristicId,
   }) async {
-    final device = _getDeviceById(deviceId);
-    List<BluetoothService> services = await device?.discoverServices() ?? [];
-    BluetoothService? service;
-    for (BluetoothService bleService in services) {
-      if (bleService.uuid.toString() == serviceId.toString()) {
-        service = bleService;
-        break;
+    for (var service in await _getServices(deviceId)) {
+      if (BleUuidParser.compareStrings(service.uuid, serviceId)) {
+        return service.getCharacteristic(characteristicId);
       }
     }
-    return await service?.getCharacteristic(characteristicId.toString());
+    return null;
   }
 
   BluetoothDevice? _getDeviceById(String id) => _bluetoothDeviceList[id];
+
+  /// Get services and their characteristics.
+  /// Services and characteristics are cached.
+  /// Clears cache on disconnection.
+  Future<List<_UniversalWebBluetoothService>> _getServices(
+    String deviceId,
+  ) async {
+    BluetoothDevice? device = _getDeviceById(deviceId);
+    if (device == null) return [];
+    var services = _serviceCache[deviceId] ?? [];
+    if (services.isNotEmpty) return services;
+    for (var service in await device.discoverServices()) {
+      services.add(await _UniversalWebBluetoothService.fromService(service));
+    }
+    _serviceCache[deviceId] = services;
+    return services;
+  }
 
   void _disposeAdvertisementWatcher([String? deviceId]) {
     _deviceAdvertisementStreamList.removeWhere((key, value) {
@@ -462,4 +439,52 @@ extension _UnmodifiableMapViewExtension on UnmodifiableMapView<int, ByteData> {
     List<int> bytes = byteData.buffer.asUint8List();
     return Uint8List.fromList(bytes + manufacturerDataValue);
   }
+}
+
+class _UniversalWebBluetoothService {
+  late String uuid;
+  BluetoothService service;
+  List<BluetoothCharacteristic> characteristics;
+
+  _UniversalWebBluetoothService({
+    required this.service,
+    required this.characteristics,
+  }) {
+    uuid = service.uuid;
+  }
+
+  static Future<_UniversalWebBluetoothService> fromService(
+    BluetoothService service,
+  ) async {
+    return _UniversalWebBluetoothService(
+      service: service,
+      characteristics: await service.getCharacteristics(),
+    );
+  }
+
+  BluetoothCharacteristic? getCharacteristic(String characteristicId) {
+    for (var characteristic in characteristics) {
+      if (BleUuidParser.compareStrings(characteristic.uuid, characteristicId)) {
+        return characteristic;
+      }
+    }
+    return null;
+  }
+
+  BleService get _bleService => BleService(
+        service.uuid,
+        characteristics.map((e) {
+          return BleCharacteristic(e.uuid, [
+            if (e.properties.broadcast) CharacteristicProperty.broadcast,
+            if (e.properties.read) CharacteristicProperty.read,
+            if (e.properties.write) CharacteristicProperty.write,
+            if (e.properties.writeWithoutResponse)
+              CharacteristicProperty.writeWithoutResponse,
+            if (e.properties.notify) CharacteristicProperty.notify,
+            if (e.properties.indicate) CharacteristicProperty.indicate,
+            if (e.properties.authenticatedSignedWrites)
+              CharacteristicProperty.authenticatedSignedWrites,
+          ]);
+        }).toList(),
+      );
 }

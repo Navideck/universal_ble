@@ -152,7 +152,10 @@ class _PeripheralDetailPageState extends State<PeripheralDetailPage> {
         selectedCharacteristic!.service.uuid,
         selectedCharacteristic!.characteristic.uuid,
         value,
-        BleOutputProperty.withResponse,
+        _hasSelectedCharacteristicProperty(
+                [CharacteristicProperty.writeWithoutResponse])
+            ? BleOutputProperty.withoutResponse
+            : BleOutputProperty.withResponse,
       );
       _addLog('Write', value);
     } catch (e) {
@@ -185,17 +188,6 @@ class _PeripheralDetailPageState extends State<PeripheralDetailPage> {
     } catch (e) {
       _addLog('NotifyError', e);
     }
-  }
-
-  bool isValidProperty(List<CharacteristicProperty> properties) {
-    for (CharacteristicProperty property in properties) {
-      if (selectedCharacteristic?.characteristic.properties
-              .contains(property) ??
-          false) {
-        return true;
-      }
-    }
-    return false;
   }
 
   @override
@@ -307,7 +299,7 @@ class _PeripheralDetailPageState extends State<PeripheralDetailPage> {
                               ),
                             ),
 
-                      if (isValidProperty([
+                      if (_hasSelectedCharacteristicProperty([
                         CharacteristicProperty.write,
                         CharacteristicProperty.writeWithoutResponse
                       ]))
@@ -375,7 +367,7 @@ class _PeripheralDetailPageState extends State<PeripheralDetailPage> {
                             PlatformButton(
                               enabled: isConnected &&
                                   discoveredServices.isNotEmpty &&
-                                  isValidProperty([
+                                  _hasSelectedCharacteristicProperty([
                                     CharacteristicProperty.read,
                                   ]),
                               onPressed: _readValue,
@@ -384,7 +376,7 @@ class _PeripheralDetailPageState extends State<PeripheralDetailPage> {
                             PlatformButton(
                               enabled: isConnected &&
                                   discoveredServices.isNotEmpty &&
-                                  isValidProperty([
+                                  _hasSelectedCharacteristicProperty([
                                     CharacteristicProperty.write,
                                     CharacteristicProperty.writeWithoutResponse
                                   ]),
@@ -394,7 +386,7 @@ class _PeripheralDetailPageState extends State<PeripheralDetailPage> {
                             PlatformButton(
                               enabled: isConnected &&
                                   discoveredServices.isNotEmpty &&
-                                  isValidProperty([
+                                  _hasSelectedCharacteristicProperty([
                                     CharacteristicProperty.notify,
                                     CharacteristicProperty.indicate
                                   ]),
@@ -405,7 +397,7 @@ class _PeripheralDetailPageState extends State<PeripheralDetailPage> {
                             PlatformButton(
                               enabled: isConnected &&
                                   discoveredServices.isNotEmpty &&
-                                  isValidProperty([
+                                  _hasSelectedCharacteristicProperty([
                                     CharacteristicProperty.notify,
                                     CharacteristicProperty.indicate
                                   ]),
@@ -476,4 +468,11 @@ class _PeripheralDetailPageState extends State<PeripheralDetailPage> {
       }),
     );
   }
+
+  bool _hasSelectedCharacteristicProperty(
+          List<CharacteristicProperty> properties) =>
+      properties.any((property) =>
+          selectedCharacteristic?.characteristic.properties
+              .contains(property) ??
+          false);
 }
