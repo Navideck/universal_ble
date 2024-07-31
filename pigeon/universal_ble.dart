@@ -70,6 +70,8 @@ abstract class UniversalBlePlatformChannel {
 
   void pair(String deviceId);
 
+  List<UniversalBleScanResult> getPairedDevices();
+
   void unPair(String deviceId);
 
   @async

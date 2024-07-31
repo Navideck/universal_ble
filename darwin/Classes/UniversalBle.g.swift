@@ -257,6 +257,7 @@ protocol UniversalBlePlatformChannel {
   func writeValue(deviceId: String, service: String, characteristic: String, value: FlutterStandardTypedData, bleOutputProperty: Int64, completion: @escaping (Result<Void, Error>) -> Void)
   func isPaired(deviceId: String, completion: @escaping (Result<Bool, Error>) -> Void)
   func pair(deviceId: String) throws
+  func getPairedDevices() throws -> [UniversalBleScanResult]
   func unPair(deviceId: String) throws
   func getSystemDevices(withServices: [String], completion: @escaping (Result<[UniversalBleScanResult], Error>) -> Void)
   func getConnectionState(deviceId: String) throws -> Int64
@@ -483,6 +484,19 @@ class UniversalBlePlatformChannelSetup {
       }
     } else {
       pairChannel.setMessageHandler(nil)
+    }
+    let getPairedDevicesChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.universal_ble.UniversalBlePlatformChannel.getPairedDevices\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    if let api = api {
+      getPairedDevicesChannel.setMessageHandler { _, reply in
+        do {
+          let result = try api.getPairedDevices()
+          reply(wrapResult(result))
+        } catch {
+          reply(wrapError(error))
+        }
+      }
+    } else {
+      getPairedDevicesChannel.setMessageHandler(nil)
     }
     let unPairChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.universal_ble.UniversalBlePlatformChannel.unPair\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
     if let api = api {

@@ -496,6 +496,20 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
         }
     }
 
+    override fun getPairedDevices(): List<UniversalBleScanResult> {
+        val bondedDevices: Set<BluetoothDevice> = bluetoothManager.adapter.bondedDevices;
+        return bondedDevices.map {
+            UniversalBleScanResult(
+                name = it.name,
+                deviceId = it.address,
+                isPaired = it.bondState == BOND_BONDED,
+                manufacturerDataHead = null,
+                manufacturerData = null,
+                rssi = null,
+            )
+        }
+    }
+
     override fun unPair(deviceId: String) {
         val remoteDevice: BluetoothDevice =
             bluetoothManager.adapter.getRemoteDevice(deviceId)

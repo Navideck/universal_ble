@@ -111,4 +111,9 @@ class MockUniversalBle extends UniversalBlePlatform {
   Future<BleConnectionState> getConnectionState(String deviceId) {
     throw UnimplementedError();
   }
+
+  @override
+  Future<List<BleDevice>> getPairedDevices() async {
+    return <BleDevice>[];
+  }
 }

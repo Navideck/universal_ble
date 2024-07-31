@@ -416,6 +416,10 @@ namespace universal_ble
     IsPairedAsync(device_id, result);
   };
 
+  ErrorOr<flutter::EncodableList> UniversalBlePlugin::GetPairedDevices() {
+    // TODO: complete implementation
+  };
+
   std::optional<FlutterError> UniversalBlePlugin::Pair(const std::string &device_id)
   {
     try
