@@ -304,7 +304,9 @@ class UniversalBleWeb extends UniversalBlePlatform {
 
   BluetoothDevice? _getDeviceById(String id) => _bluetoothDeviceList[id];
 
-  /// Cache all services and its characteristics, and use that for further communication, clears cache on disconnection
+  /// Get services and their characteristics.
+  /// Services and characteristics are cached.
+  /// Clears cache on disconnection.
   Future<List<_UniversalWebBluetoothService>> _getServices(
     String deviceId,
   ) async {
