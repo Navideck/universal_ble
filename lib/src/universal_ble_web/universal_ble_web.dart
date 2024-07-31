@@ -58,7 +58,7 @@ class UniversalBleWeb extends UniversalBlePlatform {
 
   @override
   Future<List<BleService>> discoverServices(String deviceId) async =>
-      (await _getServices(deviceId)).map((e) => e.bleService).toList();
+      (await _getServices(deviceId)).map((e) => e._bleService).toList();
 
   @override
   Future<AvailabilityState> getBluetoothAvailabilityState() async {
@@ -471,7 +471,7 @@ class _UniversalWebBluetoothService {
     return null;
   }
 
-  BleService get bleService => BleService(
+  BleService get _bleService => BleService(
         service.uuid,
         characteristics.map((e) {
           return BleCharacteristic(e.uuid, [
