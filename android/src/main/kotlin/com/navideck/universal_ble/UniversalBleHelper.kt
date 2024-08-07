@@ -229,13 +229,13 @@ fun BluetoothGatt.getCharacteristic(
 
 
 @SuppressLint("MissingPermission")
-@Suppress("DEPRECATION")
 fun BluetoothGatt.setNotifiable(
     gattCharacteristic: BluetoothGattCharacteristic,
     bleInputProperty: Long,
 ): Boolean {
     val descClientCharConfirmation = UUID.fromString(ccdCharacteristic)
-    val descriptor = gattCharacteristic.getDescriptor(descClientCharConfirmation)
+    val descriptor: BluetoothGattDescriptor? =
+        gattCharacteristic.getDescriptor(descClientCharConfirmation)
     val bleInputPropertyEnum: BleInputProperty =
         BleInputProperty.values().first { it.value == bleInputProperty }
     val (value, enable) = when (bleInputPropertyEnum) {
@@ -243,13 +243,25 @@ fun BluetoothGatt.setNotifiable(
         BleInputProperty.Indication -> BluetoothGattDescriptor.ENABLE_INDICATION_VALUE to true
         else -> BluetoothGattDescriptor.DISABLE_NOTIFICATION_VALUE to false
     }
-    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-        writeDescriptor(descriptor, value)
+    if (descriptor != null) {
+        // Some devices does no need their CCCD to update
+        @Suppress("DEPRECATION")
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (writeDescriptor(descriptor, value) != BluetoothStatusCodes.SUCCESS) {
+                Log.e("UniversalBle", "Failed to update cccd")
+                return false
+            }
+        } else {
+            descriptor.value = value
+            if (!writeDescriptor(descriptor)) {
+                Log.e("UniversalBle", "Failed to update cccd")
+                return false
+            }
+        }
     } else {
-        descriptor.value = value
-        writeDescriptor(descriptor)
+        Log.d("UniversalBle", "CCCD Descriptor not found")
     }
-    return setCharacteristicNotification(descriptor.characteristic, enable)
+    return setCharacteristicNotification(gattCharacteristic, enable)
 }
 
 fun BluetoothDevice.removeBond() {
