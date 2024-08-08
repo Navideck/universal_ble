@@ -25,7 +25,7 @@ import java.util.UUID
 private const val TAG = "UniversalBlePlugin"
 
 val knownGatts = mutableListOf<BluetoothGatt>()
-const val ccdCharacteristic = "00002902-0000-1000-8000-00805f9b34fb"
+val ccdCharacteristic = UUID.fromString("00002902-0000-1000-8000-00805f9b34fb")
 
 enum class BleConnectionState(val value: Long) {
     Connected(0),
@@ -228,40 +228,14 @@ fun BluetoothGatt.getCharacteristic(
     getService(UUID.fromString(service)).getCharacteristic(UUID.fromString(characteristic))
 
 
-@SuppressLint("MissingPermission")
-fun BluetoothGatt.setNotifiable(
-    gattCharacteristic: BluetoothGattCharacteristic,
-    bleInputProperty: Long,
-): Boolean {
-    val descClientCharConfirmation = UUID.fromString(ccdCharacteristic)
-    val descriptor: BluetoothGattDescriptor? =
-        gattCharacteristic.getDescriptor(descClientCharConfirmation)
-    val bleInputPropertyEnum: BleInputProperty =
-        BleInputProperty.values().first { it.value == bleInputProperty }
-    val (value, enable) = when (bleInputPropertyEnum) {
-        BleInputProperty.Notification -> BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE to true
-        BleInputProperty.Indication -> BluetoothGattDescriptor.ENABLE_INDICATION_VALUE to true
-        else -> BluetoothGattDescriptor.DISABLE_NOTIFICATION_VALUE to false
-    }
-    if (descriptor != null) {
-        // Some devices does no need their CCCD to update
-        @Suppress("DEPRECATION")
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            if (writeDescriptor(descriptor, value) != BluetoothStatusCodes.SUCCESS) {
-                Log.e("UniversalBle", "Failed to update cccd")
-                return false
-            }
-        } else {
-            descriptor.value = value
-            if (!writeDescriptor(descriptor)) {
-                Log.e("UniversalBle", "Failed to update cccd")
-                return false
-            }
-        }
-    } else {
-        Log.d("UniversalBle", "CCCD Descriptor not found")
-    }
-    return setCharacteristicNotification(gattCharacteristic, enable)
+fun subscriptionFailedError(error: String? = null): Result<Unit> {
+    return Result.failure(
+        FlutterError(
+            "Failed",
+            "Failed to update subscription state",
+            error
+        )
+    )
 }
 
 fun BluetoothDevice.removeBond() {
