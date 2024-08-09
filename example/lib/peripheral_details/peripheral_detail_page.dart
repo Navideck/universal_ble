@@ -421,9 +421,9 @@ class _PeripheralDetailPageState extends State<PeripheralDetailPage> {
                             ),
                             PlatformButton(
                               onPressed: () async {
-                                await UniversalBle.unPair(widget.deviceId);
+                                await UniversalBle.unpair(widget.deviceId);
                               },
-                              text: 'UnPair',
+                              text: 'Unpair',
                             ),
                           ],
                         ),

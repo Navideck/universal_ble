@@ -1,7 +1,9 @@
-## 0.11.2
+## 0.12.0
+* BREAKING CHANGE: `unPair` is now `unpair`
 * Add `PlatformConfig` property in `StartScan`
 * Add `WebConfig` property in `PlatformConfig`
-* Fix notification for characteristics without cccd
+* Fix notifications for characteristics without cccd on Android
+* Add isPaired support on Apple
 
 ## 0.11.1
 * Trim spaces in UUIDs
@@ -11,6 +13,8 @@
 ## 0.11.0
 * Unify UUID format across all platforms, 128-bit lowercase
 * Add BleUuidParser utility methods for UUID parsing
+
+## 0.10.1
 * Improve Android error handling
 * Fix Android disconnection events sometimes missed
 * Improve cleanup after disconnection on Apple and Android

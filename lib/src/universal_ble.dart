@@ -193,9 +193,9 @@ class UniversalBle {
 
   /// Unpair a device.
   /// It might throw an error if device is not paired.
-  static Future<void> unPair(String deviceId) async {
+  static Future<void> unpair(String deviceId) async {
     return await _bleCommandQueue.queueCommand(
-      () => _platform.unPair(deviceId),
+      () => _platform.unpair(deviceId),
       deviceId: deviceId,
     );
   }
