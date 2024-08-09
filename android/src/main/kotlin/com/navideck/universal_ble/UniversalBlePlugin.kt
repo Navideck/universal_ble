@@ -231,45 +231,65 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
     ) {
         try {
             val gatt = deviceId.toBluetoothGatt()
-            val gattCharacteristic = gatt.getCharacteristic(service, characteristic)
-                ?: throw FlutterError(
-                    "IllegalArgument",
-                    "Unknown characteristic: $characteristic",
-                    null
-                )
+            val gattCharacteristic: BluetoothGattCharacteristic? =
+                gatt.getCharacteristic(service, characteristic)
 
-            if (gatt.setNotifiable(gattCharacteristic, bleInputProperty)) {
-                subscriptionResultFutureList.add(
-                    SubscriptionResultFuture(
-                        gatt.device.address,
-                        gattCharacteristic.uuid.toString(),
-                        gattCharacteristic.service.uuid.toString(),
-                        callback
-                    )
-                )
+            if (gattCharacteristic == null) {
+                callback(subscriptionFailedError("characteristic not found"))
+                return
+            }
+
+            val descriptor: BluetoothGattDescriptor? =
+                gattCharacteristic.getDescriptor(ccdCharacteristic)
+
+            val bleInputPropertyEnum: BleInputProperty =
+                BleInputProperty.values().first { it.value == bleInputProperty }
+
+            val (value, enable) = when (bleInputPropertyEnum) {
+                BleInputProperty.Notification -> BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE to true
+                BleInputProperty.Indication -> BluetoothGattDescriptor.ENABLE_INDICATION_VALUE to true
+                else -> BluetoothGattDescriptor.DISABLE_NOTIFICATION_VALUE to false
+            }
+
+            if (descriptor != null) {
+                // Some devices do not need CCCD to update
+                @Suppress("DEPRECATION")
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                    if (gatt.writeDescriptor(descriptor, value) != BluetoothStatusCodes.SUCCESS) {
+                        callback(subscriptionFailedError("Failed to update descriptor"))
+                        return
+                    }
+                } else {
+                    descriptor.value = value
+                    if (!gatt.writeDescriptor(descriptor)) {
+                        callback(subscriptionFailedError("Failed to update descriptor"))
+                        return
+                    }
+                }
             } else {
-                callback(
-                    Result.failure(
-                        FlutterError(
-                            "Failed",
-                            "Failed to update subscription state",
-                            null
+                Log.d("UniversalBle", "CCCD Descriptor not found")
+            }
+
+            if (gatt.setCharacteristicNotification(gattCharacteristic, enable)) {
+                if (descriptor != null) {
+                    subscriptionResultFutureList.add(
+                        SubscriptionResultFuture(
+                            gatt.device.address,
+                            gattCharacteristic.uuid.toString(),
+                            gattCharacteristic.service.uuid.toString(),
+                            callback
                         )
                     )
-                )
+                } else {
+                    callback(Result.success(Unit))
+                }
+            } else {
+                callback(subscriptionFailedError())
             }
         } catch (e: FlutterError) {
             callback(Result.failure(e))
         } catch (e: Exception) {
-            callback(
-                Result.failure(
-                    FlutterError(
-                        "Failed",
-                        "Failed to update subscription state",
-                        e.toString()
-                    )
-                )
-            )
+            callback(subscriptionFailedError(e.toString()))
         }
     }
 
@@ -820,7 +840,7 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
         status: Int,
     ) {
         super.onDescriptorWrite(gatt, descriptor, status)
-        if (descriptor?.uuid.toString() == ccdCharacteristic) {
+        if (descriptor?.uuid.toString() == ccdCharacteristic.toString()) {
             val char: String? = descriptor?.characteristic?.uuid?.toString()
             val service: String? = descriptor?.characteristic?.service?.uuid?.toString()
             val deviceId: String? = gatt?.device?.address;

@@ -25,7 +25,7 @@ import java.util.UUID
 private const val TAG = "UniversalBlePlugin"
 
 val knownGatts = mutableListOf<BluetoothGatt>()
-const val ccdCharacteristic = "00002902-0000-1000-8000-00805f9b34fb"
+val ccdCharacteristic = UUID.fromString("00002902-0000-1000-8000-00805f9b34fb")
 
 enum class BleConnectionState(val value: Long) {
     Connected(0),
@@ -228,28 +228,14 @@ fun BluetoothGatt.getCharacteristic(
     getService(UUID.fromString(service)).getCharacteristic(UUID.fromString(characteristic))
 
 
-@SuppressLint("MissingPermission")
-@Suppress("DEPRECATION")
-fun BluetoothGatt.setNotifiable(
-    gattCharacteristic: BluetoothGattCharacteristic,
-    bleInputProperty: Long,
-): Boolean {
-    val descClientCharConfirmation = UUID.fromString(ccdCharacteristic)
-    val descriptor = gattCharacteristic.getDescriptor(descClientCharConfirmation)
-    val bleInputPropertyEnum: BleInputProperty =
-        BleInputProperty.values().first { it.value == bleInputProperty }
-    val (value, enable) = when (bleInputPropertyEnum) {
-        BleInputProperty.Notification -> BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE to true
-        BleInputProperty.Indication -> BluetoothGattDescriptor.ENABLE_INDICATION_VALUE to true
-        else -> BluetoothGattDescriptor.DISABLE_NOTIFICATION_VALUE to false
-    }
-    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-        writeDescriptor(descriptor, value)
-    } else {
-        descriptor.value = value
-        writeDescriptor(descriptor)
-    }
-    return setCharacteristicNotification(descriptor.characteristic, enable)
+fun subscriptionFailedError(error: String? = null): Result<Unit> {
+    return Result.failure(
+        FlutterError(
+            "Failed",
+            "Failed to update subscription state",
+            error
+        )
+    )
 }
 
 fun BluetoothDevice.removeBond() {
