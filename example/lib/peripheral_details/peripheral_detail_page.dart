@@ -84,11 +84,11 @@ class _PeripheralDetailPageState extends State<PeripheralDetailPage> {
 
   void _handlePairingStateChange(
       String deviceId, bool isPaired, String? error) {
-    print('OnPairStateChange $deviceId, $isPaired');
+    print('isPaired $deviceId, $isPaired');
     if (error != null && error.isNotEmpty) {
       _addLog("PairStateChangeError", "(Paired: $isPaired): $error ");
     } else {
-      _addLog("PairStateChange", isPaired);
+      _addLog("PairStateChange - isPaired", isPaired);
     }
   }
 
@@ -254,7 +254,10 @@ class _PeripheralDetailPageState extends State<PeripheralDetailPage> {
                               enabled: !isConnected,
                               onPressed: () async {
                                 try {
-                                  await UniversalBle.connect(widget.deviceId);
+                                  bool connected = await UniversalBle.connect(
+                                    widget.deviceId,
+                                  );
+                                  _addLog("ConnectionResult", connected);
                                 } catch (e) {
                                   _addLog('ConnectError', e);
                                 }
@@ -407,7 +410,15 @@ class _PeripheralDetailPageState extends State<PeripheralDetailPage> {
                             ),
                             PlatformButton(
                               onPressed: () async {
-                                await UniversalBle.pair(widget.deviceId);
+                                await UniversalBle.pair(
+                                  widget.deviceId,
+                                  // pairingCommand: BleCommand(
+                                  //   service:
+                                  //       "",
+                                  //   characteristic:
+                                  //       "",
+                                  // ),
+                                );
                               },
                               text: 'Pair',
                             ),
@@ -415,12 +426,12 @@ class _PeripheralDetailPageState extends State<PeripheralDetailPage> {
                               onPressed: () async {
                                 bool? isPaired = await UniversalBle.isPaired(
                                   widget.deviceId,
-                                  bleCommand: BleCommand(
-                                    service:
-                                        "8000dd00-dd00-ffff-ffff-ffffffffffff",
-                                    characteristic:
-                                        "0000dd21-0000-1000-8000-00805f9b34fb",
-                                  ),
+                                  // pairingCheckCommand: BleCommand(
+                                  //   service:
+                                  //       "",
+                                  //   characteristic:
+                                  //       "",
+                                  // ),
                                 );
                                 _addLog('IsPaired', isPaired);
                               },

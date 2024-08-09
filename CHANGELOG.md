@@ -1,9 +1,11 @@
 ## 0.12.0
 * BREAKING CHANGE: `unPair` is now `unpair`
+* Add isPaired support on Apple
+* `connect` will now return the connection result
 * Add `PlatformConfig` property in `StartScan`
 * Add `WebConfig` property in `PlatformConfig`
 * Fix notifications for characteristics without cccd on Android
-* Add isPaired support on Apple
+* Add `connectionStream` API to get connection updates as stream
 
 ## 0.11.1
 * Trim spaces in UUIDs

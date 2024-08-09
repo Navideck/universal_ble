@@ -101,7 +101,7 @@ class UniversalBleLinux extends UniversalBlePlatform {
   Future<void> connect(String deviceId, {Duration? connectionTimeout}) async {
     final device = _findDeviceById(deviceId);
     if (device.connected) {
-      onConnectionChange?.call(deviceId, true);
+      updateConnection(deviceId, true);
       return;
     }
     await device.connect();
@@ -111,7 +111,7 @@ class UniversalBleLinux extends UniversalBlePlatform {
   Future<void> disconnect(String deviceId) async {
     final device = _findDeviceById(deviceId);
     if (!device.connected) {
-      onConnectionChange?.call(deviceId, false);
+      updateConnection(deviceId, false);
       return;
     }
     await device.disconnect();
@@ -273,7 +273,7 @@ class UniversalBleLinux extends UniversalBlePlatform {
   Future<void> pair(String deviceId) async {
     BlueZDevice device = _findDeviceById(deviceId);
     device.pair().onError((error, _) {
-      onPairingStateChange?.call(deviceId, false, error.toString());
+      updatePairingState(deviceId, false, error.toString());
     });
   }
 
@@ -356,7 +356,7 @@ class UniversalBleLinux extends UniversalBlePlatform {
         for (final property in properties) {
           switch (property) {
             case BluezProperty.powered:
-              onAvailabilityChange?.call(_availabilityState);
+              updateAvailability(_availabilityState);
               break;
             case BluezProperty.discoverable:
             case BluezProperty.discovering:
@@ -374,7 +374,7 @@ class UniversalBleLinux extends UniversalBlePlatform {
       _client.deviceAdded.listen(_onDeviceAdd);
       _client.deviceRemoved.listen(_onDeviceRemoved);
 
-      onAvailabilityChange?.call(_availabilityState);
+      updateAvailability(_availabilityState);
       isInitialized = true;
       _initializationCompleter?.complete();
       _initializationCompleter = null;
@@ -433,13 +433,13 @@ class UniversalBleLinux extends UniversalBlePlatform {
             updateScanResult(device.toBleDevice());
             break;
           case BluezProperty.connected:
-            onConnectionChange?.call(device.address, device.connected);
+            updateConnection(device.address, device.connected);
             break;
           case BluezProperty.manufacturerData:
             updateScanResult(device.toBleDevice());
             break;
           case BluezProperty.paired:
-            onPairingStateChange?.call(device.address, device.paired, null);
+            updatePairingState(device.address, device.paired, null);
             break;
           // Ignored these properties updates
           case BluezProperty.bonded:

@@ -126,16 +126,11 @@ class UniversalBlePigeonChannel extends UniversalBlePlatform {
   /// To set listeners
   void _setupListeners() {
     UniversalBleCallbackChannel.setUp(_UniversalBleCallbackHandler(
-      scanResult: (BleDevice bleDevice) => updateScanResult(bleDevice),
-      availabilityChange: (AvailabilityState state) =>
-          onAvailabilityChange?.call(state),
-      connectionChanged: (String deviceId, bool connected) =>
-          onConnectionChange?.call(deviceId, connected),
-      valueChanged:
-          (String deviceId, String characteristicId, Uint8List value) =>
-              updateCharacteristicValue(deviceId, characteristicId, value),
-      pairStateChange: (String deviceId, bool isPaired, String? error) =>
-          onPairingStateChange?.call(deviceId, isPaired, error),
+      scanResult: updateScanResult,
+      availabilityChange: updateAvailability,
+      connectionChanged: updateConnection,
+      valueChanged: updateCharacteristicValue,
+      pairStateChange: updatePairingState,
     ));
   }
 }
