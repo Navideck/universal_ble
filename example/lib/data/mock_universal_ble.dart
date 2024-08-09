@@ -27,19 +27,19 @@ class MockUniversalBle extends UniversalBlePlatform {
     ScanFilter? scanFilter,
     PlatformConfig? platformConfig,
   }) async =>
-      onScanResult?.call(_mockBleDevice);
+      updateScanResult(_mockBleDevice);
 
   @override
   Future<void> stopScan() async {}
 
   @override
   Future<void> connect(String deviceId, {Duration? connectionTimeout}) async {
-    onConnectionChange?.call(deviceId, true);
+    updateConnection(deviceId, true);
   }
 
   @override
   Future<void> disconnect(String deviceId) async {
-    onConnectionChange?.call(deviceId, false);
+    updateConnection(deviceId, false);
   }
 
   @override
@@ -99,12 +99,12 @@ class MockUniversalBle extends UniversalBlePlatform {
 
   @override
   Future<void> pair(String deviceId) async {
-    onPairingStateChange?.call(deviceId, true, null);
+    updatePairingState(deviceId, true, null);
   }
 
   @override
-  Future<void> unPair(String deviceId) async {
-    onPairingStateChange?.call(deviceId, false, null);
+  Future<void> unpair(String deviceId) async {
+    updatePairingState(deviceId, false, null);
   }
 
   @override

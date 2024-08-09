@@ -31,7 +31,10 @@ A cross-platform (Android/iOS/macOS/Windows/Linux/Web) Bluetooth Low Energy (BLE
 | readValue            |   ✔️    | ✔️  |  ✔️   |   ✔️    |      ✔️      | ✔️  |
 | writeValue           |   ✔️    | ✔️  |  ✔️   |   ✔️    |      ✔️      | ✔️  |
 | setNotifiable        |   ✔️    | ✔️  |  ✔️   |   ✔️    |      ✔️      | ✔️  |
-| pair/unPair          |   ✔️    | ❌  |  ❌   |   ✔️    |      ✔️      | ❌  |
+| pair                 |   ✔️    | ✔️  |  ✔️   |   ✔️    |      ✔️      | ❌  |
+| unpair               |   ✔️    | ❌  |  ❌   |   ✔️    |      ✔️      | ❌  |
+| isPaired             |   ✔️    | ✔️  |  ✔️   |   ✔️    |      ✔️      | ?  |
+| getBluetoothAvailabilityState                 |   ✔️    | ✔️  |  ✔️   |   ✔️    |      ✔️      | ❌  |
 | onPairingStateChange |   ✔️    | ❌  |  ❌   |   ✔️    |      ✔️      | ❌  |
 | enableBluetooth      |   ✔️    | ❌  |  ❌   |   ✔️    |      ✔️      | ❌  |
 | onAvailabilityChange |   ✔️    | ✔️  |  ✔️   |   ✔️    |      ✔️      | ✔️  |
@@ -201,7 +204,7 @@ UniversalBle.onPairingStateChange = (String deviceId, bool isPaired, String? err
 }
 
 // Unpair
-UniversalBle.unPair(deviceId);
+UniversalBle.unpair(deviceId);
 
 // Check current pairing state
 bool isPaired = UniversalBle.isPaired(deviceId);

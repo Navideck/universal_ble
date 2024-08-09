@@ -45,14 +45,14 @@ class UniversalBleWeb extends UniversalBlePlatform {
 
     _connectedDeviceStreamList[deviceId] = device.connected.listen((event) {
       if (!event) _cleanConnection(deviceId);
-      onConnectionChange?.call(deviceId, event);
+      updateConnection(deviceId, event);
     });
   }
 
   @override
   Future<void> disconnect(String deviceId) async {
     _cleanConnection(deviceId);
-    onConnectionChange?.call(deviceId, false);
+    updateConnection(deviceId, false);
     _getDeviceById(deviceId)?.disconnect();
   }
 
@@ -246,7 +246,7 @@ class UniversalBleWeb extends UniversalBlePlatform {
   }
 
   @override
-  Future<void> unPair(String deviceId) {
+  Future<void> unpair(String deviceId) {
     throw UnimplementedError();
   }
 
@@ -270,7 +270,7 @@ class UniversalBleWeb extends UniversalBlePlatform {
         } else if (isAvailable) {
           newState = AvailabilityState.poweredOn;
         }
-        onAvailabilityChange?.call(newState);
+        updateAvailability(newState);
       },
     );
   }

@@ -1,9 +1,11 @@
+import 'dart:async';
 import 'dart:developer';
 import 'dart:typed_data';
 import 'package:universal_ble/universal_ble.dart';
 
 abstract class UniversalBlePlatform {
   ScanFilter? _scanFilter;
+  StreamController? _connectionStreamController;
 
   Future<AvailabilityState> getBluetoothAvailabilityState();
 
@@ -43,13 +45,22 @@ abstract class UniversalBlePlatform {
 
   Future<void> pair(String deviceId);
 
-  Future<void> unPair(String deviceId);
+  Future<void> unpair(String deviceId);
 
   Future<BleConnectionState> getConnectionState(String deviceId);
 
   Future<List<BleDevice>> getSystemDevices(
     List<String>? withServices,
   );
+
+  bool receivesAdvertisements(String deviceId) => true;
+
+  Stream<bool> connectionStream(String deviceId) {
+    _setupConnectionStreamIfRequired();
+    return _connectionStreamController!.stream
+        .where((event) => event.deviceId == deviceId)
+        .map((event) => event.isConnected);
+  }
 
   void updateScanResult(BleDevice bleDevice) {
     // Filter by name
@@ -62,7 +73,11 @@ abstract class UniversalBlePlatform {
     onScanResult?.call(bleDevice);
   }
 
-  bool receivesAdvertisements(String deviceId) => true;
+  void updateConnection(String deviceId, bool isConnected) {
+    onConnectionChange?.call(deviceId, isConnected);
+    _connectionStreamController
+        ?.add((deviceId: deviceId, isConnected: isConnected));
+  }
 
   void updateCharacteristicValue(
       String deviceId, String characteristicId, Uint8List value) {
@@ -70,15 +85,39 @@ abstract class UniversalBlePlatform {
         deviceId, BleUuidParser.string(characteristicId), value);
   }
 
-  OnAvailabilityChange? onAvailabilityChange;
+  void updateAvailability(AvailabilityState state) {
+    onAvailabilityChange?.call(state);
+  }
+
+  void updatePairingState(String deviceId, bool isPaired, String? error) {
+    onPairingStateChange?.call(deviceId, isPaired, error);
+  }
+
+  // Do not use these directly to push updates
   OnScanResult? onScanResult;
   OnConnectionChange? onConnectionChange;
   OnValueChange? onValueChange;
+  OnAvailabilityChange? onAvailabilityChange;
   OnPairingStateChange? onPairingStateChange;
 
   static void logInfo(String message, {bool isError = false}) {
     if (isError) message = '\x1B[31m$message\x1B[31m';
     log(message, name: 'UniversalBle');
+  }
+
+  /// Creates an auto disposable streamController
+  void _setupConnectionStreamIfRequired() {
+    if (_connectionStreamController != null) return;
+
+    _connectionStreamController =
+        StreamController<({String deviceId, bool isConnected})>.broadcast();
+
+    // Auto dispose if no more subscribers
+    _connectionStreamController?.onCancel = () {
+      // logInfo('Disposing Connection Stream');
+      _connectionStreamController?.close();
+      _connectionStreamController = null;
+    };
   }
 }
 

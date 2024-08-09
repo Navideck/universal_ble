@@ -281,7 +281,7 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
   }
 
   func pair(deviceId _: String) throws {
-    throw FlutterError(code: "NotSupported", message: nil, details: nil)
+    throw FlutterError(code: "Implemented in Dart", message: nil, details: nil)
   }
 
   func unPair(deviceId _: String) throws {
