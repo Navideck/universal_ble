@@ -252,7 +252,7 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
             }
 
             if (descriptor != null) {
-                // Some devices does no need their CCCD to update
+                // Some devices do not need CCCD to update
                 @Suppress("DEPRECATION")
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                     if (gatt.writeDescriptor(descriptor, value) != BluetoothStatusCodes.SUCCESS) {

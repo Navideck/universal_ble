@@ -1,6 +1,7 @@
 ## 0.11.2
 * Add `PlatformConfig` property in `StartScan`
 * Add `WebConfig` property in `PlatformConfig`
+* Fix notification for characteristics without cccd
 
 ## 0.11.1
 * Trim spaces in UUIDs
