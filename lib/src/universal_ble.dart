@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:universal_ble/src/ble_command_queue.dart';
@@ -200,45 +199,54 @@ class UniversalBle {
   }
 
   /// Check if a device is paired.
-  /// Returns null on `Apple` and `Web` when no `bleCommand` is passed.
   ///
-  /// On Apple and Web, you can optionally pass a pairingCheckCommand if you know an encrypted read or write characteristic.
-  /// It will trigger pairing if the device is not already paired.
+  /// For Apple and Web, you can optionally pass a pairingCommand if you know an encrypted read or write characteristic.
   /// It will return true/false if it manages to execute the command.
+  /// Note that it will trigger pairing if the device is not already paired.
+  ///
+  /// Returns null on `Apple` and `Web` when no `bleCommand` is passed.
   static Future<bool?> isPaired(
     String deviceId, {
-    BleCommand? pairingCheckCommand,
+    BleCommand? pairingCommand,
   }) async {
-    bool lacksPairingApi = kIsWeb || Platform.isMacOS || Platform.isIOS;
-    if (lacksPairingApi && pairingCheckCommand == null) {
+    if (!BleCapabilities.hasSystemPairingApi && pairingCommand == null) {
       return null;
     }
 
-    return lacksPairingApi
-        ? await _connectAndExecuteBleCommand(deviceId, pairingCheckCommand)
-        : await _bleCommandQueue.queueCommand(
+    return BleCapabilities.hasSystemPairingApi
+        ? await _bleCommandQueue.queueCommand(
             () => _platform.isPaired(deviceId),
             deviceId: deviceId,
-          );
+          )
+        : await _connectAndExecuteBleCommand(deviceId, pairingCommand);
   }
 
   /// Pair a device.
   /// It might throw an error if device is already paired.
   ///
-  /// On Apple, it only works on devices with encrypted characteristics.
-  /// It throws an error if there is no readable characteristic.
+  /// On `Apple` and `Web`, it only works on devices with encrypted characteristics.
+  /// It returns null if there is no readable characteristic.
   ///
   /// You can optionally pass a pairingCommand if you know an encrypted read or write characteristic.
-  static Future<void> pair(
+  /// If you do, it returns true if it can successfully execute the command after pairing.
+  ///
+  /// Throws UnsupportedError on `Web/Windows`
+
+  static Future<bool?> pair(
     String deviceId, {
     BleCommand? pairingCommand,
-  }) =>
-      kIsWeb || Platform.isMacOS || Platform.isIOS
-          ? _connectAndExecuteBleCommand(deviceId, pairingCommand)
-          : _bleCommandQueue.queueCommand(
-              () => _platform.pair(deviceId),
-              deviceId: deviceId,
-            );
+  }) async {
+    if (BleCapabilities.hasSystemPairingApi) {
+      // TODO Maybe return pairing result from system API
+      await _platform.pair(deviceId); // Not sure if we could keep queuing
+
+      // TODO Currently, only Apple and Linux await until pairing is finished
+    } else if (!BleCapabilities.supportsInAppPairing) {
+      throw UnsupportedError("Not supported");
+    }
+    if (pairingCommand == null) return null;
+    return await _connectAndExecuteBleCommand(deviceId, pairingCommand);
+  }
 
   /// Unpair a device.
   /// It might throw an error if device is not paired.
@@ -315,9 +323,10 @@ class UniversalBle {
         await _attemptPairingReadingAll(deviceId, services);
         return null;
       } else {
-        await _executeBleCommand(deviceId, services, bleCommand);
-        _platform.updatePairingState(deviceId, true, null);
-        return true;
+        bool commandResult =
+            await _executeBleCommand(deviceId, services, bleCommand);
+        _platform.updatePairingState(deviceId, commandResult, null);
+        return commandResult;
       }
     } catch (e) {
       UniversalBlePlatform.logInfo(
@@ -351,7 +360,7 @@ class UniversalBle {
     }
   }
 
-  static Future<void> _executeBleCommand(
+  static Future<bool> _executeBleCommand(
     String deviceId,
     List<BleService> services,
     BleCommand bleCommand,
@@ -371,7 +380,7 @@ class UniversalBle {
     }
 
     if (characteristic == null) {
-      throw "BleCommand char not found";
+      return false;
     }
 
     // Check if BleCommand Supports Read or Write
@@ -383,7 +392,7 @@ class UniversalBle {
       bleOutputProperty = BleOutputProperty.withoutResponse;
     } else if (!characteristic.properties
         .contains(CharacteristicProperty.read)) {
-      throw "BleCommand does not support read or write operations";
+      return false;
     }
 
     Uint8List? value = bleCommand.writeValue;
@@ -403,6 +412,7 @@ class UniversalBle {
         bleCommand.characteristic,
       );
     }
+    return true;
   }
 
   /// Get updates of remaining items of a queue.

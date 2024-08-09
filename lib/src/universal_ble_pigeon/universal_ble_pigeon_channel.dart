@@ -1,5 +1,3 @@
-import 'dart:io';
-
 import 'package:flutter/foundation.dart';
 import 'package:universal_ble/src/universal_ble_pigeon/universal_ble.g.dart';
 import 'package:universal_ble/universal_ble.dart';
@@ -23,7 +21,9 @@ class UniversalBlePigeonChannel extends UniversalBlePlatform {
 
   @override
   Future<bool> enableBluetooth() {
-    if (Platform.isIOS || Platform.isMacOS) throw UnimplementedError();
+    if (!BleCapabilities.supportsBluetoothEnableApi) {
+      throw UnsupportedError("Not supported");
+    }
     return _channel.enableBluetooth();
   }
 

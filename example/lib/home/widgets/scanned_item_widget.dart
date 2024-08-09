@@ -1,7 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:universal_ble/universal_ble.dart';
-import 'package:universal_ble_example/data/capabilities.dart';
 
 class ScannedItemWidget extends StatelessWidget {
   final BleDevice bleDevice;
@@ -31,9 +30,7 @@ class ScannedItemWidget extends StatelessWidget {
               Visibility(
                 visible: manufacturerData != null,
                 child: Text(
-                  Platform.isWeb || Platform.isDesktop
-                      ? manufacturerData.toString()
-                      : 'ManufacturerCompanyId: ${manufacturerData?.companyIdRadix16}',
+                  'CompanyIdentifier: ${manufacturerData.toString()} (${manufacturerData?.companyIdRadix16})',
                 ),
               ),
               bleDevice.isPaired == true
