@@ -414,7 +414,14 @@ class _PeripheralDetailPageState extends State<PeripheralDetailPage> {
                             PlatformButton(
                               onPressed: () async {
                                 bool? isPaired = await UniversalBle.isPaired(
-                                    widget.deviceId);
+                                  widget.deviceId,
+                                  bleCommand: BleCommand(
+                                    service:
+                                        "8000dd00-dd00-ffff-ffff-ffffffffffff",
+                                    characteristic:
+                                        "0000dd21-0000-1000-8000-00805f9b34fb",
+                                  ),
+                                );
                                 _addLog('IsPaired', isPaired);
                               },
                               text: 'IsPaired',
