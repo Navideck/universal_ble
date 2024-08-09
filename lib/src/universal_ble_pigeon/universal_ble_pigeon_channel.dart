@@ -108,7 +108,7 @@ class UniversalBlePigeonChannel extends UniversalBlePlatform {
   Future<void> pair(String deviceId) => _channel.pair(deviceId);
 
   @override
-  Future<void> unPair(String deviceId) => _channel.unPair(deviceId);
+  Future<void> unpair(String deviceId) => _channel.unPair(deviceId);
 
   @override
   Future<List<BleDevice>> getSystemDevices(
@@ -126,16 +126,11 @@ class UniversalBlePigeonChannel extends UniversalBlePlatform {
   /// To set listeners
   void _setupListeners() {
     UniversalBleCallbackChannel.setUp(_UniversalBleCallbackHandler(
-      scanResult: (BleDevice bleDevice) => updateScanResult(bleDevice),
-      availabilityChange: (AvailabilityState state) =>
-          onAvailabilityChange?.call(state),
-      connectionChanged: (String deviceId, bool connected) =>
-          onConnectionChange?.call(deviceId, connected),
-      valueChanged:
-          (String deviceId, String characteristicId, Uint8List value) =>
-              updateCharacteristicValue(deviceId, characteristicId, value),
-      pairStateChange: (String deviceId, bool isPaired, String? error) =>
-          onPairingStateChange?.call(deviceId, isPaired, error),
+      scanResult: updateScanResult,
+      availabilityChange: updateAvailability,
+      connectionChanged: updateConnection,
+      valueChanged: updateCharacteristicValue,
+      pairStateChange: updatePairingState,
     ));
   }
 }

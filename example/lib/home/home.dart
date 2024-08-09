@@ -192,7 +192,7 @@ class _MyAppState extends State<MyApp> {
                     },
                   ),
                 PlatformButton(
-                  text: 'Queue: ${_queueType.name.toUpperCase()}',
+                  text: 'Queue: ${_queueType.name}',
                   onPressed: () {
                     setState(() {
                       _queueType = switch (_queueType) {
