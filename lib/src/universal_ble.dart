@@ -214,8 +214,7 @@ class UniversalBle {
         () => _platform.isPaired(deviceId),
         deviceId: deviceId,
       );
-    }
-    if (pairingCommand != null) {
+    } else if (pairingCommand != null) {
       return _connectAndExecuteBleCommand(deviceId, pairingCommand);
     }
     return null;
@@ -231,21 +230,17 @@ class UniversalBle {
   /// If you do, it returns true if it can successfully execute the command after pairing.
   ///
   /// Throws UnsupportedError on `Web/Windows`
-
   static Future<bool?> pair(
     String deviceId, {
     BleCommand? pairingCommand,
   }) async {
-    if (BleCapabilities.hasSystemPairingApi) {
-      return _platform.pair(deviceId);
-    }
     if (!BleCapabilities.supportsInAppPairing) {
       throw UnsupportedError("Not supported");
     }
-    if (pairingCommand != null) {
-      return _connectAndExecuteBleCommand(deviceId, pairingCommand);
+    if (BleCapabilities.hasSystemPairingApi) {
+      return _platform.pair(deviceId);
     }
-    return null;
+    return _connectAndExecuteBleCommand(deviceId, pairingCommand);
   }
 
   /// Unpair a device.
@@ -310,7 +305,7 @@ class UniversalBle {
 
   static Future<bool?> _connectAndExecuteBleCommand(
     String deviceId,
-    BleCommand bleCommand,
+    BleCommand? bleCommand,
   ) async {
     try {
       if (await getConnectionState(deviceId) != BleConnectionState.connected) {
