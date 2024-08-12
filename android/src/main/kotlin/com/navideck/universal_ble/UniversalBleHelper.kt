@@ -25,7 +25,7 @@ import java.util.UUID
 private const val TAG = "UniversalBlePlugin"
 
 val knownGatts = mutableListOf<BluetoothGatt>()
-val ccdCharacteristic = UUID.fromString("00002902-0000-1000-8000-00805f9b34fb")
+val ccdCharacteristic: UUID = UUID.fromString("00002902-0000-1000-8000-00805f9b34fb")
 
 enum class BleConnectionState(val value: Long) {
     Connected(0),
@@ -157,8 +157,7 @@ fun Int.parseGattErrorCode(): String? {
 }
 
 fun UniversalScanFilter.toScanFilters(): List<ScanFilter> {
-    var scanFilters: ArrayList<ScanFilter> = arrayListOf()
-
+    val scanFilters: ArrayList<ScanFilter> = arrayListOf()
     // Add withServices Filter
     for (service in this.withServices) {
         try {
