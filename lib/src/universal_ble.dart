@@ -237,15 +237,15 @@ class UniversalBle {
     BleCommand? pairingCommand,
   }) async {
     if (BleCapabilities.hasSystemPairingApi) {
-      // TODO Maybe return pairing result from system API
-      // Not sure if we could keep queuing
-      return await _platform.pair(deviceId);
-      // TODO Currently, only Apple and Linux await until pairing is finished
-    } else if (!BleCapabilities.supportsInAppPairing) {
+      return _platform.pair(deviceId);
+    }
+    if (!BleCapabilities.supportsInAppPairing) {
       throw UnsupportedError("Not supported");
     }
-    if (pairingCommand == null) return null;
-    return await _connectAndExecuteBleCommand(deviceId, pairingCommand);
+    if (pairingCommand != null) {
+      return _connectAndExecuteBleCommand(deviceId, pairingCommand);
+    }
+    return null;
   }
 
   /// Unpair a device.
