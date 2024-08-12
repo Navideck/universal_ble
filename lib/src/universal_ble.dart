@@ -209,16 +209,16 @@ class UniversalBle {
     String deviceId, {
     BleCommand? pairingCommand,
   }) async {
-    if (!BleCapabilities.hasSystemPairingApi && pairingCommand == null) {
-      return null;
+    if (BleCapabilities.hasSystemPairingApi) {
+      return _bleCommandQueue.queueCommand(
+        () => _platform.isPaired(deviceId),
+        deviceId: deviceId,
+      );
     }
-
-    return BleCapabilities.hasSystemPairingApi
-        ? await _bleCommandQueue.queueCommand(
-            () => _platform.isPaired(deviceId),
-            deviceId: deviceId,
-          )
-        : await _connectAndExecuteBleCommand(deviceId, pairingCommand);
+    if (pairingCommand != null) {
+      return _connectAndExecuteBleCommand(deviceId, pairingCommand);
+    }
+    return null;
   }
 
   /// Pair a device.
@@ -310,7 +310,7 @@ class UniversalBle {
 
   static Future<bool?> _connectAndExecuteBleCommand(
     String deviceId,
-    BleCommand? bleCommand,
+    BleCommand bleCommand,
   ) async {
     try {
       if (await getConnectionState(deviceId) != BleConnectionState.connected) {
