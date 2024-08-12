@@ -418,7 +418,7 @@ class _PeripheralDetailPageState extends State<PeripheralDetailPage> {
                                     //   characteristic: "",
                                     // ),
                                   );
-                                  _addLog("pairingResult:", pairingResult);
+                                  _addLog("Pairing Result", pairingResult);
                                 },
                                 text: 'Pair',
                               ),
