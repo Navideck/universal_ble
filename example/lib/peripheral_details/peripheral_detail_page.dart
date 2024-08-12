@@ -411,14 +411,14 @@ class _PeripheralDetailPageState extends State<PeripheralDetailPage> {
                               visible: BleCapabilities.supportsInAppPairing,
                               child: PlatformButton(
                                 onPressed: () async {
-                                  bool? pairingResult = await UniversalBle.pair(
+                                  await UniversalBle.pair(
                                     widget.deviceId,
                                     // pairingCommand: BleCommand(
                                     //   service: "",
                                     //   characteristic: "",
                                     // ),
                                   );
-                                  _addLog("Pairing Result", pairingResult);
+                                  _addLog("Pairing Result", true);
                                 },
                                 text: 'Pair',
                               ),

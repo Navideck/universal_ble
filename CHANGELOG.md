@@ -1,5 +1,7 @@
 ## 0.12.0
 * BREAKING CHANGE: `unPair` is now `unpair`
+* BREAKING CHANGE: `onPairingStateChange` does not return error anymore. Use pair() instead
+* BREAKING CHANGE: `enableBluetooth()` now throws in case of error instead of returning false
 * Add `pair()`, `isPaired` and `onPairingStateChange` support for Apple and web
 * `connect()` and `pair()` now return a bool result
 * Add `PlatformConfig` property in `StartScan`

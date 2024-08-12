@@ -226,14 +226,16 @@ class UniversalBle {
 
   /// Pair a device.
   ///
+  /// Throws error if pairing fails.
+  ///
   /// On `Apple` and `Web`, it only works on devices with encrypted characteristics.
-  /// It returns null if there is no readable characteristic.
+  /// It throws error if there is no readable characteristic.
   ///
   /// You can optionally pass a pairingCommand if you know an encrypted read or write characteristic.
-  /// If you do, it returns true if it can successfully execute the command after pairing.
+  /// If you do, it throws error if it can't successfully execute the command after pairing.
   ///
-  /// Throws UnsupportedError on `Web/Windows`
-  static Future<bool?> pair(
+  /// Throws UnsupportedError on `Web/Windows`.
+  static Future<void> pair(
     String deviceId, {
     BleCommand? pairingCommand,
   }) async {
@@ -243,7 +245,7 @@ class UniversalBle {
     if (BleCapabilities.hasSystemPairingApi) {
       return _platform.pair(deviceId);
     }
-    return _connectAndExecuteBleCommand(deviceId, pairingCommand);
+    await _connectAndExecuteBleCommand(deviceId, pairingCommand);
   }
 
   /// Unpair a device.
