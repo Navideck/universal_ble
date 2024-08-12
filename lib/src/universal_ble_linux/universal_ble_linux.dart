@@ -273,6 +273,7 @@ class UniversalBleLinux extends UniversalBlePlatform {
   Future<bool> pair(String deviceId) async {
     BlueZDevice device = _findDeviceById(deviceId);
     try {
+      if (device.paired) return true;
       await device.pair();
       return true;
     } catch (error) {
