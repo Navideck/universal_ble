@@ -221,7 +221,6 @@ class UniversalBle {
   }
 
   /// Pair a device.
-  /// It might throw an error if device is already paired.
   ///
   /// On `Apple` and `Web`, it only works on devices with encrypted characteristics.
   /// It returns null if there is no readable characteristic.
