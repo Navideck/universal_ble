@@ -1,7 +1,8 @@
 ## 0.12.0
 * BREAKING CHANGE: `unPair` is now `unpair`
-* Pair() now returns the pairing result
-* Add isPaired support on Apple
+* Add `pair()` support for Apple and web
+* Add `isPaired` support for Apple and web
+* `pair()` now returns the pairing result
 * `connect` will now return the connection result
 * Add `PlatformConfig` property in `StartScan`
 * Add `WebConfig` property in `PlatformConfig`
