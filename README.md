@@ -22,7 +22,7 @@ A cross-platform (Android/iOS/macOS/Windows/Linux/Web) Bluetooth Low Energy (BLE
 
 ### API Support Matrix
 
-| API                  | Android | iOS | macOS | Windows | Linux (beta) | Web |
+| API                  | Android | iOS | macOS | Windows | Linux | Web |
 | :------------------- | :-----: | :-: | :---: | :-----: | :----------: | :-: |
 | startScan/stopScan   |   ✔️    | ✔️  |  ✔️   |   ✔️    |      ✔️      | ✔️  |
 | connect/disconnect   |   ✔️    | ✔️  |  ✔️   |   ✔️    |      ✔️      | ✔️  |
@@ -31,10 +31,10 @@ A cross-platform (Android/iOS/macOS/Windows/Linux/Web) Bluetooth Low Energy (BLE
 | readValue            |   ✔️    | ✔️  |  ✔️   |   ✔️    |      ✔️      | ✔️  |
 | writeValue           |   ✔️    | ✔️  |  ✔️   |   ✔️    |      ✔️      | ✔️  |
 | setNotifiable        |   ✔️    | ✔️  |  ✔️   |   ✔️    |      ✔️      | ✔️  |
-| pair                 |   ✔️    | ✔️  |  ✔️   |   ✔️    |      ✔️      | ✔️  |
+| pair                 |   ✔️    | ✔️  |  ✔️   |   ✔️    |      ✔️      | ⏺  |
 | unpair               |   ✔️    | ❌  |  ❌   |   ✔️    |      ✔️      | ❌  |
 | isPaired             |   ✔️    | ✔️  |  ✔️   |   ✔️    |      ✔️      | ✔️  |
-| onPairingStateChange |   ✔️    | ❌  |  ❌   |   ✔️    |      ✔️      | ❌  |
+| onPairingStateChange |   ✔️    | ⏺  |  ⏺   |   ✔️    |      ✔️      | ⏺  |
 | getBluetoothAvailabilityState |   ✔️    | ✔️  |  ✔️   |   ✔️    |      ✔️      | ❌  |
 | enableBluetooth      |   ✔️    | ❌  |  ❌   |   ✔️    |      ✔️      | ❌  |
 | onAvailabilityChange |   ✔️    | ✔️  |  ✔️   |   ✔️    |      ✔️      | ✔️  |

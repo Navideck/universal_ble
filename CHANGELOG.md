@@ -1,8 +1,10 @@
 ## 0.12.0
+* Linux promoted to stable
 * BREAKING CHANGE: `unPair` is now `unpair`
 * Add `pair()` support for Apple and web
 * Add `isPaired` support for Apple and web
 * `pair()` now returns the pairing result
+* Add `pair()`, `isPaired` and `onPairingStateChange` support for Apple and web
 * `connect` will now return the connection result
 * Add `PlatformConfig` property in `StartScan`
 * Add `WebConfig` property in `PlatformConfig`
