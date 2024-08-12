@@ -1,7 +1,5 @@
 // ignore_for_file: use_build_context_synchronously
 
-import 'dart:developer';
-
 import 'package:flutter/material.dart';
 import 'package:universal_ble/universal_ble.dart';
 import 'package:universal_ble_example/data/mock_universal_ble.dart';
@@ -51,7 +49,7 @@ class _MyAppState extends State<MyApp> {
     };
 
     UniversalBle.onScanResult = (result) {
-      log(result.toString());
+      // log(result.toString());
       int index = _bleDevices.indexWhere((e) => e.deviceId == result.deviceId);
       if (index == -1) {
         _bleDevices.add(result);
