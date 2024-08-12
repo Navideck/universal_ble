@@ -238,7 +238,8 @@ class UniversalBle {
   }) async {
     if (BleCapabilities.hasSystemPairingApi) {
       // TODO Maybe return pairing result from system API
-      await _platform.pair(deviceId); // Not sure if we could keep queuing
+      return await _platform
+          .pair(deviceId); // Not sure if we could keep queuing
       // TODO Currently, only Apple and Linux await until pairing is finished
     } else if (!BleCapabilities.supportsInAppPairing) {
       throw UnsupportedError("Not supported");

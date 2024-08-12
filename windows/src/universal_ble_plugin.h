@@ -125,8 +125,8 @@ namespace universal_ble
                                           const std::vector<uint8_t> &value,
                                           std::function<void(std::optional<FlutterError> reply)> result);
         bool filterByManufacturerData(IVector<BluetoothLEManufacturerData> deviceManufactureData);
-        winrt::fire_and_forget PairAsync(std::string device_id, std::function<void(std::optional<FlutterError> reply)> result);
-        winrt::fire_and_forget CustomPairAsync(std::string device_id, std::function<void(std::optional<FlutterError> reply)> result);
+        winrt::fire_and_forget PairAsync(std::string device_id, std::function<void(ErrorOr<bool> reply)> result);
+        winrt::fire_and_forget CustomPairAsync(std::string device_id, std::function<void(ErrorOr<bool> reply)> result);
         void PairingRequestedHandler(DeviceInformationCustomPairing sender, DevicePairingRequestedEventArgs eventArgs);
 
         // UniversalBlePlatformChannel implementation.
@@ -167,7 +167,7 @@ namespace universal_ble
             std::function<void(ErrorOr<bool> reply)> result) override;
         void Pair(
             const std::string &device_id,
-            std::function<void(std::optional<FlutterError> reply)> result) override;
+            std::function<void(ErrorOr<bool> reply)> result) override;
         std::optional<FlutterError> UnPair(const std::string &device_id) override;
         void GetSystemDevices(
             const flutter::EncodableList &with_services,

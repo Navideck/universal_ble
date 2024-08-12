@@ -418,7 +418,7 @@ namespace universal_ble
 
   void UniversalBlePlugin::Pair(
       const std::string &device_id,
-      std::function<void(std::optional<FlutterError> reply)> result)
+      std::function<void(ErrorOr<bool> reply)> result)
   {
     try
     {
@@ -542,7 +542,7 @@ namespace universal_ble
 
   winrt::fire_and_forget UniversalBlePlugin::PairAsync(
       std::string device_id,
-      std::function<void(std::optional<FlutterError> reply)> result)
+      std::function<void(ErrorOr<bool> reply)> result)
   {
     try
     {
@@ -557,25 +557,22 @@ namespace universal_ble
         auto pairResult = co_await deviceInformation.Pairing().PairAsync();
         std::cout << "PairLog: Received pairing status" << std::endl;
         bool isPaired = pairResult.Status() == Enumeration::DevicePairingResultStatus::Paired;
+        result(isPaired);
         std::string errorStr = parsePairingFailError(pairResult);
-        if (isPaired)
-          result(std::nullopt);
-        else
-          result(FlutterError(errorStr));
         uiThreadHandler_.Post([device_id, isPaired, errorStr]
                               { callbackChannel->OnPairStateChange(device_id, isPaired, &errorStr, SuccessCallback, ErrorCallback); });
       }
     }
     catch (...)
     {
-      result(FlutterError("Failed to pair"));
+      result(false);
       std::cout << "PairLog: Unknown error" << std::endl;
     }
   }
 
   winrt::fire_and_forget UniversalBlePlugin::CustomPairAsync(
       std::string device_id,
-      std::function<void(std::optional<FlutterError> reply)> result)
+      std::function<void(ErrorOr<bool> reply)> result)
   {
     try
     {
@@ -596,21 +593,16 @@ namespace universal_ble
         std::cout << "PairLog: Got Pair Result" << std::endl;
         DevicePairingResultStatus status = pairResult.Status();
         customPairing.PairingRequested(token);
-        auto isPaired = status == Enumeration::DevicePairingResultStatus::Paired;
+        bool isPaired = status == Enumeration::DevicePairingResultStatus::Paired;
+        result(isPaired);
         std::string errorStr = parsePairingFailError(pairResult);
-
-        if (isPaired)
-          result(std::nullopt);
-        else
-          result(FlutterError(errorStr));
-
         uiThreadHandler_.Post([device_id, isPaired, errorStr]
                               { callbackChannel->OnPairStateChange(device_id, isPaired, &errorStr, SuccessCallback, ErrorCallback); });
       }
     }
     catch (...)
     {
-      result(FlutterError("Failed to pair"));
+      result(false);
       std::cout << "PairLog Error: Pairing Failed" << std::endl;
     }
   }

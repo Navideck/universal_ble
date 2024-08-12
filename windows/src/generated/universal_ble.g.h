@@ -305,7 +305,7 @@ class UniversalBlePlatformChannel {
     std::function<void(ErrorOr<bool> reply)> result) = 0;
   virtual void Pair(
     const std::string& device_id,
-    std::function<void(std::optional<FlutterError> reply)> result) = 0;
+    std::function<void(ErrorOr<bool> reply)> result) = 0;
   virtual std::optional<FlutterError> UnPair(const std::string& device_id) = 0;
   virtual void GetSystemDevices(
     const flutter::EncodableList& with_services,

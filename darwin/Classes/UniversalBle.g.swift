@@ -281,7 +281,7 @@ protocol UniversalBlePlatformChannel {
   func requestMtu(deviceId: String, expectedMtu: Int64, completion: @escaping (Result<Int64, Error>) -> Void)
   func writeValue(deviceId: String, service: String, characteristic: String, value: FlutterStandardTypedData, bleOutputProperty: Int64, completion: @escaping (Result<Void, Error>) -> Void)
   func isPaired(deviceId: String, completion: @escaping (Result<Bool, Error>) -> Void)
-  func pair(deviceId: String, completion: @escaping (Result<Void, Error>) -> Void)
+  func pair(deviceId: String, completion: @escaping (Result<Bool, Error>) -> Void)
   func unPair(deviceId: String) throws
   func getSystemDevices(withServices: [String], completion: @escaping (Result<[UniversalBleScanResult], Error>) -> Void)
   func getConnectionState(deviceId: String) throws -> Int64
@@ -500,8 +500,8 @@ class UniversalBlePlatformChannelSetup {
         let deviceIdArg = args[0] as! String
         api.pair(deviceId: deviceIdArg) { result in
           switch result {
-          case .success:
-            reply(wrapResult(nil))
+          case .success(let res):
+            reply(wrapResult(res))
           case .failure(let error):
             reply(wrapError(error))
           }

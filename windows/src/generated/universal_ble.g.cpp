@@ -852,13 +852,13 @@ void UniversalBlePlatformChannel::SetUp(
             return;
           }
           const auto& device_id_arg = std::get<std::string>(encodable_device_id_arg);
-          api->Pair(device_id_arg, [reply](std::optional<FlutterError>&& output) {
-            if (output.has_value()) {
-              reply(WrapError(output.value()));
+          api->Pair(device_id_arg, [reply](ErrorOr<bool>&& output) {
+            if (output.has_error()) {
+              reply(WrapError(output.error()));
               return;
             }
             EncodableList wrapped;
-            wrapped.push_back(EncodableValue());
+            wrapped.push_back(EncodableValue(std::move(output).TakeValue()));
             reply(EncodableValue(std::move(wrapped)));
           });
         } catch (const std::exception& exception) {

@@ -255,7 +255,7 @@ interface UniversalBlePlatformChannel {
   fun requestMtu(deviceId: String, expectedMtu: Long, callback: (Result<Long>) -> Unit)
   fun writeValue(deviceId: String, service: String, characteristic: String, value: ByteArray, bleOutputProperty: Long, callback: (Result<Unit>) -> Unit)
   fun isPaired(deviceId: String, callback: (Result<Boolean>) -> Unit)
-  fun pair(deviceId: String, callback: (Result<Unit>) -> Unit)
+  fun pair(deviceId: String, callback: (Result<Boolean>) -> Unit)
   fun unPair(deviceId: String)
   fun getSystemDevices(withServices: List<String>, callback: (Result<List<UniversalBleScanResult>>) -> Unit)
   fun getConnectionState(deviceId: String): Long
@@ -509,12 +509,13 @@ interface UniversalBlePlatformChannel {
           channel.setMessageHandler { message, reply ->
             val args = message as List<Any?>
             val deviceIdArg = args[0] as String
-            api.pair(deviceIdArg) { result: Result<Unit> ->
+            api.pair(deviceIdArg) { result: Result<Boolean> ->
               val error = result.exceptionOrNull()
               if (error != null) {
                 reply.reply(wrapError(error))
               } else {
-                reply.reply(wrapResult(null))
+                val data = result.getOrNull()
+                reply.reply(wrapResult(data))
               }
             }
           }

@@ -43,7 +43,7 @@ abstract class UniversalBlePlatform {
 
   Future<bool> isPaired(String deviceId);
 
-  Future<void> pair(String deviceId);
+  Future<bool> pair(String deviceId);
 
   Future<void> unpair(String deviceId);
 
