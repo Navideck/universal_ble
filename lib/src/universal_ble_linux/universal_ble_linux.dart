@@ -214,7 +214,11 @@ class UniversalBleLinux extends UniversalBlePlatform {
 
   @override
   Future<Uint8List> readValue(
-      String deviceId, String service, String characteristic) async {
+    String deviceId,
+    String service,
+    String characteristic, {
+    final Duration? timeout,
+  }) async {
     try {
       final c = _getCharacteristic(deviceId, service, characteristic);
       final data = await c.readValue();
@@ -270,11 +274,16 @@ class UniversalBleLinux extends UniversalBlePlatform {
   }
 
   @override
-  Future<void> pair(String deviceId) async {
+  Future<bool> pair(String deviceId) async {
     BlueZDevice device = _findDeviceById(deviceId);
-    device.pair().onError((error, _) {
+    try {
+      if (device.paired) return true;
+      await device.pair();
+      return true;
+    } catch (error) {
       updatePairingState(deviceId, false, error.toString());
-    });
+      return false;
+    }
   }
 
   @override

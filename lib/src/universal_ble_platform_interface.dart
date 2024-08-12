@@ -30,7 +30,11 @@ abstract class UniversalBlePlatform {
       String characteristic, BleInputProperty bleInputProperty);
 
   Future<Uint8List> readValue(
-      String deviceId, String service, String characteristic);
+    String deviceId,
+    String service,
+    String characteristic, {
+    final Duration? timeout,
+  });
 
   Future<void> writeValue(
       String deviceId,
@@ -43,7 +47,7 @@ abstract class UniversalBlePlatform {
 
   Future<bool> isPaired(String deviceId);
 
-  Future<void> pair(String deviceId);
+  Future<bool> pair(String deviceId);
 
   Future<void> unpair(String deviceId);
 

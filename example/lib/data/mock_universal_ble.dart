@@ -65,7 +65,11 @@ class MockUniversalBle extends UniversalBlePlatform {
 
   @override
   Future<Uint8List> readValue(
-      String deviceId, String service, String characteristic) async {
+    String deviceId,
+    String service,
+    String characteristic, {
+    final Duration? timeout,
+  }) async {
     await Future.delayed(const Duration(milliseconds: 500));
     return _serviceValue;
   }
@@ -98,8 +102,9 @@ class MockUniversalBle extends UniversalBlePlatform {
   }
 
   @override
-  Future<void> pair(String deviceId) async {
+  Future<bool> pair(String deviceId) async {
     updatePairingState(deviceId, true, null);
+    return true;
   }
 
   @override

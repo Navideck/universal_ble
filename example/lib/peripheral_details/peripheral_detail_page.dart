@@ -6,7 +6,6 @@ import 'package:convert/convert.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:universal_ble/universal_ble.dart';
-import 'package:universal_ble_example/data/capabilities.dart';
 import 'package:universal_ble_example/peripheral_details/widgets/result_widget.dart';
 import 'package:universal_ble_example/peripheral_details/widgets/services_list_widget.dart';
 import 'package:universal_ble_example/widgets/platform_button.dart';
@@ -86,9 +85,9 @@ class _PeripheralDetailPageState extends State<PeripheralDetailPage> {
       String deviceId, bool isPaired, String? error) {
     print('isPaired $deviceId, $isPaired');
     if (error != null && error.isNotEmpty) {
-      _addLog("PairStateChangeError", "(Paired: $isPaired): $error ");
+      _addLog("PairingStateChangeError", "(Paired: $isPaired): $error ");
     } else {
-      _addLog("PairStateChange - isPaired", isPaired);
+      _addLog("PairingStateChange - isPaired", isPaired);
     }
   }
 
@@ -357,7 +356,7 @@ class _PeripheralDetailPageState extends State<PeripheralDetailPage> {
                               },
                               text: 'Connection State',
                             ),
-                            if (Capabilities.supportsRequestMtuApi)
+                            if (BleCapabilities.supportsRequestMtuApi)
                               PlatformButton(
                                 enabled: isConnected,
                                 onPressed: () async {
@@ -408,29 +407,29 @@ class _PeripheralDetailPageState extends State<PeripheralDetailPage> {
                                   BleInputProperty.disabled),
                               text: 'Unsubscribe',
                             ),
-                            PlatformButton(
-                              onPressed: () async {
-                                await UniversalBle.pair(
-                                  widget.deviceId,
-                                  // pairingCommand: BleCommand(
-                                  //   service:
-                                  //       "",
-                                  //   characteristic:
-                                  //       "",
-                                  // ),
-                                );
-                              },
-                              text: 'Pair',
+                            Visibility(
+                              visible: BleCapabilities.supportsInAppPairing,
+                              child: PlatformButton(
+                                onPressed: () async {
+                                  bool? pairingResult = await UniversalBle.pair(
+                                    widget.deviceId,
+                                    // pairingCommand: BleCommand(
+                                    //   service: "",
+                                    //   characteristic: "",
+                                    // ),
+                                  );
+                                  _addLog("Pairing Result", pairingResult);
+                                },
+                                text: 'Pair',
+                              ),
                             ),
                             PlatformButton(
                               onPressed: () async {
                                 bool? isPaired = await UniversalBle.isPaired(
                                   widget.deviceId,
-                                  // pairingCheckCommand: BleCommand(
-                                  //   service:
-                                  //       "",
-                                  //   characteristic:
-                                  //       "",
+                                  // pairingCommand: BleCommand(
+                                  //   service: "",
+                                  //   characteristic: "",
                                   // ),
                                 );
                                 _addLog('IsPaired', isPaired);

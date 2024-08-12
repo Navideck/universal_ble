@@ -280,8 +280,8 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
     completion(Result.failure(FlutterError(code: "NotSupported", message: nil, details: nil)))
   }
 
-  func pair(deviceId _: String) throws {
-    throw FlutterError(code: "Implemented in Dart", message: nil, details: nil)
+  func pair(deviceId _: String, completion: @escaping (Result<Bool, Error>) -> Void){
+    completion(Result.failure(FlutterError(code: "Implemented in Dart", message: nil, details: nil)))
   }
 
   func unPair(deviceId _: String) throws {

@@ -15,12 +15,12 @@ class BleCommandQueue {
     Future<T> Function() command, {
     bool withTimeout = true,
     String? deviceId,
+    Duration? timeout,
   }) {
-    Duration? duration = withTimeout ? timeout : null;
-
+    Duration? duration = timeout ?? (withTimeout ? this.timeout : null);
     return switch (queueType) {
-      QueueType.global => _queue().add(command, timeout: duration),
-      QueueType.perDevice => _queue(deviceId).add(command, timeout: duration),
+      QueueType.global => _queue().add(command, duration),
+      QueueType.perDevice => _queue(deviceId).add(command, duration),
       QueueType.none =>
         duration != null ? command().timeout(duration) : command(),
     };

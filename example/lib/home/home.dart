@@ -1,10 +1,7 @@
 // ignore_for_file: use_build_context_synchronously
 
-import 'dart:developer';
-
 import 'package:flutter/material.dart';
 import 'package:universal_ble/universal_ble.dart';
-import 'package:universal_ble_example/data/capabilities.dart';
 import 'package:universal_ble_example/data/mock_universal_ble.dart';
 import 'package:universal_ble_example/home/widgets/scan_filter_widget.dart';
 import 'package:universal_ble_example/home/widgets/scanned_devices_placeholder_widget.dart';
@@ -52,7 +49,7 @@ class _MyAppState extends State<MyApp> {
     };
 
     UniversalBle.onScanResult = (result) {
-      log(result.toString());
+      // log(result.toString());
       int index = _bleDevices.indexWhere((e) => e.deviceId == result.deviceId);
       if (index == -1) {
         _bleDevices.add(result);
@@ -148,7 +145,7 @@ class _MyAppState extends State<MyApp> {
                     });
                   },
                 ),
-                if (Capabilities.supportsBluetoothEnableApi &&
+                if (BleCapabilities.supportsBluetoothEnableApi &&
                     bleAvailabilityState == AvailabilityState.poweredOff)
                   PlatformButton(
                     text: 'Enable Bluetooth',
@@ -159,7 +156,7 @@ class _MyAppState extends State<MyApp> {
                       );
                     },
                   ),
-                if (Capabilities.requiresRuntimePermission)
+                if (BleCapabilities.requiresRuntimePermission)
                   PlatformButton(
                     text: 'Check Permissions',
                     onPressed: () async {
@@ -172,7 +169,7 @@ class _MyAppState extends State<MyApp> {
                       }
                     },
                   ),
-                if (Capabilities.supportsConnectedDevicesApi)
+                if (BleCapabilities.supportsConnectedDevicesApi)
                   PlatformButton(
                     text: 'Connected Devices',
                     onPressed: () async {

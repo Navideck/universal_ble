@@ -22,7 +22,7 @@ A cross-platform (Android/iOS/macOS/Windows/Linux/Web) Bluetooth Low Energy (BLE
 
 ### API Support Matrix
 
-| API                  | Android | iOS | macOS | Windows | Linux (beta) | Web |
+| API                  | Android | iOS | macOS | Windows | Linux | Web |
 | :------------------- | :-----: | :-: | :---: | :-----: | :----------: | :-: |
 | startScan/stopScan   |   ✔️    | ✔️  |  ✔️   |   ✔️    |      ✔️      | ✔️  |
 | connect/disconnect   |   ✔️    | ✔️  |  ✔️   |   ✔️    |      ✔️      | ✔️  |
@@ -31,11 +31,11 @@ A cross-platform (Android/iOS/macOS/Windows/Linux/Web) Bluetooth Low Energy (BLE
 | readValue            |   ✔️    | ✔️  |  ✔️   |   ✔️    |      ✔️      | ✔️  |
 | writeValue           |   ✔️    | ✔️  |  ✔️   |   ✔️    |      ✔️      | ✔️  |
 | setNotifiable        |   ✔️    | ✔️  |  ✔️   |   ✔️    |      ✔️      | ✔️  |
-| pair                 |   ✔️    | ✔️  |  ✔️   |   ✔️    |      ✔️      | ❌  |
+| pair                 |   ✔️    | ✔️  |  ✔️   |   ✔️    |      ✔️      | ⏺  |
 | unpair               |   ✔️    | ❌  |  ❌   |   ✔️    |      ✔️      | ❌  |
-| isPaired             |   ✔️    | ✔️  |  ✔️   |   ✔️    |      ✔️      | ?  |
-| getBluetoothAvailabilityState                 |   ✔️    | ✔️  |  ✔️   |   ✔️    |      ✔️      | ❌  |
-| onPairingStateChange |   ✔️    | ❌  |  ❌   |   ✔️    |      ✔️      | ❌  |
+| isPaired             |   ✔️    | ✔️  |  ✔️   |   ✔️    |      ✔️      | ✔️  |
+| onPairingStateChange |   ✔️    | ⏺  |  ⏺   |   ✔️    |      ✔️      | ⏺  |
+| getBluetoothAvailabilityState |   ✔️    | ✔️  |  ✔️   |   ✔️    |      ✔️      | ❌  |
 | enableBluetooth      |   ✔️    | ❌  |  ❌   |   ✔️    |      ✔️      | ❌  |
 | onAvailabilityChange |   ✔️    | ✔️  |  ✔️   |   ✔️    |      ✔️      | ✔️  |
 | requestMtu           |   ✔️    | ✔️  |  ✔️   |   ✔️    |      ✔️      | ❌  |
@@ -196,18 +196,22 @@ UniversalBle.setNotifiable(deviceId, serviceId, characteristicId, BleInputProper
 
 ```dart
 // Pair
-UniversalBle.pair(deviceId);
+bool? isPaired = await UniversalBle.pair(deviceId); // Returns true if successful
 
-// Get the pairing result
+// For Apple and Web, you can optionally pass a pairingCommand if you know an encrypted read or write characteristic.
+// Not supported on Web/Windows
+UniversalBle.pair(deviceId, pairingCommand: BleCommand(service:"SERVICE", characteristic:"ENCRYPTED_CHARACTERISTIC",));
+
+// Receive pairing state changes
 UniversalBle.onPairingStateChange = (String deviceId, bool isPaired, String? error) {
-  // Handle Pairing state change
+  // Handle pairing state change
 }
 
 // Unpair
 UniversalBle.unpair(deviceId);
 
 // Check current pairing state
-bool isPaired = UniversalBle.isPaired(deviceId);
+bool? isPaired = UniversalBle.isPaired(deviceId);
 ```
 
 ### Bluetooth Availability

@@ -1,5 +1,3 @@
-import 'dart:io';
-
 import 'package:flutter/foundation.dart';
 import 'package:universal_ble/src/universal_ble_pigeon/universal_ble.g.dart';
 import 'package:universal_ble/universal_ble.dart';
@@ -23,7 +21,9 @@ class UniversalBlePigeonChannel extends UniversalBlePlatform {
 
   @override
   Future<bool> enableBluetooth() {
-    if (Platform.isIOS || Platform.isMacOS) throw UnimplementedError();
+    if (!BleCapabilities.supportsBluetoothEnableApi) {
+      throw UnsupportedError("Not supported");
+    }
     return _channel.enableBluetooth();
   }
 
@@ -77,7 +77,11 @@ class UniversalBlePigeonChannel extends UniversalBlePlatform {
 
   @override
   Future<Uint8List> readValue(
-      String deviceId, String service, String characteristic) {
+    String deviceId,
+    String service,
+    String characteristic, {
+    final Duration? timeout,
+  }) {
     return _channel.readValue(deviceId, service, characteristic);
   }
 
@@ -105,7 +109,7 @@ class UniversalBlePigeonChannel extends UniversalBlePlatform {
   Future<bool> isPaired(String deviceId) => _channel.isPaired(deviceId);
 
   @override
-  Future<void> pair(String deviceId) => _channel.pair(deviceId);
+  Future<bool> pair(String deviceId) => _channel.pair(deviceId);
 
   @override
   Future<void> unpair(String deviceId) => _channel.unPair(deviceId);

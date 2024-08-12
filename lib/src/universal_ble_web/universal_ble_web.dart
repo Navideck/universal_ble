@@ -214,8 +214,9 @@ class UniversalBleWeb extends UniversalBlePlatform {
   Future<Uint8List> readValue(
     String deviceId,
     String service,
-    String characteristic,
-  ) async {
+    String characteristic, {
+    final Duration? timeout,
+  }) async {
     var bleCharacteristic = await _getBleCharacteristic(
       deviceId: deviceId,
       serviceId: service,
@@ -225,8 +226,10 @@ class UniversalBleWeb extends UniversalBlePlatform {
       throw Exception(
           'Characteristic $characteristic for service $service not found');
     }
-    var data = await bleCharacteristic.readValue();
-    return data.buffer.asUint8List();
+    var data = timeout != null
+        ? bleCharacteristic.readValue(timeout: timeout)
+        : bleCharacteristic.readValue();
+    return (await data).buffer.asUint8List();
   }
 
   /// `Unimplemented`
@@ -241,7 +244,7 @@ class UniversalBleWeb extends UniversalBlePlatform {
   }
 
   @override
-  Future<void> pair(String deviceId) {
+  Future<bool> pair(String deviceId) {
     throw UnimplementedError();
   }
 

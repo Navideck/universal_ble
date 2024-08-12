@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:universal_ble/src/ble_command_queue.dart';
@@ -157,14 +156,17 @@ class UniversalBle {
   static Future<Uint8List> readValue(
     String deviceId,
     String service,
-    String characteristic,
-  ) async {
+    String characteristic, {
+    final Duration? timeout,
+  }) async {
     return await _bleCommandQueue.queueCommand(
       () => _platform.readValue(
         deviceId,
         BleUuidParser.string(service),
         BleUuidParser.string(characteristic),
+        timeout: timeout ?? _bleCommandQueue.timeout,
       ),
+      timeout: timeout,
       deviceId: deviceId,
     );
   }
@@ -200,45 +202,49 @@ class UniversalBle {
   }
 
   /// Check if a device is paired.
-  /// Returns null on `Apple` and `Web` when no `bleCommand` is passed.
   ///
-  /// On Apple and Web, you can optionally pass a pairingCheckCommand if you know an encrypted read or write characteristic.
-  /// It will trigger pairing if the device is not already paired.
+  /// For Apple and Web, you can optionally pass a pairingCommand if you know an encrypted read or write characteristic.
   /// It will return true/false if it manages to execute the command.
+  /// Note that it will trigger pairing if the device is not already paired.
+  ///
+  /// Returns null on `Apple` and `Web` when no `bleCommand` is passed.
   static Future<bool?> isPaired(
     String deviceId, {
-    BleCommand? pairingCheckCommand,
+    BleCommand? pairingCommand,
   }) async {
-    bool lacksPairingApi = kIsWeb || Platform.isMacOS || Platform.isIOS;
-    if (lacksPairingApi && pairingCheckCommand == null) {
-      return null;
+    if (BleCapabilities.hasSystemPairingApi) {
+      return _bleCommandQueue.queueCommand(
+        () => _platform.isPaired(deviceId),
+        deviceId: deviceId,
+      );
+    } else if (pairingCommand != null) {
+      return _connectAndExecuteBleCommand(deviceId, pairingCommand,
+          updateCallbackValue: false);
     }
-
-    return lacksPairingApi
-        ? await _connectAndExecuteBleCommand(deviceId, pairingCheckCommand)
-        : await _bleCommandQueue.queueCommand(
-            () => _platform.isPaired(deviceId),
-            deviceId: deviceId,
-          );
+    return null;
   }
 
   /// Pair a device.
-  /// It might throw an error if device is already paired.
   ///
-  /// On Apple, it only works on devices with encrypted characteristics.
-  /// It throws an error if there is no readable characteristic.
+  /// On `Apple` and `Web`, it only works on devices with encrypted characteristics.
+  /// It returns null if there is no readable characteristic.
   ///
   /// You can optionally pass a pairingCommand if you know an encrypted read or write characteristic.
-  static Future<void> pair(
+  /// If you do, it returns true if it can successfully execute the command after pairing.
+  ///
+  /// Throws UnsupportedError on `Web/Windows`
+  static Future<bool?> pair(
     String deviceId, {
     BleCommand? pairingCommand,
-  }) =>
-      kIsWeb || Platform.isMacOS || Platform.isIOS
-          ? _connectAndExecuteBleCommand(deviceId, pairingCommand)
-          : _bleCommandQueue.queueCommand(
-              () => _platform.pair(deviceId),
-              deviceId: deviceId,
-            );
+  }) async {
+    if (!BleCapabilities.supportsInAppPairing) {
+      throw UnsupportedError("Not supported");
+    }
+    if (BleCapabilities.hasSystemPairingApi) {
+      return _platform.pair(deviceId);
+    }
+    return _connectAndExecuteBleCommand(deviceId, pairingCommand);
+  }
 
   /// Unpair a device.
   /// It might throw an error if device is not paired.
@@ -302,8 +308,9 @@ class UniversalBle {
 
   static Future<bool?> _connectAndExecuteBleCommand(
     String deviceId,
-    BleCommand? bleCommand,
-  ) async {
+    BleCommand? bleCommand, {
+    bool updateCallbackValue = false,
+  }) async {
     try {
       if (await getConnectionState(deviceId) != BleConnectionState.connected) {
         await connect(deviceId);
@@ -315,16 +322,20 @@ class UniversalBle {
         await _attemptPairingReadingAll(deviceId, services);
         return null;
       } else {
-        await _executeBleCommand(deviceId, services, bleCommand);
-        _platform.updatePairingState(deviceId, true, null);
-        return true;
+        bool commandResult =
+            await _executeBleCommand(deviceId, services, bleCommand);
+        if (updateCallbackValue) {
+          _platform.updatePairingState(deviceId, commandResult, null);
+        }
+        return commandResult;
       }
     } catch (e) {
       UniversalBlePlatform.logInfo(
         "FailedToPerform EncryptedCharOperation: $e",
       );
-      // Probably failed to pair, Notify callback
-      _platform.updatePairingState(deviceId, false, e.toString());
+      if (updateCallbackValue) {
+        _platform.updatePairingState(deviceId, false, e.toString());
+      }
       return false;
     }
   }
@@ -341,7 +352,12 @@ class UniversalBle {
         for (BleCharacteristic characteristic in service.characteristics) {
           if (characteristic.properties.contains(CharacteristicProperty.read)) {
             containsReadCharacteristics = true;
-            await readValue(deviceId, service.uuid, characteristic.uuid);
+            await readValue(
+              deviceId,
+              service.uuid,
+              characteristic.uuid,
+              timeout: const Duration(seconds: 30),
+            );
           }
         }
       }
@@ -351,7 +367,7 @@ class UniversalBle {
     }
   }
 
-  static Future<void> _executeBleCommand(
+  static Future<bool> _executeBleCommand(
     String deviceId,
     List<BleService> services,
     BleCommand bleCommand,
@@ -371,7 +387,7 @@ class UniversalBle {
     }
 
     if (characteristic == null) {
-      throw "BleCommand char not found";
+      return false;
     }
 
     // Check if BleCommand Supports Read or Write
@@ -383,7 +399,7 @@ class UniversalBle {
       bleOutputProperty = BleOutputProperty.withoutResponse;
     } else if (!characteristic.properties
         .contains(CharacteristicProperty.read)) {
-      throw "BleCommand does not support read or write operations";
+      return false;
     }
 
     Uint8List? value = bleCommand.writeValue;
@@ -401,8 +417,10 @@ class UniversalBle {
         deviceId,
         bleCommand.service,
         bleCommand.characteristic,
+        timeout: const Duration(seconds: 30),
       );
     }
+    return true;
   }
 
   /// Get updates of remaining items of a queue.

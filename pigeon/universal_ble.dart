@@ -68,7 +68,8 @@ abstract class UniversalBlePlatformChannel {
   @async
   bool isPaired(String deviceId);
 
-  void pair(String deviceId);
+  @async
+  bool pair(String deviceId);
 
   void unPair(String deviceId);
 
