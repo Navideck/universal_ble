@@ -156,14 +156,17 @@ class UniversalBle {
   static Future<Uint8List> readValue(
     String deviceId,
     String service,
-    String characteristic,
-  ) async {
+    String characteristic, {
+    final Duration? timeout,
+  }) async {
     return await _bleCommandQueue.queueCommand(
       () => _platform.readValue(
         deviceId,
         BleUuidParser.string(service),
         BleUuidParser.string(characteristic),
+        timeout: timeout ?? _bleCommandQueue.timeout,
       ),
+      timeout: timeout,
       deviceId: deviceId,
     );
   }
@@ -215,7 +218,8 @@ class UniversalBle {
         deviceId: deviceId,
       );
     } else if (pairingCommand != null) {
-      return _connectAndExecuteBleCommand(deviceId, pairingCommand);
+      return _connectAndExecuteBleCommand(deviceId, pairingCommand,
+          updateCallbackValue: false);
     }
     return null;
   }
@@ -304,8 +308,9 @@ class UniversalBle {
 
   static Future<bool?> _connectAndExecuteBleCommand(
     String deviceId,
-    BleCommand? bleCommand,
-  ) async {
+    BleCommand? bleCommand, {
+    bool updateCallbackValue = false,
+  }) async {
     try {
       if (await getConnectionState(deviceId) != BleConnectionState.connected) {
         await connect(deviceId);
@@ -319,15 +324,18 @@ class UniversalBle {
       } else {
         bool commandResult =
             await _executeBleCommand(deviceId, services, bleCommand);
-        _platform.updatePairingState(deviceId, commandResult, null);
+        if (updateCallbackValue) {
+          _platform.updatePairingState(deviceId, commandResult, null);
+        }
         return commandResult;
       }
     } catch (e) {
       UniversalBlePlatform.logInfo(
         "FailedToPerform EncryptedCharOperation: $e",
       );
-      // Probably failed to pair, Notify callback
-      _platform.updatePairingState(deviceId, false, e.toString());
+      if (updateCallbackValue) {
+        _platform.updatePairingState(deviceId, false, e.toString());
+      }
       return false;
     }
   }
@@ -344,7 +352,12 @@ class UniversalBle {
         for (BleCharacteristic characteristic in service.characteristics) {
           if (characteristic.properties.contains(CharacteristicProperty.read)) {
             containsReadCharacteristics = true;
-            await readValue(deviceId, service.uuid, characteristic.uuid);
+            await readValue(
+              deviceId,
+              service.uuid,
+              characteristic.uuid,
+              timeout: const Duration(seconds: 30),
+            );
           }
         }
       }
@@ -404,6 +417,7 @@ class UniversalBle {
         deviceId,
         bleCommand.service,
         bleCommand.characteristic,
+        timeout: const Duration(seconds: 30),
       );
     }
     return true;

@@ -77,7 +77,11 @@ class UniversalBlePigeonChannel extends UniversalBlePlatform {
 
   @override
   Future<Uint8List> readValue(
-      String deviceId, String service, String characteristic) {
+    String deviceId,
+    String service,
+    String characteristic, {
+    final Duration? timeout,
+  }) {
     return _channel.readValue(deviceId, service, characteristic);
   }
 

@@ -30,7 +30,11 @@ abstract class UniversalBlePlatform {
       String characteristic, BleInputProperty bleInputProperty);
 
   Future<Uint8List> readValue(
-      String deviceId, String service, String characteristic);
+    String deviceId,
+    String service,
+    String characteristic, {
+    final Duration? timeout,
+  });
 
   Future<void> writeValue(
       String deviceId,

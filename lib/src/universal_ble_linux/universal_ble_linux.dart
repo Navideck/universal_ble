@@ -214,7 +214,11 @@ class UniversalBleLinux extends UniversalBlePlatform {
 
   @override
   Future<Uint8List> readValue(
-      String deviceId, String service, String characteristic) async {
+    String deviceId,
+    String service,
+    String characteristic, {
+    final Duration? timeout,
+  }) async {
     try {
       final c = _getCharacteristic(deviceId, service, characteristic);
       final data = await c.readValue();

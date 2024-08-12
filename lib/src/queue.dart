@@ -11,7 +11,7 @@ class Queue {
   final List<_QueuedFuture> _nextCycle = [];
   Function(int)? onRemainingItemsUpdate;
 
-  Future<T> add<T>(Future<T> Function() closure, {Duration? timeout}) {
+  Future<T> add<T>(Future<T> Function() closure, [Duration? timeout]) {
     if (_isCancelled) throw Exception('Queue Cancelled');
     final completer = Completer<T>();
     _nextCycle.add(_QueuedFuture<T>(closure, completer, timeout));
