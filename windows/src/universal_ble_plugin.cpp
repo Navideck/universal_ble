@@ -549,7 +549,7 @@ namespace universal_ble
       auto device = co_await BluetoothLEDevice::FromBluetoothAddressAsync(_str_to_mac_address(device_id));
       auto deviceInformation = device.DeviceInformation();
       if (deviceInformation.Pairing().IsPaired())
-        result(FlutterError("Device is already paired"));
+        result(true);
       else if (!deviceInformation.Pairing().CanPair())
         result(FlutterError("Device is not pairable"));
       else
@@ -579,7 +579,7 @@ namespace universal_ble
       auto device = co_await BluetoothLEDevice::FromBluetoothAddressAsync(_str_to_mac_address(device_id));
       auto deviceInformation = device.DeviceInformation();
       if (deviceInformation.Pairing().IsPaired())
-        result(FlutterError("Device is already paired"));
+        result(true);
       else if (!deviceInformation.Pairing().CanPair())
         result(FlutterError("Device is not pairable"));
       else
