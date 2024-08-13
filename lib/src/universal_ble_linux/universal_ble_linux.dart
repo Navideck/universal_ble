@@ -281,7 +281,7 @@ class UniversalBleLinux extends UniversalBlePlatform {
       await device.pair();
       return true;
     } catch (error) {
-      updatePairingState(deviceId, false, error.toString());
+      updatePairingState(deviceId, false);
       return false;
     }
   }
@@ -448,7 +448,7 @@ class UniversalBleLinux extends UniversalBlePlatform {
             updateScanResult(device.toBleDevice());
             break;
           case BluezProperty.paired:
-            updatePairingState(device.address, device.paired, null);
+            updatePairingState(device.address, device.paired);
             break;
           // Ignored these properties updates
           case BluezProperty.bonded:

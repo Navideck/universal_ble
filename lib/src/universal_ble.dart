@@ -325,7 +325,7 @@ class UniversalBle {
         bool commandResult =
             await _executeBleCommand(deviceId, services, bleCommand);
         if (updateCallbackValue) {
-          _platform.updatePairingState(deviceId, commandResult, null);
+          _platform.updatePairingState(deviceId, commandResult);
         }
         return commandResult;
       }
@@ -334,7 +334,7 @@ class UniversalBle {
         "FailedToPerform EncryptedCharOperation: $e",
       );
       if (updateCallbackValue) {
-        _platform.updatePairingState(deviceId, false, e.toString());
+        _platform.updatePairingState(deviceId, false);
       }
       return false;
     }

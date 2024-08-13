@@ -81,14 +81,9 @@ class _PeripheralDetailPageState extends State<PeripheralDetailPage> {
     _addLog("Value", data);
   }
 
-  void _handlePairingStateChange(
-      String deviceId, bool isPaired, String? error) {
+  void _handlePairingStateChange(String deviceId, bool isPaired) {
     print('isPaired $deviceId, $isPaired');
-    if (error != null && error.isNotEmpty) {
-      _addLog("PairingStateChangeError", "(Paired: $isPaired): $error ");
-    } else {
-      _addLog("PairingStateChange - isPaired", isPaired);
-    }
+    _addLog("PairingStateChange - isPaired", isPaired);
   }
 
   Future<void> _discoverServices() async {

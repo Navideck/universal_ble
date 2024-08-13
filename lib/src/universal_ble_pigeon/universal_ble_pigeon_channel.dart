@@ -190,7 +190,7 @@ class _UniversalBleCallbackHandler extends UniversalBleCallbackChannel {
 
   @override
   void onPairStateChange(String deviceId, bool isPaired, String? error) =>
-      pairStateChange(deviceId, isPaired, error);
+      pairStateChange(deviceId, isPaired);
 }
 
 extension _UniversalBleScanResultExtension on UniversalBleScanResult {
