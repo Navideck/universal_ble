@@ -61,30 +61,27 @@ namespace universal_ble
       result(static_cast<int>(getAvailabilityStateFromRadio(bluetoothRadio.State())));
   };
 
-  void UniversalBlePlugin::EnableBluetooth(std::function<void(ErrorOr<bool> reply)> result)
+  void UniversalBlePlugin::EnableBluetooth(std::function<void(std::optional<FlutterError> reply)> result)
   {
     if (!bluetoothRadio)
-    {
       result(FlutterError("Bluetooth is not available"));
-      return;
-    }
-    if (bluetoothRadio.State() == RadioState::On)
+    else if (bluetoothRadio.State() == RadioState::On)
+      result(std::nullopt);
+    else
     {
-      result(true);
-      return;
-    }
-    auto async_c = bluetoothRadio.SetStateAsync(RadioState::On);
-    async_c.Completed([&, result](IAsyncOperation<RadioAccessStatus> const &sender, AsyncStatus const args)
-                      {
+      auto async_c = bluetoothRadio.SetStateAsync(RadioState::On);
+      async_c.Completed([&, result](IAsyncOperation<RadioAccessStatus> const &sender, AsyncStatus const args)
+                        {
                         auto radioAccessStatus = sender.GetResults();
                         if (radioAccessStatus == RadioAccessStatus::Allowed)
                         {
-                          result(true);
+                          result(std::nullopt);
                         }
                         else
                         {
                           result(FlutterError("Failed to enable bluetooth"));
                         } });
+    }
   }
 
   std::optional<FlutterError> UniversalBlePlugin::StartScan(const UniversalScanFilter *filter)
@@ -418,7 +415,7 @@ namespace universal_ble
 
   void UniversalBlePlugin::Pair(
       const std::string &device_id,
-      std::function<void(ErrorOr<bool> reply)> result)
+      std::function<void(std::optional<FlutterError> reply)> result)
   {
     try
     {
@@ -542,14 +539,14 @@ namespace universal_ble
 
   winrt::fire_and_forget UniversalBlePlugin::PairAsync(
       std::string device_id,
-      std::function<void(ErrorOr<bool> reply)> result)
+      std::function<void(std::optional<FlutterError> reply)> result)
   {
     try
     {
       auto device = co_await BluetoothLEDevice::FromBluetoothAddressAsync(_str_to_mac_address(device_id));
       auto deviceInformation = device.DeviceInformation();
       if (deviceInformation.Pairing().IsPaired())
-        result(true);
+        result(std::nullopt);
       else if (!deviceInformation.Pairing().CanPair())
         result(FlutterError("Device is not pairable"));
       else
@@ -557,29 +554,31 @@ namespace universal_ble
         auto pairResult = co_await deviceInformation.Pairing().PairAsync();
         std::cout << "PairLog: Received pairing status" << std::endl;
         bool isPaired = pairResult.Status() == Enumeration::DevicePairingResultStatus::Paired;
-        result(isPaired);
-        std::string errorStr = parsePairingFailError(pairResult);
-        uiThreadHandler_.Post([device_id, isPaired, errorStr]
-                              { callbackChannel->OnPairStateChange(device_id, isPaired, &errorStr, SuccessCallback, ErrorCallback); });
+        if (isPaired)
+          result(std::nullopt);
+        else
+          result(FlutterError(parsePairingFailError(pairResult)));
+        uiThreadHandler_.Post([device_id, isPaired]
+                              { callbackChannel->OnPairStateChange(device_id, isPaired, SuccessCallback, ErrorCallback); });
       }
     }
     catch (...)
     {
-      result(false);
+      result(FlutterError("Pair Failed"));
       std::cout << "PairLog: Unknown error" << std::endl;
     }
   }
 
   winrt::fire_and_forget UniversalBlePlugin::CustomPairAsync(
       std::string device_id,
-      std::function<void(ErrorOr<bool> reply)> result)
+      std::function<void(std::optional<FlutterError> reply)> result)
   {
     try
     {
       auto device = co_await BluetoothLEDevice::FromBluetoothAddressAsync(_str_to_mac_address(device_id));
       auto deviceInformation = device.DeviceInformation();
       if (deviceInformation.Pairing().IsPaired())
-        result(true);
+        result(std::nullopt);
       else if (!deviceInformation.Pairing().CanPair())
         result(FlutterError("Device is not pairable"));
       else
@@ -594,15 +593,17 @@ namespace universal_ble
         DevicePairingResultStatus status = pairResult.Status();
         customPairing.PairingRequested(token);
         bool isPaired = status == Enumeration::DevicePairingResultStatus::Paired;
-        result(isPaired);
-        std::string errorStr = parsePairingFailError(pairResult);
-        uiThreadHandler_.Post([device_id, isPaired, errorStr]
-                              { callbackChannel->OnPairStateChange(device_id, isPaired, &errorStr, SuccessCallback, ErrorCallback); });
+        if (isPaired)
+          result(std::nullopt);
+        else
+          result(FlutterError(parsePairingFailError(pairResult)));
+        uiThreadHandler_.Post([device_id, isPaired]
+                              { callbackChannel->OnPairStateChange(device_id, isPaired, SuccessCallback, ErrorCallback); });
       }
     }
     catch (...)
     {
-      result(false);
+      result(FlutterError("Pair Failed"));
       std::cout << "PairLog Error: Pairing Failed" << std::endl;
     }
   }
