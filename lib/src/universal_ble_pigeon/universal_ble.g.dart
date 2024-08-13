@@ -271,7 +271,7 @@ class UniversalBlePlatformChannel {
     }
   }
 
-  Future<bool> enableBluetooth() async {
+  Future<void> enableBluetooth() async {
     final String __pigeon_channelName = 'dev.flutter.pigeon.universal_ble.UniversalBlePlatformChannel.enableBluetooth$__pigeon_messageChannelSuffix';
     final BasicMessageChannel<Object?> __pigeon_channel = BasicMessageChannel<Object?>(
       __pigeon_channelName,
@@ -288,13 +288,8 @@ class UniversalBlePlatformChannel {
         message: __pigeon_replyList[1] as String?,
         details: __pigeon_replyList[2],
       );
-    } else if (__pigeon_replyList[0] == null) {
-      throw PlatformException(
-        code: 'null-error',
-        message: 'Host platform returned null value for non-null return value.',
-      );
     } else {
-      return (__pigeon_replyList[0] as bool?)!;
+      return;
     }
   }
 
@@ -538,7 +533,7 @@ class UniversalBlePlatformChannel {
     }
   }
 
-  Future<bool> pair(String deviceId) async {
+  Future<void> pair(String deviceId) async {
     final String __pigeon_channelName = 'dev.flutter.pigeon.universal_ble.UniversalBlePlatformChannel.pair$__pigeon_messageChannelSuffix';
     final BasicMessageChannel<Object?> __pigeon_channel = BasicMessageChannel<Object?>(
       __pigeon_channelName,
@@ -555,13 +550,8 @@ class UniversalBlePlatformChannel {
         message: __pigeon_replyList[1] as String?,
         details: __pigeon_replyList[2],
       );
-    } else if (__pigeon_replyList[0] == null) {
-      throw PlatformException(
-        code: 'null-error',
-        message: 'Host platform returned null value for non-null return value.',
-      );
     } else {
-      return (__pigeon_replyList[0] as bool?)!;
+      return;
     }
   }
 
@@ -648,7 +638,7 @@ abstract class UniversalBleCallbackChannel {
 
   void onAvailabilityChanged(int state);
 
-  void onPairStateChange(String deviceId, bool isPaired, String? error);
+  void onPairStateChange(String deviceId, bool isPaired);
 
   void onScanResult(UniversalBleScanResult result);
 
@@ -700,9 +690,8 @@ abstract class UniversalBleCallbackChannel {
           final bool? arg_isPaired = (args[1] as bool?);
           assert(arg_isPaired != null,
               'Argument for dev.flutter.pigeon.universal_ble.UniversalBleCallbackChannel.onPairStateChange was null, expected non-null bool.');
-          final String? arg_error = (args[2] as String?);
           try {
-            api.onPairStateChange(arg_deviceId!, arg_isPaired!, arg_error);
+            api.onPairStateChange(arg_deviceId!, arg_isPaired!);
             return wrapResponse(empty: true);
           } on PlatformException catch (e) {
             return wrapResponse(error: e);

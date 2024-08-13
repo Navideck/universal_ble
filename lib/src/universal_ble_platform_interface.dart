@@ -6,10 +6,11 @@ import 'package:universal_ble/universal_ble.dart';
 abstract class UniversalBlePlatform {
   ScanFilter? _scanFilter;
   StreamController? _connectionStreamController;
+  final Map<String, bool> _pairStateMap = {};
 
   Future<AvailabilityState> getBluetoothAvailabilityState();
 
-  Future<bool> enableBluetooth();
+  Future<void> enableBluetooth();
 
   Future<void> startScan({
     ScanFilter? scanFilter,
@@ -93,8 +94,10 @@ abstract class UniversalBlePlatform {
     onAvailabilityChange?.call(state);
   }
 
-  void updatePairingState(String deviceId, bool isPaired, String? error) {
-    onPairingStateChange?.call(deviceId, isPaired, error);
+  void updatePairingState(String deviceId, bool isPaired) {
+    if (_pairStateMap[deviceId] == isPaired) return;
+    _pairStateMap[deviceId] = isPaired;
+    onPairingStateChange?.call(deviceId, isPaired);
   }
 
   // Do not use these directly to push updates
@@ -135,7 +138,6 @@ typedef OnScanResult = void Function(BleDevice scanResult);
 
 typedef OnAvailabilityChange = void Function(AvailabilityState state);
 
-typedef OnPairingStateChange = void Function(
-    String deviceId, bool isPaired, String? error);
+typedef OnPairingStateChange = void Function(String deviceId, bool isPaired);
 
 typedef OnQueueUpdate = void Function(String id, int remainingQueueItems);

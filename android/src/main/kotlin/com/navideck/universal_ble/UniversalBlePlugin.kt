@@ -40,13 +40,13 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
     private val devicesStateMap = mutableMapOf<String, Int>()
 
     // Flutter Futures
-    private var bluetoothEnableRequestFuture: ((Result<Boolean>) -> Unit)? = null
+    private var bluetoothEnableRequestFuture: ((Result<Unit>) -> Unit)? = null
     private val discoverServicesFutureList = mutableListOf<DiscoverServicesFuture>()
     private val mtuResultFutureList = mutableListOf<MtuResultFuture>()
     private val readResultFutureList = mutableListOf<ReadResultFuture>()
     private val writeResultFutureList = mutableListOf<WriteResultFuture>()
     private val subscriptionResultFutureList = mutableListOf<SubscriptionResultFuture>()
-    private val pairResultFutures = mutableMapOf<String, (Result<Boolean>) -> Unit>()
+    private val pairResultFutures = mutableMapOf<String, (Result<Unit>) -> Unit>()
 
 
     override fun onAttachedToEngine(flutterPluginBinding: FlutterPlugin.FlutterPluginBinding) {
@@ -83,9 +83,9 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
         )
     }
 
-    override fun enableBluetooth(callback: (Result<Boolean>) -> Unit) {
+    override fun enableBluetooth(callback: (Result<Unit>) -> Unit) {
         if (bluetoothManager.adapter.isEnabled) {
-            callback(Result.success(true))
+            callback(Result.success(Unit))
             return
         }
         if (bluetoothEnableRequestFuture != null) {
@@ -507,15 +507,15 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
         callback(Result.success(remoteDevice.bondState == BOND_BONDED))
     }
 
-    override fun pair(deviceId: String, callback: (Result<Boolean>) -> Unit) {
+    override fun pair(deviceId: String, callback: (Result<Unit>) -> Unit) {
         try {
             val remoteDevice = bluetoothManager.adapter.getRemoteDevice(deviceId)
             val pendingFuture = pairResultFutures.remove(deviceId)
 
             // If already paired, return and complete pending futures
             if (remoteDevice.bondState == BOND_BONDED) {
-                pendingFuture?.let { it(Result.success(true)) }
-                callback(Result.success(true))
+                pendingFuture?.let { it(Result.success(Unit)) }
+                callback(Result.success(Unit))
                 return
             }
 
@@ -737,9 +737,15 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
 
     private fun onBondStateUpdate(deviceId: String, bonded: Boolean, error: String? = null) {
         val future = pairResultFutures.remove(deviceId)
-        future?.let { it(Result.success(bonded)) }
+        future?.let {
+            if (bonded) {
+                it(Result.success(Unit))
+            } else {
+                it(Result.failure(FlutterError("Failed", error ?: "Failed to pair", null)))
+            }
+        }
         mainThreadHandler?.post {
-            callbackChannel?.onPairStateChange(deviceId, bonded, error) {}
+            callbackChannel?.onPairStateChange(deviceId, bonded) {}
         }
     }
 
@@ -949,7 +955,19 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?): Boolean {
         if (requestCode == bluetoothEnableRequestCode) {
             val future = bluetoothEnableRequestFuture ?: return false
-            future(Result.success(resultCode == Activity.RESULT_OK))
+            if (resultCode == Activity.RESULT_OK) {
+                future(Result.success(Unit))
+            } else {
+                future(
+                    Result.failure(
+                        FlutterError(
+                            "Failed",
+                            "Failed to enable bluetooth Code: $resultCode",
+                            null
+                        )
+                    )
+                )
+            }
             bluetoothEnableRequestFuture = null
             return true
         }

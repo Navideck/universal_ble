@@ -244,7 +244,7 @@ private object UniversalBlePigeonCodec : StandardMessageCodec() {
  */
 interface UniversalBlePlatformChannel {
   fun getBluetoothAvailabilityState(callback: (Result<Long>) -> Unit)
-  fun enableBluetooth(callback: (Result<Boolean>) -> Unit)
+  fun enableBluetooth(callback: (Result<Unit>) -> Unit)
   fun startScan(filter: UniversalScanFilter?)
   fun stopScan()
   fun connect(deviceId: String)
@@ -255,7 +255,7 @@ interface UniversalBlePlatformChannel {
   fun requestMtu(deviceId: String, expectedMtu: Long, callback: (Result<Long>) -> Unit)
   fun writeValue(deviceId: String, service: String, characteristic: String, value: ByteArray, bleOutputProperty: Long, callback: (Result<Unit>) -> Unit)
   fun isPaired(deviceId: String, callback: (Result<Boolean>) -> Unit)
-  fun pair(deviceId: String, callback: (Result<Boolean>) -> Unit)
+  fun pair(deviceId: String, callback: (Result<Unit>) -> Unit)
   fun unPair(deviceId: String)
   fun getSystemDevices(withServices: List<String>, callback: (Result<List<UniversalBleScanResult>>) -> Unit)
   fun getConnectionState(deviceId: String): Long
@@ -291,13 +291,12 @@ interface UniversalBlePlatformChannel {
         val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.universal_ble.UniversalBlePlatformChannel.enableBluetooth$separatedMessageChannelSuffix", codec)
         if (api != null) {
           channel.setMessageHandler { _, reply ->
-            api.enableBluetooth{ result: Result<Boolean> ->
+            api.enableBluetooth{ result: Result<Unit> ->
               val error = result.exceptionOrNull()
               if (error != null) {
                 reply.reply(wrapError(error))
               } else {
-                val data = result.getOrNull()
-                reply.reply(wrapResult(data))
+                reply.reply(wrapResult(null))
               }
             }
           }
@@ -509,13 +508,12 @@ interface UniversalBlePlatformChannel {
           channel.setMessageHandler { message, reply ->
             val args = message as List<Any?>
             val deviceIdArg = args[0] as String
-            api.pair(deviceIdArg) { result: Result<Boolean> ->
+            api.pair(deviceIdArg) { result: Result<Unit> ->
               val error = result.exceptionOrNull()
               if (error != null) {
                 reply.reply(wrapError(error))
               } else {
-                val data = result.getOrNull()
-                reply.reply(wrapResult(data))
+                reply.reply(wrapResult(null))
               }
             }
           }
@@ -610,12 +608,12 @@ class UniversalBleCallbackChannel(private val binaryMessenger: BinaryMessenger, 
       } 
     }
   }
-  fun onPairStateChange(deviceIdArg: String, isPairedArg: Boolean, errorArg: String?, callback: (Result<Unit>) -> Unit)
+  fun onPairStateChange(deviceIdArg: String, isPairedArg: Boolean, callback: (Result<Unit>) -> Unit)
 {
     val separatedMessageChannelSuffix = if (messageChannelSuffix.isNotEmpty()) ".$messageChannelSuffix" else ""
     val channelName = "dev.flutter.pigeon.universal_ble.UniversalBleCallbackChannel.onPairStateChange$separatedMessageChannelSuffix"
     val channel = BasicMessageChannel<Any?>(binaryMessenger, channelName, codec)
-    channel.send(listOf(deviceIdArg, isPairedArg, errorArg)) {
+    channel.send(listOf(deviceIdArg, isPairedArg)) {
       if (it is List<*>) {
         if (it.size > 1) {
           callback(Result.failure(FlutterError(it[0] as String, it[1] as String, it[2] as String?)))

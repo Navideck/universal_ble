@@ -77,27 +77,32 @@ class UniversalBle {
   /// It is advised to stop scanning before connecting.
   /// It might throw errors if device is not connectable.
   /// `connectionTimeout` is supported on Web only.
-  static Future<bool> connect(
+  static Future<void> connect(
     String deviceId, {
     Duration? connectionTimeout,
   }) async {
     StreamSubscription? connectionSubscription;
     try {
-      Completer<bool> completer = Completer();
+      Completer completer = Completer();
 
-      connectionSubscription =
-          _platform.connectionStream(deviceId).listen((bool event) {
-        connectionSubscription?.cancel();
-        if (!completer.isCompleted) {
-          completer.complete(event);
-        }
-      });
+      connectionSubscription = _platform.connectionStream(deviceId).listen(
+        (bool connected) {
+          connectionSubscription?.cancel();
+          if (!completer.isCompleted) {
+            if (connected) {
+              completer.complete();
+            } else {
+              completer.completeError('Failed to connect');
+            }
+          }
+        },
+      );
 
       _platform
           .connect(deviceId, connectionTimeout: connectionTimeout)
           .catchError(
         (error) {
-          if (completer.isCompleted == false) {
+          if (!completer.isCompleted) {
             connectionSubscription?.cancel();
             completer.completeError(error);
           }
@@ -105,9 +110,10 @@ class UniversalBle {
       );
 
       if (connectionTimeout != null) {
-        return await completer.future.timeout(connectionTimeout);
+        await completer.future.timeout(connectionTimeout);
+      } else {
+        await completer.future;
       }
-      return await completer.future;
     } finally {
       connectionSubscription?.cancel();
     }
@@ -218,8 +224,7 @@ class UniversalBle {
         deviceId: deviceId,
       );
     } else if (pairingCommand != null) {
-      return _connectAndExecuteBleCommand(deviceId, pairingCommand,
-          updateCallbackValue: false);
+      return _connectAndExecuteBleCommand(deviceId, pairingCommand);
     }
     return null;
   }
@@ -282,7 +287,7 @@ class UniversalBle {
   /// Enable Bluetooth.
   /// It might throw errors if Bluetooth is not available.
   /// Not supported on `Web` and `Apple`.
-  static Future<bool> enableBluetooth() async {
+  static Future<void> enableBluetooth() async {
     return await _bleCommandQueue.queueCommand(
       () => _platform.enableBluetooth(),
     );
@@ -310,9 +315,8 @@ class UniversalBle {
 
   static Future<bool?> _connectAndExecuteBleCommand(
     String deviceId,
-    BleCommand? bleCommand, {
-    bool updateCallbackValue = false,
-  }) async {
+    BleCommand? bleCommand,
+  ) async {
     try {
       if (await getConnectionState(deviceId) != BleConnectionState.connected) {
         await connect(deviceId);
@@ -326,18 +330,14 @@ class UniversalBle {
       } else {
         bool commandResult =
             await _executeBleCommand(deviceId, services, bleCommand);
-        if (updateCallbackValue) {
-          _platform.updatePairingState(deviceId, commandResult, null);
-        }
+        _platform.updatePairingState(deviceId, commandResult);
         return commandResult;
       }
     } catch (e) {
       UniversalBlePlatform.logInfo(
         "FailedToPerform EncryptedCharOperation: $e",
       );
-      if (updateCallbackValue) {
-        _platform.updatePairingState(deviceId, false, e.toString());
-      }
+      _platform.updatePairingState(deviceId, false);
       return false;
     }
   }

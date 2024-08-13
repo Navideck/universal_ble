@@ -37,19 +37,10 @@ class UniversalBleLinux extends UniversalBlePlatform {
   }
 
   @override
-  Future<bool> enableBluetooth() async {
+  Future<void> enableBluetooth() async {
     await _ensureInitialized();
-    if (_activeAdapter?.powered == true) return true;
-    try {
-      await _activeAdapter?.setPowered(true);
-      return _activeAdapter?.powered ?? false;
-    } catch (e) {
-      UniversalBlePlatform.logInfo(
-        'Error enabling bluetooth: $e',
-        isError: true,
-      );
-      return false;
-    }
+    if (_activeAdapter?.powered == true) return;
+    await _activeAdapter?.setPowered(true);
   }
 
   @override
@@ -281,7 +272,7 @@ class UniversalBleLinux extends UniversalBlePlatform {
       await device.pair();
       return true;
     } catch (error) {
-      updatePairingState(deviceId, false, error.toString());
+      updatePairingState(deviceId, false);
       return false;
     }
   }
@@ -448,7 +439,7 @@ class UniversalBleLinux extends UniversalBlePlatform {
             updateScanResult(device.toBleDevice());
             break;
           case BluezProperty.paired:
-            updatePairingState(device.address, device.paired, null);
+            updatePairingState(device.address, device.paired);
             break;
           // Ignored these properties updates
           case BluezProperty.bonded:

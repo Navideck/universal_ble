@@ -270,7 +270,7 @@ class UniversalBlePlatformChannel {
   UniversalBlePlatformChannel& operator=(const UniversalBlePlatformChannel&) = delete;
   virtual ~UniversalBlePlatformChannel() {}
   virtual void GetBluetoothAvailabilityState(std::function<void(ErrorOr<int64_t> reply)> result) = 0;
-  virtual void EnableBluetooth(std::function<void(ErrorOr<bool> reply)> result) = 0;
+  virtual void EnableBluetooth(std::function<void(std::optional<FlutterError> reply)> result) = 0;
   virtual std::optional<FlutterError> StartScan(const UniversalScanFilter* filter) = 0;
   virtual std::optional<FlutterError> StopScan() = 0;
   virtual std::optional<FlutterError> Connect(const std::string& device_id) = 0;
@@ -305,7 +305,7 @@ class UniversalBlePlatformChannel {
     std::function<void(ErrorOr<bool> reply)> result) = 0;
   virtual void Pair(
     const std::string& device_id,
-    std::function<void(ErrorOr<bool> reply)> result) = 0;
+    std::function<void(std::optional<FlutterError> reply)> result) = 0;
   virtual std::optional<FlutterError> UnPair(const std::string& device_id) = 0;
   virtual void GetSystemDevices(
     const flutter::EncodableList& with_services,
@@ -346,7 +346,6 @@ class UniversalBleCallbackChannel {
   void OnPairStateChange(
     const std::string& device_id,
     bool is_paired,
-    const std::string* error,
     std::function<void(void)>&& on_success,
     std::function<void(const FlutterError&)>&& on_error);
   void OnScanResult(

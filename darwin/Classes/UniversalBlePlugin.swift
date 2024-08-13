@@ -54,7 +54,7 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
     }
   }
 
-  func enableBluetooth(completion: @escaping (Result<Bool, Error>) -> Void) {
+  func enableBluetooth(completion: @escaping (Result<Void, any Error>) -> Void) {
     completion(Result.failure(FlutterError(code: "NotSupported", message: nil, details: nil)))
   }
 
@@ -280,7 +280,7 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
     completion(Result.failure(FlutterError(code: "NotSupported", message: nil, details: nil)))
   }
 
-  func pair(deviceId _: String, completion: @escaping (Result<Bool, Error>) -> Void){
+  func pair(deviceId: String, completion: @escaping (Result<Void, any Error>) -> Void) {
     completion(Result.failure(FlutterError(code: "Implemented in Dart", message: nil, details: nil)))
   }
 

@@ -20,7 +20,7 @@ class UniversalBlePigeonChannel extends UniversalBlePlatform {
   }
 
   @override
-  Future<bool> enableBluetooth() {
+  Future<void> enableBluetooth() {
     if (!BleCapabilities.supportsBluetoothEnableApi) {
       throw UnsupportedError("Not supported");
     }
@@ -109,7 +109,7 @@ class UniversalBlePigeonChannel extends UniversalBlePlatform {
   Future<bool> isPaired(String deviceId) => _channel.isPaired(deviceId);
 
   @override
-  Future<bool> pair(String deviceId) => _channel.pair(deviceId);
+  Future<void> pair(String deviceId) => _channel.pair(deviceId);
 
   @override
   Future<void> unpair(String deviceId) => _channel.unPair(deviceId);
@@ -189,8 +189,8 @@ class _UniversalBleCallbackHandler extends UniversalBleCallbackChannel {
       valueChanged(deviceId, characteristicId, value);
 
   @override
-  void onPairStateChange(String deviceId, bool isPaired, String? error) =>
-      pairStateChange(deviceId, isPaired, error);
+  void onPairStateChange(String deviceId, bool isPaired) =>
+      pairStateChange(deviceId, isPaired);
 }
 
 extension _UniversalBleScanResultExtension on UniversalBleScanResult {

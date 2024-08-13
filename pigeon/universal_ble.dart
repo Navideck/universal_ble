@@ -25,7 +25,7 @@ abstract class UniversalBlePlatformChannel {
   int getBluetoothAvailabilityState();
 
   @async
-  bool enableBluetooth();
+  void enableBluetooth();
 
   void startScan(UniversalScanFilter? filter);
 
@@ -69,7 +69,7 @@ abstract class UniversalBlePlatformChannel {
   bool isPaired(String deviceId);
 
   @async
-  bool pair(String deviceId);
+  void pair(String deviceId);
 
   void unPair(String deviceId);
 
@@ -86,7 +86,7 @@ abstract class UniversalBlePlatformChannel {
 abstract class UniversalBleCallbackChannel {
   void onAvailabilityChanged(int state);
 
-  void onPairStateChange(String deviceId, bool isPaired, String? error);
+  void onPairStateChange(String deviceId, bool isPaired);
 
   void onScanResult(UniversalBleScanResult result);
 

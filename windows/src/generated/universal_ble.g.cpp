@@ -488,13 +488,13 @@ void UniversalBlePlatformChannel::SetUp(
     if (api != nullptr) {
       channel.SetMessageHandler([api](const EncodableValue& message, const flutter::MessageReply<EncodableValue>& reply) {
         try {
-          api->EnableBluetooth([reply](ErrorOr<bool>&& output) {
-            if (output.has_error()) {
-              reply(WrapError(output.error()));
+          api->EnableBluetooth([reply](std::optional<FlutterError>&& output) {
+            if (output.has_value()) {
+              reply(WrapError(output.value()));
               return;
             }
             EncodableList wrapped;
-            wrapped.push_back(EncodableValue(std::move(output).TakeValue()));
+            wrapped.push_back(EncodableValue());
             reply(EncodableValue(std::move(wrapped)));
           });
         } catch (const std::exception& exception) {
@@ -852,13 +852,13 @@ void UniversalBlePlatformChannel::SetUp(
             return;
           }
           const auto& device_id_arg = std::get<std::string>(encodable_device_id_arg);
-          api->Pair(device_id_arg, [reply](ErrorOr<bool>&& output) {
-            if (output.has_error()) {
-              reply(WrapError(output.error()));
+          api->Pair(device_id_arg, [reply](std::optional<FlutterError>&& output) {
+            if (output.has_value()) {
+              reply(WrapError(output.value()));
               return;
             }
             EncodableList wrapped;
-            wrapped.push_back(EncodableValue(std::move(output).TakeValue()));
+            wrapped.push_back(EncodableValue());
             reply(EncodableValue(std::move(wrapped)));
           });
         } catch (const std::exception& exception) {
@@ -1015,7 +1015,6 @@ void UniversalBleCallbackChannel::OnAvailabilityChanged(
 void UniversalBleCallbackChannel::OnPairStateChange(
   const std::string& device_id_arg,
   bool is_paired_arg,
-  const std::string* error_arg,
   std::function<void(void)>&& on_success,
   std::function<void(const FlutterError&)>&& on_error) {
   const std::string channel_name = "dev.flutter.pigeon.universal_ble.UniversalBleCallbackChannel.onPairStateChange" + message_channel_suffix_;
@@ -1023,7 +1022,6 @@ void UniversalBleCallbackChannel::OnPairStateChange(
   EncodableValue encoded_api_arguments = EncodableValue(EncodableList{
     EncodableValue(device_id_arg),
     EncodableValue(is_paired_arg),
-    error_arg ? EncodableValue(*error_arg) : EncodableValue(),
   });
   channel.Send(encoded_api_arguments, [channel_name, on_success = std::move(on_success), on_error = std::move(on_error)](const uint8_t* reply, size_t reply_size) {
     std::unique_ptr<EncodableValue> response = GetCodec().DecodeMessage(reply, reply_size);

@@ -81,14 +81,9 @@ class _PeripheralDetailPageState extends State<PeripheralDetailPage> {
     _addLog("Value", data);
   }
 
-  void _handlePairingStateChange(
-      String deviceId, bool isPaired, String? error) {
+  void _handlePairingStateChange(String deviceId, bool isPaired) {
     print('isPaired $deviceId, $isPaired');
-    if (error != null && error.isNotEmpty) {
-      _addLog("PairingStateChangeError", "(Paired: $isPaired): $error ");
-    } else {
-      _addLog("PairingStateChange - isPaired", isPaired);
-    }
+    _addLog("PairingStateChange - isPaired", isPaired);
   }
 
   Future<void> _discoverServices() async {
@@ -253,12 +248,10 @@ class _PeripheralDetailPageState extends State<PeripheralDetailPage> {
                               enabled: !isConnected,
                               onPressed: () async {
                                 try {
-                                  bool connected = await UniversalBle.connect(
-                                    widget.deviceId,
-                                  );
-                                  _addLog("ConnectionResult", connected);
+                                  await UniversalBle.connect(widget.deviceId);
+                                  _addLog("ConnectionResult", 'Connected');
                                 } catch (e) {
-                                  _addLog('ConnectError', e);
+                                  _addLog('ConnectionResultError', e);
                                 }
                               },
                             ),
@@ -411,14 +404,18 @@ class _PeripheralDetailPageState extends State<PeripheralDetailPage> {
                               visible: BleCapabilities.supportsInAppPairing,
                               child: PlatformButton(
                                 onPressed: () async {
-                                  await UniversalBle.pair(
-                                    widget.deviceId,
-                                    // pairingCommand: BleCommand(
-                                    //   service: "",
-                                    //   characteristic: "",
-                                    // ),
-                                  );
-                                  _addLog("Pairing Result", true);
+                                  try {
+                                    await UniversalBle.pair(
+                                      widget.deviceId,
+                                      // pairingCommand: BleCommand(
+                                      //   service: "",
+                                      //   characteristic: "",
+                                      // ),
+                                    );
+                                    _addLog("PairCall", 'Called successfully');
+                                  } catch (e) {
+                                    _addLog("PairCallFailed", e);
+                                  }
                                 },
                                 text: 'Pair',
                               ),

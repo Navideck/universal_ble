@@ -150,10 +150,16 @@ class _MyAppState extends State<MyApp> {
                   PlatformButton(
                     text: 'Enable Bluetooth',
                     onPressed: () async {
-                      bool isEnabled = await UniversalBle.enableBluetooth();
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text("BluetoothEnabled: $isEnabled")),
-                      );
+                      try {
+                        await UniversalBle.enableBluetooth();
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text("BluetoothEnabled")),
+                        );
+                      } catch (e) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text("BluetoothEnableError: $e")),
+                        );
+                      }
                     },
                   ),
                 if (BleCapabilities.requiresRuntimePermission)

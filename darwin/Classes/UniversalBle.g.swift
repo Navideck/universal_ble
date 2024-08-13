@@ -270,7 +270,7 @@ class UniversalBlePigeonCodec: FlutterStandardMessageCodec, @unchecked Sendable 
 /// Generated protocol from Pigeon that represents a handler of messages from Flutter.
 protocol UniversalBlePlatformChannel {
   func getBluetoothAvailabilityState(completion: @escaping (Result<Int64, Error>) -> Void)
-  func enableBluetooth(completion: @escaping (Result<Bool, Error>) -> Void)
+  func enableBluetooth(completion: @escaping (Result<Void, Error>) -> Void)
   func startScan(filter: UniversalScanFilter?) throws
   func stopScan() throws
   func connect(deviceId: String) throws
@@ -281,7 +281,7 @@ protocol UniversalBlePlatformChannel {
   func requestMtu(deviceId: String, expectedMtu: Int64, completion: @escaping (Result<Int64, Error>) -> Void)
   func writeValue(deviceId: String, service: String, characteristic: String, value: FlutterStandardTypedData, bleOutputProperty: Int64, completion: @escaping (Result<Void, Error>) -> Void)
   func isPaired(deviceId: String, completion: @escaping (Result<Bool, Error>) -> Void)
-  func pair(deviceId: String, completion: @escaping (Result<Bool, Error>) -> Void)
+  func pair(deviceId: String, completion: @escaping (Result<Void, Error>) -> Void)
   func unPair(deviceId: String) throws
   func getSystemDevices(withServices: [String], completion: @escaping (Result<[UniversalBleScanResult], Error>) -> Void)
   func getConnectionState(deviceId: String) throws -> Int64
@@ -313,8 +313,8 @@ class UniversalBlePlatformChannelSetup {
       enableBluetoothChannel.setMessageHandler { _, reply in
         api.enableBluetooth { result in
           switch result {
-          case .success(let res):
-            reply(wrapResult(res))
+          case .success:
+            reply(wrapResult(nil))
           case .failure(let error):
             reply(wrapError(error))
           }
@@ -500,8 +500,8 @@ class UniversalBlePlatformChannelSetup {
         let deviceIdArg = args[0] as! String
         api.pair(deviceId: deviceIdArg) { result in
           switch result {
-          case .success(let res):
-            reply(wrapResult(res))
+          case .success:
+            reply(wrapResult(nil))
           case .failure(let error):
             reply(wrapError(error))
           }
@@ -564,7 +564,7 @@ class UniversalBlePlatformChannelSetup {
 /// Generated protocol from Pigeon that represents Flutter messages that can be called from Swift.
 protocol UniversalBleCallbackChannelProtocol {
   func onAvailabilityChanged(state stateArg: Int64, completion: @escaping (Result<Void, PigeonError>) -> Void)
-  func onPairStateChange(deviceId deviceIdArg: String, isPaired isPairedArg: Bool, error errorArg: String?, completion: @escaping (Result<Void, PigeonError>) -> Void)
+  func onPairStateChange(deviceId deviceIdArg: String, isPaired isPairedArg: Bool, completion: @escaping (Result<Void, PigeonError>) -> Void)
   func onScanResult(result resultArg: UniversalBleScanResult, completion: @escaping (Result<Void, PigeonError>) -> Void)
   func onValueChanged(deviceId deviceIdArg: String, characteristicId characteristicIdArg: String, value valueArg: FlutterStandardTypedData, completion: @escaping (Result<Void, PigeonError>) -> Void)
   func onConnectionChanged(deviceId deviceIdArg: String, connected connectedArg: Bool, completion: @escaping (Result<Void, PigeonError>) -> Void)
@@ -597,10 +597,10 @@ class UniversalBleCallbackChannel: UniversalBleCallbackChannelProtocol {
       }
     }
   }
-  func onPairStateChange(deviceId deviceIdArg: String, isPaired isPairedArg: Bool, error errorArg: String?, completion: @escaping (Result<Void, PigeonError>) -> Void) {
+  func onPairStateChange(deviceId deviceIdArg: String, isPaired isPairedArg: Bool, completion: @escaping (Result<Void, PigeonError>) -> Void) {
     let channelName: String = "dev.flutter.pigeon.universal_ble.UniversalBleCallbackChannel.onPairStateChange\(messageChannelSuffix)"
     let channel = FlutterBasicMessageChannel(name: channelName, binaryMessenger: binaryMessenger, codec: codec)
-    channel.sendMessage([deviceIdArg, isPairedArg, errorArg] as [Any?]) { response in
+    channel.sendMessage([deviceIdArg, isPairedArg] as [Any?]) { response in
       guard let listResponse = response as? [Any?] else {
         completion(.failure(createConnectionError(withChannelName: channelName)))
         return
