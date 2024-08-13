@@ -244,7 +244,7 @@ class UniversalBleWeb extends UniversalBlePlatform {
   }
 
   @override
-  Future<bool> pair(String deviceId) {
+  Future<void> pair(String deviceId) {
     throw UnimplementedError();
   }
 
@@ -336,7 +336,7 @@ class UniversalBleWeb extends UniversalBlePlatform {
   }
 
   @override
-  Future<bool> enableBluetooth() {
+  Future<void> enableBluetooth() {
     throw UnimplementedError();
   }
 

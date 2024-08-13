@@ -48,9 +48,9 @@ class MockUniversalBle extends UniversalBlePlatform {
   }
 
   @override
-  Future<bool> enableBluetooth() async {
+  Future<void> enableBluetooth() async {
     await Future.delayed(const Duration(milliseconds: 500));
-    return true;
+    return;
   }
 
   @override
@@ -102,9 +102,9 @@ class MockUniversalBle extends UniversalBlePlatform {
   }
 
   @override
-  Future<bool> pair(String deviceId) async {
+  Future<void> pair(String deviceId) async {
     updatePairingState(deviceId, true);
-    return true;
+    return;
   }
 
   @override
