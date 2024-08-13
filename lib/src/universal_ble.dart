@@ -245,12 +245,16 @@ class UniversalBle {
     BleCommand? pairingCommand,
   }) async {
     if (!BleCapabilities.supportsInAppPairing) {
-      throw UnsupportedError("Not supported");
+      return null;
     }
     if (BleCapabilities.hasSystemPairingApi) {
       // Native platforms will either success or throw error
-      await _platform.pair(deviceId);
-      return true;
+      try {
+        await _platform.pair(deviceId);
+        return true;
+      } catch (e) {
+        return false;
+      }
     }
     return _connectAndExecuteBleCommand(deviceId, pairingCommand);
   }
