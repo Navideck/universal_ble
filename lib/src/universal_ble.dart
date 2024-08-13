@@ -240,7 +240,7 @@ class UniversalBle {
   /// If you do, it throws error if it can't successfully execute the command after pairing.
   ///
   /// Throws UnsupportedError on `Web/Windows`.
-  static Future<void> pair(
+  static Future<bool?> pair(
     String deviceId, {
     BleCommand? pairingCommand,
   }) async {
@@ -248,9 +248,11 @@ class UniversalBle {
       throw UnsupportedError("Not supported");
     }
     if (BleCapabilities.hasSystemPairingApi) {
-      return _platform.pair(deviceId);
+      // Native platforms will either success or throw error
+      await _platform.pair(deviceId);
+      return true;
     }
-    await _connectAndExecuteBleCommand(deviceId, pairingCommand);
+    return _connectAndExecuteBleCommand(deviceId, pairingCommand);
   }
 
   /// Unpair a device.
