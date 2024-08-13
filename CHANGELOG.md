@@ -2,6 +2,7 @@
 * BREAKING CHANGE: `unPair` is now `unpair`
 * Add `pair()`, `isPaired` and `onPairingStateChange` support for Apple and web
 * `connect()` and `pair()` now return a bool result
+* BREAKING CHANGE: `onPairingStateChange` does not return error anymore
 * Add `PlatformConfig` property in `StartScan`
 * Add `WebConfig` property in `PlatformConfig`
 * Fix notifications for characteristics without cccd on Android
