@@ -103,13 +103,13 @@ class MockUniversalBle extends UniversalBlePlatform {
 
   @override
   Future<bool> pair(String deviceId) async {
-    updatePairingState(deviceId, true, null);
+    updatePairingState(deviceId, true);
     return true;
   }
 
   @override
   Future<void> unpair(String deviceId) async {
-    updatePairingState(deviceId, false, null);
+    updatePairingState(deviceId, false);
   }
 
   @override

@@ -203,7 +203,7 @@ bool? isPaired = await UniversalBle.pair(deviceId); // Returns true if successfu
 UniversalBle.pair(deviceId, pairingCommand: BleCommand(service:"SERVICE", characteristic:"ENCRYPTED_CHARACTERISTIC",));
 
 // Receive pairing state changes
-UniversalBle.onPairingStateChange = (String deviceId, bool isPaired, String? error) {
+UniversalBle.onPairingStateChange = (String deviceId, bool isPaired) {
   // Handle pairing state change
 }
 

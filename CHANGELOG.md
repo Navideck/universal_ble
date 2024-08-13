@@ -1,5 +1,6 @@
 ## 0.12.0
 * BREAKING CHANGE: `unPair` is now `unpair`
+* BREAKING CHANGE: `onPairingStateChange` does not return error anymore
 * Add `pair()`, `isPaired` and `onPairingStateChange` support for Apple and web
 * `connect()` and `pair()` now return a bool result
 * Add `PlatformConfig` property in `StartScan`
