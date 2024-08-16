@@ -264,7 +264,7 @@ class UniversalBle {
     List<String>? withServices,
   }) async {
     return await _bleCommandQueue.queueCommand(
-      () => _platform.getSystemDevices(withServices),
+      () => _platform.getSystemDevices(withServices?.toValidUUIDList()),
     );
   }
 

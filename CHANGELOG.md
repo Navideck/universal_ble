@@ -1,3 +1,6 @@
+## 0.12.1
+* Auto convert all services passed to `getSystemDevices()`
+
 ## 0.12.0
 * BREAKING CHANGE: `unPair` is now `unpair`
 * BREAKING CHANGE: `onPairingStateChange` does not return error anymore
