@@ -402,21 +402,19 @@ class _PeripheralDetailPageState extends State<PeripheralDetailPage> {
                                   BleInputProperty.disabled),
                               text: 'Unsubscribe',
                             ),
-                            Visibility(
-                              visible: BleCapabilities.supportsInAppPairing,
-                              child: PlatformButton(
-                                onPressed: () async {
-                                  bool? pairingResult = await UniversalBle.pair(
-                                    widget.deviceId,
-                                    // pairingCommand: BleCommand(
-                                    //   service: "",
-                                    //   characteristic: "",
-                                    // ),
-                                  );
-                                  _addLog("Pairing Result", pairingResult);
-                                },
-                                text: 'Pair',
-                              ),
+                            PlatformButton(
+                              enabled: BleCapabilities.supportsInAppPairing,
+                              onPressed: () async {
+                                bool? pairingResult = await UniversalBle.pair(
+                                  widget.deviceId,
+                                  // pairingCommand: BleCommand(
+                                  //   service: "",
+                                  //   characteristic: "",
+                                  // ),
+                                );
+                                _addLog("Pairing Result", pairingResult);
+                              },
+                              text: 'Pair',
                             ),
                             PlatformButton(
                               onPressed: () async {
