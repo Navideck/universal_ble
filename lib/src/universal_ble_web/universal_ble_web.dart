@@ -348,46 +348,45 @@ class UniversalBleWeb extends UniversalBlePlatform {
     List<int> optionalManufacturerData = [];
     List<String> optionalServices = [];
 
-    if (webConfig != null) {
-      optionalServices.addAll(webConfig.optionalServices.toValidUUIDList());
-      optionalManufacturerData.addAll(webConfig.optionalManufacturerData);
-    }
-
     if (scanFilter != null) {
       // Add services filter
       for (var service in scanFilter.withServices.toValidUUIDList()) {
-        filters.add(RequestFilterBuilder(services: [service]));
-        if (webConfig == null || webConfig.optionalServices.isEmpty) {
-          optionalServices.add(service);
+        if (webConfig?.useAsScanFilter ?? true) {
+          filters.add(RequestFilterBuilder(services: [service]));
         }
+
+        // Add to optional services
+        optionalServices.add(service);
       }
 
       // Add manufacturer data filter
       for (var manufacturerData in scanFilter.withManufacturerData) {
-        filters.add(
-          RequestFilterBuilder(
-            manufacturerData: [
-              ManufacturerDataFilterBuilder(
-                companyIdentifier: manufacturerData.companyIdentifier,
-                dataPrefix: manufacturerData.data,
-                mask: manufacturerData.mask,
-              ),
-            ],
-          ),
-        );
+        if (webConfig?.useAsScanFilter ?? true) {
+          filters.add(
+            RequestFilterBuilder(
+              manufacturerData: [
+                ManufacturerDataFilterBuilder(
+                  companyIdentifier: manufacturerData.companyIdentifier,
+                  dataPrefix: manufacturerData.data,
+                  mask: manufacturerData.mask,
+                ),
+              ],
+            ),
+          );
+        }
 
-        // Add optionalManufacturerData from scanFilter if webConfig is not provided
-        if (webConfig == null || webConfig.optionalManufacturerData.isEmpty) {
-          int? companyId = manufacturerData.companyIdentifier;
-          if (companyId != null) {
-            optionalManufacturerData.add(companyId);
-          }
+        // Add to optionalManufacturerData
+        int? companyId = manufacturerData.companyIdentifier;
+        if (companyId != null) {
+          optionalManufacturerData.add(companyId);
         }
       }
 
       // Add name filter
       for (var name in scanFilter.withNamePrefix) {
-        filters.add(RequestFilterBuilder(namePrefix: name));
+        if (webConfig?.useAsScanFilter ?? true) {
+          filters.add(RequestFilterBuilder(namePrefix: name));
+        }
       }
     }
 
