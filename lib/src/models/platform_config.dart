@@ -6,17 +6,15 @@ class PlatformConfig {
 }
 
 /// Web config to scan devices
-/// [useAsScanFilter] can be set to false if we want to use ScanFilter properties as `optionalServices` or `optionalManufacturerData` where
-///  `optionalServices` is a list of service uuid's to ensure that you can access the specified services after connecting to the device,
-/// by default services from scanFilter will be used
+/// if [scanAll] is true, then scanFilter properties will be used only as `optionalServices` or `optionalManufacturerData`, and no filter will be applied to scan results, where
+/// `optionalServices` is a list of service uuid's to ensure that you can access the specified services after connecting to the device,
 /// `optionalManufacturerData` is list of `CompanyIdentifier's` and used to add `ManufacturerData` in advertisement results of selected device from web dialog,
-/// by default manufacturerData from scanFilter will be used
 /// Checkout more details on [web](https://developer.mozilla.org/en-US/docs/Web/API/Bluetooth/requestDevice)
 /// Note: you will only get advertisements if Experimental Flag is enabled in the browser
 class WebConfig {
-  final bool useAsScanFilter;
+  final bool? scanAll;
 
   WebConfig({
-    this.useAsScanFilter = true,
+    this.scanAll,
   });
 }

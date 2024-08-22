@@ -351,7 +351,7 @@ class UniversalBleWeb extends UniversalBlePlatform {
     if (scanFilter != null) {
       // Add services filter
       for (var service in scanFilter.withServices.toValidUUIDList()) {
-        if (webConfig?.useAsScanFilter ?? true) {
+        if (webConfig?.scanAll != true) {
           filters.add(RequestFilterBuilder(services: [service]));
         }
 
@@ -361,7 +361,7 @@ class UniversalBleWeb extends UniversalBlePlatform {
 
       // Add manufacturer data filter
       for (var manufacturerData in scanFilter.withManufacturerData) {
-        if (webConfig?.useAsScanFilter ?? true) {
+        if (webConfig?.scanAll != true) {
           filters.add(
             RequestFilterBuilder(
               manufacturerData: [
@@ -384,7 +384,7 @@ class UniversalBleWeb extends UniversalBlePlatform {
 
       // Add name filter
       for (var name in scanFilter.withNamePrefix) {
-        if (webConfig?.useAsScanFilter ?? true) {
+        if (webConfig?.scanAll != true) {
           filters.add(RequestFilterBuilder(namePrefix: name));
         }
       }
