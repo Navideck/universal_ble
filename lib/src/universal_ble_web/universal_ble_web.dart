@@ -378,10 +378,7 @@ class UniversalBleWeb extends UniversalBlePlatform {
 
         // Add optionalManufacturerData from scanFilter if webConfig is not provided
         if (webConfig == null || webConfig.optionalManufacturerData.isEmpty) {
-          int? companyId = manufacturerData.companyIdentifier;
-          if (companyId != null) {
-            optionalManufacturerData.add(companyId);
-          }
+          optionalManufacturerData.add(manufacturerData.companyIdentifier);
         }
       }
 

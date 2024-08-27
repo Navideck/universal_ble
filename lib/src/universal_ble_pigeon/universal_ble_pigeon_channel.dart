@@ -32,7 +32,6 @@ class UniversalBlePigeonChannel extends UniversalBlePlatform {
     ScanFilter? scanFilter,
     PlatformConfig? platformConfig,
   }) async {
-    await super.startScan(scanFilter: scanFilter);
     await _channel.startScan(
       scanFilter.toUniversalScanFilter(),
     );
@@ -230,6 +229,7 @@ extension _ScanFilterExtension on ScanFilter? {
     // Windows crashes if it's null, so we need to pass empty scan filter in this case
     return UniversalScanFilter(
       withServices: this?.withServices.toValidUUIDList() ?? [],
+      withNamePrefix: this?.withNamePrefix ?? [],
       withManufacturerData: manufacturerDataFilters ?? [],
     );
   }

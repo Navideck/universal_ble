@@ -162,21 +162,25 @@ struct UniversalBleCharacteristic {
 /// Generated class from Pigeon that represents data sent in messages.
 struct UniversalScanFilter {
   var withServices: [String?]
+  var withNamePrefix: [String?]
   var withManufacturerData: [UniversalManufacturerDataFilter?]
 
   // swift-format-ignore: AlwaysUseLowerCamelCase
   static func fromList(_ __pigeon_list: [Any?]) -> UniversalScanFilter? {
     let withServices = __pigeon_list[0] as! [String?]
-    let withManufacturerData = __pigeon_list[1] as! [UniversalManufacturerDataFilter?]
+    let withNamePrefix = __pigeon_list[1] as! [String?]
+    let withManufacturerData = __pigeon_list[2] as! [UniversalManufacturerDataFilter?]
 
     return UniversalScanFilter(
       withServices: withServices,
+      withNamePrefix: withNamePrefix,
       withManufacturerData: withManufacturerData
     )
   }
   func toList() -> [Any?] {
     return [
       withServices,
+      withNamePrefix,
       withManufacturerData,
     ]
   }
@@ -184,13 +188,13 @@ struct UniversalScanFilter {
 
 /// Generated class from Pigeon that represents data sent in messages.
 struct UniversalManufacturerDataFilter {
-  var companyIdentifier: Int64? = nil
+  var companyIdentifier: Int64
   var data: FlutterStandardTypedData? = nil
   var mask: FlutterStandardTypedData? = nil
 
   // swift-format-ignore: AlwaysUseLowerCamelCase
   static func fromList(_ __pigeon_list: [Any?]) -> UniversalManufacturerDataFilter? {
-    let companyIdentifier: Int64? = isNullish(__pigeon_list[0]) ? nil : (__pigeon_list[0] is Int64? ? __pigeon_list[0] as! Int64? : Int64(__pigeon_list[0] as! Int32))
+    let companyIdentifier = __pigeon_list[0] is Int64 ? __pigeon_list[0] as! Int64 : Int64(__pigeon_list[0] as! Int32)
     let data: FlutterStandardTypedData? = nilOrValue(__pigeon_list[1])
     let mask: FlutterStandardTypedData? = nilOrValue(__pigeon_list[2])
 

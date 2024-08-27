@@ -21,6 +21,7 @@ import io.flutter.embedding.engine.plugins.FlutterPlugin
 import io.flutter.embedding.engine.plugins.activity.ActivityAware
 import io.flutter.embedding.engine.plugins.activity.ActivityPluginBinding
 import io.flutter.plugin.common.*
+import java.util.UUID
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 
@@ -38,6 +39,7 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
     private lateinit var bluetoothManager: BluetoothManager
     private val cachedServicesMap = mutableMapOf<String, List<String>>()
     private val devicesStateMap = mutableMapOf<String, Int>()
+    private val universalBleFilterUtil = UniversalBleFilterUtil()
 
     // Flutter Futures
     private var bluetoothEnableRequestFuture: ((Result<Boolean>) -> Unit)? = null
@@ -114,11 +116,32 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
         }
         val settings = builder.build()
 
-        bluetoothManager.adapter.bluetoothLeScanner?.startScan(
-            filter?.toScanFilters() ?: emptyList<ScanFilter>(),
-            settings,
-            scanCallback
-        )
+        val hasCustomFilters = filter?.hasCustomFilter() ?: false;
+
+        try {
+            val filterServices = filter?.withServices?.filterNotNull()?.toUUIDList() ?: emptyList()
+            var scanFilters = emptyList<ScanFilter>()
+
+            // Set custom scan filter only if required
+            if (hasCustomFilters) {
+                Log.e(TAG, "Using Custom Filters")
+                universalBleFilterUtil.scanFilter = filter
+                universalBleFilterUtil.serviceFilterUUIDS = filterServices
+            } else {
+                universalBleFilterUtil.scanFilter = null
+                scanFilters = filter?.toScanFilters(filterServices) ?: emptyList<ScanFilter>()
+            }
+
+            bluetoothManager.adapter.bluetoothLeScanner?.startScan(
+                scanFilters, settings, scanCallback
+            )
+        } catch (e: Exception) {
+            throw FlutterError(
+                "illegalIllegalArgument",
+                "Failed to start Scan",
+                e.toString()
+            )
+        }
     }
 
     override fun stopScan() {
@@ -790,22 +813,31 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
         }
     }
 
+
     private val scanCallback = object : ScanCallback() {
         override fun onScanFailed(errorCode: Int) {
             Log.e(TAG, "OnScanFailed: ${errorCode.parseScanErrorMessage()}")
         }
 
         override fun onScanResult(callbackType: Int, result: ScanResult) {
+
             // Log.v(TAG, "onScanResult: $result")
-            var serviceUuids: Array<String> = arrayOf()
+            var serviceUuids: Array<UUID> = arrayOf()
             result.device.uuids?.forEach {
-                serviceUuids += it.uuid.toString()
+                serviceUuids += it.uuid
             }
             result.scanRecord?.serviceUuids?.forEach {
-                if (!serviceUuids.contains(it.uuid.toString())) {
-                    serviceUuids += it.uuid.toString()
+                if (!serviceUuids.contains(it.uuid)) {
+                    serviceUuids += it.uuid
                 }
             }
+
+            val name = result.device.name
+            val manufacturerData = result.manufacturerDataHead
+
+            if (!universalBleFilterUtil.filterDevice(name, manufacturerData, serviceUuids)) return
+
+
             mainThreadHandler?.post {
                 callbackChannel?.onScanResult(
                     UniversalBleScanResult(
@@ -814,7 +846,7 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
                         isPaired = result.device.bondState == BOND_BONDED,
                         manufacturerDataHead = result.manufacturerDataHead,
                         rssi = result.rssi.toLong(),
-                        services = serviceUuids.toList()
+                        services = serviceUuids.map { it.toString() }.toList()
                     )
                 ) {}
             }

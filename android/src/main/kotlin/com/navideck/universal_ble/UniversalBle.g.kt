@@ -135,6 +135,7 @@ data class UniversalBleCharacteristic (
  */
 data class UniversalScanFilter (
   val withServices: List<String?>,
+  val withNamePrefix: List<String?>,
   val withManufacturerData: List<UniversalManufacturerDataFilter?>
 
 ) {
@@ -142,13 +143,15 @@ data class UniversalScanFilter (
     @Suppress("LocalVariableName")
     fun fromList(__pigeon_list: List<Any?>): UniversalScanFilter {
       val withServices = __pigeon_list[0] as List<String?>
-      val withManufacturerData = __pigeon_list[1] as List<UniversalManufacturerDataFilter?>
-      return UniversalScanFilter(withServices, withManufacturerData)
+      val withNamePrefix = __pigeon_list[1] as List<String?>
+      val withManufacturerData = __pigeon_list[2] as List<UniversalManufacturerDataFilter?>
+      return UniversalScanFilter(withServices, withNamePrefix, withManufacturerData)
     }
   }
   fun toList(): List<Any?> {
     return listOf(
       withServices,
+      withNamePrefix,
       withManufacturerData,
     )
   }
@@ -156,7 +159,7 @@ data class UniversalScanFilter (
 
 /** Generated class from Pigeon that represents data sent in messages. */
 data class UniversalManufacturerDataFilter (
-  val companyIdentifier: Long? = null,
+  val companyIdentifier: Long,
   val data: ByteArray? = null,
   val mask: ByteArray? = null
 
@@ -164,7 +167,7 @@ data class UniversalManufacturerDataFilter (
   companion object {
     @Suppress("LocalVariableName")
     fun fromList(__pigeon_list: List<Any?>): UniversalManufacturerDataFilter {
-      val companyIdentifier = __pigeon_list[0].let { num -> if (num is Int) num.toLong() else num as Long? }
+      val companyIdentifier = __pigeon_list[0].let { num -> if (num is Int) num.toLong() else num as Long }
       val data = __pigeon_list[1] as ByteArray?
       val mask = __pigeon_list[2] as ByteArray?
       return UniversalManufacturerDataFilter(companyIdentifier, data, mask)

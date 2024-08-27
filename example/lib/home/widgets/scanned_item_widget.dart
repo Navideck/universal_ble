@@ -29,9 +29,7 @@ class ScannedItemWidget extends StatelessWidget {
               Text(bleDevice.deviceId),
               Visibility(
                 visible: manufacturerData != null,
-                child: Text(
-                  'CompanyIdentifier: ${manufacturerData.toString()} (${manufacturerData?.companyIdRadix16})',
-                ),
+                child: Text(manufacturerData.toString()),
               ),
               bleDevice.isPaired == true
                   ? const Text(

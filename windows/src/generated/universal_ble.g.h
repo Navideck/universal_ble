@@ -184,10 +184,14 @@ class UniversalScanFilter {
   // Constructs an object setting all fields.
   explicit UniversalScanFilter(
     const flutter::EncodableList& with_services,
+    const flutter::EncodableList& with_name_prefix,
     const flutter::EncodableList& with_manufacturer_data);
 
   const flutter::EncodableList& with_services() const;
   void set_with_services(const flutter::EncodableList& value_arg);
+
+  const flutter::EncodableList& with_name_prefix() const;
+  void set_with_name_prefix(const flutter::EncodableList& value_arg);
 
   const flutter::EncodableList& with_manufacturer_data() const;
   void set_with_manufacturer_data(const flutter::EncodableList& value_arg);
@@ -200,6 +204,7 @@ class UniversalScanFilter {
   friend class UniversalBleCallbackChannel;
   friend class PigeonCodecSerializer;
   flutter::EncodableList with_services_;
+  flutter::EncodableList with_name_prefix_;
   flutter::EncodableList with_manufacturer_data_;
 
 };
@@ -209,16 +214,15 @@ class UniversalScanFilter {
 class UniversalManufacturerDataFilter {
  public:
   // Constructs an object setting all non-nullable fields.
-  UniversalManufacturerDataFilter();
+  explicit UniversalManufacturerDataFilter(int64_t company_identifier);
 
   // Constructs an object setting all fields.
   explicit UniversalManufacturerDataFilter(
-    const int64_t* company_identifier,
+    int64_t company_identifier,
     const std::vector<uint8_t>* data,
     const std::vector<uint8_t>* mask);
 
-  const int64_t* company_identifier() const;
-  void set_company_identifier(const int64_t* value_arg);
+  int64_t company_identifier() const;
   void set_company_identifier(int64_t value_arg);
 
   const std::vector<uint8_t>* data() const;
@@ -236,7 +240,7 @@ class UniversalManufacturerDataFilter {
   friend class UniversalBlePlatformChannel;
   friend class UniversalBleCallbackChannel;
   friend class PigeonCodecSerializer;
-  std::optional<int64_t> company_identifier_;
+  int64_t company_identifier_;
   std::optional<std::vector<uint8_t>> data_;
   std::optional<std::vector<uint8_t>> mask_;
 

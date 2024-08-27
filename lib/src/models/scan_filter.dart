@@ -18,7 +18,7 @@ class ScanFilter {
 }
 
 class ManufacturerDataFilter {
-  int? companyIdentifier;
+  int companyIdentifier;
 
   // Mask and data must be of same length
   Uint8List? data;
@@ -29,7 +29,7 @@ class ManufacturerDataFilter {
   Uint8List? mask;
 
   ManufacturerDataFilter({
-    this.companyIdentifier,
+    required this.companyIdentifier,
     this.data,
     this.mask,
   });

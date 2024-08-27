@@ -57,6 +57,7 @@ class ManufacturerData {
   final int? companyId;
   final Uint8List? data;
   String? companyIdRadix16;
+
   ManufacturerData(this.companyId, this.data) {
     if (companyId != null) {
       companyIdRadix16 = "0x0${companyId!.toRadixString(16)}";
@@ -72,8 +73,15 @@ class ManufacturerData {
     );
   }
 
+  Uint8List toUint8List() {
+    final byteData = ByteData(2);
+    byteData.setInt16(0, companyId ?? 0, Endian.host);
+    List<int> bytes = byteData.buffer.asUint8List();
+    return Uint8List.fromList(bytes + (data?.toList() ?? []));
+  }
+
   @override
   String toString() {
-    return 'ManufacturerData: companyId: $companyIdRadix16, data: $data';
+    return 'Manufacturer: $companyIdRadix16 - $data';
   }
 }

@@ -4,6 +4,7 @@ import 'dart:typed_data';
 import 'package:bluez/bluez.dart';
 import 'package:flutter/services.dart';
 import 'package:universal_ble/src/models/model_exports.dart';
+import 'package:universal_ble/src/universal_ble_filter_util.dart';
 import 'package:universal_ble/src/universal_ble_platform_interface.dart';
 
 class UniversalBleLinux extends UniversalBlePlatform {
@@ -14,9 +15,8 @@ class UniversalBleLinux extends UniversalBlePlatform {
   bool isInitialized = false;
 
   final BlueZClient _client = BlueZClient();
-
+  late final UniversalBleFilterUtil _bleFilter = UniversalBleFilterUtil();
   BlueZAdapter? _activeAdapter;
-  ScanFilter? _scanFilter;
   Completer<void>? _initializationCompleter;
   final Map<String, BlueZDevice> _devices = {};
   final Map<String, StreamSubscription> _deviceStreamSubscriptions = {};
@@ -58,16 +58,32 @@ class UniversalBleLinux extends UniversalBlePlatform {
     PlatformConfig? platformConfig,
   }) async {
     await _ensureInitialized();
-    await super.startScan(scanFilter: scanFilter);
-    if (_activeAdapter?.discovering != true) {
-      // Add services filter
-      _activeAdapter?.setDiscoveryFilter(
-        uuids: scanFilter?.withServices.toValidUUIDList(),
-      );
-      _scanFilter = scanFilter;
-      await _activeAdapter?.startDiscovery();
-      _client.devices.forEach(_onDeviceAdd);
+    var adapter = _activeAdapter;
+    if (adapter == null) {
+      throw "Adapter not available";
     }
+
+    if (adapter.discovering) {
+      await adapter.stopDiscovery();
+    }
+
+    bool hasCustomFilter = scanFilter?.hasCustomFilter() ?? false;
+    List<String>? withServicesFilter = [];
+
+    if (hasCustomFilter) {
+      _bleFilter.scanFilter = scanFilter;
+    } else {
+      _bleFilter.scanFilter = null;
+      withServicesFilter = scanFilter?.withServices.toValidUUIDList();
+    }
+
+    // Add services filter
+    await adapter.setDiscoveryFilter(
+      uuids: withServicesFilter,
+    );
+
+    await _activeAdapter?.startDiscovery();
+    _client.devices.forEach(_onDeviceAdd);
   }
 
   @override
@@ -413,15 +429,7 @@ class UniversalBleLinux extends UniversalBlePlatform {
   }
 
   void _onDeviceAdd(BlueZDevice device) {
-    if (!_isValidDevice(device)) return;
-
-    // Apply Filters
-    if (_scanFilter != null) {
-      List<ManufacturerDataFilter>? manufacturerDataFilter =
-          _scanFilter?.withManufacturerData;
-      if (manufacturerDataFilter != null &&
-          manufacturerDataFilter.isNotEmpty) {}
-    }
+    if (!_bleFilter.filterDevice(device.toBleDevice())) return;
 
     // Update scan results only if rssi is available
     if (device.rssi != 0) updateScanResult(device.toBleDevice());
@@ -468,79 +476,6 @@ class UniversalBleLinux extends UniversalBlePlatform {
     });
   }
 
-  bool _isValidDevice(BlueZDevice device) {
-    ScanFilter? scanFilter = _scanFilter;
-    if (scanFilter == null) return true;
-
-    // Check manufacturerData filter
-    if (!_isValidManufacturerData(
-      scanFilter.withManufacturerData,
-      device.manufacturerDataFilter,
-    )) {
-      return false;
-    }
-
-    return true;
-  }
-
-  bool _isValidManufacturerData(
-    List<ManufacturerDataFilter> filterMfdList,
-    List<ManufacturerDataFilter> deviceMfdList,
-  ) {
-    if (filterMfdList.isEmpty) return true;
-    if (deviceMfdList.isEmpty) return false;
-
-    // Check all filters
-    for (final filterMfd in filterMfdList) {
-      // Check if device have manufacturerData for this filter
-      for (final deviceMfd in deviceMfdList) {
-        // Check companyIdentifier
-        if (filterMfd.companyIdentifier != deviceMfd.companyIdentifier) {
-          continue;
-        }
-
-        // Check data
-        Uint8List? filterData = filterMfd.data;
-        Uint8List? deviceData = deviceMfd.data;
-
-        // If filter data is null and device data is not, continue to next deviceMfd
-        if (filterData != null && deviceData == null) continue;
-
-        if (filterData == null || deviceData == null) {
-          return true;
-        }
-
-        if (filterData.length > deviceData.length) continue;
-
-        // Apply mask
-        Uint8List? filterMask = filterMfd.mask;
-        bool dataMatched = true;
-        if (filterMask != null && (filterMask.length == filterData.length)) {
-          for (int i = 0; i < filterData.length; i++) {
-            if ((filterData[i] & filterMask[i]) !=
-                (deviceData[i] & filterMask[i])) {
-              dataMatched = false;
-              break;
-            }
-          }
-        }
-        // Compare data directly
-        else {
-          for (int i = 0; i < filterData.length; i++) {
-            if (filterData[i] != deviceData[i]) {
-              dataMatched = false;
-              break;
-            }
-          }
-        }
-
-        if (dataMatched) return true;
-      }
-    }
-
-    return false;
-  }
-
   void _onDeviceRemoved(BlueZDevice device) {
     _devices.remove(device.address);
     // Stop listener
@@ -568,62 +503,6 @@ class BluezProperty {
   static const String discoverable = 'Discoverable';
   static const String discovering = 'Discovering';
   static const String propertyClass = 'Class';
-}
-
-extension BlueZDeviceExtension on BlueZDevice {
-  List<ManufacturerDataFilter> get manufacturerDataFilter {
-    try {
-      if (manufacturerData.isEmpty) return [];
-      return manufacturerData.entries
-          .map((e) => ManufacturerDataFilter(
-                companyIdentifier: e.key.id,
-                data: Uint8List.fromList(e.value),
-              ))
-          .toList();
-    } catch (e) {
-      UniversalBlePlatform.logInfo(
-        'Error parsing manufacturerData: $e',
-        isError: true,
-      );
-      return [];
-    }
-  }
-
-  Uint8List get manufacturerDataHead {
-    try {
-      if (manufacturerData.isEmpty) return Uint8List(0);
-      final sorted = manufacturerData.entries.toList()
-        ..sort((a, b) => a.key.id - b.key.id);
-      int companyId = sorted.first.key.id;
-      List<int> manufacturerDataValue = sorted.first.value;
-      final byteData = ByteData(2);
-      // TODO: Verify that this works regardless of the endianess
-      byteData.setInt16(0, companyId, Endian.host);
-      List<int> bytes = byteData.buffer.asUint8List();
-      return Uint8List.fromList(bytes + manufacturerDataValue);
-    } catch (e) {
-      UniversalBlePlatform.logInfo(
-        'Error parsing manufacturerData: $e',
-        isError: true,
-      );
-      return Uint8List(0);
-    }
-  }
-
-  BleDevice toBleDevice({
-    bool? isSystemDevice,
-  }) {
-    return BleDevice(
-      name: alias,
-      deviceId: address,
-      isPaired: paired,
-      manufacturerData: manufacturerDataHead,
-      manufacturerDataHead: manufacturerDataHead,
-      rssi: rssi,
-      isSystemDevice: isSystemDevice,
-      services: uuids.map((e) => e.toString()).toList(),
-    );
-  }
 }
 
 extension on BlueZGattCharacteristicFlag {
@@ -662,5 +541,49 @@ extension on BlueZFailedException {
     } catch (e) {
       return null;
     }
+  }
+}
+
+extension on ScanFilter {
+  bool hasCustomFilter() {
+    return withNamePrefix.isNotEmpty || withManufacturerData.isNotEmpty;
+  }
+}
+
+extension BlueZDeviceExtension on BlueZDevice {
+  Uint8List get manufacturerDataHead {
+    try {
+      if (manufacturerData.isEmpty) return Uint8List(0);
+      final sorted = manufacturerData.entries.toList()
+        ..sort((a, b) => a.key.id - b.key.id);
+      int companyId = sorted.first.key.id;
+      List<int> manufacturerDataValue = sorted.first.value;
+      final byteData = ByteData(2);
+      // TODO: Verify that this works regardless of the endianess
+      byteData.setInt16(0, companyId, Endian.host);
+      List<int> bytes = byteData.buffer.asUint8List();
+      return Uint8List.fromList(bytes + manufacturerDataValue);
+    } catch (e) {
+      UniversalBlePlatform.logInfo(
+        'Error parsing manufacturerData: $e',
+        isError: true,
+      );
+      return Uint8List(0);
+    }
+  }
+
+  BleDevice toBleDevice({
+    bool? isSystemDevice,
+  }) {
+    return BleDevice(
+      name: alias,
+      deviceId: address,
+      isPaired: paired,
+      manufacturerData: manufacturerDataHead,
+      manufacturerDataHead: manufacturerDataHead,
+      rssi: rssi,
+      isSystemDevice: isSystemDevice,
+      services: uuids.map((e) => e.toString()).toList(),
+    );
   }
 }
