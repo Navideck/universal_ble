@@ -124,7 +124,6 @@ namespace universal_ble
         winrt::fire_and_forget WriteAsync(GattCharacteristic characteristic, GattWriteOption writeOption,
                                           const std::vector<uint8_t> &value,
                                           std::function<void(std::optional<FlutterError> reply)> result);
-        bool filterByManufacturerData(IVector<BluetoothLEManufacturerData> deviceManufactureData);
         winrt::fire_and_forget PairAsync(std::string device_id, std::function<void(ErrorOr<bool> reply)> result);
         winrt::fire_and_forget CustomPairAsync(std::string device_id, std::function<void(ErrorOr<bool> reply)> result);
         void PairingRequestedHandler(DeviceInformationCustomPairing sender, DevicePairingRequestedEventArgs eventArgs);

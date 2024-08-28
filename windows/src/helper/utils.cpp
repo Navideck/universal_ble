@@ -158,4 +158,4 @@ namespace universal_ble
         return rove.dwMajorVersion == 10 && rove.dwBuildNumber >= 22000;
     }
 
-} // namespace SimpleBLE
+} // namespace universal_ble
