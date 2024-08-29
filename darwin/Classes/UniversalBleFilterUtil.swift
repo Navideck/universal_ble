@@ -12,7 +12,7 @@ public class UniversalBleFilterUtil {
     var scanFilter: UniversalScanFilter?
     var scanFilterServicesUUID: [CBUUID] = []
 
-    func filterDevice(name: String?, manufacturerData: Data?, services: [CBUUID]?) -> Bool {
+    func filterDevice(name: String?, manufacturerData: UniversalManufacturerData?, services: [CBUUID]?) -> Bool {
         guard let filter = scanFilter else {
             return true
         }
@@ -60,21 +60,19 @@ public class UniversalBleFilterUtil {
         return !Set(services).isDisjoint(with: serviceFilters)
     }
 
-    func isManufacturerDataMatchingFilters(scanFilter: UniversalScanFilter, msd: Data?) -> Bool {
+    func isManufacturerDataMatchingFilters(scanFilter: UniversalScanFilter, msd: UniversalManufacturerData?) -> Bool {
         let filters = scanFilter.withManufacturerData.compactMap { $0 }
         if filters.isEmpty {
             return true
         }
 
-        guard let msd = msd, !msd.isEmpty else {
+        guard let msd = msd else {
             return false
         }
 
         for filter in filters {
             let companyIdentifier: Int64 = filter.companyIdentifier
-            let manufacturerId = msd.subdata(in: 0 ..< 2).withUnsafeBytes { $0.load(as: UInt16.self) }
-            let manufacturerData = msd.subdata(in: 2 ..< msd.count)
-            if manufacturerId == companyIdentifier && findData(find: filter.data?.toData(), inData: manufacturerData, usingMask: filter.mask?.toData()) {
+            if msd.companyIdentifier == companyIdentifier && findData(find: filter.data?.toData(), inData: msd.data.toData(), usingMask: filter.mask?.toData()) {
                 return true
             }
         }

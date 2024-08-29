@@ -74,8 +74,7 @@ struct UniversalBleScanResult {
   var name: String? = nil
   var isPaired: Bool? = nil
   var rssi: Int64? = nil
-  var manufacturerData: FlutterStandardTypedData? = nil
-  var manufacturerDataHead: FlutterStandardTypedData? = nil
+  var manufacturerDataList: [UniversalManufacturerData?]? = nil
   var services: [String?]? = nil
 
   // swift-format-ignore: AlwaysUseLowerCamelCase
@@ -84,17 +83,15 @@ struct UniversalBleScanResult {
     let name: String? = nilOrValue(__pigeon_list[1])
     let isPaired: Bool? = nilOrValue(__pigeon_list[2])
     let rssi: Int64? = isNullish(__pigeon_list[3]) ? nil : (__pigeon_list[3] is Int64? ? __pigeon_list[3] as! Int64? : Int64(__pigeon_list[3] as! Int32))
-    let manufacturerData: FlutterStandardTypedData? = nilOrValue(__pigeon_list[4])
-    let manufacturerDataHead: FlutterStandardTypedData? = nilOrValue(__pigeon_list[5])
-    let services: [String?]? = nilOrValue(__pigeon_list[6])
+    let manufacturerDataList: [UniversalManufacturerData?]? = nilOrValue(__pigeon_list[4])
+    let services: [String?]? = nilOrValue(__pigeon_list[5])
 
     return UniversalBleScanResult(
       deviceId: deviceId,
       name: name,
       isPaired: isPaired,
       rssi: rssi,
-      manufacturerData: manufacturerData,
-      manufacturerDataHead: manufacturerDataHead,
+      manufacturerDataList: manufacturerDataList,
       services: services
     )
   }
@@ -104,8 +101,7 @@ struct UniversalBleScanResult {
       name,
       isPaired,
       rssi,
-      manufacturerData,
-      manufacturerDataHead,
+      manufacturerDataList,
       services,
     ]
   }
@@ -212,6 +208,29 @@ struct UniversalManufacturerDataFilter {
     ]
   }
 }
+
+/// Generated class from Pigeon that represents data sent in messages.
+struct UniversalManufacturerData {
+  var companyIdentifier: Int64
+  var data: FlutterStandardTypedData
+
+  // swift-format-ignore: AlwaysUseLowerCamelCase
+  static func fromList(_ __pigeon_list: [Any?]) -> UniversalManufacturerData? {
+    let companyIdentifier = __pigeon_list[0] is Int64 ? __pigeon_list[0] as! Int64 : Int64(__pigeon_list[0] as! Int32)
+    let data = __pigeon_list[1] as! FlutterStandardTypedData
+
+    return UniversalManufacturerData(
+      companyIdentifier: companyIdentifier,
+      data: data
+    )
+  }
+  func toList() -> [Any?] {
+    return [
+      companyIdentifier,
+      data,
+    ]
+  }
+}
 private class UniversalBlePigeonCodecReader: FlutterStandardReader {
   override func readValue(ofType type: UInt8) -> Any? {
     switch type {
@@ -225,6 +244,8 @@ private class UniversalBlePigeonCodecReader: FlutterStandardReader {
       return UniversalScanFilter.fromList(self.readValue() as! [Any?])
     case 133:
       return UniversalManufacturerDataFilter.fromList(self.readValue() as! [Any?])
+    case 134:
+      return UniversalManufacturerData.fromList(self.readValue() as! [Any?])
     default:
       return super.readValue(ofType: type)
     }
@@ -247,6 +268,9 @@ private class UniversalBlePigeonCodecWriter: FlutterStandardWriter {
       super.writeValue(value.toList())
     } else if let value = value as? UniversalManufacturerDataFilter {
       super.writeByte(133)
+      super.writeValue(value.toList())
+    } else if let value = value as? UniversalManufacturerData {
+      super.writeByte(134)
       super.writeValue(value.toList())
     } else {
       super.writeValue(value)

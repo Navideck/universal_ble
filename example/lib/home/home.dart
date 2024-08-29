@@ -1,5 +1,7 @@
 // ignore_for_file: use_build_context_synchronously
 
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:universal_ble/universal_ble.dart';
 import 'package:universal_ble_example/data/mock_universal_ble.dart';
@@ -70,18 +72,18 @@ class _MyAppState extends State<MyApp> {
   Future<void> startScan() async {
     await UniversalBle.startScan(
       scanFilter: ScanFilter(
-          // withNamePrefix: ["iPhone"],
-          // withManufacturerData: [
-          //   ManufacturerDataFilter(
-          //     companyIdentifier: 0x012D,
-          //   ),
-          //   ManufacturerDataFilter(
-          //     companyIdentifier: 0x04c,
-          //     //  data: Uint8List.fromList([18, 2, 0, 3]),
-          //   ),
-          // ],
-          // withServices: ["2020"],
+        withNamePrefix: ["iPhone"],
+        withManufacturerData: [
+          ManufacturerDataFilter(
+            companyIdentifier: 0x012D,
           ),
+          ManufacturerDataFilter(
+            companyIdentifier: 0x04c,
+            data: Uint8List.fromList([18, 2, 0]),
+          ),
+        ],
+        withServices: ["2020"],
+      ),
     );
   }
 

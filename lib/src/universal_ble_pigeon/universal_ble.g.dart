@@ -31,8 +31,7 @@ class UniversalBleScanResult {
     this.name,
     this.isPaired,
     this.rssi,
-    this.manufacturerData,
-    this.manufacturerDataHead,
+    this.manufacturerDataList,
     this.services,
   });
 
@@ -44,9 +43,7 @@ class UniversalBleScanResult {
 
   int? rssi;
 
-  Uint8List? manufacturerData;
-
-  Uint8List? manufacturerDataHead;
+  List<UniversalManufacturerData?>? manufacturerDataList;
 
   List<String?>? services;
 
@@ -56,8 +53,7 @@ class UniversalBleScanResult {
       name,
       isPaired,
       rssi,
-      manufacturerData,
-      manufacturerDataHead,
+      manufacturerDataList,
       services,
     ];
   }
@@ -69,9 +65,8 @@ class UniversalBleScanResult {
       name: result[1] as String?,
       isPaired: result[2] as bool?,
       rssi: result[3] as int?,
-      manufacturerData: result[4] as Uint8List?,
-      manufacturerDataHead: result[5] as Uint8List?,
-      services: (result[6] as List<Object?>?)?.cast<String?>(),
+      manufacturerDataList: (result[4] as List<Object?>?)?.cast<UniversalManufacturerData?>(),
+      services: (result[5] as List<Object?>?)?.cast<String?>(),
     );
   }
 }
@@ -191,6 +186,32 @@ class UniversalManufacturerDataFilter {
   }
 }
 
+class UniversalManufacturerData {
+  UniversalManufacturerData({
+    required this.companyIdentifier,
+    required this.data,
+  });
+
+  int companyIdentifier;
+
+  Uint8List data;
+
+  Object encode() {
+    return <Object?>[
+      companyIdentifier,
+      data,
+    ];
+  }
+
+  static UniversalManufacturerData decode(Object result) {
+    result as List<Object?>;
+    return UniversalManufacturerData(
+      companyIdentifier: result[0]! as int,
+      data: result[1]! as Uint8List,
+    );
+  }
+}
+
 
 class _PigeonCodec extends StandardMessageCodec {
   const _PigeonCodec();
@@ -211,6 +232,9 @@ class _PigeonCodec extends StandardMessageCodec {
     } else     if (value is UniversalManufacturerDataFilter) {
       buffer.putUint8(133);
       writeValue(buffer, value.encode());
+    } else     if (value is UniversalManufacturerData) {
+      buffer.putUint8(134);
+      writeValue(buffer, value.encode());
     } else {
       super.writeValue(buffer, value);
     }
@@ -229,6 +253,8 @@ class _PigeonCodec extends StandardMessageCodec {
         return UniversalScanFilter.decode(readValue(buffer)!);
       case 133: 
         return UniversalManufacturerDataFilter.decode(readValue(buffer)!);
+      case 134: 
+        return UniversalManufacturerData.decode(readValue(buffer)!);
       default:
         return super.readValueOfType(type, buffer);
     }

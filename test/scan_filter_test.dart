@@ -10,28 +10,25 @@ void main() {
     deviceId: '1',
     name: '1_device',
     services: ['1_ser'],
-    manufacturerData: ManufacturerData(
-      0x01,
-      Uint8List.fromList([1, 2, 3]),
-    ).toUint8List(),
+    manufacturerDataList: [
+      ManufacturerData(0x01, Uint8List.fromList([1, 2, 3])),
+    ],
   );
   var device2 = BleDevice(
     deviceId: '2',
     name: '2_device',
     services: ['2_ser'],
-    manufacturerData: ManufacturerData(
-      0x02,
-      Uint8List.fromList([1, 2, 3]),
-    ).toUint8List(),
+    manufacturerDataList: [
+      ManufacturerData(0x02, Uint8List.fromList([1, 2, 3]))
+    ],
   );
   var device3 = BleDevice(
     deviceId: '3',
     name: '3_device',
     services: ['3_ser'],
-    manufacturerData: ManufacturerData(
-      0x03,
-      Uint8List.fromList([1, 2, 3]),
-    ).toUint8List(),
+    manufacturerDataList: [
+      ManufacturerData(0x03, Uint8List.fromList([1, 2, 3]))
+    ],
   );
 
   group("Test Individual Filter", () {
@@ -87,17 +84,23 @@ void main() {
       ]);
       expect(
         universalBleFilter.isManufacturerDataMatchingFilters(
-            scanFilter, device1),
+          scanFilter,
+          device1,
+        ),
         isTrue,
       );
       expect(
         universalBleFilter.isManufacturerDataMatchingFilters(
-            scanFilter, device2),
+          scanFilter,
+          device2,
+        ),
         isTrue,
       );
       expect(
         universalBleFilter.isManufacturerDataMatchingFilters(
-            scanFilter, device3),
+          scanFilter,
+          device3,
+        ),
         isFalse,
       );
     });

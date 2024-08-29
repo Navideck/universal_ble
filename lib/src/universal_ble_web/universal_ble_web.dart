@@ -419,8 +419,7 @@ extension _BluetoothDeviceExtension on BluetoothDevice {
     return BleDevice(
       name: name,
       deviceId: id,
-      manufacturerData: manufacturerDataMap?.toUint8List(),
-      manufacturerDataHead: manufacturerDataMap?.toUint8List(),
+      manufacturerDataList: manufacturerDataMap?.toManufacturerDataList() ?? [],
       rssi: rssi,
       services: services,
     );
@@ -428,17 +427,11 @@ extension _BluetoothDeviceExtension on BluetoothDevice {
 }
 
 extension _UnmodifiableMapViewExtension on UnmodifiableMapView<int, ByteData> {
-  Uint8List? toUint8List() {
-    List<MapEntry<int, ByteData>> sorted = entries.toList()
-      ..sort((a, b) => a.key - b.key);
-    if (sorted.isEmpty) return null;
-    int companyId = sorted.first.key;
-    List<int> manufacturerDataValue = sorted.first.value.buffer.asUint8List();
-    final byteData = ByteData(2);
-    byteData.setInt16(0, companyId, Endian.host);
-    List<int> bytes = byteData.buffer.asUint8List();
-    return Uint8List.fromList(bytes + manufacturerDataValue);
-  }
+  // TODO: Test if  conversion if fine
+  List<ManufacturerData>? toManufacturerDataList() => entries
+      .map((MapEntry<int, ByteData> data) =>
+          ManufacturerData(data.key, data.value.buffer.asUint8List()))
+      .toList();
 }
 
 class _UniversalWebBluetoothService {

@@ -319,8 +319,18 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
     let manufacturerData = advertisementData[CBAdvertisementDataManufacturerDataKey] as? Data
     let services = (advertisementData[CBAdvertisementDataServiceUUIDsKey] as? [CBUUID])
 
+    var manufacturerDataList: [UniversalManufacturerData] = []
+    var universalManufacturerData: UniversalManufacturerData? = nil
+
+    if let msd = manufacturerData, msd.count > 2 {
+      let companyIdentifier = msd.prefix(2).withUnsafeBytes { $0.load(as: UInt16.self) }
+      let data = FlutterStandardTypedData(bytes: msd.suffix(from: 2))
+      universalManufacturerData = UniversalManufacturerData(companyIdentifier: Int64(companyIdentifier), data: data)
+      manufacturerDataList.append(universalManufacturerData!)
+    }
+
     // Apply custom filters and return early if the peripheral doesn't match
-    if !universalBleFilterUtil.filterDevice(name: peripheral.name, manufacturerData: manufacturerData, services: services) {
+    if !universalBleFilterUtil.filterDevice(name: peripheral.name, manufacturerData: universalManufacturerData, services: services) {
       return
     }
 
@@ -329,7 +339,7 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
       name: peripheral.name,
       isPaired: nil,
       rssi: RSSI as? Int64,
-      manufacturerData: FlutterStandardTypedData(bytes: manufacturerData ?? Data()),
+      manufacturerDataList: manufacturerDataList,
       services: services?.map { $0.uuidStr.validFullUUID }
     )) { _ in }
   }

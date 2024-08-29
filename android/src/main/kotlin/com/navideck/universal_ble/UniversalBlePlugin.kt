@@ -596,8 +596,7 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
                         name = it.name,
                         deviceId = it.address,
                         isPaired = it.bondState == BOND_BONDED,
-                        manufacturerDataHead = null,
-                        manufacturerData = null,
+                        manufacturerDataList = null,
                         rssi = null,
                     )
                 }
@@ -833,9 +832,14 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
             }
 
             val name = result.device.name
-            val manufacturerData = result.manufacturerDataHead
+            val manufacturerDataList = result.manufacturerDataList
 
-            if (!universalBleFilterUtil.filterDevice(name, manufacturerData, serviceUuids)) return
+            if (!universalBleFilterUtil.filterDevice(
+                    name,
+                    manufacturerDataList,
+                    serviceUuids
+                )
+            ) return
 
 
             mainThreadHandler?.post {
@@ -844,7 +848,7 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
                         name = result.device.name,
                         deviceId = result.device.address,
                         isPaired = result.device.bondState == BOND_BONDED,
-                        manufacturerDataHead = result.manufacturerDataHead,
+                        manufacturerDataList = manufacturerDataList,
                         rssi = result.rssi.toLong(),
                         services = serviceUuids.map { it.toString() }.toList()
                     )

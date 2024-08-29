@@ -9,7 +9,7 @@ class MockUniversalBle extends UniversalBlePlatform {
     name: 'MockDevice',
     deviceId: 'MockDeviceId',
     rssi: 50,
-    manufacturerData: Uint8List(0),
+    manufacturerDataList: [],
   );
 
   Uint8List _serviceValue = utf8.encode('Result');

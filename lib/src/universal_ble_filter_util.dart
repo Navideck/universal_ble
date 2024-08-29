@@ -53,60 +53,46 @@ class UniversalBleFilterUtil {
     ScanFilter scanFilter,
     BleDevice device,
   ) {
-    var filterMfdList = scanFilter.withManufacturerData;
+    final filterMfdList = scanFilter.withManufacturerData;
     if (filterMfdList.isEmpty) return true;
 
-    var mfd = device.manufacturerData;
-    if (mfd == null || mfd.isEmpty) return false;
+    List<ManufacturerData> manufacturerDataList = device.manufacturerDataList;
+    if (manufacturerDataList.isEmpty) return false;
 
-    var deviceMfd = ManufacturerData.fromData(mfd);
+    return manufacturerDataList.any((deviceMfd) => filterMfdList.any(
+          (filterMfd) => _isManufacturerDataMatch(filterMfd, deviceMfd),
+        ));
+  }
 
-    // Check all filters
-    for (final filterMfd in filterMfdList) {
-      // Check if device have manufacturerData for this filter
-      // Check companyIdentifier
-      if (filterMfd.companyIdentifier != deviceMfd.companyId) {
-        continue;
-      }
+  bool _isManufacturerDataMatch(
+    ManufacturerDataFilter filterMfd,
+    ManufacturerData deviceMfd,
+  ) {
+    if (filterMfd.companyIdentifier != deviceMfd.companyId) return false;
 
-      // Check data
-      Uint8List? filterData = filterMfd.data;
-      Uint8List? deviceData = deviceMfd.data;
+    Uint8List? filterData = filterMfd.data;
+    Uint8List deviceData = deviceMfd.data;
 
-      // If filter data is null and device data is not, continue to next deviceMfd
-      if (filterData != null && deviceData == null) continue;
+    if (filterData == null || filterData.isEmpty) return true;
+    if (deviceData.isEmpty) return false;
+    if (filterData.length > deviceData.length) return false;
 
-      if (filterData == null || deviceData == null) {
-        return true;
-      }
+    Uint8List? filterMask = filterMfd.mask;
 
-      if (filterData.length > deviceData.length) continue;
-
-      // Apply mask
-      Uint8List? filterMask = filterMfd.mask;
-      bool dataMatched = true;
-      if (filterMask != null && (filterMask.length == filterData.length)) {
-        for (int i = 0; i < filterData.length; i++) {
-          if ((filterData[i] & filterMask[i]) !=
-              (deviceData[i] & filterMask[i])) {
-            dataMatched = false;
-            break;
-          }
+    if (filterMask != null && filterMask.length == filterData.length) {
+      for (int i = 0; i < filterData.length; i++) {
+        if ((filterData[i] & filterMask[i]) !=
+            (deviceData[i] & filterMask[i])) {
+          return false;
         }
       }
-      // Compare data directly
-      else {
-        for (int i = 0; i < filterData.length; i++) {
-          if (filterData[i] != deviceData[i]) {
-            dataMatched = false;
-            break;
-          }
+    } else {
+      for (int i = 0; i < filterData.length; i++) {
+        if (filterData[i] != deviceData[i]) {
+          return false;
         }
       }
-
-      if (dataMatched) return true;
     }
-
-    return false;
+    return true;
   }
 }

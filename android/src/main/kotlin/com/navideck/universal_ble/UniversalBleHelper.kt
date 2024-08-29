@@ -18,6 +18,8 @@ import android.bluetooth.le.ScanResult
 import android.os.Build
 import android.os.ParcelUuid
 import android.util.Log
+import android.util.SparseArray
+import androidx.core.util.keyIterator
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.util.UUID
@@ -160,13 +162,18 @@ fun Int.parseGattErrorCode(): String? {
     }
 }
 
-val ScanResult.manufacturerDataHead: ByteArray?
+val ScanResult.manufacturerDataList: List<UniversalManufacturerData>
     get() {
-        val sparseArray = scanRecord?.manufacturerSpecificData ?: return null
-        if (sparseArray.size() == 0) return null
-
-        return sparseArray.keyAt(0).toShort().toByteArray() + sparseArray.valueAt(0)
+        return scanRecord?.manufacturerSpecificData?.toList()?.map { (key, value) ->
+            UniversalManufacturerData(key.toLong(), value)
+        } ?: emptyList()
     }
+
+fun <T> SparseArray<T>.toList(): List<Pair<Int, T>> {
+    return (0 until size()).map { index ->
+        keyAt(index) to valueAt(index)
+    }
+}
 
 fun BluetoothGatt.getCharacteristic(
     service: String,

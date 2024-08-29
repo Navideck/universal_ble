@@ -551,39 +551,21 @@ extension on ScanFilter {
 }
 
 extension BlueZDeviceExtension on BlueZDevice {
-  Uint8List get manufacturerDataHead {
-    try {
-      if (manufacturerData.isEmpty) return Uint8List(0);
-      final sorted = manufacturerData.entries.toList()
-        ..sort((a, b) => a.key.id - b.key.id);
-      int companyId = sorted.first.key.id;
-      List<int> manufacturerDataValue = sorted.first.value;
-      final byteData = ByteData(2);
-      // TODO: Verify that this works regardless of the endianess
-      byteData.setInt16(0, companyId, Endian.host);
-      List<int> bytes = byteData.buffer.asUint8List();
-      return Uint8List.fromList(bytes + manufacturerDataValue);
-    } catch (e) {
-      UniversalBlePlatform.logInfo(
-        'Error parsing manufacturerData: $e',
-        isError: true,
-      );
-      return Uint8List(0);
-    }
-  }
+  // TODO: verify if conversion is fine
+  List<ManufacturerData> get manufacturerDataList => manufacturerData.entries
+      .map((MapEntry<BlueZManufacturerId, List<int>> data) =>
+          ManufacturerData(data.key.id, Uint8List.fromList(data.value)))
+      .toList();
 
-  BleDevice toBleDevice({
-    bool? isSystemDevice,
-  }) {
+  BleDevice toBleDevice({bool? isSystemDevice}) {
     return BleDevice(
       name: alias,
       deviceId: address,
       isPaired: paired,
-      manufacturerData: manufacturerDataHead,
-      manufacturerDataHead: manufacturerDataHead,
       rssi: rssi,
       isSystemDevice: isSystemDevice,
       services: uuids.map((e) => e.toString()).toList(),
+      manufacturerDataList: manufacturerDataList,
     );
   }
 }

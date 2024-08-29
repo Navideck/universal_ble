@@ -19,7 +19,7 @@ class UniversalBleFilterUtil {
 
     fun filterDevice(
         name: String?,
-        manufacturerData: ByteArray?,
+        manufacturerDataList: List<UniversalManufacturerData>,
         serviceUuids: Array<UUID>,
     ): Boolean {
         val filter = scanFilter ?: return true
@@ -41,7 +41,7 @@ class UniversalBleFilterUtil {
                 hasServiceFilter && isServicesMatchingFilters(serviceUuids) ||
                 hasManufacturerDataFilter && isManufacturerDataMatchingFilters(
             filter,
-            manufacturerData
+            manufacturerDataList
         )
     }
 
@@ -72,47 +72,34 @@ class UniversalBleFilterUtil {
 
     private fun isManufacturerDataMatchingFilters(
         scanFilter: UniversalScanFilter,
-        msd: ByteArray?,
+        manufacturerDataList: List<UniversalManufacturerData>,
     ): Boolean {
         val filters = scanFilter.withManufacturerData.filterNotNull()
-        if (filters.isEmpty()) {
-            return true
-        }
-
-        msd?.takeIf { it.isNotEmpty() } ?: return false
-
-        for (filter in filters) {
-            val companyIdentifier = filter.companyIdentifier ?: continue
-
-            val manufacturerId = ByteBuffer.wrap(msd.sliceArray(0..1))
-                .order(ByteOrder.LITTLE_ENDIAN).short.toInt() and 0xFFFF
-
-            val manufacturerData = msd.sliceArray(2 until msd.size)
-
-            if (manufacturerId == companyIdentifier.toInt() &&
-                findData(filter.data, manufacturerData, filter.mask)
-            ) {
-                return true
+        if (filters.isEmpty()) return true
+        if (manufacturerDataList.isEmpty()) return false
+        return manufacturerDataList.any { mfd ->
+            filters.any { filter ->
+                mfd.companyIdentifier == filter.companyIdentifier &&
+                        isDataMatching(filter.data, mfd.data, filter.mask)
             }
         }
-        return false
     }
 
-    private fun findData(find: ByteArray?, data: ByteArray, mask: ByteArray?): Boolean {
-        if (find != null) {
-            val maskToUse = mask ?: ByteArray(find.size) { 0xFF.toByte() }
-            if (find.size != maskToUse.size) {
-                return false
-            }
-            for (i in find.indices) {
-                if ((find[i] and maskToUse[i]) != (data[i] and maskToUse[i])) {
-                    return false
-                }
-            }
-        }
-        return true
-    }
+    private fun isDataMatching(
+        filterData: ByteArray?,
+        deviceData: ByteArray,
+        filterMask: ByteArray?,
+    ): Boolean {
+        if (filterData == null) return true
+        if (filterData.size > deviceData.size) return false
 
+        val mask = filterMask ?: ByteArray(filterData.size) { 0xFF.toByte() }
+        if (filterData.size != mask.size) return false
+
+        return filterData.indices.all { i ->
+            (filterData[i] and mask[i]) == (deviceData[i] and mask[i])
+        }
+    }
 }
 
 fun UniversalScanFilter.hasCustomFilter(): Boolean {

@@ -9,8 +9,12 @@ class BleDevice {
   bool? isPaired;
   List<String> services;
   bool? isSystemDevice;
-  Uint8List? manufacturerDataHead;
-  Uint8List? manufacturerData;
+  List<ManufacturerData> manufacturerDataList;
+
+  @Deprecated("Use `manufacturerDataList` instead")
+  Uint8List? get manufacturerData => manufacturerDataList.isEmpty
+      ? null
+      : manufacturerDataList.first.toUint8List();
 
   /// Returns connection state of the device.
   /// All platforms will return `Connected/Disconnected` states.
@@ -30,12 +34,8 @@ class BleDevice {
     this.isPaired,
     this.services = const [],
     this.isSystemDevice,
-    Uint8List? manufacturerData,
-    Uint8List? manufacturerDataHead,
-  }) {
-    this.manufacturerDataHead = manufacturerDataHead ?? Uint8List.fromList([]);
-    this.manufacturerData = manufacturerData ?? manufacturerDataHead;
-  }
+    this.manufacturerDataList = const [],
+  });
 
   @override
   String toString() {
@@ -46,38 +46,34 @@ class BleDevice {
         'isPaired: $isPaired, '
         'services: $services, '
         'isSystemDevice: $isSystemDevice, '
-        'manufacturerDataHead: $manufacturerDataHead, '
-        'manufacturerData: $manufacturerData';
+        'manufacturerDataList: $manufacturerDataList';
   }
 }
 
 /// Represents the manufacturer data of a BLE device.
-/// Use [BleDevice.manufacturerData] with [ManufacturerData.fromData] to create an instance of this class.
 class ManufacturerData {
-  final int? companyId;
-  final Uint8List? data;
-  String? companyIdRadix16;
+  final int companyId;
+  final Uint8List data;
 
-  ManufacturerData(this.companyId, this.data) {
-    if (companyId != null) {
-      companyIdRadix16 = "0x0${companyId!.toRadixString(16)}";
-    }
-  }
+  ManufacturerData(this.companyId, this.data);
+  String get companyIdRadix16 => "0x0${companyId.toRadixString(16)}";
 
   factory ManufacturerData.fromData(Uint8List data) {
-    if (data.length < 2) return ManufacturerData(null, data);
-    int manufacturerIdInt = (data[0] + (data[1] << 8));
+    if (data.length < 2) {
+      throw const FormatException("Invalid Manufacturer Data");
+    }
     return ManufacturerData(
-      manufacturerIdInt,
+      (data[0] + (data[1] << 8)),
       data.sublist(2),
     );
   }
 
   Uint8List toUint8List() {
     final byteData = ByteData(2);
-    byteData.setInt16(0, companyId ?? 0, Endian.host);
-    List<int> bytes = byteData.buffer.asUint8List();
-    return Uint8List.fromList(bytes + (data?.toList() ?? []));
+    byteData.setInt16(0, companyId, Endian.host);
+    return Uint8List.fromList(
+      byteData.buffer.asUint8List() + data.toList(),
+    );
   }
 
   @override

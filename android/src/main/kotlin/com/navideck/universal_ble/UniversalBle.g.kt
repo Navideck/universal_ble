@@ -53,8 +53,7 @@ data class UniversalBleScanResult (
   val name: String? = null,
   val isPaired: Boolean? = null,
   val rssi: Long? = null,
-  val manufacturerData: ByteArray? = null,
-  val manufacturerDataHead: ByteArray? = null,
+  val manufacturerDataList: List<UniversalManufacturerData?>? = null,
   val services: List<String?>? = null
 
 ) {
@@ -65,10 +64,9 @@ data class UniversalBleScanResult (
       val name = __pigeon_list[1] as String?
       val isPaired = __pigeon_list[2] as Boolean?
       val rssi = __pigeon_list[3].let { num -> if (num is Int) num.toLong() else num as Long? }
-      val manufacturerData = __pigeon_list[4] as ByteArray?
-      val manufacturerDataHead = __pigeon_list[5] as ByteArray?
-      val services = __pigeon_list[6] as List<String?>?
-      return UniversalBleScanResult(deviceId, name, isPaired, rssi, manufacturerData, manufacturerDataHead, services)
+      val manufacturerDataList = __pigeon_list[4] as List<UniversalManufacturerData?>?
+      val services = __pigeon_list[5] as List<String?>?
+      return UniversalBleScanResult(deviceId, name, isPaired, rssi, manufacturerDataList, services)
     }
   }
   fun toList(): List<Any?> {
@@ -77,8 +75,7 @@ data class UniversalBleScanResult (
       name,
       isPaired,
       rssi,
-      manufacturerData,
-      manufacturerDataHead,
+      manufacturerDataList,
       services,
     )
   }
@@ -181,6 +178,28 @@ data class UniversalManufacturerDataFilter (
     )
   }
 }
+
+/** Generated class from Pigeon that represents data sent in messages. */
+data class UniversalManufacturerData (
+  val companyIdentifier: Long,
+  val data: ByteArray
+
+) {
+  companion object {
+    @Suppress("LocalVariableName")
+    fun fromList(__pigeon_list: List<Any?>): UniversalManufacturerData {
+      val companyIdentifier = __pigeon_list[0].let { num -> if (num is Int) num.toLong() else num as Long }
+      val data = __pigeon_list[1] as ByteArray
+      return UniversalManufacturerData(companyIdentifier, data)
+    }
+  }
+  fun toList(): List<Any?> {
+    return listOf(
+      companyIdentifier,
+      data,
+    )
+  }
+}
 private object UniversalBlePigeonCodec : StandardMessageCodec() {
   override fun readValueOfType(type: Byte, buffer: ByteBuffer): Any? {
     return when (type) {
@@ -209,6 +228,11 @@ private object UniversalBlePigeonCodec : StandardMessageCodec() {
           UniversalManufacturerDataFilter.fromList(it)
         }
       }
+      134.toByte() -> {
+        return (readValue(buffer) as? List<Any?>)?.let {
+          UniversalManufacturerData.fromList(it)
+        }
+      }
       else -> super.readValueOfType(type, buffer)
     }
   }
@@ -232,6 +256,10 @@ private object UniversalBlePigeonCodec : StandardMessageCodec() {
       }
       is UniversalManufacturerDataFilter -> {
         stream.write(133)
+        writeValue(stream, value.toList())
+      }
+      is UniversalManufacturerData -> {
+        stream.write(134)
         writeValue(stream, value.toList())
       }
       else -> super.writeValue(stream, value)

@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:universal_ble/universal_ble.dart';
 
@@ -10,10 +9,10 @@ class ScannedItemWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     String? name = bleDevice.name;
-    Uint8List? rawManufacturerData = bleDevice.manufacturerData;
+    List<ManufacturerData> rawManufacturerData = bleDevice.manufacturerDataList;
     ManufacturerData? manufacturerData;
-    if (rawManufacturerData != null && rawManufacturerData.isNotEmpty) {
-      manufacturerData = ManufacturerData.fromData(rawManufacturerData);
+    if (rawManufacturerData.isNotEmpty) {
+      manufacturerData = rawManufacturerData.first;
     }
     if (name == null || name.isEmpty) name = 'NA';
     return Padding(
