@@ -11,6 +11,5 @@ namespace universal_ble
 {
     void setScanFilter(const UniversalScanFilter filter);
     void resetScanFilter();
-    bool filterDevice(const std::string *name, const IVector<BluetoothLEManufacturerData> manufacturerData, const IVector<winrt::guid> serviceUuids);
-
+    bool filterDevice(UniversalBleScanResult scanResult);
 } // namespace universal_ble

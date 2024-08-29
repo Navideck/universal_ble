@@ -476,52 +476,6 @@ namespace universal_ble
 
   /// Helper Methods
 
-  std::vector<uint8_t> parseManufacturerDataHead(BluetoothLEAdvertisement advertisement, std::string deviceId)
-  {
-    try
-    {
-      if (advertisement == nullptr)
-        return {};
-
-      if (advertisement.ManufacturerData().Size() == 0)
-        return {};
-
-      auto manufacturerData = advertisement.ManufacturerData().GetAt(0);
-      if (manufacturerData == nullptr)
-        return {};
-
-      uint16_t companyId = manufacturerData.CompanyId();
-      uint8_t prefix[2];
-      auto leastSignificantBit = static_cast<uint8_t>(companyId & 0xFF);
-      auto mostSignificantBit = static_cast<uint8_t>(companyId >> 8);
-      if (isLittleEndian())
-      {
-        prefix[0] = leastSignificantBit;
-        prefix[1] = mostSignificantBit;
-      }
-      else
-      {
-        prefix[0] = mostSignificantBit;
-        prefix[1] = leastSignificantBit;
-      }
-      std::vector<uint8_t> result = {prefix[0], prefix[1]};
-
-      auto data = to_bytevc(manufacturerData.Data());
-      result.insert(result.end(), data.begin(), data.end());
-
-      return result;
-    }
-    catch (const std::exception &e)
-    {
-      std::cerr << "Error in parsing manufacturer data for device " << deviceId << ": " << e.what() << std::endl;
-    }
-    catch (...)
-    {
-      std::cerr << "Unknown error occurred in parsing manufacturer data for device " << deviceId << std::endl;
-    }
-    return {};
-  }
-
   winrt::fire_and_forget UniversalBlePlugin::InitializeAsync()
   {
     auto radios = co_await Radio::GetRadiosAsync();
@@ -653,11 +607,13 @@ namespace universal_ble
         scanResult.set_is_paired(currentScanResult.is_paired());
         shouldUpdate = true;
       }
-      if (scanResult.manufacturer_data_head() == nullptr && currentScanResult.manufacturer_data_head() != nullptr)
+
+      if ((scanResult.manufacturer_data_list() == nullptr || scanResult.manufacturer_data_list()->empty()) && currentScanResult.manufacturer_data_list() != nullptr)
       {
-        scanResult.set_manufacturer_data_head(currentScanResult.manufacturer_data_head());
+        scanResult.set_manufacturer_data_list(currentScanResult.manufacturer_data_list());
         shouldUpdate = true;
       }
+
       if (scanResult.services() == nullptr && currentScanResult.services() != nullptr)
       {
         scanResult.set_services(currentScanResult.services());
@@ -678,7 +634,7 @@ namespace universal_ble
     }
 
     // Filter final result before sending to Flutter
-    if (isConnectable)
+    if (isConnectable && filterDevice(scanResult))
     {
       uiThreadHandler_.Post([scanResult]
                             { callbackChannel->OnScanResult(scanResult, SuccessCallback, ErrorCallback); });
@@ -793,7 +749,16 @@ namespace universal_ble
       auto deviceId = _mac_address_to_str(args.BluetoothAddress());
       auto universalScanResult = UniversalBleScanResult(deviceId);
       std::string name = winrt::to_string(args.Advertisement().LocalName());
-      auto manufacturerData = parseManufacturerDataHead(args.Advertisement(), deviceId);
+
+      flutter::EncodableList manufacturerDataEncodableList = flutter::EncodableList();
+      if (args.Advertisement() != nullptr)
+      {
+        for (BluetoothLEManufacturerData mfd : args.Advertisement().ManufacturerData())
+        {
+          UniversalManufacturerData universalManufacturerData = UniversalManufacturerData(static_cast<int64_t>(mfd.CompanyId()), to_bytevc(mfd.Data()));
+          manufacturerDataEncodableList.push_back(flutter::CustomEncodableValue(universalManufacturerData));
+        }
+      }
 
       auto dataSection = args.Advertisement().DataSections();
       for (auto &&data : dataSection)
@@ -812,10 +777,14 @@ namespace universal_ble
       }
 
       if (!name.empty())
+      {
         universalScanResult.set_name(name);
+      }
 
-      if (!manufacturerData.empty())
-        universalScanResult.set_manufacturer_data_head(manufacturerData);
+      if (!manufacturerDataEncodableList.empty())
+      {
+        universalScanResult.set_manufacturer_data_list(manufacturerDataEncodableList);
+      }
 
       universalScanResult.set_rssi(args.RawSignalStrengthInDBm());
 
@@ -844,10 +813,7 @@ namespace universal_ble
       }
 
       // Filter Device
-      if (filterDevice(universalScanResult.name(), args.Advertisement().ManufacturerData(), args.Advertisement().ServiceUuids()))
-      {
-        pushUniversalScanResult(universalScanResult, args.IsConnectable());
-      };
+      pushUniversalScanResult(universalScanResult, args.IsConnectable());
     }
     catch (...)
     {

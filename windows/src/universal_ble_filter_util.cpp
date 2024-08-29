@@ -7,6 +7,7 @@
 #include <vector>
 #include "helper/utils.h"
 #include "generated/universal_ble.g.h"
+#include <unordered_set>
 
 namespace universal_ble
 {
@@ -62,74 +63,80 @@ namespace universal_ble
                            });
     }
 
-    bool isServicesMatchingFilters(const IVector<winrt::guid> serviceUuids)
+    bool isServicesMatchingFilters(const flutter::EncodableList *services)
     {
         if (serviceFilterUUIDS.empty())
             return true;
-        if (serviceUuids.Size() == 0)
+        if (services == nullptr || services->empty())
             return false;
+
+        std::unordered_set<winrt::guid> serviceGUIDs;
+        serviceGUIDs.reserve(services->size());
+        for (const auto &service : *services)
+        {
+            if (const auto *str = std::get_if<std::string>(&service))
+            {
+                serviceGUIDs.insert(uuid_to_guid(*str));
+            }
+        }
+
+        // Check if any of the filter UUIDs are in the set of service GUIDs
         return std::any_of(serviceFilterUUIDS.begin(), serviceFilterUUIDS.end(),
-                           [&serviceUuids](const winrt::guid &serviceFilterUUID)
+                           [&serviceGUIDs](const winrt::guid &filterUUID)
                            {
-                               uint32_t index;
-                               return serviceUuids.IndexOf(serviceFilterUUID, index);
+                               return serviceGUIDs.find(filterUUID) != serviceGUIDs.end();
                            });
     }
 
-    bool isManufacturerDataMatchingFilters(IVector<BluetoothLEManufacturerData> deviceManufactureData)
+    bool isManufacturerDataMatchingFilters(const flutter::EncodableList *manufacturerDataList)
     {
         if (manufacturerScanFilter.empty())
             return true;
+        if (manufacturerDataList == nullptr || manufacturerDataList->empty())
+            return false;
 
-        for (auto &&filter : manufacturerScanFilter)
+        for (const auto &filter : manufacturerScanFilter)
         {
-            const std::vector<uint8_t> *data_filter = filter.data();
-            const std::vector<uint8_t> *mask = filter.mask();
+            const auto *data_filter = filter.data();
+            const auto *mask = filter.mask();
 
-            uint16_t companyId = static_cast<uint16_t>(filter.company_identifier());
-
-            for (auto &&deviceMfData : deviceManufactureData)
+            for (const auto &value : *manufacturerDataList)
             {
-                if (deviceMfData.CompanyId() == companyId)
+                const auto &deviceMfData = std::any_cast<const UniversalManufacturerData &>(
+                    std::get<flutter::CustomEncodableValue>(value));
+
+                if (deviceMfData.company_identifier() != filter.company_identifier())
+                    continue;
+
+                // If no data filter, all data matches
+                if (data_filter == nullptr)
+                    return true;
+
+                const auto &deviceData = deviceMfData.data();
+                if (deviceData.size() < data_filter->size())
+                    continue;
+
+                bool isMatch = true;
+                for (size_t i = 0; i < data_filter->size(); ++i)
                 {
-                    // If data filter is not present then return true
-                    if (data_filter == nullptr)
-                        return true;
-
-                    auto deviceData = to_bytevc(deviceMfData.Data());
-                    if (deviceData.size() < data_filter->size())
-                        continue;
-
-                    bool isMatch = true;
-                    for (size_t i = 0; i < data_filter->size(); i++)
+                    const bool hasMask = mask != nullptr && i < mask->size();
+                    const uint8_t maskByte = hasMask ? (*mask)[i] : 0xFF;
+                    if ((maskByte & (*data_filter)[i]) != (maskByte & deviceData[i]))
                     {
-                        if (mask != nullptr && mask->size() > i)
-                        {
-                            if (((*mask)[i] & (*data_filter)[i]) != ((*mask)[i] & deviceData[i]))
-                            {
-                                isMatch = false;
-                                break;
-                            }
-                        }
-                        else
-                        {
-                            if ((*data_filter)[i] != deviceData[i])
-                            {
-                                isMatch = false;
-                                break;
-                            }
-                        }
+                        isMatch = false;
+                        break;
                     }
-                    if (isMatch)
-                        return true;
                 }
+
+                if (isMatch)
+                    return true;
             }
         }
 
         return false;
     }
 
-    bool filterDevice(const std::string *name, const IVector<BluetoothLEManufacturerData> manufacturerData, const IVector<winrt::guid> serviceUuids)
+    bool filterDevice(UniversalBleScanResult scanResult)
     {
         bool hasNamePrefixFilter = !namePrefixFilter.empty();
         bool hasServiceFilter = !serviceFilterUUIDS.empty();
@@ -144,9 +151,9 @@ namespace universal_ble
         }
 
         // Check each filter condition
-        return (hasNamePrefixFilter && isNameMatchingFilters(name)) ||
-               (hasServiceFilter && isServicesMatchingFilters(serviceUuids)) ||
-               (hasManufacturerDataFilter && isManufacturerDataMatchingFilters(manufacturerData));
+        return (hasNamePrefixFilter && isNameMatchingFilters(scanResult.name())) ||
+               (hasServiceFilter && isServicesMatchingFilters(scanResult.services())) ||
+               (hasManufacturerDataFilter && isManufacturerDataMatchingFilters(scanResult.manufacturer_data_list()));
     }
 
 } // namespace universal_ble
