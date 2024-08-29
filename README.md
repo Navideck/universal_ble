@@ -114,11 +114,11 @@ You still need to explicitly [connect](#connecting) to them before being able to
 
 #### Scan Filter
 
-You can optionally set filters when scanning.
+You can optionally set filters when scanning. all filters are in OR relation
 
 ##### With Services
 
-When setting this parameter, the scan results will only include devices that advertise any of the specified services. This is the primary filter. All devices are first filtered by services, then further filtered by other criteria. This parameter is mandatory on [web](#web) if you want to access those services.
+When setting this parameter, the scan results will only include devices that advertise any of the specified services. This parameter will be also used as [optional_services](https://developer.mozilla.org/en-US/docs/Web/API/Bluetooth/requestDevice#optionalservices) on web, checkout [web](#web) section for details.
 
 ```dart
 List<String> withServices;
@@ -339,7 +339,19 @@ On web, the `withServices` parameter in the ScanFilter is used as [optional_serv
 
 ```dart
 ScanFilter(
-      withServices: kIsWeb ?  ["SERVICE_UUID"] : [],
+  withServices: kIsWeb ?  ["SERVICE_UUID"] : [],
+)
+```
+
+If you don't want to apply any filter for these services but still want to access these services after connection, use `PlatformConfig`
+
+```dart
+UniversalBle.startScan(
+  platformConfig: PlatformConfig(
+    web: WebConfig(
+      optionalServices: ["SERVICE_UUID"]
+    )
+  )
 )
 ```
 

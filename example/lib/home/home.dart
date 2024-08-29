@@ -67,19 +67,7 @@ class _MyAppState extends State<MyApp> {
 
   Future<void> startScan() async {
     await UniversalBle.startScan(
-      scanFilter: ScanFilter(
-        withNamePrefix: ["iPhone"],
-        withManufacturerData: [
-          ManufacturerDataFilter(
-            companyIdentifier: 0x012D,
-          ),
-          ManufacturerDataFilter(
-            companyIdentifier: 0x04c,
-            // data: Uint8List.fromList([18, 2, 0]),
-          ),
-        ],
-        withServices: ["2020"],
-      ),
+      scanFilter: scanFilter,
     );
   }
 
