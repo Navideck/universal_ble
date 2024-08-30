@@ -1,12 +1,10 @@
 ## 0.13.0
-* BREAKING CHANGE: `scanFilters` are in OR relation now
+* BREAKING CHANGE: `scanFilter` filters are now in OR relation 
 * BREAKING CHANGE: `manufacturerDataHead` is removed from `BleDevice`
-* BREAKING CHANGE: `manufacturerData` is Deprecated in BleDevice and will be removed in Future versions
-* Improve `scanFilters` handling
+* Deprecation: `manufacturerData` is deprecated in BleDevice and will be removed in the future
+* Improve `scanFilter` handling
 * Use `ManufacturerData` object instead of `Uint8List` for manufacturerData
 * Add `manufacturerDataList` as `List<ManufacturerData>` in `BleDevice`
-
-## 0.12.1
 * Auto convert all services passed to `getSystemDevices()`
 
 ## 0.12.0

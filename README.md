@@ -114,15 +114,17 @@ You still need to explicitly [connect](#connecting) to them before being able to
 
 #### Scan Filter
 
-You can optionally set filters when scanning. all filters are in OR relation
+You can optionally set a filter when scanning. A filter can have multiple conditions (services, manufacturerData, namePrefix) and all conditions are in `OR` relation, returning results that match any of the given conditions.
 
 ##### With Services
 
-When setting this parameter, the scan results will only include devices that advertise any of the specified services. This parameter will be also used as [optional_services](https://developer.mozilla.org/en-US/docs/Web/API/Bluetooth/requestDevice#optionalservices) on web, checkout [web](#web) section for details.
+When setting this parameter, the scan results will only include devices that advertise any of the specified services. 
 
 ```dart
 List<String> withServices;
 ```
+
+Note: On web **you have to** specify services before you are able to use them. See the [web](#web) section for more details.
 
 ##### With ManufacturerData
 
@@ -335,7 +337,7 @@ When publishing on Windows you need to declare the following [capabilities](http
 
 ### Web
 
-On web, the `withServices` parameter in the ScanFilter is used as [optional_services](https://developer.mozilla.org/en-US/docs/Web/API/Bluetooth/requestDevice#optionalservices) as well as a services filter. On web you have to set this parameter to ensure that you can access the specified services after connecting to the device. You can leave it empty for the rest of the platforms if your device does not advertise services.
+On web, the `withServices` parameter in the ScanFilter is used as [optional_services](https://developer.mozilla.org/en-US/docs/Web/API/Bluetooth/requestDevice#optionalservices) as well as a services filter. You have to set this parameter to ensure that you can access the specified services after connecting to the device. You can leave it empty for the rest of the platforms if your device does not advertise services.
 
 ```dart
 ScanFilter(
@@ -343,7 +345,7 @@ ScanFilter(
 )
 ```
 
-If you don't want to apply any filter for these services but still want to access these services after connection, use `PlatformConfig`
+If you don't want to apply any filter for these services but still want to access them, after connection, use `PlatformConfig`.
 
 ```dart
 UniversalBle.startScan(
