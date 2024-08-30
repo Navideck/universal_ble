@@ -427,7 +427,6 @@ extension _BluetoothDeviceExtension on BluetoothDevice {
 }
 
 extension _UnmodifiableMapViewExtension on UnmodifiableMapView<int, ByteData> {
-  // TODO: Test if  conversion if fine
   List<ManufacturerData>? toManufacturerDataList() => entries
       .map((MapEntry<int, ByteData> data) =>
           ManufacturerData(data.key, data.value.buffer.asUint8List()))

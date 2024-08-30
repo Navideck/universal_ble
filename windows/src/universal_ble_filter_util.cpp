@@ -58,7 +58,6 @@ namespace universal_ble
         return std::any_of(namePrefixFilter.begin(), namePrefixFilter.end(),
                            [&name](const flutter::EncodableValue &prefix)
                            {
-                               // TODO: check if it only checks for NamePrefix or all
                                return name->find(std::get<std::string>(prefix)) == 0;
                            });
     }

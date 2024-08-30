@@ -65,14 +65,6 @@ abstract class UniversalBlePlatform {
   }
 
   void updateScanResult(BleDevice bleDevice) {
-    // Filter by name
-    // TODO: remove this name filter
-    // ScanFilter? scanFilter = _scanFilter;
-    // if (scanFilter != null && scanFilter.withNamePrefix.isNotEmpty) {
-    //   if (bleDevice.name == null ||
-    //       !scanFilter.withNamePrefix
-    //           .any((e) => bleDevice.name?.startsWith(e) == true)) return;
-    // }
     onScanResult?.call(bleDevice);
   }
 
