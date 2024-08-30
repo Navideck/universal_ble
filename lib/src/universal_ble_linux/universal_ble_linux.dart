@@ -18,7 +18,9 @@ class UniversalBleLinux extends UniversalBlePlatform {
   BlueZAdapter? _activeAdapter;
   Completer<void>? _initializationCompleter;
   final Map<String, BlueZDevice> _devices = {};
-  final Map<String, StreamSubscription> _deviceStreamSubscriptions = {};
+  final Map<String, StreamSubscription> _deviceUpdateStreamSubscriptions = {};
+  final Map<String, StreamSubscription> _deviceAdvertisementSubscriptions = {};
+
   final Map<String, StreamSubscription> _characteristicPropertiesSubscriptions =
       {};
 
@@ -62,18 +64,17 @@ class UniversalBleLinux extends UniversalBlePlatform {
       throw "Adapter not available";
     }
 
-    if (adapter.discovering) {
-      await adapter.stopDiscovery();
-    }
+    // Stop scan and clean all old advertisement listeners
+    await stopScan();
 
     bool hasCustomFilter = scanFilter?.hasCustomFilter() ?? false;
-    List<String>? withServicesFilter = [];
+    List<String> withServicesFilter = [];
 
     if (hasCustomFilter) {
       _bleFilter.scanFilter = scanFilter;
     } else {
       _bleFilter.scanFilter = null;
-      withServicesFilter = scanFilter?.withServices.toValidUUIDList();
+      withServicesFilter = scanFilter?.withServices.toValidUUIDList() ?? [];
     }
 
     // Add services filter
@@ -82,7 +83,21 @@ class UniversalBleLinux extends UniversalBlePlatform {
     );
 
     await _activeAdapter?.startDiscovery();
-    _client.devices.forEach(_onDeviceAdd);
+
+    // Apply custom Services filter to these devices
+    ScanFilter customServicesFilter = ScanFilter(
+      withServices: withServicesFilter,
+    );
+    for (var device in _client.devices) {
+      if (!hasCustomFilter && withServicesFilter.isNotEmpty) {
+        if (_bleFilter.isServicesMatchingFilters(
+            customServicesFilter, device.toBleDevice())) {
+          _onDeviceAdd(device);
+        }
+      } else {
+        _onDeviceAdd(device);
+      }
+    }
   }
 
   @override
@@ -92,6 +107,11 @@ class UniversalBleLinux extends UniversalBlePlatform {
       if (_activeAdapter?.discovering == true) {
         await _activeAdapter?.stopDiscovery();
       }
+      // Clean all advertiseemnt listeners
+      _deviceAdvertisementSubscriptions.removeWhere((e, value) {
+        value.cancel();
+        return true;
+      });
     } catch (e) {
       UniversalBlePlatform.logInfo(
         "stopScan error: $e",
@@ -428,31 +448,40 @@ class UniversalBleLinux extends UniversalBlePlatform {
   }
 
   void _onDeviceAdd(BlueZDevice device) {
-    if (!_bleFilter.filterDevice(device.toBleDevice())) return;
+    BleDevice bleDevice = device.toBleDevice();
+    if (!_bleFilter.filterDevice(bleDevice)) {
+      return;
+    }
 
     // Update scan results only if rssi is available
-    if (device.rssi != 0) updateScanResult(device.toBleDevice());
+    if (device.rssi != 0) {
+      updateScanResult(bleDevice);
+    }
 
     // Setup Cache
     _devices[device.address] = device;
 
-    // Setup update listener
-    if (_deviceStreamSubscriptions[device.address] != null) {
-      _deviceStreamSubscriptions[device.address]?.cancel();
-    }
+    // Setup advertisements Listener
+    _deviceAdvertisementSubscriptions[device.address] ??= device
+        .propertiesChanged
+        .where((e) =>
+            e.contains(BluezProperty.rssi) ||
+            e.contains(BluezProperty.manufacturerData) ||
+            e.contains(BluezProperty.uuids))
+        .listen((_) {
+      if (_bleFilter.filterDevice(bleDevice)) {
+        updateScanResult(device.toBleDevice());
+      }
+    });
 
-    _deviceStreamSubscriptions[device.address] =
+    // Setup update listener
+    _deviceUpdateStreamSubscriptions[device.address] ??=
         device.propertiesChanged.listen((properties) {
       for (final property in properties) {
         switch (property) {
-          case BluezProperty.rssi:
-            updateScanResult(device.toBleDevice());
-            break;
+          // Connection/Pair updates
           case BluezProperty.connected:
             updateConnection(device.address, device.connected);
-            break;
-          case BluezProperty.manufacturerData:
-            updateScanResult(device.toBleDevice());
             break;
           case BluezProperty.paired:
             updatePairingState(device.address, device.paired);
@@ -465,10 +494,13 @@ class UniversalBleLinux extends UniversalBlePlatform {
           case BluezProperty.txPower:
           case BluezProperty.address:
           case BluezProperty.addressType:
+          case BluezProperty.rssi:
+          case BluezProperty.manufacturerData:
             break;
           default:
             UniversalBlePlatform.logInfo(
-                "UnhandledDevicePropertyChanged ${device.name} ${device.address}: $property");
+              "UnhandledDevicePropertyChanged ${device.name} ${device.address}: $property",
+            );
             break;
         }
       }
@@ -477,10 +509,22 @@ class UniversalBleLinux extends UniversalBlePlatform {
 
   void _onDeviceRemoved(BlueZDevice device) {
     _devices.remove(device.address);
-    // Stop listener
-    _deviceStreamSubscriptions[device.address]?.cancel();
-    _deviceStreamSubscriptions
-        .removeWhere((key, value) => key == device.address);
+    // Clean Update listeners
+    _deviceUpdateStreamSubscriptions.removeWhere((key, value) {
+      if (key == device.address) {
+        value.cancel();
+        return true;
+      }
+      return false;
+    });
+    // Clean Advertisement listeners
+    _deviceAdvertisementSubscriptions.removeWhere((key, value) {
+      if (key == device.address) {
+        value.cancel();
+        return true;
+      }
+      return false;
+    });
   }
 }
 
@@ -550,7 +594,6 @@ extension on ScanFilter {
 }
 
 extension BlueZDeviceExtension on BlueZDevice {
-  // TODO: verify if conversion is fine
   List<ManufacturerData> get manufacturerDataList => manufacturerData.entries
       .map((MapEntry<BlueZManufacturerId, List<int>> data) =>
           ManufacturerData(data.key.id, Uint8List.fromList(data.value)))
@@ -558,7 +601,7 @@ extension BlueZDeviceExtension on BlueZDevice {
 
   BleDevice toBleDevice({bool? isSystemDevice}) {
     return BleDevice(
-      name: alias,
+      name: name,
       deviceId: address,
       isPaired: paired,
       rssi: rssi,
