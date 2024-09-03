@@ -350,7 +350,7 @@ If you don't want to apply any filter for these services but still want to acces
 ```dart
 UniversalBle.startScan(
   platformConfig: PlatformConfig(
-    web: WebConfig(
+    web: WebOptions(
       optionalServices: ["SERVICE_UUID"]
     )
   )

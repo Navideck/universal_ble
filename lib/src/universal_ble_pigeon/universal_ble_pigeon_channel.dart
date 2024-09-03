@@ -215,7 +215,7 @@ extension _ScanFilterExtension on ScanFilter? {
         ?.withManufacturerData
         .map((e) => UniversalManufacturerDataFilter(
               companyIdentifier: e.companyIdentifier,
-              data: e.data,
+              data: e.payload,
               mask: e.mask,
             ))
         .toList();

@@ -342,22 +342,22 @@ class UniversalBleWeb extends UniversalBlePlatform {
 
   RequestOptionsBuilder _getRequestOptionBuilder(
     ScanFilter? scanFilter,
-    WebConfig? webConfig,
+    WebOptions? webOptions,
   ) {
     List<RequestFilterBuilder> filters = [];
     List<int> optionalManufacturerData = [];
     List<String> optionalServices = [];
 
-    if (webConfig != null) {
-      optionalServices.addAll(webConfig.optionalServices.toValidUUIDList());
-      optionalManufacturerData.addAll(webConfig.optionalManufacturerData);
+    if (webOptions != null) {
+      optionalServices.addAll(webOptions.optionalServices.toValidUUIDList());
+      optionalManufacturerData.addAll(webOptions.optionalManufacturerData);
     }
 
     if (scanFilter != null) {
       // Add services filter
       for (var service in scanFilter.withServices.toValidUUIDList()) {
         filters.add(RequestFilterBuilder(services: [service]));
-        if (webConfig == null || webConfig.optionalServices.isEmpty) {
+        if (webOptions == null || webOptions.optionalServices.isEmpty) {
           optionalServices.add(service);
         }
       }
@@ -369,15 +369,15 @@ class UniversalBleWeb extends UniversalBlePlatform {
             manufacturerData: [
               ManufacturerDataFilterBuilder(
                 companyIdentifier: manufacturerData.companyIdentifier,
-                dataPrefix: manufacturerData.data,
+                dataPrefix: manufacturerData.payload,
                 mask: manufacturerData.mask,
               ),
             ],
           ),
         );
 
-        // Add optionalManufacturerData from scanFilter if webConfig is not provided
-        if (webConfig == null || webConfig.optionalManufacturerData.isEmpty) {
+        // Add optionalManufacturerData from scanFilter if webOptions is not provided
+        if (webOptions == null || webOptions.optionalManufacturerData.isEmpty) {
           optionalManufacturerData.add(manufacturerData.companyIdentifier);
         }
       }

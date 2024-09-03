@@ -1,6 +1,8 @@
 ## 0.13.0
 * BREAKING CHANGE: `scanFilter` filters are now in OR relation 
 * BREAKING CHANGE: `manufacturerDataHead` is removed from `BleDevice`
+* BREAKING CHANGE: rename `WebConfig` to `WebOptions`
+* BREAKING CHANGE: rename `ManufacturerDataFilter.data` to `ManufacturerDataFilter.payload`
 * Deprecation: `manufacturerData` is deprecated in BleDevice and will be removed in the future
 * Improve `scanFilter` handling
 * Use `ManufacturerData` object instead of `Uint8List` for manufacturerData

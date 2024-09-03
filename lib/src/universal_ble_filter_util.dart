@@ -70,25 +70,25 @@ class UniversalBleFilterUtil {
   ) {
     if (filterMfd.companyIdentifier != deviceMfd.companyId) return false;
 
-    Uint8List? filterData = filterMfd.data;
-    Uint8List deviceData = deviceMfd.data;
+    Uint8List? filterPayload = filterMfd.payload;
+    Uint8List devicePayload = deviceMfd.payload;
 
-    if (filterData == null || filterData.isEmpty) return true;
-    if (deviceData.isEmpty) return false;
-    if (filterData.length > deviceData.length) return false;
+    if (filterPayload == null || filterPayload.isEmpty) return true;
+    if (devicePayload.isEmpty) return false;
+    if (filterPayload.length > devicePayload.length) return false;
 
     Uint8List? filterMask = filterMfd.mask;
 
-    if (filterMask != null && filterMask.length == filterData.length) {
-      for (int i = 0; i < filterData.length; i++) {
-        if ((filterData[i] & filterMask[i]) !=
-            (deviceData[i] & filterMask[i])) {
+    if (filterMask != null && filterMask.length == filterPayload.length) {
+      for (int i = 0; i < filterPayload.length; i++) {
+        if ((filterPayload[i] & filterMask[i]) !=
+            (devicePayload[i] & filterMask[i])) {
           return false;
         }
       }
     } else {
-      for (int i = 0; i < filterData.length; i++) {
-        if (filterData[i] != deviceData[i]) {
+      for (int i = 0; i < filterPayload.length; i++) {
+        if (filterPayload[i] != devicePayload[i]) {
           return false;
         }
       }

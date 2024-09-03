@@ -3,8 +3,8 @@ import 'package:flutter/foundation.dart';
 /// Represents the manufacturer data of a BLE device.
 class ManufacturerData {
   final int companyId;
-  final Uint8List data;
-  ManufacturerData(this.companyId, this.data);
+  final Uint8List payload;
+  ManufacturerData(this.companyId, this.payload);
 
   String get companyIdRadix16 => "0x0${companyId.toRadixString(16)}";
 
@@ -22,22 +22,22 @@ class ManufacturerData {
     final byteData = ByteData(2);
     byteData.setInt16(0, companyId, Endian.host);
     return Uint8List.fromList(
-      byteData.buffer.asUint8List() + data.toList(),
+      byteData.buffer.asUint8List() + payload.toList(),
     );
   }
 
   @override
-  int get hashCode => companyId.hashCode ^ data.hashCode;
+  int get hashCode => companyId.hashCode ^ payload.hashCode;
 
   @override
   bool operator ==(Object other) {
     if (identical(this, other)) return true;
     if (other is! ManufacturerData) return false;
-    return companyId == other.companyId && listEquals(data, other.data);
+    return companyId == other.companyId && listEquals(payload, other.payload);
   }
 
   @override
   String toString() {
-    return 'Manufacturer: $companyIdRadix16 - $data';
+    return 'Manufacturer: $companyIdRadix16 - $payload';
   }
 }
