@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:collection';
 import 'dart:typed_data';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter_web_bluetooth/flutter_web_bluetooth.dart';
 import 'package:universal_ble/src/models/model_exports.dart';
 import 'package:universal_ble/src/universal_ble_platform_interface.dart';
@@ -95,8 +96,14 @@ class UniversalBleWeb extends UniversalBlePlatform {
   }
 
   @override
-  bool receivesAdvertisements(String deviceId) =>
-      _getDeviceById(deviceId)?.hasWatchAdvertisements() ?? false;
+  bool receivesAdvertisements(String deviceId) {
+    // Advertisements do not work on Linux/Web even with the "Experimental Web Platform features" flag enabled. Verified with Chrome Version 128.0.6613.138
+    if (kIsWeb && defaultTargetPlatform == TargetPlatform.linux) {
+      return false;
+    }
+
+    return _getDeviceById(deviceId)?.hasWatchAdvertisements() ?? false;
+  }
 
   /// This will work only if `chrome://flags/#enable-experimental-web-platform-features` is enabled
   Future<void> _watchDeviceAdvertisements(BluetoothDevice device) async {
