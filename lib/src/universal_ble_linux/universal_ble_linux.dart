@@ -1,9 +1,9 @@
 import 'dart:async';
-import 'dart:typed_data';
 
 import 'package:bluez/bluez.dart';
 import 'package:flutter/services.dart';
 import 'package:universal_ble/src/models/model_exports.dart';
+import 'package:universal_ble/src/universal_ble_filter_util.dart';
 import 'package:universal_ble/src/universal_ble_platform_interface.dart';
 
 class UniversalBleLinux extends UniversalBlePlatform {
@@ -14,12 +14,13 @@ class UniversalBleLinux extends UniversalBlePlatform {
   bool isInitialized = false;
 
   final BlueZClient _client = BlueZClient();
-
+  late final UniversalBleFilterUtil _bleFilter = UniversalBleFilterUtil();
   BlueZAdapter? _activeAdapter;
-  ScanFilter? _scanFilter;
   Completer<void>? _initializationCompleter;
   final Map<String, BlueZDevice> _devices = {};
-  final Map<String, StreamSubscription> _deviceStreamSubscriptions = {};
+  final Map<String, StreamSubscription> _deviceUpdateStreamSubscriptions = {};
+  final Map<String, StreamSubscription> _deviceAdvertisementSubscriptions = {};
+
   final Map<String, StreamSubscription> _characteristicPropertiesSubscriptions =
       {};
 
@@ -58,15 +59,44 @@ class UniversalBleLinux extends UniversalBlePlatform {
     PlatformConfig? platformConfig,
   }) async {
     await _ensureInitialized();
-    await super.startScan(scanFilter: scanFilter);
-    if (_activeAdapter?.discovering != true) {
-      // Add services filter
-      _activeAdapter?.setDiscoveryFilter(
-        uuids: scanFilter?.withServices.toValidUUIDList(),
-      );
-      _scanFilter = scanFilter;
-      await _activeAdapter?.startDiscovery();
-      _client.devices.forEach(_onDeviceAdd);
+    var adapter = _activeAdapter;
+    if (adapter == null) {
+      throw "Adapter not available";
+    }
+
+    // Stop scan and clean all old advertisement listeners
+    await stopScan();
+
+    bool hasCustomFilter = scanFilter?.hasCustomFilter() ?? false;
+    List<String> withServicesFilter = [];
+
+    if (hasCustomFilter) {
+      _bleFilter.scanFilter = scanFilter;
+    } else {
+      _bleFilter.scanFilter = null;
+      withServicesFilter = scanFilter?.withServices.toValidUUIDList() ?? [];
+    }
+
+    // Add services filter
+    await adapter.setDiscoveryFilter(
+      uuids: withServicesFilter,
+    );
+
+    await _activeAdapter?.startDiscovery();
+
+    // Apply custom Services filter to these devices
+    ScanFilter customServicesFilter = ScanFilter(
+      withServices: withServicesFilter,
+    );
+    for (var device in _client.devices) {
+      if (!hasCustomFilter && withServicesFilter.isNotEmpty) {
+        if (_bleFilter.isServicesMatchingFilters(
+            customServicesFilter, device.toBleDevice())) {
+          _onDeviceAdd(device);
+        }
+      } else {
+        _onDeviceAdd(device);
+      }
     }
   }
 
@@ -77,6 +107,11 @@ class UniversalBleLinux extends UniversalBlePlatform {
       if (_activeAdapter?.discovering == true) {
         await _activeAdapter?.stopDiscovery();
       }
+      // Clean all advertiseemnt listeners
+      _deviceAdvertisementSubscriptions.removeWhere((e, value) {
+        value.cancel();
+        return true;
+      });
     } catch (e) {
       UniversalBlePlatform.logInfo(
         "stopScan error: $e",
@@ -138,6 +173,9 @@ class UniversalBleLinux extends UniversalBlePlatform {
         return [];
       });
     }
+
+    // Few ble devices requires delay to perform operations after discovering services
+    await Future.delayed(const Duration(seconds: 1));
 
     if (device.gattServices.isEmpty && !device.servicesResolved) {
       throw "Failed to resolve services";
@@ -413,39 +451,40 @@ class UniversalBleLinux extends UniversalBlePlatform {
   }
 
   void _onDeviceAdd(BlueZDevice device) {
-    if (!_isValidDevice(device)) return;
-
-    // Apply Filters
-    if (_scanFilter != null) {
-      List<ManufacturerDataFilter>? manufacturerDataFilter =
-          _scanFilter?.withManufacturerData;
-      if (manufacturerDataFilter != null &&
-          manufacturerDataFilter.isNotEmpty) {}
+    BleDevice bleDevice = device.toBleDevice();
+    if (!_bleFilter.filterDevice(bleDevice)) {
+      return;
     }
 
     // Update scan results only if rssi is available
-    if (device.rssi != 0) updateScanResult(device.toBleDevice());
+    if (device.rssi != 0) {
+      updateScanResult(bleDevice);
+    }
 
     // Setup Cache
     _devices[device.address] = device;
 
-    // Setup update listener
-    if (_deviceStreamSubscriptions[device.address] != null) {
-      _deviceStreamSubscriptions[device.address]?.cancel();
-    }
+    // Setup advertisements Listener
+    _deviceAdvertisementSubscriptions[device.address] ??= device
+        .propertiesChanged
+        .where((e) =>
+            e.contains(BluezProperty.rssi) ||
+            e.contains(BluezProperty.manufacturerData) ||
+            e.contains(BluezProperty.uuids))
+        .listen((_) {
+      if (_bleFilter.filterDevice(bleDevice)) {
+        updateScanResult(device.toBleDevice());
+      }
+    });
 
-    _deviceStreamSubscriptions[device.address] =
+    // Setup update listener
+    _deviceUpdateStreamSubscriptions[device.address] ??=
         device.propertiesChanged.listen((properties) {
       for (final property in properties) {
         switch (property) {
-          case BluezProperty.rssi:
-            updateScanResult(device.toBleDevice());
-            break;
+          // Connection/Pair updates
           case BluezProperty.connected:
             updateConnection(device.address, device.connected);
-            break;
-          case BluezProperty.manufacturerData:
-            updateScanResult(device.toBleDevice());
             break;
           case BluezProperty.paired:
             updatePairingState(device.address, device.paired);
@@ -458,95 +497,37 @@ class UniversalBleLinux extends UniversalBlePlatform {
           case BluezProperty.txPower:
           case BluezProperty.address:
           case BluezProperty.addressType:
+          case BluezProperty.rssi:
+          case BluezProperty.manufacturerData:
             break;
           default:
             UniversalBlePlatform.logInfo(
-                "UnhandledDevicePropertyChanged ${device.name} ${device.address}: $property");
+              "UnhandledDevicePropertyChanged ${device.name} ${device.address}: $property",
+            );
             break;
         }
       }
     });
   }
 
-  bool _isValidDevice(BlueZDevice device) {
-    ScanFilter? scanFilter = _scanFilter;
-    if (scanFilter == null) return true;
-
-    // Check manufacturerData filter
-    if (!_isValidManufacturerData(
-      scanFilter.withManufacturerData,
-      device.manufacturerDataFilter,
-    )) {
-      return false;
-    }
-
-    return true;
-  }
-
-  bool _isValidManufacturerData(
-    List<ManufacturerDataFilter> filterMfdList,
-    List<ManufacturerDataFilter> deviceMfdList,
-  ) {
-    if (filterMfdList.isEmpty) return true;
-    if (deviceMfdList.isEmpty) return false;
-
-    // Check all filters
-    for (final filterMfd in filterMfdList) {
-      // Check if device have manufacturerData for this filter
-      for (final deviceMfd in deviceMfdList) {
-        // Check companyIdentifier
-        if (filterMfd.companyIdentifier != deviceMfd.companyIdentifier) {
-          continue;
-        }
-
-        // Check data
-        Uint8List? filterData = filterMfd.data;
-        Uint8List? deviceData = deviceMfd.data;
-
-        // If filter data is null and device data is not, continue to next deviceMfd
-        if (filterData != null && deviceData == null) continue;
-
-        if (filterData == null || deviceData == null) {
-          return true;
-        }
-
-        if (filterData.length > deviceData.length) continue;
-
-        // Apply mask
-        Uint8List? filterMask = filterMfd.mask;
-        bool dataMatched = true;
-        if (filterMask != null && (filterMask.length == filterData.length)) {
-          for (int i = 0; i < filterData.length; i++) {
-            if ((filterData[i] & filterMask[i]) !=
-                (deviceData[i] & filterMask[i])) {
-              dataMatched = false;
-              break;
-            }
-          }
-        }
-        // Compare data directly
-        else {
-          for (int i = 0; i < filterData.length; i++) {
-            if (filterData[i] != deviceData[i]) {
-              dataMatched = false;
-              break;
-            }
-          }
-        }
-
-        if (dataMatched) return true;
-      }
-    }
-
-    return false;
-  }
-
   void _onDeviceRemoved(BlueZDevice device) {
     _devices.remove(device.address);
-    // Stop listener
-    _deviceStreamSubscriptions[device.address]?.cancel();
-    _deviceStreamSubscriptions
-        .removeWhere((key, value) => key == device.address);
+    // Clean Update listeners
+    _deviceUpdateStreamSubscriptions.removeWhere((key, value) {
+      if (key == device.address) {
+        value.cancel();
+        return true;
+      }
+      return false;
+    });
+    // Clean Advertisement listeners
+    _deviceAdvertisementSubscriptions.removeWhere((key, value) {
+      if (key == device.address) {
+        value.cancel();
+        return true;
+      }
+      return false;
+    });
   }
 }
 
@@ -568,62 +549,6 @@ class BluezProperty {
   static const String discoverable = 'Discoverable';
   static const String discovering = 'Discovering';
   static const String propertyClass = 'Class';
-}
-
-extension BlueZDeviceExtension on BlueZDevice {
-  List<ManufacturerDataFilter> get manufacturerDataFilter {
-    try {
-      if (manufacturerData.isEmpty) return [];
-      return manufacturerData.entries
-          .map((e) => ManufacturerDataFilter(
-                companyIdentifier: e.key.id,
-                data: Uint8List.fromList(e.value),
-              ))
-          .toList();
-    } catch (e) {
-      UniversalBlePlatform.logInfo(
-        'Error parsing manufacturerData: $e',
-        isError: true,
-      );
-      return [];
-    }
-  }
-
-  Uint8List get manufacturerDataHead {
-    try {
-      if (manufacturerData.isEmpty) return Uint8List(0);
-      final sorted = manufacturerData.entries.toList()
-        ..sort((a, b) => a.key.id - b.key.id);
-      int companyId = sorted.first.key.id;
-      List<int> manufacturerDataValue = sorted.first.value;
-      final byteData = ByteData(2);
-      // TODO: Verify that this works regardless of the endianess
-      byteData.setInt16(0, companyId, Endian.host);
-      List<int> bytes = byteData.buffer.asUint8List();
-      return Uint8List.fromList(bytes + manufacturerDataValue);
-    } catch (e) {
-      UniversalBlePlatform.logInfo(
-        'Error parsing manufacturerData: $e',
-        isError: true,
-      );
-      return Uint8List(0);
-    }
-  }
-
-  BleDevice toBleDevice({
-    bool? isSystemDevice,
-  }) {
-    return BleDevice(
-      name: alias,
-      deviceId: address,
-      isPaired: paired,
-      manufacturerData: manufacturerDataHead,
-      manufacturerDataHead: manufacturerDataHead,
-      rssi: rssi,
-      isSystemDevice: isSystemDevice,
-      services: uuids.map((e) => e.toString()).toList(),
-    );
-  }
 }
 
 extension on BlueZGattCharacteristicFlag {
@@ -662,5 +587,30 @@ extension on BlueZFailedException {
     } catch (e) {
       return null;
     }
+  }
+}
+
+extension on ScanFilter {
+  bool hasCustomFilter() {
+    return withNamePrefix.isNotEmpty || withManufacturerData.isNotEmpty;
+  }
+}
+
+extension BlueZDeviceExtension on BlueZDevice {
+  List<ManufacturerData> get manufacturerDataList => manufacturerData.entries
+      .map((MapEntry<BlueZManufacturerId, List<int>> data) =>
+          ManufacturerData(data.key.id, Uint8List.fromList(data.value)))
+      .toList();
+
+  BleDevice toBleDevice({bool? isSystemDevice}) {
+    return BleDevice(
+      name: name,
+      deviceId: address,
+      isPaired: paired,
+      rssi: rssi,
+      isSystemDevice: isSystemDevice,
+      services: uuids.map((e) => e.toString()).toList(),
+      manufacturerDataList: manufacturerDataList,
+    );
   }
 }

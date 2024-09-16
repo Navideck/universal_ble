@@ -1,5 +1,3 @@
-// ignore_for_file: use_build_context_synchronously
-
 import 'package:flutter/material.dart';
 import 'package:universal_ble/universal_ble.dart';
 import 'package:universal_ble_example/data/mock_universal_ble.dart';
@@ -92,6 +90,12 @@ class _MyAppState extends State<MyApp> {
     );
   }
 
+  void showSnackbar(message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message.toString())),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -130,9 +134,7 @@ class _MyAppState extends State<MyApp> {
                       setState(() {
                         _isScanning = false;
                       });
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text(e.toString())),
-                      );
+                      showSnackbar(e);
                     }
                   },
                 ),
@@ -151,9 +153,7 @@ class _MyAppState extends State<MyApp> {
                     text: 'Enable Bluetooth',
                     onPressed: () async {
                       bool isEnabled = await UniversalBle.enableBluetooth();
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text("BluetoothEnabled: $isEnabled")),
-                      );
+                      showSnackbar("BluetoothEnabled: $isEnabled");
                     },
                   ),
                 if (BleCapabilities.requiresRuntimePermission)
@@ -163,9 +163,7 @@ class _MyAppState extends State<MyApp> {
                       bool hasPermissions =
                           await PermissionHandler.arePermissionsGranted();
                       if (hasPermissions) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text("Permissions granted")),
-                        );
+                        showSnackbar("Permissions granted");
                       }
                     },
                   ),
@@ -176,11 +174,7 @@ class _MyAppState extends State<MyApp> {
                       List<BleDevice> devices =
                           await UniversalBle.getSystemDevices();
                       if (devices.isEmpty) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text("No Connected Devices Found"),
-                          ),
-                        );
+                        showSnackbar("No Connected Devices Found");
                       }
                       setState(() {
                         _bleDevices.clear();

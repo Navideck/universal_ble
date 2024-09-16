@@ -69,8 +69,7 @@ class UniversalBleScanResult {
     const std::string* name,
     const bool* is_paired,
     const int64_t* rssi,
-    const std::vector<uint8_t>* manufacturer_data,
-    const std::vector<uint8_t>* manufacturer_data_head,
+    const flutter::EncodableList* manufacturer_data_list,
     const flutter::EncodableList* services);
 
   const std::string& device_id() const;
@@ -88,13 +87,9 @@ class UniversalBleScanResult {
   void set_rssi(const int64_t* value_arg);
   void set_rssi(int64_t value_arg);
 
-  const std::vector<uint8_t>* manufacturer_data() const;
-  void set_manufacturer_data(const std::vector<uint8_t>* value_arg);
-  void set_manufacturer_data(const std::vector<uint8_t>& value_arg);
-
-  const std::vector<uint8_t>* manufacturer_data_head() const;
-  void set_manufacturer_data_head(const std::vector<uint8_t>* value_arg);
-  void set_manufacturer_data_head(const std::vector<uint8_t>& value_arg);
+  const flutter::EncodableList* manufacturer_data_list() const;
+  void set_manufacturer_data_list(const flutter::EncodableList* value_arg);
+  void set_manufacturer_data_list(const flutter::EncodableList& value_arg);
 
   const flutter::EncodableList* services() const;
   void set_services(const flutter::EncodableList* value_arg);
@@ -111,8 +106,7 @@ class UniversalBleScanResult {
   std::optional<std::string> name_;
   std::optional<bool> is_paired_;
   std::optional<int64_t> rssi_;
-  std::optional<std::vector<uint8_t>> manufacturer_data_;
-  std::optional<std::vector<uint8_t>> manufacturer_data_head_;
+  std::optional<flutter::EncodableList> manufacturer_data_list_;
   std::optional<flutter::EncodableList> services_;
 
 };
@@ -184,10 +178,14 @@ class UniversalScanFilter {
   // Constructs an object setting all fields.
   explicit UniversalScanFilter(
     const flutter::EncodableList& with_services,
+    const flutter::EncodableList& with_name_prefix,
     const flutter::EncodableList& with_manufacturer_data);
 
   const flutter::EncodableList& with_services() const;
   void set_with_services(const flutter::EncodableList& value_arg);
+
+  const flutter::EncodableList& with_name_prefix() const;
+  void set_with_name_prefix(const flutter::EncodableList& value_arg);
 
   const flutter::EncodableList& with_manufacturer_data() const;
   void set_with_manufacturer_data(const flutter::EncodableList& value_arg);
@@ -200,6 +198,7 @@ class UniversalScanFilter {
   friend class UniversalBleCallbackChannel;
   friend class PigeonCodecSerializer;
   flutter::EncodableList with_services_;
+  flutter::EncodableList with_name_prefix_;
   flutter::EncodableList with_manufacturer_data_;
 
 };
@@ -209,16 +208,15 @@ class UniversalScanFilter {
 class UniversalManufacturerDataFilter {
  public:
   // Constructs an object setting all non-nullable fields.
-  UniversalManufacturerDataFilter();
+  explicit UniversalManufacturerDataFilter(int64_t company_identifier);
 
   // Constructs an object setting all fields.
   explicit UniversalManufacturerDataFilter(
-    const int64_t* company_identifier,
+    int64_t company_identifier,
     const std::vector<uint8_t>* data,
     const std::vector<uint8_t>* mask);
 
-  const int64_t* company_identifier() const;
-  void set_company_identifier(const int64_t* value_arg);
+  int64_t company_identifier() const;
   void set_company_identifier(int64_t value_arg);
 
   const std::vector<uint8_t>* data() const;
@@ -236,9 +234,36 @@ class UniversalManufacturerDataFilter {
   friend class UniversalBlePlatformChannel;
   friend class UniversalBleCallbackChannel;
   friend class PigeonCodecSerializer;
-  std::optional<int64_t> company_identifier_;
+  int64_t company_identifier_;
   std::optional<std::vector<uint8_t>> data_;
   std::optional<std::vector<uint8_t>> mask_;
+
+};
+
+
+// Generated class from Pigeon that represents data sent in messages.
+class UniversalManufacturerData {
+ public:
+  // Constructs an object setting all fields.
+  explicit UniversalManufacturerData(
+    int64_t company_identifier,
+    const std::vector<uint8_t>& data);
+
+  int64_t company_identifier() const;
+  void set_company_identifier(int64_t value_arg);
+
+  const std::vector<uint8_t>& data() const;
+  void set_data(const std::vector<uint8_t>& value_arg);
+
+
+ private:
+  static UniversalManufacturerData FromEncodableList(const flutter::EncodableList& list);
+  flutter::EncodableList ToEncodableList() const;
+  friend class UniversalBlePlatformChannel;
+  friend class UniversalBleCallbackChannel;
+  friend class PigeonCodecSerializer;
+  int64_t company_identifier_;
+  std::vector<uint8_t> data_;
 
 };
 

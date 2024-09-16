@@ -4,7 +4,6 @@ import 'dart:typed_data';
 import 'package:universal_ble/universal_ble.dart';
 
 abstract class UniversalBlePlatform {
-  ScanFilter? _scanFilter;
   StreamController? _connectionStreamController;
   final Map<String, bool> _pairStateMap = {};
 
@@ -15,9 +14,7 @@ abstract class UniversalBlePlatform {
   Future<void> startScan({
     ScanFilter? scanFilter,
     PlatformConfig? platformConfig,
-  }) async {
-    _scanFilter = scanFilter;
-  }
+  });
 
   Future<void> stopScan();
 
@@ -68,13 +65,6 @@ abstract class UniversalBlePlatform {
   }
 
   void updateScanResult(BleDevice bleDevice) {
-    // Filter by name
-    ScanFilter? scanFilter = _scanFilter;
-    if (scanFilter != null && scanFilter.withNamePrefix.isNotEmpty) {
-      if (bleDevice.name == null ||
-          !scanFilter.withNamePrefix
-              .any((e) => bleDevice.name?.startsWith(e) == true)) return;
-    }
     onScanResult?.call(bleDevice);
   }
 

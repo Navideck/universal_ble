@@ -32,7 +32,6 @@ class UniversalBlePigeonChannel extends UniversalBlePlatform {
     ScanFilter? scanFilter,
     PlatformConfig? platformConfig,
   }) async {
-    await super.startScan(scanFilter: scanFilter);
     await _channel.startScan(
       scanFilter.toUniversalScanFilter(),
     );
@@ -194,22 +193,16 @@ class _UniversalBleCallbackHandler extends UniversalBleCallbackChannel {
 }
 
 extension _UniversalBleScanResultExtension on UniversalBleScanResult {
-  BleDevice toBleDevice({
-    bool? isSystemDevice,
-  }) {
-    var mnfDataHead = manufacturerDataHead ?? Uint8List.fromList([]);
-    var mnfData = manufacturerData ?? mnfDataHead;
+  BleDevice toBleDevice({bool? isSystemDevice}) {
     return BleDevice(
       name: name,
       deviceId: deviceId,
-      manufacturerData: mnfData,
-      manufacturerDataHead: mnfDataHead,
       rssi: rssi,
       isPaired: isPaired,
       isSystemDevice: isSystemDevice,
-      services: services
-              ?.where((e) => e != null)
-              .map((e) => BleUuidParser.string(e!))
+      services: services?.nonNulls.map(BleUuidParser.string).toList() ?? [],
+      manufacturerDataList: manufacturerDataList?.nonNulls
+              .map((e) => ManufacturerData(e.companyIdentifier, e.data))
               .toList() ??
           [],
     );
@@ -222,7 +215,7 @@ extension _ScanFilterExtension on ScanFilter? {
         ?.withManufacturerData
         .map((e) => UniversalManufacturerDataFilter(
               companyIdentifier: e.companyIdentifier,
-              data: e.data,
+              data: e.payload,
               mask: e.mask,
             ))
         .toList();
@@ -230,6 +223,7 @@ extension _ScanFilterExtension on ScanFilter? {
     // Windows crashes if it's null, so we need to pass empty scan filter in this case
     return UniversalScanFilter(
       withServices: this?.withServices.toValidUUIDList() ?? [],
+      withNamePrefix: this?.withNamePrefix ?? [],
       withManufacturerData: manufacturerDataFilters ?? [],
     );
   }

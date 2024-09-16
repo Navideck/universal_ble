@@ -42,6 +42,8 @@ list(APPEND PLUGIN_SOURCES
   "src/generated/universal_ble.g.cpp"
   "src/generated/universal_ble.g.h"
   "src/pin_entry.h"
+  "src/universal_ble_filter_util.cpp"
+  "src/universal_ble_filter_util.h"
 )
 
 add_library(${PLUGIN_NAME} SHARED

@@ -26,8 +26,8 @@ private var discoveredPeripherals = [String: CBPeripheral]()
 
 private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentralManagerDelegate, CBPeripheralDelegate {
   var callbackChannel: UniversalBleCallbackChannel
+  private var universalBleFilterUtil = UniversalBleFilterUtil()
   private lazy var manager: CBCentralManager = .init(delegate: self, queue: nil)
-  private var scanFilter: UniversalScanFilter? = nil
   private var discoveredServicesProgressMap: [String: [UniversalBleService]] = [:]
   private var characteristicReadFutures = [CharacteristicReadFuture]()
   private var characteristicWriteFutures = [CharacteristicWriteFuture]()
@@ -59,19 +59,21 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
   }
 
   func startScan(filter: UniversalScanFilter?) throws {
-    // Apply services filter
-    var withServices: [CBUUID] = []
-    for service in filter?.withServices ?? [] {
-      if let service = service {
-        if UUID(uuidString: service.validFullUUID) == nil {
-          throw FlutterError(code: "IllegalArgument", message: "Invalid service UUID:\(service)", details: nil)
-        }
-        withServices.append(CBUUID(string: service))
-      }
-    }
+    // If filter have any other filter other then official one
+    let hasCustomFilter = filter?.hasCustomFilters ?? false
 
-    // Save scanFilter for later user
-    scanFilter = filter
+    // Apply services filter
+    var withServices: [CBUUID] = try filter?.withServices.compactMap { $0 }.toCBUUID() ?? []
+
+    if hasCustomFilter {
+      print("Using Custom Filters")
+      universalBleFilterUtil.scanFilter = filter
+      universalBleFilterUtil.scanFilterServicesUUID = withServices
+      withServices = []
+    } else {
+      universalBleFilterUtil.scanFilter = nil
+      universalBleFilterUtil.scanFilterServicesUUID = []
+    }
 
     let options = [CBCentralManagerScanOptionAllowDuplicatesKey: true]
     manager.scanForPeripherals(withServices: withServices, options: options)
@@ -280,7 +282,7 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
     completion(Result.failure(FlutterError(code: "NotSupported", message: nil, details: nil)))
   }
 
-  func pair(deviceId _: String, completion: @escaping (Result<Bool, Error>) -> Void){
+  func pair(deviceId _: String, completion: @escaping (Result<Bool, Error>) -> Void) {
     completion(Result.failure(FlutterError(code: "Implemented in Dart", message: nil, details: nil)))
   }
 
@@ -310,17 +312,26 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
   }
 
   public func centralManager(_: CBCentralManager, didDiscover peripheral: CBPeripheral, advertisementData: [String: Any], rssi RSSI: NSNumber) {
+    // Store the discovered peripheral using its UUID as the key
     discoveredPeripherals[peripheral.uuid.uuidString] = peripheral
-    let manufacturerData = advertisementData[CBAdvertisementDataManufacturerDataKey] as? Data
-    let services = advertisementData[CBAdvertisementDataServiceUUIDsKey] as? [CBUUID]
 
-    // Handle ScanFilters
-    if let filter = scanFilter {
-      let manufacturerFilter = filter.withManufacturerData.compactMap { $0 }
-      // If scan filters are not empty, check if manufacturer data matches filters
-      if !manufacturerFilter.isEmpty, !isManufacturerDataMatchingFilters(filters: manufacturerFilter, msd: manufacturerData) {
-        return
-      }
+    // Extract manufacturer data and service UUIDs from the advertisement data
+    let manufacturerData = advertisementData[CBAdvertisementDataManufacturerDataKey] as? Data
+    let services = (advertisementData[CBAdvertisementDataServiceUUIDsKey] as? [CBUUID])
+
+    var manufacturerDataList: [UniversalManufacturerData] = []
+    var universalManufacturerData: UniversalManufacturerData? = nil
+
+    if let msd = manufacturerData, msd.count > 2 {
+      let companyIdentifier = msd.prefix(2).withUnsafeBytes { $0.load(as: UInt16.self) }
+      let data = FlutterStandardTypedData(bytes: msd.suffix(from: 2))
+      universalManufacturerData = UniversalManufacturerData(companyIdentifier: Int64(companyIdentifier), data: data)
+      manufacturerDataList.append(universalManufacturerData!)
+    }
+
+    // Apply custom filters and return early if the peripheral doesn't match
+    if !universalBleFilterUtil.filterDevice(name: peripheral.name, manufacturerData: universalManufacturerData, services: services) {
+      return
     }
 
     callbackChannel.onScanResult(result: UniversalBleScanResult(
@@ -328,8 +339,8 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
       name: peripheral.name,
       isPaired: nil,
       rssi: RSSI as? Int64,
-      manufacturerData: FlutterStandardTypedData(bytes: manufacturerData ?? Data()),
-      services: services?.map { $0.uuidStr }
+      manufacturerDataList: manufacturerDataList,
+      services: services?.map { $0.uuidStr.validFullUUID }
     )) { _ in }
   }
 
@@ -448,6 +459,17 @@ extension String {
       throw FlutterError(code: "IllegalArgument", message: "Unknown deviceId:\(self)", details: nil)
     }
     return peripheral
+  }
+}
+
+extension [String] {
+  func toCBUUID() throws -> [CBUUID] {
+    return try compactMap { serviceUUID in
+      guard UUID(uuidString: serviceUUID.validFullUUID) != nil else {
+        throw FlutterError(code: "IllegalArgument", message: "Invalid service UUID:\(serviceUUID)", details: nil)
+      }
+      return CBUUID(string: serviceUUID)
+    }
   }
 }
 

@@ -18,10 +18,10 @@ class ScanFilter {
 }
 
 class ManufacturerDataFilter {
-  int? companyIdentifier;
+  int companyIdentifier;
 
   // Mask and data must be of same length
-  Uint8List? data;
+  Uint8List? payload;
 
   /// For any bit in the mask, set it the 1 if it needs to match
   /// the one in manufacturer data, otherwise set it to 0.
@@ -29,13 +29,13 @@ class ManufacturerDataFilter {
   Uint8List? mask;
 
   ManufacturerDataFilter({
-    this.companyIdentifier,
-    this.data,
+    required this.companyIdentifier,
+    this.payload,
     this.mask,
   });
 
   @override
   String toString() {
-    return 'ManufacturerDataFilter(companyIdentifier: $companyIdentifier, data: $data, mask: $mask)';
+    return 'ManufacturerDataFilter(companyIdentifier: $companyIdentifier, payload: $payload, mask: $mask)';
   }
 }

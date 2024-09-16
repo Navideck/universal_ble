@@ -18,6 +18,8 @@ import android.bluetooth.le.ScanResult
 import android.os.Build
 import android.os.ParcelUuid
 import android.util.Log
+import android.util.SparseArray
+import androidx.core.util.keyIterator
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.util.UUID
@@ -83,6 +85,10 @@ fun String.validFullUUID(): String {
         8 -> "$this-0000-1000-8000-00805F9B34FB"
         else -> this
     }
+}
+
+fun List<String>.toUUIDList(): List<UUID> {
+    return this.map { UUID.fromString(it.validFullUUID()) }
 }
 
 fun String.toBluetoothGatt(): BluetoothGatt {
@@ -156,69 +162,18 @@ fun Int.parseGattErrorCode(): String? {
     }
 }
 
-fun UniversalScanFilter.toScanFilters(): List<ScanFilter> {
-    val scanFilters: ArrayList<ScanFilter> = arrayListOf()
-    // Add withServices Filter
-    for (service in this.withServices) {
-        try {
-            val serviceUUID = service?.validFullUUID()
-            serviceUUID?.let {
-                val parcelUUId = ParcelUuid.fromString(it)
-                scanFilters.add(
-                    ScanFilter.Builder().setServiceUuid(parcelUUId).build()
-                )
-                Log.e(TAG, "scanFilters: $parcelUUId")
-            }
-        } catch (e: Exception) {
-            Log.e(TAG, e.toString())
-            throw FlutterError(
-                "illegalIllegalArgument",
-                "Invalid serviceId: $service",
-                e.toString()
-            )
-        }
-    }
-
-    // Add ManufacturerData Filter
-    for (manufacturerData in this.withManufacturerData) {
-        try {
-            manufacturerData?.companyIdentifier?.let {
-                val data: ByteArray = manufacturerData.data ?: ByteArray(0)
-                val mask: ByteArray? = manufacturerData.mask
-                if (mask == null) {
-                    scanFilters.add(
-                        ScanFilter.Builder().setManufacturerData(
-                            it.toInt(), data
-                        ).build()
-                    )
-                } else {
-                    scanFilters.add(
-                        ScanFilter.Builder().setManufacturerData(
-                            it.toInt(), data, mask
-                        ).build()
-                    )
-                }
-            }
-        } catch (e: Exception) {
-            Log.e(TAG, e.toString())
-            throw FlutterError(
-                "illegalIllegalArgument",
-                "Invalid manufacturerData: ${manufacturerData?.companyIdentifier} ${manufacturerData?.data} ${manufacturerData?.mask}",
-                e.toString()
-            )
-        }
-    }
-
-    return scanFilters.toList()
-}
-
-val ScanResult.manufacturerDataHead: ByteArray?
+val ScanResult.manufacturerDataList: List<UniversalManufacturerData>
     get() {
-        val sparseArray = scanRecord?.manufacturerSpecificData ?: return null
-        if (sparseArray.size() == 0) return null
-
-        return sparseArray.keyAt(0).toShort().toByteArray() + sparseArray.valueAt(0)
+        return scanRecord?.manufacturerSpecificData?.toList()?.map { (key, value) ->
+            UniversalManufacturerData(key.toLong(), value)
+        } ?: emptyList()
     }
+
+fun <T> SparseArray<T>.toList(): List<Pair<Int, T>> {
+    return (0 until size()).map { index ->
+        keyAt(index) to valueAt(index)
+    }
+}
 
 fun BluetoothGatt.getCharacteristic(
     service: String,

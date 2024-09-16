@@ -9,8 +9,12 @@ class BleDevice {
   bool? isPaired;
   List<String> services;
   bool? isSystemDevice;
-  Uint8List? manufacturerDataHead;
-  Uint8List? manufacturerData;
+  List<ManufacturerData> manufacturerDataList;
+
+  @Deprecated("Use `manufacturerDataList` instead")
+  Uint8List? get manufacturerData => manufacturerDataList.isEmpty
+      ? null
+      : manufacturerDataList.first.toUint8List();
 
   /// Returns connection state of the device.
   /// All platforms will return `Connected/Disconnected` states.
@@ -30,12 +34,8 @@ class BleDevice {
     this.isPaired,
     this.services = const [],
     this.isSystemDevice,
-    Uint8List? manufacturerData,
-    Uint8List? manufacturerDataHead,
-  }) {
-    this.manufacturerDataHead = manufacturerDataHead ?? Uint8List.fromList([]);
-    this.manufacturerData = manufacturerData ?? manufacturerDataHead;
-  }
+    this.manufacturerDataList = const [],
+  });
 
   @override
   String toString() {
@@ -46,34 +46,6 @@ class BleDevice {
         'isPaired: $isPaired, '
         'services: $services, '
         'isSystemDevice: $isSystemDevice, '
-        'manufacturerDataHead: $manufacturerDataHead, '
-        'manufacturerData: $manufacturerData';
-  }
-}
-
-/// Represents the manufacturer data of a BLE device.
-/// Use [BleDevice.manufacturerData] with [ManufacturerData.fromData] to create an instance of this class.
-class ManufacturerData {
-  final int? companyId;
-  final Uint8List? data;
-  String? companyIdRadix16;
-  ManufacturerData(this.companyId, this.data) {
-    if (companyId != null) {
-      companyIdRadix16 = "0x0${companyId!.toRadixString(16)}";
-    }
-  }
-
-  factory ManufacturerData.fromData(Uint8List data) {
-    if (data.length < 2) return ManufacturerData(null, data);
-    int manufacturerIdInt = (data[0] + (data[1] << 8));
-    return ManufacturerData(
-      manufacturerIdInt,
-      data.sublist(2),
-    );
-  }
-
-  @override
-  String toString() {
-    return 'ManufacturerData: companyId: $companyIdRadix16, data: $data';
+        'manufacturerDataList: $manufacturerDataList';
   }
 }

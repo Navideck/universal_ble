@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'dart:collection';
-import 'dart:typed_data';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter_web_bluetooth/flutter_web_bluetooth.dart';
 import 'package:universal_ble/src/models/model_exports.dart';
 import 'package:universal_ble/src/universal_ble_platform_interface.dart';
@@ -95,8 +95,14 @@ class UniversalBleWeb extends UniversalBlePlatform {
   }
 
   @override
-  bool receivesAdvertisements(String deviceId) =>
-      _getDeviceById(deviceId)?.hasWatchAdvertisements() ?? false;
+  bool receivesAdvertisements(String deviceId) {
+    // Advertisements do not work on Linux/Web even with the "Experimental Web Platform features" flag enabled. Verified with Chrome Version 128.0.6613.138
+    if (kIsWeb && defaultTargetPlatform == TargetPlatform.linux) {
+      return false;
+    }
+
+    return _getDeviceById(deviceId)?.hasWatchAdvertisements() ?? false;
+  }
 
   /// This will work only if `chrome://flags/#enable-experimental-web-platform-features` is enabled
   Future<void> _watchDeviceAdvertisements(BluetoothDevice device) async {
@@ -342,22 +348,22 @@ class UniversalBleWeb extends UniversalBlePlatform {
 
   RequestOptionsBuilder _getRequestOptionBuilder(
     ScanFilter? scanFilter,
-    WebConfig? webConfig,
+    WebOptions? webOptions,
   ) {
     List<RequestFilterBuilder> filters = [];
     List<int> optionalManufacturerData = [];
     List<String> optionalServices = [];
 
-    if (webConfig != null) {
-      optionalServices.addAll(webConfig.optionalServices.toValidUUIDList());
-      optionalManufacturerData.addAll(webConfig.optionalManufacturerData);
+    if (webOptions != null) {
+      optionalServices.addAll(webOptions.optionalServices.toValidUUIDList());
+      optionalManufacturerData.addAll(webOptions.optionalManufacturerData);
     }
 
     if (scanFilter != null) {
       // Add services filter
       for (var service in scanFilter.withServices.toValidUUIDList()) {
         filters.add(RequestFilterBuilder(services: [service]));
-        if (webConfig == null || webConfig.optionalServices.isEmpty) {
+        if (webOptions == null || webOptions.optionalServices.isEmpty) {
           optionalServices.add(service);
         }
       }
@@ -369,19 +375,16 @@ class UniversalBleWeb extends UniversalBlePlatform {
             manufacturerData: [
               ManufacturerDataFilterBuilder(
                 companyIdentifier: manufacturerData.companyIdentifier,
-                dataPrefix: manufacturerData.data,
+                dataPrefix: manufacturerData.payload,
                 mask: manufacturerData.mask,
               ),
             ],
           ),
         );
 
-        // Add optionalManufacturerData from scanFilter if webConfig is not provided
-        if (webConfig == null || webConfig.optionalManufacturerData.isEmpty) {
-          int? companyId = manufacturerData.companyIdentifier;
-          if (companyId != null) {
-            optionalManufacturerData.add(companyId);
-          }
+        // Add optionalManufacturerData from scanFilter if webOptions is not provided
+        if (webOptions == null || webOptions.optionalManufacturerData.isEmpty) {
+          optionalManufacturerData.add(manufacturerData.companyIdentifier);
         }
       }
 
@@ -422,8 +425,7 @@ extension _BluetoothDeviceExtension on BluetoothDevice {
     return BleDevice(
       name: name,
       deviceId: id,
-      manufacturerData: manufacturerDataMap?.toUint8List(),
-      manufacturerDataHead: manufacturerDataMap?.toUint8List(),
+      manufacturerDataList: manufacturerDataMap?.toManufacturerDataList() ?? [],
       rssi: rssi,
       services: services,
     );
@@ -431,17 +433,10 @@ extension _BluetoothDeviceExtension on BluetoothDevice {
 }
 
 extension _UnmodifiableMapViewExtension on UnmodifiableMapView<int, ByteData> {
-  Uint8List? toUint8List() {
-    List<MapEntry<int, ByteData>> sorted = entries.toList()
-      ..sort((a, b) => a.key - b.key);
-    if (sorted.isEmpty) return null;
-    int companyId = sorted.first.key;
-    List<int> manufacturerDataValue = sorted.first.value.buffer.asUint8List();
-    final byteData = ByteData(2);
-    byteData.setInt16(0, companyId, Endian.host);
-    List<int> bytes = byteData.buffer.asUint8List();
-    return Uint8List.fromList(bytes + manufacturerDataValue);
-  }
+  List<ManufacturerData>? toManufacturerDataList() => entries
+      .map((MapEntry<int, ByteData> data) =>
+          ManufacturerData(data.key, data.value.buffer.asUint8List()))
+      .toList();
 }
 
 class _UniversalWebBluetoothService {
