@@ -174,6 +174,9 @@ class UniversalBleLinux extends UniversalBlePlatform {
       });
     }
 
+    // Few ble devices requires delay to perform operations after discovering services
+    await Future.delayed(const Duration(seconds: 1));
+
     if (device.gattServices.isEmpty && !device.servicesResolved) {
       throw "Failed to resolve services";
     }
