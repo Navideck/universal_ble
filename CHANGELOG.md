@@ -8,6 +8,8 @@
 * Use `ManufacturerData` object instead of `Uint8List` for manufacturerData
 * Add `manufacturerDataList` as `List<ManufacturerData>` in `BleDevice`
 * Auto convert all services passed to `getSystemDevices()`
+* Return false for receivesAdvertisements on Linux/Web
+* Add 1s delay in discoverServices on Linux
 
 ## 0.12.0
 * BREAKING CHANGE: `unPair` is now `unpair`
