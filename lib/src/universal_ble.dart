@@ -232,14 +232,11 @@ class UniversalBle {
   /// You can optionally pass a pairingCommand if you know an encrypted read or write characteristic.
   /// If you do, it returns true if it can successfully execute the command after pairing.
   ///
-  /// Throws UnsupportedError on `Web/Windows`
+  /// On `Web/Windows` and `Web/Linux` it is known to work only for devices that require passkey pairing.
   static Future<bool?> pair(
     String deviceId, {
     BleCommand? pairingCommand,
   }) async {
-    if (!BleCapabilities.supportsInAppPairing) {
-      throw UnsupportedError("Not supported");
-    }
     if (BleCapabilities.hasSystemPairingApi) {
       return _platform.pair(deviceId);
     }
