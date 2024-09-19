@@ -1,22 +1,30 @@
 import 'package:flutter/foundation.dart';
 
 class BleCapabilities {
+  /// You should pass wether your peripheral uses "Just Works" pairing.
+  /// Defaults to true since most devices use this kind of pairing.
+  ///
   /// Returns true if pairing is possible either by API or by encrypted characteristic.
   ///
-  /// All platforms return true except Web/Windows and Web/Linux which return false.
+  /// Platforms other than Web/Windows and Web/Linux always return true.
   ///
-  /// Under conditions, `Web/Windows` and `Web/Linux` could still trigger in-app pairing.
-  /// Peripherals that require "Numeric Comparison" or "Passkey Entry" can
-  /// successfully trigger pairing.
+  /// Web/Windows and Web/Linux return false if the peripheral uses "Just Works" pairing
+  /// or true otherwise.
   ///
   /// `Web/Linux` could also, under certain conditions, trigger "Just Works" pairing
   /// but it very unreliable, therefore we return false.
-  static final bool supportsInAppPairing =
-      _triggersPairingWithEncryptedChar || hasSystemPairingApi;
+  static bool supportsInAppPairing({bool peripheralUsesJustWorks = true}) =>
+      _triggersPairingWithEncryptedChar(peripheralUsesJustWorks) ||
+      hasSystemPairingApi;
 
-  static final _triggersPairingWithEncryptedChar =
-      defaultTargetPlatform != TargetPlatform.windows ||
-          defaultTargetPlatform != TargetPlatform.linux;
+  static _triggersPairingWithEncryptedChar(bool peripheralUsesJustWorks) {
+    if (defaultTargetPlatform == TargetPlatform.windows ||
+        defaultTargetPlatform == TargetPlatform.linux) {
+      return !peripheralUsesJustWorks;
+    }
+
+    return true;
+  }
 
   static bool hasSystemPairingApi = !kIsWeb &&
       (defaultTargetPlatform == TargetPlatform.android ||
