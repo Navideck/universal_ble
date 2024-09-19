@@ -2,14 +2,15 @@ import 'package:flutter/foundation.dart';
 
 class BleCapabilities {
   /// Returns true if pairing is possible either by API or by encrypted characteristic.
-  /// 
-  /// All platforms support this except Web/Windows and Web/Linux.
-  /// 
-  /// On `Web/Windows` and `Web/Linux` it is known to only work for devices that require passkey pairing.
-  /// If your device requires passkey pairing you can consider this true for all platforms.
-  /// 
-  /// `Web/Linux` could under certain circumstances present a pairing dialog also for devices that do
-  /// not use passkey pairing but it very unreliable so we consider it unsupported.
+  ///
+  /// All platforms return true except Web/Windows and Web/Linux which return false.
+  ///
+  /// Under conditions, `Web/Windows` and `Web/Linux` could still trigger in-app pairing.
+  /// Peripherals that require "Numeric Comparison" or "Passkey Entry" can
+  /// successfully trigger pairing.
+  ///
+  /// `Web/Linux` could also, under certain conditions, trigger "Just Works" pairing
+  /// but it very unreliable, therefore we return false.
   static final bool supportsInAppPairing =
       _triggersPairingWithEncryptedChar || hasSystemPairingApi;
 

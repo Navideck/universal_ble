@@ -236,7 +236,7 @@ class UniversalBle {
   /// You can optionally pass a pairingCommand if you know an encrypted read or write characteristic.
   /// If you do, it returns true if it can successfully execute the command after pairing.
   ///
-  /// On `Web/Windows` and `Web/Linux` it is known to work only for devices that require passkey pairing.
+  /// On `Web/Windows` and `Web/Linux` it does not work for devices that use "Just Works" pairing.
   static Future<bool?> pair(
     String deviceId, {
     BleCommand? pairingCommand,
