@@ -3,6 +3,7 @@
 * BREAKING CHANGE: `manufacturerDataHead` is removed from `BleDevice`
 * BREAKING CHANGE: rename `WebConfig` to `WebOptions`
 * BREAKING CHANGE: rename `ManufacturerDataFilter.data` to `ManufacturerDataFilter.payload`
+* BREAKING CHANGE: Convert supportsInAppPairing to method
 * Deprecation: `manufacturerData` is deprecated in BleDevice and will be removed in the future
 * Improve `scanFilter` handling
 * Use `ManufacturerData` object instead of `Uint8List` for manufacturerData
@@ -21,6 +22,7 @@
 * Fix notifications for characteristics without cccd on Android
 * Add `connectionStream` API to get connection updates as stream
 * Promote Linux to stable
+* Add supportsInAppPairing && hasSystemPairingApi
 
 ## 0.11.1
 * Trim spaces in UUIDs
