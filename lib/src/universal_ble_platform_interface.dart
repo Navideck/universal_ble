@@ -4,8 +4,20 @@ import 'dart:typed_data';
 import 'package:universal_ble/universal_ble.dart';
 
 abstract class UniversalBlePlatform {
-  StreamController? _connectionStreamController;
+  StreamController<BleDevice>? _scanStreamController;
+  StreamController<({String deviceId, bool isConnected})>?
+      _connectionStreamController;
+  StreamController<
+          ({String deviceId, String characteristicId, Uint8List value})>?
+      _characteristicStreamController;
+
   final Map<String, bool> _pairStateMap = {};
+
+  OnScanResult? onScanResult;
+  OnConnectionChange? onConnectionChange;
+  OnValueChange? onValueChange;
+  OnAvailabilityChange? onAvailabilityChange;
+  OnPairingStateChange? onPairingStateChange;
 
   Future<AvailabilityState> getBluetoothAvailabilityState();
 
@@ -51,33 +63,49 @@ abstract class UniversalBlePlatform {
 
   Future<BleConnectionState> getConnectionState(String deviceId);
 
-  Future<List<BleDevice>> getSystemDevices(
-    List<String>? withServices,
-  );
+  Future<List<BleDevice>> getSystemDevices(List<String>? withServices);
 
   bool receivesAdvertisements(String deviceId) => true;
 
-  Stream<bool> connectionStream(String deviceId) {
-    _setupConnectionStreamIfRequired();
-    return _connectionStreamController!.stream
-        .where((event) => event.deviceId == deviceId)
-        .map((event) => event.isConnected);
-  }
+  Stream<BleDevice> scanStream() => _getScanStreamController().stream;
+
+  Stream<bool> connectionStream(String deviceId) =>
+      _getConnectionStreamController()
+          .stream
+          .where((event) => event.deviceId == deviceId)
+          .map((event) => event.isConnected);
+
+  Stream<Uint8List> characteristicStream(
+          String deviceId, String characteristicId) =>
+      _getCharacteristicStreamController()
+          .stream
+          .where((event) =>
+              event.deviceId == deviceId &&
+              event.characteristicId == characteristicId)
+          .map((event) => event.value);
 
   void updateScanResult(BleDevice bleDevice) {
     onScanResult?.call(bleDevice);
+    _scanStreamController?.add(bleDevice);
   }
 
   void updateConnection(String deviceId, bool isConnected) {
     onConnectionChange?.call(deviceId, isConnected);
-    _connectionStreamController
-        ?.add((deviceId: deviceId, isConnected: isConnected));
+    _connectionStreamController?.add((
+      deviceId: deviceId,
+      isConnected: isConnected,
+    ));
   }
 
   void updateCharacteristicValue(
       String deviceId, String characteristicId, Uint8List value) {
     onValueChange?.call(
         deviceId, BleUuidParser.string(characteristicId), value);
+    _characteristicStreamController?.add((
+      deviceId: deviceId,
+      characteristicId: BleUuidParser.string(characteristicId),
+      value: value,
+    ));
   }
 
   void updateAvailability(AvailabilityState state) {
@@ -90,31 +118,52 @@ abstract class UniversalBlePlatform {
     onPairingStateChange?.call(deviceId, isPaired);
   }
 
-  // Do not use these directly to push updates
-  OnScanResult? onScanResult;
-  OnConnectionChange? onConnectionChange;
-  OnValueChange? onValueChange;
-  OnAvailabilityChange? onAvailabilityChange;
-  OnPairingStateChange? onPairingStateChange;
+  /// Setup autoDisposable StreamControllers
+  StreamController<({String deviceId, bool isConnected})>
+      _getConnectionStreamController() {
+    if (_connectionStreamController != null) {
+      _connectionStreamController =
+          StreamController<({String deviceId, bool isConnected})>.broadcast();
+      _connectionStreamController?.onCancel = () {
+        _connectionStreamController?.close();
+        _connectionStreamController = null;
+      };
+    }
+    return _connectionStreamController!;
+  }
+
+  StreamController<
+          ({String deviceId, String characteristicId, Uint8List value})>
+      _getCharacteristicStreamController() {
+    if (_characteristicStreamController == null) {
+      _characteristicStreamController = StreamController<
+          ({
+            String deviceId,
+            String characteristicId,
+            Uint8List value
+          })>.broadcast();
+      _characteristicStreamController?.onCancel = () {
+        _characteristicStreamController?.close();
+        _characteristicStreamController = null;
+      };
+    }
+    return _characteristicStreamController!;
+  }
+
+  StreamController<BleDevice> _getScanStreamController() {
+    if (_scanStreamController == null) {
+      _scanStreamController = StreamController<BleDevice>.broadcast();
+      _scanStreamController?.onCancel = () {
+        _scanStreamController?.close();
+        _scanStreamController = null;
+      };
+    }
+    return _scanStreamController!;
+  }
 
   static void logInfo(String message, {bool isError = false}) {
     if (isError) message = '\x1B[31m$message\x1B[31m';
     log(message, name: 'UniversalBle');
-  }
-
-  /// Creates an auto disposable streamController
-  void _setupConnectionStreamIfRequired() {
-    if (_connectionStreamController != null) return;
-
-    _connectionStreamController =
-        StreamController<({String deviceId, bool isConnected})>.broadcast();
-
-    // Auto dispose if no more subscribers
-    _connectionStreamController?.onCancel = () {
-      // logInfo('Disposing Connection Stream');
-      _connectionStreamController?.close();
-      _connectionStreamController = null;
-    };
   }
 }
 
