@@ -70,8 +70,14 @@ class UniversalBle {
   }
 
   /// Connection stream of a device
-  Stream<bool> connectionStream(String deviceId) =>
+  static Stream<BleDevice> get scanStream => _platform.scanStream();
+
+  static Stream<bool> connectionStream(String deviceId) =>
       _platform.connectionStream(deviceId);
+
+  static Stream<Uint8List> characteristicStream(
+          String deviceId, String characteristicId) =>
+      _platform.characteristicStream(deviceId, characteristicId);
 
   /// Connect to a device.
   /// It is advised to stop scanning before connecting.
