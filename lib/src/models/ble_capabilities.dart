@@ -15,7 +15,7 @@ class BleCapabilities {
       _triggersPairingWithEncryptedChar || hasSystemPairingApi;
 
   static final _triggersPairingWithEncryptedChar =
-      defaultTargetPlatform != TargetPlatform.windows ||
+      defaultTargetPlatform != TargetPlatform.windows &&
           defaultTargetPlatform != TargetPlatform.linux;
 
   static bool hasSystemPairingApi = !kIsWeb &&
