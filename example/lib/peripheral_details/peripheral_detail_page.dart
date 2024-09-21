@@ -403,7 +403,7 @@ class _PeripheralDetailPageState extends State<PeripheralDetailPage> {
                               text: 'Unsubscribe',
                             ),
                             PlatformButton(
-                              enabled: BleCapabilities.supportsInAppPairing,
+                              enabled: BleCapabilities.supportsAllPairingKinds,
                               onPressed: () async {
                                 bool? pairingResult = await UniversalBle.pair(
                                   widget.deviceId,
