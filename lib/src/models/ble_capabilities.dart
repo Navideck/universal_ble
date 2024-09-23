@@ -2,21 +2,21 @@ import 'package:flutter/foundation.dart';
 
 class BleCapabilities {
   /// Returns true if in-app pairing is possible either by API or by encrypted characteristic
-  /// using any kind of security level (JustWorks, Numeric Comparison or Passkey Entry).
+  /// using any kind of pairing method (JustWorks, Numeric Comparison or Passkey Entry).
   ///
   /// All platforms return true except Web/Windows and Web/Linux which return false
   /// because they only support "Numeric Comparison" and "Passkey Entry".
   ///
-  /// When false, triggering pairing depends on the security level requested by your peripheral.
-  /// In that case, it is recommended to use `triggersJustWorksPairingWithEncryptedChar`
-  /// in conjunction with the security level of your peripheral.
+  /// For more fine-grained control it is recommended to use `triggersJustWorksPairingWithEncryptedChar`
+  /// in conjunction with the pairing method of your peripheral,
+  /// e.g. if (!BleCapabilities.triggersJustWorksPairingWithEncryptedChar && peripheralUsesJustWorksPairing) throw "In-app pairing not supported";
   static final bool supportsAllPairingKinds =
       triggersJustWorksPairingWithEncryptedChar || hasSystemPairingApi;
 
   /// Returns true if the platform triggers JustWorks pairing when trying to read or write
   /// to an encrypted characteristic.
   ///
-  /// Higher security level pairing modes like "Numeric Comparison" or "Passkey Entry"
+  /// Pairing methods such as "Numeric Comparison" or "Passkey Entry"
   /// trigger pairing on all platforms.
   ///
   /// `Web/Linux` could also, under certain conditions, trigger "Just Works" pairing
