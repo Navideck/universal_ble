@@ -76,14 +76,12 @@ class UniversalBle {
   /// Connect to a device.
   /// It is advised to stop scanning before connecting.
   /// It might throw errors if device is not connectable.
-  /// Default connection timeout is 60 sec
+  /// `connectionTimeout` is supported on Web only.
   static Future<bool> connect(
     String deviceId, {
     Duration? connectionTimeout,
   }) async {
-    connectionTimeout ??= const Duration(seconds: 60);
     StreamSubscription? connectionSubscription;
-
     try {
       Completer<bool> completer = Completer();
 
@@ -106,7 +104,10 @@ class UniversalBle {
         },
       );
 
-      return await completer.future.timeout(connectionTimeout);
+      if (connectionTimeout != null) {
+        return await completer.future.timeout(connectionTimeout);
+      }
+      return await completer.future;
     } finally {
       connectionSubscription?.cancel();
     }
@@ -210,7 +211,6 @@ class UniversalBle {
   static Future<bool?> isPaired(
     String deviceId, {
     BleCommand? pairingCommand,
-    Duration? connectionTimeout,
   }) async {
     if (BleCapabilities.hasSystemPairingApi) {
       return _bleCommandQueue.queueCommand(
@@ -218,12 +218,8 @@ class UniversalBle {
         deviceId: deviceId,
       );
     } else if (pairingCommand != null) {
-      return _connectAndExecuteBleCommand(
-        deviceId,
-        pairingCommand,
-        connectionTimeout: connectionTimeout,
-        updateCallbackValue: false,
-      );
+      return _connectAndExecuteBleCommand(deviceId, pairingCommand,
+          updateCallbackValue: false);
     }
     return null;
   }
@@ -240,16 +236,11 @@ class UniversalBle {
   static Future<bool?> pair(
     String deviceId, {
     BleCommand? pairingCommand,
-    Duration? connectionTimeout,
   }) async {
     if (BleCapabilities.hasSystemPairingApi) {
       return _platform.pair(deviceId);
     }
-    return _connectAndExecuteBleCommand(
-      deviceId,
-      pairingCommand,
-      connectionTimeout: connectionTimeout,
-    );
+    return _connectAndExecuteBleCommand(deviceId, pairingCommand);
   }
 
   /// Unpair a device.
@@ -315,20 +306,12 @@ class UniversalBle {
   static Future<bool?> _connectAndExecuteBleCommand(
     String deviceId,
     BleCommand? bleCommand, {
-    Duration? connectionTimeout,
     bool updateCallbackValue = false,
   }) async {
     try {
-      bool isConnected =
-          await getConnectionState(deviceId) != BleConnectionState.connected;
-
-      if (!isConnected) {
-        isConnected = await connect(
-          deviceId,
-          connectionTimeout: connectionTimeout,
-        );
+      if (await getConnectionState(deviceId) != BleConnectionState.connected) {
+        await connect(deviceId);
       }
-      if (!isConnected) return null;
 
       List<BleService> services = await discoverServices(deviceId);
 
