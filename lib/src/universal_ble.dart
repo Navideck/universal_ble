@@ -75,7 +75,7 @@ class UniversalBle {
 
   /// Connect to a device.
   /// It is advised to stop scanning before connecting.
-  /// It might throw errors if device is not connectable.
+  /// It might throw errors if device is not connectable, or failed with an error
   /// Default connection timeout is 60 sec
   static Future<bool> connect(
     String deviceId, {
@@ -87,7 +87,7 @@ class UniversalBle {
     try {
       Completer<bool> completer = Completer();
 
-      connectionSubscription = _platform.connectionStream(deviceId).listen(
+      connectionSubscription = connectionStream(deviceId).listen(
         (BleConnectionUpdate event) {
           connectionSubscription?.cancel();
           if (!completer.isCompleted) {

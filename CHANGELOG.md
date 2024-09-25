@@ -4,6 +4,8 @@
 * BREAKING CHANGE: rename `WebConfig` to `WebOptions`
 * BREAKING CHANGE: rename `ManufacturerDataFilter.data` to `ManufacturerDataFilter.payload`
 * BREAKING CHANGE: rename in-app pairing capabilities
+* BREAKING CHANGE: `onConnectionChange` returns error as well 
+* BREAKING CHANGE: `connect()` might also throw error if failed to connect with an error message
 * Deprecation: `manufacturerData` is deprecated in BleDevice and will be removed in the future
 * Improve `scanFilter` handling
 * Use `ManufacturerData` object instead of `Uint8List` for manufacturerData
@@ -11,6 +13,7 @@
 * Auto convert all services passed to `getSystemDevices()`
 * Return false for receivesAdvertisements on Linux/Web
 * Add 1s delay in discoverServices on Linux
+* Add `connectionStream` API to get connection updates as stream
 
 ## 0.12.0
 * BREAKING CHANGE: `unPair` is now `unpair`
@@ -20,7 +23,6 @@
 * Add `PlatformConfig` property in `StartScan`
 * Add `WebConfig` property in `PlatformConfig`
 * Fix notifications for characteristics without cccd on Android
-* Add `connectionStream` API to get connection updates as stream
 * Promote Linux to stable
 
 ## 0.11.1
