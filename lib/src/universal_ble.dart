@@ -70,7 +70,7 @@ class UniversalBle {
   }
 
   /// Connection stream of a device
-  Stream<bool> connectionStream(String deviceId) =>
+  static Stream<BleConnectionUpdate> connectionStream(String deviceId) =>
       _platform.connectionStream(deviceId);
 
   /// Connect to a device.
@@ -87,13 +87,20 @@ class UniversalBle {
     try {
       Completer<bool> completer = Completer();
 
-      connectionSubscription =
-          _platform.connectionStream(deviceId).listen((bool event) {
-        connectionSubscription?.cancel();
-        if (!completer.isCompleted) {
-          completer.complete(event);
-        }
-      });
+      connectionSubscription = _platform.connectionStream(deviceId).listen(
+        (BleConnectionUpdate event) {
+          connectionSubscription?.cancel();
+          if (!completer.isCompleted) {
+            String? error = event.error;
+            if (error != null) {
+              connectionSubscription?.cancel();
+              completer.completeError(error);
+            } else {
+              completer.complete(event.isConnected);
+            }
+          }
+        },
+      );
 
       _platform
           .connect(deviceId, connectionTimeout: connectionTimeout)

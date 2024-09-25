@@ -30,7 +30,7 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^2.0.0
-  pigeon: ^21.1.0
+  pigeon: ^22.4.0
 
 flutter:
   plugin:

@@ -162,7 +162,7 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
             if (currentState == BluetoothGatt.STATE_CONNECTED) {
                 Log.e(TAG, "$deviceId Already connected")
                 mainThreadHandler?.post {
-                    callbackChannel?.onConnectionChanged(deviceId, true) {}
+                    callbackChannel?.onConnectionChanged(deviceId, true, null) {}
                 }
                 return
             } else if (currentState == BluetoothGatt.STATE_CONNECTING) {
@@ -864,19 +864,22 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
 
     override fun onConnectionStateChange(gatt: BluetoothGatt, status: Int, newState: Int) {
         devicesStateMap[gatt.device.address] = newState
-        Log.d(TAG, "onConnectionStateChange-> Status: ${status}, NewState: $newState")
+        Log.d(
+            TAG,
+            "onConnectionStateChange-> Status: $status ${status.parseHciErrorCode()}, NewState: $newState"
+        )
 
         if (newState == BluetoothGatt.STATE_CONNECTED) {
             mainThreadHandler?.post {
                 callbackChannel?.onConnectionChanged(
-                    gatt.device.address, true
+                    gatt.device.address, true, status.parseHciErrorCode()
                 ) {}
             }
         } else if (newState == BluetoothGatt.STATE_DISCONNECTED) {
             cleanConnection(gatt)
             mainThreadHandler?.post {
                 callbackChannel?.onConnectionChanged(
-                    gatt.device.address, false
+                    gatt.device.address, false, status.parseHciErrorCode()
                 ) {}
             }
         }

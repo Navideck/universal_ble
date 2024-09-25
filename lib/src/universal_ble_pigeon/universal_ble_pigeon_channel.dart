@@ -119,10 +119,7 @@ class UniversalBlePigeonChannel extends UniversalBlePlatform {
   ) async {
     var devices = await _channel.getSystemDevices(withServices ?? []);
     return List<BleDevice>.from(
-      devices
-          .map((e) => e?.toBleDevice(isSystemDevice: true))
-          .where((e) => e != null)
-          .toList(),
+      devices.map((e) => e.toBleDevice(isSystemDevice: true)).toList(),
     );
   }
 
@@ -175,8 +172,8 @@ class _UniversalBleCallbackHandler extends UniversalBleCallbackChannel {
       availabilityChange(AvailabilityState.parse(state));
 
   @override
-  void onConnectionChanged(String deviceId, bool connected) =>
-      connectionChanged(deviceId, connected);
+  void onConnectionChanged(String deviceId, bool connected, String? error) =>
+      connectionChanged(deviceId, connected, error);
 
   @override
   void onScanResult(UniversalBleScanResult result) =>
@@ -200,9 +197,9 @@ extension _UniversalBleScanResultExtension on UniversalBleScanResult {
       rssi: rssi,
       isPaired: isPaired,
       isSystemDevice: isSystemDevice,
-      services: services?.nonNulls.map(BleUuidParser.string).toList() ?? [],
-      manufacturerDataList: manufacturerDataList?.nonNulls
-              .map((e) => ManufacturerData(e.companyIdentifier, e.data))
+      services: services?.map(BleUuidParser.string).toList() ?? [],
+      manufacturerDataList: manufacturerDataList
+              ?.map((e) => ManufacturerData(e.companyIdentifier, e.data))
               .toList() ??
           [],
     );

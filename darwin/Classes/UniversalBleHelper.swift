@@ -104,11 +104,11 @@ extension CBManagerState {
 }
 
 extension Error {
-    func toFlutterError() -> FlutterError {
+    func toPigeonError() -> PigeonError {
         let nsError = self as NSError
         let errorCode: String = .init(nsError.code)
         let errorDescription: String = nsError.localizedDescription
-        return FlutterError(code: errorCode, message: errorDescription, details: nil)
+        return PigeonError(code: errorCode, message: errorDescription, details: nil)
     }
 }
 

@@ -59,8 +59,14 @@ class _PeripheralDetailPageState extends State<PeripheralDetailPage> {
     });
   }
 
-  void _handleConnectionChange(String deviceId, bool isConnected) {
-    print('_handleConnectionChange $deviceId, $isConnected');
+  void _handleConnectionChange(
+    String deviceId,
+    bool isConnected,
+    String? error,
+  ) {
+    print(
+      '_handleConnectionChange $deviceId, $isConnected ${error != null ? 'Error: $error' : ''}',
+    );
     setState(() {
       if (deviceId == widget.deviceId) {
         this.isConnected = isConnected;

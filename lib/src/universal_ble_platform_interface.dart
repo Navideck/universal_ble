@@ -4,7 +4,9 @@ import 'dart:typed_data';
 import 'package:universal_ble/universal_ble.dart';
 
 abstract class UniversalBlePlatform {
-  StreamController? _connectionStreamController;
+  StreamController<({String deviceId, bool isConnected, String? error})>?
+      _connectionStreamController;
+
   final Map<String, bool> _pairStateMap = {};
 
   Future<AvailabilityState> getBluetoothAvailabilityState();
@@ -57,21 +59,27 @@ abstract class UniversalBlePlatform {
 
   bool receivesAdvertisements(String deviceId) => true;
 
-  Stream<bool> connectionStream(String deviceId) {
+  Stream<BleConnectionUpdate> connectionStream(String deviceId) {
     _setupConnectionStreamIfRequired();
     return _connectionStreamController!.stream
         .where((event) => event.deviceId == deviceId)
-        .map((event) => event.isConnected);
+        .map((event) => BleConnectionUpdate(
+              isConnected: event.isConnected,
+              error: event.error,
+            ));
   }
 
   void updateScanResult(BleDevice bleDevice) {
     onScanResult?.call(bleDevice);
   }
 
-  void updateConnection(String deviceId, bool isConnected) {
-    onConnectionChange?.call(deviceId, isConnected);
-    _connectionStreamController
-        ?.add((deviceId: deviceId, isConnected: isConnected));
+  void updateConnection(String deviceId, bool isConnected, [String? error]) {
+    onConnectionChange?.call(deviceId, isConnected, error);
+    _connectionStreamController?.add((
+      deviceId: deviceId,
+      isConnected: isConnected,
+      error: error,
+    ));
   }
 
   void updateCharacteristicValue(
@@ -106,8 +114,7 @@ abstract class UniversalBlePlatform {
   void _setupConnectionStreamIfRequired() {
     if (_connectionStreamController != null) return;
 
-    _connectionStreamController =
-        StreamController<({String deviceId, bool isConnected})>.broadcast();
+    _connectionStreamController = StreamController.broadcast();
 
     // Auto dispose if no more subscribers
     _connectionStreamController?.onCancel = () {
@@ -119,7 +126,8 @@ abstract class UniversalBlePlatform {
 }
 
 // Callback types
-typedef OnConnectionChange = void Function(String deviceId, bool isConnected);
+typedef OnConnectionChange = void Function(
+    String deviceId, bool isConnected, String? error);
 
 typedef OnValueChange = void Function(
     String deviceId, String characteristicId, Uint8List value);

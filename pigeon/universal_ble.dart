@@ -99,6 +99,7 @@ abstract class UniversalBleCallbackChannel {
   void onConnectionChanged(
     String deviceId,
     bool connected,
+    String? error,
   );
 }
 
@@ -107,8 +108,8 @@ class UniversalBleScanResult {
   final String? name;
   final bool? isPaired;
   final int? rssi;
-  final List<UniversalManufacturerData?>? manufacturerDataList;
-  final List<String?>? services;
+  final List<UniversalManufacturerData>? manufacturerDataList;
+  final List<String>? services;
 
   UniversalBleScanResult({
     required this.name,
@@ -122,21 +123,21 @@ class UniversalBleScanResult {
 
 class UniversalBleService {
   String uuid;
-  List<UniversalBleCharacteristic?>? characteristics;
+  List<UniversalBleCharacteristic>? characteristics;
   UniversalBleService(this.uuid, this.characteristics);
 }
 
 class UniversalBleCharacteristic {
   String uuid;
-  List<int?> properties;
+  List<int> properties;
   UniversalBleCharacteristic(this.uuid, this.properties);
 }
 
 /// Scan Filters
 class UniversalScanFilter {
-  final List<String?> withServices;
-  final List<String?> withNamePrefix;
-  final List<UniversalManufacturerDataFilter?> withManufacturerData;
+  final List<String> withServices;
+  final List<String> withNamePrefix;
+  final List<UniversalManufacturerDataFilter> withManufacturerData;
 
   UniversalScanFilter(
     this.withServices,
