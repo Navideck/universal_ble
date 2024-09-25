@@ -91,7 +91,6 @@ class UniversalBle {
           if (!completer.isCompleted) {
             String? error = event.error;
             if (error != null) {
-              connectionSubscription?.cancel();
               completer.completeError(error);
             } else {
               completer.complete(event.isConnected);
