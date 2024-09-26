@@ -1,11 +1,12 @@
 ## 0.13.0
 * BREAKING CHANGE: `scanFilter` filters are now in OR relation 
 * BREAKING CHANGE: `manufacturerDataHead` is removed from `BleDevice`
-* BREAKING CHANGE: rename `WebConfig` to `WebOptions`
-* BREAKING CHANGE: rename `ManufacturerDataFilter.data` to `ManufacturerDataFilter.payload`
+* BREAKING CHANGE: `WebConfig` is now `WebOptions`
+* BREAKING CHANGE: `ManufacturerDataFilter.data` is now `ManufacturerDataFilter.payload`
+* BREAKING CHANGE: `connect()` does not return a boolean anymore. It will throw error on connection failure
+* BREAKING CHANGE: `pair()` does not return a boolean anymore. It will throw error on connection failure
+* BREAKING CHANGE: `onConnectionChange` returns error as well
 * BREAKING CHANGE: rename in-app pairing capabilities
-* BREAKING CHANGE: `onConnectionChange` returns error as well 
-* BREAKING CHANGE: `connect()` might also throw error if failed to connect with an error message
 * Deprecation: `manufacturerData` is deprecated in BleDevice and will be removed in the future
 * Improve `scanFilter` handling
 * Use `ManufacturerData` object instead of `Uint8List` for manufacturerData
