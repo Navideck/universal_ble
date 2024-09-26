@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 import 'package:universal_ble/src/ble_command_queue.dart';
+import 'package:universal_ble/src/universal_ble_exceptions.dart';
 import 'package:universal_ble/src/universal_ble_linux/universal_ble_linux.dart';
 import 'package:universal_ble/src/universal_ble_pigeon/universal_ble_pigeon_channel.dart';
 import 'package:universal_ble/src/universal_ble_web/universal_ble_web.dart';
@@ -75,9 +76,9 @@ class UniversalBle {
 
   /// Connect to a device.
   /// It is advised to stop scanning before connecting.
-  /// It might throw errors if device is not connectable.
+  /// It throws error if device failed to connect
   /// Default connection timeout is 60 sec
-  static Future<bool> connect(
+  static Future<void> connect(
     String deviceId, {
     Duration? connectionTimeout,
   }) async {
@@ -112,7 +113,10 @@ class UniversalBle {
         },
       );
 
-      return await completer.future.timeout(connectionTimeout);
+      if (!await completer.future.timeout(connectionTimeout)) {
+        // Connection failed, improve error
+        throw "Failed to connect";
+      }
     } finally {
       connectionSubscription?.cancel();
     }
@@ -212,7 +216,7 @@ class UniversalBle {
   /// It will return true/false if it manages to execute the command.
   /// Note that it will trigger pairing if the device is not already paired.
   ///
-  /// Returns null on `Apple` and `Web` when no `bleCommand` is passed.
+  /// Returns null on `Apple` and `Web` when no `bleCommand` is passed. // TODO: Print a warning in the console
   static Future<bool?> isPaired(
     String deviceId, {
     BleCommand? pairingCommand,
@@ -236,14 +240,15 @@ class UniversalBle {
 
   /// Pair a device.
   ///
+  /// It throws error if pairing fails.
+  ///
   /// On `Apple` and `Web`, it only works on devices with encrypted characteristics.
-  /// It returns null if there is no readable characteristic.
+  /// It is advised to pass a pairingCommand with an encrypted read or write characteristic.
+  /// When not passing a pairingCommand, you should afterwards use [isPaired] with a pairingCommand // TODO: Print a warning in the console
+  /// to verify the pairing state.
   ///
-  /// You can optionally pass a pairingCommand if you know an encrypted read or write characteristic.
-  /// If you do, it returns true if it can successfully execute the command after pairing.
-  ///
-  /// On `Web/Windows` and `Web/Linux`, it does not work for devices where `BleCapabilities.triggersConfirmOnlyPairing` is false.
-  static Future<bool?> pair(
+  /// On `Web/Windows` and `Web/Linux`, it does not work for devices that use `ConfirmOnly` pairing.
+  static Future<void> pair(
     String deviceId, {
     BleCommand? pairingCommand,
     Duration? connectionTimeout,
@@ -318,6 +323,21 @@ class UniversalBle {
     }
   }
 
+  static Future<bool> _ensureConnection(
+    String deviceId,
+    Duration? connectionTimeout,
+  ) async {
+    bool isConnected =
+        await getConnectionState(deviceId) == BleConnectionState.connected;
+    if (!isConnected) {
+      isConnected = await connect(
+        deviceId,
+        connectionTimeout: connectionTimeout,
+      );
+    }
+    return isConnected;
+  }
+
   static Future<bool?> _connectAndExecuteBleCommand(
     String deviceId,
     BleCommand? bleCommand, {
@@ -325,15 +345,12 @@ class UniversalBle {
     bool updateCallbackValue = false,
   }) async {
     try {
-      bool isConnected =
-          await getConnectionState(deviceId) == BleConnectionState.connected;
-      if (!isConnected) {
-        isConnected = await connect(
-          deviceId,
-          connectionTimeout: connectionTimeout,
-        );
+      // Might throw error from Connection..
+      bool connected = await _ensureConnection(deviceId, connectionTimeout);
+      if (!connected) {
+        UniversalBlePlatform.logInfo("PairingFailed: Failed to connect");
+        return null;
       }
-      if (!isConnected) return null;
 
       List<BleService> services = await discoverServices(deviceId);
       if (bleCommand == null) {
