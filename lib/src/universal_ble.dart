@@ -76,9 +76,9 @@ class UniversalBle {
 
   /// Connect to a device.
   /// It is advised to stop scanning before connecting.
-  /// It throws error if device failed to connect
-  /// Default connection timeout is 60 sec
-  /// can throw `ConnectionException` or `PlatformException`
+  /// It throws error if device connection fails.
+  /// Default connection timeout is 60 sec.
+  /// Can throw `ConnectionException` or `PlatformException`.
   static Future<void> connect(
     String deviceId, {
     Duration? connectionTimeout,
@@ -260,7 +260,7 @@ class UniversalBle {
   /// to verify the pairing state.
   ///
   /// On `Web/Windows` and `Web/Linux`, it does not work for devices that use `ConfirmOnly` pairing.
-  /// can throw `PairingException`, `ConnectionException` or `PlatformException`
+  /// Can throw `PairingException`, `ConnectionException` or `PlatformException`.
   static Future<void> pair(
     String deviceId, {
     BleCommand? pairingCommand,
