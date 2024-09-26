@@ -7,6 +7,11 @@ class BleService {
   BleService(String uuid, this.characteristics) {
     this.uuid = BleUuidParser.string(uuid);
   }
+
+  @override
+  String toString() {
+    return 'BleService{uuid: $uuid, characteristics: $characteristics}';
+  }
 }
 
 class BleCharacteristic {
@@ -15,6 +20,11 @@ class BleCharacteristic {
 
   BleCharacteristic(String uuid, this.properties) {
     this.uuid = BleUuidParser.string(uuid);
+  }
+
+  @override
+  String toString() {
+    return 'BleCharacteristic{uuid: $uuid, properties: $properties}';
   }
 }
 
@@ -32,4 +42,7 @@ enum CharacteristicProperty {
 
   factory CharacteristicProperty.parse(int index) =>
       CharacteristicProperty.values[index];
+
+  @override
+  String toString() => name;
 }
