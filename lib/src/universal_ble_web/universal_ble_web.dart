@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_web_bluetooth/flutter_web_bluetooth.dart';
 import 'package:universal_ble/src/models/model_exports.dart';
 import 'package:universal_ble/src/universal_ble_platform_interface.dart';
+import 'package:universal_ble/src/universal_logger.dart';
 
 class UniversalBleWeb extends UniversalBlePlatform {
   static UniversalBleWeb? _instance;
@@ -127,10 +128,7 @@ class UniversalBleWeb extends UniversalBlePlatform {
       device.advertisementsUseMemory = true;
       await device.watchAdvertisements();
     } catch (e) {
-      UniversalBlePlatform.logInfo(
-        "WebWatchAdvertisementError: $e",
-        isError: true,
-      );
+      UniversalLogger.logError("WebWatchAdvertisementError: $e");
     }
   }
 
@@ -395,9 +393,8 @@ class UniversalBleWeb extends UniversalBlePlatform {
     }
 
     if (optionalServices.isEmpty) {
-      UniversalBlePlatform.logInfo(
+      UniversalLogger.logError(
         "OptionalServices list is empty on web, you have to specify services in the ScanFilter in order to be able to access those after connecting",
-        isError: true,
       );
     }
 

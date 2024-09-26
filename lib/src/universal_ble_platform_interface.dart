@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:developer';
 import 'dart:typed_data';
 import 'package:universal_ble/universal_ble.dart';
 
@@ -104,11 +103,6 @@ abstract class UniversalBlePlatform {
   OnValueChange? onValueChange;
   OnAvailabilityChange? onAvailabilityChange;
   OnPairingStateChange? onPairingStateChange;
-
-  static void logInfo(String message, {bool isError = false}) {
-    if (isError) message = '\x1B[31m$message\x1B[31m';
-    log(message, name: 'UniversalBle');
-  }
 
   /// Creates an auto disposable streamController
   void _setupConnectionStreamIfRequired() {

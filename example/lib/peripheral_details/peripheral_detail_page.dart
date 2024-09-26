@@ -254,12 +254,12 @@ class _PeripheralDetailPageState extends State<PeripheralDetailPage> {
                               enabled: !isConnected,
                               onPressed: () async {
                                 try {
-                                  bool connected = await UniversalBle.connect(
+                                  await UniversalBle.connect(
                                     widget.deviceId,
                                   );
-                                  _addLog("ConnectionResult", connected);
+                                  _addLog("ConnectionResult", true);
                                 } catch (e) {
-                                  _addLog('ConnectError', e);
+                                  _addLog('ConnectError (${e.runtimeType})', e);
                                 }
                               },
                             ),
@@ -411,14 +411,18 @@ class _PeripheralDetailPageState extends State<PeripheralDetailPage> {
                             PlatformButton(
                               enabled: BleCapabilities.supportsAllPairingKinds,
                               onPressed: () async {
-                                bool? pairingResult = await UniversalBle.pair(
-                                  widget.deviceId,
-                                  // pairingCommand: BleCommand(
-                                  //   service: "",
-                                  //   characteristic: "",
-                                  // ),
-                                );
-                                _addLog("Pairing Result", pairingResult);
+                                try {
+                                  await UniversalBle.pair(
+                                    widget.deviceId,
+                                    // pairingCommand: BleCommand(
+                                    //   service: "",
+                                    //   characteristic: "",
+                                    // ),
+                                  );
+                                  _addLog("Pairing Result", true);
+                                } catch (e) {
+                                  _addLog('PairError (${e.runtimeType})', e);
+                                }
                               },
                               text: 'Pair',
                             ),
