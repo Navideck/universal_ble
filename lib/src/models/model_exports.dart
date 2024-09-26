@@ -1,3 +1,4 @@
+export 'package:universal_ble/src/models/ble_connection_update.dart';
 export 'package:universal_ble/src/models/manufacturer_data.dart';
 export 'package:universal_ble/src/models/platform_config.dart';
 export 'package:universal_ble/src/models/queue_type.dart';

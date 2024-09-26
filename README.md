@@ -153,8 +153,8 @@ UniversalBle.connect(deviceId);
 UniversalBle.disconnect(deviceId);
 
 // Get connection/disconnection updates
-UniversalBle.onConnectionChange = (String deviceId, bool isConnected) {
-  debugPrint('OnConnectionChange $deviceId, $isConnected');
+UniversalBle.onConnectionChange = (String deviceId, bool isConnected, String? error) {
+  debugPrint('OnConnectionChange $deviceId, $isConnected Error: $error');
 }
 
 // Get current connection state

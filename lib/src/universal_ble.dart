@@ -5,6 +5,7 @@ import 'package:universal_ble/src/ble_command_queue.dart';
 import 'package:universal_ble/src/universal_ble_linux/universal_ble_linux.dart';
 import 'package:universal_ble/src/universal_ble_pigeon/universal_ble_pigeon_channel.dart';
 import 'package:universal_ble/src/universal_ble_web/universal_ble_web.dart';
+import 'package:universal_ble/src/universal_logger.dart';
 import 'package:universal_ble/universal_ble.dart';
 
 class UniversalBle {
@@ -31,7 +32,7 @@ class UniversalBle {
   /// [QueueType.none] will execute all commands in parallel.
   static set queueType(QueueType queueType) {
     _bleCommandQueue.queueType = queueType;
-    UniversalBlePlatform.logInfo('Queue ${queueType.name}');
+    UniversalLogger.logInfo('Queue ${queueType.name}');
   }
 
   /// Get Bluetooth availability state.
@@ -70,28 +71,37 @@ class UniversalBle {
   }
 
   /// Connection stream of a device
-  Stream<bool> connectionStream(String deviceId) =>
+  static Stream<BleConnectionUpdate> connectionStream(String deviceId) =>
       _platform.connectionStream(deviceId);
 
   /// Connect to a device.
   /// It is advised to stop scanning before connecting.
-  /// It might throw errors if device is not connectable.
-  /// `connectionTimeout` is supported on Web only.
-  static Future<bool> connect(
+  /// It throws error if device connection fails.
+  /// Default connection timeout is 60 sec.
+  /// Can throw `ConnectionException` or `PlatformException`.
+  static Future<void> connect(
     String deviceId, {
     Duration? connectionTimeout,
   }) async {
+    connectionTimeout ??= const Duration(seconds: 60);
     StreamSubscription? connectionSubscription;
+
     try {
       Completer<bool> completer = Completer();
 
-      connectionSubscription =
-          _platform.connectionStream(deviceId).listen((bool event) {
-        connectionSubscription?.cancel();
-        if (!completer.isCompleted) {
-          completer.complete(event);
-        }
-      });
+      connectionSubscription = connectionStream(deviceId).listen(
+        (BleConnectionUpdate event) {
+          connectionSubscription?.cancel();
+          if (!completer.isCompleted) {
+            String? error = event.error;
+            if (error != null) {
+              completer.completeError(ConnectionException(error));
+            } else {
+              completer.complete(event.isConnected);
+            }
+          }
+        },
+      );
 
       _platform
           .connect(deviceId, connectionTimeout: connectionTimeout)
@@ -99,15 +109,14 @@ class UniversalBle {
         (error) {
           if (completer.isCompleted == false) {
             connectionSubscription?.cancel();
-            completer.completeError(error);
+            completer.completeError(ConnectionException(error));
           }
         },
       );
 
-      if (connectionTimeout != null) {
-        return await completer.future.timeout(connectionTimeout);
+      if (!await completer.future.timeout(connectionTimeout)) {
+        throw ConnectionException("Failed to connect");
       }
-      return await completer.future;
     } finally {
       connectionSubscription?.cancel();
     }
@@ -211,36 +220,65 @@ class UniversalBle {
   static Future<bool?> isPaired(
     String deviceId, {
     BleCommand? pairingCommand,
+    Duration? connectionTimeout,
   }) async {
     if (BleCapabilities.hasSystemPairingApi) {
       return _bleCommandQueue.queueCommand(
         () => _platform.isPaired(deviceId),
         deviceId: deviceId,
       );
-    } else if (pairingCommand != null) {
-      return _connectAndExecuteBleCommand(deviceId, pairingCommand,
-          updateCallbackValue: false);
     }
-    return null;
+
+    if (pairingCommand == null) {
+      UniversalLogger.logWarning("PairingCommand required to get result");
+      return null;
+    }
+
+    try {
+      await _connectAndExecuteBleCommand(
+        deviceId,
+        pairingCommand,
+        connectionTimeout: connectionTimeout,
+        updateCallbackValue: false,
+      );
+
+      // Because pairingCommand will be never null, so we wont get Unknown result here
+      return true;
+    } catch (e) {
+      UniversalLogger.logError("ExecuteBleCommandFailed: $e");
+      return false;
+    }
   }
 
   /// Pair a device.
   ///
+  /// It throws error if pairing fails.
+  ///
   /// On `Apple` and `Web`, it only works on devices with encrypted characteristics.
-  /// It returns null if there is no readable characteristic.
+  /// It is advised to pass a pairingCommand with an encrypted read or write characteristic.
+  /// When not passing a pairingCommand, you should afterwards use [isPaired] with a pairingCommand
+  /// to verify the pairing state.
   ///
-  /// You can optionally pass a pairingCommand if you know an encrypted read or write characteristic.
-  /// If you do, it returns true if it can successfully execute the command after pairing.
-  ///
-  /// On `Web/Windows` and `Web/Linux`, it does not work for devices where `BleCapabilities.triggersConfirmOnlyPairing` is false.
-  static Future<bool?> pair(
+  /// On `Web/Windows` and `Web/Linux`, it does not work for devices that use `ConfirmOnly` pairing.
+  /// Can throw `PairingException`, `ConnectionException` or `PlatformException`.
+  static Future<void> pair(
     String deviceId, {
     BleCommand? pairingCommand,
+    Duration? connectionTimeout,
   }) async {
     if (BleCapabilities.hasSystemPairingApi) {
-      return _platform.pair(deviceId);
+      bool paired = await _platform.pair(deviceId);
+      if (!paired) throw PairingException();
+    } else {
+      if (pairingCommand == null) {
+        UniversalLogger.logWarning("PairingCommand required to get result");
+      }
+      await _connectAndExecuteBleCommand(
+        deviceId,
+        pairingCommand,
+        connectionTimeout: connectionTimeout,
+      );
     }
-    return _connectAndExecuteBleCommand(deviceId, pairingCommand);
   }
 
   /// Unpair a device.
@@ -303,38 +341,32 @@ class UniversalBle {
     }
   }
 
-  static Future<bool?> _connectAndExecuteBleCommand(
+  static Future<void> _connectAndExecuteBleCommand(
     String deviceId,
     BleCommand? bleCommand, {
+    Duration? connectionTimeout,
     bool updateCallbackValue = false,
   }) async {
-    try {
-      if (await getConnectionState(deviceId) != BleConnectionState.connected) {
-        await connect(deviceId);
-      }
-
-      List<BleService> services = await discoverServices(deviceId);
-
-      if (bleCommand == null) {
-        await _attemptPairingReadingAll(deviceId, services);
-        return null;
-      } else {
-        bool commandResult =
-            await _executeBleCommand(deviceId, services, bleCommand);
-        if (updateCallbackValue) {
-          _platform.updatePairingState(deviceId, commandResult);
-        }
-        return commandResult;
-      }
-    } catch (e) {
-      UniversalBlePlatform.logInfo(
-        "FailedToPerform EncryptedCharOperation: $e",
+    // Try to connect first
+    if (await getConnectionState(deviceId) != BleConnectionState.connected) {
+      UniversalLogger.logInfo("Connecting to $deviceId");
+      await connect(
+        deviceId,
+        connectionTimeout: connectionTimeout,
       );
-      if (updateCallbackValue) {
-        _platform.updatePairingState(deviceId, false);
-      }
-      return false;
     }
+
+    List<BleService> services = await discoverServices(deviceId);
+    UniversalLogger.logInfo("Discovered services: ${services.length}");
+
+    if (bleCommand == null) {
+      // Just attempt pairing
+      await _attemptPairingReadingAll(deviceId, services);
+      return;
+    }
+
+    await _executeBleCommand(deviceId, services, bleCommand);
+    if (updateCallbackValue) _platform.updatePairingState(deviceId, true);
   }
 
   // Fire and forget, and do not rely on result
@@ -359,12 +391,13 @@ class UniversalBle {
         }
       }
     } catch (_) {}
+
     if (!containsReadCharacteristics) {
-      throw "No readable characteristic found";
+      throw PairingException("No readable characteristic found");
     }
   }
 
-  static Future<bool> _executeBleCommand(
+  static Future<void> _executeBleCommand(
     String deviceId,
     List<BleService> services,
     BleCommand bleCommand,
@@ -384,7 +417,7 @@ class UniversalBle {
     }
 
     if (characteristic == null) {
-      return false;
+      throw PairingException("BleCommand not found in discovered services");
     }
 
     // Check if BleCommand Supports Read or Write
@@ -396,28 +429,34 @@ class UniversalBle {
       bleOutputProperty = BleOutputProperty.withoutResponse;
     } else if (!characteristic.properties
         .contains(CharacteristicProperty.read)) {
-      return false;
+      throw PairingException(
+        "BleCommand does not support read or write operation",
+      );
     }
 
     Uint8List? value = bleCommand.writeValue;
-    if (value != null && bleOutputProperty != null) {
-      await writeValue(
-        deviceId,
-        bleCommand.service,
-        bleCommand.characteristic,
-        value,
-        bleOutputProperty,
-      );
-    } else {
-      // Fallback to read if supported
-      await readValue(
-        deviceId,
-        bleCommand.service,
-        bleCommand.characteristic,
-        timeout: const Duration(seconds: 30),
-      );
+
+    try {
+      if (value != null && bleOutputProperty != null) {
+        await writeValue(
+          deviceId,
+          bleCommand.service,
+          bleCommand.characteristic,
+          value,
+          bleOutputProperty,
+        );
+      } else {
+        // Fallback to read if supported
+        await readValue(
+          deviceId,
+          bleCommand.service,
+          bleCommand.characteristic,
+          timeout: const Duration(seconds: 30),
+        );
+      }
+    } catch (e) {
+      throw PairingException(e.toString());
     }
-    return true;
   }
 
   /// Get updates of remaining items of a queue.

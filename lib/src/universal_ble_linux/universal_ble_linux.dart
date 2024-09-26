@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:universal_ble/src/models/model_exports.dart';
 import 'package:universal_ble/src/universal_ble_filter_util.dart';
 import 'package:universal_ble/src/universal_ble_platform_interface.dart';
+import 'package:universal_ble/src/universal_logger.dart';
 
 class UniversalBleLinux extends UniversalBlePlatform {
   UniversalBleLinux._();
@@ -45,10 +46,7 @@ class UniversalBleLinux extends UniversalBlePlatform {
       await _activeAdapter?.setPowered(true);
       return _activeAdapter?.powered ?? false;
     } catch (e) {
-      UniversalBlePlatform.logInfo(
-        'Error enabling bluetooth: $e',
-        isError: true,
-      );
+      UniversalLogger.logError('Error enabling bluetooth: $e');
       return false;
     }
   }
@@ -113,10 +111,7 @@ class UniversalBleLinux extends UniversalBlePlatform {
         return true;
       });
     } catch (e) {
-      UniversalBlePlatform.logInfo(
-        "stopScan error: $e",
-        isError: true,
-      );
+      UniversalLogger.logError("stopScan error: $e");
     }
   }
 
@@ -159,7 +154,7 @@ class UniversalBleLinux extends UniversalBlePlatform {
       await device.propertiesChanged.firstWhere((element) {
         if (element.contains(BluezProperty.connected)) {
           if (!device.connected) {
-            UniversalBlePlatform.logInfo(
+            UniversalLogger.logInfo(
               "DiscoverServicesFailed: Device disconnected",
             );
             return true;
@@ -167,7 +162,7 @@ class UniversalBleLinux extends UniversalBlePlatform {
         }
         return element.contains(BluezProperty.servicesResolved);
       }).timeout(const Duration(seconds: 10), onTimeout: () {
-        UniversalBlePlatform.logInfo(
+        UniversalLogger.logInfo(
           "DiscoverServicesFailed: Timeout",
         );
         return [];
@@ -238,8 +233,9 @@ class UniversalBleLinux extends UniversalBlePlatform {
               );
               break;
             default:
-              UniversalBlePlatform.logInfo(
-                  "UnhandledCharValuePropertyChange: $property");
+              UniversalLogger.logInfo(
+                "UnhandledCharValuePropertyChange: $property",
+              );
           }
         }
       });
@@ -351,8 +347,9 @@ class UniversalBleLinux extends UniversalBlePlatform {
               .map((e) => e.uuid.toString())
               .any((service) => withServices.contains(service));
         } else {
-          UniversalBlePlatform.logInfo(
-              'Skipping: ${device.address}: Services not resolved yet.');
+          UniversalLogger.logInfo(
+            'Skipping: ${device.address}: Services not resolved yet.',
+          );
           return false;
         }
       }).toList();
@@ -394,7 +391,7 @@ class UniversalBleLinux extends UniversalBlePlatform {
 
       _activeAdapter ??= _client.adapters.first;
 
-      UniversalBlePlatform.logInfo(
+      UniversalLogger.logInfo(
         'BleAdapter: ${_activeAdapter?.name} - ${_activeAdapter?.address}',
       );
 
@@ -411,7 +408,7 @@ class UniversalBleLinux extends UniversalBlePlatform {
               break;
             case BluezProperty.propertyClass:
             default:
-              UniversalBlePlatform.logInfo(
+              UniversalLogger.logInfo(
                 "UnhandledPropertyChanged: $property",
               );
           }
@@ -426,10 +423,7 @@ class UniversalBleLinux extends UniversalBlePlatform {
       _initializationCompleter?.complete();
       _initializationCompleter = null;
     } catch (e) {
-      UniversalBlePlatform.logInfo(
-        'Error initializing: $e',
-        isError: true,
-      );
+      UniversalLogger.logError('Error initializing: $e');
       _initializationCompleter?.completeError(e);
       await _client.close();
       rethrow;
@@ -501,7 +495,7 @@ class UniversalBleLinux extends UniversalBlePlatform {
           case BluezProperty.manufacturerData:
             break;
           default:
-            UniversalBlePlatform.logInfo(
+            UniversalLogger.logInfo(
               "UnhandledDevicePropertyChanged ${device.name} ${device.address}: $property",
             );
             break;
