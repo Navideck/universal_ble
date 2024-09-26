@@ -11,10 +11,10 @@ class ConnectionException implements Exception {
   String toString() => message;
 }
 
-class PairException implements Exception {
+class PairingException implements Exception {
   late String message;
 
-  PairException([dynamic error]) {
+  PairingException([dynamic error]) {
     message = _errorParser(error);
   }
 

@@ -78,6 +78,7 @@ class UniversalBle {
   /// It is advised to stop scanning before connecting.
   /// It throws error if device failed to connect
   /// Default connection timeout is 60 sec
+  /// can throw `ConnectionException` or `PlatformException`
   static Future<void> connect(
     String deviceId, {
     Duration? connectionTimeout,
@@ -259,6 +260,7 @@ class UniversalBle {
   /// to verify the pairing state.
   ///
   /// On `Web/Windows` and `Web/Linux`, it does not work for devices that use `ConfirmOnly` pairing.
+  /// can throw `PairingException`, `ConnectionException` or `PlatformException`
   static Future<void> pair(
     String deviceId, {
     BleCommand? pairingCommand,
@@ -266,7 +268,7 @@ class UniversalBle {
   }) async {
     if (BleCapabilities.hasSystemPairingApi) {
       bool paired = await _platform.pair(deviceId);
-      if (!paired) throw PairException();
+      if (!paired) throw PairingException();
     } else {
       if (pairingCommand == null) {
         UniversalLogger.logWarning("PairingCommand required to get result");
@@ -391,7 +393,7 @@ class UniversalBle {
     } catch (_) {}
 
     if (!containsReadCharacteristics) {
-      throw PairException("No readable characteristic found");
+      throw PairingException("No readable characteristic found");
     }
   }
 
@@ -415,7 +417,7 @@ class UniversalBle {
     }
 
     if (characteristic == null) {
-      throw PairException("BleCommand not found in discovered services");
+      throw PairingException("BleCommand not found in discovered services");
     }
 
     // Check if BleCommand Supports Read or Write
@@ -427,7 +429,7 @@ class UniversalBle {
       bleOutputProperty = BleOutputProperty.withoutResponse;
     } else if (!characteristic.properties
         .contains(CharacteristicProperty.read)) {
-      throw PairException(
+      throw PairingException(
         "BleCommand does not support read or write operation",
       );
     }
@@ -453,7 +455,7 @@ class UniversalBle {
         );
       }
     } catch (e) {
-      throw PairException(e.toString());
+      throw PairingException(e.toString());
     }
   }
 
