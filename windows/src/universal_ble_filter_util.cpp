@@ -101,17 +101,17 @@ namespace universal_ble
 
             for (const auto &value : *manufacturerDataList)
             {
-                const auto &deviceMfData = std::any_cast<const UniversalManufacturerData &>(
+                const auto &deviceManufacturerData = std::any_cast<const UniversalManufacturerData &>(
                     std::get<flutter::CustomEncodableValue>(value));
 
-                if (deviceMfData.company_identifier() != filter.company_identifier())
+                if (deviceManufacturerData.company_identifier() != filter.company_identifier())
                     continue;
 
                 // If no data filter, all data matches
                 if (data_filter == nullptr)
                     return true;
 
-                const auto &deviceData = deviceMfData.data();
+                const auto &deviceData = deviceManufacturerData.data();
                 if (deviceData.size() < data_filter->size())
                     continue;
 

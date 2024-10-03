@@ -753,9 +753,9 @@ namespace universal_ble
       flutter::EncodableList manufacturerDataEncodableList = flutter::EncodableList();
       if (args.Advertisement() != nullptr)
       {
-        for (BluetoothLEManufacturerData mfd : args.Advertisement().ManufacturerData())
+        for (BluetoothLEManufacturerData msd : args.Advertisement().ManufacturerData())
         {
-          UniversalManufacturerData universalManufacturerData = UniversalManufacturerData(static_cast<int64_t>(mfd.CompanyId()), to_bytevc(mfd.Data()));
+          UniversalManufacturerData universalManufacturerData = UniversalManufacturerData(static_cast<int64_t>(msd.CompanyId()), to_bytevc(msd.Data()));
           manufacturerDataEncodableList.push_back(flutter::CustomEncodableValue(universalManufacturerData));
         }
       }

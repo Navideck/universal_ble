@@ -77,10 +77,10 @@ class UniversalBleFilterUtil {
         val filters = scanFilter.withManufacturerData.filterNotNull()
         if (filters.isEmpty()) return true
         if (manufacturerDataList.isEmpty()) return false
-        return manufacturerDataList.any { mfd ->
+        return manufacturerDataList.any { msd ->
             filters.any { filter ->
-                mfd.companyIdentifier == filter.companyIdentifier &&
-                        isDataMatching(filter.data, mfd.data, filter.mask)
+                msd.companyIdentifier == filter.companyIdentifier &&
+                        isDataMatching(filter.data, msd.data, filter.mask)
             }
         }
     }

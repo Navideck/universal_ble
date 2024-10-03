@@ -53,31 +53,31 @@ class UniversalBleFilterUtil {
     ScanFilter scanFilter,
     BleDevice device,
   ) {
-    final filterMfdList = scanFilter.withManufacturerData;
-    if (filterMfdList.isEmpty) return true;
+    final manufacturerDataFilters = scanFilter.withManufacturerData;
+    if (manufacturerDataFilters.isEmpty) return true;
 
     List<ManufacturerData> manufacturerDataList = device.manufacturerDataList;
     if (manufacturerDataList.isEmpty) return false;
 
-    return manufacturerDataList.any((deviceMfd) => filterMfdList.any(
-          (filterMfd) => _isManufacturerDataMatch(filterMfd, deviceMfd),
+    return manufacturerDataList.any((deviceMsd) => manufacturerDataFilters.any(
+          (filterMsd) => _isManufacturerDataMatch(filterMsd, deviceMsd),
         ));
   }
 
   bool _isManufacturerDataMatch(
-    ManufacturerDataFilter filterMfd,
-    ManufacturerData deviceMfd,
+    ManufacturerDataFilter filterMsd,
+    ManufacturerData deviceMsd,
   ) {
-    if (filterMfd.companyIdentifier != deviceMfd.companyId) return false;
+    if (filterMsd.companyIdentifier != deviceMsd.companyId) return false;
 
-    Uint8List? filterPayload = filterMfd.payload;
-    Uint8List devicePayload = deviceMfd.payload;
+    Uint8List? filterPayload = filterMsd.payload;
+    Uint8List devicePayload = deviceMsd.payload;
 
     if (filterPayload == null || filterPayload.isEmpty) return true;
     if (devicePayload.isEmpty) return false;
     if (filterPayload.length > devicePayload.length) return false;
 
-    Uint8List? filterMask = filterMfd.mask;
+    Uint8List? filterMask = filterMsd.mask;
 
     if (filterMask != null && filterMask.length == filterPayload.length) {
       for (int i = 0; i < filterPayload.length; i++) {
