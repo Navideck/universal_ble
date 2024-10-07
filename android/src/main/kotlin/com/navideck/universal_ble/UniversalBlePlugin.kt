@@ -2,8 +2,16 @@ package com.navideck.universal_ble
 
 import android.annotation.SuppressLint
 import android.app.Activity
-import android.bluetooth.*
+import android.bluetooth.BluetoothAdapter
+import android.bluetooth.BluetoothDevice
 import android.bluetooth.BluetoothDevice.BOND_BONDED
+import android.bluetooth.BluetoothGatt
+import android.bluetooth.BluetoothGattCallback
+import android.bluetooth.BluetoothGattCharacteristic
+import android.bluetooth.BluetoothGattDescriptor
+import android.bluetooth.BluetoothManager
+import android.bluetooth.BluetoothProfile
+import android.bluetooth.BluetoothStatusCodes
 import android.bluetooth.le.ScanCallback
 import android.bluetooth.le.ScanFilter
 import android.bluetooth.le.ScanResult
@@ -20,7 +28,7 @@ import android.util.Log
 import io.flutter.embedding.engine.plugins.FlutterPlugin
 import io.flutter.embedding.engine.plugins.activity.ActivityAware
 import io.flutter.embedding.engine.plugins.activity.ActivityPluginBinding
-import io.flutter.plugin.common.*
+import io.flutter.plugin.common.PluginRegistry
 import java.util.UUID
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
@@ -30,7 +38,7 @@ private const val TAG = "UniversalBlePlugin"
 
 @SuppressLint("MissingPermission")
 class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(), FlutterPlugin,
-    ActivityAware, PluginRegistry.ActivityResultListener {
+    ActivityAware, PluginRegistry.ActivityResultListener, BluetoothAdapter.LeScanCallback {
     private val bluetoothEnableRequestCode = 2342313
     private var callbackChannel: UniversalBleCallbackChannel? = null
     private var mainThreadHandler: Handler? = null
@@ -56,7 +64,8 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
         callbackChannel = UniversalBleCallbackChannel(flutterPluginBinding.binaryMessenger)
         context = flutterPluginBinding.applicationContext
         mainThreadHandler = Handler(Looper.getMainLooper())
-        bluetoothManager = context.getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager
+        bluetoothManager =
+            context.getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager
 
         val intentFilter = IntentFilter(BluetoothAdapter.ACTION_STATE_CHANGED)
         intentFilter.addAction(BluetoothDevice.ACTION_BOND_STATE_CHANGED)
@@ -119,7 +128,8 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
         val hasCustomFilters = filter?.hasCustomFilter() ?: false;
 
         try {
-            val filterServices = filter?.withServices?.filterNotNull()?.toUUIDList() ?: emptyList()
+            val filterServices =
+                filter?.withServices?.filterNotNull()?.toUUIDList() ?: emptyList()
             var scanFilters = emptyList<ScanFilter>()
 
             // Set custom scan filter only if required
@@ -135,6 +145,7 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
             bluetoothManager.adapter.bluetoothLeScanner?.startScan(
                 scanFilters, settings, scanCallback
             )
+            //  bluetoothManager.adapter.startLeScan(this)
         } catch (e: Exception) {
             throw FlutterError(
                 "illegalIllegalArgument",
@@ -151,6 +162,7 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
         )
         // check if already scanning
         bluetoothManager.adapter.bluetoothLeScanner?.stopScan(scanCallback)
+        // bluetoothManager.adapter.stopLeScan(this)
     }
 
     override fun connect(deviceId: String) {
@@ -281,7 +293,11 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
                 // Some devices do not need CCCD to update
                 @Suppress("DEPRECATION")
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                    if (gatt.writeDescriptor(descriptor, value) != BluetoothStatusCodes.SUCCESS) {
+                    if (gatt.writeDescriptor(
+                            descriptor,
+                            value
+                        ) != BluetoothStatusCodes.SUCCESS
+                    ) {
                         callback(subscriptionFailedError("Failed to update descriptor"))
                         return
                     }
@@ -330,7 +346,13 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
             val gattCharacteristic = gatt.getCharacteristic(service, characteristic)
             if (gattCharacteristic == null) {
                 callback(
-                    Result.failure(FlutterError("IllegalArgument", "Unknown characteristic", null))
+                    Result.failure(
+                        FlutterError(
+                            "IllegalArgument",
+                            "Unknown characteristic",
+                            null
+                        )
+                    )
                 )
                 return
             }
@@ -502,7 +524,11 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
     }
 
 
-    override fun requestMtu(deviceId: String, expectedMtu: Long, callback: (Result<Long>) -> Unit) {
+    override fun requestMtu(
+        deviceId: String,
+        expectedMtu: Long,
+        callback: (Result<Long>) -> Unit,
+    ) {
         try {
             val gatt = deviceId.toBluetoothGatt()
             gatt.requestMtu(expectedMtu.toInt())
@@ -678,7 +704,11 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
 
         // Else connect to Gatt, discover services, then disconnect
         val callbackHandler = object : BluetoothGattCallback() {
-            override fun onConnectionStateChange(gatt: BluetoothGatt?, status: Int, newState: Int) {
+            override fun onConnectionStateChange(
+                gatt: BluetoothGatt?,
+                status: Int,
+                newState: Int,
+            ) {
                 if (status == BluetoothGatt.GATT_SUCCESS && newState == BluetoothGatt.STATE_CONNECTED) {
                     if (gatt?.discoverServices() != true) {
                         updateCallback(null)
@@ -790,7 +820,10 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
                     return
                 }
                 // get pairing failed error
-                when (intent.getIntExtra(BluetoothDevice.EXTRA_BOND_STATE, BluetoothDevice.ERROR)) {
+                when (intent.getIntExtra(
+                    BluetoothDevice.EXTRA_BOND_STATE,
+                    BluetoothDevice.ERROR
+                )) {
                     BluetoothDevice.BOND_BONDING -> {
                         Log.v(TAG, "${device.address} BOND_BONDING")
                     }
@@ -813,13 +846,36 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
     }
 
 
+    override fun onLeScan(bluetoothDevice: BluetoothDevice?, i: Int, scanRecord: ByteArray?) {
+        if (bluetoothDevice == null || scanRecord == null) return
+
+        var serviceUuids: Array<UUID> = arrayOf()
+        bluetoothDevice.uuids?.forEach {
+            serviceUuids += it.uuid
+        }
+
+        mainThreadHandler?.post {
+            callbackChannel?.onScanResult(
+                UniversalBleScanResult(
+                    name = bluetoothDevice.name,
+                    deviceId = bluetoothDevice.address,
+                    isPaired = bluetoothDevice.bondState == BOND_BONDED,
+                    //   manufacturerDataList = manufacturerDataList,
+                    rssi = 0,
+                    services = serviceUuids.map { it.toString() }.toList()
+                )
+            ) {}
+        }
+        ScanRecordParser.handleLeScanRecord(bluetoothDevice, scanRecord)
+    }
+
+
     private val scanCallback = object : ScanCallback() {
         override fun onScanFailed(errorCode: Int) {
             Log.e(TAG, "OnScanFailed: ${errorCode.parseScanErrorMessage()}")
         }
 
         override fun onScanResult(callbackType: Int, result: ScanResult) {
-
             // Log.v(TAG, "onScanResult: $result")
             var serviceUuids: Array<UUID> = arrayOf()
             result.device.uuids?.forEach {
@@ -854,6 +910,8 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
                     )
                 ) {}
             }
+
+            ScanRecordParser.handleLeScanRecord(result.device, result.scanRecord?.bytes)
         }
 
         override fun onBatchScanResults(results: MutableList<ScanResult>?) {
@@ -1006,4 +1064,5 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
 
     override fun onDetachedFromActivityForConfigChanges() {}
     override fun onReattachedToActivityForConfigChanges(binding: ActivityPluginBinding) {}
+
 }
