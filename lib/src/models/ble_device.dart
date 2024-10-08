@@ -5,6 +5,7 @@ import 'package:universal_ble/universal_ble.dart';
 class BleDevice {
   String deviceId;
   String? name;
+  String? rawName;
   int? rssi;
   bool? isPaired;
   List<String> services;
@@ -29,13 +30,16 @@ class BleDevice {
 
   BleDevice({
     required this.deviceId,
-    required this.name,
+    required String? name,
     this.rssi,
     this.isPaired,
     this.services = const [],
     this.isSystemDevice,
     this.manufacturerDataList = const [],
-  });
+  }) {
+    rawName = name;
+    this.name = name?.replaceAll(RegExp(r'[^ -~]'), '').trim();
+  }
 
   @override
   String toString() {

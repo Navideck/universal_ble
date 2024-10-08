@@ -14,7 +14,7 @@ class ScannedItemWidget extends StatelessWidget {
     if (rawManufacturerData.isNotEmpty) {
       manufacturerData = rawManufacturerData.first;
     }
-    if (name == null || name.isEmpty) name = 'NA';
+    if (name == null || name.isEmpty) name = 'N/A';
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 8.0),
       child: Card(
