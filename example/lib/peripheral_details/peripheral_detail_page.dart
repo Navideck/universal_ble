@@ -96,6 +96,7 @@ class _PeripheralDetailPageState extends State<PeripheralDetailPage> {
     try {
       var services = await UniversalBle.discoverServices(widget.deviceId);
       print('${services.length} services discovered');
+      print(services);
       discoveredServices.clear();
       setState(() {
         discoveredServices = services;
