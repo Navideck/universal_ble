@@ -17,6 +17,8 @@ class UniversalBleLinux extends UniversalBlePlatform {
   final BlueZClient _client = BlueZClient();
   late final UniversalBleFilterUtil _bleFilter = UniversalBleFilterUtil();
   BlueZAdapter? _activeAdapter;
+  StreamSubscription? _deviceAdded;
+  StreamSubscription? _deviceRemoved;
   Completer<void>? _initializationCompleter;
   final Map<String, BlueZDevice> _devices = {};
   final Map<String, StreamSubscription> _deviceUpdateStreamSubscriptions = {};
@@ -65,36 +67,16 @@ class UniversalBleLinux extends UniversalBlePlatform {
     // Stop scan and clean all old advertisement listeners
     await stopScan();
 
-    bool hasCustomFilter = scanFilter?.hasCustomFilter() ?? false;
-    List<String> withServicesFilter = [];
+    _bleFilter.scanFilter = scanFilter;
 
-    if (hasCustomFilter) {
-      _bleFilter.scanFilter = scanFilter;
-    } else {
-      _bleFilter.scanFilter = null;
-      withServicesFilter = scanFilter?.withServices.toValidUUIDList() ?? [];
-    }
+    // Setup listeners
+    _deviceAdded ??= _client.deviceAdded.listen(_onDeviceAdd);
+    _deviceRemoved ??= _client.deviceRemoved.listen(_onDeviceRemoved);
 
-    // Add services filter
-    await adapter.setDiscoveryFilter(
-      uuids: withServicesFilter,
-    );
+    await adapter.startDiscovery();
 
-    await _activeAdapter?.startDiscovery();
-
-    // Apply custom Services filter to these devices
-    ScanFilter customServicesFilter = ScanFilter(
-      withServices: withServicesFilter,
-    );
     for (var device in _client.devices) {
-      if (!hasCustomFilter && withServicesFilter.isNotEmpty) {
-        if (_bleFilter.isServicesMatchingFilters(
-            customServicesFilter, device.toBleDevice())) {
-          _onDeviceAdd(device);
-        }
-      } else {
-        _onDeviceAdd(device);
-      }
+      _onDeviceAdd(device);
     }
   }
 
@@ -102,9 +84,17 @@ class UniversalBleLinux extends UniversalBlePlatform {
   Future<void> stopScan() async {
     await _ensureInitialized();
     try {
+      // Dispose listeners
+      _deviceAdded?.cancel();
+      _deviceRemoved?.cancel();
+      _deviceAdded = null;
+      _deviceRemoved = null;
+
+      // Stop Disovery
       if (_activeAdapter?.discovering == true) {
         await _activeAdapter?.stopDiscovery();
       }
+
       // Clean all advertiseemnt listeners
       _deviceAdvertisementSubscriptions.removeWhere((e, value) {
         value.cancel();
@@ -415,9 +405,6 @@ class UniversalBleLinux extends UniversalBlePlatform {
         }
       });
 
-      _client.deviceAdded.listen(_onDeviceAdd);
-      _client.deviceRemoved.listen(_onDeviceRemoved);
-
       updateAvailability(_availabilityState);
       isInitialized = true;
       _initializationCompleter?.complete();
@@ -581,12 +568,6 @@ extension on BlueZFailedException {
     } catch (e) {
       return null;
     }
-  }
-}
-
-extension on ScanFilter {
-  bool hasCustomFilter() {
-    return withNamePrefix.isNotEmpty || withManufacturerData.isNotEmpty;
   }
 }
 
