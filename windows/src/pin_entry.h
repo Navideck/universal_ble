@@ -16,7 +16,7 @@ namespace universal_ble
     TCHAR textBoxText[16];
 
     // Positions and dimensions of UI elements: X, Y, Width, Height
-    const SizeAndPos_t mainWindow = {150, 150, 450, 240};
+    const SizeAndPos_t mainWindow = {150, 150, 450, 260};
     const SizeAndPos_t txtEdit = {50, 40, 320, 40};
     const SizeAndPos_t btnOK = {50, 100, 320, 40};
 
