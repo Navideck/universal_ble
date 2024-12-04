@@ -28,29 +28,35 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
   var callbackChannel: UniversalBleCallbackChannel
   private var universalBleFilterUtil = UniversalBleFilterUtil()
   private lazy var manager: CBCentralManager = .init(delegate: self, queue: nil)
+  private var stateUpdateHandlers: [(Result<CBCentralManager, PigeonError>) -> Void] = []
   private var discoveredServicesProgressMap: [String: [UniversalBleService]] = [:]
   private var characteristicReadFutures = [CharacteristicReadFuture]()
   private var characteristicWriteFutures = [CharacteristicWriteFuture]()
   private var characteristicNotifyFutures = [CharacteristicNotifyFuture]()
   private var discoverServicesFutures = [DiscoverServicesFuture]()
-  private var bluetoothAvailabilityStateCallback: ((Result<Int64, Error>) -> Void)? {
-    didSet {
-      oldValue?(Result.success(AvailabilityState.unknown.rawValue))
-    }
-  }
 
   init(callbackChannel: UniversalBleCallbackChannel) {
     self.callbackChannel = callbackChannel
     super.init()
   }
 
-  func getBluetoothAvailabilityState(completion: @escaping (Result<Int64, Error>) -> Void) {
-    let managerState = manager.state
-
-    if managerState == .unknown {
-      bluetoothAvailabilityStateCallback = completion
+  func getManagerAsync(completion: @escaping (Result<CBCentralManager, PigeonError>) -> Void) {
+    if manager.state != .unknown {
+      completion(.success(manager))
     } else {
-      completion(.success(managerState.toAvailabilityState().rawValue))
+      stateUpdateHandlers.append(completion)
+      _ = manager
+    }
+  }
+
+  func getBluetoothAvailabilityState(completion: @escaping (Result<Int64, Error>) -> Void) {
+    getManagerAsync { result in
+      switch result {
+      case let .success(manager):
+        completion(.success(manager.state.toAvailabilityState().rawValue))
+      case let .failure(error):
+        completion(.failure(error))
+      }
     }
   }
 
@@ -76,7 +82,15 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
     }
 
     let options = [CBCentralManagerScanOptionAllowDuplicatesKey: true]
-    manager.scanForPeripherals(withServices: withServices, options: options)
+
+    getManagerAsync { result in
+      switch result {
+      case let .success(manager):
+        manager.scanForPeripherals(withServices: withServices, options: options)
+      case let .failure(error):
+        print("Failed to initialize Bluetooth: \(error.message ?? "Unknown error")")
+      }
+    }
   }
 
   func stopScan() throws {
@@ -308,7 +322,22 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
     let state = central.state.toAvailabilityState().rawValue
     callbackChannel.onAvailabilityChanged(state: state) { _ in }
 
-    bluetoothAvailabilityStateCallback?(Result.success(state))
+    let result: Result<CBCentralManager, PigeonError>
+    switch central.state {
+    case .unknown, .resetting:
+      // Ignore intermediate states
+      return
+    case .unauthorized:
+      result = .failure(PigeonError(code: "Unauthorized", message: "Not authorized to access Bluetooth", details: nil))
+    case .unsupported:
+      result = .failure(PigeonError(code: "Unsupported", message: "Bluetooth is not supported", details: nil))
+    default:
+      result = .success(manager)
+    }
+    stateUpdateHandlers.removeAll { handler in
+      handler(result)
+      return true
+    }
   }
 
   public func centralManager(_: CBCentralManager, didDiscover peripheral: CBPeripheral, advertisementData: [String: Any], rssi RSSI: NSNumber) {
@@ -345,7 +374,7 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
   }
 
   public func centralManager(_: CBCentralManager, didConnect peripheral: CBPeripheral) {
-      callbackChannel.onConnectionChanged(deviceId: peripheral.uuid.uuidString, connected: true, error: nil) { _ in }
+    callbackChannel.onConnectionChanged(deviceId: peripheral.uuid.uuidString, connected: true, error: nil) { _ in }
   }
 
   public func centralManager(_: CBCentralManager, didDisconnectPeripheral peripheral: CBPeripheral, error _: Error?) {
