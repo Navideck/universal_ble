@@ -4,6 +4,7 @@ import android.annotation.SuppressLint
 import android.app.Activity
 import android.bluetooth.*
 import android.bluetooth.BluetoothDevice.BOND_BONDED
+import android.bluetooth.le.BluetoothLeScanner
 import android.bluetooth.le.ScanCallback
 import android.bluetooth.le.ScanFilter
 import android.bluetooth.le.ScanResult
@@ -37,6 +38,7 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
     private lateinit var context: Context
     private var activity: Activity? = null
     private lateinit var bluetoothManager: BluetoothManager
+    private lateinit var safeScanner: SafeScanner
     private val cachedServicesMap = mutableMapOf<String, List<String>>()
     private val devicesStateMap = mutableMapOf<String, Int>()
     private val universalBleFilterUtil = UniversalBleFilterUtil()
@@ -50,13 +52,13 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
     private val subscriptionResultFutureList = mutableListOf<SubscriptionResultFuture>()
     private val pairResultFutures = mutableMapOf<String, (Result<Boolean>) -> Unit>()
 
-
     override fun onAttachedToEngine(flutterPluginBinding: FlutterPlugin.FlutterPluginBinding) {
         UniversalBlePlatformChannel.setUp(flutterPluginBinding.binaryMessenger, this)
         callbackChannel = UniversalBleCallbackChannel(flutterPluginBinding.binaryMessenger)
         context = flutterPluginBinding.applicationContext
         mainThreadHandler = Handler(Looper.getMainLooper())
         bluetoothManager = context.getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager
+        safeScanner = SafeScanner(bluetoothManager)
 
         val intentFilter = IntentFilter(BluetoothAdapter.ACTION_STATE_CHANGED)
         intentFilter.addAction(BluetoothDevice.ACTION_BOND_STATE_CHANGED)
@@ -74,7 +76,6 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
         callbackChannel = null
         mainThreadHandler = null
     }
-
 
     override fun getBluetoothAvailabilityState(callback: (Result<Long>) -> Unit) {
         callback(
@@ -132,7 +133,7 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
                 scanFilters = filter?.toScanFilters(filterServices) ?: emptyList<ScanFilter>()
             }
 
-            bluetoothManager.adapter.bluetoothLeScanner?.startScan(
+            safeScanner.startScan(
                 scanFilters, settings, scanCallback
             )
         } catch (e: Exception) {
@@ -150,7 +151,7 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
             "Bluetooth not enabled",
         )
         // check if already scanning
-        bluetoothManager.adapter.bluetoothLeScanner?.stopScan(scanCallback)
+        safeScanner.stopScan(scanCallback)
     }
 
     override fun connect(deviceId: String) {
