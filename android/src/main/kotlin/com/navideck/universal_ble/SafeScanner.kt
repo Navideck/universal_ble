@@ -1,6 +1,7 @@
 package com.navideck.universal_ble
 
 import android.annotation.SuppressLint
+import android.bluetooth.BluetoothManager
 import android.bluetooth.le.BluetoothLeScanner
 import android.bluetooth.le.ScanCallback
 import android.bluetooth.le.ScanFilter
@@ -16,7 +17,7 @@ private const val EXCESSIVE_SCANNING_PERIOD_MS = 30 * 1000L
 private const val TAG = "UniversalBlePlugin"
 
 @SuppressLint("MissingPermission")
-class SafeScanner(private val scanner: BluetoothLeScanner) {
+class SafeScanner(private val bluetoothManager: BluetoothManager) {
     private val handler = Handler(Looper.myLooper()!!)
     private val startTimes = LinkedList<Long>()
     private var awaitingScan = false
@@ -48,7 +49,7 @@ class SafeScanner(private val scanner: BluetoothLeScanner) {
             awaitingScan = false
             startTimes.addLast(now)
             try {
-                scanner.startScan(filters, settings, callback)
+                bluetoothManager.adapter.bluetoothLeScanner?.startScan(filters, settings, callback)
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to start Scan : $e")
             }
@@ -58,6 +59,6 @@ class SafeScanner(private val scanner: BluetoothLeScanner) {
     fun stopScan(callback: ScanCallback) {
         awaitingScan = false
         handler.removeCallbacksAndMessages(null)
-        scanner.stopScan(callback)
+        bluetoothManager.adapter.bluetoothLeScanner?.stopScan(callback)
     }
 }
