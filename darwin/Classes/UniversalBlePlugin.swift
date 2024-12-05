@@ -28,16 +28,12 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
   var callbackChannel: UniversalBleCallbackChannel
   private var universalBleFilterUtil = UniversalBleFilterUtil()
   private lazy var manager: CBCentralManager = .init(delegate: self, queue: nil)
+  private var availabilityStateUpdateHandlers: [(Result<Int64, Error>) -> Void] = []
   private var discoveredServicesProgressMap: [String: [UniversalBleService]] = [:]
   private var characteristicReadFutures = [CharacteristicReadFuture]()
   private var characteristicWriteFutures = [CharacteristicWriteFuture]()
   private var characteristicNotifyFutures = [CharacteristicNotifyFuture]()
   private var discoverServicesFutures = [DiscoverServicesFuture]()
-  private var bluetoothAvailabilityStateCallback: ((Result<Int64, Error>) -> Void)? {
-    didSet {
-      oldValue?(Result.success(AvailabilityState.unknown.rawValue))
-    }
-  }
 
   init(callbackChannel: UniversalBleCallbackChannel) {
     self.callbackChannel = callbackChannel
@@ -45,12 +41,11 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
   }
 
   func getBluetoothAvailabilityState(completion: @escaping (Result<Int64, Error>) -> Void) {
-    let managerState = manager.state
-
-    if managerState == .unknown {
-      bluetoothAvailabilityStateCallback = completion
+    if manager.state != .unknown {
+      completion(.success(manager.state.toAvailabilityState().rawValue))
     } else {
-      completion(.success(managerState.toAvailabilityState().rawValue))
+      availabilityStateUpdateHandlers.append(completion)
+      _ = manager
     }
   }
 
@@ -76,6 +71,7 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
     }
 
     let options = [CBCentralManagerScanOptionAllowDuplicatesKey: true]
+
     manager.scanForPeripherals(withServices: withServices, options: options)
   }
 
@@ -307,8 +303,11 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
   func centralManagerDidUpdateState(_ central: CBCentralManager) {
     let state = central.state.toAvailabilityState().rawValue
     callbackChannel.onAvailabilityChanged(state: state) { _ in }
-
-    bluetoothAvailabilityStateCallback?(Result.success(state))
+    // Complete Pending state handler
+    availabilityStateUpdateHandlers.removeAll { handler in
+      handler(.success(state))
+      return true
+    }
   }
 
   public func centralManager(_: CBCentralManager, didDiscover peripheral: CBPeripheral, advertisementData: [String: Any], rssi RSSI: NSNumber) {
@@ -345,7 +344,7 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
   }
 
   public func centralManager(_: CBCentralManager, didConnect peripheral: CBPeripheral) {
-      callbackChannel.onConnectionChanged(deviceId: peripheral.uuid.uuidString, connected: true, error: nil) { _ in }
+    callbackChannel.onConnectionChanged(deviceId: peripheral.uuid.uuidString, connected: true, error: nil) { _ in }
   }
 
   public func centralManager(_: CBCentralManager, didDisconnectPeripheral peripheral: CBPeripheral, error _: Error?) {

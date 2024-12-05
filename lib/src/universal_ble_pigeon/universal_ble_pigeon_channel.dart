@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:universal_ble/src/universal_ble_pigeon/universal_ble.g.dart';
 import 'package:universal_ble/universal_ble.dart';
 
@@ -32,6 +33,7 @@ class UniversalBlePigeonChannel extends UniversalBlePlatform {
     ScanFilter? scanFilter,
     PlatformConfig? platformConfig,
   }) async {
+    await _ensureInitialized();
     await _channel.startScan(
       scanFilter.toUniversalScanFilter(),
     );
@@ -132,6 +134,29 @@ class UniversalBlePigeonChannel extends UniversalBlePlatform {
       valueChanged: updateCharacteristicValue,
       pairStateChange: updatePairingState,
     ));
+  }
+
+  Future<void> _ensureInitialized() async {
+    // Check bluetooth availability on Apple
+    // so that it will ask permission only when required, and throw error on failed
+    if (defaultTargetPlatform == TargetPlatform.iOS ||
+        defaultTargetPlatform == TargetPlatform.macOS) {
+      AvailabilityState state = await getBluetoothAvailabilityState();
+      switch (state) {
+        case AvailabilityState.unauthorized:
+          throw PlatformException(
+            code: "Unauthorized",
+            message: "Not authorized to access Bluetooth",
+          );
+        case AvailabilityState.unsupported:
+          throw PlatformException(
+            code: "Unsupported",
+            message: "Bluetooth is not supported",
+          );
+        default:
+        // Ignore rest..
+      }
+    }
   }
 }
 

@@ -2,6 +2,8 @@
 * BREAKING CHANGE: `bleDevice.name` now filters out non-printable characters
 * Add `bleDevice.rawName`
 * Bump flutter_web_bluetooth to 1.0.0
+* Improve Apple CBCentralManager lazy initialization on `startScan`
+* Throw error on Apple if bluetooth permission denied on `startScan` 
 
 ## 0.13.0
 * BREAKING CHANGE: `scanFilter` filters are now in OR relation 
