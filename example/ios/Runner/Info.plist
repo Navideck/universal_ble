@@ -46,8 +46,8 @@
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
 	<key>NSBluetoothAlwaysUsageDescription</key>
-	<string>example</string>
+	<string>Discover Bluetooth devices</string>
 	<key>NSBluetoothPeripheralUsageDescription</key>
-	<string>example</string>
+	<string>Discover Bluetooth devices</string>
 </dict>
 </plist>
