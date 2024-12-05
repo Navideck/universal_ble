@@ -16,6 +16,21 @@ private const val NUM_SCAN_DURATIONS_KEPT = 5
 private const val EXCESSIVE_SCANNING_PERIOD_MS = 30 * 1000L
 private const val TAG = "UniversalBlePlugin"
 
+/**
+ * A safe wrapper for Bluetooth LE scanning operations that prevents excessive scanning.
+ * 
+ * This class manages BLE scanning while adhering to Android's scanning frequency limits by:
+ * - Tracking scan start times over a 30-second window
+ * - Limiting to 5 scan operations within this window
+ * - Automatically scheduling delayed scans when frequency limits are exceeded
+ * - Providing safe start/stop scan operations with error handling
+ * 
+ * The scanner will automatically delay new scan requests if the frequency limit is reached,
+ * and will retry once sufficient time has passed. This helps prevent scan failure errors
+ * and ensures compliance with Android's scanning restrictions.
+ *
+ * @property bluetoothManager The system's BluetoothManager used for scanning operations
+ */
 @SuppressLint("MissingPermission")
 class SafeScanner(private val bluetoothManager: BluetoothManager) {
     private val handler = Handler(Looper.myLooper()!!)
