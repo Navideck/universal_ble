@@ -28,7 +28,7 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
   var callbackChannel: UniversalBleCallbackChannel
   private var universalBleFilterUtil = UniversalBleFilterUtil()
   private lazy var manager: CBCentralManager = .init(delegate: self, queue: nil)
-  private var stateUpdateHandlers: [(Result<CBCentralManager, PigeonError>) -> Void] = []
+  private var availabilityStateUpdateHandlers: [(Result<Int64, Error>) -> Void] = []
   private var discoveredServicesProgressMap: [String: [UniversalBleService]] = [:]
   private var characteristicReadFutures = [CharacteristicReadFuture]()
   private var characteristicWriteFutures = [CharacteristicWriteFuture]()
@@ -40,23 +40,12 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
     super.init()
   }
 
-  func getManagerAsync(completion: @escaping (Result<CBCentralManager, PigeonError>) -> Void) {
-    if manager.state != .unknown {
-      completion(.success(manager))
-    } else {
-      stateUpdateHandlers.append(completion)
-      _ = manager
-    }
-  }
-
   func getBluetoothAvailabilityState(completion: @escaping (Result<Int64, Error>) -> Void) {
-    getManagerAsync { result in
-      switch result {
-      case let .success(manager):
-        completion(.success(manager.state.toAvailabilityState().rawValue))
-      case let .failure(error):
-        completion(.failure(error))
-      }
+    if manager.state != .unknown {
+      completion(.success(manager.state.toAvailabilityState().rawValue))
+    } else {
+      availabilityStateUpdateHandlers.append(completion)
+      _ = manager
     }
   }
 
@@ -83,14 +72,7 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
 
     let options = [CBCentralManagerScanOptionAllowDuplicatesKey: true]
 
-    getManagerAsync { result in
-      switch result {
-      case let .success(manager):
-        manager.scanForPeripherals(withServices: withServices, options: options)
-      case let .failure(error):
-        print("Failed to initialize Bluetooth: \(error.message ?? "Unknown error")")
-      }
-    }
+    manager.scanForPeripherals(withServices: withServices, options: options)
   }
 
   func stopScan() throws {
@@ -321,21 +303,9 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
   func centralManagerDidUpdateState(_ central: CBCentralManager) {
     let state = central.state.toAvailabilityState().rawValue
     callbackChannel.onAvailabilityChanged(state: state) { _ in }
-
-    let result: Result<CBCentralManager, PigeonError>
-    switch central.state {
-    case .unknown, .resetting:
-      // Ignore intermediate states
-      return
-    case .unauthorized:
-      result = .failure(PigeonError(code: "Unauthorized", message: "Not authorized to access Bluetooth", details: nil))
-    case .unsupported:
-      result = .failure(PigeonError(code: "Unsupported", message: "Bluetooth is not supported", details: nil))
-    default:
-      result = .success(manager)
-    }
-    stateUpdateHandlers.removeAll { handler in
-      handler(result)
+    // Complete Pending state handler
+    availabilityStateUpdateHandlers.removeAll { handler in
+      handler(.success(state))
       return true
     }
   }
