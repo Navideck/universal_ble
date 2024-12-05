@@ -715,6 +715,8 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
     private fun cleanConnection(gatt: BluetoothGatt) {
         knownGatts.remove(gatt)
         gatt.disconnect()
+        gatt.close()
+
         readResultFutureList.removeAll {
             if (it.deviceId == gatt.device.address) {
                 it.result(Result.failure(DeviceDisconnectedError))
