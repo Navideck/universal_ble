@@ -716,7 +716,6 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
     private fun cleanConnection(gatt: BluetoothGatt) {
         knownGatts.remove(gatt)
         gatt.disconnect()
-        gatt.close()
 
         readResultFutureList.removeAll {
             if (it.deviceId == gatt.device.address) {
@@ -885,6 +884,8 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
                     gatt.device.address, false, status.parseHciErrorCode()
                 ) {}
             }
+            Log.d(TAG, "Closing gatt for ${gatt.device.name}")
+            gatt.close()
         }
     }
 
