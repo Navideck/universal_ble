@@ -178,9 +178,9 @@ fun <T> SparseArray<T>.toList(): List<Pair<Int, T>> {
 fun BluetoothGatt.getCharacteristic(
     service: String,
     characteristic: String,
-): BluetoothGattCharacteristic? =
-    getService(UUID.fromString(service)).getCharacteristic(UUID.fromString(characteristic))
-
+): BluetoothGattCharacteristic? {
+    return getService(UUID.fromString(service))?.getCharacteristic(UUID.fromString(characteristic))
+}
 
 fun subscriptionFailedError(error: String? = null): Result<Unit> {
     return Result.failure(
