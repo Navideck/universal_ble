@@ -117,14 +117,14 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
         }
         val settings = builder.build()
 
-        val hasCustomFilters = filter?.hasCustomFilter() ?: false;
+        val usesCustomFilters = filter?.usesCustomFilters() ?: false;
 
         try {
             val filterServices = filter?.withServices?.filterNotNull()?.toUUIDList() ?: emptyList()
             var scanFilters = emptyList<ScanFilter>()
 
             // Set custom scan filter only if required
-            if (hasCustomFilters) {
+            if (usesCustomFilters) {
                 Log.e(TAG, "Using Custom Filters")
                 universalBleFilterUtil.scanFilter = filter
                 universalBleFilterUtil.serviceFilterUUIDS = filterServices

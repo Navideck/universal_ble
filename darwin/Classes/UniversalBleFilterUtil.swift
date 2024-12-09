@@ -101,7 +101,7 @@ public class UniversalBleFilterUtil {
 }
 
 extension UniversalScanFilter {
-    var hasCustomFilters: Bool {
+    var usesCustomFilters: Bool {
         return !withManufacturerData.isEmpty || !withNamePrefix.isEmpty
     }
 }
