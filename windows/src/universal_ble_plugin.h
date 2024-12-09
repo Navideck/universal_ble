@@ -85,7 +85,6 @@ namespace universal_ble
 
         UniversalBleUiThreadHandler uiThreadHandler_;
         Radio bluetoothRadio{nullptr};
-        bool initialized = false;
         RadioState oldRadioState = RadioState::Unknown;
         BluetoothLEAdvertisementWatcher bluetoothLEWatcher{nullptr};
         DeviceWatcher deviceWatcher{nullptr};

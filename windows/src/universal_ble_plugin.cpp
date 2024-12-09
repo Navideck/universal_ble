@@ -34,6 +34,8 @@ namespace universal_ble
   std::unique_ptr<UniversalBleCallbackChannel> callbackChannel;
   std::unordered_map<std::string, winrt::event_token> characteristicsTokens{}; // TODO: Remove the map and store the token inside the characteristic object
 
+  bool initialized = false;
+  
   void UniversalBlePlugin::RegisterWithRegistrar(flutter::PluginRegistrarWindows *registrar)
   {
     auto plugin = std::make_unique<UniversalBlePlugin>(registrar);
