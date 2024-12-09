@@ -125,9 +125,9 @@ namespace universal_ble
         if (filter != nullptr)
         {
           // Native filter supports only 1 service
-          bool hasCustomFilters = filter->with_services().size() > 1 || filter->with_manufacturer_data().size() > 0 || filter->with_name_prefix().size() > 0;
+          bool usesCustomFilters = filter->with_services().size() > 1 || filter->with_manufacturer_data().size() > 0 || filter->with_name_prefix().size() > 0;
 
-          if (hasCustomFilters)
+          if (usesCustomFilters)
           {
             std::cout << "Using Custom Scan Filter" << std::endl;
             setScanFilter(*filter);

@@ -55,12 +55,12 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
 
   func startScan(filter: UniversalScanFilter?) throws {
     // If filter has any other filter other than official one
-    let hasCustomFilter = filter?.hasCustomFilters ?? false
+    let usesCustomFilters = filter?.usesCustomFilters ?? false
 
     // Apply services filter
     var withServices: [CBUUID] = try filter?.withServices.compactMap { $0 }.toCBUUID() ?? []
 
-    if hasCustomFilter {
+    if usesCustomFilters {
       print("Using Custom Filters")
       universalBleFilterUtil.scanFilter = filter
       universalBleFilterUtil.scanFilterServicesUUID = withServices

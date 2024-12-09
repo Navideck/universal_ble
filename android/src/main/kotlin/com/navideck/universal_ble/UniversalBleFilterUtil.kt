@@ -102,7 +102,7 @@ class UniversalBleFilterUtil {
     }
 }
 
-fun UniversalScanFilter.hasCustomFilter(): Boolean {
+fun UniversalScanFilter.usesCustomFilters(): Boolean {
     // NamePrefix Filtering is not supported in native filters
     return withNamePrefix.isNotEmpty()
 }
