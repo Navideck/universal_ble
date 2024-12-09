@@ -103,7 +103,7 @@ class UniversalBleFilterUtil {
 }
 
 fun UniversalScanFilter.hasCustomFilter(): Boolean {
-    // Only NamePrefix Filtering is not allowed in native filters
+    // NamePrefix Filtering is not supported in native filters
     return withNamePrefix.isNotEmpty()
 }
 

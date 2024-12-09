@@ -54,7 +54,7 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
   }
 
   func startScan(filter: UniversalScanFilter?) throws {
-    // If filter have any other filter other then official one
+    // If filter has any other filter other than official one
     let hasCustomFilter = filter?.hasCustomFilters ?? false
 
     // Apply services filter
