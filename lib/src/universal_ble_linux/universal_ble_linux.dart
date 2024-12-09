@@ -199,19 +199,23 @@ class UniversalBleLinux extends UniversalBlePlatform {
   @override
   Future<void> setNotifiable(String deviceId, String service,
       String characteristic, BleInputProperty bleInputProperty) async {
-    final key = "$deviceId-$service-$characteristic";
-
     final char = _getCharacteristic(deviceId, service, characteristic);
+
+    String characteristicKey = "${deviceId}_${service}_$characteristic";
+
     if (bleInputProperty != BleInputProperty.disabled) {
-      if (char.notifying) throw Exception('Characteristic already notifying');
+      if (char.notifying) {
+        UniversalLogger.logInfo('$characteristic already notifying');
+        return;
+      }
 
       await char.startNotify();
 
-      if (_characteristicPropertiesSubscriptions[key] != null) {
-        _characteristicPropertiesSubscriptions[key]?.cancel();
+      if (_characteristicPropertiesSubscriptions[characteristicKey] != null) {
+        _characteristicPropertiesSubscriptions[characteristicKey]?.cancel();
       }
 
-      _characteristicPropertiesSubscriptions[key] =
+      _characteristicPropertiesSubscriptions[characteristicKey] =
           char.propertiesChanged.listen((List<String> properties) {
         for (String property in properties) {
           switch (property) {
@@ -230,9 +234,10 @@ class UniversalBleLinux extends UniversalBlePlatform {
         }
       });
     } else {
-      if (!char.notifying) throw Exception('Characteristic not notifying');
-      await char.stopNotify();
-      _characteristicPropertiesSubscriptions.remove(key)?.cancel();
+      if (char.notifying) await char.stopNotify();
+      _characteristicPropertiesSubscriptions
+          .remove(characteristicKey)
+          ?.cancel();
     }
   }
 
