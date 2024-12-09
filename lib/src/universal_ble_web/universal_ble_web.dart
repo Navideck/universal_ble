@@ -335,6 +335,11 @@ class UniversalBleWeb extends UniversalBlePlatform {
     throw UnimplementedError();
   }
 
+  @override
+  Future<bool> disableBluetooth() {
+    throw UnimplementedError();
+  }
+
   RequestOptionsBuilder _getRequestOptionBuilder(
     ScanFilter? scanFilter,
     WebOptions? webOptions,

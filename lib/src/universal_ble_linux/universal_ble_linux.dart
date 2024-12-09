@@ -54,6 +54,23 @@ class UniversalBleLinux extends UniversalBlePlatform {
   }
 
   @override
+  Future<bool> disableBluetooth() async {
+    await _ensureInitialized();
+    var adapter = _activeAdapter;
+    if (adapter == null) {
+      throw "Adapter not available";
+    }
+    if (!adapter.powered) return true;
+    try {
+      await adapter.setPowered(false);
+      return !adapter.powered;
+    } catch (e) {
+      UniversalLogger.logError('Error disabling bluetooth: $e');
+      return false;
+    }
+  }
+
+  @override
   Future<void> startScan({
     ScanFilter? scanFilter,
     PlatformConfig? platformConfig,
