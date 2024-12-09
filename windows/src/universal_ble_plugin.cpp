@@ -56,9 +56,20 @@ namespace universal_ble
   void UniversalBlePlugin::GetBluetoothAvailabilityState(std::function<void(ErrorOr<int64_t> reply)> result)
   {
     if (!bluetoothRadio)
-      result(static_cast<int>(AvailabilityState::unsupported));
+    {
+      if (!initialized)
+      {
+        result(static_cast<int>(AvailabilityState::unknown));
+      }
+      else
+      {
+        result(static_cast<int>(AvailabilityState::unsupported));
+      }
+    }
     else
+    {
       result(static_cast<int>(getAvailabilityStateFromRadio(bluetoothRadio.State())));
+    }
   };
 
   void UniversalBlePlugin::EnableBluetooth(std::function<void(ErrorOr<bool> reply)> result)
@@ -485,13 +496,17 @@ namespace universal_ble
       {
         bluetoothRadio = radio;
         radioStateChangedRevoker = bluetoothRadio.StateChanged(winrt::auto_revoke, {this, &UniversalBlePlugin::Radio_StateChanged});
+        Radio_StateChanged(bluetoothRadio, nullptr);
         break;
       }
     }
     if (!bluetoothRadio)
     {
       std::cout << "Bluetooth is not available" << std::endl;
+      uiThreadHandler_.Post([]
+                            { callbackChannel->OnAvailabilityChanged(static_cast<int>(AvailabilityState::unsupported), SuccessCallback, ErrorCallback); });
     }
+    initialized = true;
   }
 
   winrt::fire_and_forget UniversalBlePlugin::PairAsync(
@@ -825,17 +840,13 @@ namespace universal_ble
   {
     auto state = [=]() -> AvailabilityState
     {
-      if (radioState == RadioState::Unknown)
+      if (radioState == RadioState::On)
       {
-        return AvailabilityState::unknown;
+        return AvailabilityState::poweredOn;
       }
       else if (radioState == RadioState::Off)
       {
         return AvailabilityState::poweredOff;
-      }
-      else if (radioState == RadioState::On)
-      {
-        return AvailabilityState::poweredOn;
       }
       else if (radioState == RadioState::Disabled)
       {
