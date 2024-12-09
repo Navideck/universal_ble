@@ -1,11 +1,15 @@
 ## 0.14.0
 * BREAKING CHANGE: `bleDevice.name` now filters out non-printable characters
 * Add `bleDevice.rawName`
+* Add `disableBluetooth` API
+* Fix Apple CBCentralManager lazy initialization on `startScan`
+* Fix Android error `scan too frequently` and auto retry scan once sufficient time has passed
+* Fix duplicate `onValueChanged` events on Android 11 or earlier
+* Fix Windows `withServices` filter
+* Fix Windows Bluetooth availability state in release builds
+* Throw error on Apple if Bluetooth permission is denied on `startScan`
+* Do not throw `Characteristic already notifying` error. Subscribing to characteristic notifications multiple times is now handled safely
 * Bump flutter_web_bluetooth to 1.0.0
-* Improve Apple CBCentralManager lazy initialization on `startScan`
-* Throw error on Apple if Bluetooth permission denied on `startScan` 
-* Fix Android error `scan too frequently` and auto retry scan once sufficient time has passed 
-* Android (< 11): Fix duplicate `onValueChanged` events
 
 ## 0.13.0
 * BREAKING CHANGE: `scanFilter` filters are now in OR relation 
