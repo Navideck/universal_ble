@@ -79,6 +79,7 @@ namespace universal_ble
     if (!bluetoothRadio)
     {
       result(FlutterError("Bluetooth is not available"));
+      result(false);
       return;
     }
     if (bluetoothRadio.State() == RadioState::On)
@@ -97,6 +98,33 @@ namespace universal_ble
                         else
                         {
                           result(FlutterError("Failed to enable bluetooth"));
+                        } });
+  }
+
+  void UniversalBlePlugin::DisableBluetooth(std::function<void(ErrorOr<bool> reply)> result)
+  {
+    if (!bluetoothRadio)
+    {
+      result(FlutterError("Bluetooth is not available"));
+      result(false);
+      return;
+    }
+    if (bluetoothRadio.State() == RadioState::Off)
+    {
+      result(true);
+      return;
+    }
+    auto async_c = bluetoothRadio.SetStateAsync(RadioState::Off);
+    async_c.Completed([&, result](IAsyncOperation<RadioAccessStatus> const &sender, AsyncStatus const args)
+                      {
+                        auto radioAccessStatus = sender.GetResults();
+                        if (radioAccessStatus == RadioAccessStatus::Allowed)
+                        {
+                          result(true);
+                        }
+                        else
+                        {
+                          result(FlutterError("Failed to disable bluetooth"));
                         } });
   }
 

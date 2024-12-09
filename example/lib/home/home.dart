@@ -147,15 +147,24 @@ class _MyAppState extends State<MyApp> {
                     });
                   },
                 ),
-                if (BleCapabilities.supportsBluetoothEnableApi &&
-                    bleAvailabilityState == AvailabilityState.poweredOff)
-                  PlatformButton(
-                    text: 'Enable Bluetooth',
-                    onPressed: () async {
-                      bool isEnabled = await UniversalBle.enableBluetooth();
-                      showSnackbar("BluetoothEnabled: $isEnabled");
-                    },
-                  ),
+                if (BleCapabilities.supportsBluetoothEnableApi)
+                  bleAvailabilityState != AvailabilityState.poweredOn
+                      ? PlatformButton(
+                          text: 'Enable Bluetooth',
+                          onPressed: () async {
+                            bool isEnabled =
+                                await UniversalBle.enableBluetooth();
+                            showSnackbar("BluetoothEnabled: $isEnabled");
+                          },
+                        )
+                      : PlatformButton(
+                          text: 'Disable Bluetooth',
+                          onPressed: () async {
+                            bool isDisabled =
+                                await UniversalBle.disableBluetooth();
+                            showSnackbar("BluetoothDisabled: $isDisabled");
+                          },
+                        ),
                 if (BleCapabilities.requiresRuntimePermission)
                   PlatformButton(
                     text: 'Check Permissions',

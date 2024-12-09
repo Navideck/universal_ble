@@ -27,6 +27,9 @@ abstract class UniversalBlePlatformChannel {
   @async
   bool enableBluetooth();
 
+  @async
+  bool disableBluetooth();
+
   void startScan(UniversalScanFilter? filter);
 
   void stopScan();

@@ -321,6 +321,15 @@ class UniversalBle {
     );
   }
 
+  /// Disable Bluetooth.
+  /// It might throw errors if Bluetooth is not available.
+  /// Not supported on `Web` and `Apple`.
+  static Future<bool> disableBluetooth() async {
+    return await _bleCommandQueue.queueCommand(
+      () => _platform.disableBluetooth(),
+    );
+  }
+
   /// [receivesAdvertisements] returns true on web if the browser supports receiving advertisements from a certain `deviceId`.
   /// The rest of the platforms will always return true.
   /// If true, then you will be getting scanResult updates for this device.

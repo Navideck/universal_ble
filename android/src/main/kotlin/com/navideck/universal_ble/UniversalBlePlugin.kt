@@ -2,9 +2,16 @@ package com.navideck.universal_ble
 
 import android.annotation.SuppressLint
 import android.app.Activity
-import android.bluetooth.*
+import android.bluetooth.BluetoothAdapter
+import android.bluetooth.BluetoothDevice
 import android.bluetooth.BluetoothDevice.BOND_BONDED
-import android.bluetooth.le.BluetoothLeScanner
+import android.bluetooth.BluetoothGatt
+import android.bluetooth.BluetoothGattCallback
+import android.bluetooth.BluetoothGattCharacteristic
+import android.bluetooth.BluetoothGattDescriptor
+import android.bluetooth.BluetoothManager
+import android.bluetooth.BluetoothProfile
+import android.bluetooth.BluetoothStatusCodes
 import android.bluetooth.le.ScanCallback
 import android.bluetooth.le.ScanFilter
 import android.bluetooth.le.ScanResult
@@ -21,7 +28,7 @@ import android.util.Log
 import io.flutter.embedding.engine.plugins.FlutterPlugin
 import io.flutter.embedding.engine.plugins.activity.ActivityAware
 import io.flutter.embedding.engine.plugins.activity.ActivityPluginBinding
-import io.flutter.plugin.common.*
+import io.flutter.plugin.common.PluginRegistry
 import java.util.UUID
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
@@ -33,6 +40,7 @@ private const val TAG = "UniversalBlePlugin"
 class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(), FlutterPlugin,
     ActivityAware, PluginRegistry.ActivityResultListener {
     private val bluetoothEnableRequestCode = 2342313
+    private val bluetoothDisableRequestCode = 2342414
     private var callbackChannel: UniversalBleCallbackChannel? = null
     private var mainThreadHandler: Handler? = null
     private lateinit var context: Context
@@ -45,6 +53,7 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
 
     // Flutter Futures
     private var bluetoothEnableRequestFuture: ((Result<Boolean>) -> Unit)? = null
+    private var bluetoothDisableRequestFuture: ((Result<Boolean>) -> Unit)? = null
     private val discoverServicesFutureList = mutableListOf<DiscoverServicesFuture>()
     private val mtuResultFutureList = mutableListOf<MtuResultFuture>()
     private val readResultFutureList = mutableListOf<ReadResultFuture>()
@@ -102,6 +111,24 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
         val enableBtIntent = Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE)
         activity?.startActivityForResult(enableBtIntent, bluetoothEnableRequestCode)
         bluetoothEnableRequestFuture = callback
+    }
+
+    override fun disableBluetooth(callback: (Result<Boolean>) -> Unit) {
+        if (!bluetoothManager.adapter.isEnabled) {
+            callback(Result.success(true))
+            return
+        }
+        if (bluetoothDisableRequestFuture != null) {
+            callback(
+                Result.failure(
+                    FlutterError("Failed", "Bluetooth disable request in progress", null)
+                )
+            )
+            return
+        }
+        val disableBtIntent = Intent("android.bluetooth.adapter.action.REQUEST_DISABLE")
+        activity?.startActivityForResult(disableBtIntent, bluetoothDisableRequestCode)
+        bluetoothDisableRequestFuture = callback
     }
 
     override fun startScan(filter: UniversalScanFilter?) {
@@ -994,6 +1021,11 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
             val future = bluetoothEnableRequestFuture ?: return false
             future(Result.success(resultCode == Activity.RESULT_OK))
             bluetoothEnableRequestFuture = null
+            return true
+        } else if (requestCode == bluetoothDisableRequestCode) {
+            val future = bluetoothDisableRequestFuture ?: return false
+            future(Result.success(resultCode == Activity.RESULT_OK))
+            bluetoothDisableRequestFuture = null
             return true
         }
         return false

@@ -36,7 +36,7 @@ A cross-platform (Android/iOS/macOS/Windows/Linux/Web) Bluetooth Low Energy (BLE
 | isPaired             |   ✔️    | ✔️  |  ✔️   |   ✔️    |      ✔️      | ✔️  |
 | onPairingStateChange |   ✔️    | ⏺  |  ⏺   |   ✔️    |      ✔️      | ⏺  |
 | getBluetoothAvailabilityState |   ✔️    | ✔️  |  ✔️   |   ✔️    |      ✔️      | ❌  |
-| enableBluetooth      |   ✔️    | ❌  |  ❌   |   ✔️    |      ✔️      | ❌  |
+| enable/disable Bluetooth      |   ✔️    | ❌  |  ❌   |   ✔️    |      ✔️      | ❌  |
 | onAvailabilityChange |   ✔️    | ✔️  |  ✔️   |   ✔️    |      ✔️      | ✔️  |
 | requestMtu           |   ✔️    | ✔️  |  ✔️   |   ✔️    |      ✔️      | ❌  |
 
@@ -229,6 +229,9 @@ UniversalBle.onAvailabilityChange = (state) {
 
 // Enable Bluetooth programmatically
 UniversalBle.enableBluetooth();
+
+// Disable Bluetooth programmatically
+UniversalBle.disableBluetooth();
 ```
 
 ## Command Queue

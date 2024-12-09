@@ -52,7 +52,11 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
   func enableBluetooth(completion: @escaping (Result<Bool, Error>) -> Void) {
     completion(Result.failure(PigeonError(code: "NotSupported", message: nil, details: nil)))
   }
-
+    
+  func disableBluetooth(completion: @escaping (Result<Bool, any Error>) -> Void) {
+    completion(Result.failure(PigeonError(code: "NotSupported", message: nil, details: nil)))
+  }
+    
   func startScan(filter: UniversalScanFilter?) throws {
     // If filter has any other filter other than official one
     let usesCustomFilters = filter?.usesCustomFilters ?? false

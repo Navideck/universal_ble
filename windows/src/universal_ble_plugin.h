@@ -131,6 +131,7 @@ namespace universal_ble
         // UniversalBlePlatformChannel implementation.
         void GetBluetoothAvailabilityState(std::function<void(ErrorOr<int64_t> reply)> result) override;
         void EnableBluetooth(std::function<void(ErrorOr<bool> reply)> result) override;
+        void DisableBluetooth(std::function<void(ErrorOr<bool> reply)> result) override;
         ErrorOr<int64_t> GetConnectionState(const std::string &device_id) override;
         std::optional<FlutterError> StartScan(const UniversalScanFilter *filter) override;
         std::optional<FlutterError> StopScan() override;
