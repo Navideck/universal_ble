@@ -158,31 +158,22 @@ class UniversalBleWeb extends UniversalBlePlatform {
 
     String characteristicKey = "${deviceId}_${service}_$characteristic";
 
-    if (bleInputProperty == BleInputProperty.notification ||
-        bleInputProperty == BleInputProperty.indication) {
-      if (bleCharacteristic.isNotifying) {
-        throw Exception("Already listening to this characteristic");
-      }
-
+    if (bleInputProperty != BleInputProperty.disabled) {
       if (_characteristicStreamList[characteristicKey] != null) {
         _characteristicStreamList[characteristicKey]?.cancel();
       }
-
       await bleCharacteristic.startNotifications();
-
-      _characteristicStreamList[characteristicKey] = bleCharacteristic.value
-          .map((event) => event.buffer.asUint8List())
-          .listen((event) {
-        updateCharacteristicValue(deviceId, characteristic, event);
+      _characteristicStreamList[characteristicKey] =
+          bleCharacteristic.value.listen((ByteData event) {
+        updateCharacteristicValue(
+          deviceId,
+          characteristic,
+          event.buffer.asUint8List(),
+        );
       });
-    }
-    // Cancel Notification
-    else if (bleInputProperty == BleInputProperty.disabled) {
+    } else {
       await bleCharacteristic.stopNotifications();
-      _characteristicStreamList.removeWhere((key, value) {
-        if (key == characteristicKey) value.cancel();
-        return key == characteristicKey;
-      });
+      _characteristicStreamList.remove(characteristicKey)?.cancel();
     }
   }
 
