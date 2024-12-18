@@ -93,6 +93,8 @@ class _PeripheralDetailPageState extends State<PeripheralDetailPage> {
   }
 
   Future<void> _discoverServices() async {
+    const webWarning =
+        "Note: Only services added in ScanFilter or WebOptions will be discovered";
     try {
       var services = await UniversalBle.discoverServices(widget.deviceId);
       print('${services.length} services discovered');
@@ -105,14 +107,11 @@ class _PeripheralDetailPageState extends State<PeripheralDetailPage> {
       if (kIsWeb) {
         _addLog(
           "DiscoverServices",
-          '${services.length} services discovered,\nNote: Only services added in ScanFilter or WebOptions will be discovered',
+          '${services.length} services discovered,\n$webWarning',
         );
       }
     } catch (e) {
-      _addLog(
-        "DiscoverServicesError",
-        '$e\nNote: Only services added in ScanFilter or WebOptions will be discovered',
-      );
+      _addLog("DiscoverServicesError", '$e\n${kIsWeb ? webWarning : ""}');
     }
   }
 
