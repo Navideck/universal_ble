@@ -102,9 +102,9 @@ See the [Bluetooth Availability](#bluetooth-availability) section for more.
 Already connected devices, connected either through previous sessions, other apps or through system settings, won't show up as scan results. You can get those using `getSystemDevices()`.
 
 ```dart
-// Get already connected devices
-// You can set `withServices` to narrow down the results
-// On `Apple`, `withServices` is required to get connected devices, else [1800] service will be used as default filter.
+// Get already connected devices.
+// You can set `withServices` to narrow down the results.
+// On `Apple`, `withServices` is required to get any connected devices. If not passed, several [18XX] generic services will be set by default.
 List<BleDevice> devices = await UniversalBle.getSystemDevices(withServices: []);
 ```
 

@@ -1,4 +1,7 @@
 ## 0.14.0
+* `getSystemDevices(withServices:)` now sets several generic services by default as filter
+
+## 0.14.0
 * BREAKING CHANGE: `bleDevice.name` now filters out non-printable characters
 * Add `bleDevice.rawName`
 * Add `disableBluetooth` API
