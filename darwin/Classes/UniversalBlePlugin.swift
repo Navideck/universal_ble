@@ -84,13 +84,13 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
   }
 
   func connect(deviceId: String) throws {
-    let peripheral = try deviceId.getPeripheral()
+    let peripheral = try deviceId.getPeripheral(manager: manager)
     peripheral.delegate = self
     manager.connect(peripheral)
   }
 
   func disconnect(deviceId: String) throws {
-    let peripheral = try deviceId.getPeripheral()
+    let peripheral = try deviceId.getPeripheral(manager: manager)
     if peripheral.state != CBPeripheralState.disconnected {
       manager.cancelPeripheralConnection(peripheral)
     }
@@ -98,7 +98,7 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
   }
 
   func getConnectionState(deviceId: String) throws -> Int64 {
-    let peripheral = try deviceId.getPeripheral()
+    let peripheral = try deviceId.getPeripheral(manager: manager)
     switch peripheral.state {
     case .connecting:
       return BlueConnectionState.connecting.rawValue
@@ -154,7 +154,7 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
   }
 
   func discoverServices(deviceId: String, completion: @escaping (Result<[UniversalBleService], Error>) -> Void) {
-    guard let peripheral = discoveredPeripherals[deviceId] else {
+    guard let peripheral = deviceId.findPeripheral(manager: manager) else {
       completion(
         Result.failure(PigeonError(code: "IllegalArgument", message: "Unknown deviceId:\(self)", details: nil))
       )
@@ -192,7 +192,7 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
   }
 
   func setNotifiable(deviceId: String, service: String, characteristic: String, bleInputProperty: Int64, completion: @escaping (Result<Void, any Error>) -> Void) {
-    guard let peripheral = discoveredPeripherals[deviceId] else {
+    guard let peripheral = deviceId.findPeripheral(manager: manager) else {
       completion(Result.failure(PigeonError(code: "IllegalArgument", message: "Unknown deviceId:\(self)", details: nil)))
       return
     }
@@ -218,7 +218,7 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
   }
 
   func readValue(deviceId: String, service: String, characteristic: String, completion: @escaping (Result<FlutterStandardTypedData, Error>) -> Void) {
-    guard let peripheral = discoveredPeripherals[deviceId] else {
+    guard let peripheral = deviceId.findPeripheral(manager: manager) else {
       completion(Result.failure(PigeonError(code: "IllegalArgument", message: "Unknown deviceId:\(self)", details: nil)))
       return
     }
@@ -235,7 +235,7 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
   }
 
   func writeValue(deviceId: String, service: String, characteristic: String, value: FlutterStandardTypedData, bleOutputProperty: Int64, completion: @escaping (Result<Void, Error>) -> Void) {
-    guard let peripheral = discoveredPeripherals[deviceId] else {
+    guard let peripheral = deviceId.findPeripheral(manager: manager) else {
       completion(Result.failure(PigeonError(code: "IllegalArgument", message: "Unknown deviceId:\(self)", details: nil)))
       return
     }
@@ -268,7 +268,7 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
   }
 
   func requestMtu(deviceId: String, expectedMtu _: Int64, completion: @escaping (Result<Int64, Error>) -> Void) {
-    guard let peripheral = discoveredPeripherals[deviceId] else {
+    guard let peripheral = deviceId.findPeripheral(manager: manager) else {
       completion(Result.failure(PigeonError(code: "IllegalArgument", message: "Unknown deviceId:\(self)", details: nil)))
       return
     }
@@ -298,7 +298,7 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
     }
     var filterCBUUID = servicesFilter.map { CBUUID(string: $0) }
     let bleDevices = manager.retrieveConnectedPeripherals(withServices: filterCBUUID)
-    bleDevices.forEach { discoveredPeripherals[$0.uuid.uuidString] = $0 }
+    bleDevices.forEach { $0.saveCache() }
     completion(Result.success(bleDevices.map {
       UniversalBleScanResult(
         deviceId: $0.uuid.uuidString,
@@ -319,7 +319,7 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
 
   public func centralManager(_: CBCentralManager, didDiscover peripheral: CBPeripheral, advertisementData: [String: Any], rssi RSSI: NSNumber) {
     // Store the discovered peripheral using its UUID as the key
-    discoveredPeripherals[peripheral.uuid.uuidString] = peripheral
+    peripheral.saveCache()
 
     // Extract manufacturer data and service UUIDs from the advertisement data
     let manufacturerData = advertisementData[CBAdvertisementDataManufacturerDataKey] as? Data
@@ -459,12 +459,31 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
   }
 }
 
+extension CBPeripheral {
+    func saveCache(){
+        discoveredPeripherals[self.uuid.uuidString] = self
+    }
+}
+
 extension String {
-  func getPeripheral() throws -> CBPeripheral {
-    guard let peripheral = discoveredPeripherals[self] else {
+  func getPeripheral(manager: CBCentralManager) throws -> CBPeripheral {
+    guard let peripheral = findPeripheral(manager: manager) else {
       throw PigeonError(code: "IllegalArgument", message: "Unknown deviceId:\(self)", details: nil)
     }
     return peripheral
+  }
+
+  func findPeripheral(manager: CBCentralManager) -> CBPeripheral? {
+    if let peripheral = discoveredPeripherals[self] {
+      return peripheral
+    }
+    if let uuid = UUID(uuidString: self) {
+      let peripherals = manager.retrievePeripherals(withIdentifiers: [uuid])
+      if let peripheral = peripherals.first {
+        return peripheral
+      }
+    }
+    return nil
   }
 }
 
