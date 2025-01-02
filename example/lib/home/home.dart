@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:universal_ble/universal_ble.dart';
 import 'package:universal_ble_example/data/mock_universal_ble.dart';
@@ -72,11 +73,19 @@ class _MyAppState extends State<MyApp> {
   }
 
   Future<void> _getSystemDevices() async {
+    // For macOS and iOS, it is recommended to set a filter to get system devices
+    if (defaultTargetPlatform == TargetPlatform.macOS ||
+        defaultTargetPlatform == TargetPlatform.iOS &&
+            (scanFilter?.withServices ?? []).isEmpty) {
+      showSnackbar(
+          "No services filter was set for getting system connected devices");
+    }
+
     List<BleDevice> devices = await UniversalBle.getSystemDevices(
       withServices: scanFilter?.withServices,
     );
     if (devices.isEmpty) {
-      showSnackbar("No Connected Devices Found");
+      showSnackbar("No System Connected Devices Found");
     }
     setState(() {
       _bleDevices.clear();
@@ -191,7 +200,7 @@ class _MyAppState extends State<MyApp> {
                   ),
                 if (BleCapabilities.supportsConnectedDevicesApi)
                   PlatformButton(
-                    text: 'Connected Devices',
+                    text: 'System Devices',
                     onPressed: _getSystemDevices,
                   ),
                 PlatformButton(
