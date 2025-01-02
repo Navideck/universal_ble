@@ -52,11 +52,11 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
   func enableBluetooth(completion: @escaping (Result<Bool, Error>) -> Void) {
     completion(Result.failure(PigeonError(code: "NotSupported", message: nil, details: nil)))
   }
-    
+
   func disableBluetooth(completion: @escaping (Result<Bool, any Error>) -> Void) {
     completion(Result.failure(PigeonError(code: "NotSupported", message: nil, details: nil)))
   }
-    
+
   func startScan(filter: UniversalScanFilter?) throws {
     // If filter has any other filter other than official one
     let usesCustomFilters = filter?.usesCustomFilters ?? false
@@ -291,9 +291,12 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
   }
 
   func getSystemDevices(withServices: [String], completion: @escaping (Result<[UniversalBleScanResult], Error>) -> Void) {
-    var filterCBUUID = withServices.map { CBUUID(string: $0) }
-    // We can't keep this filter empty, so adding a default filter
-    if filterCBUUID.isEmpty { filterCBUUID.append(CBUUID(string: "1800")) }
+    var servicesFilter = withServices
+    if servicesFilter.isEmpty {
+      // Add several generic services
+      servicesFilter = ["1800", "1801", "180A", "180D", "1810", "181B", "1808", "181D", "1816", "1814", "181A", "1802", "1803", "1804", "1815", "1805", "1807", "1806", "1848", "185E", "180F", "1812", "180E", "1813"]
+    }
+    var filterCBUUID = servicesFilter.map { CBUUID(string: $0) }
     let bleDevices = manager.retrieveConnectedPeripherals(withServices: filterCBUUID)
     bleDevices.forEach { discoveredPeripherals[$0.uuid.uuidString] = $0 }
     completion(Result.success(bleDevices.map {

@@ -71,6 +71,19 @@ class _MyAppState extends State<MyApp> {
     );
   }
 
+  Future<void> _getSystemDevices() async {
+    List<BleDevice> devices = await UniversalBle.getSystemDevices(
+      withServices: scanFilter?.withServices,
+    );
+    if (devices.isEmpty) {
+      showSnackbar("No Connected Devices Found");
+    }
+    setState(() {
+      _bleDevices.clear();
+      _bleDevices.addAll(devices);
+    });
+  }
+
   void _showScanFilterBottomSheet() {
     showModalBottomSheet(
       isScrollControlled: true,
@@ -179,17 +192,7 @@ class _MyAppState extends State<MyApp> {
                 if (BleCapabilities.supportsConnectedDevicesApi)
                   PlatformButton(
                     text: 'Connected Devices',
-                    onPressed: () async {
-                      List<BleDevice> devices =
-                          await UniversalBle.getSystemDevices();
-                      if (devices.isEmpty) {
-                        showSnackbar("No Connected Devices Found");
-                      }
-                      setState(() {
-                        _bleDevices.clear();
-                        _bleDevices.addAll(devices);
-                      });
-                    },
+                    onPressed: _getSystemDevices,
                   ),
                 PlatformButton(
                   text: 'Queue: ${_queueType.name}',

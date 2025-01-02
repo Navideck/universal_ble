@@ -292,7 +292,7 @@ class UniversalBle {
 
   /// Get connected devices to the system (connected by any app).
   /// Use [withServices] to filter devices by services.
-  /// On `Apple`, [withServices] is required to get connected devices, else [1800] service will be used as default filter.
+  /// On `Apple`, [withServices] is required to get any connected devices. If not passed, several [18XX] generic services will be set by default.
   /// On `Android`, `Linux` and `Windows`, if [withServices] is used, then internally all services will be discovered for each device first (either by connecting or by using cached services).
   /// Not supported on `Web`.
   static Future<List<BleDevice>> getSystemDevices({
