@@ -115,19 +115,19 @@ class _ScanFilterWidgetState extends State<ScanFilterWidget> {
           const Divider(),
           const SizedBox(height: 10),
           TextFormField(
-            controller: widget.servicesFilterController,
+            controller: widget.namePrefixController,
             maxLines: 2,
             decoration: const InputDecoration(
-              labelText: "Services",
+              labelText: "Name Prefixes",
               border: OutlineInputBorder(),
             ),
           ),
           const SizedBox(height: 10),
           TextFormField(
-            controller: widget.namePrefixController,
+            controller: widget.servicesFilterController,
             maxLines: 2,
             decoration: const InputDecoration(
-              labelText: "Name Prefixes",
+              labelText: "Services",
               border: OutlineInputBorder(),
             ),
           ),
