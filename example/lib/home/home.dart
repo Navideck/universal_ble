@@ -78,7 +78,7 @@ class _MyAppState extends State<MyApp> {
         defaultTargetPlatform == TargetPlatform.iOS &&
             (scanFilter?.withServices ?? []).isEmpty) {
       showSnackbar(
-          "No services filter was set for getting system connected devices");
+          "No services filter was set for getting system connected devices. Using default services...");
     }
 
     List<BleDevice> devices = await UniversalBle.getSystemDevices(
