@@ -1,4 +1,4 @@
-## 0.14.0
+## 0.15.0
 * `getSystemDevices(withServices:)` now sets several generic services by default as filter
 
 ## 0.14.0
