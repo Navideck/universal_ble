@@ -1,5 +1,6 @@
-## 0.14.0
+## 0.15.0
 * `getSystemDevices(withServices:)` now sets several generic services by default as filter
+* `getConnectionState` on Android will now return `BleConnectionState.disconnected` if device is connected to the system but not to the app
 
 ## 0.14.0
 * BREAKING CHANGE: `bleDevice.name` now filters out non-printable characters

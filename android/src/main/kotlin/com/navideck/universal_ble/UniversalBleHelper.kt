@@ -1,11 +1,9 @@
 package com.navideck.universal_ble
 
-import android.annotation.SuppressLint
 import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothDevice
 import android.bluetooth.BluetoothGatt
 import android.bluetooth.BluetoothGattCharacteristic
-import android.bluetooth.BluetoothGattDescriptor
 import android.bluetooth.BluetoothStatusCodes
 import android.bluetooth.le.ScanCallback.SCAN_FAILED_ALREADY_STARTED
 import android.bluetooth.le.ScanCallback.SCAN_FAILED_APPLICATION_REGISTRATION_FAILED
@@ -13,20 +11,16 @@ import android.bluetooth.le.ScanCallback.SCAN_FAILED_FEATURE_UNSUPPORTED
 import android.bluetooth.le.ScanCallback.SCAN_FAILED_INTERNAL_ERROR
 import android.bluetooth.le.ScanCallback.SCAN_FAILED_OUT_OF_HARDWARE_RESOURCES
 import android.bluetooth.le.ScanCallback.SCAN_FAILED_SCANNING_TOO_FREQUENTLY
-import android.bluetooth.le.ScanFilter
 import android.bluetooth.le.ScanResult
-import android.os.Build
-import android.os.ParcelUuid
 import android.util.Log
 import android.util.SparseArray
-import androidx.core.util.keyIterator
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.util.UUID
 
 private const val TAG = "UniversalBlePlugin"
 
-val knownGatts = mutableListOf<BluetoothGatt>()
+private val knownGatts = mutableMapOf<String, BluetoothGatt>()
 val ccdCharacteristic: UUID = UUID.fromString("00002902-0000-1000-8000-00805f9b34fb")
 
 enum class BleConnectionState(val value: Long) {
@@ -91,10 +85,28 @@ fun List<String>.toUUIDList(): List<UUID> {
     return this.map { UUID.fromString(it.validFullUUID()) }
 }
 
+
 fun String.toBluetoothGatt(): BluetoothGatt {
-    return knownGatts.find { it.device.address == this }
+    return this.findGatt()
         ?: throw FlutterError("IllegalArgument", "Unknown deviceId: $this", null)
 }
+
+fun String.isKnownGatt(): Boolean {
+    return this.findGatt() != null
+}
+
+fun String.findGatt(): BluetoothGatt? {
+    return knownGatts[this]
+}
+
+fun BluetoothGatt.saveCacheIfNeeded() {
+    knownGatts[this.device.address] = this
+}
+
+fun BluetoothGatt.removeCache() {
+    knownGatts.remove(this.device.address)
+}
+
 
 fun Int.toAvailabilityState(): Long {
     return when (this) {

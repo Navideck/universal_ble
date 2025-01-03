@@ -48,7 +48,6 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
     private lateinit var bluetoothManager: BluetoothManager
     private lateinit var safeScanner: SafeScanner
     private val cachedServicesMap = mutableMapOf<String, List<String>>()
-    private val devicesStateMap = mutableMapOf<String, Int>()
     private val universalBleFilterUtil = UniversalBleFilterUtil()
 
     // Flutter Futures
@@ -182,11 +181,10 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
     }
 
     override fun connect(deviceId: String) {
-        val currentState = devicesStateMap[deviceId]
-
         // If already connected, send connected message,
         // if connecting, do nothing
-        knownGatts.find { it.device.address == deviceId }?.let {
+        deviceId.findGatt()?.let {
+            val currentState = bluetoothManager.getConnectionState(it.device, BluetoothProfile.GATT)
             if (currentState == BluetoothGatt.STATE_CONNECTED) {
                 Log.e(TAG, "$deviceId Already connected")
                 mainThreadHandler?.post {
@@ -210,7 +208,7 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
         } else {
             remoteDevice.connectGatt(context, false, this)
         }
-        knownGatts.add(gatt)
+        gatt.saveCacheIfNeeded()
     }
 
     override fun disconnect(deviceId: String) {
@@ -218,10 +216,18 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
     }
 
     override fun getConnectionState(deviceId: String): Long {
-        return bluetoothManager.getConnectionState(
+        val connectionState = bluetoothManager.getConnectionState(
             bluetoothManager.adapter.getRemoteDevice(deviceId),
             BluetoothProfile.GATT
-        ).toBleConnectionState().value
+        )
+
+        return if (deviceId.isKnownGatt() || connectionState == BluetoothGatt.STATE_DISCONNECTED || connectionState == BluetoothGatt.STATE_DISCONNECTING) {
+            connectionState.toBleConnectionState().value
+        } else {
+            // Might be connected with device, but not with app
+            Log.e(TAG, "Device might be connected but not known to this app")
+            BleConnectionState.Disconnected.value
+        }
     }
 
     override fun discoverServices(
@@ -229,19 +235,14 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
         callback: (Result<List<UniversalBleService>>) -> Unit,
     ) {
         try {
-            if (!deviceId.toBluetoothGatt().discoverServices()) {
+            val gatt = deviceId.toBluetoothGatt()
+            if (gatt.discoverServices()) {
+                discoverServicesFutureList.add(DiscoverServicesFuture(deviceId, callback))
+            } else {
                 callback(
-                    Result.failure(
-                        FlutterError(
-                            "Failed",
-                            "Failed to discover services",
-                            null
-                        )
-                    )
+                    Result.failure(FlutterError("Failed", "Failed to discover services", null))
                 )
-                return
             }
-            discoverServicesFutureList.add(DiscoverServicesFuture(deviceId, callback))
         } catch (e: FlutterError) {
             callback(Result.failure(e))
         }
@@ -684,7 +685,7 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
         }
 
         // If its a known gatt, just discover services
-        knownGatts.find { it.device.address == device.address }?.let { gatt ->
+        device.address.findGatt()?.let { gatt ->
             gatt.services?.let { services ->
                 updateCallback(services.map { service -> service.uuid.toString() })
                 return
@@ -710,7 +711,7 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
                 if (status == BluetoothGatt.GATT_SUCCESS && newState == BluetoothGatt.STATE_CONNECTED) {
                     if (gatt?.discoverServices() != true) {
                         updateCallback(null)
-                        if (!knownGatts.any { it.device.address == device.address }) {
+                        if (!device.address.isKnownGatt()) {
                             gatt?.disconnect()
                         }
                     }
@@ -727,7 +728,7 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
                     }
                     updateCallback(uuids)
                 }
-                if (!knownGatts.any { it.device.address == device.address }) {
+                if (!device.address.isKnownGatt()) {
                     gatt?.disconnect()
                 }
             }
@@ -741,7 +742,7 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
     }
 
     private fun cleanConnection(gatt: BluetoothGatt) {
-        knownGatts.remove(gatt)
+        gatt.removeCache()
         gatt.disconnect()
 
         readResultFutureList.removeAll {
@@ -892,7 +893,6 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
 
 
     override fun onConnectionStateChange(gatt: BluetoothGatt, status: Int, newState: Int) {
-        devicesStateMap[gatt.device.address] = newState
         Log.d(
             TAG,
             "onConnectionStateChange-> Status: $status ${status.parseHciErrorCode()}, NewState: $newState"
