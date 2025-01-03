@@ -100,6 +100,7 @@ See the [Bluetooth Availability](#bluetooth-availability) section for more.
 #### System Devices
 
 Already connected devices, connected either through previous sessions, other apps or through system settings, won't show up as scan results. You can get those using `getSystemDevices()`.
+On Apple, connected devices by other apps that do not require system pairing, won't be returned as system devices.
 
 ```dart
 // Get already connected devices.
