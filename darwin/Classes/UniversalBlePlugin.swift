@@ -322,6 +322,7 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
     peripheral.saveCache()
 
     // Extract manufacturer data and service UUIDs from the advertisement data
+    let localName = advertisementData[CBAdvertisementDataLocalNameKey] as? String
     let manufacturerData = advertisementData[CBAdvertisementDataManufacturerDataKey] as? Data
     let services = (advertisementData[CBAdvertisementDataServiceUUIDsKey] as? [CBUUID])
 
@@ -336,13 +337,13 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
     }
 
     // Apply custom filters and return early if the peripheral doesn't match
-    if !universalBleFilterUtil.filterDevice(name: peripheral.name, manufacturerData: universalManufacturerData, services: services) {
+    if !universalBleFilterUtil.filterDevice(name: localName, manufacturerData: universalManufacturerData, services: services) {
       return
     }
 
     callbackChannel.onScanResult(result: UniversalBleScanResult(
       deviceId: peripheral.uuid.uuidString,
-      name: peripheral.name,
+      name: localName,
       isPaired: nil,
       rssi: RSSI as? Int64,
       manufacturerDataList: manufacturerDataList,
