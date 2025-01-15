@@ -101,6 +101,12 @@ class UniversalBle {
             }
           }
         },
+        onError: (error) {
+          if (!completer.isCompleted) {
+            connectionSubscription?.cancel();
+            completer.completeError(ConnectionException(error));
+          }
+        },
       );
 
       _platform

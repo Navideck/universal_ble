@@ -1,5 +1,5 @@
 import 'dart:async';
-import 'dart:typed_data';
+import 'package:flutter/foundation.dart';
 import 'package:universal_ble/universal_ble.dart';
 
 abstract class UniversalBlePlatform {
@@ -71,11 +71,29 @@ abstract class UniversalBlePlatform {
   }
 
   void updateScanResult(BleDevice bleDevice) {
-    onScanResult?.call(bleDevice);
+    try {
+      final onScanResult = this.onScanResult;
+      if (onScanResult != null) {
+        onScanResult(bleDevice);
+      }
+    } catch (e) {
+      // report error for user to see
+      debugPrint("Error in UniversalBle.onScanResult");
+      debugPrint(e.toString());
+    }
   }
 
   void updateConnection(String deviceId, bool isConnected, [String? error]) {
-    onConnectionChange?.call(deviceId, isConnected, error);
+    try {
+      final onConnectionChange = this.onConnectionChange;
+      if (onConnectionChange != null) {
+        onConnectionChange(deviceId, isConnected, error);
+      }
+    } catch (e) {
+      // report error for user to see
+      debugPrint("Error in UniversalBle.onConnectionChange");
+      debugPrint(e.toString());
+    }
     _connectionStreamController?.add((
       deviceId: deviceId,
       isConnected: isConnected,
@@ -84,19 +102,53 @@ abstract class UniversalBlePlatform {
   }
 
   void updateCharacteristicValue(
-      String deviceId, String characteristicId, Uint8List value) {
-    onValueChange?.call(
-        deviceId, BleUuidParser.string(characteristicId), value);
+    String deviceId,
+    String characteristicId,
+    Uint8List value,
+  ) {
+    try {
+      final onValueChange = this.onValueChange;
+      if (onValueChange != null) {
+        onValueChange(
+          deviceId,
+          BleUuidParser.string(characteristicId),
+          value,
+        );
+      }
+    } catch (e) {
+      // report error for user to see
+      debugPrint("Error in UniversalBle.onValueChange");
+      debugPrint(e.toString());
+    }
   }
 
   void updateAvailability(AvailabilityState state) {
-    onAvailabilityChange?.call(state);
+    try {
+      final onAvailabilityChange = this.onAvailabilityChange;
+      if (onAvailabilityChange != null) {
+        onAvailabilityChange(state);
+      }
+    } catch (e) {
+      // report error for user to see
+      debugPrint("Error in UniversalBle.onAvailabilityChange");
+      debugPrint(e.toString());
+    }
   }
 
   void updatePairingState(String deviceId, bool isPaired) {
     if (_pairStateMap[deviceId] == isPaired) return;
     _pairStateMap[deviceId] = isPaired;
-    onPairingStateChange?.call(deviceId, isPaired);
+
+    try {
+      final onPairingStateChange = this.onPairingStateChange;
+      if (onPairingStateChange != null) {
+        onPairingStateChange(deviceId, isPaired);
+      }
+    } catch (e) {
+      // report error for user to see
+      debugPrint("Error in UniversalBle.onPairingStateChange");
+      debugPrint(e.toString());
+    }
   }
 
   // Do not use these directly to push updates

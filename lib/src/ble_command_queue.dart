@@ -32,7 +32,10 @@ class BleCommandQueue {
   Queue _newQueue(String id) {
     final queue = Queue();
     queue.onRemainingItemsUpdate = (int items) {
-      onQueueUpdate?.call(id, items);
+      final onQueueUpdate = this.onQueueUpdate;
+      if (onQueueUpdate != null) {
+        onQueueUpdate(id, items);
+      }
     };
     _queueMap[id] = queue;
     return queue;

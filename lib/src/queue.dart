@@ -46,7 +46,10 @@ class Queue {
 
   void _updateRemainingItems() {
     int remainingQueueItems = _nextCycle.length + _activeItems.length;
-    onRemainingItemsUpdate?.call(remainingQueueItems);
+    final onRemainingItemsUpdate = this.onRemainingItemsUpdate;
+    if (onRemainingItemsUpdate != null) {
+      onRemainingItemsUpdate(remainingQueueItems);
+    }
   }
 }
 
@@ -75,7 +78,8 @@ class _QueuedFuture<T> {
     } catch (e, stack) {
       completer.completeError(e, stack);
     } finally {
-      if (onComplete != null) onComplete?.call();
+      final onComplete = this.onComplete;
+      if (onComplete != null) onComplete();
     }
   }
 }
