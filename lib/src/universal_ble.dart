@@ -101,13 +101,19 @@ class UniversalBle {
             }
           }
         },
+        onError: (error) {
+          if (!completer.isCompleted) {
+            connectionSubscription?.cancel();
+            completer.completeError(ConnectionException(error));
+          }
+        },
       );
 
       _platform
           .connect(deviceId, connectionTimeout: connectionTimeout)
           .catchError(
         (error) {
-          if (completer.isCompleted == false) {
+          if (!completer.isCompleted) {
             connectionSubscription?.cancel();
             completer.completeError(ConnectionException(error));
           }

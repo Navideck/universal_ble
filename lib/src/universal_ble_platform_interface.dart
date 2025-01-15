@@ -3,10 +3,14 @@ import 'dart:typed_data';
 import 'package:universal_ble/universal_ble.dart';
 
 abstract class UniversalBlePlatform {
-  StreamController<({String deviceId, bool isConnected, String? error})>?
-      _connectionStreamController;
-
+  // Do not use these directly to push updates
+  OnScanResult? onScanResult;
+  OnConnectionChange? onConnectionChange;
+  OnValueChange? onValueChange;
+  OnAvailabilityChange? onAvailabilityChange;
+  OnPairingStateChange? onPairingStateChange;
   final Map<String, bool> _pairStateMap = {};
+  StreamController<BleConnectionUpdate>? _connectionStreamController;
 
   Future<AvailabilityState> getBluetoothAvailabilityState();
 
@@ -62,49 +66,49 @@ abstract class UniversalBlePlatform {
 
   Stream<BleConnectionUpdate> connectionStream(String deviceId) {
     _setupConnectionStreamIfRequired();
-    return _connectionStreamController!.stream
-        .where((event) => event.deviceId == deviceId)
-        .map((event) => BleConnectionUpdate(
-              isConnected: event.isConnected,
-              error: event.error,
-            ));
+    return _connectionStreamController!.stream;
   }
 
   void updateScanResult(BleDevice bleDevice) {
-    onScanResult?.call(bleDevice);
+    try {
+      onScanResult?.call(bleDevice);
+    } catch (_) {}
   }
 
   void updateConnection(String deviceId, bool isConnected, [String? error]) {
-    onConnectionChange?.call(deviceId, isConnected, error);
-    _connectionStreamController?.add((
+    _connectionStreamController?.add(BleConnectionUpdate(
       deviceId: deviceId,
       isConnected: isConnected,
       error: error,
     ));
+
+    try {
+      onConnectionChange?.call(deviceId, isConnected, error);
+    } catch (_) {}
   }
 
   void updateCharacteristicValue(
       String deviceId, String characteristicId, Uint8List value) {
-    onValueChange?.call(
-        deviceId, BleUuidParser.string(characteristicId), value);
+    try {
+      onValueChange?.call(
+          deviceId, BleUuidParser.string(characteristicId), value);
+    } catch (_) {}
   }
 
   void updateAvailability(AvailabilityState state) {
-    onAvailabilityChange?.call(state);
+    try {
+      onAvailabilityChange?.call(state);
+    } catch (_) {}
   }
 
   void updatePairingState(String deviceId, bool isPaired) {
     if (_pairStateMap[deviceId] == isPaired) return;
     _pairStateMap[deviceId] = isPaired;
-    onPairingStateChange?.call(deviceId, isPaired);
-  }
 
-  // Do not use these directly to push updates
-  OnScanResult? onScanResult;
-  OnConnectionChange? onConnectionChange;
-  OnValueChange? onValueChange;
-  OnAvailabilityChange? onAvailabilityChange;
-  OnPairingStateChange? onPairingStateChange;
+    try {
+      onPairingStateChange?.call(deviceId, isPaired);
+    } catch (_) {}
+  }
 
   /// Creates an auto disposable streamController
   void _setupConnectionStreamIfRequired() {
