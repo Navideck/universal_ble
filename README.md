@@ -70,7 +70,8 @@ UniversalBle.startScan();
 UniversalBle.startScan(
   scanFilter: ScanFilter(
     withServices: ["SERVICE_UUID"],
-    withManufacturerData: ["MANUFACTURER_DATA"]
+    withManufacturerData: [ManufacturerDataFilter(companyIdentifier: COMPANY_IDENTIFIER)],
+    withNamePrefix: ["NAME_PREFIX"],
   )
 );
 

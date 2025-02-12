@@ -1,3 +1,7 @@
+## 0.16.0
+* Bump bluez to 0.8.3
+* Improve readme
+
 ## 0.15.0
 * `getSystemDevices(withServices:)` now sets several generic services by default as filter
 * `getConnectionState` on Android will now return `BleConnectionState.disconnected` if device is connected to the system but not to the app
