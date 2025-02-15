@@ -70,7 +70,7 @@ UniversalBle.startScan();
 UniversalBle.startScan(
   scanFilter: ScanFilter(
     withServices: ["SERVICE_UUID"],
-    withManufacturerData: [ManufacturerDataFilter(companyIdentifier: COMPANY_IDENTIFIER)],
+    withManufacturerData: [ManufacturerDataFilter(companyIdentifier: 0x004c)],
     withNamePrefix: ["NAME_PREFIX"],
   )
 );
@@ -131,8 +131,14 @@ Note: On web **you have to** specify services before you are able to use them. S
 
 Use the `withManufacturerData` parameter to filter devices by manufacturer data. When you pass a list of `ManufacturerDataFilter` objects to this parameter, the scan results will only include devices that contain any of the specified manufacturer data.
 
+You can filter manufacturer data by company identifier, payload prefix, or payload mask.
+
 ```dart
-List<ManufacturerDataFilter> withManufacturerData;
+List<ManufacturerDataFilter> withManufacturerData = [ManufacturerDataFilter(
+            companyIdentifier: 0x004c,
+            payload: Uint8List.fromList([0x001D,0x001A]),
+            mask: Uint8List.fromList([1,0,1,1]))
+          ];
 ```
 
 ##### With namePrefix

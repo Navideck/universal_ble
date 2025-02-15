@@ -18,16 +18,18 @@ class ScanFilter {
 }
 
 class ManufacturerDataFilter {
+  /// Must be of integer type, in hex or decimal form (e.g. 0x004c or 76).
   int companyIdentifier;
 
-  // Mask and data must be of same length
+  /// Matches as prefix the peripheral's advertised data.
   Uint8List? payload;
 
-  /// For any bit in the mask, set it the 1 if it needs to match
-  /// the one in manufacturer data, otherwise set it to 0.
-  /// The 'mask' must have the same length as 'data'.
+  /// For any bit in the mask, set it to 1 if it needs to match
+  /// the corresponding one in manufacturer data, otherwise set it to 0.
+  /// The 'mask' must have the same length as 'payload'.
   Uint8List? mask;
 
+  /// Filter manufacturer data by company identifier, payload prefix, or payload mask.
   ManufacturerDataFilter({
     required this.companyIdentifier,
     this.payload,
