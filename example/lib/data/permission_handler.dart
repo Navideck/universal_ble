@@ -82,7 +82,7 @@ class PermissionHandler {
           ? (await Permission.locationWhenInUse.request()).isGranted
           : true;
     }
-    return [locationPermissionGranted, blePermissionGranted];
+    return [blePermissionGranted, locationPermissionGranted];
   }
 
   static bool get isMobilePlatform =>

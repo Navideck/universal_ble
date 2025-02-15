@@ -1,6 +1,7 @@
 ## 0.16.0
 * Bump bluez to 0.8.3
 * Improve readme
+* Reverse _permissionStatus return values in example app
 
 ## 0.15.0
 * `getSystemDevices(withServices:)` now sets several generic services by default as filter
