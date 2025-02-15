@@ -348,7 +348,7 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
       isPaired: nil,
       rssi: RSSI as? Int64,
       manufacturerDataList: manufacturerDataList,
-      services: services?.map { $0.uuidStr.validFullUUID }
+      services: services?.map { $0.uuidStr }
     )) { _ in }
   }
 
@@ -492,7 +492,7 @@ extension String {
 extension [String] {
   func toCBUUID() throws -> [CBUUID] {
     return try compactMap { serviceUUID in
-      guard UUID(uuidString: serviceUUID.validFullUUID) != nil else {
+      guard UUID(uuidString: serviceUUID) != nil else {
         throw PigeonError(code: "IllegalArgument", message: "Invalid service UUID:\(serviceUUID)", details: nil)
       }
       return CBUUID(string: serviceUUID)
