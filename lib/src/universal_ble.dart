@@ -208,7 +208,8 @@ class UniversalBle {
   }
 
   /// Request MTU value.
-  /// `requestMtu` is not supported on `Linux` and `Web.
+  /// It will **attempt** to set the MTU (Maximum Transmission Unit) but it is not guaranteed to succeed due to platform limitations.
+  /// It will always return the current MTU.
   static Future<int> requestMtu(String deviceId, int expectedMtu) async {
     return await _bleCommandQueue.queueCommand(
       () => _platform.requestMtu(deviceId, expectedMtu),

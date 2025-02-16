@@ -235,6 +235,34 @@ UniversalBle.enableBluetooth();
 UniversalBle.disableBluetooth();
 ```
 
+### Request MTU
+
+This method will **attempt** to set the MTU (Maximum Transmission Unit) but it is not guaranteed to succeed due to platform limitations. It will always return the current MTU.
+
+```dart
+int mtu = await UniversalBle.requestMtu(widget.deviceId, 247);
+```
+
+#### Platform Limitations
+
+On most platforms, the MTU can only be queried but not manually set:
+
+- **iOS/macOS**: System automatically sets MTU to 185 bytes maximum
+- **Android 14+**: System automatically sets MTU to 517 bytes for the first GATT client
+- **Windows**: MTU can only be queried
+- **Linux**: 
+- **Web**: No mechanism to query or modify MTU size
+
+#### Best Practices
+
+When developing cross-platform BLE applications and devices:
+
+- Design for default MTU size (23 bytes) as default
+- Dynamically adapt to use larger packet sizes when the system provides them
+- Take advantage of the increased throughput when available without requiring it
+- Implement data fragmentation for larger transfers
+- Handle platform-specific MTU size based on current value
+
 ## Command Queue
 
 By default, all commands are executed in a global queue (`QueueType.global`), with each command waiting for the previous one to finish.
