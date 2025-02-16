@@ -73,16 +73,8 @@ fun Int.toBleConnectionState(): BleConnectionState {
     }
 }
 
-fun String.validFullUUID(): String {
-    return when (this.count()) {
-        4 -> "0000$this-0000-1000-8000-00805F9B34FB"
-        8 -> "$this-0000-1000-8000-00805F9B34FB"
-        else -> this
-    }
-}
-
 fun List<String>.toUUIDList(): List<UUID> {
-    return this.map { UUID.fromString(it.validFullUUID()) }
+    return this.map { UUID.fromString(it) }
 }
 
 

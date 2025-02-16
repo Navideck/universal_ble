@@ -143,20 +143,6 @@ public extension CBPeripheral {
     }
 }
 
-extension String {
-    var validFullUUID: String {
-        let uuidLength = count
-        if uuidLength == 4 || uuidLength == 8 {
-            let baseUuid = "00000000-0000-1000-8000-00805F9B34FB"
-            let start = baseUuid.startIndex
-            let range = baseUuid.index(start, offsetBy: 4 - uuidLength) ..< baseUuid.index(start, offsetBy: 4)
-            return baseUuid.replacingCharacters(in: range, with: self).lowercased()
-        } else {
-            return self
-        }
-    }
-}
-
 extension FlutterStandardTypedData {
     func toData() -> Data {
         return Data(data)

@@ -1,6 +1,7 @@
 ## 0.16.0
 * Bump bluez to 0.8.3
 * Improve readme
+* Do not normalize UUIDs on native side
 * Reverse _permissionStatus return values in example app
 
 ## 0.15.0
