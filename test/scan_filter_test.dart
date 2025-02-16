@@ -37,15 +37,15 @@ void main() {
         withNamePrefix: ['1', '2'],
       );
       expect(
-        universalBleFilter.isNameMatchingFilters(scanFilter, device1),
+        universalBleFilter.nameMatches(scanFilter, device1),
         isTrue,
       );
       expect(
-        universalBleFilter.isNameMatchingFilters(scanFilter, device2),
+        universalBleFilter.nameMatches(scanFilter, device2),
         isTrue,
       );
       expect(
-        universalBleFilter.isNameMatchingFilters(scanFilter, device3),
+        universalBleFilter.nameMatches(scanFilter, device3),
         isFalse,
       );
     });
@@ -55,15 +55,15 @@ void main() {
         withServices: ['1_ser', 'random', '3_ser'],
       );
       expect(
-        universalBleFilter.isServicesMatchingFilters(scanFilter, device1),
+        universalBleFilter.servicesMatch(scanFilter, device1),
         isTrue,
       );
       expect(
-        universalBleFilter.isServicesMatchingFilters(scanFilter, device2),
+        universalBleFilter.servicesMatch(scanFilter, device2),
         isFalse,
       );
       expect(
-        universalBleFilter.isNameMatchingFilters(scanFilter, device3),
+        universalBleFilter.nameMatches(scanFilter, device3),
         isTrue,
       );
     });
@@ -83,21 +83,21 @@ void main() {
         )
       ]);
       expect(
-        universalBleFilter.isManufacturerDataMatchingFilters(
+        universalBleFilter.manufacturerDataMatches(
           scanFilter,
           device1,
         ),
         isTrue,
       );
       expect(
-        universalBleFilter.isManufacturerDataMatchingFilters(
+        universalBleFilter.manufacturerDataMatches(
           scanFilter,
           device2,
         ),
         isTrue,
       );
       expect(
-        universalBleFilter.isManufacturerDataMatchingFilters(
+        universalBleFilter.manufacturerDataMatches(
           scanFilter,
           device3,
         ),
@@ -118,15 +118,15 @@ void main() {
         ],
       );
       expect(
-        universalBleFilter.filterDevice(device1),
+        universalBleFilter.matchesDevice(device1),
         isTrue,
       );
       expect(
-        universalBleFilter.filterDevice(device2),
+        universalBleFilter.matchesDevice(device2),
         isTrue,
       );
       expect(
-        universalBleFilter.filterDevice(device3),
+        universalBleFilter.matchesDevice(device3),
         isTrue,
       );
     });
@@ -135,15 +135,15 @@ void main() {
         withNamePrefix: ['1'],
       );
       expect(
-        universalBleFilter.filterDevice(device1),
+        universalBleFilter.matchesDevice(device1),
         isTrue,
       );
       expect(
-        universalBleFilter.filterDevice(device2),
+        universalBleFilter.matchesDevice(device2),
         isFalse,
       );
       expect(
-        universalBleFilter.filterDevice(device3),
+        universalBleFilter.matchesDevice(device3),
         isFalse,
       );
     });
@@ -152,45 +152,45 @@ void main() {
         withNamePrefix: ['1', '2'],
       );
       expect(
-        universalBleFilter.filterDevice(device1),
+        universalBleFilter.matchesDevice(device1),
         isTrue,
       );
       expect(
-        universalBleFilter.filterDevice(device2),
+        universalBleFilter.matchesDevice(device2),
         isTrue,
       );
       expect(
-        universalBleFilter.filterDevice(device3),
+        universalBleFilter.matchesDevice(device3),
         isFalse,
       );
     });
     test('Test filterDevice: Empty Filter', () {
       universalBleFilter.scanFilter = ScanFilter();
       expect(
-        universalBleFilter.filterDevice(device1),
+        universalBleFilter.matchesDevice(device1),
         isTrue,
       );
       expect(
-        universalBleFilter.filterDevice(device2),
+        universalBleFilter.matchesDevice(device2),
         isTrue,
       );
       expect(
-        universalBleFilter.filterDevice(device3),
+        universalBleFilter.matchesDevice(device3),
         isTrue,
       );
     });
     test('Test filterDevice: Null Filter', () {
       universalBleFilter.scanFilter = ScanFilter();
       expect(
-        universalBleFilter.filterDevice(device1),
+        universalBleFilter.matchesDevice(device1),
         isTrue,
       );
       expect(
-        universalBleFilter.filterDevice(device2),
+        universalBleFilter.matchesDevice(device2),
         isTrue,
       );
       expect(
-        universalBleFilter.filterDevice(device3),
+        universalBleFilter.matchesDevice(device3),
         isTrue,
       );
     });

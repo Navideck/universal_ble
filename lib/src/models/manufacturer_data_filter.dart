@@ -7,8 +7,8 @@ class ManufacturerDataFilter {
   /// Matches as prefix the peripheral's advertised data.
   Uint8List? payloadPrefix;
 
-  /// For any bit in the mask, set it to 1 if it needs to match
-  /// the corresponding one in manufacturer data, otherwise set it to 0.
+  /// For each bit in the mask, set it to 1 if it needs to match
+  /// the corresponding one in manufacturer data, or otherwise set it to 0.
   /// The 'mask' must have the same length as the payload.
   Uint8List? payloadMask;
 
