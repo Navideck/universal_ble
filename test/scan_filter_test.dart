@@ -72,14 +72,14 @@ void main() {
       var scanFilter = ScanFilter(withManufacturerData: [
         ManufacturerDataFilter(
           companyIdentifier: 0x01,
-          payload: Uint8List.fromList([1, 2]),
+          payloadPrefix: Uint8List.fromList([1, 2]),
         ),
         ManufacturerDataFilter(
           companyIdentifier: 0x02,
         ),
         ManufacturerDataFilter(
           companyIdentifier: 0x03,
-          payload: Uint8List.fromList([3, 4]),
+          payloadPrefix: Uint8List.fromList([3, 4]),
         )
       ]);
       expect(

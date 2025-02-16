@@ -369,8 +369,8 @@ class UniversalBleWeb extends UniversalBlePlatform {
             manufacturerData: [
               ManufacturerDataFilterBuilder(
                 companyIdentifier: manufacturerData.companyIdentifier,
-                dataPrefix: manufacturerData.payload,
-                mask: manufacturerData.mask,
+                dataPrefix: manufacturerData.payloadPrefix,
+                mask: manufacturerData.payloadMask,
               ),
             ],
           ),

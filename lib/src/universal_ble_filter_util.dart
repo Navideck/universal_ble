@@ -1,5 +1,6 @@
 import 'dart:typed_data';
 
+import 'package:universal_ble/src/models/manufacturer_data_filter.dart';
 import 'package:universal_ble/universal_ble.dart';
 
 // A default Filter on dart side
@@ -60,37 +61,53 @@ class UniversalBleFilterUtil {
     if (manufacturerDataList.isEmpty) return false;
 
     return manufacturerDataList.any((deviceMsd) => manufacturerDataFilters.any(
-          (filterMsd) => _isManufacturerDataMatch(filterMsd, deviceMsd),
+          (filterMsd) => _isManufacturerDataMatching(filterMsd, deviceMsd),
         ));
   }
 
-  bool _isManufacturerDataMatch(
+  bool _isManufacturerDataMatching(
     ManufacturerDataFilter filterMsd,
     ManufacturerData deviceMsd,
   ) {
-    if (filterMsd.companyIdentifier != deviceMsd.companyId) return false;
+    // Early return if company identifiers don't match
+    if (filterMsd.companyIdentifier != deviceMsd.companyId) {
+      return false;
+    }
 
-    Uint8List? filterPayload = filterMsd.payload;
-    Uint8List devicePayload = deviceMsd.payload;
+    final payloadPrefix = filterMsd.payloadPrefix;
+    final payload = deviceMsd.payload;
 
-    if (filterPayload == null || filterPayload.isEmpty) return true;
-    if (devicePayload.isEmpty) return false;
-    if (filterPayload.length > devicePayload.length) return false;
+    // Handle cases where payload prefix is null or empty
+    if (payloadPrefix == null || payloadPrefix.isEmpty) {
+      return true;
+    }
 
-    Uint8List? filterMask = filterMsd.mask;
+    // Validate payload lengths
+    if (payload.isEmpty || payloadPrefix.length > payload.length) {
+      return false;
+    }
 
-    if (filterMask != null && filterMask.length == filterPayload.length) {
-      for (int i = 0; i < filterPayload.length; i++) {
-        if ((filterPayload[i] & filterMask[i]) !=
-            (devicePayload[i] & filterMask[i])) {
-          return false;
-        }
+    final filterMask = filterMsd.payloadMask;
+
+    // Choose comparison strategy based on filter mask
+    return filterMask != null && filterMask.length == payloadPrefix.length
+        ? _compareWithMask(payloadPrefix, payload, filterMask)
+        : _compareWithoutMask(payloadPrefix, payload);
+  }
+
+  bool _compareWithMask(Uint8List prefix, Uint8List payload, Uint8List mask) {
+    for (int i = 0; i < prefix.length; i++) {
+      if ((prefix[i] & mask[i]) != (payload[i] & mask[i])) {
+        return false;
       }
-    } else {
-      for (int i = 0; i < filterPayload.length; i++) {
-        if (filterPayload[i] != devicePayload[i]) {
-          return false;
-        }
+    }
+    return true;
+  }
+
+  bool _compareWithoutMask(Uint8List prefix, Uint8List payload) {
+    for (int i = 0; i < prefix.length; i++) {
+      if (prefix[i] != payload[i]) {
+        return false;
       }
     }
     return true;

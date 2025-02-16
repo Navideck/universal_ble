@@ -136,8 +136,8 @@ You can filter manufacturer data by company identifier, payload prefix, or paylo
 ```dart
 List<ManufacturerDataFilter> withManufacturerData = [ManufacturerDataFilter(
             companyIdentifier: 0x004c,
-            payload: Uint8List.fromList([0x001D,0x001A]),
-            mask: Uint8List.fromList([1,0,1,1]))
+            payloadPrefix: Uint8List.fromList([0x001D,0x001A]),
+            payloadMask: Uint8List.fromList([1,0,1,1]))
           ];
 ```
 
