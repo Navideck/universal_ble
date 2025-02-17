@@ -107,12 +107,12 @@ class UniversalBleLinux extends UniversalBlePlatform {
       _deviceAdded = null;
       _deviceRemoved = null;
 
-      // Stop Disovery
+      // Stop Discovery
       if (_activeAdapter?.discovering == true) {
         await _activeAdapter?.stopDiscovery();
       }
 
-      // Clean all advertiseemnt listeners
+      // Clean all advertisement listeners
       _deviceAdvertisementSubscriptions.removeWhere((e, value) {
         value.cancel();
         return true;
@@ -455,7 +455,7 @@ class UniversalBleLinux extends UniversalBlePlatform {
 
   void _onDeviceAdd(BlueZDevice device) {
     BleDevice bleDevice = device.toBleDevice();
-    if (!_bleFilter.filterDevice(bleDevice)) {
+    if (!_bleFilter.matchesDevice(bleDevice)) {
       return;
     }
 
@@ -475,7 +475,7 @@ class UniversalBleLinux extends UniversalBlePlatform {
             e.contains(BluezProperty.manufacturerData) ||
             e.contains(BluezProperty.uuids))
         .listen((_) {
-      if (_bleFilter.filterDevice(bleDevice)) {
+      if (_bleFilter.matchesDevice(bleDevice)) {
         updateScanResult(device.toBleDevice());
       }
     });

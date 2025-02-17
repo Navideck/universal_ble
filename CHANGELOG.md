@@ -1,8 +1,11 @@
 ## 0.16.0
+* BREAKING CHANGE: `payload` is now `payloadPrefix`
+* BREAKING CHANGE: `mask` is now `payloadMask`
 * Bump bluez to 0.8.3
-* Improve readme
 * Do not normalize UUIDs on native side
 * Reverse _permissionStatus return values in example app
+* Improve readme
+* Improve ManufacturerDataFilter docs
 
 ## 0.15.0
 * `getSystemDevices(withServices:)` now sets several generic services by default as filter

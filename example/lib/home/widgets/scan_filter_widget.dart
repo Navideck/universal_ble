@@ -60,8 +60,7 @@ class _ScanFilterWidgetState extends State<ScanFilterWidget> {
             throw Exception("Invalid Manufacturer Data $manufacturer");
           }
           manufacturerDataFilters.add(
-            ManufacturerDataFilter(companyIdentifier: companyIdentifier),
-          );
+              ManufacturerDataFilter(companyIdentifier: companyIdentifier));
         }
       }
 
