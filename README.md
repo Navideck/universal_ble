@@ -250,7 +250,7 @@ On most platforms, the MTU can only be queried but not manually set:
 - **iOS/macOS**: System automatically sets MTU to 185 bytes maximum
 - **Android 14+**: System automatically sets MTU to 517 bytes for the first GATT client
 - **Windows**: MTU can only be queried
-- **Linux**: 
+- **Linux**: MTU can only be queried
 - **Web**: No mechanism to query or modify MTU size
 
 #### Best Practices
