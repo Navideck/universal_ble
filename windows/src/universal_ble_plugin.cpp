@@ -35,7 +35,7 @@ namespace universal_ble
   std::unordered_map<std::string, winrt::event_token> characteristicsTokens{}; // TODO: Remove the map and store the token inside the characteristic object
 
   bool initialized = false;
-  
+
   void UniversalBlePlugin::RegisterWithRegistrar(flutter::PluginRegistrarWindows *registrar)
   {
     auto plugin = std::make_unique<UniversalBlePlugin>(registrar);
@@ -480,6 +480,10 @@ namespace universal_ble
     try
     {
       auto device = async_get(BluetoothLEDevice::FromBluetoothAddressAsync(_str_to_mac_address(device_id)));
+      if (device == nullptr)
+      {
+        return FlutterError("Device not found");
+      }
       auto deviceInformation = device.DeviceInformation();
       bool isPaired = deviceInformation.Pairing().IsPaired();
       if (!isPaired)
@@ -546,7 +550,17 @@ namespace universal_ble
   {
     try
     {
+      std::cout << "Trying to pair" << std::endl;
+
       auto device = co_await BluetoothLEDevice::FromBluetoothAddressAsync(_str_to_mac_address(device_id));
+      if (device == nullptr)
+      {
+        result(FlutterError("Device not found"));
+        co_return;
+      }
+
+      std::cout << "Got device" << std::endl;
+
       auto deviceInformation = device.DeviceInformation();
       if (deviceInformation.Pairing().IsPaired())
         result(true);
@@ -577,6 +591,11 @@ namespace universal_ble
     try
     {
       auto device = co_await BluetoothLEDevice::FromBluetoothAddressAsync(_str_to_mac_address(device_id));
+      if (device == nullptr)
+      {
+        result(FlutterError("Device not found"));
+        co_return;
+      }
       auto deviceInformation = device.DeviceInformation();
       if (deviceInformation.Pairing().IsPaired())
         result(true);
@@ -962,7 +981,6 @@ namespace universal_ble
   winrt::fire_and_forget UniversalBlePlugin::ConnectAsync(uint64_t bluetoothAddress)
   {
     BluetoothLEDevice device = co_await BluetoothLEDevice::FromBluetoothAddressAsync(bluetoothAddress);
-    std::cout << "ConnectionLog: Device found" << std::endl;
     if (!device)
     {
       std::cout << "ConnectionLog: ConnectionFailed: Failed to get device" << std::endl;
@@ -971,6 +989,7 @@ namespace universal_ble
 
       co_return;
     }
+    std::cout << "ConnectionLog: Device found" << std::endl;
     auto servicesResult = co_await device.GetGattServicesAsync((BluetoothCacheMode::Uncached));
     auto status = servicesResult.Status();
     if (status != GattCommunicationStatus::Success)
@@ -1187,6 +1206,11 @@ namespace universal_ble
     try
     {
       auto device = co_await BluetoothLEDevice::FromBluetoothAddressAsync(_str_to_mac_address(device_id));
+      if (device == nullptr)
+      {
+        result(FlutterError("Device not found"));
+        co_return;
+      }
       bool isPaired = device.DeviceInformation().Pairing().IsPaired();
       result(isPaired);
     }

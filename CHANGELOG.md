@@ -1,3 +1,6 @@
+## 0.17.0
+* Fix Windows crash when calling pair APIs with an unknown deviceId
+
 ## 0.16.0
 * BREAKING CHANGE: `payload` is now `payloadPrefix`
 * BREAKING CHANGE: `mask` is now `payloadMask`
