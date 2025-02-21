@@ -74,7 +74,11 @@ namespace universal_ble
         static void SuccessCallback() {}
         static void ErrorCallback(const FlutterError &error)
         {
-            std::cout << "ErrorCallback: " << error.message() << std::endl;
+            // Ignore ChannelConnection Error, This might occur because of HotReload
+            if (error.code() != "channel-error")
+            {
+                std::cout << "ErrorCode: " << error.code() << " Message: " << error.message() << std::endl;
+            }
         }
 
         // Disallow copy and assign.
