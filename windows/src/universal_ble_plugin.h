@@ -198,24 +198,6 @@ namespace universal_ble
             }
             return "";
         }
-
-        std::string BluetoothLEAdvertisementWatcherStatusToString(BluetoothLEAdvertisementWatcherStatus result)
-        {
-            switch (result)
-            {
-            case BluetoothLEAdvertisementWatcherStatus::Created:
-                return "Created";
-            case BluetoothLEAdvertisementWatcherStatus::Aborted:
-                return "Aborted";
-            case BluetoothLEAdvertisementWatcherStatus::Started:
-                return "Started";
-            case BluetoothLEAdvertisementWatcherStatus::Stopped:
-                return "Stopped";
-            case BluetoothLEAdvertisementWatcherStatus::Stopping:
-                return "Stopping";
-            }
-            return "";
-        }
     };
 
 } // namespace universal_ble
