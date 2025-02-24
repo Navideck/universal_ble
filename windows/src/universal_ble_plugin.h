@@ -96,7 +96,6 @@ namespace universal_ble
         std::unordered_map<std::string, DeviceInformation> deviceWatcherDevices{};
 
         winrt::event_token bluetoothLEWatcherReceivedToken;
-        winrt::event_token bluetoothLEWatcherStoppedToken;
         winrt::event_token deviceWatcherAddedToken;
         winrt::event_token deviceWatcherUpdatedToken;
         winrt::event_token deviceWatcherRemovedToken;
@@ -110,7 +109,6 @@ namespace universal_ble
         void disposeDeviceWatcher();
         void pushUniversalScanResult(UniversalBleScanResult scanResult, bool isConnectable);
         void BluetoothLEWatcher_Received(BluetoothLEAdvertisementWatcher sender, BluetoothLEAdvertisementReceivedEventArgs args);
-        void BluetoothLEWatcher_Stopped(BluetoothLEAdvertisementWatcher sender, BluetoothLEAdvertisementWatcherStoppedEventArgs args);
         void onDeviceInfoReceived(DeviceInformation deviceInfo);
 
         std::string GattCommunicationStatusToString(GattCommunicationStatus status);
