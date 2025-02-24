@@ -130,52 +130,80 @@ namespace universal_ble
 
   std::optional<FlutterError> UniversalBlePlugin::StartScan(const UniversalScanFilter *filter)
   {
+
     if (bluetoothRadio && bluetoothRadio.State() == RadioState::On)
     {
-      setupDeviceWatcher();
-      scanResults.clear();
-      DeviceWatcherStatus status = deviceWatcher.Status();
-      if (status != DeviceWatcherStatus::Started)
+      try
       {
-        deviceWatcher.Start();
-      }
-      else
-      {
-        return FlutterError("Already scanning");
-      }
-
-      if (!bluetoothLEWatcher)
-      {
-        bluetoothLEWatcher = BluetoothLEAdvertisementWatcher();
-        bluetoothLEWatcher.ScanningMode(BluetoothLEScanningMode::Active);
-        resetScanFilter();
-
-        if (filter != nullptr)
+        setupDeviceWatcher();
+        scanResults.clear();
+        DeviceWatcherStatus deviceWatcherStatus = deviceWatcher.Status();
+        std::cout << "DeviceWatcherState: " << DeviceWatcherStatusToString(deviceWatcherStatus) << std::endl;
+        // DeviceWatcher can only start if its in Created, Stopped, or Aborted state
+        if (deviceWatcherStatus == DeviceWatcherStatus::Created || deviceWatcherStatus == DeviceWatcherStatus::Stopped || deviceWatcherStatus == DeviceWatcherStatus::Aborted)
         {
-          // Native filter supports only 1 service
-          bool usesCustomFilters = filter->with_services().size() > 1 || filter->with_manufacturer_data().size() > 0 || filter->with_name_prefix().size() > 0;
+          deviceWatcher.Start();
+        }
+        else if (deviceWatcherStatus == DeviceWatcherStatus::Stopping)
+        {
+          return FlutterError("StoppingScan in progress");
+        }
 
-          if (usesCustomFilters)
+        // Setup LeWatcher and apply filters
+        if (!bluetoothLEWatcher)
+        {
+          bluetoothLEWatcher = BluetoothLEAdvertisementWatcher();
+          bluetoothLEWatcherReceivedToken = bluetoothLEWatcher.Received({this, &UniversalBlePlugin::BluetoothLEWatcher_Received});
+          bluetoothLEWatcherStoppedToken = bluetoothLEWatcher.Stopped({this, &UniversalBlePlugin::BluetoothLEWatcher_Stopped});
+          bluetoothLEWatcher.ScanningMode(BluetoothLEScanningMode::Active);
+          resetScanFilter();
+
+          if (filter != nullptr)
           {
-            std::cout << "Using Custom Scan Filter" << std::endl;
-            setScanFilter(*filter);
-          }
-          else
-          {
-            // Apply Services filter
-            if (!filter->with_services().empty())
+            // Native filter supports only 1 service
+            bool usesCustomFilters = filter->with_services().size() > 1 || filter->with_manufacturer_data().size() > 0 || filter->with_name_prefix().size() > 0;
+
+            if (usesCustomFilters)
             {
-              for (const auto &uuid : filter->with_services())
+              std::cout << "Using Custom Scan Filter" << std::endl;
+              setScanFilter(*filter);
+            }
+            else
+            {
+              // Apply Services filter
+              if (!filter->with_services().empty())
               {
-                bluetoothLEWatcher.AdvertisementFilter().Advertisement().ServiceUuids().Append(uuid_to_guid(std::get<std::string>(uuid)));
+                for (const auto &uuid : filter->with_services())
+                {
+                  bluetoothLEWatcher.AdvertisementFilter().Advertisement().ServiceUuids().Append(uuid_to_guid(std::get<std::string>(uuid)));
+                }
               }
             }
           }
         }
 
-        bluetoothLEWatcherReceivedToken = bluetoothLEWatcher.Received({this, &UniversalBlePlugin::BluetoothLEWatcher_Received});
+        BluetoothLEAdvertisementWatcherStatus leWatcherStatus = bluetoothLEWatcher.Status();
+        std::cout << "BluetoothLEAdvertisementWatcherStatus: " << BluetoothLEAdvertisementWatcherStatusToString(leWatcherStatus) << std::endl;
+        if (leWatcherStatus == BluetoothLEAdvertisementWatcherStatus::Stopping)
+        {
+          return FlutterError("StoppingScan in progress");
+        }
+
+        // BluetoothLEWatcher can only start if its in Created, Stopped, or Aborted state
+        if (leWatcherStatus == BluetoothLEAdvertisementWatcherStatus::Created || leWatcherStatus == BluetoothLEAdvertisementWatcherStatus::Stopped || leWatcherStatus == BluetoothLEAdvertisementWatcherStatus::Aborted)
+        {
+          bluetoothLEWatcher.Start();
+        }
+        else if (leWatcherStatus == BluetoothLEAdvertisementWatcherStatus::Started)
+        {
+          std::cout << "BluetoothLeWatcher Already Scanning" << std::endl;
+        }
       }
-      bluetoothLEWatcher.Start();
+      catch (...)
+      {
+        std::cout << "Unknown error StartScan" << std::endl;
+        return FlutterError("Unknown error");
+      }
 
       return std::nullopt;
     }
@@ -187,18 +215,37 @@ namespace universal_ble
 
   std::optional<FlutterError> UniversalBlePlugin::StopScan()
   {
-
     if (bluetoothRadio && bluetoothRadio.State() == RadioState::On)
     {
-      if (bluetoothLEWatcher)
+      try
       {
-        bluetoothLEWatcher.Stop();
-        bluetoothLEWatcher.Received(bluetoothLEWatcherReceivedToken);
+        if (bluetoothLEWatcher)
+        {
+          BluetoothLEAdvertisementWatcherStatus leWatcherStatus = bluetoothLEWatcher.Status();
+          std::cout << "BluetoothLEAdvertisementWatcherStatus: " << BluetoothLEAdvertisementWatcherStatusToString(leWatcherStatus) << std::endl;
+          bluetoothLEWatcher.Received(bluetoothLEWatcherReceivedToken);
+          if (leWatcherStatus == BluetoothLEAdvertisementWatcherStatus::Started)
+          {
+            bluetoothLEWatcher.Stop();
+          }
+          bluetoothLEWatcher.Stopped(bluetoothLEWatcherStoppedToken);
+
+          bluetoothLEWatcher = nullptr;
+        }
+        disposeDeviceWatcher();
+        scanResults.clear();
+        return std::nullopt;
       }
-      bluetoothLEWatcher = nullptr;
-      disposeDeviceWatcher();
-      scanResults.clear();
-      return std::nullopt;
+      catch (const winrt::hresult_error &err)
+      {
+        int errorCode = err.code();
+        std::cout << "StopScanLog: " << winrt::to_string(err.message()) << " ErrorCode: " << std::to_string(errorCode) << std::endl;
+        return FlutterError(std::to_string(errorCode), winrt::to_string(err.message()));
+      }
+      catch (...)
+      {
+        return FlutterError("Failed to Stop");
+      }
     }
     else
     {
@@ -751,19 +798,38 @@ namespace universal_ble
                                                         deviceWatcherDevices.erase(deviceId);
                                                         // On Device Removed
                                                       });
+
+    deviceWatcherEnumerationCompletedToken = deviceWatcher.EnumerationCompleted([this](DeviceWatcher sender, IInspectable args)
+                                                                                {
+                                                                                  //  std::cout << "DeviceWatcherEvent: EnumerationCompleted" << std::endl;
+                                                                                  disposeDeviceWatcher();
+                                                                                  // EnumerationCompleted
+                                                                                });
+
+    deviceWatcherStoppedToken = deviceWatcher.Stopped([this](DeviceWatcher sender, IInspectable args)
+                                                      {
+                                                        // std::cout << "DeviceWatcherEvent: Stopped" << std::endl;
+                                                        disposeDeviceWatcher();
+                                                        // DeviceWatcher Stopped
+                                                      });
   }
 
   void UniversalBlePlugin::disposeDeviceWatcher()
   {
     if (deviceWatcher != nullptr)
     {
-      if (deviceWatcher.Status() == DeviceWatcherStatus::Started)
+      auto status = deviceWatcher.Status();
+      // std::cout << "DisposingDeviceWatcher, CurrentState: " << DeviceWatcherStatusToString(status) << std::endl;
+      if (status == DeviceWatcherStatus::Started)
+      {
         deviceWatcher.Stop();
+      }
       deviceWatcher.Added(deviceWatcherAddedToken);
       deviceWatcher.Updated(deviceWatcherUpdatedToken);
       deviceWatcher.Removed(deviceWatcherRemovedToken);
+      deviceWatcher.EnumerationCompleted(deviceWatcherEnumerationCompletedToken);
+      deviceWatcher.Stopped(deviceWatcherStoppedToken);
       deviceWatcher = nullptr;
-      // Dispose tokens
       deviceWatcherDevices.clear();
     }
   }
@@ -804,6 +870,12 @@ namespace universal_ble
 
       pushUniversalScanResult(universalScanResult, true);
     }
+  }
+
+  void UniversalBlePlugin::BluetoothLEWatcher_Stopped(BluetoothLEAdvertisementWatcher sender, BluetoothLEAdvertisementWatcherStoppedEventArgs args)
+  {
+    // Handle stopped event
+    std::cout << "LeAdvertiser Stopped" << std::endl;
   }
 
   /// Advertisement received from advertisementWatcher

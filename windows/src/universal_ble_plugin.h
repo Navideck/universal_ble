@@ -96,9 +96,12 @@ namespace universal_ble
         std::unordered_map<std::string, DeviceInformation> deviceWatcherDevices{};
 
         winrt::event_token bluetoothLEWatcherReceivedToken;
+        winrt::event_token bluetoothLEWatcherStoppedToken;
         winrt::event_token deviceWatcherAddedToken;
         winrt::event_token deviceWatcherUpdatedToken;
         winrt::event_token deviceWatcherRemovedToken;
+        winrt::event_token deviceWatcherEnumerationCompletedToken;
+        winrt::event_token deviceWatcherStoppedToken;
 
         winrt::fire_and_forget InitializeAsync();
         void Radio_StateChanged(Radio sender, IInspectable args);
@@ -107,6 +110,7 @@ namespace universal_ble
         void disposeDeviceWatcher();
         void pushUniversalScanResult(UniversalBleScanResult scanResult, bool isConnectable);
         void BluetoothLEWatcher_Received(BluetoothLEAdvertisementWatcher sender, BluetoothLEAdvertisementReceivedEventArgs args);
+        void BluetoothLEWatcher_Stopped(BluetoothLEAdvertisementWatcher sender, BluetoothLEAdvertisementWatcherStoppedEventArgs args);
         void onDeviceInfoReceived(DeviceInformation deviceInfo);
 
         std::string GattCommunicationStatusToString(GattCommunicationStatus status);
@@ -176,6 +180,44 @@ namespace universal_ble
         void GetSystemDevices(
             const flutter::EncodableList &with_services,
             std::function<void(ErrorOr<flutter::EncodableList> reply)> result);
+
+        std::string DeviceWatcherStatusToString(DeviceWatcherStatus result)
+        {
+            switch (result)
+            {
+            case DeviceWatcherStatus::Created:
+                return "Created";
+            case DeviceWatcherStatus::Aborted:
+                return "Aborted";
+            case DeviceWatcherStatus::EnumerationCompleted:
+                return "EnumerationCompleted";
+            case DeviceWatcherStatus::Started:
+                return "Started";
+            case DeviceWatcherStatus::Stopped:
+                return "Stopped";
+            case DeviceWatcherStatus::Stopping:
+                return "Stopping";
+            }
+            return "";
+        }
+
+        std::string BluetoothLEAdvertisementWatcherStatusToString(BluetoothLEAdvertisementWatcherStatus result)
+        {
+            switch (result)
+            {
+            case BluetoothLEAdvertisementWatcherStatus::Created:
+                return "Created";
+            case BluetoothLEAdvertisementWatcherStatus::Aborted:
+                return "Aborted";
+            case BluetoothLEAdvertisementWatcherStatus::Started:
+                return "Started";
+            case BluetoothLEAdvertisementWatcherStatus::Stopped:
+                return "Stopped";
+            case BluetoothLEAdvertisementWatcherStatus::Stopping:
+                return "Stopping";
+            }
+            return "";
+        }
     };
 
 } // namespace universal_ble
