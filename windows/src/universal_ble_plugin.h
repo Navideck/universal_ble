@@ -99,6 +99,8 @@ namespace universal_ble
         winrt::event_token deviceWatcherAddedToken;
         winrt::event_token deviceWatcherUpdatedToken;
         winrt::event_token deviceWatcherRemovedToken;
+        winrt::event_token deviceWatcherEnumerationCompletedToken;
+        winrt::event_token deviceWatcherStoppedToken;
 
         winrt::fire_and_forget InitializeAsync();
         void Radio_StateChanged(Radio sender, IInspectable args);
@@ -176,6 +178,26 @@ namespace universal_ble
         void GetSystemDevices(
             const flutter::EncodableList &with_services,
             std::function<void(ErrorOr<flutter::EncodableList> reply)> result);
+
+        std::string DeviceWatcherStatusToString(DeviceWatcherStatus result)
+        {
+            switch (result)
+            {
+            case DeviceWatcherStatus::Created:
+                return "Created";
+            case DeviceWatcherStatus::Aborted:
+                return "Aborted";
+            case DeviceWatcherStatus::EnumerationCompleted:
+                return "EnumerationCompleted";
+            case DeviceWatcherStatus::Started:
+                return "Started";
+            case DeviceWatcherStatus::Stopped:
+                return "Stopped";
+            case DeviceWatcherStatus::Stopping:
+                return "Stopping";
+            }
+            return "";
+        }
     };
 
 } // namespace universal_ble
