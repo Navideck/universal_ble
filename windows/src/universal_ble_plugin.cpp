@@ -157,6 +157,7 @@ namespace universal_ble
       {
         bluetoothLEWatcher = BluetoothLEAdvertisementWatcher();
         bluetoothLEWatcher.ScanningMode(BluetoothLEScanningMode::Active);
+        (void)bluetoothLEWatcher.AllowExtendedAdvertisements();
         resetScanFilter();
 
         if (filter != nullptr)
