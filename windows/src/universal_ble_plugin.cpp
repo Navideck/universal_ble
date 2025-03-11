@@ -667,10 +667,10 @@ namespace universal_ble
   // if device is already discovered in deviceWatcher then merge the scan result
   void UniversalBlePlugin::pushUniversalScanResult(UniversalBleScanResult scanResult, bool isConnectable)
   {
-    auto it = scanResults.find(scanResult.device_id());
-    if (it != scanResults.end())
+    std::optional<UniversalBleScanResult> it = scanResults.get(scanResult.device_id());
+    if (it.has_value())
     {
-      UniversalBleScanResult &currentScanResult = it->second;
+      UniversalBleScanResult &currentScanResult = it.value();
       bool shouldUpdate = false;
 
       // Check if current scanResult name is longer than the received scanResult name
@@ -708,16 +708,13 @@ namespace universal_ble
 
       // if nothing to update then return
       if (!shouldUpdate)
+      {
         return;
+      }
+    }
 
-      // update the current scan result
-      currentScanResult = scanResult;
-    }
-    else
-    {
-      // if not present, insert the new scan result
-      scanResults.insert(std::make_pair(scanResult.device_id(), scanResult));
-    }
+    // Update cache
+    scanResults.insert_or_assign(scanResult.device_id(), scanResult);
 
     // Filter final result before sending to Flutter
     if (isConnectable && filterDevice(scanResult))
@@ -757,11 +754,13 @@ namespace universal_ble
     deviceWatcherUpdatedToken = deviceWatcher.Updated([this](DeviceWatcher sender, DeviceInformationUpdate deviceInfoUpdate)
                                                       {
                                                         std::string deviceId = winrt::to_string(deviceInfoUpdate.Id());
-                                                        auto it = deviceWatcherDevices.find(deviceId);
-                                                        if (it != deviceWatcherDevices.end())
+                                                        auto it = deviceWatcherDevices.get(deviceId);
+                                                        if (it.has_value())
                                                         {
-                                                          it->second.Update(deviceInfoUpdate);
-                                                          onDeviceInfoReceived(it->second);
+                                                          auto value = it.value();
+                                                          value.Update(deviceInfoUpdate);
+                                                          deviceWatcherDevices.insert_or_assign(deviceId, value);
+                                                          onDeviceInfoReceived(value);
                                                         }
                                                         // On Device Updated
                                                       });
@@ -769,7 +768,7 @@ namespace universal_ble
     deviceWatcherRemovedToken = deviceWatcher.Removed([this](DeviceWatcher sender, DeviceInformationUpdate args)
                                                       {
                                                         std::string deviceId = winrt::to_string(args.Id());
-                                                        deviceWatcherDevices.erase(deviceId);
+                                                        deviceWatcherDevices.remove(deviceId);
                                                         // On Device Removed
                                                       });
 
@@ -820,7 +819,7 @@ namespace universal_ble
     std::string deviceAddress = winrt::to_string(bluetoothAddressPropertyValue.GetString());
 
     // Update device info if already discovered in advertisementWatcher
-    if (scanResults.count(deviceAddress) > 0)
+    if (scanResults.get(deviceAddress).has_value())
     {
       bool isPaired = deviceInfo.Pairing().IsPaired();
       if (properties.HasKey(isPairedKey))
@@ -900,10 +899,10 @@ namespace universal_ble
       universalScanResult.set_services(services);
 
       // check if this device already discovered in deviceWatcher
-      auto it = deviceWatcherDevices.find(deviceId);
-      if (it != deviceWatcherDevices.end())
+      auto it = deviceWatcherDevices.get(deviceId);
+      if (it.has_value())
       {
-        auto &deviceInfo = it->second;
+        auto &deviceInfo = it.value();
         auto properties = deviceInfo.Properties();
 
         // Update Paired Status

@@ -67,7 +67,8 @@ class _MyAppState extends State<MyApp> {
   }
 
   Future<void> startScan() async {
-    while(true) { // TODO: Remove when done
+    while (true) {
+      // TODO: Remove when done
       await UniversalBle.startScan(
         scanFilter: scanFilter,
       );
