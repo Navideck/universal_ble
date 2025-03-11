@@ -1123,13 +1123,14 @@ namespace universal_ble
           if (tokenIter != characteristicsTokens.end() && tokenIter->second.value != 0)
           {
             gattCharacteristic.ValueChanged(tokenIter->second);
+            tokenIter->second.value = 0;
             characteristicsTokens.erase(tokenIter);
           }
         }
       }
 
       deviceAgent->gatt_map_.clear();
-    } // <-- This closing brace was missing earlier
+    } 
   }
 
   winrt::fire_and_forget UniversalBlePlugin::GetSystemDevicesAsync(
@@ -1286,6 +1287,8 @@ namespace universal_ble
     GattCharacteristicObject &gatt_characteristic_holder = bluetoothDeviceAgent._fetch_characteristic(service, characteristic);
     GattCharacteristic gattCharacteristic = gatt_characteristic_holder.obj;
 
+    auto uuid = to_uuidstr(gattCharacteristic.Uuid());
+
     try
     {
       auto status = co_await gattCharacteristic.WriteClientCharacteristicConfigurationDescriptorAsync(descriptorValue);
@@ -1301,27 +1304,30 @@ namespace universal_ble
       co_return;
     }
 
-    // Create unique key for token
+    // Create unique key for token (uuid + device address)
     std::stringstream uniqTokenKeyStream;
-    uniqTokenKeyStream << service << characteristic << _mac_address_to_str(gattCharacteristic.Service().Device().BluetoothAddress());
-    
+    uniqTokenKeyStream << uuid << _mac_address_to_str(gattCharacteristic.Service().Device().BluetoothAddress());
     auto uniqTokenKey = uniqTokenKeyStream.str();
 
     // Unregister existing handler safely
     auto existingTokenIter = characteristicsTokens.find(uniqTokenKey);
-    if (existingTokenIter != characteristicsTokens.end() && existingTokenIter->second.value != 0)
+    if (existingTokenIter != characteristicsTokens.end())
     {
-      gattCharacteristic.ValueChanged(existingTokenIter->second);
+      if (existingTokenIter->second.value != 0)
+      {
+        gattCharacteristic.ValueChanged(existingTokenIter->second);
+        existingTokenIter->second.value = 0;
+      }
       characteristicsTokens.erase(existingTokenIter);
+      std::cout << "Unsubscribed safely from: " << uuid << std::endl;
     }
 
     // Register new handler if needed
     if (descriptorValue != GattClientCharacteristicConfigurationDescriptorValue::None)
     {
       winrt::event_token newToken = gattCharacteristic.ValueChanged({this, &UniversalBlePlugin::GattCharacteristic_ValueChanged});
-      
-      // Corrected assignment without 'new':
-      characteristicsTokens[uniqTokenKey] = newToken;
+      characteristicsTokens[uniqTokenKey] = newToken; // ✅ Correct assignment without 'new'
+      std::cout << "Subscribed safely to: " << uuid << std::endl;
     }
 
     result(std::nullopt);
