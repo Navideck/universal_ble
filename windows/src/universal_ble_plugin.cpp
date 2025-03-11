@@ -790,29 +790,34 @@ namespace universal_ble
 
   void UniversalBlePlugin::disposeDeviceWatcher()
   {
+    // Create a local copy of the deviceWatcher pointer
+    auto localWatcher = deviceWatcher;
+    
+    // Set the member variable to nullptr first to prevent reentry
     if (deviceWatcher != nullptr)
     {
-      // Store the current deviceWatcher in a local variable
-      auto watcher = deviceWatcher;
-      
-      // Set the class member to nullptr first to prevent double disposal
       deviceWatcher = nullptr;
       
-      // Now use the local copy to unregister events and stop the watcher
-      watcher.Added(deviceWatcherAddedToken);
-      watcher.Updated(deviceWatcherUpdatedToken);
-      watcher.Removed(deviceWatcherRemovedToken);
-      watcher.EnumerationCompleted(deviceWatcherEnumerationCompletedToken);
-      watcher.Stopped(deviceWatcherStoppedToken);
-      
-      auto status = watcher.Status();
-      if (status == DeviceWatcherStatus::Started)
+      // Now use the local copy for all operations
+      if (localWatcher != nullptr)
       {
-        watcher.Stop();
+        // Unregister event handlers using the local copy
+        localWatcher.Added(deviceWatcherAddedToken);
+        localWatcher.Updated(deviceWatcherUpdatedToken);
+        localWatcher.Removed(deviceWatcherRemovedToken);
+        localWatcher.EnumerationCompleted(deviceWatcherEnumerationCompletedToken);
+        localWatcher.Stopped(deviceWatcherStoppedToken);
+        
+        // Stop the watcher if it's running
+        auto status = localWatcher.Status();
+        if (status == DeviceWatcherStatus::Started)
+        {
+          localWatcher.Stop();
+        }
+        
+        // Clear associated data
+        deviceWatcherDevices.clear();
       }
-      
-      // Clear the associated data
-      deviceWatcherDevices.clear();
     }
   }
 
