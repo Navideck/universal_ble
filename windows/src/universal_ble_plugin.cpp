@@ -790,21 +790,28 @@ namespace universal_ble
 
   void UniversalBlePlugin::disposeDeviceWatcher()
   {
-    if (deviceWatcher != nullptr)
+    static bool isDisposing = false;
+    
+    if (deviceWatcher != nullptr && !isDisposing)
     {
+      isDisposing = true;
+      
       deviceWatcher.Added(deviceWatcherAddedToken);
       deviceWatcher.Updated(deviceWatcherUpdatedToken);
       deviceWatcher.Removed(deviceWatcherRemovedToken);
       deviceWatcher.EnumerationCompleted(deviceWatcherEnumerationCompletedToken);
       deviceWatcher.Stopped(deviceWatcherStoppedToken);
+      
       auto status = deviceWatcher.Status();
-      // std::cout << "DisposingDeviceWatcher, CurrentState: " << DeviceWatcherStatusToString(status) << std::endl;
       if (status == DeviceWatcherStatus::Started)
       {
         deviceWatcher.Stop();
       }
+      
       deviceWatcher = nullptr;
       deviceWatcherDevices.clear();
+      
+      isDisposing = false;
     }
   }
 
