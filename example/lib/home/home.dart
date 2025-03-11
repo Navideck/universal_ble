@@ -67,14 +67,9 @@ class _MyAppState extends State<MyApp> {
   }
 
   Future<void> startScan() async {
-    while (true) {
-      // TODO: Remove when done
-      await UniversalBle.startScan(
-        scanFilter: scanFilter,
-      );
-      await Future.delayed(const Duration(milliseconds: 1000));
-      await UniversalBle.stopScan();
-    }
+    await UniversalBle.startScan(
+      scanFilter: scanFilter,
+    );
   }
 
   Future<void> _getSystemDevices() async {
