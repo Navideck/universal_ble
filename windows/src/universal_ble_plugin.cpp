@@ -204,17 +204,17 @@ namespace universal_ble
         {
           bluetoothLEWatcher.Received(bluetoothLEWatcherReceivedToken);
           bluetoothLEWatcher.Stop();
+          bluetoothLEWatcherReceivedToken.value = 0;
+          bluetoothLEWatcher = nullptr;
         }
-        bluetoothLEWatcher = nullptr;
         disposeDeviceWatcher();
         scanResults.clear();
         return std::nullopt;
       }
       catch (const winrt::hresult_error &err)
       {
-        int errorCode = err.code();
-        std::cout << "StopScanLog: " << winrt::to_string(err.message()) << " ErrorCode: " << std::to_string(errorCode) << std::endl;
-        return FlutterError(std::to_string(errorCode), winrt::to_string(err.message()));
+        std::cout << "StopScanLog: " << winrt::to_string(err.message()) << std::endl;
+        return FlutterError(winrt::to_string(err.message()));
       }
       catch (...)
       {
@@ -225,7 +225,7 @@ namespace universal_ble
     {
       return FlutterError("Bluetooth is not available");
     }
-  };
+  }
 
   ErrorOr<int64_t> UniversalBlePlugin::GetConnectionState(const std::string &device_id)
   {
@@ -790,31 +790,26 @@ namespace universal_ble
 
   void UniversalBlePlugin::disposeDeviceWatcher()
   {
-    // Create a local copy and immediately set the member to null
-    auto localWatcher = deviceWatcher;
-    
-    if (localWatcher != nullptr)
+    if (deviceWatcher)
     {
-      // Set to null first to prevent reentry or double disposal
+      auto watcher = deviceWatcher;
       deviceWatcher = nullptr;
-      
-      // Now use the local copy for all operations
-      localWatcher.Added(deviceWatcherAddedToken);
-      localWatcher.Updated(deviceWatcherUpdatedToken);
-      localWatcher.Removed(deviceWatcherRemovedToken);
-      localWatcher.EnumerationCompleted(deviceWatcherEnumerationCompletedToken);
-      localWatcher.Stopped(deviceWatcherStoppedToken);
-      
-      auto status = localWatcher.Status();
-      if (status == DeviceWatcherStatus::Started)
+
+      watcher.Added(deviceWatcherAddedToken);
+      watcher.Updated(deviceWatcherUpdatedToken);
+      watcher.Removed(deviceWatcherRemovedToken);
+      watcher.EnumerationCompleted(deviceWatcherEnumerationCompletedToken);
+      watcher.Stopped(deviceWatcherStoppedToken);
+
+      if (watcher.Status() == DeviceWatcherStatus::Started ||
+          watcher.Status() == DeviceWatcherStatus::EnumerationCompleted)
       {
-        localWatcher.Stop();
+        watcher.Stop();
       }
-      
+
       deviceWatcherDevices.clear();
     }
   }
-
 
   void UniversalBlePlugin::onDeviceInfoReceived(DeviceInformation deviceInfo)
   {
