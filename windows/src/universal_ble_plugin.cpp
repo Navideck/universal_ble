@@ -1097,8 +1097,15 @@ namespace universal_ble
     if (!node.empty())
     {
       auto deviceAgent = std::move(node.mapped());
-      deviceAgent->device.ConnectionStatusChanged(deviceAgent->connnectionStatusChangedToken);
-      // Clean up all characteristics tokens
+
+      // Safely unregister connection status changed handler
+      if (deviceAgent->connnectionStatusChangedToken.value != 0)
+      {
+        deviceAgent->device.ConnectionStatusChanged(deviceAgent->connnectionStatusChangedToken);
+        deviceAgent->connnectionStatusChangedToken.value = 0;
+      }
+
+      // Safely unregister characteristic notifications
       for (auto &servicePair : deviceAgent->gatt_map_)
       {
         auto &service = servicePair.second;
@@ -1106,18 +1113,23 @@ namespace universal_ble
         {
           GattCharacteristicObject &characteristic = characteristicPair.second;
           auto gattCharacteristic = characteristic.obj;
+
           std::stringstream uniqTokenKeyStream;
-          uniqTokenKeyStream << to_uuidstr(gattCharacteristic.Uuid()) << _mac_address_to_str(gattCharacteristic.Service().Device().BluetoothAddress());
+          uniqTokenKeyStream << to_uuidstr(gattCharacteristic.Uuid())
+                            << _mac_address_to_str(gattCharacteristic.Service().Device().BluetoothAddress());
           std::string uniqTokenKey = uniqTokenKeyStream.str();
-          if (characteristicsTokens.count(uniqTokenKey) != 0)
+
+          auto tokenIter = characteristicsTokens.find(uniqTokenKey);
+          if (tokenIter != characteristicsTokens.end() && tokenIter->second.value != 0)
           {
-            characteristic.obj.ValueChanged(characteristicsTokens[uniqTokenKey]);
-            characteristicsTokens[uniqTokenKey] = {0};
+            gattCharacteristic.ValueChanged(tokenIter->second);
+            characteristicsTokens.erase(tokenIter);
           }
         }
       }
+
       deviceAgent->gatt_map_.clear();
-    }
+    } // <-- This closing brace was missing earlier
   }
 
   winrt::fire_and_forget UniversalBlePlugin::GetSystemDevicesAsync(
@@ -1264,35 +1276,19 @@ namespace universal_ble
     }
   };
 
-  winrt::fire_and_forget UniversalBlePlugin::SetNotifiableAsync(BluetoothDeviceAgent &bluetoothDeviceAgent, const std::string &service,
-                                                                const std::string &characteristic,
-                                                                GattClientCharacteristicConfigurationDescriptorValue descriptorValue,
-                                                                std::function<void(std::optional<FlutterError> reply)> result)
+  winrt::fire_and_forget UniversalBlePlugin::SetNotifiableAsync(
+    BluetoothDeviceAgent &bluetoothDeviceAgent,
+    const std::string &service,
+    const std::string &characteristic,
+    GattClientCharacteristicConfigurationDescriptorValue descriptorValue,
+    std::function<void(std::optional<FlutterError> reply)> result)
   {
     GattCharacteristicObject &gatt_characteristic_holder = bluetoothDeviceAgent._fetch_characteristic(service, characteristic);
     GattCharacteristic gattCharacteristic = gatt_characteristic_holder.obj;
 
-    auto uuid = to_uuidstr(gattCharacteristic.Uuid());
-    // Write to the descriptor.
     try
     {
       auto status = co_await gattCharacteristic.WriteClientCharacteristicConfigurationDescriptorAsync(descriptorValue);
-      switch (status)
-      {
-      case GattCommunicationStatus::Success:
-        break;
-      case GattCommunicationStatus::Unreachable:
-        std::cout << "FailedToSubscribe: Unreachable" << to_uuidstr(gattCharacteristic.Uuid()) << std::endl;
-        break;
-      case GattCommunicationStatus::ProtocolError:
-        std::cout << "FailedToSubscribe: ProtocolError" << to_uuidstr(gattCharacteristic.Uuid()) << std::endl;
-        break;
-      case GattCommunicationStatus::AccessDenied:
-        std::cout << "FailedToSubscribe: AccessDenied" << to_uuidstr(gattCharacteristic.Uuid()) << std::endl;
-        break;
-      default:
-        std::cout << "FailedToSubscribe: Unknown" << to_uuidstr(gattCharacteristic.Uuid()) << std::endl;
-      }
       if (status != GattCommunicationStatus::Success)
       {
         result(FlutterError("Failed to update notification state"));
@@ -1301,37 +1297,33 @@ namespace universal_ble
     }
     catch (...)
     {
-      std::cout << "FailedToPerformThisOperationOn: " << to_uuidstr(gattCharacteristic.Uuid()) << std::endl;
       result(FlutterError("Failed to update notification state"));
       co_return;
     }
-    // create uniqKey with uuid and deviceId
-    // TODO: store token key in gatt_characteristic_t struct instead of using map
+
+    // Create unique key for token
     std::stringstream uniqTokenKeyStream;
-    uniqTokenKeyStream << uuid << _mac_address_to_str(gattCharacteristic.Service().Device().BluetoothAddress());
+    uniqTokenKeyStream << service << characteristic << _mac_address_to_str(gattCharacteristic.Service().Device().BluetoothAddress());
+    
     auto uniqTokenKey = uniqTokenKeyStream.str();
 
-    // Register/UnRegister handler for the ValueChanged event.
-    if (descriptorValue == GattClientCharacteristicConfigurationDescriptorValue::None)
+    // Unregister existing handler safely
+    auto existingTokenIter = characteristicsTokens.find(uniqTokenKey);
+    if (existingTokenIter != characteristicsTokens.end() && existingTokenIter->second.value != 0)
     {
-      if (characteristicsTokens.count(uniqTokenKey) != 0)
-      {
-        gattCharacteristic.ValueChanged(characteristicsTokens[uniqTokenKey]);
-        characteristicsTokens[uuid] = {0};
-        std::cout << "Unsubscribed " << to_uuidstr(gattCharacteristic.Uuid()) << std::endl;
-      }
+      gattCharacteristic.ValueChanged(existingTokenIter->second);
+      characteristicsTokens.erase(existingTokenIter);
     }
-    else
+
+    // Register new handler if needed
+    if (descriptorValue != GattClientCharacteristicConfigurationDescriptorValue::None)
     {
-      // If a notification for the given characteristic is already in progress, swap the callbacks.
-      if (characteristicsTokens.count(uniqTokenKey) != 0)
-      {
-        std::cout << "A notification for the given characteristic is already in progress. Swapping callbacks." << std::endl;
-        gattCharacteristic.ValueChanged(characteristicsTokens[uniqTokenKey]);
-        characteristicsTokens[uniqTokenKey] = {0};
-      }
-      characteristicsTokens[uniqTokenKey] = gattCharacteristic.ValueChanged({this, &UniversalBlePlugin::GattCharacteristic_ValueChanged});
+      winrt::event_token newToken = gattCharacteristic.ValueChanged({this, &UniversalBlePlugin::GattCharacteristic_ValueChanged});
+      
+      // Corrected assignment without 'new':
+      characteristicsTokens[uniqTokenKey] = newToken;
     }
+
     result(std::nullopt);
   }
 
