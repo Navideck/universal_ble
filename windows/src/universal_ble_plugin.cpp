@@ -776,7 +776,7 @@ namespace universal_ble
     deviceWatcherEnumerationCompletedToken = deviceWatcher.EnumerationCompleted([this](DeviceWatcher sender, IInspectable args)
                                                                                 {
                                                                                   std::cout << "DeviceWatcherEvent: EnumerationCompleted" << std::endl;
-                                                                                  disposeDeviceWatcher();
+                                                                                  // disposeDeviceWatcher();
                                                                                   // EnumerationCompleted
                                                                                 });
 
