@@ -349,8 +349,12 @@ Add the following permissions to your AndroidManifest.xml file:
 ```xml
 <uses-permission android:name="android.permission.BLUETOOTH_SCAN" android:usesPermissionFlags="neverForLocation" />
 <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
-<uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" android:maxSdkVersion="30" />
 <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" android:maxSdkVersion="30" />
+```
+
+If you are targeting **Android 11 or lower**, also add:
+```xml
+<uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" android:maxSdkVersion="30" />
 ```
 
 If you use `BLUETOOTH_SCAN` to determine location, modify your AndroidManifest.xml file to include the following entry:
