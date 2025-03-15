@@ -375,7 +375,14 @@ Add the `Bluetooth` capability to the macOS app from Xcode.
 
 Your Bluetooth adapter needs to support at least Bluetooth 4.0. If you have more than 1 adapters, the first one returned from the system will be picked.
 
-When publishing on Windows you need to declare the following [capabilities](https://learn.microsoft.com/en-us/windows/uwp/packaging/app-capability-declarations): `bluetooth, radios`.
+When publishing on Windows, you need to declare the following [capabilities](https://learn.microsoft.com/en-us/windows/uwp/packaging/app-capability-declarations): `bluetooth, radios`.
+
+When publishing on Linux as a snap, you need to declare the `bluez` plug in `snapcraft.yaml`.
+```
+...
+  plugs:
+    - bluez
+```
 
 ### Web
 
