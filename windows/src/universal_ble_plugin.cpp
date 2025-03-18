@@ -754,6 +754,7 @@ namespace universal_ble
       {
         return;
       }
+      }
     }
 
     // Update cache

@@ -22,6 +22,7 @@
 #include "generated/universal_ble.g.h"
 #include "ui_thread_handler.hpp"
 #include "universal_ble_thread_safe.h"
+#include "universal_ble_thread_safe.h"
 
 namespace universal_ble
 {
