@@ -21,6 +21,7 @@
 #include "helper/universal_ble_base.h"
 #include "generated/universal_ble.g.h"
 #include "ui_thread_handler.hpp"
+#include "universal_ble_thread_safe.h"
 
 namespace universal_ble
 {
@@ -92,8 +93,10 @@ namespace universal_ble
         RadioState oldRadioState = RadioState::Unknown;
         BluetoothLEAdvertisementWatcher bluetoothLEWatcher{nullptr};
         DeviceWatcher deviceWatcher{nullptr};
+
         std::unordered_map<uint64_t, std::unique_ptr<BluetoothDeviceAgent>> connectedDevices{};
-        std::unordered_map<std::string, DeviceInformation> deviceWatcherDevices{};
+        ThreadSafeMap<std::string, DeviceInformation> deviceWatcherDevices{};
+        ThreadSafeMap<std::string, UniversalBleScanResult> scanResults{};
 
         winrt::event_token bluetoothLEWatcherReceivedToken;
         winrt::event_token deviceWatcherAddedToken;
@@ -112,7 +115,6 @@ namespace universal_ble
         void onDeviceInfoReceived(DeviceInformation deviceInfo);
 
         std::string GattCommunicationStatusToString(GattCommunicationStatus status);
-        std::unordered_map<std::string, UniversalBleScanResult> scanResults{};
         winrt::event_revoker<IRadio> radioStateChangedRevoker;
         winrt::fire_and_forget ConnectAsync(uint64_t bluetoothAddress);
         void BluetoothLEDevice_ConnectionStatusChanged(BluetoothLEDevice sender, IInspectable args);
