@@ -347,19 +347,20 @@ BleUuidParser.compare("180a","0000180A-0000-1000-8000-00805F9B34FB"); // true
 Add the following permissions to your AndroidManifest.xml file:
 
 ```xml
-<uses-permission android:name="android.permission.BLUETOOTH_SCAN" android:usesPermissionFlags="neverForLocation" />
 <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
+<uses-permission android:name="android.permission.BLUETOOTH" android:maxSdkVersion="30" />
+<uses-permission android:name="android.permission.BLUETOOTH_ADMIN" android:maxSdkVersion="30" />
+<uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" android:maxSdkVersion="28" />
 <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" android:maxSdkVersion="30" />
-<uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" android:maxSdkVersion="30" />
+<uses-permission android:name="android.permission.BLUETOOTH_SCAN" android:usesPermissionFlags="neverForLocation" />
 ```
 
-If you use `BLUETOOTH_SCAN` to determine location, modify your AndroidManifest.xml file to include the following entry:
+If your app uses iBeacons or BLUETOOTH_SCAN to determine location, change the last 2 permissions to:
 
 ```xml
- <uses-permission android:name="android.permission.BLUETOOTH_SCAN" tools:remove="android:usesPermissionFlags" tools:targetApi="s" />
+<uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+<uses-permission android:name="android.permission.BLUETOOTH_SCAN" />
 ```
-
-If your app uses location services, remove `android:maxSdkVersion="30"` from the location permission tags.
 
 ### iOS / macOS
 
@@ -371,7 +372,14 @@ Add the `Bluetooth` capability to the macOS app from Xcode.
 
 Your Bluetooth adapter needs to support at least Bluetooth 4.0. If you have more than 1 adapters, the first one returned from the system will be picked.
 
-When publishing on Windows you need to declare the following [capabilities](https://learn.microsoft.com/en-us/windows/uwp/packaging/app-capability-declarations): `bluetooth, radios`.
+When publishing on Windows, you need to declare the following [capabilities](https://learn.microsoft.com/en-us/windows/uwp/packaging/app-capability-declarations): `bluetooth, radios`.
+
+When publishing on Linux as a snap, you need to declare the `bluez` plug in `snapcraft.yaml`.
+```
+...
+  plugs:
+    - bluez
+```
 
 ### Web
 
