@@ -8,7 +8,7 @@
 namespace universal_ble
 {
     // Thread Safe Map wrapper
-    // Use only if you dont care about the values ownership, and ok to work with Copy of data
+    // Use only if you don't care about value ownership and it's OK to work with copies of the data.
     template <typename Key, typename Value>
     class ThreadSafeMap
     {
