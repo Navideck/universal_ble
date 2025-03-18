@@ -74,7 +74,7 @@ namespace universal_ble
   {
     if (!bluetooth_radio_)
     {
-      result(FlutterError("Bluetooth is not available"));
+      result(FlutterError("BluetoothNotAvailable", "Bluetooth is not available"));
       return;
     }
 
@@ -102,7 +102,7 @@ namespace universal_ble
   {
     if (!bluetooth_radio_)
     {
-      result(FlutterError("Bluetooth is not available"));
+      result(FlutterError("BluetoothNotAvailable", "Bluetooth is not available"));
       return;
     }
 
@@ -121,7 +121,7 @@ namespace universal_ble
 		    }
 		    else
 		    {
-			    result(FlutterError("Failed to disable bluetooth"));
+			    result(FlutterError("Failed","Failed to disable bluetooth"));
 		    }
 	    });
   }
@@ -131,7 +131,7 @@ namespace universal_ble
 
     if (!bluetooth_radio_ || bluetooth_radio_.State() != RadioState::On)
     {
-      return FlutterError("Bluetooth is not available");
+      return FlutterError("BluetoothNotAvailable", "Bluetooth is not available");
     }
 
     try
@@ -147,7 +147,7 @@ namespace universal_ble
       }
       else if (device_watcher_status == DeviceWatcherStatus::Stopping)
       {
-        return FlutterError("StoppingScan in progress");
+        return FlutterError("AlreadyInProgress", "StoppingScan in progress");
       }
 
       // Setup LeWatcher and apply filters
@@ -188,7 +188,7 @@ namespace universal_ble
     catch (...)
     {
       std::cout << "Unknown error StartScan" << std::endl;
-      return FlutterError("Unknown error");
+      return FlutterError("Failed", "Unknown error");
     }
   };
 
@@ -216,12 +216,12 @@ namespace universal_ble
       }
       catch (...)
       {
-        return FlutterError("Failed to Stop");
+        return FlutterError("Failed", "Failed to Stop");
       }
     }
     else
     {
-      return FlutterError("Bluetooth is not available");
+      return FlutterError("BluetoothNotAvailable", "Bluetooth is not available");
     }
   };
 
@@ -284,7 +284,7 @@ namespace universal_ble
     catch (...)
     {
       std::cout << "DiscoverServicesLog: Unknown error" << std::endl;
-      return result(FlutterError("Unknown error"));
+      return result(FlutterError("Failed", "Unknown error"));
     }
   }
 
@@ -315,7 +315,7 @@ namespace universal_ble
         descriptor_value = GattClientCharacteristicConfigurationDescriptorValue::Notify;
         if ((properties & GattCharacteristicProperties::Notify) == GattCharacteristicProperties::None)
         {
-          result(FlutterError("Characteristic does not support notify"));
+          result(FlutterError("NotSupported", "Characteristic does not support notify"));
           return;
         }
       }
@@ -324,7 +324,7 @@ namespace universal_ble
         descriptor_value = GattClientCharacteristicConfigurationDescriptorValue::Indicate;
         if ((properties & GattCharacteristicProperties::Indicate) == GattCharacteristicProperties::None)
         {
-          result(FlutterError("Characteristic does not support indicate"));
+          result(FlutterError("NotSupported", "Characteristic does not support indicate"));
           return;
         }
       }
@@ -338,7 +338,7 @@ namespace universal_ble
     catch (...)
     {
       std::cout << "SetNotifiableLog: Unknown error" << std::endl;
-      return result(FlutterError("Unknown error"));
+      return result(FlutterError("Failed", "Unknown error"));
     }
   };
 
@@ -364,7 +364,7 @@ namespace universal_ble
 		  const auto properties = gatt_characteristic.CharacteristicProperties();
 		  if ((properties & GattCharacteristicProperties::Read) == GattCharacteristicProperties::None)
 		  {
-			  result(FlutterError("Characteristic does not support read"));
+			  result(FlutterError("NotSupported", "Characteristic does not support read"));
 			  return;
 		  }
 
@@ -390,7 +390,7 @@ namespace universal_ble
 	  catch (...)
 	  {
 		  std::cout << "ReadValueLog: Unknown error" << std::endl;
-		  return result(FlutterError("Unknown error"));
+		  return result(FlutterError("Failed","Unknown error"));
 	  }
   }
 
@@ -422,7 +422,7 @@ namespace universal_ble
 			  write_option = GattWriteOption::WriteWithoutResponse;
 			  if ((properties & GattCharacteristicProperties::WriteWithoutResponse) == GattCharacteristicProperties::None)
 			  {
-				  result(FlutterError("Characteristic does not support WriteWithoutResponse"));
+				  result(FlutterError("NotSupported", "Characteristic does not support WriteWithoutResponse"));
 				  return;
 			  }
 		  }
@@ -430,7 +430,7 @@ namespace universal_ble
 		  {
 			  if ((properties & GattCharacteristicProperties::Write) == GattCharacteristicProperties::None)
 			  {
-				  result(FlutterError("Characteristic does not support Write"));
+				  result(FlutterError("NotSupported", "Characteristic does not support Write"));
 				  return;
 			  }
 		  }
@@ -462,7 +462,7 @@ namespace universal_ble
 	  catch (...)
 	  {
 		  std::cout << "WriteValue: Unknown error" << std::endl;
-		  result(FlutterError("Unknown error"));
+		  result(FlutterError("Failed", "Unknown error"));
 	  }
   }
 
@@ -533,13 +533,13 @@ namespace universal_ble
 		  const auto device = async_get(BluetoothLEDevice::FromBluetoothAddressAsync(str_to_mac_address(device_id)));
 		  if (device == nullptr)
 		  {
-			  return FlutterError("Device not found");
+              return FlutterError("IllegalArgument", "Unknown devicesId:" + device_id);
 		  }
 		  const auto device_information = device.DeviceInformation();
 
 		  if (!device_information.Pairing().IsPaired())
 		  {
-			  return FlutterError("Device is not paired");
+			  return FlutterError("NotPaired", "Device is not paired");
 		  }
 
 		  const auto device_unpairing_result = async_get(device_information.Pairing().UnpairAsync());
@@ -606,7 +606,7 @@ namespace universal_ble
       const auto device = co_await BluetoothLEDevice::FromBluetoothAddressAsync(str_to_mac_address(device_id));
       if (device == nullptr)
       {
-        result(FlutterError("Device not found"));
+        result(FlutterError("IllegalArgument", "Unknown devicesId:" + device_id));
         co_return;
       }
 
@@ -616,7 +616,7 @@ namespace universal_ble
       if (device_information.Pairing().IsPaired())
         result(true);
       else if (!device_information.Pairing().CanPair())
-        result(FlutterError("Device is not pairable"));
+        result(FlutterError("NotPairable", "Device is not pairable"));
       else
       {
         const auto pair_result = co_await device_information.Pairing().PairAsync();
@@ -650,14 +650,14 @@ namespace universal_ble
       const auto device = co_await BluetoothLEDevice::FromBluetoothAddressAsync(str_to_mac_address(device_id));
       if (device == nullptr)
       {
-        result(FlutterError("Device not found"));
-        co_return;
+      	result(FlutterError("IllegalArgument", "Unknown devicesId:" + device_id));
+      	co_return;
       }
       const auto device_information = device.DeviceInformation();
       if (device_information.Pairing().IsPaired())
         result(true);
       else if (!device_information.Pairing().CanPair())
-        result(FlutterError("Device is not pairable"));
+        result(FlutterError("NotPairable", "Device is not pairable"));
       else
       {
         const auto custom_pairing = device_information.Pairing().Custom();
@@ -1138,7 +1138,7 @@ namespace universal_ble
     catch (...)
     {
       std::cout << "Unknown error GetSystemDevicesAsyncAsync" << std::endl;
-      result(FlutterError("Unknown error"));
+      result(FlutterError("Failed", "Unknown error"));
     }
   }
 
@@ -1169,7 +1169,7 @@ namespace universal_ble
     }
     catch (...)
     {
-      result(FlutterError("DiscoverServiceError: Unknown error"));
+      result(FlutterError("Failed", "Unknown error"));
       std::cout << "DiscoverServiceError: Unknown error" << '\n';
     }
   }
@@ -1183,8 +1183,8 @@ namespace universal_ble
       const auto device = co_await BluetoothLEDevice::FromBluetoothAddressAsync(str_to_mac_address(device_id));
       if (device == nullptr)
       {
-        result(FlutterError("Device not found"));
-        co_return;
+      	result(FlutterError("IllegalArgument", "Unknown devicesId:" + device_id));
+      	co_return;
       }
       const bool is_paired = device.DeviceInformation().Pairing().IsPaired();
       result(is_paired);
@@ -1192,7 +1192,7 @@ namespace universal_ble
     catch (...)
     {
       std::cout << "IsPairedAsync: Error " << std::endl;
-      result(FlutterError("Unknown error"));
+      result(FlutterError("Failed", "Unknown error"));
     }
   }
 
@@ -1222,7 +1222,7 @@ namespace universal_ble
 	  catch (...)
 	  {
 		  std::cout << "FailedToPerformThisOperationOn: " << to_uuidstr(gattCharacteristic.Uuid()) << std::endl;
-		  result(FlutterError("Failed to update notification state"));
+		  result(FlutterError("Failed", "Failed to update notification state"));
 		  co_return;
 	  }
 
