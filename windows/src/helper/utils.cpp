@@ -21,7 +21,7 @@ typedef NTSTATUS(WINAPI *RtlGetVersionPtr)(PRTL_OSVERSIONINFOW);
 namespace universal_ble
 {
 
-    std::string _mac_address_to_str(uint64_t mac_address)
+    std::string mac_address_to_str(uint64_t mac_address)
     {
         uint8_t *mac_ptr = (uint8_t *)&mac_address;
         char mac_str[MAC_ADDRESS_STR_LENGTH + 1] = {0};
@@ -30,16 +30,17 @@ namespace universal_ble
         return std::string(mac_str);
     }
 
-    uint64_t _str_to_mac_address(std::string mac_str)
+    uint64_t str_to_mac_address(const std::string& mac_address)
     {
         uint64_t mac_address_number = 0;
-        uint8_t *mac_ptr = (uint8_t *)&mac_address_number;
-        sscanf_s(mac_str.c_str(), "%02hhx:%02hhx:%02hhx:%02hhx:%02hhx:%02hhx", &mac_ptr[5], &mac_ptr[4], &mac_ptr[3],
+        const auto mac_ptr = reinterpret_cast<uint8_t*>(&mac_address_number);
+        sscanf_s(mac_address.c_str(), "%02hhx:%02hhx:%02hhx:%02hhx:%02hhx:%02hhx", &mac_ptr[5], &mac_ptr[4],
+                 &mac_ptr[3],
                  &mac_ptr[2], &mac_ptr[1], &mac_ptr[0]);
         return mac_address_number;
     }
 
-    winrt::guid uuid_to_guid(const std::string &uuid)
+    guid uuid_to_guid(const std::string &uuid)
     {
         std::stringstream helper;
         for (int i = 0; i < uuid.length(); i++)
@@ -49,9 +50,9 @@ namespace universal_ble
                 helper << uuid[i];
             }
         }
-        std::string clean_uuid = helper.str();
-        winrt::guid guid;
-        uint64_t *data4_ptr = (uint64_t *)guid.Data4;
+        const std::string clean_uuid = helper.str();
+        guid guid;
+        const auto data4_ptr = reinterpret_cast<uint64_t*>(guid.Data4);
 
         guid.Data1 = static_cast<uint32_t>(std::strtoul(clean_uuid.substr(0, 8).c_str(), nullptr, 16));
         guid.Data2 = static_cast<uint16_t>(std::strtoul(clean_uuid.substr(8, 4).c_str(), nullptr, 16));
@@ -61,37 +62,37 @@ namespace universal_ble
         return guid;
     }
 
-    std::string guid_to_uuid(const winrt::guid &guid)
+    std::string guid_to_uuid(const guid &guid)
     {
         std::stringstream helper;
         for (uint32_t i = 0; i < 4; i++)
         {
-            helper << std::hex << std::setw(2) << std::setfill('0') << (int)((uint8_t *)&guid.Data1)[3 - i];
+            helper << std::hex << std::setw(2) << std::setfill('0') << static_cast<int>((&guid.Data1)[3 - i]);
         }
         helper << '-';
         for (uint32_t i = 0; i < 2; i++)
         {
-            helper << std::hex << std::setw(2) << std::setfill('0') << (int)((uint8_t *)&guid.Data2)[1 - i];
+            helper << std::hex << std::setw(2) << std::setfill('0') << static_cast<int>((&guid.Data2)[1 - i]);
         }
         helper << '-';
         for (uint32_t i = 0; i < 2; i++)
         {
-            helper << std::hex << std::setw(2) << std::setfill('0') << (int)((uint8_t *)&guid.Data3)[1 - i];
+            helper << std::hex << std::setw(2) << std::setfill('0') << static_cast<int>((&guid.Data3)[1 - i]);
         }
         helper << '-';
         for (uint32_t i = 0; i < 2; i++)
         {
-            helper << std::hex << std::setw(2) << std::setfill('0') << (int)guid.Data4[i];
+            helper << std::hex << std::setw(2) << std::setfill('0') << static_cast<int>(guid.Data4[i]);
         }
         helper << '-';
         for (uint32_t i = 0; i < 6; i++)
         {
-            helper << std::hex << std::setw(2) << std::setfill('0') << (int)guid.Data4[2 + i];
+            helper << std::hex << std::setw(2) << std::setfill('0') << static_cast<int>(guid.Data4[2 + i]);
         }
         return helper.str();
     }
 
-    std::vector<uint8_t> to_bytevc(IBuffer buffer)
+    std::vector<uint8_t> to_bytevc(const IBuffer& buffer)
     {
         auto reader = DataReader::FromBuffer(buffer);
         auto result = std::vector<uint8_t>(reader.UnconsumedBufferLength());
@@ -106,7 +107,7 @@ namespace universal_ble
         return writer.DetachBuffer();
     }
 
-    std::string to_hexstring(std::vector<uint8_t> bytes)
+    std::string to_hexstring(const std::vector<uint8_t>& bytes)
     {
         auto ss = std::stringstream();
         for (auto b : bytes)
@@ -114,7 +115,7 @@ namespace universal_ble
         return ss.str();
     }
 
-    std::string to_uuidstr(winrt::guid guid)
+    std::string to_uuidstr(const guid guid)
     {
         char chars[36 + 1];
         sprintf_s(chars, "%08x-%04hx-%04hx-%02hhx%02hhx-%02hhx%02hhx%02hhx%02hhx%02hhx%02hhx",
@@ -123,24 +124,24 @@ namespace universal_ble
         return std::string{chars};
     }
 
-    bool isLittleEndian()
+    bool is_little_endian()
     {
         uint16_t number = 0x1;
-        char *numPtr = (char *)&number;
-        return (numPtr[0] == 1);
+        const auto num_ptr = reinterpret_cast<char*>(&number);
+        return (num_ptr[0] == 1);
     }
 
-    bool isWindows11OrGreater()
+    bool is_windows11_or_greater()
     {
-        HMODULE hMod = ::GetModuleHandleW(L"ntdll.dll");
-        if (!hMod)
+        const HMODULE h_mod = GetModuleHandleW(L"ntdll.dll");
+        if (!h_mod)
         {
             std::cout << "Failed to get ntdll" << std::endl;
             return false;
         }
 
-        RtlGetVersionPtr fxPtr = (RtlGetVersionPtr)::GetProcAddress(hMod, "RtlGetVersion");
-        if (fxPtr == nullptr)
+        const auto fx_ptr = reinterpret_cast<RtlGetVersionPtr>(GetProcAddress(h_mod, "RtlGetVersion"));
+        if (fx_ptr == nullptr)
         {
             std::cout << "Failed to get RtlGetVersionPtr" << std::endl;
             return false;
@@ -148,7 +149,7 @@ namespace universal_ble
 
         RTL_OSVERSIONINFOW rove = {0};
         rove.dwOSVersionInfoSize = sizeof(rove);
-        if (STATUS_SUCCESS != fxPtr(&rove))
+        if (STATUS_SUCCESS != fx_ptr(&rove))
         {
             std::cout << "Failed to get RTL_OSVERSIONINFOW" << std::endl;
             return false;

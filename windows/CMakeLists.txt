@@ -45,6 +45,7 @@ list(APPEND PLUGIN_SOURCES
   "src/universal_ble_filter_util.cpp"
   "src/universal_ble_filter_util.h"
   "src/universal_ble_thread_safe.h"
+  "src/enum_parser.h"
 )
 
 add_library(${PLUGIN_NAME} SHARED

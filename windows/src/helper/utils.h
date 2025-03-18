@@ -14,19 +14,19 @@ constexpr uint32_t TEN_SECONDS_IN_MSECS = 10000;
 namespace universal_ble
 {
 
-    std::string _mac_address_to_str(uint64_t mac_address);
-    uint64_t _str_to_mac_address(std::string mac_address);
+    std::string mac_address_to_str(uint64_t mac_address);
+    uint64_t str_to_mac_address(const std::string& mac_address);
 
     winrt::guid uuid_to_guid(const std::string &uuid);
     std::string guid_to_uuid(const winrt::guid &guid);
 
-    std::vector<uint8_t> to_bytevc(IBuffer buffer);
+    std::vector<uint8_t> to_bytevc(const IBuffer& buffer);
     IBuffer from_bytevc(std::vector<uint8_t> bytes);
-    std::string to_hexstring(std::vector<uint8_t> bytes);
+    std::string to_hexstring(const std::vector<uint8_t>& bytes);
 
     std::string to_uuidstr(winrt::guid guid);
-    bool isLittleEndian();
-    bool isWindows11OrGreater();
+    bool is_little_endian();
+    bool is_windows11_or_greater();
 
     /// To call async functions synchronously
     template <typename async_t>
