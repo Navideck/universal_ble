@@ -15,7 +15,7 @@ namespace universal_ble
 {
 
     std::string mac_address_to_str(uint64_t mac_address);
-    uint64_t str_to_mac_address(const std::string& mac_address);
+    uint64_t str_to_mac_address(const std::string& mac_str);
 
     winrt::guid uuid_to_guid(const std::string &uuid);
     std::string guid_to_uuid(const winrt::guid &guid);

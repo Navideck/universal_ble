@@ -23,20 +23,19 @@ namespace universal_ble
 
     std::string mac_address_to_str(uint64_t mac_address)
     {
-        uint8_t *mac_ptr = (uint8_t *)&mac_address;
-        char mac_str[MAC_ADDRESS_STR_LENGTH + 1] = {0};
+        uint8_t* mac_ptr = (uint8_t*)&mac_address;
+        char mac_str[MAC_ADDRESS_STR_LENGTH + 1] = { 0 };
         snprintf(mac_str, MAC_ADDRESS_STR_LENGTH + 1, "%02x:%02x:%02x:%02x:%02x:%02x", mac_ptr[5], mac_ptr[4], mac_ptr[3],
-                 mac_ptr[2], mac_ptr[1], mac_ptr[0]);
+            mac_ptr[2], mac_ptr[1], mac_ptr[0]);
         return std::string(mac_str);
     }
 
-    uint64_t str_to_mac_address(const std::string& mac_address)
+    uint64_t str_to_mac_address(const std::string& mac_str)
     {
         uint64_t mac_address_number = 0;
-        const auto mac_ptr = reinterpret_cast<uint8_t*>(&mac_address_number);
-        sscanf_s(mac_address.c_str(), "%02hhx:%02hhx:%02hhx:%02hhx:%02hhx:%02hhx", &mac_ptr[5], &mac_ptr[4],
-                 &mac_ptr[3],
-                 &mac_ptr[2], &mac_ptr[1], &mac_ptr[0]);
+        uint8_t* mac_ptr = (uint8_t*)&mac_address_number;
+        sscanf_s(mac_str.c_str(), "%02hhx:%02hhx:%02hhx:%02hhx:%02hhx:%02hhx", &mac_ptr[5], &mac_ptr[4], &mac_ptr[3],
+            &mac_ptr[2], &mac_ptr[1], &mac_ptr[0]);
         return mac_address_number;
     }
 
@@ -50,9 +49,9 @@ namespace universal_ble
                 helper << uuid[i];
             }
         }
-        const std::string clean_uuid = helper.str();
-        guid guid;
-        const auto data4_ptr = reinterpret_cast<uint64_t*>(guid.Data4);
+        std::string clean_uuid = helper.str();
+        winrt::guid guid;
+        uint64_t* data4_ptr = (uint64_t*)guid.Data4;
 
         guid.Data1 = static_cast<uint32_t>(std::strtoul(clean_uuid.substr(0, 8).c_str(), nullptr, 16));
         guid.Data2 = static_cast<uint16_t>(std::strtoul(clean_uuid.substr(8, 4).c_str(), nullptr, 16));
@@ -67,27 +66,27 @@ namespace universal_ble
         std::stringstream helper;
         for (uint32_t i = 0; i < 4; i++)
         {
-            helper << std::hex << std::setw(2) << std::setfill('0') << static_cast<int>((&guid.Data1)[3 - i]);
+            helper << std::hex << std::setw(2) << std::setfill('0') << (int)((uint8_t*)&guid.Data1)[3 - i];
         }
         helper << '-';
         for (uint32_t i = 0; i < 2; i++)
         {
-            helper << std::hex << std::setw(2) << std::setfill('0') << static_cast<int>((&guid.Data2)[1 - i]);
+            helper << std::hex << std::setw(2) << std::setfill('0') << (int)((uint8_t*)&guid.Data2)[1 - i];
         }
         helper << '-';
         for (uint32_t i = 0; i < 2; i++)
         {
-            helper << std::hex << std::setw(2) << std::setfill('0') << static_cast<int>((&guid.Data3)[1 - i]);
+            helper << std::hex << std::setw(2) << std::setfill('0') << (int)((uint8_t*)&guid.Data3)[1 - i];
         }
         helper << '-';
         for (uint32_t i = 0; i < 2; i++)
         {
-            helper << std::hex << std::setw(2) << std::setfill('0') << static_cast<int>(guid.Data4[i]);
+            helper << std::hex << std::setw(2) << std::setfill('0') << (int)guid.Data4[i];
         }
         helper << '-';
         for (uint32_t i = 0; i < 6; i++)
         {
-            helper << std::hex << std::setw(2) << std::setfill('0') << static_cast<int>(guid.Data4[2 + i]);
+            helper << std::hex << std::setw(2) << std::setfill('0') << (int)guid.Data4[2 + i];
         }
         return helper.str();
     }
@@ -119,16 +118,16 @@ namespace universal_ble
     {
         char chars[36 + 1];
         sprintf_s(chars, "%08x-%04hx-%04hx-%02hhx%02hhx-%02hhx%02hhx%02hhx%02hhx%02hhx%02hhx",
-                  guid.Data1, guid.Data2, guid.Data3, guid.Data4[0], guid.Data4[1], guid.Data4[2],
-                  guid.Data4[3], guid.Data4[4], guid.Data4[5], guid.Data4[6], guid.Data4[7]);
-        return std::string{chars};
+            guid.Data1, guid.Data2, guid.Data3, guid.Data4[0], guid.Data4[1], guid.Data4[2],
+            guid.Data4[3], guid.Data4[4], guid.Data4[5], guid.Data4[6], guid.Data4[7]);
+        return std::string{ chars };
     }
 
     bool is_little_endian()
     {
         uint16_t number = 0x1;
-        const auto num_ptr = reinterpret_cast<char*>(&number);
-        return (num_ptr[0] == 1);
+        char* numPtr = (char*)&number;
+        return (numPtr[0] == 1);
     }
 
     bool is_windows11_or_greater()
