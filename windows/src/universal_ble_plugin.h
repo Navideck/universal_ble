@@ -28,6 +28,7 @@ namespace universal_ble
     struct GattCharacteristicObject
     {
         GattCharacteristic obj = nullptr;
+        std::optional<event_token> subscription_token; 
     };
 
     struct GattServiceObject
@@ -98,10 +99,6 @@ namespace universal_ble
         flutter::PluginRegistrarWindows *registrar_;
         bool initialized_ = false;
 
-        // TODO: Remove the map and store the token inside the characteristic object
-        std::unordered_map<std::string, event_token> characteristics_tokens_{}; 
-
-
         UniversalBleUiThreadHandler ui_thread_handler_;
         Radio bluetooth_radio_{nullptr};
         RadioState old_radio_state_ = RadioState::Unknown;
@@ -124,10 +121,10 @@ namespace universal_ble
         fire_and_forget InitializeAsync();
         fire_and_forget ConnectAsync(uint64_t bluetooth_address);
         fire_and_forget SetNotifiableAsync(
-            BluetoothDeviceAgent& bluetooth_device_agent,
+            const std::string& device_id,
             const std::string& service,
             const std::string& characteristic,
-            GattClientCharacteristicConfigurationDescriptorValue descriptor_value,
+            int64_t ble_input_property,
             std::function<void(std::optional<FlutterError> reply)> result);
         fire_and_forget PairAsync(const std::string& device_id, std::function<void(ErrorOr<bool> reply)> result);
         fire_and_forget CustomPairAsync(const std::string& device_id, std::function<void(ErrorOr<bool> reply)> result);
