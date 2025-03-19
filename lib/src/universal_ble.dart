@@ -219,11 +219,10 @@ class UniversalBle {
 
   /// Check if a device is paired.
   ///
-  /// For Apple and Web, you can optionally pass a pairingCommand if you know an encrypted read or write characteristic.
-  /// It will return true/false if it manages to execute the command.
+  /// For `Apple` and `Web`, you have to pass a "pairingCommand" with an encrypted read or write characteristic.
+  /// Returns true/false if it manages to execute the command.
+  /// Returns null when no `pairingCommand` is passed.
   /// Note that it will trigger pairing if the device is not already paired.
-  ///
-  /// Returns null on `Apple` and `Web` when no `bleCommand` is passed.
   static Future<bool?> isPaired(
     String deviceId, {
     BleCommand? pairingCommand,

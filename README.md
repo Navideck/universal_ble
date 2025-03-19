@@ -209,7 +209,7 @@ bool? isPaired = await UniversalBle.pair(deviceId); // Returns true if successfu
 
 // For Apple and Web, you can optionally pass a pairingCommand if you know an encrypted read or write characteristic.
 // Not supported on Web/Windows
-UniversalBle.pair(deviceId, pairingCommand: BleCommand(service:"SERVICE", characteristic:"ENCRYPTED_CHARACTERISTIC",));
+bool? isPaired = UniversalBle.pair(deviceId, pairingCommand: BleCommand(service:"SERVICE", characteristic:"ENCRYPTED_CHARACTERISTIC",));
 
 // Receive pairing state changes
 UniversalBle.onPairingStateChange = (String deviceId, bool isPaired) {
@@ -221,6 +221,9 @@ UniversalBle.unpair(deviceId);
 
 // Check current pairing state
 bool? isPaired = UniversalBle.isPaired(deviceId);
+
+// For `Apple` and `Web`, you have to pass a "pairingCommand" with an encrypted read or write characteristic.
+bool? isPaired = await UniversalBle.isPaired(deviceId, pairingCommand: BleCommand(service:"SERVICE", characteristic:"ENCRYPTED_CHARACTERISTIC"));
 ```
 
 ### Bluetooth Availability

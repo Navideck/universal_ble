@@ -1,3 +1,6 @@
+## 0.18.0
+* Improve docs for isPaired
+
 ## 0.17.0
 * Fix Windows crash when calling pair APIs with an unknown deviceId
 * Fix Windows crash when calling startScan again after some time
