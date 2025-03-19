@@ -1,9 +1,3 @@
-#include <iomanip>
-#include <iostream>
-#include <sstream>
-#include <windows.h>
-#include <stdio.h>
-#include <sdkddkver.h>
 #include <vector>
 #include "helper/utils.h"
 #include "generated/universal_ble.g.h"
