@@ -1,7 +1,9 @@
 ## 0.17.0
 * Fix Windows crash when calling pair APIs with an unknown deviceId
 * Fix Windows crash when calling startScan again after some time
-* Fix Windows warning `Unable to establish connection on channel` when hot restart
+* Fix Windows warning `Unable to establish connection on channel` when hot restarting
+* Refactor native Windows code
+* Improve Android permission documentation
 
 ## 0.16.0
 * BREAKING CHANGE: `payload` is now `payloadPrefix`
@@ -10,7 +12,7 @@
 * Do not normalize UUIDs on native side
 * Reverse _permissionStatus return values in example app
 * Improve readme
-* Improve ManufacturerDataFilter docs
+* Improve ManufacturerDataFilter
 
 ## 0.15.0
 * `getSystemDevices(withServices:)` now sets several generic services by default as filter
