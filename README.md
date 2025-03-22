@@ -203,27 +203,57 @@ UniversalBle.setNotifiable(deviceId, serviceId, characteristicId, BleInputProper
 
 ### Pairing
 
+#### Trigger pairing
+
+##### Pair on Android, Windows, Linux
+
 ```dart
-// Pair
-bool? isPaired = await UniversalBle.pair(deviceId); // Returns true if successful
+await UniversalBle.pair(deviceId);
+```
 
-// For Apple and Web, you can optionally pass a pairingCommand if you know an encrypted read or write characteristic.
-// Not supported on Web/Windows
-bool? isPaired = UniversalBle.pair(deviceId, pairingCommand: BleCommand(service:"SERVICE", characteristic:"ENCRYPTED_CHARACTERISTIC",));
+##### Pair on Apple and web
+For Apple and Web, pairing support depends on the device. Pairing is triggered automatically by the OS when you try to read/write from/to an encrypted characteristic.
 
-// Receive pairing state changes
+Calling `UniversalBle.pair(deviceId)` will only trigger pairing if the device has an *encrypted read characteristic*.
+
+If your device only has encrypted write characteristics or you happen to know which encrypted read characteristic you want to use, you can pass it with a `pairingCommand`.
+
+```dart
+UniversalBle.pair(deviceId, pairingCommand: BleCommand(service:"SERVICE", characteristic:"ENCRYPTED_CHARACTERISTIC"));
+```
+After pairing you can check the pairing status.
+
+#### Pairing status
+
+##### Pair on Android, Windows, Linux
+
+```dart
+// Check current pairing state
+bool? isPaired = UniversalBle.isPaired(deviceId);
+```
+
+##### Pair on Apple and web
+
+For `Apple` and `Web`, you have to pass a "pairingCommand" with an encrypted read or write characteristic. If you don't pass it then it will return `null`.
+
+```dart
+bool? isPaired = await UniversalBle.isPaired(deviceId, pairingCommand: BleCommand(service:"SERVICE", characteristic:"ENCRYPTED_CHARACTERISTIC"));
+```
+
+##### Discovering encrypted characteristic
+To discover encrypted characteristics, make sure your device is not paired and use the example app to read/write to all discovered characteristics one by one. If one of them triggers pairing, that means it is encrypted and you can use it to construct `BleCommand(service:"SERVICE", characteristic:"ENCRYPTED_CHARACTERISTIC")`.
+
+#### Pairing state changes
+
+```dart
 UniversalBle.onPairingStateChange = (String deviceId, bool isPaired) {
   // Handle pairing state change
 }
+```
 
-// Unpair
+#### Unpair
+```dart
 UniversalBle.unpair(deviceId);
-
-// Check current pairing state
-bool? isPaired = UniversalBle.isPaired(deviceId);
-
-// For `Apple` and `Web`, you have to pass a "pairingCommand" with an encrypted read or write characteristic.
-bool? isPaired = await UniversalBle.isPaired(deviceId, pairingCommand: BleCommand(service:"SERVICE", characteristic:"ENCRYPTED_CHARACTERISTIC"));
 ```
 
 ### Bluetooth Availability
