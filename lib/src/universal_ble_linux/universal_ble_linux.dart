@@ -350,6 +350,7 @@ class UniversalBleLinux extends UniversalBlePlatform {
   Future<List<BleDevice>> getSystemDevices(
     List<String>? withServices,
   ) async {
+    await _ensureInitialized();
     List<BlueZDevice> devices =
         _client.devices.where((device) => device.connected).toList();
     if (withServices != null && withServices.isNotEmpty) {
