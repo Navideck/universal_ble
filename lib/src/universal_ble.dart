@@ -35,6 +35,26 @@ class UniversalBle {
     UniversalLogger.logInfo('Queue ${queueType.name}');
   }
 
+  /// Scan Stream
+  static Stream<BleDevice> get scanStream => _platform.scanStream;
+
+  /// Bluetooth availability state stream
+  static Stream<AvailabilityState> get availabilityStream =>
+      _platform.availabilityStream;
+
+  /// Connection stream of a device
+  static Stream<bool> connectionStream(String deviceId) =>
+      _platform.connectionStream(deviceId);
+
+  /// Characteristic value stream
+  static Stream<Uint8List> characteristicValueStream(
+          String deviceId, String characteristicId) =>
+      _platform.characteristicValueStream(deviceId, characteristicId);
+
+  /// Pairing state stream
+  static Stream<bool> pairingStateStream(String deviceId) =>
+      _platform.pairingStateStream(deviceId);
+
   /// Get Bluetooth availability state.
   /// To be notified of updates, set [onAvailabilityChange] listener.
   static Future<AvailabilityState> getBluetoothAvailabilityState() async {
@@ -70,10 +90,6 @@ class UniversalBle {
     );
   }
 
-  /// Connection stream of a device
-  static Stream<BleConnectionUpdate> connectionStream(String deviceId) =>
-      _platform.connectionStream(deviceId);
-
   /// Connect to a device.
   /// It is advised to stop scanning before connecting.
   /// It throws error if device connection fails.
@@ -85,40 +101,28 @@ class UniversalBle {
   }) async {
     connectionTimeout ??= const Duration(seconds: 60);
     StreamSubscription? connectionSubscription;
+    Completer<bool> completer = Completer();
+
+    void handleError(dynamic error) {
+      if (completer.isCompleted) return;
+      connectionSubscription?.cancel();
+      completer.completeError(ConnectionException(error));
+    }
 
     try {
-      Completer<bool> completer = Completer();
-
-      connectionSubscription = connectionStream(deviceId).listen(
-        (BleConnectionUpdate event) {
-          connectionSubscription?.cancel();
+      connectionSubscription = _platform.waitConnection(
+        deviceId,
+        onResult: (isConnected) {
           if (!completer.isCompleted) {
-            String? error = event.error;
-            if (error != null) {
-              completer.completeError(ConnectionException(error));
-            } else {
-              completer.complete(event.isConnected);
-            }
+            completer.complete(isConnected);
           }
         },
-        onError: (error) {
-          if (!completer.isCompleted) {
-            connectionSubscription?.cancel();
-            completer.completeError(ConnectionException(error));
-          }
-        },
+        onError: handleError,
       );
 
       _platform
           .connect(deviceId, connectionTimeout: connectionTimeout)
-          .catchError(
-        (error) {
-          if (!completer.isCompleted) {
-            connectionSubscription?.cancel();
-            completer.completeError(ConnectionException(error));
-          }
-        },
-      );
+          .catchError(handleError);
 
       if (!await completer.future.timeout(connectionTimeout)) {
         throw ConnectionException("Failed to connect");
