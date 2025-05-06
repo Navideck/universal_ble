@@ -110,14 +110,21 @@ class UniversalBle {
     }
 
     try {
-      connectionSubscription = _platform.waitConnection(
-        deviceId,
-        onResult: (isConnected) {
-          if (!completer.isCompleted) {
-            completer.complete(isConnected);
+      connectionSubscription = _platform
+          .bleConnectionUpdateStreamController.stream
+          .where((e) => e.deviceId == deviceId)
+          .listen(
+        (e) {
+          if (e.error != null) {
+            handleError(e.error);
+          } else {
+            if (!completer.isCompleted) {
+              completer.complete(e.isConnected);
+            }
           }
         },
         onError: handleError,
+        cancelOnError: true,
       );
 
       _platform

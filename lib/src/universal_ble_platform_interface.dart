@@ -1,6 +1,6 @@
 import 'dart:async';
 import 'dart:typed_data';
-import 'package:universal_ble/src/universal_ble_stream.dart';
+import 'package:universal_ble/src/universal_ble_stream_controller.dart';
 import 'package:universal_ble/universal_ble.dart';
 
 abstract class UniversalBlePlatform {
@@ -14,7 +14,7 @@ abstract class UniversalBlePlatform {
 
   final _scanStreamController = UniversalBleStreamController<BleDevice>();
 
-  final _bleConnectionUpdateStreamController = UniversalBleStreamController<
+  final bleConnectionUpdateStreamController = UniversalBleStreamController<
       ({String deviceId, bool isConnected, String? error})>();
 
   final _valueStreamController = UniversalBleStreamController<
@@ -88,7 +88,7 @@ abstract class UniversalBlePlatform {
       _availabilityStreamController.stream;
 
   Stream<bool> connectionStream(String deviceId) =>
-      _bleConnectionUpdateStreamController.stream
+      bleConnectionUpdateStreamController.stream
           .where((e) => e.deviceId == deviceId)
           .map((e) => e.isConnected);
 
@@ -113,7 +113,7 @@ abstract class UniversalBlePlatform {
   }
 
   void updateConnection(String deviceId, bool isConnected, [String? error]) {
-    _bleConnectionUpdateStreamController.add((
+    bleConnectionUpdateStreamController.add((
       deviceId: deviceId,
       isConnected: isConnected,
       error: error,
@@ -158,20 +158,6 @@ abstract class UniversalBlePlatform {
     try {
       onPairingStateChange?.call(deviceId, isPaired);
     } catch (_) {}
-  }
-
-  /// Helper function to wait for Connection result from Stream and also handles connection errors
-  StreamSubscription waitConnection(
-    String deviceId, {
-    required Function(bool) onResult,
-    required void Function(dynamic) onError,
-  }) {
-    return _bleConnectionUpdateStreamController.stream
-        .where((e) => e.deviceId == deviceId)
-        .listen(
-          (e) => e.error != null ? onError(e.error) : onResult(e.isConnected),
-          onError: onError,
-        );
   }
 }
 
