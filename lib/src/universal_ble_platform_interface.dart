@@ -23,7 +23,7 @@ abstract class UniversalBlePlatform {
   final _pairStateStreamController =
       UniversalBleStreamController<({String deviceId, bool isPaired})>();
 
-  /// Send latest availability state on subscribing
+  /// Send latest availability state upon subscribing
   late final _availabilityStreamController =
       UniversalBleStreamController<AvailabilityState>(
     initialEvent: getBluetoothAvailabilityState,

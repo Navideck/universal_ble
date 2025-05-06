@@ -63,7 +63,7 @@ UniversalBle.scanStream.listen((bleDevice) {
   // e.g. Use BleDevice ID to connect
 });
 
-// Or Set a handler
+// Or set a handler
 UniversalBle.onScanResult = (bleDevice) {}
 
 // Perform a scan
@@ -98,7 +98,7 @@ UniversalBle.availabilityStream.listen((state) {
   }
 });
 
-// Or set handler
+// Or set a handler
 UniversalBle.onAvailabilityChange = (state) {};
 ```
 
