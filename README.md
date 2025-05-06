@@ -58,10 +58,13 @@ import 'package:universal_ble/universal_ble.dart';
 ### Scanning
 
 ```dart
-// Set a scan result handler
-UniversalBle.onScanResult = (bleDevice) {
+// Get scan updates from stream
+UniversalBle.scanStream.listen((bleDevice) {
   // e.g. Use BleDevice ID to connect
-}
+});
+
+// Or Set a handler
+UniversalBle.onScanResult = (bleDevice) {}
 
 // Perform a scan
 UniversalBle.startScan();
@@ -88,12 +91,15 @@ if (state == AvailabilityState.poweredOn) {
   UniversalBle.startScan();
 }
 
-// Or listen to bluetooth availability changes
-UniversalBle.onAvailabilityChange = (state) {
+// Listen to bluetooth availability changes using stream
+UniversalBle.availabilityStream.listen((state) {
   if (state == AvailabilityState.poweredOn) {
     UniversalBle.startScan();
   }
-};
+});
+
+// Or set handler
+UniversalBle.onAvailabilityChange = (state) {};
 ```
 
 See the [Bluetooth Availability](#bluetooth-availability) section for more.
@@ -159,7 +165,12 @@ UniversalBle.connect(deviceId);
 // Disconnect from a device
 UniversalBle.disconnect(deviceId);
 
-// Get connection/disconnection updates
+// Get connection/disconnection updates using stream
+UniversalBle.connectionStream(deviceId).listen((bool isConnected) {
+  debugPrint('OnConnectionChange $deviceId, $isConnected');
+});
+
+// Or Get updates of all devices using handler
 UniversalBle.onConnectionChange = (String deviceId, bool isConnected, String? error) {
   debugPrint('OnConnectionChange $deviceId, $isConnected Error: $error');
 }
@@ -192,7 +203,12 @@ UniversalBle.writeValue(deviceId, serviceId, characteristicId, value);
 // Subscribe to a characteristic
 UniversalBle.setNotifiable(deviceId, serviceId, characteristicId, BleInputProperty.notification);
 
-// Get characteristic updates in `onValueChange`
+// Get characteristic updates using stream
+UniversalBle.characteristicValueStream(deviceId, characteristicId).listen((Uint8List value) {
+  debugPrint('OnValueChange $deviceId, $characteristicId, ${hex.encode(value)}');
+});
+
+// Or Get updates of all characteristics using handler
 UniversalBle.onValueChange = (String deviceId, String characteristicId, Uint8List value) {
   debugPrint('onValueChange $deviceId, $characteristicId, ${hex.encode(value)}');
 }
@@ -246,9 +262,13 @@ To discover encrypted characteristics, make sure your device is not paired and u
 #### Pairing state changes
 
 ```dart
-UniversalBle.onPairingStateChange = (String deviceId, bool isPaired) {
+// Get pairing state updates using stream
+UniversalBle.pairingStateStream(deviceId).listen((bool isPaired) {
   // Handle pairing state change
-}
+});
+
+// Or Get pairing state updates of all devices using handler
+UniversalBle.onPairingStateChange = (String deviceId, bool isPaired) {}
 ```
 
 #### Unpair
