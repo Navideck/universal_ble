@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:typed_data';
+import 'package:universal_ble/src/universal_ble_stream_controller.dart';
 import 'package:universal_ble/universal_ble.dart';
 
 abstract class UniversalBlePlatform {
@@ -10,7 +11,23 @@ abstract class UniversalBlePlatform {
   OnAvailabilityChange? onAvailabilityChange;
   OnPairingStateChange? onPairingStateChange;
   final Map<String, bool> _pairStateMap = {};
-  StreamController<BleConnectionUpdate>? _connectionStreamController;
+
+  final _scanStreamController = UniversalBleStreamController<BleDevice>();
+
+  final bleConnectionUpdateStreamController = UniversalBleStreamController<
+      ({String deviceId, bool isConnected, String? error})>();
+
+  final _valueStreamController = UniversalBleStreamController<
+      ({String deviceId, String characteristicId, Uint8List value})>();
+
+  final _pairStateStreamController =
+      UniversalBleStreamController<({String deviceId, bool isPaired})>();
+
+  /// Send latest availability state upon subscribing
+  late final _availabilityStreamController =
+      UniversalBleStreamController<AvailabilityState>(
+    initialEvent: getBluetoothAvailabilityState,
+  );
 
   Future<AvailabilityState> getBluetoothAvailabilityState();
 
@@ -64,19 +81,39 @@ abstract class UniversalBlePlatform {
 
   bool receivesAdvertisements(String deviceId) => true;
 
-  Stream<BleConnectionUpdate> connectionStream(String deviceId) {
-    _setupConnectionStreamIfRequired();
-    return _connectionStreamController!.stream;
-  }
+  /// Streams
+  Stream<BleDevice> get scanStream => _scanStreamController.stream;
 
+  Stream<AvailabilityState> get availabilityStream =>
+      _availabilityStreamController.stream;
+
+  Stream<bool> connectionStream(String deviceId) =>
+      bleConnectionUpdateStreamController.stream
+          .where((e) => e.deviceId == deviceId)
+          .map((e) => e.isConnected);
+
+  Stream<Uint8List> characteristicValueStream(
+          String deviceId, String characteristicId) =>
+      _valueStreamController.stream.where((e) {
+        return e.deviceId == deviceId && e.characteristicId == characteristicId;
+      }).map((e) => e.value);
+
+  Stream<bool> pairingStateStream(String deviceId) =>
+      _pairStateStreamController.stream
+          .where((e) => e.deviceId == deviceId)
+          .map((e) => e.isPaired);
+
+  /// Update Handlers
   void updateScanResult(BleDevice bleDevice) {
+    _scanStreamController.add(bleDevice);
+
     try {
       onScanResult?.call(bleDevice);
     } catch (_) {}
   }
 
   void updateConnection(String deviceId, bool isConnected, [String? error]) {
-    _connectionStreamController?.add(BleConnectionUpdate(
+    bleConnectionUpdateStreamController.add((
       deviceId: deviceId,
       isConnected: isConnected,
       error: error,
@@ -88,7 +125,16 @@ abstract class UniversalBlePlatform {
   }
 
   void updateCharacteristicValue(
-      String deviceId, String characteristicId, Uint8List value) {
+    String deviceId,
+    String characteristicId,
+    Uint8List value,
+  ) {
+    _valueStreamController.add((
+      deviceId: deviceId,
+      characteristicId: characteristicId,
+      value: value,
+    ));
+
     try {
       onValueChange?.call(
           deviceId, BleUuidParser.string(characteristicId), value);
@@ -96,6 +142,8 @@ abstract class UniversalBlePlatform {
   }
 
   void updateAvailability(AvailabilityState state) {
+    _availabilityStreamController.add(state);
+
     try {
       onAvailabilityChange?.call(state);
     } catch (_) {}
@@ -105,23 +153,11 @@ abstract class UniversalBlePlatform {
     if (_pairStateMap[deviceId] == isPaired) return;
     _pairStateMap[deviceId] = isPaired;
 
+    _pairStateStreamController.add((deviceId: deviceId, isPaired: isPaired));
+
     try {
       onPairingStateChange?.call(deviceId, isPaired);
     } catch (_) {}
-  }
-
-  /// Creates an auto disposable streamController
-  void _setupConnectionStreamIfRequired() {
-    if (_connectionStreamController != null) return;
-
-    _connectionStreamController = StreamController.broadcast();
-
-    // Auto dispose if no more subscribers
-    _connectionStreamController?.onCancel = () {
-      // logInfo('Disposing Connection Stream');
-      _connectionStreamController?.close();
-      _connectionStreamController = null;
-    };
   }
 }
 
