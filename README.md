@@ -170,7 +170,7 @@ UniversalBle.connectionStream(deviceId).listen((bool isConnected) {
   debugPrint('OnConnectionChange $deviceId, $isConnected');
 });
 
-// Or Get updates of all devices using handler
+// Or set a handler to get updates of all devices
 UniversalBle.onConnectionChange = (String deviceId, bool isConnected, String? error) {
   debugPrint('OnConnectionChange $deviceId, $isConnected Error: $error');
 }
@@ -208,7 +208,7 @@ UniversalBle.characteristicValueStream(deviceId, characteristicId).listen((Uint8
   debugPrint('OnValueChange $deviceId, $characteristicId, ${hex.encode(value)}');
 });
 
-// Or Get updates of all characteristics using handler
+// Or set a handler to get updates of all characteristics
 UniversalBle.onValueChange = (String deviceId, String characteristicId, Uint8List value) {
   debugPrint('onValueChange $deviceId, $characteristicId, ${hex.encode(value)}');
 }
@@ -267,7 +267,7 @@ UniversalBle.pairingStateStream(deviceId).listen((bool isPaired) {
   // Handle pairing state change
 });
 
-// Or Get pairing state updates of all devices using handler
+// Or set a handler to get pairing state updates of all devices
 UniversalBle.onPairingStateChange = (String deviceId, bool isPaired) {}
 ```
 
