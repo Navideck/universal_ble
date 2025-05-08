@@ -1,7 +1,8 @@
 ## 0.18.0
-* Fix `connect` api bug to detect proper connection state
-* Improve docs for isPaired
 * Add Streams: `scanStream`, `availabilityStream`, `connectionStream`, `characteristicValueStream`, `pairingStateStream`
+* Fix `connect` api bug to detect proper connection state
+* Fix `getSystemDevices()` on Linux
+* Improve docs for isPaired
 
 ## 0.17.0
 * Fix Windows crash when calling pair APIs with an unknown deviceId
