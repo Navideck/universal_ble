@@ -1,4 +1,5 @@
 ## 0.18.0
+* Fix `connect` api bug to detect proper connection state
 * Improve docs for isPaired
 * Add Streams: `scanStream`, `availabilityStream`, `connectionStream`, `characteristicValueStream`, `pairingStateStream`
 
