@@ -1,4 +1,4 @@
-# UniversalBLE
+# Universal BLE
 
 [![universal_ble version](https://img.shields.io/pub/v/universal_ble?label=universal_ble)](https://pub.dev/packages/universal_ble)
 
@@ -365,7 +365,7 @@ UniversalBle.timeout = null;
 
 ## UUID Format Agnostic
 
-UniversalBLE is agnostic to the UUID format of services and characteristics regardless of the platform the app runs on. When passing a UUID, you can pass it in any format (long/short) or character case (upper/lower case) you want. UniversalBLE will take care of necessary conversions, across all platforms, so that you don't need to worry about underlying platform differences.
+Universal BLE is agnostic to the UUID format of services and characteristics regardless of the platform the app runs on. When passing a UUID, you can pass it in any format (long/short) or character case (upper/lower case) you want. Universal BLE will take care of necessary conversions, across all platforms, so that you don't need to worry about underlying platform differences.
 
 For consistency, all characteristic and service UUIDs will be returned in **lowercase 128-bit format**, across all platforms, e.g. `0000180a-0000-1000-8000-00805f9b34fb`.
 
@@ -456,7 +456,7 @@ UniversalBle.startScan(
 )
 ```
 
-## Customizing Platform Implementation of UniversalBle
+## Customizing Platform Implementation of Universal Ble
 
 ```dart
 // Create a class that extends UniversalBlePlatform
@@ -466,3 +466,14 @@ class UniversalBleMock extends UniversalBlePlatform {
 
 UniversalBle.setInstance(UniversalBleMock());
 ```
+
+
+## 🧩 Apps using Universal BLE
+
+Here are some of the apps leveraging the power of `universal_ble` in production:
+
+| <img src="assets/bt_cam_icon.svg" alt="BT Cam Icon" width="224" height="224"> | [**BT Cam**](https://btcam.app)<br>A Bluetooth remote app for DSLR and mirrorless cameras. Compatible with Canon, Nikon, Sony, Fujifilm, GoPro, Olympus, Panasonic, Pentax, and Blackmagic. Built using Universal BLE to connect and control cameras across iOS, Android, macOS, Windows, Linux & Web. |
+|:--:|:--|
+> 💡 **Built something cool with Universal BLE?**  
+> We'd love to showcase your app here!  
+> Open a pull request and add it to this section. Please include your app icon in svg!
