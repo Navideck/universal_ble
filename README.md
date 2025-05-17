@@ -324,7 +324,7 @@ When developing cross-platform BLE applications and devices:
 
 ## Command Queue
 
-By default, all commands are executed in a global queue (`QueueType.global`), with each command waiting for the previous one to finish.
+By default, all commands are executed in a global queue (`QueueType.global`), with each command waiting for the previous one to finish. While this method is slower it is the safest to avoid command exceptions and therefore is the default.
 
 If you want to parallelize commands between multiple devices, you can set:
 
@@ -333,7 +333,7 @@ If you want to parallelize commands between multiple devices, you can set:
 UniversalBle.queueType = QueueType.perDevice;
 ```
 
-You can also disable the queue completely and parallelize all commands, even for the same device, by using:
+You can also completely disable the queue and batch all commands, even for the same device, by using:
 
 ```dart
 // Disable queue
@@ -414,6 +414,10 @@ If your app uses iBeacons or BLUETOOTH_SCAN to determine location, change the la
 <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
 <uses-permission android:name="android.permission.BLUETOOTH_SCAN" />
 ```
+
+You need to programmatically request permissions on runtime. You could use a package such as [permission_handler](https://pub.dev/packages/permission_handler).
+For Android 12+, request `Permission.bluetoothScan` and `Permission.bluetoothConnect`.
+For Android 11 and below, request `Permission.location`.
 
 ### iOS / macOS
 
