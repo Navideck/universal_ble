@@ -3,9 +3,9 @@ import 'dart:async';
 import 'package:bluez/bluez.dart';
 import 'package:flutter/services.dart';
 import 'package:universal_ble/src/models/model_exports.dart';
-import 'package:universal_ble/src/universal_ble_filter_util.dart';
+import 'package:universal_ble/src/utils/universal_ble_filter_util.dart';
 import 'package:universal_ble/src/universal_ble_platform_interface.dart';
-import 'package:universal_ble/src/universal_logger.dart';
+import 'package:universal_ble/src/utils/universal_logger.dart';
 
 class UniversalBleLinux extends UniversalBlePlatform {
   UniversalBleLinux._();
