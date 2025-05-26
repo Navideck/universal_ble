@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:typed_data';
+import 'package:universal_ble/src/utils/cache_handler.dart';
 import 'package:universal_ble/src/universal_ble_stream_controller.dart';
 import 'package:universal_ble/universal_ble.dart';
 
@@ -122,6 +123,10 @@ abstract class UniversalBlePlatform {
     try {
       onConnectionChange?.call(deviceId, isConnected, error);
     } catch (_) {}
+
+    if (!isConnected) {
+      CacheHandler.instance.resetDeviceCache(deviceId);
+    }
   }
 
   void updateCharacteristicValue(

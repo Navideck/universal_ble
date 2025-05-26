@@ -185,14 +185,23 @@ class UniversalBleLinux extends UniversalBlePlatform {
 
     List<BleService> services = [];
     for (final service in device.gattServices) {
+      String serviceId = service.uuid.toString();
+
       final characteristics = service.characteristics.map((e) {
         final properties = List<CharacteristicProperty>.from(e.flags
             .map((e) => e.toCharacteristicProperty())
             .where((element) => element != null)
             .toList());
-        return BleCharacteristic(e.uuid.toString(), properties);
+        return BleCharacteristic.withMetaData(
+          deviceId: deviceId,
+          serviceId: serviceId,
+          uuid: e.uuid.toString(),
+          properties: properties,
+        );
       }).toList();
-      services.add(BleService(service.uuid.toString(), characteristics));
+      services.add(
+        BleService(serviceId, characteristics),
+      );
     }
     return services;
   }
