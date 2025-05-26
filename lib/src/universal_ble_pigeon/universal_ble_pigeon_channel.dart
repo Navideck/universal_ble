@@ -69,7 +69,7 @@ class UniversalBlePigeonChannel extends UniversalBlePlatform {
         await _channel.discoverServices(deviceId);
     return List<BleService>.from(universalBleServices
         .where((e) => e != null)
-        .map((e) => e!.toBleService())
+        .map((e) => e!.toBleService(deviceId))
         .toList());
   }
 
@@ -169,14 +169,16 @@ class UniversalBlePigeonChannel extends UniversalBlePlatform {
 }
 
 extension _BleServiceExtension on UniversalBleService {
-  BleService toBleService() {
+  BleService toBleService(String deviceId) {
     List<BleCharacteristic> bleCharacteristics = [];
     for (UniversalBleCharacteristic? characteristic in characteristics ?? []) {
       if (characteristic == null) continue;
       List<int?>? properties = List<int?>.from(characteristic.properties);
-      bleCharacteristics.add(BleCharacteristic(
-        characteristic.uuid,
-        List<CharacteristicProperty>.from(
+      bleCharacteristics.add(BleCharacteristic.withMetaData(
+        deviceId: deviceId,
+        serviceId: uuid,
+        uuid: characteristic.uuid,
+        properties: List<CharacteristicProperty>.from(
           properties.map((e) => CharacteristicProperty.parse(e ?? 1)),
         ),
       ));
