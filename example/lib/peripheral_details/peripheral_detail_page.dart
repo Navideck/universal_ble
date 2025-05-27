@@ -42,6 +42,19 @@ class _PeripheralDetailPageState extends State<PeripheralDetailPage> {
     UniversalBle.onConnectionChange = _handleConnectionChange;
     UniversalBle.onValueChange = _handleValueChange;
     UniversalBle.onPairingStateChange = _handlePairingStateChange;
+    _asyncInits();
+  }
+
+  void _asyncInits() {
+    UniversalBle.getConnectionState(
+      widget.deviceId,
+    ).then((state) {
+      if (state == BleConnectionState.connected) {
+        setState(() {
+          isConnected = true;
+        });
+      }
+    });
   }
 
   @override
@@ -49,8 +62,6 @@ class _PeripheralDetailPageState extends State<PeripheralDetailPage> {
     super.dispose();
     UniversalBle.onConnectionChange = null;
     UniversalBle.onValueChange = null;
-    // Disconnect when leaving the page
-    if (isConnected) UniversalBle.disconnect(widget.deviceId);
   }
 
   void _addLog(String type, dynamic data) {
