@@ -5,7 +5,10 @@ import 'package:universal_ble/universal_ble.dart';
 class ServicesListWidget extends StatelessWidget {
   final List<BleService> discoveredServices;
   final bool scrollable;
-  final Function(BleService service, BleCharacteristic characteristic)? onTap;
+  final void Function(
+    BleService service,
+    BleCharacteristic characteristic,
+  )? onTap;
 
   const ServicesListWidget({
     super.key,

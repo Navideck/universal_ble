@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 class ResultWidget extends StatelessWidget {
   final List<String> results;
   final bool scrollable;
-  final Function(int? index) onClearTap;
+  final void Function(int? index) onClearTap;
   const ResultWidget({
     required this.results,
     required this.onClearTap,
