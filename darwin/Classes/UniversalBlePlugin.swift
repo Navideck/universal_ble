@@ -337,14 +337,17 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
       manufacturerDataList.append(universalManufacturerData!)
     }
 
+    let advertisedName = advertisementData[CBAdvertisementDataLocalNameKey] as? String
+    let displayName = advertisedName ?? peripheral.name
+
     // Apply custom filters and return early if the peripheral doesn't match
-    if !universalBleFilterUtil.filterDevice(name: peripheral.name, manufacturerData: universalManufacturerData, services: services) {
+    if !universalBleFilterUtil.filterDevice(name: displayName, manufacturerData: universalManufacturerData, services: services) {
       return
     }
 
     callbackChannel.onScanResult(result: UniversalBleScanResult(
       deviceId: peripheral.uuid.uuidString,
-      name: peripheral.name,
+      name: displayName,
       isPaired: nil,
       rssi: RSSI as? Int64,
       manufacturerDataList: manufacturerDataList,
