@@ -24,6 +24,10 @@ public class UniversalBlePlugin: NSObject, FlutterPlugin {
 
 private var discoveredPeripherals = [String: CBPeripheral]()
 
+// Cache last advertised local name for peripherals
+// since iOS and MacOS don't do that for system devices
+private var advertisementNameCache = [String: String]()
+
 private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentralManagerDelegate, CBPeripheralDelegate {
   var callbackChannel: UniversalBleCallbackChannel
   private var universalBleFilterUtil = UniversalBleFilterUtil()
@@ -294,17 +298,19 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
     var servicesFilter = withServices
     if servicesFilter.isEmpty {
       print("No services filter was set for getting system connected devices. Using default services...")
-      
+
       // Add several generic services
       servicesFilter = ["1800", "1801", "180A", "180D", "1810", "181B", "1808", "181D", "1816", "1814", "181A", "1802", "1803", "1804", "1815", "1805", "1807", "1806", "1848", "185E", "180F", "1812", "180E", "1813"]
     }
-    var filterCBUUID = servicesFilter.map { CBUUID(string: $0) }
+    let filterCBUUID = servicesFilter.map { CBUUID(string: $0) }
     let bleDevices = manager.retrieveConnectedPeripherals(withServices: filterCBUUID)
     bleDevices.forEach { $0.saveCache() }
-    completion(Result.success(bleDevices.map {
-      UniversalBleScanResult(
-        deviceId: $0.uuid.uuidString,
-        name: $0.name ?? ""
+    completion(Result.success(bleDevices.map { peripheral in
+      let id = peripheral.uuid.uuidString
+      let name = advertisementNameCache[id] ?? discoveredPeripherals[id]?.name ?? peripheral.name ?? ""
+      return UniversalBleScanResult(
+        deviceId: id,
+        name: name
       )
     }))
   }
@@ -339,6 +345,7 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
 
     let advertisedName = advertisementData[CBAdvertisementDataLocalNameKey] as? String
     let displayName = advertisedName ?? peripheral.name
+    advertisementNameCache[peripheral.uuid.uuidString] = displayName
 
     // Apply custom filters and return early if the peripheral doesn't match
     if !universalBleFilterUtil.filterDevice(name: displayName, manufacturerData: universalManufacturerData, services: services) {
