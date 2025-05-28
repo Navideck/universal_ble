@@ -74,9 +74,9 @@ class _MyAppState extends State<MyApp> {
 
   Future<void> _getSystemDevices() async {
     // For macOS and iOS, it is recommended to set a filter to get system devices
-    if (defaultTargetPlatform == TargetPlatform.macOS ||
-        defaultTargetPlatform == TargetPlatform.iOS &&
-            (scanFilter?.withServices ?? []).isEmpty) {
+    if ((defaultTargetPlatform == TargetPlatform.macOS ||
+            defaultTargetPlatform == TargetPlatform.iOS) &&
+        (scanFilter?.withServices ?? []).isEmpty) {
       showSnackbar(
           "No services filter was set for getting system connected devices. Using default services...");
     }
