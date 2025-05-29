@@ -9,14 +9,11 @@ funding:
   - https://github.com/sponsors/Navideck
 
 topics:
-  - Bluetooth Low Energy
-  - BLE
-  - Core Bluetooth
-  - Android Bluetooth API
-  - Windows.Devices.Bluetooth
-  - BlueZ
-  - Web Bluetooth API
-  - Cross-platform
+  - bluetooth-low-energy-ble
+  - core-bluetooth
+  - windows-devices-bluetooth
+  - bluez
+  - web-bluetooth
 
 platforms:
   android:
