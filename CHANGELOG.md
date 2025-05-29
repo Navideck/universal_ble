@@ -1,3 +1,13 @@
+## 0.19.0
+* Get and prefer advertised name of scanned devices on Apple
+* Improve Android runtime permissions docs
+* Cache and return advertised name for system devices on Apple
+* Add app showcase in Readme
+* EXAMPLE APP: Don't disconnect on leaving the details page
+* EXAMPLE APP: Fix Android builds
+* EXAMPLE APP: Fix service filter warning on macOS
+* EXAMPLE APP: Add types to callbacks
+
 ## 0.18.0
 * Add Streams: `scanStream`, `availabilityStream`, `connectionStream`, `characteristicValueStream`, `pairingStateStream`
 * Fix `connect` api bug to detect proper connection state
