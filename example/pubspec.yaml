@@ -12,7 +12,7 @@ dependencies:
   convert: ^3.1.1
   expandable: ^5.0.1
   cupertino_icons: ^1.0.2
-  permission_handler: ^10.4.3
+  permission_handler: ^11.3.1
   device_info_plus: ^9.0.2
   universal_ble:
     path: ../
