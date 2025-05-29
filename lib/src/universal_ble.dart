@@ -396,7 +396,7 @@ class UniversalBle {
   }
 
   // Fire and forget, and do not rely on result
-  static _attemptPairingReadingAll(
+  static Future<void> _attemptPairingReadingAll(
     String deviceId,
     List<BleService> services,
   ) async {

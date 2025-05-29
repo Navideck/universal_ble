@@ -15,8 +15,7 @@ import 'package:universal_ble_example/widgets/responsive_view.dart';
 class PeripheralDetailPage extends StatefulWidget {
   final String deviceId;
   final String deviceName;
-  const PeripheralDetailPage(this.deviceId, this.deviceName, {Key? key})
-      : super(key: key);
+  const PeripheralDetailPage(this.deviceId, this.deviceName, {super.key});
 
   @override
   State<StatefulWidget> createState() {

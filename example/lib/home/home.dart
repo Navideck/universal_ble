@@ -11,7 +11,7 @@ import 'package:universal_ble_example/widgets/platform_button.dart';
 import 'package:universal_ble_example/widgets/responsive_buttons_grid.dart';
 
 class MyApp extends StatefulWidget {
-  const MyApp({Key? key}) : super(key: key);
+  const MyApp({super.key});
 
   @override
   State createState() => _MyAppState();
@@ -112,9 +112,9 @@ class _MyAppState extends State<MyApp> {
     );
   }
 
-  void showSnackbar(message) {
+  void showSnackbar(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message.toString())),
+      SnackBar(content: Text(message)),
     );
   }
 
@@ -156,7 +156,7 @@ class _MyAppState extends State<MyApp> {
                       setState(() {
                         _isScanning = false;
                       });
-                      showSnackbar(e);
+                      showSnackbar(e.toString());
                     }
                   },
                 ),
