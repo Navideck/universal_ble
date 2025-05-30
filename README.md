@@ -18,11 +18,9 @@ A cross-platform (Android/iOS/macOS/Windows/Linux/Web) Bluetooth Low Energy (BLE
 - [Timeout](#timeout)
 - [UUID Format Agnostic](#uuid-format-agnostic)
 
-## Usage
+## API Support
 
-### API Support Matrix
-
-| API                  | Android | iOS | macOS | Windows | Linux | Web |
+|                      | Android | iOS | macOS | Windows | Linux | Web |
 | :------------------- | :-----: | :-: | :---: | :-----: | :----------: | :-: |
 | startScan/stopScan   |   ✔️    | ✔️  |  ✔️   |   ✔️    |      ✔️      | ✔️  |
 | connect/disconnect   |   ✔️    | ✔️  |  ✔️   |   ✔️    |      ✔️      | ✔️  |
