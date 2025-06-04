@@ -18,7 +18,7 @@ extension BleDeviceExtension on BleDevice {
   Future<void> disconnect() => UniversalBle.disconnect(deviceId);
 
   /// Requests a specific MTU (Maximum Transmission Unit) size for the connection.
-  Future<int> requestMtu(expectedMtu) =>
+  Future<int> requestMtu(int expectedMtu) =>
       UniversalBle.requestMtu(deviceId, expectedMtu);
 
   /// Discovers the services offered by the device.
@@ -44,8 +44,8 @@ extension BleDeviceExtension on BleDevice {
   /// [characteristic] is the UUID of the characteristic.
   /// [cached] indicates whether to use cached services.
   Future<BleCharacteristic> getCharacteristic(
-    String service,
     String characteristic, {
+    required String service,
     bool cached = true,
   }) async {
     BleService bluetoothService = await getService(service, cached: cached);
