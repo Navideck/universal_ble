@@ -1,4 +1,7 @@
 ## 0.19.0
+* Add new high level API
+
+## 0.19.0
 * Get and prefer advertised name of scanned devices on Apple
 * Improve Android runtime permissions docs
 * Cache and return advertised name for system devices on Apple
