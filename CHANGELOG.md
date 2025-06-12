@@ -1,5 +1,5 @@
-## 0.19.1
-* Fix: Ensured `getBluetoothAvailabilityState` accurately reflects Bluetooth status on Web platforms, even when Web Bluetooth is globally disabled in browser settings
+## 0.20
+* Fix `getBluetoothAvailabilityState` reporting wrong Bluetooth status on browsers where Web Bluetooth can be globally disabled
 * `startScan` API on Web platforms now throws a `WebBluetoothGloballyDisabled` exception if scanning cannot proceed due to Web Bluetooth being globally disabled
 
 ## 0.19.0
