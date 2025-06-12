@@ -1,3 +1,7 @@
+## 0.20
+* Fix `getBluetoothAvailabilityState` reporting wrong Bluetooth status on browsers where Web Bluetooth can be globally disabled
+* `startScan` API on Web platforms now throws a `WebBluetoothGloballyDisabled` exception if scanning cannot proceed due to Web Bluetooth being globally disabled
+
 ## 0.19.0
 * Get and prefer advertised name of scanned devices on Apple
 * Improve Android runtime permissions docs

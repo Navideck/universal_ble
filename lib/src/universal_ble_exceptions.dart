@@ -22,6 +22,14 @@ class PairingException implements Exception {
   String toString() => message;
 }
 
+class WebBluetoothGloballyDisabled implements Exception {
+  String message;
+  WebBluetoothGloballyDisabled(this.message);
+
+  @override
+  String toString() => message;
+}
+
 String _errorParser(dynamic error) {
   if (error == null) {
     return "Failed";
