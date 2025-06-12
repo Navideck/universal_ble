@@ -3,9 +3,8 @@ import 'dart:collection';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_web_bluetooth/flutter_web_bluetooth.dart';
-import 'package:universal_ble/src/models/model_exports.dart';
-import 'package:universal_ble/src/universal_ble_platform_interface.dart';
 import 'package:universal_ble/src/universal_logger.dart';
+import 'package:universal_ble/universal_ble.dart';
 
 class UniversalBleWeb extends UniversalBlePlatform {
   static UniversalBleWeb? _instance;
@@ -64,15 +63,9 @@ class UniversalBleWeb extends UniversalBlePlatform {
   @override
   Future<AvailabilityState> getBluetoothAvailabilityState() async {
     bool isSupported = FlutterWebBluetooth.instance.isBluetoothApiSupported;
-    if (!isSupported) {
-      return AvailabilityState.unsupported;
-    }
-    bool isAvailable = await FlutterWebBluetooth.instance.isAvailable.first;
-    if (isSupported && !isAvailable) {
-      return AvailabilityState.poweredOff;
-    } else if (isAvailable) {
-      return AvailabilityState.poweredOn;
-    }
+    if (!isSupported) return AvailabilityState.unsupported;
+    bool isAvailable = await FlutterWebBluetooth.instance.getAvailability();
+    if (isAvailable) return AvailabilityState.poweredOn;
     return AvailabilityState.unknown;
   }
 
@@ -81,18 +74,26 @@ class UniversalBleWeb extends UniversalBlePlatform {
     ScanFilter? scanFilter,
     PlatformConfig? platformConfig,
   }) async {
-    FlutterWebBluetooth.instance.isAvailable;
-    BluetoothDevice device = await FlutterWebBluetooth.instance.requestDevice(
-      _getRequestOptionBuilder(scanFilter, platformConfig?.web),
-    );
+    try {
+      FlutterWebBluetooth.instance.isAvailable;
+      BluetoothDevice device = await FlutterWebBluetooth.instance.requestDevice(
+        _getRequestOptionBuilder(scanFilter, platformConfig?.web),
+      );
 
-    // Update local device list
-    _bluetoothDeviceList[device.id] = device;
+      // Update local device list
+      _bluetoothDeviceList[device.id] = device;
 
-    // Update Scan Result
-    updateScanResult(device.toBleScanResult());
+      // Update Scan Result
+      updateScanResult(device.toBleScanResult());
 
-    _watchDeviceAdvertisements(device);
+      _watchDeviceAdvertisements(device);
+    } catch (e) {
+      String error = e.toString().replaceAll("DeviceNotFoundError:", "").trim();
+      if (error.toLowerCase().contains("api globally disabled")) {
+        throw WebBluetoothGloballyDisabled(error);
+      }
+      rethrow;
+    }
   }
 
   @override
