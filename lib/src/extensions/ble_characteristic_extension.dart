@@ -75,7 +75,7 @@ extension BleCharacteristicExtension on BleCharacteristic {
 /// call [unSubscribe] To stop receiving data and instruct the peripheral to cease sending,
 /// call [listen] to register a callback to receive this data..
 /// use [isSupported] to check if this operation is supported by the characteristic
-/// 
+///
 class CharacteristicSubscription {
   final BleCharacteristic _characteristic;
   final BleInputProperty _inputProperty;
@@ -128,4 +128,8 @@ class CharacteristicSubscription {
       BleInputProperty.disabled,
     );
   }
+
+  @override
+  String toString() =>
+      "CharacteristicSubscription(InputProperty: ${_inputProperty.name}, isSupported: $isSupported, characteristic: ${_characteristic.uuid})";
 }

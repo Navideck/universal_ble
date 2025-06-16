@@ -40,6 +40,19 @@ class BleCharacteristic {
   String toString() {
     return 'BleCharacteristic{uuid: $uuid, properties: $properties}';
   }
+
+  @override
+  bool operator ==(Object other) {
+    if (other is! BleCharacteristic) return false;
+    if (other.uuid != uuid) return false;
+    if (other.properties != properties) return false;
+    if (other.metaData?.deviceId != metaData?.deviceId) return false;
+    if (other.metaData?.serviceId != metaData?.serviceId) return false;
+    return true;
+  }
+
+  @override
+  int get hashCode => uuid.hashCode ^ properties.hashCode ^ metaData.hashCode;
 }
 
 enum CharacteristicProperty {

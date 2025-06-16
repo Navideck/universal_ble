@@ -41,13 +41,13 @@ class _MyAppState extends State<MyApp> {
     UniversalBle.queueType = _queueType;
     UniversalBle.timeout = const Duration(seconds: 10);
 
-    UniversalBle.onAvailabilityChange = (state) {
+    UniversalBle.availabilityStream.listen((state) {
       setState(() {
         bleAvailabilityState = state;
       });
-    };
+    });
 
-    UniversalBle.onScanResult = (result) {
+    UniversalBle.scanStream.listen((result) {
       // log(result.toString());
       int index = _bleDevices.indexWhere((e) => e.deviceId == result.deviceId);
       if (index == -1) {
@@ -59,7 +59,7 @@ class _MyAppState extends State<MyApp> {
         _bleDevices[index] = result;
       }
       setState(() {});
-    };
+    });
 
     // UniversalBle.onQueueUpdate = (String id, int remainingItems) {
     //   debugPrint("Queue: $id RemainingItems: $remainingItems");
@@ -259,13 +259,11 @@ class _MyAppState extends State<MyApp> {
                             bleDevice: device,
                             onTap: () {
                               Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (context) => PeripheralDetailPage(
-                                      device.deviceId,
-                                      device.name ?? "Unknown Peripheral",
-                                    ),
-                                  ));
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => PeripheralDetailPage(device),
+                                ),
+                              );
                               UniversalBle.stopScan();
                               setState(() {
                                 _isScanning = false;
