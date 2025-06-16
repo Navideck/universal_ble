@@ -421,15 +421,15 @@ class _PeripheralDetailPageState extends State<PeripheralDetailPage> {
                             ),
                             PlatformButton(
                               onPressed: () async {
-                                bool? isPaired = await bleDevice.hasPairing(
+                                bool? hasPairing = await bleDevice.hasPairing(
                                     // pairingCommand: BleCommand(
                                     //   service: "",
                                     //   characteristic: "",
                                     // ),
                                     );
-                                _addLog('IsPaired', isPaired);
+                                _addLog('HasPairing', hasPairing);
                               },
-                              text: 'IsPaired',
+                              text: 'HasPairing',
                             ),
                             PlatformButton(
                               onPressed: () async {

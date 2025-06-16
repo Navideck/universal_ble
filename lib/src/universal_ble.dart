@@ -71,12 +71,11 @@ class UniversalBle {
     ScanFilter? scanFilter,
     PlatformConfig? platformConfig,
   }) async {
-    return await _bleCommandQueue.queueCommand(
+    return await _bleCommandQueue.queueCommandWithoutTimeout(
       () => _platform.startScan(
         scanFilter: scanFilter,
         platformConfig: platformConfig,
       ),
-      withTimeout: false,
     );
   }
 
@@ -84,9 +83,8 @@ class UniversalBle {
   /// Set [onScanResult] listener to `null` if you don't need it anymore.
   /// It might throw errors if Bluetooth is not available.
   static Future<void> stopScan() async {
-    return await _bleCommandQueue.queueCommand(
+    return await _bleCommandQueue.queueCommandWithoutTimeout(
       () => _platform.stopScan(),
-      withTimeout: false,
     );
   }
 
