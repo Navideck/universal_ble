@@ -275,7 +275,7 @@ class UniversalBle {
   ///
   /// On `Apple` and `Web`, it only works on devices with encrypted characteristics.
   /// It is advised to pass a pairingCommand with an encrypted read or write characteristic.
-  /// When not passing a pairingCommand, you should afterwards use [isPaired] with a pairingCommand
+  /// When not passing a pairingCommand, you should afterwards use [hasPairing] with a pairingCommand
   /// to verify the pairing state.
   ///
   /// On `Web/Windows` and `Web/Linux`, it does not work for devices that use `ConfirmOnly` pairing.
@@ -449,7 +449,7 @@ class UniversalBle {
         for (BleCharacteristic characteristic in service.characteristics) {
           if (characteristic.properties.contains(CharacteristicProperty.read)) {
             containsReadCharacteristics = true;
-            await readValue(
+            await read(
               deviceId,
               service.uuid,
               characteristic.uuid,
@@ -515,7 +515,7 @@ class UniversalBle {
         );
       } else {
         // Fallback to read if supported
-        await readValue(
+        await read(
           deviceId,
           bleCommand.service,
           bleCommand.characteristic,
