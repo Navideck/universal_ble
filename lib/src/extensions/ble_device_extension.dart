@@ -35,7 +35,7 @@ extension BleDeviceExtension on BleDevice {
     BleCommand? pairingCommand,
     Duration? connectionTimeout,
   }) {
-    return UniversalBle.isPaired(
+    return UniversalBle.hasPairing(
       deviceId,
       pairingCommand: pairingCommand,
       connectionTimeout: connectionTimeout,

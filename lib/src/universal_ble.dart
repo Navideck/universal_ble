@@ -179,7 +179,7 @@ class UniversalBle {
 
   /// Read a characteristic value.
   /// On iOS and MacOS this command will also trigger [onValueChange] listener.
-  static Future<Uint8List> readValue(
+  static Future<Uint8List> read(
     String deviceId,
     String service,
     String characteristic, {
@@ -236,7 +236,7 @@ class UniversalBle {
   /// Returns true/false if it manages to execute the command.
   /// Returns null when no `pairingCommand` is passed.
   /// Note that it will trigger pairing if the device is not already paired.
-  static Future<bool?> isPaired(
+  static Future<bool?> hasPairing(
     String deviceId, {
     BleCommand? pairingCommand,
     Duration? connectionTimeout,
@@ -369,8 +369,6 @@ class UniversalBle {
     }
   }
 
-  /// Write a characteristic value.
-  /// To write a characteristic value with response, set `bleOutputProperty` to [BleOutputProperty.withResponse].
   @Deprecated("Use [write] instead")
   static Future<void> writeValue(
     String deviceId,
@@ -385,6 +383,29 @@ class UniversalBle {
       characteristic,
       value,
       withoutResponse: bleOutputProperty == BleOutputProperty.withoutResponse,
+    );
+  }
+
+  @Deprecated("Use [read] instead")
+  static Future<Uint8List> readValue(
+    String deviceId,
+    String service,
+    String characteristic, {
+    final Duration? timeout,
+  }) {
+    return read(deviceId, service, characteristic, timeout: timeout);
+  }
+
+  @Deprecated("Use [readValue] instead")
+  static Future<bool?> isPaired(
+    String deviceId, {
+    BleCommand? pairingCommand,
+    Duration? connectionTimeout,
+  }) {
+    return hasPairing(
+      deviceId,
+      pairingCommand: pairingCommand,
+      connectionTimeout: connectionTimeout,
     );
   }
 

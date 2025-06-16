@@ -29,7 +29,7 @@ extension BleCharacteristicExtension on BleCharacteristic {
       );
 
   /// Reads the current value of the characteristic.
-  Future<Uint8List> read() => UniversalBle.readValue(
+  Future<Uint8List> read() => UniversalBle.read(
         _deviceId,
         _serviceId,
         uuid,

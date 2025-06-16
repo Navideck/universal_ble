@@ -1,5 +1,8 @@
 ## 0.19.0
 * Add new high level API
+* Deprecated: use `hasPairing` instead of `isPaired`
+* Deprecated: use `write` instead of `writeValue`
+* Deprecated: use `read` instead of `readValue`
 
 ## 0.19.0
 * Get and prefer advertised name of scanned devices on Apple

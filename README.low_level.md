@@ -40,10 +40,10 @@ You need to first [discover services](#discovering-services) before you are able
 
 ```dart
 // Read data from a characteristic
-UniversalBle.readValue(deviceId, serviceId, characteristicId);
+UniversalBle.read(deviceId, serviceId, characteristicId);
 
 // Write data to a characteristic
-UniversalBle.writeValue(deviceId, serviceId, characteristicId, value);
+UniversalBle.write(deviceId, serviceId, characteristicId, value);
 
 // Subscribe to a characteristic
 UniversalBle.setNotifiable(deviceId, serviceId, characteristicId, BleInputProperty.notification);
@@ -90,7 +90,7 @@ After pairing you can check the pairing status.
 
 ```dart
 // Check current pairing state
-bool? isPaired = UniversalBle.isPaired(deviceId);
+bool? hasPairing = UniversalBle.hasPairing(deviceId);
 ```
 
 ##### Pair on Apple and web
@@ -98,7 +98,7 @@ bool? isPaired = UniversalBle.isPaired(deviceId);
 For `Apple` and `Web`, you have to pass a "pairingCommand" with an encrypted read or write characteristic. If you don't pass it then it will return `null`.
 
 ```dart
-bool? isPaired = await UniversalBle.isPaired(deviceId, pairingCommand: BleCommand(service:"SERVICE", characteristic:"ENCRYPTED_CHARACTERISTIC"));
+bool? hasPairing = await UniversalBle.hasPairing(deviceId, pairingCommand: BleCommand(service:"SERVICE", characteristic:"ENCRYPTED_CHARACTERISTIC"));
 ```
 
 ##### Discovering encrypted characteristic
@@ -108,12 +108,12 @@ To discover encrypted characteristics, make sure your device is not paired and u
 
 ```dart
 // Get pairing state updates using stream
-UniversalBle.pairingStateStream(deviceId).listen((bool isPaired) {
+UniversalBle.pairingStateStream(deviceId).listen((bool paired) {
   // Handle pairing state change
 });
 
 // Or set a handler to get pairing state updates of all devices
-UniversalBle.onPairingStateChange = (String deviceId, bool isPaired) {}
+UniversalBle.onPairingStateChange = (String deviceId, bool paired) {}
 ```
 
 #### Unpair
