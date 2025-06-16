@@ -198,21 +198,23 @@ class UniversalBle {
   }
 
   /// Write a characteristic value.
-  /// To write a characteristic value with response, set `bleOutputProperty` to [BleOutputProperty.withResponse].
-  static Future<void> writeValue(
+  /// To write a characteristic value without response, set [withoutResponse] to [true].
+  static Future<void> write(
     String deviceId,
     String service,
     String characteristic,
-    Uint8List value,
-    BleOutputProperty bleOutputProperty,
-  ) async {
+    Uint8List value, {
+    bool withoutResponse = false,
+  }) async {
     await _bleCommandQueue.queueCommand(
       () => _platform.writeValue(
         deviceId,
         BleUuidParser.string(service),
         BleUuidParser.string(characteristic),
         value,
-        bleOutputProperty,
+        withoutResponse
+            ? BleOutputProperty.withoutResponse
+            : BleOutputProperty.withResponse,
       ),
       deviceId: deviceId,
     );
@@ -367,6 +369,25 @@ class UniversalBle {
     }
   }
 
+  /// Write a characteristic value.
+  /// To write a characteristic value with response, set `bleOutputProperty` to [BleOutputProperty.withResponse].
+  @Deprecated("Use [write] instead")
+  static Future<void> writeValue(
+    String deviceId,
+    String service,
+    String characteristic,
+    Uint8List value,
+    BleOutputProperty bleOutputProperty,
+  ) async {
+    await write(
+      deviceId,
+      service,
+      characteristic,
+      value,
+      withoutResponse: bleOutputProperty == BleOutputProperty.withoutResponse,
+    );
+  }
+
   static Future<void> _connectAndExecuteBleCommand(
     String deviceId,
     BleCommand? bleCommand, {
@@ -447,12 +468,12 @@ class UniversalBle {
     }
 
     // Check if BleCommand Supports Read or Write
-    BleOutputProperty? bleOutputProperty;
+    bool? withoutResponse;
     if (characteristic.properties.contains(CharacteristicProperty.write)) {
-      bleOutputProperty = BleOutputProperty.withResponse;
+      withoutResponse = false;
     } else if (characteristic.properties
         .contains(CharacteristicProperty.writeWithoutResponse)) {
-      bleOutputProperty = BleOutputProperty.withoutResponse;
+      withoutResponse = true;
     } else if (!characteristic.properties
         .contains(CharacteristicProperty.read)) {
       throw PairingException(
@@ -463,13 +484,13 @@ class UniversalBle {
     Uint8List? value = bleCommand.writeValue;
 
     try {
-      if (value != null && bleOutputProperty != null) {
-        await writeValue(
+      if (value != null && withoutResponse != null) {
+        await write(
           deviceId,
           bleCommand.service,
           bleCommand.characteristic,
           value,
-          bleOutputProperty,
+          withoutResponse: withoutResponse,
         );
       } else {
         // Fallback to read if supported

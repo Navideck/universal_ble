@@ -291,18 +291,18 @@ await characteristic.disableSubscriptions();
 ##### Pair on Android, Windows, Linux
 
 ```dart
-await UniversalBle.pair(deviceId);
+await bleDevice.pair();
 ```
 
 ##### Pair on Apple and web
 For Apple and Web, pairing support depends on the device. Pairing is triggered automatically by the OS when you try to read/write from/to an encrypted characteristic.
 
-Calling `UniversalBle.pair(deviceId)` will only trigger pairing if the device has an *encrypted read characteristic*.
+Calling `bleDevice.pair()` will only trigger pairing if the device has an *encrypted read characteristic*.
 
 If your device only has encrypted write characteristics or you happen to know which encrypted read characteristic you want to use, you can pass it with a `pairingCommand`.
 
 ```dart
-UniversalBle.pair(deviceId, pairingCommand: BleCommand(service:"SERVICE", characteristic:"ENCRYPTED_CHARACTERISTIC"));
+await bleDevice.pair(pairingCommand: BleCommand(service:"SERVICE", characteristic:"ENCRYPTED_CHARACTERISTIC"));
 ```
 After pairing you can check the pairing status.
 
@@ -312,7 +312,7 @@ After pairing you can check the pairing status.
 
 ```dart
 // Check current pairing state
-bool? isPaired = UniversalBle.isPaired(deviceId);
+bool? isPaired = bleDevice.isPaired();
 ```
 
 ##### Pair on Apple and web
@@ -320,7 +320,7 @@ bool? isPaired = UniversalBle.isPaired(deviceId);
 For `Apple` and `Web`, you have to pass a "pairingCommand" with an encrypted read or write characteristic. If you don't pass it then it will return `null`.
 
 ```dart
-bool? isPaired = await UniversalBle.isPaired(deviceId, pairingCommand: BleCommand(service:"SERVICE", characteristic:"ENCRYPTED_CHARACTERISTIC"));
+bool? isPaired = await bleDevice.isPaired(pairingCommand: BleCommand(service:"SERVICE", characteristic:"ENCRYPTED_CHARACTERISTIC"));
 ```
 
 ##### Discovering encrypted characteristic
@@ -330,17 +330,14 @@ To discover encrypted characteristics, make sure your device is not paired and u
 
 ```dart
 // Get pairing state updates using stream
-UniversalBle.pairingStateStream(deviceId).listen((bool isPaired) {
+bleDevice.pairingStateStream.listen((bool isPaired) {
   // Handle pairing state change
 });
-
-// Or set a handler to get pairing state updates of all devices
-UniversalBle.onPairingStateChange = (String deviceId, bool isPaired) {}
 ```
 
 #### Unpair
 ```dart
-UniversalBle.unpair(deviceId);
+bleDevice.unpair();
 ```
 
 ### Bluetooth Availability
