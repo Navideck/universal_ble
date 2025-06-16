@@ -45,10 +45,13 @@ UniversalBle.read(deviceId, serviceId, characteristicId);
 // Write data to a characteristic
 UniversalBle.write(deviceId, serviceId, characteristicId, value);
 
-// Subscribe to a characteristic
-UniversalBle.setNotifiable(deviceId, serviceId, characteristicId, BleInputProperty.notification);
+// Subscribe to a characteristic notifications
+UniversalBle.subscribeNotifications(deviceId, serviceId, characteristicId);
 
-// Get characteristic updates using stream
+// Subscribe to a characteristic indications
+UniversalBle.subscribeIndications(deviceId, serviceId, characteristicId);
+
+// Get characteristic notifications/indications updates using stream
 UniversalBle.characteristicValueStream(deviceId, characteristicId).listen((Uint8List value) {
   debugPrint('OnValueChange $deviceId, $characteristicId, ${hex.encode(value)}');
 });
@@ -58,8 +61,8 @@ UniversalBle.onValueChange = (String deviceId, String characteristicId, Uint8Lis
   debugPrint('onValueChange $deviceId, $characteristicId, ${hex.encode(value)}');
 }
 
-// Unsubscribe from a characteristic
-UniversalBle.setNotifiable(deviceId, serviceId, characteristicId, BleInputProperty.disabled);
+// Unsubscribe from notifications/indications
+UniversalBle.unsubscribe(deviceId, serviceId, characteristicId);
 ```
 
 ### Pairing
@@ -73,15 +76,17 @@ await UniversalBle.pair(deviceId);
 ```
 
 ##### Pair on Apple and web
+
 For Apple and Web, pairing support depends on the device. Pairing is triggered automatically by the OS when you try to read/write from/to an encrypted characteristic.
 
-Calling `UniversalBle.pair(deviceId)` will only trigger pairing if the device has an *encrypted read characteristic*.
+Calling `UniversalBle.pair(deviceId)` will only trigger pairing if the device has an _encrypted read characteristic_.
 
 If your device only has encrypted write characteristics or you happen to know which encrypted read characteristic you want to use, you can pass it with a `pairingCommand`.
 
 ```dart
 UniversalBle.pair(deviceId, pairingCommand: BleCommand(service:"SERVICE", characteristic:"ENCRYPTED_CHARACTERISTIC"));
 ```
+
 After pairing you can check the pairing status.
 
 #### Pairing status
@@ -102,6 +107,7 @@ bool? hasPairing = await UniversalBle.hasPairing(deviceId, pairingCommand: BleCo
 ```
 
 ##### Discovering encrypted characteristic
+
 To discover encrypted characteristics, make sure your device is not paired and use the example app to read/write to all discovered characteristics one by one. If one of them triggers pairing, that means it is encrypted and you can use it to construct `BleCommand(service:"SERVICE", characteristic:"ENCRYPTED_CHARACTERISTIC")`.
 
 #### Pairing state changes
@@ -117,6 +123,7 @@ UniversalBle.onPairingStateChange = (String deviceId, bool paired) {}
 ```
 
 #### Unpair
+
 ```dart
 UniversalBle.unpair(deviceId);
 ```

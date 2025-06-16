@@ -21,12 +21,8 @@ extension BleCharacteristicExtension on BleCharacteristic {
       CharacteristicSubscription(this, CharacteristicProperty.indicate);
 
   /// Disables notification/indication for this characteristic.
-  Future<void> disableSubscriptions() => UniversalBle.setNotifiable(
-        _deviceId,
-        _serviceId,
-        uuid,
-        BleInputProperty.disabled,
-      );
+  Future<void> disableSubscriptions() =>
+      UniversalBle.unsubscribe(_deviceId, _serviceId, uuid);
 
   /// Reads the current value of the characteristic.
   Future<Uint8List> read() => UniversalBle.read(
@@ -72,13 +68,13 @@ extension BleCharacteristicExtension on BleCharacteristic {
 /// getters on `BleCharacteristic`.
 ///
 /// call [subscribe] to instruct the peripheral to start sending data.
-/// call [unSubscribe] To stop receiving data and instruct the peripheral to cease sending,
+/// call [unsubscribe] To stop receiving data and instruct the peripheral to cease sending,
 /// call [listen] to register a callback to receive this data..
 /// use [isSupported] to check if this operation is supported by the characteristic
 ///
 class CharacteristicSubscription {
   final BleCharacteristic _characteristic;
-  final BleInputProperty _inputProperty;
+  final CharacteristicProperty _property;
 
   /// Indicates whether the characteristic supports the requested subscription type
   /// (notifications or indications).
@@ -86,11 +82,8 @@ class CharacteristicSubscription {
 
   CharacteristicSubscription(
     this._characteristic,
-    CharacteristicProperty property,
-  )   : isSupported = _characteristic.properties.contains(property),
-        _inputProperty = property == CharacteristicProperty.notify
-            ? BleInputProperty.notification
-            : BleInputProperty.indication;
+    this._property,
+  ) : isSupported = _characteristic.properties.contains(_property);
 
   /// Registers a listener for incoming data from the characteristic.
   StreamSubscription listen(
@@ -110,26 +103,33 @@ class CharacteristicSubscription {
   /// Enables notifications or indications for the characteristic on the peripheral.
   Future<void> subscribe() {
     if (!isSupported) throw Exception('Operation not supported');
-    return UniversalBle.setNotifiable(
+
+    if (_property == CharacteristicProperty.indicate) {
+      return UniversalBle.subscribeIndications(
+        _characteristic._deviceId,
+        _characteristic._serviceId,
+        _characteristic.uuid,
+      );
+    }
+
+    return UniversalBle.subscribeNotifications(
       _characteristic._deviceId,
       _characteristic._serviceId,
       _characteristic.uuid,
-      _inputProperty,
     );
   }
 
   /// Disables notifications or indications for the characteristic on the peripheral.
-  Future<void> unSubscribe() {
+  Future<void> unsubscribe() {
     if (!isSupported) throw Exception('Operation not supported');
-    return UniversalBle.setNotifiable(
+    return UniversalBle.unsubscribe(
       _characteristic._deviceId,
       _characteristic._serviceId,
       _characteristic.uuid,
-      BleInputProperty.disabled,
     );
   }
 
   @override
   String toString() =>
-      "CharacteristicSubscription(InputProperty: ${_inputProperty.name}, isSupported: $isSupported, characteristic: ${_characteristic.uuid})";
+      "CharacteristicSubscription(property: ${_property.name}, isSupported: $isSupported, characteristic: ${_characteristic.uuid})";
 }
