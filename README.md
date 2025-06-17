@@ -32,7 +32,7 @@ A cross-platform (Android/iOS/macOS/Windows/Linux/Web) Bluetooth Low Energy (BLE
 | subscriptions        |   ✔️    | ✔️  |  ✔️   |   ✔️    |      ✔️      | ✔️  |
 | pair                 |   ✔️    | ✔️  |  ✔️   |   ✔️    |      ✔️      | ⏺  |
 | unpair               |   ✔️    | ❌  |  ❌   |   ✔️    |      ✔️      | ❌  |
-| hasPairing           |   ✔️    | ✔️  |  ✔️   |   ✔️    |      ✔️      | ✔️  |
+| isPaired           |   ✔️    | ✔️  |  ✔️   |   ✔️    |      ✔️      | ✔️  |
 | onPairingStateChange |   ✔️    | ⏺  |  ⏺   |   ✔️    |      ✔️      | ⏺  |
 | getBluetoothAvailabilityState |   ✔️    | ✔️  |  ✔️   |   ✔️    |      ✔️      | ❌  |
 | enable/disable Bluetooth      |   ✔️    | ❌  |  ❌   |   ✔️    |      ✔️      | ❌  |
@@ -312,7 +312,7 @@ After pairing you can check the pairing status.
 
 ```dart
 // Check current pairing state
-bool? hasPairing = bleDevice.hasPairing();
+bool? isPaired = bleDevice.isPaired();
 ```
 
 ##### Pair on Apple and web
@@ -320,7 +320,7 @@ bool? hasPairing = bleDevice.hasPairing();
 For `Apple` and `Web`, you have to pass a "pairingCommand" with an encrypted read or write characteristic. If you don't pass it then it will return `null`.
 
 ```dart
-bool? hasPairing = await bleDevice.hasPairing(pairingCommand: BleCommand(service:"SERVICE", characteristic:"ENCRYPTED_CHARACTERISTIC"));
+bool? isPaired = await bleDevice.isPaired(pairingCommand: BleCommand(service:"SERVICE", characteristic:"ENCRYPTED_CHARACTERISTIC"));
 ```
 
 ##### Discovering encrypted characteristic

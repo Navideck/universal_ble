@@ -259,7 +259,7 @@ class UniversalBle {
   /// Returns true/false if it manages to execute the command.
   /// Returns null when no `pairingCommand` is passed.
   /// Note that it will trigger pairing if the device is not already paired.
-  static Future<bool?> hasPairing(
+  static Future<bool?> isPaired(
     String deviceId, {
     BleCommand? pairingCommand,
     Duration? connectionTimeout,
@@ -298,7 +298,7 @@ class UniversalBle {
   ///
   /// On `Apple` and `Web`, it only works on devices with encrypted characteristics.
   /// It is advised to pass a pairingCommand with an encrypted read or write characteristic.
-  /// When not passing a pairingCommand, you should afterwards use [hasPairing] with a pairingCommand
+  /// When not passing a pairingCommand, you should afterwards use [isPaired] with a pairingCommand
   /// to verify the pairing state.
   ///
   /// On `Web/Windows` and `Web/Linux`, it does not work for devices that use `ConfirmOnly` pairing.
@@ -433,19 +433,6 @@ class UniversalBle {
     final Duration? timeout,
   }) {
     return read(deviceId, service, characteristic, timeout: timeout);
-  }
-
-  @Deprecated("Use [readValue] instead")
-  static Future<bool?> isPaired(
-    String deviceId, {
-    BleCommand? pairingCommand,
-    Duration? connectionTimeout,
-  }) {
-    return hasPairing(
-      deviceId,
-      pairingCommand: pairingCommand,
-      connectionTimeout: connectionTimeout,
-    );
   }
 
   static Future<void> _sendBleInputPropertyCommand(

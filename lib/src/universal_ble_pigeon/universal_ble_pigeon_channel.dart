@@ -230,7 +230,7 @@ extension _UniversalBleScanResultExtension on UniversalBleScanResult {
       name: name,
       deviceId: deviceId,
       rssi: rssi,
-      isPaired: isPaired,
+      paired: isPaired,
       isSystemDevice: isSystemDevice,
       services: services?.map(BleUuidParser.string).toList() ?? [],
       manufacturerDataList: manufacturerDataList

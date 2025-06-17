@@ -95,7 +95,7 @@ After pairing you can check the pairing status.
 
 ```dart
 // Check current pairing state
-bool? hasPairing = UniversalBle.hasPairing(deviceId);
+bool? isPaired = UniversalBle.isPaired(deviceId);
 ```
 
 ##### Pair on Apple and web
@@ -103,7 +103,7 @@ bool? hasPairing = UniversalBle.hasPairing(deviceId);
 For `Apple` and `Web`, you have to pass a "pairingCommand" with an encrypted read or write characteristic. If you don't pass it then it will return `null`.
 
 ```dart
-bool? hasPairing = await UniversalBle.hasPairing(deviceId, pairingCommand: BleCommand(service:"SERVICE", characteristic:"ENCRYPTED_CHARACTERISTIC"));
+bool? isPaired = await UniversalBle.isPaired(deviceId, pairingCommand: BleCommand(service:"SERVICE", characteristic:"ENCRYPTED_CHARACTERISTIC"));
 ```
 
 ##### Discovering encrypted characteristic

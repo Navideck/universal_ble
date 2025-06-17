@@ -3,7 +3,6 @@
 * Deprecate `readValue` in favor of `read`
 * Deprecate `writeValue` in favor of `write`
 * Deprecate `setNotifiable` in favor of `subscribeNotifications`, `subscribeIndications`, `unsubscribe`
-* Deprecate `isPaired` in favor of `hasPairing`
 * Fix `getBluetoothAvailabilityState` reporting wrong Bluetooth status on browsers where Web Bluetooth can globally be disabled
 * `startScan` on web now throws a `WebBluetoothGloballyDisabled` exception if scanning cannot proceed due to Web Bluetooth being globally disabled
 * EXAMPLE APP: Migrate to the new high level API

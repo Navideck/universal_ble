@@ -613,7 +613,7 @@ extension BlueZDeviceExtension on BlueZDevice {
     return BleDevice(
       name: name,
       deviceId: address,
-      isPaired: paired,
+      paired: paired,
       rssi: rssi,
       isSystemDevice: isSystemDevice,
       services: uuids.map((e) => e.toString()).toList(),

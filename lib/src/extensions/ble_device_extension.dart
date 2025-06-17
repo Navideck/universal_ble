@@ -31,11 +31,11 @@ extension BleDeviceExtension on BleDevice {
   /// Returns true/false if it manages to execute the command.
   /// Returns null when no `pairingCommand` is passed.
   /// Note that it will trigger pairing if the device is not already paired.
-  Future<bool?> hasPairing({
+  Future<bool?> isPaired({
     BleCommand? pairingCommand,
     Duration? connectionTimeout,
   }) {
-    return UniversalBle.hasPairing(
+    return UniversalBle.isPaired(
       deviceId,
       pairingCommand: pairingCommand,
       connectionTimeout: connectionTimeout,
