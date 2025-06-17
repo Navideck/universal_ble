@@ -1,5 +1,6 @@
 ## 0.20.0
 * Add new high level API
+* BREAKING CHANGE: `bleDevice.isPaired` is now `bleDevice.paired`
 * Deprecate `readValue` in favor of `read`
 * Deprecate `writeValue` in favor of `write`
 * Deprecate `setNotifiable` in favor of `subscribeNotifications`, `subscribeIndications`, `unsubscribe`
