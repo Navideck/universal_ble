@@ -47,7 +47,7 @@ class BleDevice {
         'deviceId: $deviceId, '
         'name: $name, '
         'rssi: $rssi, '
-        'isPaired: $isPaired, '
+        'paired: $paired, '
         'services: $services, '
         'isSystemDevice: $isSystemDevice, '
         'manufacturerDataList: $manufacturerDataList';
