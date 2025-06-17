@@ -34,7 +34,7 @@ extension BleCharacteristicExtension on BleCharacteristic {
   /// Writes a value to the characteristic.
   ///
   /// [value] is the list of bytes to write.
-  /// [withoutResponse] indicates whether the write should be performed without a response from the peripheral.
+  /// [withoutResponse] indicates whether the write should be performed without a response from the device.
   Future<void> write(List<int> value, {bool withoutResponse = false}) async {
     await UniversalBle.write(
       _deviceId,
@@ -67,8 +67,8 @@ extension BleCharacteristicExtension on BleCharacteristic {
 /// Instances are typically obtained via the `notifications` or `indications`
 /// getters on `BleCharacteristic`.
 ///
-/// call [subscribe] to instruct the peripheral to start sending data.
-/// call [unsubscribe] To stop receiving data and instruct the peripheral to cease sending,
+/// call [subscribe] to instruct the device to start sending data.
+/// call [unsubscribe] To stop receiving data and instruct the device to cease sending,
 /// call [listen] to register a callback to receive this data..
 /// use [isSupported] to check if this operation is supported by the characteristic
 ///
@@ -100,7 +100,7 @@ class CharacteristicSubscription {
     );
   }
 
-  /// Enables notifications or indications for the characteristic on the peripheral.
+  /// Enables notifications or indications for the characteristic on the device.
   Future<void> subscribe() {
     if (!isSupported) throw Exception('Operation not supported');
 
@@ -119,7 +119,7 @@ class CharacteristicSubscription {
     );
   }
 
-  /// Disables notifications or indications for the characteristic on the peripheral.
+  /// Disables notifications or indications for the characteristic on the device.
   Future<void> unsubscribe() {
     if (!isSupported) throw Exception('Operation not supported');
     return UniversalBle.unsubscribe(
