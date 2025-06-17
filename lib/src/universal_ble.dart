@@ -393,7 +393,7 @@ class UniversalBle {
   }
 
   @Deprecated(
-      "Use [subscribeNotifications] or [subscribeIndications] or [unSubscribe] instead")
+      "Use [subscribeNotifications] or [subscribeIndications] or [unsubscribe] instead")
   static Future<void> setNotifiable(
     String deviceId,
     String service,

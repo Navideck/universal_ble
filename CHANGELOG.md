@@ -1,13 +1,12 @@
-## 0.20
-* Fix `getBluetoothAvailabilityState` reporting wrong Bluetooth status on browsers where Web Bluetooth can be globally disabled
-* `startScan` API on Web platforms now throws a `WebBluetoothGloballyDisabled` exception if scanning cannot proceed due to Web Bluetooth being globally disabled
-
-## 0.19.0
+## 0.20.0
 * Add new high level API
-* Deprecated: use `read` instead of `readValue`
-* Deprecated: use `write` instead of `writeValue`
-* Deprecated: Use `subscribeNotifications` or `subscribeIndications` or `unSubscribe` instead of `setNotifiable`
-* Deprecated: use `hasPairing` instead of `isPaired`
+* Deprecate `readValue` in favor of `read`
+* Deprecate `writeValue` in favor of `write`
+* Deprecate `setNotifiable` in favor of `subscribeNotifications`, `subscribeIndications`, `unsubscribe`
+* Deprecate `isPaired` in favor of `hasPairing`
+* Fix `getBluetoothAvailabilityState` reporting wrong Bluetooth status on browsers where Web Bluetooth can globally be disabled
+* `startScan` on web now throws a `WebBluetoothGloballyDisabled` exception if scanning cannot proceed due to Web Bluetooth being globally disabled
+* EXAMPLE APP: Migrate to the new high level API
 
 ## 0.19.0
 * Get and prefer advertised name of scanned devices on Apple
