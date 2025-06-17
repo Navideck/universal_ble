@@ -72,12 +72,12 @@ extension BleDeviceExtension on BleDevice {
   /// Discovers the services offered by the device.
   ///
   /// Returns cached services if already discovered after connection.
-  /// The cache will reset on disconnect. Set [cached] to false to always get fresh services.
+  /// The cache will reset on disconnect. Set [preferCached] to false to always get fresh services.
   Future<List<BleService>> discoverServices({
-    bool cached = true,
+    bool preferCached = true,
   }) async {
     List<BleService> servicesCache;
-    if (cached) {
+    if (preferCached) {
       servicesCache = CacheHandler.instance.getServices(deviceId) ?? [];
       if (servicesCache.isNotEmpty) return servicesCache;
     }
@@ -90,25 +90,25 @@ extension BleDeviceExtension on BleDevice {
   ///
   /// [service] is the UUID of the service.
   /// [characteristic] is the UUID of the characteristic.
-  /// [cached] indicates whether to use cached services.
+  /// [preferCached] indicates whether to use cached services.
   Future<BleCharacteristic> getCharacteristic(
     String characteristic, {
     required String service,
-    bool cached = true,
+    bool preferCached = true,
   }) async {
-    BleService bluetoothService = await getService(service, cached: cached);
+    BleService bluetoothService = await getService(service, preferCached: preferCached);
     return bluetoothService.getCharacteristic(characteristic);
   }
 
   /// Retrieves a specific service.
   ///
   /// [service] is the UUID of the service.
-  /// [cached] indicates whether to use cached services.
+  /// [preferCached] indicates whether to use cached services.
   Future<BleService> getService(
     String service, {
-    bool cached = true,
+    bool preferCached = true,
   }) async {
-    List<BleService> services = await discoverServices(cached: cached);
+    List<BleService> services = await discoverServices(preferCached: preferCached);
     if (services.isEmpty) throw 'No services found';
     return services.firstWhere(
       (s) => BleUuidParser.compareStrings(s.uuid, service),

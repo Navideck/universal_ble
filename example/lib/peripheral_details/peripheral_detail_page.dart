@@ -98,7 +98,7 @@ class _PeripheralDetailPageState extends State<PeripheralDetailPage> {
     const webWarning =
         "Note: Only services added in ScanFilter or WebOptions will be discovered";
     try {
-      var services = await bleDevice.discoverServices(cached: true);
+      var services = await bleDevice.discoverServices(preferCached: true);
       debugPrint('${services.length} services discovered');
       debugPrint(services.toString());
       setState(() {
