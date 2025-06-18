@@ -21,7 +21,7 @@ extension BleCharacteristicExtension on BleCharacteristic {
       CharacteristicSubscription(this, CharacteristicProperty.indicate);
 
   /// Disables notification/indication for this characteristic.
-  Future<void> disableSubscriptions() =>
+  Future<void> unsubscribe() =>
       UniversalBle.unsubscribe(_deviceId, _serviceId, uuid);
 
   /// Reads the current value of the characteristic.

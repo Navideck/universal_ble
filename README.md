@@ -267,28 +267,28 @@ characteristic.onValueReceived.listen((value) {
 });
 ```
 
-### SetNotification
+### Notifications
 
-Enables notifications for this characteristic. Throws an exception if the characteristic does not support notifications.
+Subscribe to notifications for this characteristic. Throws an exception if the characteristic does not support notifications.
 
 ```dart
-await characteristic.notifications?.subscribe();
+await characteristic.notifications.subscribe();
 ```
 
-### SetIndication
+### Indications
 
-Enables indications for this characteristic. Throws an exception if the characteristic does not support indications.
+Subscribe to indications for this characteristic. Throws an exception if the characteristic does not support indications.
 
 ```dart
-await characteristic.indications?.subscribe();
+await characteristic.indications.subscribe();
 ```
 
-### DisableSubscriptions
+### Unsubscribe
 
-Disables notifications and indications for this characteristic.
+Unsubscribe from notifications and indications of this characteristic.
 
 ```dart
-await characteristic.disableSubscriptions();
+await characteristic.unsubscribe();
 ```
 
 ### Pairing

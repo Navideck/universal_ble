@@ -176,7 +176,7 @@ class _PeripheralDetailPageState extends State<PeripheralDetailPage> {
 
   Future<void> _unsubscribeChar() async {
     try {
-      await selectedCharacteristic?.disableSubscriptions();
+      await selectedCharacteristic?.unsubscribe();
       _addLog('BleCharSubscription', 'UnSubscribed');
     } catch (e) {
       _addLog('NotifyError', e);
