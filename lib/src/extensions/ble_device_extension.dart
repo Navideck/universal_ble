@@ -88,9 +88,18 @@ extension BleDeviceExtension on BleDevice {
     String service, {
     bool preferCached = true,
   }) async {
-    List<BleService> services = await discoverServices();
-    if (services.isEmpty) throw 'No services found';
-    return services.firstWhere(
+    List<BleService> discoveredServices;
+    if (preferCached) {
+      discoveredServices = CacheHandler.instance.getServices(deviceId) ?? [];
+      if (discoveredServices.isEmpty) {
+        discoveredServices = await UniversalBle.discoverServices(deviceId);
+      }
+    } else {
+      discoveredServices = await UniversalBle.discoverServices(deviceId);
+    }
+
+    if (discoveredServices.isEmpty) throw 'No services found';
+    return discoveredServices.firstWhere(
       (s) => BleUuidParser.compareStrings(s.uuid, service),
       orElse: () => throw 'Service "$service" not available',
     );
