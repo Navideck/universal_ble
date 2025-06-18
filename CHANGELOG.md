@@ -1,5 +1,5 @@
 ## 0.20.0
-* Add new high level API
+* Add new high level API. Services are auto-discovered. the BleDevice class offers convenient member methods and properties.
 * BREAKING CHANGE: `bleDevice.isPaired` is now `bleDevice.paired`
 * Deprecate `readValue` in favor of `read`
 * Deprecate `writeValue` in favor of `write`
