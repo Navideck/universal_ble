@@ -188,13 +188,13 @@ bool isConnected = await bleDevice.isConnected;
 
 ### Discovering Services
 
-After establishing a connection, you need to discover services. This method will discover all services and their characteristics.
+After establishing a connection, services need to be discovered. This method will discover all services and their characteristics. 
+
+If you don't call this method then it will be automatically called when you try to get any service or characteristic.
 
 #### DiscoverServices
 
-Discovers the services offered by the device. Returns a `Future<List<BleService>>`.
-
-- `cached`: If `true` (default), cached services are returned if available. The cache is reset on disconnect. If `false`, fresh services are always discovered.
+Discovers the services offered by the device. Returns a `Future<List<BleService>>`. After discovery services are cached and each call of this method updates the cache.
 
 ```dart
 List<BleService> services = await bleDevice.discoverServices();
@@ -208,7 +208,7 @@ for (var service in services) {
 Retrieves a specific service. Returns a `Future<BleService>`.
 
 - `service`: The UUID of the service.
-- `cached`: If `true` (default), cached services are used.
+- `preferCached`: If `true` (default), cached services are used. If cache is empty, `discoverServices()` will be called.
 
 ```dart
 BleService service = await bleDevice.getService('180a');
@@ -220,7 +220,7 @@ Retrieves a specific characteristic from a service. Returns a `Future<BleCharact
 
 - `service`: The UUID of the service.
 - `characteristic`: The UUID of the characteristic.
-- `cached`: If `true` (default), cached services are used.
+- `preferCached`: If `true` (default), cached services are used. If cache is empty, `discoverServices()` will be called
 
 ```dart
 BleCharacteristic characteristic = await bleDevice.getCharacteristic('180a','2a56');

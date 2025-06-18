@@ -73,46 +73,41 @@ extension BleDeviceExtension on BleDevice {
   ///
   /// Returns cached services if already discovered after connection.
   /// The cache will reset on disconnect. Set [preferCached] to false to always get fresh services.
-  Future<List<BleService>> discoverServices({
-    bool preferCached = true,
-  }) async {
-    List<BleService> servicesCache;
-    if (preferCached) {
-      servicesCache = CacheHandler.instance.getServices(deviceId) ?? [];
-      if (servicesCache.isNotEmpty) return servicesCache;
-    }
-    servicesCache = await UniversalBle.discoverServices(deviceId);
+  Future<List<BleService>> discoverServices() async {
+    List<BleService> servicesCache =
+        await UniversalBle.discoverServices(deviceId);
     CacheHandler.instance.saveServices(deviceId, servicesCache);
     return servicesCache;
+  }
+
+  /// Retrieves a specific service.
+  ///
+  /// [service] is the UUID of the service.
+  /// [preferCached] indicates whether to use cached services. If cache is empty, discoverServices() will be called.
+  Future<BleService> getService(
+    String service, {
+    bool preferCached = true,
+  }) async {
+    List<BleService> services = await discoverServices();
+    if (services.isEmpty) throw 'No services found';
+    return services.firstWhere(
+      (s) => BleUuidParser.compareStrings(s.uuid, service),
+      orElse: () => throw 'Service "$service" not available',
+    );
   }
 
   /// Retrieves a specific characteristic from a service.
   ///
   /// [service] is the UUID of the service.
   /// [characteristic] is the UUID of the characteristic.
-  /// [preferCached] indicates whether to use cached services.
+  /// [preferCached] indicates whether to use cached services. If cache is empty, discoverServices() will be called.
   Future<BleCharacteristic> getCharacteristic(
     String characteristic, {
     required String service,
     bool preferCached = true,
   }) async {
-    BleService bluetoothService = await getService(service, preferCached: preferCached);
+    BleService bluetoothService =
+        await getService(service, preferCached: preferCached);
     return bluetoothService.getCharacteristic(characteristic);
-  }
-
-  /// Retrieves a specific service.
-  ///
-  /// [service] is the UUID of the service.
-  /// [preferCached] indicates whether to use cached services.
-  Future<BleService> getService(
-    String service, {
-    bool preferCached = true,
-  }) async {
-    List<BleService> services = await discoverServices(preferCached: preferCached);
-    if (services.isEmpty) throw 'No services found';
-    return services.firstWhere(
-      (s) => BleUuidParser.compareStrings(s.uuid, service),
-      orElse: () => throw 'Service "$service" not available',
-    );
   }
 }
