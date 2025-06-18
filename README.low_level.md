@@ -12,12 +12,12 @@ UniversalBle.disconnect(deviceId);
 
 // Get connection/disconnection updates using stream
 UniversalBle.connectionStream(deviceId).listen((bool isConnected) {
-  debugPrint('OnConnectionChange $deviceId, $isConnected');
+  debugPrint('Is device $deviceId connected?: $isConnected');
 });
 
 // Or set a handler to get updates of all devices
 UniversalBle.onConnectionChange = (String deviceId, bool isConnected, String? error) {
-  debugPrint('OnConnectionChange $deviceId, $isConnected Error: $error');
+  debugPrint('Is device $deviceId connected?: $isConnected. Error: $error');
 }
 
 // Get current connection state

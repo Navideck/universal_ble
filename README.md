@@ -176,7 +176,7 @@ await bleDevice.disconnect();
 
 ```dart
 bleDevice.connectionStream.listen((isConnected) {
-  debugPrint('Device is connected: $isConnected');
+  debugPrint('Is device connected?: $isConnected');
 });
 ```
 
@@ -533,6 +533,9 @@ class UniversalBleMock extends UniversalBlePlatform {
 UniversalBle.setInstance(UniversalBleMock());
 ```
 
+## Low level API
+
+For more granular control, you can use the [Low-Level API](README.low_level.md). This API is "Device ID"-based, offering greater flexibility by enabling direct calls without the need for object instances.
 
 ## 🧩 Apps using Universal BLE
 
