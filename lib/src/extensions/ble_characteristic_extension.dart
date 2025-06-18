@@ -34,14 +34,16 @@ extension BleCharacteristicExtension on BleCharacteristic {
   /// Writes a value to the characteristic.
   ///
   /// [value] is the list of bytes to write.
-  /// [withoutResponse] indicates whether the write should be performed without a response from the device.
-  Future<void> write(List<int> value, {bool withoutResponse = false}) async {
+  /// [withResponse] indicates whether the write should be performed with a response from the device.
+  /// Default is true, meaning the device will acknowledge the write operation.
+  /// If set to false, the write operation will be performed without waiting for a response.
+  Future<void> write(List<int> value, {bool withResponse = true}) async {
     await UniversalBle.write(
       _deviceId,
       _serviceId,
       uuid,
       Uint8List.fromList(value),
-      withoutResponse: withoutResponse,
+      withoutResponse: !withResponse,
     );
   }
 

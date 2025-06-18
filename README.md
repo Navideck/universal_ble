@@ -243,7 +243,7 @@ Uint8List value = await characteristic.read();
 ```dart
 await characteristic.write([0x01, 0x02, 0x03]);
 
-await characteristic.write([0x01, 0x02, 0x03], withoutResponse: true);
+await characteristic.write([0x01, 0x02, 0x03], withResponse: false);
 ```
 
 ## Subscriptions

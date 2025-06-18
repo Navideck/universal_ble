@@ -148,7 +148,7 @@ class _PeripheralDetailPageState extends State<PeripheralDetailPage> {
     try {
       await selectedCharacteristic.write(
         value,
-        withoutResponse: _hasSelectedCharacteristicProperty(
+        withResponse: _hasSelectedCharacteristicProperty(
           [CharacteristicProperty.writeWithoutResponse],
         ),
       );
