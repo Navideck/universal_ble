@@ -19,10 +19,6 @@ UniversalBle.connectionStream(deviceId).listen((bool isConnected) {
 UniversalBle.onConnectionChange = (String deviceId, bool isConnected, String? error) {
   debugPrint('Is device $deviceId connected?: $isConnected. Error: $error');
 }
-
-// Get current connection state
-// Can be connected, disconnected, connecting or disconnecting
-BleConnectionState connectionState = await bleDevice.connectionState;
 ```
 
 ### Discovering Services

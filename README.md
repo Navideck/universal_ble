@@ -186,6 +186,13 @@ bleDevice.connectionStream.listen((isConnected) {
 bool isConnected = await bleDevice.isConnected;
 ```
 
+#### Connection state
+
+```dart
+// Can be connected, disconnected, connecting or disconnecting
+BleConnectionState connectionState = await bleDevice.connectionState;
+```
+
 ### Discovering Services
 
 After establishing a connection, services need to be discovered. This method will discover all services and their characteristics. 
