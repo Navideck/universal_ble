@@ -8,6 +8,8 @@ class BleDevice {
   String? rawName;
   int? rssi;
   bool? paired;
+
+  /// List of services advertised by the device.
   List<String> services;
   bool? isSystemDevice;
   List<ManufacturerData> manufacturerDataList;
