@@ -8,19 +8,19 @@ extension BleCharacteristicExtension on BleCharacteristic {
   Stream<Uint8List> get onValueReceived =>
       UniversalBle.characteristicValueStream(_deviceId, uuid);
 
-  /// Enables notifications for this characteristic.
+  /// Subscribes to notifications for this characteristic.
   ///
   /// Throws an exception if the characteristic does not support notifications.
   CharacteristicSubscription get notifications =>
       CharacteristicSubscription(this, CharacteristicProperty.notify);
 
-  /// Enables indications for this characteristic.
+  /// Subscribes to indications for this characteristic.
   ///
   /// Throws an exception if the characteristic does not support indications.
   CharacteristicSubscription get indications =>
       CharacteristicSubscription(this, CharacteristicProperty.indicate);
 
-  /// Disables notification/indication for this characteristic.
+  /// Unsubscribes notifications/indications from this characteristic.
   Future<void> unsubscribe() =>
       UniversalBle.unsubscribe(_deviceId, _serviceId, uuid);
 
@@ -102,7 +102,7 @@ class CharacteristicSubscription {
     );
   }
 
-  /// Enables notifications or indications for the characteristic on the device.
+  /// Subscribes to this characteristic.
   Future<void> subscribe() {
     if (!isSupported) throw Exception('Operation not supported');
 
@@ -121,7 +121,7 @@ class CharacteristicSubscription {
     );
   }
 
-  /// Disables notifications or indications for the characteristic on the device.
+  /// Unsubscribes from this characteristic.
   Future<void> unsubscribe() {
     if (!isSupported) throw Exception('Operation not supported');
     return UniversalBle.unsubscribe(
