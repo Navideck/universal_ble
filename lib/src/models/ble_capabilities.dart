@@ -8,8 +8,8 @@ class BleCapabilities {
   /// because they only support "Numeric Comparison" and "Passkey Entry".
   ///
   /// For more fine-grained control it is recommended to use `triggersConfirmOnlyPairing`
-  /// in conjunction with the pairing method of your peripheral,
-  /// e.g. if (!BleCapabilities.triggersConfirmOnlyPairing && peripheralUsesConfirmOnlyPairing) throw "In-app pairing not supported";
+  /// in conjunction with the pairing method of your device,
+  /// e.g. if (!BleCapabilities.triggersConfirmOnlyPairing && deviceUsesConfirmOnlyPairing) throw "In-app pairing not supported";
   static final bool supportsAllPairingKinds =
       triggersConfirmOnlyPairing || hasSystemPairingApi;
 

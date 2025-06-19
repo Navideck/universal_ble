@@ -14,6 +14,7 @@ A cross-platform (Android/iOS/macOS/Windows/Linux/Web) Bluetooth Low Energy (BLE
 - [Reading & Writing data](#reading--writing-data)
 - [Pairing](#pairing)
 - [Bluetooth Availability](#bluetooth-availability)
+- [Requesting MTU](#requesting-mtu)
 - [Command Queue](#command-queue)
 - [Timeout](#timeout)
 - [UUID Format Agnostic](#uuid-format-agnostic)
@@ -26,12 +27,12 @@ A cross-platform (Android/iOS/macOS/Windows/Linux/Web) Bluetooth Low Energy (BLE
 | connect/disconnect   |   ✔️    | ✔️  |  ✔️   |   ✔️    |      ✔️      | ✔️  |
 | getSystemDevices     |   ✔️    | ✔️  |  ✔️   |   ✔️    |      ✔️      | ❌  |
 | discoverServices     |   ✔️    | ✔️  |  ✔️   |   ✔️    |      ✔️      | ✔️  |
-| readValue            |   ✔️    | ✔️  |  ✔️   |   ✔️    |      ✔️      | ✔️  |
-| writeValue           |   ✔️    | ✔️  |  ✔️   |   ✔️    |      ✔️      | ✔️  |
-| setNotifiable        |   ✔️    | ✔️  |  ✔️   |   ✔️    |      ✔️      | ✔️  |
+| read                 |   ✔️    | ✔️  |  ✔️   |   ✔️    |      ✔️      | ✔️  |
+| write                |   ✔️    | ✔️  |  ✔️   |   ✔️    |      ✔️      | ✔️  |
+| subscriptions        |   ✔️    | ✔️  |  ✔️   |   ✔️    |      ✔️      | ✔️  |
 | pair                 |   ✔️    | ✔️  |  ✔️   |   ✔️    |      ✔️      | ⏺  |
 | unpair               |   ✔️    | ❌  |  ❌   |   ✔️    |      ✔️      | ❌  |
-| isPaired             |   ✔️    | ✔️  |  ✔️   |   ✔️    |      ✔️      | ✔️  |
+| isPaired           |   ✔️    | ✔️  |  ✔️   |   ✔️    |      ✔️      | ✔️  |
 | onPairingStateChange |   ✔️    | ⏺  |  ⏺   |   ✔️    |      ✔️      | ⏺  |
 | getBluetoothAvailabilityState |   ✔️    | ✔️  |  ✔️   |   ✔️    |      ✔️      | ❌  |
 | enable/disable Bluetooth      |   ✔️    | ❌  |  ❌   |   ✔️    |      ✔️      | ❌  |
@@ -57,7 +58,7 @@ import 'package:universal_ble/universal_ble.dart';
 
 ```dart
 // Get scan updates from stream
-UniversalBle.scanStream.listen((bleDevice) {
+UniversalBle.scanStream.listen((BleDevice bleDevice) {
   // e.g. Use BleDevice ID to connect
 });
 
@@ -155,64 +156,139 @@ List<String> withNamePrefix;
 
 ### Connecting
 
+#### Connect
+
+Connects to the BLE device. This method initiates a connection to the Bluetooth device.
+
 ```dart
-// Connect to a device using the `deviceId` of the BleDevice received from `UniversalBle.onScanResult`
-String deviceId = bleDevice.deviceId;
-UniversalBle.connect(deviceId);
+await bleDevice.connect();
+```
 
-// Disconnect from a device
-UniversalBle.disconnect(deviceId);
+#### Disconnect
 
-// Get connection/disconnection updates using stream
-UniversalBle.connectionStream(deviceId).listen((bool isConnected) {
-  debugPrint('OnConnectionChange $deviceId, $isConnected');
+Disconnects from the BLE device. This method terminates the connection to the Bluetooth device.
+
+```dart
+await bleDevice.disconnect();
+```
+
+#### Connection Stream
+
+```dart
+bleDevice.connectionStream.listen((isConnected) {
+  debugPrint('Is device connected?: $isConnected');
 });
+```
 
-// Or set a handler to get updates of all devices
-UniversalBle.onConnectionChange = (String deviceId, bool isConnected, String? error) {
-  debugPrint('OnConnectionChange $deviceId, $isConnected Error: $error');
-}
+#### IsConnected
 
-// Get current connection state
+```dart
+bool isConnected = await bleDevice.isConnected;
+```
+
+#### Connection state
+
+```dart
 // Can be connected, disconnected, connecting or disconnecting
 BleConnectionState connectionState = await bleDevice.connectionState;
 ```
 
 ### Discovering Services
 
-After establishing a connection, you need to discover services. This method will discover all services and their characteristics.
+After establishing a connection, services need to be discovered. This method will discover all services and their characteristics. 
+
+If you don't call this method then it will be automatically called when you try to get any service or characteristic.
+
+#### DiscoverServices
+
+Discovers the services offered by the device. Returns a `Future<List<BleService>>`. After discovery services are cached and each call of this method updates the cache.
 
 ```dart
-// Discover services of a specific device
-UniversalBle.discoverServices(deviceId);
+List<BleService> services = await bleDevice.discoverServices();
+for (var service in services) {
+  debugPrint('Service UUID: ${service.uuid}');
+}
 ```
 
-### Reading & Writing data
+#### GetService
+
+Retrieves a specific service. Returns a `Future<BleService>`.
+
+- `service`: The UUID of the service.
+- `preferCached`: If `true` (default), cached services are used. If cache is empty, `discoverServices()` will be called.
+
+```dart
+BleService service = await bleDevice.getService('180a');
+```
+
+#### GetCharacteristic
+
+Retrieves a specific characteristic from a service. Returns a `Future<BleCharacteristic>`.
+
+- `service`: The UUID of the service.
+- `characteristic`: The UUID of the characteristic.
+- `preferCached`: If `true` (default), cached services are used. If cache is empty, `discoverServices()` will be called
+
+```dart
+BleCharacteristic characteristic = await bleDevice.getCharacteristic('180a','2a56');
+```
+
+Or retrieve from `BleService`
+
+```dart
+BleCharacteristic characteristic = await service.getCharacteristic('2a56');
+```
+
+## Reading & Writing data
 
 You need to first [discover services](#discovering-services) before you are able to read and write to characteristics.
 
 ```dart
-// Read data from a characteristic
-UniversalBle.readValue(deviceId, serviceId, characteristicId);
+Uint8List value = await characteristic.read();
+```
 
-// Write data to a characteristic
-UniversalBle.writeValue(deviceId, serviceId, characteristicId, value);
+```dart
+await characteristic.write([0x01, 0x02, 0x03]);
 
-// Subscribe to a characteristic
-UniversalBle.setNotifiable(deviceId, serviceId, characteristicId, BleInputProperty.notification);
+await characteristic.write([0x01, 0x02, 0x03], withResponse: false);
+```
 
-// Get characteristic updates using stream
-UniversalBle.characteristicValueStream(deviceId, characteristicId).listen((Uint8List value) {
-  debugPrint('OnValueChange $deviceId, $characteristicId, ${hex.encode(value)}');
+## Subscriptions
+
+Get `BleCharacteristic` using `bleDevice.getCharacteristic`
+
+### OnValueReceived
+
+A stream of `Uint8List` that emits values received from the characteristic. Listen to this stream to receive updates whenever the characteristic's value changes.
+
+```dart
+characteristic.onValueReceived.listen((value) {
+  debugPrint('Received value: ${value.toString()}');
 });
+```
 
-// Or set a handler to get updates of all characteristics
-UniversalBle.onValueChange = (String deviceId, String characteristicId, Uint8List value) {
-  debugPrint('onValueChange $deviceId, $characteristicId, ${hex.encode(value)}');
-}
+### Notifications
 
-// Unsubscribe from a characteristic
-UniversalBle.setNotifiable(deviceId, serviceId, characteristicId, BleInputProperty.disabled);
+Subscribe to notifications for this characteristic. Throws an exception if the characteristic does not support notifications.
+
+```dart
+await characteristic.notifications.subscribe();
+```
+
+### Indications
+
+Subscribe to indications for this characteristic. Throws an exception if the characteristic does not support indications.
+
+```dart
+await characteristic.indications.subscribe();
+```
+
+### Unsubscribe
+
+Unsubscribe from notifications and indications of this characteristic.
+
+```dart
+await characteristic.unsubscribe();
 ```
 
 ### Pairing
@@ -222,18 +298,18 @@ UniversalBle.setNotifiable(deviceId, serviceId, characteristicId, BleInputProper
 ##### Pair on Android, Windows, Linux
 
 ```dart
-await UniversalBle.pair(deviceId);
+await bleDevice.pair();
 ```
 
 ##### Pair on Apple and web
 For Apple and Web, pairing support depends on the device. Pairing is triggered automatically by the OS when you try to read/write from/to an encrypted characteristic.
 
-Calling `UniversalBle.pair(deviceId)` will only trigger pairing if the device has an *encrypted read characteristic*.
+Calling `bleDevice.pair()` will only trigger pairing if the device has an *encrypted read characteristic*.
 
 If your device only has encrypted write characteristics or you happen to know which encrypted read characteristic you want to use, you can pass it with a `pairingCommand`.
 
 ```dart
-UniversalBle.pair(deviceId, pairingCommand: BleCommand(service:"SERVICE", characteristic:"ENCRYPTED_CHARACTERISTIC"));
+await bleDevice.pair(pairingCommand: BleCommand(service:"SERVICE", characteristic:"ENCRYPTED_CHARACTERISTIC"));
 ```
 After pairing you can check the pairing status.
 
@@ -243,7 +319,7 @@ After pairing you can check the pairing status.
 
 ```dart
 // Check current pairing state
-bool? isPaired = UniversalBle.isPaired(deviceId);
+bool? isPaired = bleDevice.isPaired();
 ```
 
 ##### Pair on Apple and web
@@ -251,7 +327,7 @@ bool? isPaired = UniversalBle.isPaired(deviceId);
 For `Apple` and `Web`, you have to pass a "pairingCommand" with an encrypted read or write characteristic. If you don't pass it then it will return `null`.
 
 ```dart
-bool? isPaired = await UniversalBle.isPaired(deviceId, pairingCommand: BleCommand(service:"SERVICE", characteristic:"ENCRYPTED_CHARACTERISTIC"));
+bool? isPaired = await bleDevice.isPaired(pairingCommand: BleCommand(service:"SERVICE", characteristic:"ENCRYPTED_CHARACTERISTIC"));
 ```
 
 ##### Discovering encrypted characteristic
@@ -261,17 +337,14 @@ To discover encrypted characteristics, make sure your device is not paired and u
 
 ```dart
 // Get pairing state updates using stream
-UniversalBle.pairingStateStream(deviceId).listen((bool isPaired) {
+bleDevice.pairingStateStream.listen((bool paired) {
   // Handle pairing state change
 });
-
-// Or set a handler to get pairing state updates of all devices
-UniversalBle.onPairingStateChange = (String deviceId, bool isPaired) {}
 ```
 
 #### Unpair
 ```dart
-UniversalBle.unpair(deviceId);
+bleDevice.unpair();
 ```
 
 ### Bluetooth Availability
@@ -292,12 +365,10 @@ UniversalBle.enableBluetooth();
 UniversalBle.disableBluetooth();
 ```
 
-### Request MTU
-
-This method will **attempt** to set the MTU (Maximum Transmission Unit) but it is not guaranteed to succeed due to platform limitations. It will always return the current MTU.
+### Requesting MTU
 
 ```dart
-int mtu = await UniversalBle.requestMtu(widget.deviceId, 247);
+int mtu = await bleDevice.requestMtu(256);
 ```
 
 #### Platform Limitations
@@ -469,6 +540,9 @@ class UniversalBleMock extends UniversalBlePlatform {
 UniversalBle.setInstance(UniversalBleMock());
 ```
 
+## Low level API
+
+For more granular control, you can use the [Low-Level API](README.low_level.md). This API is "Device ID"-based, offering greater flexibility by enabling direct calls without the need for object instances.
 
 ## 🧩 Apps using Universal BLE
 

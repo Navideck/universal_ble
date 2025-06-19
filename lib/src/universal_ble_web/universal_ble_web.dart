@@ -3,7 +3,7 @@ import 'dart:collection';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_web_bluetooth/flutter_web_bluetooth.dart';
-import 'package:universal_ble/src/universal_logger.dart';
+import 'package:universal_ble/src/utils/universal_logger.dart';
 import 'package:universal_ble/universal_ble.dart';
 
 class UniversalBleWeb extends UniversalBlePlatform {
@@ -58,7 +58,9 @@ class UniversalBleWeb extends UniversalBlePlatform {
 
   @override
   Future<List<BleService>> discoverServices(String deviceId) async =>
-      (await _getServices(deviceId)).map((e) => e._bleService).toList();
+      (await _getServices(deviceId))
+          .map((e) => e._bleService(deviceId))
+          .toList();
 
   @override
   Future<AvailabilityState> getBluetoothAvailabilityState() async {
@@ -463,20 +465,24 @@ class _UniversalWebBluetoothService {
     return null;
   }
 
-  BleService get _bleService => BleService(
+  BleService _bleService(String deviceId) => BleService(
         service.uuid,
         characteristics.map((e) {
-          return BleCharacteristic(e.uuid, [
-            if (e.properties.broadcast) CharacteristicProperty.broadcast,
-            if (e.properties.read) CharacteristicProperty.read,
-            if (e.properties.write) CharacteristicProperty.write,
-            if (e.properties.writeWithoutResponse)
-              CharacteristicProperty.writeWithoutResponse,
-            if (e.properties.notify) CharacteristicProperty.notify,
-            if (e.properties.indicate) CharacteristicProperty.indicate,
-            if (e.properties.authenticatedSignedWrites)
-              CharacteristicProperty.authenticatedSignedWrites,
-          ]);
+          return BleCharacteristic.withMetaData(
+              deviceId: deviceId,
+              serviceId: service.uuid,
+              uuid: e.uuid,
+              properties: [
+                if (e.properties.broadcast) CharacteristicProperty.broadcast,
+                if (e.properties.read) CharacteristicProperty.read,
+                if (e.properties.write) CharacteristicProperty.write,
+                if (e.properties.writeWithoutResponse)
+                  CharacteristicProperty.writeWithoutResponse,
+                if (e.properties.notify) CharacteristicProperty.notify,
+                if (e.properties.indicate) CharacteristicProperty.indicate,
+                if (e.properties.authenticatedSignedWrites)
+                  CharacteristicProperty.authenticatedSignedWrites,
+              ]);
         }).toList(),
       );
 }

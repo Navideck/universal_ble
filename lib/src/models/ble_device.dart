@@ -7,7 +7,9 @@ class BleDevice {
   String? name;
   String? rawName;
   int? rssi;
-  bool? isPaired;
+  bool? paired;
+
+  /// List of services advertised by the device.
   List<String> services;
   bool? isSystemDevice;
   List<ManufacturerData> manufacturerDataList;
@@ -32,7 +34,7 @@ class BleDevice {
     required this.deviceId,
     required String? name,
     this.rssi,
-    this.isPaired,
+    this.paired,
     this.services = const [],
     this.isSystemDevice,
     this.manufacturerDataList = const [],
@@ -47,7 +49,7 @@ class BleDevice {
         'deviceId: $deviceId, '
         'name: $name, '
         'rssi: $rssi, '
-        'isPaired: $isPaired, '
+        'paired: $paired, '
         'services: $services, '
         'isSystemDevice: $isSystemDevice, '
         'manufacturerDataList: $manufacturerDataList';

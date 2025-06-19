@@ -1,11 +1,11 @@
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
-import 'package:universal_ble/src/ble_command_queue.dart';
+import 'package:universal_ble/src/utils/ble_command_queue.dart';
 import 'package:universal_ble/src/universal_ble_linux/universal_ble_linux.dart';
 import 'package:universal_ble/src/universal_ble_pigeon/universal_ble_pigeon_channel.dart';
 import 'package:universal_ble/src/universal_ble_web/universal_ble_web.dart';
-import 'package:universal_ble/src/universal_logger.dart';
+import 'package:universal_ble/src/utils/universal_logger.dart';
 import 'package:universal_ble/universal_ble.dart';
 
 class UniversalBle {
@@ -71,12 +71,11 @@ class UniversalBle {
     ScanFilter? scanFilter,
     PlatformConfig? platformConfig,
   }) async {
-    return await _bleCommandQueue.queueCommand(
+    return await _bleCommandQueue.queueCommandWithoutTimeout(
       () => _platform.startScan(
         scanFilter: scanFilter,
         platformConfig: platformConfig,
       ),
-      withTimeout: false,
     );
   }
 
@@ -84,9 +83,8 @@ class UniversalBle {
   /// Set [onScanResult] listener to `null` if you don't need it anymore.
   /// It might throw errors if Bluetooth is not available.
   static Future<void> stopScan() async {
-    return await _bleCommandQueue.queueCommand(
+    return await _bleCommandQueue.queueCommandWithoutTimeout(
       () => _platform.stopScan(),
-      withTimeout: false,
     );
   }
 
@@ -157,29 +155,54 @@ class UniversalBle {
   }
 
   /// Set a characteristic notifiable.
-  /// Set `bleInputProperty` to [BleInputProperty.notification] or [BleInputProperty.indication].
-  /// Updates will arrive in [onValueChange] listener.
-  /// To stop listening to a characteristic, set `bleInputProperty` to [BleInputProperty.disabled].
-  static Future<void> setNotifiable(
+  /// Updates will arrive in [onValueChange] listener and [characteristicValueStream]
+  /// call [unsubscribe] to stop updates
+  static Future<void> subscribeNotifications(
     String deviceId,
     String service,
     String characteristic,
-    BleInputProperty bleInputProperty,
   ) async {
-    return await _bleCommandQueue.queueCommand(
-      () => _platform.setNotifiable(
-        deviceId,
-        BleUuidParser.string(service),
-        BleUuidParser.string(characteristic),
-        bleInputProperty,
-      ),
-      deviceId: deviceId,
+    return _sendBleInputPropertyCommand(
+      deviceId,
+      service,
+      characteristic,
+      BleInputProperty.notification,
+    );
+  }
+
+  /// Set a characteristic notifiable.
+  /// Updates will arrive in [onValueChange] listener and [characteristicValueStream]
+  /// call [unsubscribe] to stop updates
+  static Future<void> subscribeIndications(
+    String deviceId,
+    String service,
+    String characteristic,
+  ) async {
+    return _sendBleInputPropertyCommand(
+      deviceId,
+      service,
+      characteristic,
+      BleInputProperty.indication,
+    );
+  }
+
+  /// Stop characteristic notifications/indication updates
+  static Future<void> unsubscribe(
+    String deviceId,
+    String service,
+    String characteristic,
+  ) async {
+    return _sendBleInputPropertyCommand(
+      deviceId,
+      service,
+      characteristic,
+      BleInputProperty.disabled,
     );
   }
 
   /// Read a characteristic value.
   /// On iOS and MacOS this command will also trigger [onValueChange] listener.
-  static Future<Uint8List> readValue(
+  static Future<Uint8List> read(
     String deviceId,
     String service,
     String characteristic, {
@@ -198,21 +221,23 @@ class UniversalBle {
   }
 
   /// Write a characteristic value.
-  /// To write a characteristic value with response, set `bleOutputProperty` to [BleOutputProperty.withResponse].
-  static Future<void> writeValue(
+  /// To write a characteristic value without response, set [withoutResponse] to [true].
+  static Future<void> write(
     String deviceId,
     String service,
     String characteristic,
-    Uint8List value,
-    BleOutputProperty bleOutputProperty,
-  ) async {
+    Uint8List value, {
+    bool withoutResponse = false,
+  }) async {
     await _bleCommandQueue.queueCommand(
       () => _platform.writeValue(
         deviceId,
         BleUuidParser.string(service),
         BleUuidParser.string(characteristic),
         value,
-        bleOutputProperty,
+        withoutResponse
+            ? BleOutputProperty.withoutResponse
+            : BleOutputProperty.withResponse,
       ),
       deviceId: deviceId,
     );
@@ -367,6 +392,66 @@ class UniversalBle {
     }
   }
 
+  @Deprecated(
+      "Use [subscribeNotifications] or [subscribeIndications] or [unsubscribe] instead")
+  static Future<void> setNotifiable(
+    String deviceId,
+    String service,
+    String characteristic,
+    BleInputProperty bleInputProperty,
+  ) async {
+    return _sendBleInputPropertyCommand(
+      deviceId,
+      service,
+      characteristic,
+      bleInputProperty,
+    );
+  }
+
+  @Deprecated("Use [write] instead")
+  static Future<void> writeValue(
+    String deviceId,
+    String service,
+    String characteristic,
+    Uint8List value,
+    BleOutputProperty bleOutputProperty,
+  ) async {
+    await write(
+      deviceId,
+      service,
+      characteristic,
+      value,
+      withoutResponse: bleOutputProperty == BleOutputProperty.withoutResponse,
+    );
+  }
+
+  @Deprecated("Use [read] instead")
+  static Future<Uint8List> readValue(
+    String deviceId,
+    String service,
+    String characteristic, {
+    final Duration? timeout,
+  }) {
+    return read(deviceId, service, characteristic, timeout: timeout);
+  }
+
+  static Future<void> _sendBleInputPropertyCommand(
+    String deviceId,
+    String service,
+    String characteristic,
+    BleInputProperty bleInputProperty,
+  ) async {
+    return await _bleCommandQueue.queueCommand(
+      () => _platform.setNotifiable(
+        deviceId,
+        BleUuidParser.string(service),
+        BleUuidParser.string(characteristic),
+        bleInputProperty,
+      ),
+      deviceId: deviceId,
+    );
+  }
+
   static Future<void> _connectAndExecuteBleCommand(
     String deviceId,
     BleCommand? bleCommand, {
@@ -407,7 +492,7 @@ class UniversalBle {
         for (BleCharacteristic characteristic in service.characteristics) {
           if (characteristic.properties.contains(CharacteristicProperty.read)) {
             containsReadCharacteristics = true;
-            await readValue(
+            await read(
               deviceId,
               service.uuid,
               characteristic.uuid,
@@ -447,12 +532,12 @@ class UniversalBle {
     }
 
     // Check if BleCommand Supports Read or Write
-    BleOutputProperty? bleOutputProperty;
+    bool? withoutResponse;
     if (characteristic.properties.contains(CharacteristicProperty.write)) {
-      bleOutputProperty = BleOutputProperty.withResponse;
+      withoutResponse = false;
     } else if (characteristic.properties
         .contains(CharacteristicProperty.writeWithoutResponse)) {
-      bleOutputProperty = BleOutputProperty.withoutResponse;
+      withoutResponse = true;
     } else if (!characteristic.properties
         .contains(CharacteristicProperty.read)) {
       throw PairingException(
@@ -463,17 +548,17 @@ class UniversalBle {
     Uint8List? value = bleCommand.writeValue;
 
     try {
-      if (value != null && bleOutputProperty != null) {
-        await writeValue(
+      if (value != null && withoutResponse != null) {
+        await write(
           deviceId,
           bleCommand.service,
           bleCommand.characteristic,
           value,
-          bleOutputProperty,
+          withoutResponse: withoutResponse,
         );
       } else {
         // Fallback to read if supported
-        await readValue(
+        await read(
           deviceId,
           bleCommand.service,
           bleCommand.characteristic,
@@ -497,7 +582,7 @@ class UniversalBle {
   static set onConnectionChange(OnConnectionChange? onConnectionChange) =>
       _platform.onConnectionChange = onConnectionChange;
 
-  /// Get characteristic value updates, set `bleInputProperty` in [setNotifiable] to [BleInputProperty.notification] or [BleInputProperty.indication].
+  /// Get characteristic value updates, after calling [subscribeNotifications] or [subscribeIndications]
   static set onValueChange(OnValueChange? onValueChange) =>
       _platform.onValueChange = onValueChange;
 

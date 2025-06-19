@@ -30,7 +30,7 @@ class ScannedItemWidget extends StatelessWidget {
                 visible: manufacturerData != null,
                 child: Text(manufacturerData.toString()),
               ),
-              bleDevice.isPaired == true
+              bleDevice.paired == true
                   ? const Text(
                       "Paired",
                       style: TextStyle(color: Colors.green),

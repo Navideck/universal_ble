@@ -4,7 +4,7 @@ class ManufacturerDataFilter {
   /// Must be of integer type, in hex or decimal form (e.g. 0x004c or 76).
   int companyIdentifier;
 
-  /// Matches as prefix the peripheral's advertised data.
+  /// Matches as prefix the device's advertised data.
   Uint8List? payloadPrefix;
 
   /// For each bit in the mask, set it to 1 if it needs to match
