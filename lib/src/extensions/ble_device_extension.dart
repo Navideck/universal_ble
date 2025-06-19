@@ -72,7 +72,6 @@ extension BleDeviceExtension on BleDevice {
   /// Discovers the services offered by the device.
   ///
   /// Returns cached services if already discovered after connection.
-  /// The cache will reset on disconnect. Set [preferCached] to false to always get fresh services.
   Future<List<BleService>> discoverServices() async {
     List<BleService> servicesCache =
         await UniversalBle.discoverServices(deviceId);
@@ -84,6 +83,7 @@ extension BleDeviceExtension on BleDevice {
   ///
   /// [service] is the UUID of the service.
   /// [preferCached] indicates whether to use cached services. If cache is empty, discoverServices() will be called.
+  /// might throw [NotFoundException]
   Future<BleService> getService(
     String service, {
     bool preferCached = true,
@@ -95,10 +95,16 @@ extension BleDeviceExtension on BleDevice {
     if (discoveredServices.isEmpty) {
       discoveredServices = await discoverServices();
     }
-    if (discoveredServices.isEmpty) throw 'No services found';
+
+    if (discoveredServices.isEmpty) {
+      throw ServiceNotFoundException('No services found');
+    }
+
     return discoveredServices.firstWhere(
       (s) => BleUuidParser.compareStrings(s.uuid, service),
-      orElse: () => throw 'Service "$service" not available',
+      orElse: () => throw ServiceNotFoundException(
+        'Service "$service" not available',
+      ),
     );
   }
 
@@ -107,6 +113,7 @@ extension BleDeviceExtension on BleDevice {
   /// [service] is the UUID of the service.
   /// [characteristic] is the UUID of the characteristic.
   /// [preferCached] indicates whether to use cached services. If cache is empty, discoverServices() will be called.
+  /// might throw [NotFoundException]
   Future<BleCharacteristic> getCharacteristic(
     String characteristic, {
     required String service,

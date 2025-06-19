@@ -30,6 +30,24 @@ class WebBluetoothGloballyDisabled implements Exception {
   String toString() => message;
 }
 
+class NotFoundException implements Exception {}
+
+class ServiceNotFoundException implements NotFoundException {
+  String message;
+  ServiceNotFoundException(this.message);
+
+  @override
+  String toString() => message;
+}
+
+class CharacteristicNotFoundException implements NotFoundException {
+  String message;
+  CharacteristicNotFoundException(this.message);
+
+  @override
+  String toString() => message;
+}
+
 String _errorParser(dynamic error) {
   if (error == null) {
     return "Failed";
