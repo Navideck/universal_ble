@@ -36,6 +36,7 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
   private var discoveredServicesProgressMap: [String: [UniversalBleService]] = [:]
   private var characteristicReadFutures = [CharacteristicReadFuture]()
   private var characteristicWriteFutures = [CharacteristicWriteFuture]()
+  private var characteristicWriteWithoutResponseFutures = [CharacteristicWriteFuture]()
   private var characteristicNotifyFutures = [CharacteristicNotifyFuture]()
   private var discoverServicesFutures = [DiscoverServicesFuture]()
 
@@ -263,11 +264,12 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
     }
     peripheral.writeValue(value.data, for: gattCharacteristic, type: type)
 
+    // Wait for future response
+    let future = CharacteristicWriteFuture(deviceId: deviceId, characteristicId: gattCharacteristic.uuid.uuidStr, serviceId: gattCharacteristic.service?.uuid.uuidStr, result: completion)
     if type == CBCharacteristicWriteType.withResponse {
-      // Wait for future response
-      characteristicWriteFutures.append(CharacteristicWriteFuture(deviceId: deviceId, characteristicId: gattCharacteristic.uuid.uuidStr, serviceId: gattCharacteristic.service?.uuid.uuidStr, result: completion))
+      characteristicWriteFutures.append(future)
     } else {
-      completion(Result.success({}()))
+      characteristicWriteWithoutResponseFutures.append(future)
     }
   }
 
@@ -409,6 +411,16 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
     if discoveredServicesProgressMap[deviceId]?.allSatisfy({ $0.characteristics != nil }) ?? false {
       onServicesDiscovered(deviceId: deviceId, services: discoveredServicesProgressMap[deviceId] ?? [])
       discoveredServicesProgressMap[deviceId] = nil
+    }
+  }
+
+  public func peripheralIsReady(toSendWriteWithoutResponse peripheral: CBPeripheral) {
+    characteristicWriteWithoutResponseFutures.removeAll { future in
+      if future.deviceId == peripheral.uuid.uuidString {
+        future.result(Result.success({}()))
+        return true
+      }
+      return false
     }
   }
 
