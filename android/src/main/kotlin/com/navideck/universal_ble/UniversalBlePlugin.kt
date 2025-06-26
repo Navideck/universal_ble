@@ -477,7 +477,7 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
                 callback
             )
 
-            // wait for the result
+            // Wait for the result
             writeResultFutureList.add(writeFuture)
 
             val result = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -496,7 +496,7 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
                 callback(
                     Result.failure(
                         FlutterError(
-                            "Failed",
+                            "WriteError",
                             "Failed to write: ${result.parseGattErrorCode()}",
                             null
                         )

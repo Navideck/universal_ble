@@ -1,5 +1,5 @@
 ## 0.20.1
-* Fix: properly wait for completion of `writeWithoutResponse` on Android and Apple
+* Fix `writeWithoutResponse()` which was not properly waiting for completion on Android and Apple
 
 ## 0.20.0
 * Add new high level API. Services are auto-discovered. the BleDevice class offers convenient member methods and properties.

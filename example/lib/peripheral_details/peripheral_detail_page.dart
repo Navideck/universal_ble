@@ -147,7 +147,7 @@ class _PeripheralDetailPageState extends State<PeripheralDetailPage> {
 
     try {
       await selectedCharacteristic.write(value, withResponse: withResponse);
-      _addLog('Write${!withResponse ? "WithoutResponse" : ""}', value);
+      _addLog('Write${withResponse ? "" : "WithoutResponse"}', value);
     } catch (e) {
       debugPrint(e.toString());
       _addLog('WriteError', e);
