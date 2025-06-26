@@ -469,34 +469,39 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
                 writeType = BluetoothGattCharacteristic.WRITE_TYPE_NO_RESPONSE
             }
 
+
+            val writeFuture = WriteResultFuture(
+                gatt.device.address,
+                gattCharacteristic.uuid.toString(),
+                gattCharacteristic.service.uuid.toString(),
+                callback
+            )
+
+            // Wait for the result
+            writeResultFutureList.add(writeFuture)
+
             val result = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                val writeResult = gatt.writeCharacteristic(gattCharacteristic, value, writeType)
-                writeResult == BluetoothGatt.GATT_SUCCESS
+                gatt.writeCharacteristic(gattCharacteristic, value, writeType)
             } else {
                 @Suppress("DEPRECATION")
                 gattCharacteristic.value = value
                 gattCharacteristic.writeType = writeType
                 @Suppress("DEPRECATION")
-                gatt.writeCharacteristic(gattCharacteristic)
+                val status = gatt.writeCharacteristic(gattCharacteristic)
+                if (status) BluetoothGatt.GATT_SUCCESS else BluetoothGatt.GATT_FAILURE
             }
 
-            if (!result) {
-                callback(Result.failure(FlutterError("Failed", "Failed to write", null)))
-                return
-            }
-
-            if (writeType == BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT) {
-                // wait for the result
-                writeResultFutureList.add(
-                    WriteResultFuture(
-                        gatt.device.address,
-                        gattCharacteristic.uuid.toString(),
-                        gattCharacteristic.service.uuid.toString(),
-                        callback
+            if (result != BluetoothGatt.GATT_SUCCESS) {
+                writeResultFutureList.remove(writeFuture)
+                callback(
+                    Result.failure(
+                        FlutterError(
+                            "WriteError",
+                            "Failed to write: ${result.parseGattErrorCode()}",
+                            null
+                        )
                     )
                 )
-            } else {
-                callback(Result.success(Unit))
             }
         } catch (e: FlutterError) {
             callback(Result.failure(e))

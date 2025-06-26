@@ -129,7 +129,7 @@ class _PeripheralDetailPageState extends State<PeripheralDetailPage> {
     }
   }
 
-  Future<void> _writeValue() async {
+  Future<void> _writeValue({required bool withResponse}) async {
     BleCharacteristic? selectedCharacteristic = this.selectedCharacteristic;
     if (selectedCharacteristic == null ||
         !valueFormKey.currentState!.validate() ||
@@ -146,13 +146,8 @@ class _PeripheralDetailPageState extends State<PeripheralDetailPage> {
     }
 
     try {
-      await selectedCharacteristic.write(
-        value,
-        withResponse: _hasSelectedCharacteristicProperty(
-          [CharacteristicProperty.writeWithoutResponse],
-        ),
-      );
-      _addLog('Write', value);
+      await selectedCharacteristic.write(value, withResponse: withResponse);
+      _addLog('Write${withResponse ? "" : "WithoutResponse"}', value);
     } catch (e) {
       debugPrint(e.toString());
       _addLog('WriteError', e);
@@ -377,10 +372,18 @@ class _PeripheralDetailPageState extends State<PeripheralDetailPage> {
                                   discoveredServices.isNotEmpty &&
                                   _hasSelectedCharacteristicProperty([
                                     CharacteristicProperty.write,
-                                    CharacteristicProperty.writeWithoutResponse
                                   ]),
-                              onPressed: _writeValue,
+                              onPressed: () => _writeValue(withResponse: true),
                               text: 'Write',
+                            ),
+                            PlatformButton(
+                              enabled: isConnected &&
+                                  discoveredServices.isNotEmpty &&
+                                  _hasSelectedCharacteristicProperty([
+                                    CharacteristicProperty.writeWithoutResponse,
+                                  ]),
+                              onPressed: () => _writeValue(withResponse: false),
+                              text: 'WriteWithoutResponse',
                             ),
                             PlatformButton(
                               enabled: isConnected &&
