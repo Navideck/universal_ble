@@ -94,10 +94,14 @@ abstract class UniversalBlePlatform {
           .map((e) => e.isConnected);
 
   Stream<Uint8List> characteristicValueStream(
-          String deviceId, String characteristicId) =>
-      _valueStreamController.stream.where((e) {
-        return e.deviceId == deviceId && e.characteristicId == characteristicId;
-      }).map((e) => e.value);
+    String deviceId,
+    String characteristicId,
+  ) {
+    characteristicId = BleUuidParser.string(characteristicId);
+    return _valueStreamController.stream.where((e) {
+      return e.deviceId == deviceId && e.characteristicId == characteristicId;
+    }).map((e) => e.value);
+  }
 
   Stream<bool> pairingStateStream(String deviceId) =>
       _pairStateStreamController.stream
@@ -134,15 +138,14 @@ abstract class UniversalBlePlatform {
     String characteristicId,
     Uint8List value,
   ) {
+    characteristicId = BleUuidParser.string(characteristicId);
     _valueStreamController.add((
       deviceId: deviceId,
       characteristicId: characteristicId,
       value: value,
     ));
-
     try {
-      onValueChange?.call(
-          deviceId, BleUuidParser.string(characteristicId), value);
+      onValueChange?.call(deviceId, characteristicId, value);
     } catch (_) {}
   }
 
