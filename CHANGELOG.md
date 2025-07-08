@@ -1,3 +1,6 @@
+## 0.20.2
+* Fix `BleCharacteristic.onValueReceived`
+
 ## 0.20.1
 * Fix `writeWithoutResponse()` which was not properly waiting for completion on Android and Apple
 
