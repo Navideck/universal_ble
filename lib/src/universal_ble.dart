@@ -625,6 +625,14 @@ class UniversalBle {
   static set onQueueUpdate(OnQueueUpdate? onQueueUpdate) =>
       _bleCommandQueue.onQueueUpdate = onQueueUpdate;
 
+  /// Clear a queue.
+  /// If [id] is not provided, all queues will be cleared.
+  /// To clear queue for a specific device, use `deviceId` as [id]
+  /// Use [BleCommandQueue.globalQueueId] to clear global queue
+  static void clearQueue({List<String>? id}) {
+    _bleCommandQueue.clearQueue(id: id);
+  }
+
   /// Get scan results.
   static set onScanResult(OnScanResult? bleDevice) =>
       _platform.onScanResult = bleDevice;
