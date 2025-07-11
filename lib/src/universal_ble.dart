@@ -414,6 +414,12 @@ class UniversalBle {
     );
   }
 
+  /// Clear a queue.
+  /// If [id] is not provided, all queues will be cleared.
+  /// To clear queue for a specific device, use `deviceId` as [id]
+  /// Use [BleCommandQueue.globalQueueId] to clear global queue
+  static void clearQueue([String? id]) => _bleCommandQueue.clearQueue(id);
+
   /// [receivesAdvertisements] returns true on web if the browser supports receiving advertisements from a certain `deviceId`.
   /// The rest of the platforms will always return true.
   /// If true, then you will be getting scanResult updates for this device.
@@ -624,14 +630,6 @@ class UniversalBle {
   /// Get updates of remaining items of a queue.
   static set onQueueUpdate(OnQueueUpdate? onQueueUpdate) =>
       _bleCommandQueue.onQueueUpdate = onQueueUpdate;
-
-  /// Clear a queue.
-  /// If [id] is not provided, all queues will be cleared.
-  /// To clear queue for a specific device, use `deviceId` as [id]
-  /// Use [BleCommandQueue.globalQueueId] to clear global queue
-  static void clearQueue({List<String>? id}) {
-    _bleCommandQueue.clearQueue(id: id);
-  }
 
   /// Get scan results.
   static set onScanResult(OnScanResult? bleDevice) =>
