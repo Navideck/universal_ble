@@ -1,6 +1,7 @@
 ## 0.21.0
 * BREAKING CHANGE: `connectionTimeout` argument from `connect`, `isPaired` and `pair` API renamed to `timeout`
 * Add `timeout` argument to all APIs
+* Add `clearQueue()` API
 
 ## 0.20.2
 * Fix `BleCharacteristic.onValueReceived`
