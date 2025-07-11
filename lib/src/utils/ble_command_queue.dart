@@ -52,15 +52,13 @@ class BleCommandQueue {
     return queue;
   }
 
-  void clearQueue({List<String>? id}) {
+  void clearQueue(String? id) {
     if (id == null) {
       _queueMap.forEach((k, v) => v.dispose());
       _queueMap.clear();
     } else {
-      for (var queueId in id) {
-        _queueMap[queueId]?.dispose();
-        _queueMap.remove(queueId);
-      }
+      _queueMap[id]?.dispose();
+      _queueMap.remove(id);
     }
   }
 }
