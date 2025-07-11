@@ -1,4 +1,7 @@
 ## 0.20.2
+* Add `clearQueue()` API
+
+## 0.20.2
 * Fix `BleCharacteristic.onValueReceived`
 
 ## 0.20.1
