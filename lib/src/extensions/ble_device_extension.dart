@@ -33,12 +33,12 @@ extension BleDeviceExtension on BleDevice {
   /// Note that it will trigger pairing if the device is not already paired.
   Future<bool?> isPaired({
     BleCommand? pairingCommand,
-    Duration? connectionTimeout,
+    Duration? timeout,
   }) {
     return UniversalBle.isPaired(
       deviceId,
       pairingCommand: pairingCommand,
-      connectionTimeout: connectionTimeout,
+      timeout: timeout,
     );
   }
 
@@ -55,26 +55,33 @@ extension BleDeviceExtension on BleDevice {
   /// Can throw `PairingException`, `ConnectionException` or `PlatformException`.
   Future<void> pair({
     BleCommand? pairingCommand,
-    Duration? connectionTimeout,
+    Duration? timeout,
   }) {
     return UniversalBle.pair(
       deviceId,
       pairingCommand: pairingCommand,
-      connectionTimeout: connectionTimeout,
+      timeout: timeout,
     );
   }
 
   /// Unpair a device.
   ///
   /// It might throw an error if device is not paired.
-  Future<void> unpair() => UniversalBle.unpair(deviceId);
+  Future<void> unpair({
+    Duration? timeout,
+  }) =>
+      UniversalBle.unpair(deviceId, timeout: timeout);
 
   /// Discovers the services offered by the device.
   ///
   /// Returns cached services if already discovered after connection.
-  Future<List<BleService>> discoverServices() async {
-    List<BleService> servicesCache =
-        await UniversalBle.discoverServices(deviceId);
+  Future<List<BleService>> discoverServices({
+    Duration? timeout,
+  }) async {
+    List<BleService> servicesCache = await UniversalBle.discoverServices(
+      deviceId,
+      timeout: timeout,
+    );
     CacheHandler.instance.saveServices(deviceId, servicesCache);
     return servicesCache;
   }
@@ -87,13 +94,14 @@ extension BleDeviceExtension on BleDevice {
   Future<BleService> getService(
     String service, {
     bool preferCached = true,
+    Duration? timeout,
   }) async {
     List<BleService> discoveredServices = [];
     if (preferCached) {
       discoveredServices = CacheHandler.instance.getServices(deviceId) ?? [];
     }
     if (discoveredServices.isEmpty) {
-      discoveredServices = await discoverServices();
+      discoveredServices = await discoverServices(timeout: timeout);
     }
 
     if (discoveredServices.isEmpty) {
@@ -118,9 +126,13 @@ extension BleDeviceExtension on BleDevice {
     String characteristic, {
     required String service,
     bool preferCached = true,
+    Duration? timeout,
   }) async {
-    BleService bluetoothService =
-        await getService(service, preferCached: preferCached);
+    BleService bluetoothService = await getService(
+      service,
+      preferCached: preferCached,
+      timeout: timeout,
+    );
     return bluetoothService.getCharacteristic(characteristic);
   }
 }
