@@ -414,6 +414,12 @@ class UniversalBle {
     );
   }
 
+  /// Clear a queue.
+  /// Use [BleCommandQueue.globalQueueId] to clear the global queue.
+  /// To clear the queue of a specific device, use `deviceId` as [id].
+  /// If no [id] is provided, all queues will be cleared.
+  static void clearQueue([String? id]) => _bleCommandQueue.clearQueue(id);
+
   /// [receivesAdvertisements] returns true on web if the browser supports receiving advertisements from a certain `deviceId`.
   /// The rest of the platforms will always return true.
   /// If true, then you will be getting scanResult updates for this device.

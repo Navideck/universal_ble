@@ -420,6 +420,14 @@ UniversalBle.onQueueUpdate = (String id, int remainingItems) {
 };
 ```
 
+To clear the queue:
+```dart
+  /// Use [BleCommandQueue.globalQueueId] to clear the global queue.
+  /// To clear the queue of a specific device, use `deviceId` as [id].
+  /// If no [id] is provided, all queues will be cleared.
+  UniversalBle.clearQueue(BleCommandQueue.globalQueueId);
+```
+
 ## Timeout
 
 By default, all commands have a global timeout of 10 seconds.
