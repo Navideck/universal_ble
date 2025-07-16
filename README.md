@@ -422,7 +422,7 @@ UniversalBle.onQueueUpdate = (String id, int remainingItems) {
 
 ## Timeout
 
-By default, all commands have a timeout of 10 seconds.
+By default, all commands have a global timeout of 10 seconds.
 
 ```dart
 // Change timeout
@@ -431,6 +431,8 @@ UniversalBle.timeout = const Duration(seconds: 10);
 // Disable timeout
 UniversalBle.timeout = null;
 ```
+
+You can also specify the `timeout` parameter when sending a command. This will override the global timeout.
 
 ## UUID Format Agnostic
 
