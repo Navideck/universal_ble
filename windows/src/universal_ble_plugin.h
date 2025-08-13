@@ -108,6 +108,8 @@ namespace universal_ble
         std::unordered_map<uint64_t, std::unique_ptr<BluetoothDeviceAgent>> connected_devices_{};
         ThreadSafeMap<std::string, DeviceInformation> device_watcher_devices_{};
         ThreadSafeMap<std::string, UniversalBleScanResult> scan_results_{};
+        // Maps DeviceInformation.Id() -> MAC address string used as key in device_watcher_devices_
+        ThreadSafeMap<std::string, std::string> device_watcher_id_to_mac_{};
 
         event_token bluetooth_le_watcher_received_token_;
         event_token device_watcher_added_token_;

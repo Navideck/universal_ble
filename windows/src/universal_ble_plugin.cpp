@@ -743,8 +743,16 @@ namespace universal_ble
     /// Device Added from DeviceWatcher
     device_watcher_added_token_ = device_watcher_.Added([this](DeviceWatcher sender, const DeviceInformation& device_info)
                                                   {
-                                                    const std::string device_id = to_string(device_info.Id());
-                                                    device_watcher_devices_.insert_or_assign(device_id, device_info);
+                                                    const auto properties = device_info.Properties();
+                                                    if (!properties.HasKey(device_address_key))
+                                                    {
+                                                      return;
+                                                    }
+                                                    const auto device_address = to_string(properties.Lookup(device_address_key).as<IPropertyValue>().GetString());
+                                                    const std::string device_info_id = to_string(device_info.Id());
+                                                    // Map Id -> MAC and MAC -> DeviceInformation
+                                                    device_watcher_id_to_mac_.insert_or_assign(device_info_id, device_address);
+                                                    device_watcher_devices_.insert_or_assign(device_address, device_info);
                                                     OnDeviceInfoReceived(device_info);
                                                     // On Device Added
                                                   });
@@ -752,13 +760,20 @@ namespace universal_ble
     // Update only if device is already discovered in deviceWatcher.Added
     device_watcher_updated_token_ = device_watcher_.Updated([this](DeviceWatcher sender, const DeviceInformationUpdate& device_info_update)
                                                       {
-                                                        const std::string device_id = to_string(device_info_update.Id());
-                                                        const auto it = device_watcher_devices_.get(device_id);
+                                                        const std::string device_info_id = to_string(device_info_update.Id());
+                                                        // Resolve MAC from Id
+                                                        const auto mac_lookup = device_watcher_id_to_mac_.get(device_info_id);
+                                                        if (!mac_lookup.has_value())
+                                                        {
+                                                          return;
+                                                        }
+                                                        const std::string mac_key = mac_lookup.value();
+                                                        const auto it = device_watcher_devices_.get(mac_key);
                                                         if (it.has_value())
                                                         {
                                                           const auto value = it.value();
                                                           value.Update(device_info_update);
-                                                          device_watcher_devices_.insert_or_assign(device_id, value);
+                                                          device_watcher_devices_.insert_or_assign(mac_key, value);
                                                           OnDeviceInfoReceived(value);
                                                         }
                                                         // On Device Updated
@@ -767,7 +782,13 @@ namespace universal_ble
     device_watcher_removed_token_ = device_watcher_.Removed([this](DeviceWatcher sender, const DeviceInformationUpdate& args)
                                                       {
                                                         const std::string device_id = to_string(args.Id());
-                                                        device_watcher_devices_.remove(device_id);
+                                                        const auto mac_lookup = device_watcher_id_to_mac_.get(device_id);
+                                                        if (mac_lookup.has_value())
+                                                        {
+                                                          const std::string mac_key = mac_lookup.value();
+                                                          device_watcher_devices_.remove(mac_key);
+                                                          device_watcher_id_to_mac_.remove(device_id);
+                                                        }
                                                         // On Device Removed
                                                       });
 
@@ -803,6 +824,7 @@ namespace universal_ble
       }
       device_watcher_ = nullptr;
       device_watcher_devices_.clear();
+      device_watcher_id_to_mac_.clear();
     }
   }
 
