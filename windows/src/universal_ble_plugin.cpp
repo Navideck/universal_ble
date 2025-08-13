@@ -824,6 +824,7 @@ namespace universal_ble
       }
       device_watcher_ = nullptr;
       device_watcher_devices_.clear();
+      device_watcher_id_to_mac_.clear();
     }
   }
 
