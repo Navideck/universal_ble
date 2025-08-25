@@ -394,17 +394,19 @@ class UniversalBleWeb extends UniversalBlePlatform {
       // Add exclusion filters
       for (var exclusionFilter in scanFilter.exclusionFilters) {
         exclusionFilters.add(RequestFilterBuilder(
-          services: exclusionFilter.services,
+          services: exclusionFilter.services.isEmpty
+              ? null
+              : exclusionFilter.services.toValidUUIDList(),
           namePrefix: exclusionFilter.namePrefix,
-          manufacturerData: exclusionFilter.manufacturerDataFilter
-              .map(
-                (e) => ManufacturerDataFilterBuilder(
-                  companyIdentifier: e.companyIdentifier,
-                  dataPrefix: e.payloadPrefix,
-                  mask: e.payloadMask,
-                ),
-              )
-              .toList(),
+          manufacturerData: exclusionFilter.manufacturerDataFilter.isEmpty
+              ? null
+              : exclusionFilter.manufacturerDataFilter.map((e) {
+                  return ManufacturerDataFilterBuilder(
+                    companyIdentifier: e.companyIdentifier,
+                    dataPrefix: e.payloadPrefix,
+                    mask: e.payloadMask,
+                  );
+                }).toList(),
         ));
       }
     }
@@ -412,6 +414,11 @@ class UniversalBleWeb extends UniversalBlePlatform {
     if (optionalServices.isEmpty) {
       UniversalLogger.logError(
         "OptionalServices list is empty on web, you have to specify services in the ScanFilter in order to be able to access those after connecting",
+      );
+    }
+    if (filters.isEmpty && exclusionFilters.isNotEmpty) {
+      UniversalLogger.logError(
+        "ExclusionFilters alone are not supported on web, you have to also specify other filters",
       );
     }
 
@@ -425,7 +432,7 @@ class UniversalBleWeb extends UniversalBlePlatform {
         filters,
         optionalServices: optionalServices,
         optionalManufacturerData: optionalManufacturerData,
-        exclusionFilters: exclusionFilters,
+        exclusionFilters: exclusionFilters.isEmpty ? null : exclusionFilters,
       );
     }
   }
