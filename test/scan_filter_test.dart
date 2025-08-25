@@ -9,7 +9,7 @@ void main() {
   var device1 = BleDevice(
     deviceId: '1',
     name: '1_device',
-    services: ['1_ser'],
+    services: ['20a1'],
     manufacturerDataList: [
       ManufacturerData(0x01, Uint8List.fromList([1, 2, 3])),
     ],
@@ -17,7 +17,7 @@ void main() {
   var device2 = BleDevice(
     deviceId: '2',
     name: '2_device',
-    services: ['2_ser'],
+    services: ['20a2'],
     manufacturerDataList: [
       ManufacturerData(0x02, Uint8List.fromList([1, 2, 3]))
     ],
@@ -25,7 +25,7 @@ void main() {
   var device3 = BleDevice(
     deviceId: '3',
     name: '3_device',
-    services: ['3_ser'],
+    services: ['20a3'],
     manufacturerDataList: [
       ManufacturerData(0x03, Uint8List.fromList([1, 2, 3]))
     ],
@@ -52,7 +52,7 @@ void main() {
 
     test('Test isServicesMatchingFilters', () {
       var scanFilter = ScanFilter(
-        withServices: ['1_ser', 'random', '3_ser'],
+        withServices: ['20a1', '20a6', '20a3'],
       );
       expect(
         universalBleFilter.servicesMatch(scanFilter, device1),
@@ -110,7 +110,7 @@ void main() {
     test('Test filterDevice: Have filter for all', () {
       universalBleFilter.scanFilter = ScanFilter(
         withNamePrefix: ['1'],
-        withServices: ['3_ser'],
+        withServices: ['20a3'],
         withManufacturerData: [
           ManufacturerDataFilter(
             companyIdentifier: 0x02,
@@ -201,7 +201,7 @@ void main() {
       universalBleFilter.scanFilter = ScanFilter(exclusionFilters: [
         ExclusionFilter(
           namePrefix: '1',
-          services: ['1_ser'],
+          services: ['20a1'],
           manufacturerDataFilter: [
             ManufacturerDataFilter(
               companyIdentifier: 0x01,
@@ -227,7 +227,7 @@ void main() {
       universalBleFilter.scanFilter = ScanFilter(exclusionFilters: [
         ExclusionFilter(
           namePrefix: '1',
-          services: ['1_ser'],
+          services: ['20a1'],
           manufacturerDataFilter: [
             ManufacturerDataFilter(
               companyIdentifier: 0x01,
@@ -236,7 +236,7 @@ void main() {
         ),
         ExclusionFilter(
           namePrefix: '2',
-          services: ['2_ser'],
+          services: ['20a2'],
           manufacturerDataFilter: [
             ManufacturerDataFilter(
               companyIdentifier: 0x02,
@@ -262,7 +262,7 @@ void main() {
       universalBleFilter.scanFilter = ScanFilter(exclusionFilters: [
         ExclusionFilter(
           namePrefix: '3',
-          services: ['2_ser'],
+          services: ['20a2'],
           manufacturerDataFilter: [
             ManufacturerDataFilter(
               companyIdentifier: 0x01,
