@@ -15,6 +15,8 @@ class UniversalBleFilterUtil {
     if (exclusionFilters == null || exclusionFilters.isEmpty) return false;
 
     final deviceName = device.name?.toLowerCase() ?? '';
+    final deviceServices = device.services.toValidUUIDList();
+
     for (var filter in exclusionFilters) {
       if (!filter.hasValidFilters) continue;
 
@@ -24,8 +26,7 @@ class UniversalBleFilterUtil {
         if (!deviceName.startsWith(filterNamePrefix)) continue;
       }
       // Check services
-      final filterServices = filter.services;
-      final deviceServices = device.services;
+      final filterServices = filter.services.toValidUUIDList();
       if (filterServices.isNotEmpty &&
           !filterServices.any(deviceServices.contains)) {
         continue;
@@ -73,10 +74,10 @@ class UniversalBleFilterUtil {
   }
 
   bool servicesMatch(ScanFilter scanFilter, BleDevice device) {
-    final serviceFilters = scanFilter.withServices;
+    final serviceFilters = scanFilter.withServices.toValidUUIDList();
     if (serviceFilters.isEmpty) return true;
 
-    final serviceUuids = device.services;
+    final serviceUuids = device.services.toValidUUIDList();
     if (serviceUuids.isEmpty) {
       return false;
     }
