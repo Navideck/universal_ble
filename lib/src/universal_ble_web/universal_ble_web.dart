@@ -348,6 +348,7 @@ class UniversalBleWeb extends UniversalBlePlatform {
     WebOptions? webOptions,
   ) {
     List<RequestFilterBuilder> filters = [];
+    List<RequestFilterBuilder> exclusionFilters = [];
     List<int> optionalManufacturerData = [];
     List<String> optionalServices = [];
 
@@ -389,6 +390,23 @@ class UniversalBleWeb extends UniversalBlePlatform {
       for (var name in scanFilter.withNamePrefix) {
         filters.add(RequestFilterBuilder(namePrefix: name));
       }
+
+      // Add exclusion filters
+      for (var exclusionFilter in scanFilter.exclusionFilters) {
+        exclusionFilters.add(RequestFilterBuilder(
+          services: exclusionFilter.services,
+          namePrefix: exclusionFilter.namePrefix,
+          manufacturerData: exclusionFilter.manufacturerDataFilter
+              .map(
+                (e) => ManufacturerDataFilterBuilder(
+                  companyIdentifier: e.companyIdentifier,
+                  dataPrefix: e.payloadPrefix,
+                  mask: e.payloadMask,
+                ),
+              )
+              .toList(),
+        ));
+      }
     }
 
     if (optionalServices.isEmpty) {
@@ -397,7 +415,7 @@ class UniversalBleWeb extends UniversalBlePlatform {
       );
     }
 
-    if (filters.isEmpty) {
+    if (filters.isEmpty && exclusionFilters.isEmpty) {
       return RequestOptionsBuilder.acceptAllDevices(
         optionalServices: optionalServices,
         optionalManufacturerData: optionalManufacturerData,
@@ -407,6 +425,7 @@ class UniversalBleWeb extends UniversalBlePlatform {
         filters,
         optionalServices: optionalServices,
         optionalManufacturerData: optionalManufacturerData,
+        exclusionFilters: exclusionFilters,
       );
     }
   }

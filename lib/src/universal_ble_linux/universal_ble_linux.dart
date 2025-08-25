@@ -465,7 +465,7 @@ class UniversalBleLinux extends UniversalBlePlatform {
 
   void _onDeviceAdd(BlueZDevice device) {
     BleDevice bleDevice = device.toBleDevice();
-    if (!_bleFilter.matchesDevice(bleDevice)) {
+    if (!_bleFilter.shouldAcceptDevice(bleDevice)) {
       return;
     }
 
@@ -485,7 +485,7 @@ class UniversalBleLinux extends UniversalBlePlatform {
             e.contains(BluezProperty.manufacturerData) ||
             e.contains(BluezProperty.uuids))
         .listen((_) {
-      if (_bleFilter.matchesDevice(bleDevice)) {
+      if (_bleFilter.shouldAcceptDevice(bleDevice)) {
         updateScanResult(device.toBleDevice());
       }
     });
