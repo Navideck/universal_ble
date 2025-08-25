@@ -9,7 +9,7 @@ void main() {
   var device1 = BleDevice(
     deviceId: '1',
     name: '1_device',
-    services: ['1_ser'],
+    services: ['20a1'],
     manufacturerDataList: [
       ManufacturerData(0x01, Uint8List.fromList([1, 2, 3])),
     ],
@@ -17,7 +17,7 @@ void main() {
   var device2 = BleDevice(
     deviceId: '2',
     name: '2_device',
-    services: ['2_ser'],
+    services: ['20a2'],
     manufacturerDataList: [
       ManufacturerData(0x02, Uint8List.fromList([1, 2, 3]))
     ],
@@ -25,7 +25,7 @@ void main() {
   var device3 = BleDevice(
     deviceId: '3',
     name: '3_device',
-    services: ['3_ser'],
+    services: ['20a3'],
     manufacturerDataList: [
       ManufacturerData(0x03, Uint8List.fromList([1, 2, 3]))
     ],
@@ -52,7 +52,7 @@ void main() {
 
     test('Test isServicesMatchingFilters', () {
       var scanFilter = ScanFilter(
-        withServices: ['1_ser', 'random', '3_ser'],
+        withServices: ['20a1', '20a6', '20a3'],
       );
       expect(
         universalBleFilter.servicesMatch(scanFilter, device1),
@@ -84,21 +84,21 @@ void main() {
       ]);
       expect(
         universalBleFilter.manufacturerDataMatches(
-          scanFilter,
+          scanFilter.withManufacturerData,
           device1,
         ),
         isTrue,
       );
       expect(
         universalBleFilter.manufacturerDataMatches(
-          scanFilter,
+          scanFilter.withManufacturerData,
           device2,
         ),
         isTrue,
       );
       expect(
         universalBleFilter.manufacturerDataMatches(
-          scanFilter,
+          scanFilter.withManufacturerData,
           device3,
         ),
         isFalse,
@@ -110,7 +110,7 @@ void main() {
     test('Test filterDevice: Have filter for all', () {
       universalBleFilter.scanFilter = ScanFilter(
         withNamePrefix: ['1'],
-        withServices: ['3_ser'],
+        withServices: ['20a3'],
         withManufacturerData: [
           ManufacturerDataFilter(
             companyIdentifier: 0x02,
@@ -118,15 +118,15 @@ void main() {
         ],
       );
       expect(
-        universalBleFilter.matchesDevice(device1),
+        universalBleFilter.matchedScanFilter(device1),
         isTrue,
       );
       expect(
-        universalBleFilter.matchesDevice(device2),
+        universalBleFilter.matchedScanFilter(device2),
         isTrue,
       );
       expect(
-        universalBleFilter.matchesDevice(device3),
+        universalBleFilter.matchedScanFilter(device3),
         isTrue,
       );
     });
@@ -135,15 +135,15 @@ void main() {
         withNamePrefix: ['1'],
       );
       expect(
-        universalBleFilter.matchesDevice(device1),
+        universalBleFilter.matchedScanFilter(device1),
         isTrue,
       );
       expect(
-        universalBleFilter.matchesDevice(device2),
+        universalBleFilter.matchedScanFilter(device2),
         isFalse,
       );
       expect(
-        universalBleFilter.matchesDevice(device3),
+        universalBleFilter.matchedScanFilter(device3),
         isFalse,
       );
     });
@@ -152,46 +152,143 @@ void main() {
         withNamePrefix: ['1', '2'],
       );
       expect(
-        universalBleFilter.matchesDevice(device1),
+        universalBleFilter.matchedScanFilter(device1),
         isTrue,
       );
       expect(
-        universalBleFilter.matchesDevice(device2),
+        universalBleFilter.matchedScanFilter(device2),
         isTrue,
       );
       expect(
-        universalBleFilter.matchesDevice(device3),
+        universalBleFilter.matchedScanFilter(device3),
         isFalse,
       );
     });
     test('Test filterDevice: Empty Filter', () {
       universalBleFilter.scanFilter = ScanFilter();
       expect(
-        universalBleFilter.matchesDevice(device1),
+        universalBleFilter.matchedScanFilter(device1),
         isTrue,
       );
       expect(
-        universalBleFilter.matchesDevice(device2),
+        universalBleFilter.matchedScanFilter(device2),
         isTrue,
       );
       expect(
-        universalBleFilter.matchesDevice(device3),
+        universalBleFilter.matchedScanFilter(device3),
         isTrue,
       );
     });
     test('Test filterDevice: Null Filter', () {
       universalBleFilter.scanFilter = ScanFilter();
       expect(
-        universalBleFilter.matchesDevice(device1),
+        universalBleFilter.matchedScanFilter(device1),
         isTrue,
       );
       expect(
-        universalBleFilter.matchesDevice(device2),
+        universalBleFilter.matchedScanFilter(device2),
         isTrue,
       );
       expect(
-        universalBleFilter.matchesDevice(device3),
+        universalBleFilter.matchedScanFilter(device3),
         isTrue,
+      );
+    });
+  });
+
+  group("Test Exclusion Filter", () {
+    test('Test exclusionFilter: Have filter for 1', () {
+      universalBleFilter.scanFilter = ScanFilter(exclusionFilters: [
+        ExclusionFilter(
+          namePrefix: '1',
+          services: ['20a1'],
+          manufacturerDataFilter: [
+            ManufacturerDataFilter(
+              companyIdentifier: 0x01,
+            )
+          ],
+        )
+      ]);
+      expect(
+        universalBleFilter.matchesExclusionFilter(device1),
+        isTrue,
+      );
+      expect(
+        universalBleFilter.matchesExclusionFilter(device2),
+        isFalse,
+      );
+      expect(
+        universalBleFilter.matchesExclusionFilter(device3),
+        isFalse,
+      );
+    });
+
+    test('Test exclusionFilter: Filter for two', () {
+      universalBleFilter.scanFilter = ScanFilter(exclusionFilters: [
+        ExclusionFilter(
+          namePrefix: '1',
+          services: ['20a1'],
+          manufacturerDataFilter: [
+            ManufacturerDataFilter(
+              companyIdentifier: 0x01,
+            )
+          ],
+        ),
+        ExclusionFilter(
+          namePrefix: '2',
+          services: ['20a2'],
+          manufacturerDataFilter: [
+            ManufacturerDataFilter(
+              companyIdentifier: 0x02,
+            )
+          ],
+        ),
+      ]);
+      expect(
+        universalBleFilter.matchesExclusionFilter(device1),
+        isTrue,
+      );
+      expect(
+        universalBleFilter.matchesExclusionFilter(device2),
+        isTrue,
+      );
+      expect(
+        universalBleFilter.matchesExclusionFilter(device3),
+        isFalse,
+      );
+    });
+
+    test('Test exclusionFilter: Invalid filter for last', () {
+      universalBleFilter.scanFilter = ScanFilter(exclusionFilters: [
+        ExclusionFilter(
+          namePrefix: '3',
+          services: ['20a2'],
+          manufacturerDataFilter: [
+            ManufacturerDataFilter(
+              companyIdentifier: 0x01,
+            )
+          ],
+        ),
+      ]);
+      expect(
+        universalBleFilter.matchesExclusionFilter(device1),
+        isFalse,
+      );
+      expect(
+        universalBleFilter.matchesExclusionFilter(device2),
+        isFalse,
+      );
+      expect(
+        universalBleFilter.matchesExclusionFilter(device3),
+        isFalse,
+      );
+    });
+
+    test('Test exclusionFilter: Empty Filter', () {
+      universalBleFilter.scanFilter = ScanFilter();
+      expect(
+        universalBleFilter.matchesExclusionFilter(device1),
+        isFalse,
       );
     });
   });

@@ -1,12 +1,14 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:universal_ble/src/universal_ble_pigeon/universal_ble.g.dart';
+import 'package:universal_ble/src/utils/universal_ble_filter_util.dart';
 import 'package:universal_ble/universal_ble.dart';
 
 class UniversalBlePigeonChannel extends UniversalBlePlatform {
   static UniversalBlePigeonChannel? _instance;
   static UniversalBlePigeonChannel get instance =>
       _instance ??= UniversalBlePigeonChannel._();
+  late final UniversalBleFilterUtil _bleFilter = UniversalBleFilterUtil();
 
   UniversalBlePigeonChannel._() {
     _setupListeners();
@@ -42,6 +44,7 @@ class UniversalBlePigeonChannel extends UniversalBlePlatform {
     PlatformConfig? platformConfig,
   }) async {
     await _ensureInitialized();
+    _bleFilter.scanFilter = scanFilter;
     await _channel.startScan(
       scanFilter.toUniversalScanFilter(),
     );
@@ -136,7 +139,12 @@ class UniversalBlePigeonChannel extends UniversalBlePlatform {
   /// To set listeners
   void _setupListeners() {
     UniversalBleCallbackChannel.setUp(_UniversalBleCallbackHandler(
-      scanResult: updateScanResult,
+      scanResult: (bleDevice) {
+        // Only check for exclusion filter here,
+        // scan filter handled natively on platform side
+        if (_bleFilter.matchesExclusionFilter(bleDevice)) return;
+        updateScanResult(bleDevice);
+      },
       availabilityChange: updateAvailability,
       connectionChanged: updateConnection,
       valueChanged: updateCharacteristicValue,
