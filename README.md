@@ -74,6 +74,14 @@ UniversalBle.startScan(
     withServices: ["SERVICE_UUID"],
     withManufacturerData: [ManufacturerDataFilter(companyIdentifier: 0x004c)],
     withNamePrefix: ["NAME_PREFIX"],
+    // Exclusion filters to exclude specific devices from scan results
+    exclusionFilters: [
+        ExclusionFilter(
+          namePrefix: 'EXCLUDED_NAME',
+          services: ['EXCLUDED_SERVICE_UUID'],
+          manufacturerDataFilter: [ManufacturerDataFilter(companyIdentifier: 0x004c)],
+        ),
+    ]
   )
 );
 
