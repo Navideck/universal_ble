@@ -1,6 +1,7 @@
 ## 0.21.1
 * Fix device name resolution on Windows
 * Add `exclusionFilters` to filter out devices from scan results
+* Fix crash when unpairing device while scanning
 
 ## 0.21.0
 * BREAKING CHANGE: `connectionTimeout` argument from `connect`, `isPaired` and `pair` API renamed to `timeout`
