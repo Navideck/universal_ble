@@ -156,7 +156,7 @@ List<String> withNamePrefix;
 
 ##### Exclusion Filter
 
-Exclusion filters to exclude specific devices from scan results
+Use exclusion filters to exclude specific devices from scan results:
 
 ```dart
 exclusionFilters: [
