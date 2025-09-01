@@ -830,39 +830,46 @@ namespace universal_ble
 
   void UniversalBlePlugin::OnDeviceInfoReceived(const DeviceInformation& device_info)
   {
-    const auto properties = device_info.Properties();
-
-    // Avoid devices if not connectable or if deviceAddressKey is not present
-    if (!(properties.HasKey(is_connectable_key) && (properties.Lookup(is_connectable_key).as<IPropertyValue>()).GetBoolean()) || !properties.HasKey(device_address_key))
-      return;
-
-    const auto bluetooth_address_property_value = properties.Lookup(device_address_key).as<IPropertyValue>();
-    const std::string device_address = to_string(bluetooth_address_property_value.GetString());
-
-    // Update device info if already discovered in advertisementWatcher
-    if (scan_results_.get(device_address).has_value())
+    try
     {
-      bool is_paired = device_info.Pairing().IsPaired();
-      if (properties.HasKey(is_paired_key))
+      const auto properties = device_info.Properties();
+
+      // Avoid devices if not connectable or if deviceAddressKey is not present
+      if (!(properties.HasKey(is_connectable_key) && (properties.Lookup(is_connectable_key).as<IPropertyValue>()).GetBoolean()) || !properties.HasKey(device_address_key))
+        return;
+
+      const auto bluetooth_address_property_value = properties.Lookup(device_address_key).as<IPropertyValue>();
+      const std::string device_address = to_string(bluetooth_address_property_value.GetString());
+
+      // Update device info if already discovered in advertisementWatcher
+      if (scan_results_.get(device_address).has_value())
       {
-        const auto is_paired_property_value = properties.Lookup(is_paired_key).as<IPropertyValue>();
-        is_paired = is_paired_property_value.GetBoolean();
+        bool is_paired = device_info.Pairing().IsPaired();
+        if (properties.HasKey(is_paired_key))
+        {
+          const auto is_paired_property_value = properties.Lookup(is_paired_key).as<IPropertyValue>();
+          is_paired = is_paired_property_value.GetBoolean();
+        }
+
+        UniversalBleScanResult universal_scan_result(device_address);
+        universal_scan_result.set_is_paired(is_paired);
+
+        if (!device_info.Name().empty())
+          universal_scan_result.set_name(to_string(device_info.Name()));
+
+        if (properties.HasKey(signal_strength_key))
+        {
+          const auto rssi_property_value = properties.Lookup(signal_strength_key).as<IPropertyValue>();
+          const int16_t rssi = rssi_property_value.GetInt16();
+          universal_scan_result.set_rssi(rssi);
+        }
+
+        PushUniversalScanResult(universal_scan_result, true);
       }
-
-      UniversalBleScanResult universal_scan_result(device_address);
-      universal_scan_result.set_is_paired(is_paired);
-
-      if (!device_info.Name().empty())
-        universal_scan_result.set_name(to_string(device_info.Name()));
-
-      if (properties.HasKey(signal_strength_key))
-      {
-        const auto rssi_property_value = properties.Lookup(signal_strength_key).as<IPropertyValue>();
-        const int16_t rssi = rssi_property_value.GetInt16();
-        universal_scan_result.set_rssi(rssi);
-      }
-
-      PushUniversalScanResult(universal_scan_result, true);
+    }
+    catch (...)
+    {
+      std::cout << "DeviceWatcherErrorInParsing" << std::endl;
     }
   }
 
@@ -873,7 +880,9 @@ namespace universal_ble
     {
       auto device_id = mac_address_to_str(args.BluetoothAddress());
       auto universal_scan_result = UniversalBleScanResult(device_id);
-      std::string name = to_string(args.Advertisement().LocalName());
+      std::string name = "";
+      if (args.Advertisement() != nullptr)
+        name = to_string(args.Advertisement().LocalName());
 
       auto manufacturer_data_encodable_list = flutter::EncodableList();
       if (args.Advertisement() != nullptr)
@@ -885,19 +894,22 @@ namespace universal_ble
         }
       }
 
-      auto data_section = args.Advertisement().DataSections();
-      for (auto &&data : data_section)
+      if (args.Advertisement() != nullptr)
       {
-        auto data_bytes = to_bytevc(data.Data());
-        // Use CompleteName from dataType if localName is empty
-        if (name.empty() && data.DataType() == static_cast<uint8_t>(AdvertisementSectionType::CompleteLocalName))
+        auto data_section = args.Advertisement().DataSections();
+        for (auto &&data : data_section)
         {
-          name = std::string(data_bytes.begin(), data_bytes.end());
-        }
-        // Use ShortenedLocalName from dataType if localName is empty
-        else if (name.empty() && data.DataType() == static_cast<uint8_t>(AdvertisementSectionType::ShortenedLocalName))
-        {
-          name = std::string(data_bytes.begin(), data_bytes.end());
+          auto data_bytes = to_bytevc(data.Data());
+          // Use CompleteName from dataType if localName is empty
+          if (name.empty() && data.DataType() == static_cast<uint8_t>(AdvertisementSectionType::CompleteLocalName))
+          {
+            name = std::string(data_bytes.begin(), data_bytes.end());
+          }
+          // Use ShortenedLocalName from dataType if localName is empty
+          else if (name.empty() && data.DataType() == static_cast<uint8_t>(AdvertisementSectionType::ShortenedLocalName))
+          {
+            name = std::string(data_bytes.begin(), data_bytes.end());
+          }
         }
       }
 
@@ -914,27 +926,37 @@ namespace universal_ble
       universal_scan_result.set_rssi(args.RawSignalStrengthInDBm());
 
       // Add services
-      auto services = flutter::EncodableList();
-      for (auto &&uuid : args.Advertisement().ServiceUuids())
-        services.push_back(guid_to_uuid(uuid));
-      universal_scan_result.set_services(services);
+      if (args.Advertisement() != nullptr)
+      {
+        auto services = flutter::EncodableList();
+        for (auto &&uuid : args.Advertisement().ServiceUuids())
+          services.push_back(guid_to_uuid(uuid));
+        universal_scan_result.set_services(services);
+      }
 
       // check if this device already discovered in deviceWatcher
       auto it = device_watcher_devices_.get(device_id);
       if (it.has_value())
       {
-        auto &device_info = it.value();
-        auto properties = device_info.Properties();
+        try
+        {
+          auto &device_info = it.value();
+          auto properties = device_info.Properties();
 
-        // Update Paired Status
-        bool is_paired = device_info.Pairing().IsPaired();
-        if (properties.HasKey(is_paired_key))
-          is_paired = (properties.Lookup(is_paired_key).as<IPropertyValue>()).GetBoolean();
-        universal_scan_result.set_is_paired(is_paired);
+          // Update Paired Status
+          bool is_paired = device_info.Pairing().IsPaired();
+          if (properties.HasKey(is_paired_key))
+            is_paired = (properties.Lookup(is_paired_key).as<IPropertyValue>()).GetBoolean();
+          universal_scan_result.set_is_paired(is_paired);
 
-        // Update Name
-        if (name.empty() && !device_info.Name().empty())
-          universal_scan_result.set_name(to_string(device_info.Name()));
+          // Update Name
+          if (name.empty() && !device_info.Name().empty())
+            universal_scan_result.set_name(to_string(device_info.Name()));
+        }
+        catch (...)
+        {
+          // Ignore errors from accessing stale DeviceInformation
+        }
       }
 
       // Filter Device
