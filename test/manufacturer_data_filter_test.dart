@@ -27,7 +27,10 @@ void main() {
         services: [],
       );
 
-      expect(filterUtil.manufacturerDataMatches(scanFilter, device), true);
+      expect(
+          filterUtil.manufacturerDataMatches(
+              scanFilter.withManufacturerData, device),
+          true);
     });
 
     test('should not match when device has no manufacturer data', () {
@@ -46,7 +49,10 @@ void main() {
         services: [],
       );
 
-      expect(filterUtil.manufacturerDataMatches(scanFilter, device), false);
+      expect(
+          filterUtil.manufacturerDataMatches(
+              scanFilter.withManufacturerData, device),
+          false);
     });
 
     test(
@@ -69,7 +75,10 @@ void main() {
         services: [],
       );
 
-      expect(filterUtil.manufacturerDataMatches(scanFilter, device), true);
+      expect(
+          filterUtil.manufacturerDataMatches(
+              scanFilter.withManufacturerData, device),
+          true);
     });
 
     group('Payload Prefix Tests', () {
@@ -94,7 +103,10 @@ void main() {
           services: [],
         );
 
-        expect(filterUtil.manufacturerDataMatches(scanFilter, device), true);
+        expect(
+            filterUtil.manufacturerDataMatches(
+                scanFilter.withManufacturerData, device),
+            true);
       });
 
       test('should match with multiple manufacturer data entries', () {
@@ -119,7 +131,10 @@ void main() {
           services: [],
         );
 
-        expect(filterUtil.manufacturerDataMatches(scanFilter, device), true);
+        expect(
+            filterUtil.manufacturerDataMatches(
+                scanFilter.withManufacturerData, device),
+            true);
       });
     });
 
@@ -146,7 +161,10 @@ void main() {
           services: [],
         );
 
-        expect(filterUtil.manufacturerDataMatches(scanFilter, device), true);
+        expect(
+            filterUtil.manufacturerDataMatches(
+                scanFilter.withManufacturerData, device),
+            true);
       });
 
       test('should not match when masked values are different', () {
@@ -171,7 +189,10 @@ void main() {
           services: [],
         );
 
-        expect(filterUtil.manufacturerDataMatches(scanFilter, device), false);
+        expect(
+            filterUtil.manufacturerDataMatches(
+                scanFilter.withManufacturerData, device),
+            false);
       });
     });
   });

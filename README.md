@@ -154,6 +154,20 @@ Use the `withNamePrefix` parameter to filter devices by names (case sensitive). 
 List<String> withNamePrefix;
 ```
 
+##### Exclusion Filter
+
+Use exclusion filters to exclude specific devices from scan results:
+
+```dart
+exclusionFilters: [
+    ExclusionFilter(
+      namePrefix: 'EXCLUDED_NAME',
+      services: ['EXCLUDED_SERVICE_UUID'],
+      manufacturerDataFilter: [ManufacturerDataFilter(companyIdentifier: 0x004c)],
+    ),
+]
+```
+
 ### Connecting
 
 #### Connect

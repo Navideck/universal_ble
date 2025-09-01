@@ -348,6 +348,7 @@ class UniversalBleWeb extends UniversalBlePlatform {
     WebOptions? webOptions,
   ) {
     List<RequestFilterBuilder> filters = [];
+    List<RequestFilterBuilder> exclusionFilters = [];
     List<int> optionalManufacturerData = [];
     List<String> optionalServices = [];
 
@@ -389,6 +390,25 @@ class UniversalBleWeb extends UniversalBlePlatform {
       for (var name in scanFilter.withNamePrefix) {
         filters.add(RequestFilterBuilder(namePrefix: name));
       }
+
+      // Add exclusion filters
+      for (var exclusionFilter in scanFilter.exclusionFilters) {
+        exclusionFilters.add(RequestFilterBuilder(
+          services: exclusionFilter.services.isEmpty
+              ? null
+              : exclusionFilter.services.toValidUUIDList(),
+          namePrefix: exclusionFilter.namePrefix,
+          manufacturerData: exclusionFilter.manufacturerDataFilter.isEmpty
+              ? null
+              : exclusionFilter.manufacturerDataFilter.map((e) {
+                  return ManufacturerDataFilterBuilder(
+                    companyIdentifier: e.companyIdentifier,
+                    dataPrefix: e.payloadPrefix,
+                    mask: e.payloadMask,
+                  );
+                }).toList(),
+        ));
+      }
     }
 
     if (optionalServices.isEmpty) {
@@ -396,8 +416,13 @@ class UniversalBleWeb extends UniversalBlePlatform {
         "OptionalServices list is empty on web, you have to specify services in the ScanFilter in order to be able to access those after connecting",
       );
     }
+    if (filters.isEmpty && exclusionFilters.isNotEmpty) {
+      UniversalLogger.logError(
+        "Web platform requires inclusion filters when using exclusion filters. Please add withServices, withNamePrefix, or withManufacturerData filters.",
+      );
+    }
 
-    if (filters.isEmpty) {
+    if (filters.isEmpty && exclusionFilters.isEmpty) {
       return RequestOptionsBuilder.acceptAllDevices(
         optionalServices: optionalServices,
         optionalManufacturerData: optionalManufacturerData,
@@ -407,6 +432,7 @@ class UniversalBleWeb extends UniversalBlePlatform {
         filters,
         optionalServices: optionalServices,
         optionalManufacturerData: optionalManufacturerData,
+        exclusionFilters: exclusionFilters.isEmpty ? null : exclusionFilters,
       );
     }
   }
