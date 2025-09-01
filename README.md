@@ -74,14 +74,6 @@ UniversalBle.startScan(
     withServices: ["SERVICE_UUID"],
     withManufacturerData: [ManufacturerDataFilter(companyIdentifier: 0x004c)],
     withNamePrefix: ["NAME_PREFIX"],
-    // Exclusion filters to exclude specific devices from scan results
-    exclusionFilters: [
-        ExclusionFilter(
-          namePrefix: 'EXCLUDED_NAME',
-          services: ['EXCLUDED_SERVICE_UUID'],
-          manufacturerDataFilter: [ManufacturerDataFilter(companyIdentifier: 0x004c)],
-        ),
-    ]
   )
 );
 
@@ -160,6 +152,20 @@ Use the `withNamePrefix` parameter to filter devices by names (case sensitive). 
 
 ```dart
 List<String> withNamePrefix;
+```
+
+##### Exclusion Filter
+
+Exclusion filters to exclude specific devices from scan results
+
+```dart
+exclusionFilters: [
+    ExclusionFilter(
+      namePrefix: 'EXCLUDED_NAME',
+      services: ['EXCLUDED_SERVICE_UUID'],
+      manufacturerDataFilter: [ManufacturerDataFilter(companyIdentifier: 0x004c)],
+    ),
+]
 ```
 
 ### Connecting
