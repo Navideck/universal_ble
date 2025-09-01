@@ -33,5 +33,5 @@ class ExclusionFilter {
   bool get hasValidFilters =>
       services.isNotEmpty ||
       manufacturerDataFilter.isNotEmpty ||
-      namePrefix != null;
+      (namePrefix?.isNotEmpty ?? false);
 }

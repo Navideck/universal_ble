@@ -418,7 +418,7 @@ class UniversalBleWeb extends UniversalBlePlatform {
     }
     if (filters.isEmpty && exclusionFilters.isNotEmpty) {
       UniversalLogger.logError(
-        "ExclusionFilters alone are not supported on web, you have to also specify other filters",
+        "Web platform requires inclusion filters when using exclusion filters. Please add withServices, withNamePrefix, or withManufacturerData filters.",
       );
     }
 
