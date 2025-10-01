@@ -48,7 +48,7 @@ class BleDevice {
       other is BleDevice && other.deviceId == deviceId;
 
   @override
-  int get hashCode => deviceId.hashCode;
+  int get hashCode => Object.hash(runtimeType, deviceId);
 
   @override
   String toString() {
