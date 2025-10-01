@@ -44,8 +44,13 @@ class BleDevice {
   }
 
   @override
-  bool operator ==(Object other) =>
-      other is BleDevice && other.deviceId == deviceId;
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+
+    return other is BleDevice &&
+        runtimeType == other.runtimeType &&
+        other.deviceId == deviceId;
+  }
 
   @override
   int get hashCode => Object.hash(runtimeType, deviceId);
