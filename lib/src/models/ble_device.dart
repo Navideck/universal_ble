@@ -44,6 +44,13 @@ class BleDevice {
   }
 
   @override
+  bool operator ==(Object other) =>
+      other is BleDevice && other.deviceId == deviceId;
+
+  @override
+  int get hashCode => deviceId.hashCode;
+
+  @override
   String toString() {
     return 'BleDevice: '
         'deviceId: $deviceId, '
