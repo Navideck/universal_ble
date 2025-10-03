@@ -632,8 +632,8 @@ class UniversalBle {
       _bleCommandQueue.onQueueUpdate = onQueueUpdate;
 
   /// Get scan results.
-  static set onScanResult(OnScanResult? bleDevice) =>
-      _platform.onScanResult = bleDevice;
+  static set onScanResult(OnScanResult? onScanResult) =>
+      _platform.onScanResult = onScanResult;
 
   /// Get connection state changes.
   static set onConnectionChange(OnConnectionChange? onConnectionChange) =>
