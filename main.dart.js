@@ -26000,7 +26000,7 @@ $S:2}
 A.aqe.prototype={
 $1(a){var s=A.de().b
 s=s==null?null:s.canvasKitBaseUrl
-return(s==null?"https://www.gstatic.com/flutter-canvaskit/a8bfdfc394deaed5c57bd45a64ac4294dc976a72/":s)+a},
+return(s==null?"https://www.gstatic.com/flutter-canvaskit/d3d45dcf251823c1769909cd43698d126db38deb/":s)+a},
 $S:33}
 A.Zu.prototype={
 eC(a,b){var s,r=this.a
@@ -66795,7 +66795,7 @@ r=l.p4
 r.toString
 j.Ah(s,r,m)
 break
-case 2:l.r4()
+case 2:if(l.a.d.gbk())l.r4()
 if(l.p2!=null&&l.p4!=null){l.id.su(0,0)
 j=l.id
 j.z=B.ax
