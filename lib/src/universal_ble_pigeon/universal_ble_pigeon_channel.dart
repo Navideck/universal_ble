@@ -1,5 +1,4 @@
 import 'package:flutter/foundation.dart';
-import 'package:flutter/services.dart';
 import 'package:universal_ble/src/universal_ble_pigeon/universal_ble.g.dart';
 import 'package:universal_ble/src/utils/error_mapper.dart';
 import 'package:universal_ble/src/utils/universal_ble_filter_util.dart';
@@ -19,7 +18,7 @@ class UniversalBlePigeonChannel extends UniversalBlePlatform {
 
   @override
   Future<AvailabilityState> getBluetoothAvailabilityState() async {
-    int state = await _channel.getBluetoothAvailabilityState();
+    int state = await _wrapFuture(_channel.getBluetoothAvailabilityState());
     return AvailabilityState.parse(state);
   }
 
@@ -157,6 +156,8 @@ class UniversalBlePigeonChannel extends UniversalBlePlatform {
     ));
   }
 
+  /// Wraps a future with error handling
+  /// It will throw UniversalBleException if the future throws an error
   Future<T> _wrapFuture<T>(Future<T> future) {
     return future.toUniversalBleError();
   }

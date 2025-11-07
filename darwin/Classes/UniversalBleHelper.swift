@@ -146,7 +146,7 @@ func mapErrorCodeToEnum(_ code: String) -> UniversalBleErrorCode {
 }
 
 /// Creates a PigeonError with the error code enum in details
-func createPigeonError(
+func createFlutterError(
     code: UniversalBleErrorCode,
     message: String? = nil,
     details: String? = nil
@@ -160,12 +160,12 @@ func createPigeonError(
 }
 
 extension Error {
-    func toPigeonError() -> PigeonError {
+    func toFlutterError() -> PigeonError {
         let nsError = self as NSError
         let errorCode: String = .init(nsError.code)
         let errorDescription: String = nsError.localizedDescription
         let mappedCode = mapErrorCodeToEnum(errorCode)
-        return createPigeonError(code: mappedCode, message: errorDescription, details: errorCode)
+        return createFlutterError(code: mappedCode, message: errorDescription, details: errorCode)
     }
 }
 
