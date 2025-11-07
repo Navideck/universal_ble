@@ -27,22 +27,25 @@ abstract class UniversalBleException implements Exception {
   factory UniversalBleException.fromPlatformException(
     PlatformException error,
   ) {
-    // Check if error code is already a UniversalBleErrorCode (from native side)
     UniversalBleErrorCode errorCode;
-    if (error.details is int) {
-      // Pigeon sends enum as int
+
+    int? errorCodeInt = int.tryParse(error.code);
+    if (errorCodeInt != null) {
+      errorCode = UniversalBleErrorCode.values[errorCodeInt];
+    } else if (error.details is int) {
       try {
         errorCode = UniversalBleErrorCode.values[error.details as int];
       } catch (e) {
         errorCode = ErrorMapper.fromPlatformException(error);
       }
-    } else {
+    }
+    // TODO: improve this
+    else {
       // Fallback to parsing for non-Pigeon platforms (Linux, Web)
       errorCode = ErrorMapper.fromPlatformException(error);
     }
 
     final message = error.message ?? (error.details?.toString()) ?? error.code;
-
     return _createExceptionFromCode(
       errorCode,
       message,

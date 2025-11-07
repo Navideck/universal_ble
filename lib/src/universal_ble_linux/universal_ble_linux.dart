@@ -8,6 +8,7 @@ import 'package:universal_ble/src/utils/error_mapper.dart';
 import 'package:universal_ble/src/universal_ble_pigeon/universal_ble.g.dart';
 import 'package:universal_ble/src/universal_ble_platform_interface.dart';
 import 'package:universal_ble/src/utils/universal_logger.dart';
+import 'package:universal_ble/src/universal_ble_exceptions.dart';
 
 class UniversalBleLinux extends UniversalBlePlatform {
   UniversalBleLinux._();
@@ -182,10 +183,9 @@ class UniversalBleLinux extends UniversalBlePlatform {
     await Future.delayed(const Duration(seconds: 1));
 
     if (device.gattServices.isEmpty && !device.servicesResolved) {
-      throw PlatformException(
-        code: UniversalBleErrorCode.failed.name,
-        message: "Failed to resolve services",
-        details: UniversalBleErrorCode.failed.index,
+      throw UniversalBleException.fromErrorCode(
+        UniversalBleErrorCode.failed,
+        "Failed to resolve services",
       );
     }
 
@@ -223,10 +223,9 @@ class UniversalBleLinux extends UniversalBlePlatform {
         orElse: () => null);
 
     if (c == null) {
-      throw PlatformException(
-        code: UniversalBleErrorCode.characteristicNotFound.name,
-        message: 'Unknown characteristic:$characteristic',
-        details: UniversalBleErrorCode.characteristicNotFound.index,
+      throw UniversalBleException.fromErrorCode(
+        UniversalBleErrorCode.characteristicNotFound,
+        'Unknown characteristic:$characteristic',
       );
     }
     return c;
@@ -289,18 +288,8 @@ class UniversalBleLinux extends UniversalBlePlatform {
       final data = await c.readValue();
       return Uint8List.fromList(data);
     } on BlueZFailedException catch (e) {
-      // Map BlueZ error code to UniversalBleErrorCode
-      final errorCode = e.errorCode;
-      final mappedCode = errorCode != null 
-          ? (int.tryParse(errorCode) != null 
-              ? ErrorMapper.fromNumericCode(int.parse(errorCode))
-              : ErrorMapper.fromStringCode(errorCode))
-          : UniversalBleErrorCode.readFailed;
-      
-      throw PlatformException(
-        code: mappedCode.name,
-        message: e.message,
-        details: mappedCode.index, // Pass enum index for consistency
+      throw e.toUniversalBleException(
+        defaultCode: UniversalBleErrorCode.readFailed,
       );
     }
   }
@@ -326,18 +315,8 @@ class UniversalBleLinux extends UniversalBlePlatform {
         );
       }
     } on BlueZFailedException catch (e) {
-      // Map BlueZ error code to UniversalBleErrorCode
-      final errorCode = e.errorCode;
-      final mappedCode = errorCode != null 
-          ? (int.tryParse(errorCode) != null 
-              ? ErrorMapper.fromNumericCode(int.parse(errorCode))
-              : ErrorMapper.fromStringCode(errorCode))
-          : UniversalBleErrorCode.writeFailed;
-      
-      throw PlatformException(
-        code: mappedCode.name,
-        message: e.message,
-        details: mappedCode.index, // Pass enum index for consistency
+      throw e.toUniversalBleException(
+        defaultCode: UniversalBleErrorCode.writeFailed,
       );
     }
   }
@@ -346,10 +325,9 @@ class UniversalBleLinux extends UniversalBlePlatform {
   Future<int> requestMtu(String deviceId, int expectedMtu) async {
     final device = _findDeviceById(deviceId);
     if (!device.connected) {
-      throw PlatformException(
-        code: UniversalBleErrorCode.deviceDisconnected.name,
-        message: 'Device not connected',
-        details: UniversalBleErrorCode.deviceDisconnected.index,
+      throw UniversalBleException.fromErrorCode(
+        UniversalBleErrorCode.deviceDisconnected,
+        'Device not connected',
       );
     }
     for (BlueZGattService service in device.gattServices) {
@@ -359,10 +337,9 @@ class UniversalBleLinux extends UniversalBlePlatform {
         if (mtu != null) return mtu - 3;
       }
     }
-    throw PlatformException(
-      code: UniversalBleErrorCode.operationNotSupported.name,
-      message: 'MTU not available',
-      details: UniversalBleErrorCode.operationNotSupported.index,
+    throw UniversalBleException.fromErrorCode(
+      UniversalBleErrorCode.operationNotSupported,
+      'MTU not available',
     );
   }
 
@@ -431,10 +408,9 @@ class UniversalBleLinux extends UniversalBlePlatform {
             (device) => device?.address == deviceId,
             orElse: () => null);
     if (device == null) {
-      throw PlatformException(
-        code: UniversalBleErrorCode.deviceNotFound.name,
-        message: 'Unknown deviceId:$deviceId',
-        details: UniversalBleErrorCode.deviceNotFound.index,
+      throw UniversalBleException.fromErrorCode(
+        UniversalBleErrorCode.deviceNotFound,
+        'Unknown deviceId:$deviceId',
       );
     }
     return device;
@@ -501,10 +477,9 @@ class UniversalBleLinux extends UniversalBlePlatform {
     }
 
     if (client.adapters.isEmpty) {
-      throw PlatformException(
-        code: UniversalBleErrorCode.bluetoothNotAvailable.name,
-        message: 'Bluetooth adapter unavailable',
-        details: UniversalBleErrorCode.bluetoothNotAvailable.index,
+      throw UniversalBleException.fromErrorCode(
+        UniversalBleErrorCode.bluetoothNotAvailable,
+        'Bluetooth adapter unavailable',
       );
     }
   }
@@ -630,6 +605,30 @@ extension on BlueZGattCharacteristicFlag {
 }
 
 extension on BlueZFailedException {
+  UniversalBleException toUniversalBleException({
+    required UniversalBleErrorCode defaultCode,
+  }) {
+    // Map BlueZ error code to UniversalBleErrorCode
+    final errorCode = this.errorCode;
+    // TODO: test this if we are getting error code as Int or not
+    UniversalBleErrorCode code = UniversalBleErrorCode.unknownError;
+    if (errorCode != null) {
+      if (int.tryParse(errorCode) != null) {
+        code = ErrorMapper.fromNumericCode(int.parse(errorCode));
+      } else {
+        code = ErrorMapper.fromStringCode(errorCode);
+      }
+    }
+    if (code == UniversalBleErrorCode.unknownError) {
+      code = defaultCode;
+    }
+    throw UniversalBleException.fromErrorCode(
+      code,
+      message,
+      details: errorCode,
+    );
+  }
+
   /// Extract error code from message and parse into decimal
   /// example: 'Operation failed with ATT error: 0x90' => 144
   String? get errorCode {
