@@ -1,8 +1,10 @@
 #include "Utils.h"
+#include "generated/universal_ble.g.h"
 
 #include <iomanip>
 #include <iostream>
 #include <sstream>
+#include <algorithm>
 #include <windows.h>
 #include <stdio.h>
 #include <sdkddkver.h>
@@ -156,6 +158,82 @@ namespace universal_ble
 
         // Windows 11 => MajorVersion = 10 and BuildNumber >= 22000
         return rove.dwMajorVersion == 10 && rove.dwBuildNumber >= 22000;
+    }
+
+    UniversalBleErrorCode map_error_code_to_enum(const std::string& code)
+    {
+        std::string lower_code = code;
+        std::transform(lower_code.begin(), lower_code.end(), lower_code.begin(), ::tolower);
+        
+        if (lower_code == "notsupported" || lower_code == "not_supported")
+            return UniversalBleErrorCode::kNotSupported;
+        if (lower_code == "notimplemented" || lower_code == "not_implemented")
+            return UniversalBleErrorCode::kNotImplemented;
+        if (lower_code == "channel-error" || lower_code == "channelerror")
+            return UniversalBleErrorCode::kChannelError;
+        if (lower_code == "failed")
+            return UniversalBleErrorCode::kFailed;
+        if (lower_code == "bluetoothnotavailable" || lower_code == "bluetooth_not_available")
+            return UniversalBleErrorCode::kBluetoothNotAvailable;
+        if (lower_code == "bluetoothnotenabled" || lower_code == "bluetooth_not_enabled")
+            return UniversalBleErrorCode::kBluetoothNotEnabled;
+        if (lower_code == "devicedisconnected" || lower_code == "device_disconnected")
+            return UniversalBleErrorCode::kDeviceDisconnected;
+        if (lower_code == "illegalargument" || lower_code == "illegal_argument")
+            return UniversalBleErrorCode::kIllegalArgument;
+        if (lower_code == "invalidaction" || lower_code == "invalid_action")
+            return UniversalBleErrorCode::kInvalidAction;
+        if (lower_code == "devicenotfound" || lower_code == "device_not_found")
+            return UniversalBleErrorCode::kDeviceNotFound;
+        if (lower_code == "servicenotfound" || lower_code == "service_not_found")
+            return UniversalBleErrorCode::kServiceNotFound;
+        if (lower_code == "characteristicnotfound" || lower_code == "characteristic_not_found")
+            return UniversalBleErrorCode::kCharacteristicNotFound;
+        if (lower_code == "invalidserviceuuid" || lower_code == "invalid_service_uuid")
+            return UniversalBleErrorCode::kInvalidServiceUuid;
+        if (lower_code == "readfailed" || lower_code == "read_failed")
+            return UniversalBleErrorCode::kReadFailed;
+        if (lower_code == "writefailed" || lower_code == "write_failed")
+            return UniversalBleErrorCode::kWriteFailed;
+        if (lower_code == "notpaired" || lower_code == "not_paired")
+            return UniversalBleErrorCode::kNotPaired;
+        if (lower_code == "notpairable" || lower_code == "not_pairable")
+            return UniversalBleErrorCode::kNotPairable;
+        if (lower_code == "alreadyinprogress" || lower_code == "already_in_progress")
+            return UniversalBleErrorCode::kOperationInProgress;
+        if (lower_code == "stopping scan in progress" || lower_code == "stoppingscaninprogress")
+            return UniversalBleErrorCode::kStoppingScanInProgress;
+        
+        return UniversalBleErrorCode::kUnknownError;
+    }
+
+    UniversalBleErrorCode map_gatt_status_to_enum(const std::optional<std::string>& error)
+    {
+        if (!error.has_value())
+            return UniversalBleErrorCode::kUnknownError;
+        
+        std::string lower_error = error.value();
+        std::transform(lower_error.begin(), lower_error.end(), lower_error.begin(), ::tolower);
+        
+        // Consolidated: Windows-specific GATT errors -> failed
+        if (lower_error == "unreachable" || 
+            lower_error == "protocolerror" || lower_error == "protocol_error" ||
+            lower_error == "accessdenied" || lower_error == "access_denied")
+            return UniversalBleErrorCode::kFailed;
+        
+        return UniversalBleErrorCode::kFailed;
+    }
+
+    FlutterError create_flutter_error(
+        UniversalBleErrorCode code,
+        const std::string& message,
+        const std::string& details
+    )
+    {
+        // Pass the enum's underlying integer value as string in code, and enum name or details in details
+        std::string code_str = std::to_string(static_cast<int>(code));
+        std::string details_str = details.empty() ? std::to_string(static_cast<int>(code)) : details;
+        return FlutterError(code_str, message, details_str);
     }
 
 } // namespace universal_ble

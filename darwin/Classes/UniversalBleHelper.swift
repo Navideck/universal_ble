@@ -103,12 +103,69 @@ extension CBManagerState {
     }
 }
 
+/// Maps string error codes to UniversalBleErrorCode enum
+func mapErrorCodeToEnum(_ code: String) -> UniversalBleErrorCode {
+    switch code.lowercased() {
+    case "notsupported", "not_supported":
+        return .notSupported
+    case "notimplemented", "not_implemented":
+        return .notImplemented
+    case "channel-error", "channelerror":
+        return .channelError
+    case "failed":
+        return .failed
+    case "devicedisconnected", "device_disconnected":
+        return .deviceDisconnected
+    case "illegalargument", "illegal_argument":
+        return .illegalArgument
+    case "invalidaction", "invalid_action":
+        return .invalidAction
+    case "readfailed", "read_failed":
+        return .readFailed
+    case "devicenotfound", "device_not_found":
+        return .deviceNotFound
+    case "servicenotfound", "service_not_found":
+        return .serviceNotFound
+    case "characteristicnotfound", "characteristic_not_found":
+        return .characteristicNotFound
+    case "invalidserviceuuid", "invalid_service_uuid":
+        return .invalidServiceUuid
+    case "characteristicdoesnotsupportread":
+        return .characteristicDoesNotSupportRead
+    case "characteristicdoesnotsupportwrite":
+        return .characteristicDoesNotSupportWrite
+    case "characteristicdoesnotsupportwritewithoutresponse":
+        return .characteristicDoesNotSupportWriteWithoutResponse
+    case "characteristicdoesnotsupportnotify":
+        return .characteristicDoesNotSupportNotify
+    case "characteristicdoesnotsupportindicate":
+        return .characteristicDoesNotSupportIndicate
+    default:
+        return .unknownError
+    }
+}
+
+/// Creates a PigeonError with the error code enum in details
+func createPigeonError(
+    code: UniversalBleErrorCode,
+    message: String? = nil,
+    details: String? = nil
+) -> PigeonError {
+    // Pass the enum's rawValue (Int) in code as string, and enum name in details
+    return PigeonError(
+        code: code.rawValue.description,
+        message: message,
+        details: details ?? code.rawValue
+    )
+}
+
 extension Error {
     func toPigeonError() -> PigeonError {
         let nsError = self as NSError
         let errorCode: String = .init(nsError.code)
         let errorDescription: String = nsError.localizedDescription
-        return PigeonError(code: errorCode, message: errorDescription, details: nil)
+        let mappedCode = mapErrorCodeToEnum(errorCode)
+        return createPigeonError(code: mappedCode, message: errorDescription, details: errorCode)
     }
 }
 

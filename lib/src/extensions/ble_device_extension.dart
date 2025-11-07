@@ -105,12 +105,12 @@ extension BleDeviceExtension on BleDevice {
     }
 
     if (discoveredServices.isEmpty) {
-      throw ServiceNotFoundException('No services found');
+      throw ServiceNotFoundException.fromMessage('No services found');
     }
 
     return discoveredServices.firstWhere(
       (s) => BleUuidParser.compareStrings(s.uuid, service),
-      orElse: () => throw ServiceNotFoundException(
+      orElse: () => throw ServiceNotFoundException.fromMessage(
         'Service "$service" not available',
       ),
     );

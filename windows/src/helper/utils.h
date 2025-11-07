@@ -8,6 +8,7 @@
 #include "winrt/Windows.Storage.Streams.h"
 #include "winrt/base.h"
 #include "universal_ble_base.h"
+#include "generated/universal_ble.g.h"
 
 constexpr uint32_t TEN_SECONDS_IN_MSECS = 10000;
 
@@ -27,6 +28,19 @@ namespace universal_ble
     std::string to_uuidstr(guid guid);
     bool is_little_endian();
     bool is_windows11_or_greater();
+
+    /// Maps string error codes to UniversalBleErrorCode enum
+    UniversalBleErrorCode map_error_code_to_enum(const std::string& code);
+
+    /// Maps GATT communication status to UniversalBleErrorCode enum
+    UniversalBleErrorCode map_gatt_status_to_enum(const std::optional<std::string>& error);
+
+    /// Creates a FlutterError with the error code enum in details
+    FlutterError create_flutter_error(
+        UniversalBleErrorCode code,
+        const std::string& message = "",
+        const std::string& details = ""
+    );
 
     /// To call async functions synchronously
     template <typename AsyncT>

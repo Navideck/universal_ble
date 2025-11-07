@@ -4,6 +4,8 @@ import 'package:bluez/bluez.dart';
 import 'package:flutter/services.dart';
 import 'package:universal_ble/src/models/model_exports.dart';
 import 'package:universal_ble/src/utils/universal_ble_filter_util.dart';
+import 'package:universal_ble/src/utils/error_mapper.dart';
+import 'package:universal_ble/src/universal_ble_pigeon/universal_ble.g.dart';
 import 'package:universal_ble/src/universal_ble_platform_interface.dart';
 import 'package:universal_ble/src/utils/universal_logger.dart';
 
@@ -180,7 +182,11 @@ class UniversalBleLinux extends UniversalBlePlatform {
     await Future.delayed(const Duration(seconds: 1));
 
     if (device.gattServices.isEmpty && !device.servicesResolved) {
-      throw "Failed to resolve services";
+      throw PlatformException(
+        code: UniversalBleErrorCode.failed.name,
+        message: "Failed to resolve services",
+        details: UniversalBleErrorCode.failed.index,
+      );
     }
 
     List<BleService> services = [];
@@ -217,7 +223,11 @@ class UniversalBleLinux extends UniversalBlePlatform {
         orElse: () => null);
 
     if (c == null) {
-      throw Exception('Unknown characteristic:$characteristic');
+      throw PlatformException(
+        code: UniversalBleErrorCode.characteristicNotFound.name,
+        message: 'Unknown characteristic:$characteristic',
+        details: UniversalBleErrorCode.characteristicNotFound.index,
+      );
     }
     return c;
   }
@@ -279,9 +289,18 @@ class UniversalBleLinux extends UniversalBlePlatform {
       final data = await c.readValue();
       return Uint8List.fromList(data);
     } on BlueZFailedException catch (e) {
+      // Map BlueZ error code to UniversalBleErrorCode
+      final errorCode = e.errorCode;
+      final mappedCode = errorCode != null 
+          ? (int.tryParse(errorCode) != null 
+              ? ErrorMapper.fromNumericCode(int.parse(errorCode))
+              : ErrorMapper.fromStringCode(errorCode))
+          : UniversalBleErrorCode.readFailed;
+      
       throw PlatformException(
-        code: e.errorCode ?? "ReadFailed",
+        code: mappedCode.name,
         message: e.message,
+        details: mappedCode.index, // Pass enum index for consistency
       );
     }
   }
@@ -307,9 +326,18 @@ class UniversalBleLinux extends UniversalBlePlatform {
         );
       }
     } on BlueZFailedException catch (e) {
+      // Map BlueZ error code to UniversalBleErrorCode
+      final errorCode = e.errorCode;
+      final mappedCode = errorCode != null 
+          ? (int.tryParse(errorCode) != null 
+              ? ErrorMapper.fromNumericCode(int.parse(errorCode))
+              : ErrorMapper.fromStringCode(errorCode))
+          : UniversalBleErrorCode.writeFailed;
+      
       throw PlatformException(
-        code: e.errorCode ?? "WriteFailed",
+        code: mappedCode.name,
         message: e.message,
+        details: mappedCode.index, // Pass enum index for consistency
       );
     }
   }
@@ -317,7 +345,13 @@ class UniversalBleLinux extends UniversalBlePlatform {
   @override
   Future<int> requestMtu(String deviceId, int expectedMtu) async {
     final device = _findDeviceById(deviceId);
-    if (!device.connected) throw Exception('Device not connected');
+    if (!device.connected) {
+      throw PlatformException(
+        code: UniversalBleErrorCode.deviceDisconnected.name,
+        message: 'Device not connected',
+        details: UniversalBleErrorCode.deviceDisconnected.index,
+      );
+    }
     for (BlueZGattService service in device.gattServices) {
       for (BlueZGattCharacteristic characteristic in service.characteristics) {
         int? mtu = characteristic.mtu;
@@ -325,7 +359,11 @@ class UniversalBleLinux extends UniversalBlePlatform {
         if (mtu != null) return mtu - 3;
       }
     }
-    throw Exception('MTU not available');
+    throw PlatformException(
+      code: UniversalBleErrorCode.operationNotSupported.name,
+      message: 'MTU not available',
+      details: UniversalBleErrorCode.operationNotSupported.index,
+    );
   }
 
   @override
@@ -393,7 +431,11 @@ class UniversalBleLinux extends UniversalBlePlatform {
             (device) => device?.address == deviceId,
             orElse: () => null);
     if (device == null) {
-      throw Exception('Unknown deviceId:$deviceId');
+      throw PlatformException(
+        code: UniversalBleErrorCode.deviceNotFound.name,
+        message: 'Unknown deviceId:$deviceId',
+        details: UniversalBleErrorCode.deviceNotFound.index,
+      );
     }
     return device;
   }
@@ -459,7 +501,11 @@ class UniversalBleLinux extends UniversalBlePlatform {
     }
 
     if (client.adapters.isEmpty) {
-      throw Exception('Bluetooth adapter unavailable');
+      throw PlatformException(
+        code: UniversalBleErrorCode.bluetoothNotAvailable.name,
+        message: 'Bluetooth adapter unavailable',
+        details: UniversalBleErrorCode.bluetoothNotAvailable.index,
+      );
     }
   }
 

@@ -2,11 +2,8 @@ package com.navideck.universal_ble
 
 import android.annotation.SuppressLint
 import android.bluetooth.le.ScanFilter
-import android.bluetooth.le.ScanResult
 import android.os.ParcelUuid
 import android.util.Log
-import java.nio.ByteBuffer
-import java.nio.ByteOrder
 import java.util.UUID
 import kotlin.experimental.and
 
@@ -46,7 +43,7 @@ class UniversalBleFilterUtil {
     }
 
     private fun isNameMatchingFilters(scanFilter: UniversalScanFilter, name: String?): Boolean {
-        val namePrefixFilter = scanFilter.withNamePrefix.filterNotNull()
+        val namePrefixFilter = scanFilter.withNamePrefix
         if (namePrefixFilter.isEmpty()) {
             return true
         }
@@ -74,7 +71,7 @@ class UniversalBleFilterUtil {
         scanFilter: UniversalScanFilter,
         manufacturerDataList: List<UniversalManufacturerData>,
     ): Boolean {
-        val filters = scanFilter.withManufacturerData.filterNotNull()
+        val filters = scanFilter.withManufacturerData
         if (filters.isEmpty()) return true
         if (manufacturerDataList.isEmpty()) return false
         return manufacturerDataList.any { msd ->
@@ -122,8 +119,8 @@ fun UniversalScanFilter.toScanFilters(serviceUuids: List<UUID>): List<ScanFilter
             }
         } catch (e: Exception) {
             Log.e(TAG, e.toString())
-            throw FlutterError(
-                "illegalIllegalArgument",
+            throw createFlutterError(
+                UniversalBleErrorCode.INVALID_SERVICE_UUID,
                 "Invalid serviceId: $service",
                 e.toString()
             )
@@ -133,7 +130,7 @@ fun UniversalScanFilter.toScanFilters(serviceUuids: List<UUID>): List<ScanFilter
     // Add ManufacturerData Filter
     for (manufacturerData in this.withManufacturerData) {
         try {
-            manufacturerData?.companyIdentifier?.let {
+            manufacturerData.companyIdentifier.let {
                 val data: ByteArray = manufacturerData.data ?: ByteArray(0)
                 val mask: ByteArray? = manufacturerData.mask
                 if (mask == null) {
@@ -152,9 +149,9 @@ fun UniversalScanFilter.toScanFilters(serviceUuids: List<UUID>): List<ScanFilter
             }
         } catch (e: Exception) {
             Log.e(TAG, e.toString())
-            throw FlutterError(
-                "illegalIllegalArgument",
-                "Invalid manufacturerData: ${manufacturerData?.companyIdentifier} ${manufacturerData?.data} ${manufacturerData?.mask}",
+            throw createFlutterError(
+                UniversalBleErrorCode.FAILED,
+                "Invalid manufacturerData: ${manufacturerData.companyIdentifier} ${manufacturerData.data} ${manufacturerData.mask}",
                 e.toString()
             )
         }

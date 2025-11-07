@@ -2,8 +2,10 @@ import 'dart:async';
 import 'dart:collection';
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_web_bluetooth/flutter_web_bluetooth.dart';
 import 'package:universal_ble/src/utils/universal_logger.dart';
+import 'package:universal_ble/src/universal_ble_pigeon/universal_ble.g.dart';
 import 'package:universal_ble/universal_ble.dart';
 
 class UniversalBleWeb extends UniversalBlePlatform {
@@ -35,7 +37,13 @@ class UniversalBleWeb extends UniversalBlePlatform {
     Duration? connectionTimeout = const Duration(seconds: 10),
   }) async {
     var device = _getDeviceById(deviceId);
-    if (device == null) throw "$deviceId Not Found";
+    if (device == null) {
+      throw PlatformException(
+        code: UniversalBleErrorCode.deviceNotFound.name,
+        message: "$deviceId Not Found",
+        details: UniversalBleErrorCode.deviceNotFound.index,
+      );
+    }
     await device.connect(timeout: connectionTimeout);
 
     // Subscribe to Connection Stream
@@ -154,8 +162,10 @@ class UniversalBleWeb extends UniversalBlePlatform {
     );
 
     if (bleCharacteristic == null) {
-      throw Exception(
-        'Characteristic $characteristic for service $service not found',
+      throw PlatformException(
+        code: UniversalBleErrorCode.characteristicNotFound.name,
+        message: 'Characteristic $characteristic for service $service not found',
+        details: UniversalBleErrorCode.characteristicNotFound.index,
       );
     }
 
@@ -195,8 +205,10 @@ class UniversalBleWeb extends UniversalBlePlatform {
     );
 
     if (bleCharacteristic == null) {
-      throw Exception(
-        'Characteristic $characteristic for service $service not found',
+      throw PlatformException(
+        code: UniversalBleErrorCode.characteristicNotFound.name,
+        message: 'Characteristic $characteristic for service $service not found',
+        details: UniversalBleErrorCode.characteristicNotFound.index,
       );
     }
 
@@ -233,29 +245,49 @@ class UniversalBleWeb extends UniversalBlePlatform {
   /// `Unimplemented`
   @override
   Future<int> requestMtu(String deviceId, int expectedMtu) {
-    throw UnimplementedError();
+    throw PlatformException(
+      code: UniversalBleErrorCode.notImplemented.name,
+      message: "requestMtu is not implemented on Web platform",
+      details: UniversalBleErrorCode.notImplemented.index,
+    );
   }
 
   @override
   Future<bool> isPaired(String deviceId) {
-    throw UnimplementedError();
+    throw PlatformException(
+      code: UniversalBleErrorCode.notImplemented.name,
+      message: "isPaired is not implemented on Web platform",
+      details: UniversalBleErrorCode.notImplemented.index,
+    );
   }
 
   @override
   Future<bool> pair(String deviceId) {
-    throw UnimplementedError();
+    throw PlatformException(
+      code: UniversalBleErrorCode.notImplemented.name,
+      message: "pair is not implemented on Web platform",
+      details: UniversalBleErrorCode.notImplemented.index,
+    );
   }
 
   @override
   Future<void> unpair(String deviceId) {
-    throw UnimplementedError();
+    throw PlatformException(
+      code: UniversalBleErrorCode.notImplemented.name,
+      message: "unpair is not implemented on Web platform",
+      details: UniversalBleErrorCode.notImplemented.index,
+    );
   }
 
   @override
   Future<List<BleDevice>> getSystemDevices(
     List<String>? withServices,
   ) {
-    throw UnimplementedError();
+    throw PlatformException(
+      code: UniversalBleErrorCode.notImplemented.name,
+      message: "getSystemDevices is not implemented on Web platform",
+      details: UniversalBleErrorCode.notImplemented.index,
+    );
   }
 
   /// Helpers
@@ -335,12 +367,20 @@ class UniversalBleWeb extends UniversalBlePlatform {
 
   @override
   Future<bool> enableBluetooth() {
-    throw UnimplementedError();
+    throw PlatformException(
+      code: UniversalBleErrorCode.notImplemented.name,
+      message: "enableBluetooth is not implemented on Web platform",
+      details: UniversalBleErrorCode.notImplemented.index,
+    );
   }
 
   @override
   Future<bool> disableBluetooth() {
-    throw UnimplementedError();
+    throw PlatformException(
+      code: UniversalBleErrorCode.notImplemented.name,
+      message: "disableBluetooth is not implemented on Web platform",
+      details: UniversalBleErrorCode.notImplemented.index,
+    );
   }
 
   RequestOptionsBuilder _getRequestOptionBuilder(
