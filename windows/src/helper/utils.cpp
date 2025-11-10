@@ -163,7 +163,8 @@ namespace universal_ble
     UniversalBleErrorCode map_error_code_to_enum(const std::string& code)
     {
         std::string lower_code = code;
-        std::transform(lower_code.begin(), lower_code.end(), lower_code.begin(), ::tolower);
+        std::transform(lower_code.begin(), lower_code.end(), lower_code.begin(), 
+            [](char c) { return static_cast<char>(::tolower(c)); });
         
         if (lower_code == "notsupported" || lower_code == "not_supported")
             return UniversalBleErrorCode::kNotSupported;
@@ -213,7 +214,8 @@ namespace universal_ble
             return UniversalBleErrorCode::kUnknownError;
         
         std::string lower_error = error.value();
-        std::transform(lower_error.begin(), lower_error.end(), lower_error.begin(), ::tolower);
+        std::transform(lower_error.begin(), lower_error.end(), lower_error.begin(), 
+            [](char c) { return static_cast<char>(::tolower(c)); });
         
         // Consolidated: Windows-specific GATT errors -> failed
         if (lower_error == "unreachable" || 
