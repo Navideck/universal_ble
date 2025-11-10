@@ -1,5 +1,5 @@
-#include "Utils.h"
-#include "generated/universal_ble.g.h"
+#include "utils.h"
+#include "../generated/universal_ble.g.h"
 
 #include <iomanip>
 #include <iostream>
