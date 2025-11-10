@@ -26000,7 +26000,7 @@ $S:2}
 A.aqe.prototype={
 $1(a){var s=A.de().b
 s=s==null?null:s.canvasKitBaseUrl
-return(s==null?"https://www.gstatic.com/flutter-canvaskit/d3d45dcf251823c1769909cd43698d126db38deb/":s)+a},
+return(s==null?"https://www.gstatic.com/flutter-canvaskit/035316565ad77281a75305515e4682e6c4c6f7ca/":s)+a},
 $S:33}
 A.Zu.prototype={
 eC(a,b){var s,r=this.a
