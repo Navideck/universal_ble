@@ -1,6 +1,5 @@
 import 'package:flutter/foundation.dart';
 import 'package:universal_ble/src/universal_ble_pigeon/universal_ble.g.dart';
-import 'package:universal_ble/src/utils/error_mapper.dart';
 import 'package:universal_ble/src/utils/universal_ble_filter_util.dart';
 import 'package:universal_ble/universal_ble.dart';
 
@@ -18,7 +17,8 @@ class UniversalBlePigeonChannel extends UniversalBlePlatform {
 
   @override
   Future<AvailabilityState> getBluetoothAvailabilityState() async {
-    int state = await _wrapFuture(_channel.getBluetoothAvailabilityState());
+    int state =
+        await _wrapFuture(() => _channel.getBluetoothAvailabilityState());
     return AvailabilityState.parse(state);
   }
 
@@ -27,7 +27,7 @@ class UniversalBlePigeonChannel extends UniversalBlePlatform {
     if (!BleCapabilities.supportsBluetoothEnableApi) {
       throw UnsupportedError("Not supported");
     }
-    return _wrapFuture(_channel.enableBluetooth());
+    return _wrapFuture(() => _channel.enableBluetooth());
   }
 
   @override
@@ -35,7 +35,7 @@ class UniversalBlePigeonChannel extends UniversalBlePlatform {
     if (!BleCapabilities.supportsBluetoothEnableApi) {
       throw UnsupportedError("Not supported");
     }
-    return _wrapFuture(_channel.disableBluetooth());
+    return _wrapFuture(() => _channel.disableBluetooth());
   }
 
   @override
@@ -45,32 +45,32 @@ class UniversalBlePigeonChannel extends UniversalBlePlatform {
   }) async {
     await _ensureInitialized();
     _bleFilter.scanFilter = scanFilter;
-    await _wrapFuture(_channel.startScan(
-      scanFilter.toUniversalScanFilter(),
-    ));
+    await _wrapFuture(() => _channel.startScan(
+          scanFilter.toUniversalScanFilter(),
+        ));
   }
 
   @override
-  Future<void> stopScan() => _wrapFuture(_channel.stopScan());
+  Future<void> stopScan() => _wrapFuture(() => _channel.stopScan());
 
   @override
   Future<BleConnectionState> getConnectionState(String deviceId) async {
-    int state = await _wrapFuture(_channel.getConnectionState(deviceId));
+    int state = await _wrapFuture(() => _channel.getConnectionState(deviceId));
     return BleConnectionState.parse(state);
   }
 
   @override
   Future<void> connect(String deviceId, {Duration? connectionTimeout}) =>
-      _wrapFuture(_channel.connect(deviceId));
+      _wrapFuture(() => _channel.connect(deviceId));
 
   @override
   Future<void> disconnect(String deviceId) =>
-      _wrapFuture(_channel.disconnect(deviceId));
+      _wrapFuture(() => _channel.disconnect(deviceId));
 
   @override
   Future<List<BleService>> discoverServices(String deviceId) async {
     List<UniversalBleService?> universalBleServices =
-        await _wrapFuture(_channel.discoverServices(deviceId));
+        await _wrapFuture(() => _channel.discoverServices(deviceId));
     return List<BleService>.from(universalBleServices
         .where((e) => e != null)
         .map((e) => e!.toBleService(deviceId))
@@ -80,12 +80,12 @@ class UniversalBlePigeonChannel extends UniversalBlePlatform {
   @override
   Future<void> setNotifiable(String deviceId, String service,
       String characteristic, BleInputProperty bleInputProperty) {
-    return _wrapFuture(_channel.setNotifiable(
-      deviceId,
-      service,
-      characteristic,
-      bleInputProperty.index,
-    ));
+    return _wrapFuture(() => _channel.setNotifiable(
+          deviceId,
+          service,
+          characteristic,
+          bleInputProperty.index,
+        ));
   }
 
   @override
@@ -95,7 +95,8 @@ class UniversalBlePigeonChannel extends UniversalBlePlatform {
     String characteristic, {
     final Duration? timeout,
   }) {
-    return _wrapFuture(_channel.readValue(deviceId, service, characteristic));
+    return _wrapFuture(
+        () => _channel.readValue(deviceId, service, characteristic));
   }
 
   @override
@@ -105,36 +106,37 @@ class UniversalBlePigeonChannel extends UniversalBlePlatform {
       String characteristic,
       Uint8List value,
       BleOutputProperty bleOutputProperty) {
-    return _wrapFuture(_channel.writeValue(
-      deviceId,
-      service,
-      characteristic,
-      value,
-      bleOutputProperty.index,
-    ));
+    return _wrapFuture(() => _channel.writeValue(
+          deviceId,
+          service,
+          characteristic,
+          value,
+          bleOutputProperty.index,
+        ));
   }
 
   @override
   Future<int> requestMtu(String deviceId, int expectedMtu) =>
-      _wrapFuture(_channel.requestMtu(deviceId, expectedMtu));
+      _wrapFuture(() => _channel.requestMtu(deviceId, expectedMtu));
 
   @override
   Future<bool> isPaired(String deviceId) =>
-      _wrapFuture(_channel.isPaired(deviceId));
+      _wrapFuture(() => _channel.isPaired(deviceId));
 
   @override
-  Future<bool> pair(String deviceId) => _wrapFuture(_channel.pair(deviceId));
+  Future<bool> pair(String deviceId) =>
+      _wrapFuture(() => _channel.pair(deviceId));
 
   @override
   Future<void> unpair(String deviceId) =>
-      _wrapFuture(_channel.unPair(deviceId));
+      _wrapFuture(() => _channel.unPair(deviceId));
 
   @override
   Future<List<BleDevice>> getSystemDevices(
     List<String>? withServices,
   ) async {
     var devices =
-        await _wrapFuture(_channel.getSystemDevices(withServices ?? []));
+        await _wrapFuture(() => _channel.getSystemDevices(withServices ?? []));
     return List<BleDevice>.from(
       devices.map((e) => e.toBleDevice(isSystemDevice: true)).toList(),
     );
@@ -158,8 +160,12 @@ class UniversalBlePigeonChannel extends UniversalBlePlatform {
 
   /// Wraps a future with error handling
   /// It will throw UniversalBleException if the future throws an error
-  Future<T> _wrapFuture<T>(Future<T> future) {
-    return future.toUniversalBleError();
+  Future<T> _wrapFuture<T>(Future<T> Function() future) async {
+    try {
+      return await future();
+    } catch (error) {
+      throw UniversalBleException.fromError(error);
+    }
   }
 
   Future<void> _ensureInitialized() async {
@@ -170,12 +176,12 @@ class UniversalBlePigeonChannel extends UniversalBlePlatform {
       AvailabilityState state = await getBluetoothAvailabilityState();
       switch (state) {
         case AvailabilityState.unauthorized:
-          throw UniversalBleExceptionImpl(
+          throw UniversalBleException(
             code: UniversalBleErrorCode.bluetoothUnauthorized,
             message: "Not authorized to access Bluetooth",
           );
         case AvailabilityState.unsupported:
-          throw UniversalBleExceptionImpl(
+          throw UniversalBleException(
             code: UniversalBleErrorCode.notSupported,
             message: "Bluetooth is not supported",
           );

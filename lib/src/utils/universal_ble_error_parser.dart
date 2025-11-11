@@ -1,77 +1,37 @@
 import 'package:flutter/services.dart';
 import 'package:universal_ble/src/universal_ble_pigeon/universal_ble.g.dart';
-import 'package:universal_ble/universal_ble.dart';
 
-// TODO: improve this..
-extension UniversalBleErrorMapper<T> on Future<T> {
-  Future<T> toUniversalBleError() {
-    return catchError((error, stack) {
-      if (error is UniversalBleException) {
-        throw error;
-      }
-      if (error is PlatformException) {
-        throw UniversalBleException.fromPlatformException(error);
-      }
-      if (error is String) {
-        throw ErrorMapper.fromStringCode(error);
-      }
-      if (error is int) {
-        throw ErrorMapper.fromNumericCode(error);
-      }
-      throw UniversalBleException.fromError(error);
-    });
-  }
-}
+/// Utility class to parse error codes from dynamic errors
+class UniversalBleErrorParser {
+  static UniversalBleErrorCode getCode(dynamic error) {
+    if (error is UniversalBleErrorCode) return error;
 
-/// Maps platform-specific error codes and messages to unified error codes
-class ErrorMapper {
-  /// Maps a PlatformException to a UniversalBleErrorCode
-  static UniversalBleErrorCode fromPlatformException(PlatformException error) {
-    final code = error.code;
-    final message = error.message ?? '';
-
-    // Try to map by code first
-    final codeMapping = _mapErrorCode(code);
-    if (codeMapping != null) {
-      return codeMapping;
+    if (error is PlatformException) {
+      int? errorCodeInt = int.tryParse((error).code);
+      if (errorCodeInt != null) {
+        return UniversalBleErrorCode.values[errorCodeInt];
+      }
     }
 
-    // Try to map by message
-    final messageMapping = _mapErrorMessage(message);
-    if (messageMapping != null) {
-      return messageMapping;
+    if (error is num) {
+      return _parseNumericErrorCode((error).toInt());
     }
 
-    // Default to unknown error
-    return UniversalBleErrorCode.unknownError;
-  }
-
-  /// Maps a string error code to UniversalBleErrorCode
-  static UniversalBleErrorCode fromStringCode(String code, {String? message}) {
-    // Try code mapping first
-    final codeMapping = _mapErrorCode(code);
-    if (codeMapping != null) {
-      return codeMapping;
-    }
-
-    // Try message mapping if provided
-    if (message != null) {
-      final messageMapping = _mapErrorMessage(message);
-      if (messageMapping != null) {
-        return messageMapping;
+    if (error is String) {
+      int? errorCodeInt = int.tryParse(error);
+      if (errorCodeInt != null) {
+        return _parseNumericErrorCode(errorCodeInt);
+      } else {
+        return _parseStringErrorCode(error) ??
+            UniversalBleErrorCode.unknownError;
       }
     }
 
     return UniversalBleErrorCode.unknownError;
   }
 
-  static UniversalBleErrorCode fromNumericCode(int code) =>
-      _mapNumericErrorCode(code);
-
-  /// Maps error code string to UniversalBleErrorCode
-  static UniversalBleErrorCode? _mapErrorCode(String code) {
+  static UniversalBleErrorCode? _parseStringErrorCode(String code) {
     switch (code.toLowerCase()) {
-      // General errors
       case 'notsupported':
       case 'not_supported':
         return UniversalBleErrorCode.notSupported;
@@ -83,7 +43,6 @@ class ErrorMapper {
         return UniversalBleErrorCode.channelError;
       case 'failed':
         return UniversalBleErrorCode.failed;
-      // Bluetooth availability
       case 'bluetoothnotavailable':
       case 'bluetooth_not_available':
         return UniversalBleErrorCode.bluetoothNotAvailable;
@@ -96,8 +55,6 @@ class ErrorMapper {
       case 'bluetoothunauthorized':
       case 'bluetooth_unauthorized':
         return UniversalBleErrorCode.bluetoothUnauthorized;
-
-      // Connection errors
       case 'devicedisconnected':
       case 'device_disconnected':
         return UniversalBleErrorCode.deviceDisconnected;
@@ -117,8 +74,6 @@ class ErrorMapper {
       case 'connectionterminated':
       case 'connection_terminated':
         return UniversalBleErrorCode.connectionTerminated;
-
-      // Device/Service/Characteristic errors
       case 'illegalargument':
       case 'illegal_argument':
         return UniversalBleErrorCode.illegalArgument;
@@ -137,8 +92,6 @@ class ErrorMapper {
       case 'invalidcharacteristicuuid':
       case 'invalid_characteristic_uuid':
         return UniversalBleErrorCode.invalidCharacteristicUuid;
-
-      // Operation errors
       case 'readfailed':
       case 'read_failed':
         return UniversalBleErrorCode.readFailed;
@@ -163,8 +116,6 @@ class ErrorMapper {
       case 'alreadyinprogress':
       case 'already_in_progress':
         return UniversalBleErrorCode.operationInProgress;
-
-      // Pairing errors
       case 'notpaired':
       case 'not_paired':
         return UniversalBleErrorCode.notPaired;
@@ -189,13 +140,11 @@ class ErrorMapper {
       case 'authenticationfailure':
       case 'authentication_failure':
         return UniversalBleErrorCode.authenticationFailure;
-      // Consolidated: authenticationTimeout and authenticationNotAllowed -> authenticationFailure
       case 'authenticationtimeout':
       case 'authentication_timeout':
       case 'authenticationnotallowed':
       case 'authentication_not_allowed':
         return UniversalBleErrorCode.authenticationFailure;
-      // Consolidated: hardwareFailure, tooManyConnections, notReadyToPair, etc. -> pairingFailed
       case 'hardwarefailure':
       case 'hardware_failure':
       case 'toomanyconnections':
@@ -216,8 +165,6 @@ class ErrorMapper {
       case 'protectionlevelcouldnotbemet':
       case 'protection_level_could_not_be_met':
         return UniversalBleErrorCode.protectionLevelNotMet;
-
-      // Unpairing errors
       case 'unpairingfailed':
       case 'unpairing_failed':
         return UniversalBleErrorCode.unpairingFailed;
@@ -227,8 +174,6 @@ class ErrorMapper {
       case 'accessdenied':
       case 'access_denied':
         return UniversalBleErrorCode.accessDenied;
-
-      // Scan errors - all consolidated to scanFailed
       case 'scan_failed_already_started':
       case 'scanfailedalreadystarted':
       case 'scan_failed_application_registration_failed':
@@ -245,8 +190,6 @@ class ErrorMapper {
       case 'stoppingscaninprogress':
       case 'stopping_scan_in_progress':
         return UniversalBleErrorCode.stoppingScanInProgress;
-
-      // GATT errors - all consolidated to common errors
       case 'gatt_failure':
       case 'gattfailure':
       case 'unreachable':
@@ -259,15 +202,12 @@ class ErrorMapper {
       case 'gatt_insufficient_resources':
       case 'gattinsufficientresources':
         return UniversalBleErrorCode.failed;
-      // Consolidated: gattReadNotPermitted -> readNotPermitted
       case 'gatt_read_not_permitted':
       case 'gattreadnotpermitted':
         return UniversalBleErrorCode.readNotPermitted;
-      // Consolidated: gattWriteNotPermitted -> writeNotPermitted
       case 'gatt_write_not_permitted':
       case 'gattwritenotpermitted':
         return UniversalBleErrorCode.writeNotPermitted;
-      // Consolidated: gattInsufficient* -> insufficient*
       case 'gatt_insufficient_authentication':
       case 'gattinsufficientauthentication':
         return UniversalBleErrorCode.insufficientAuthentication;
@@ -280,18 +220,15 @@ class ErrorMapper {
       case 'gatt_insufficient_key_size':
       case 'gattinsufficientkeysize':
         return UniversalBleErrorCode.insufficientKeySize;
-      // Consolidated: gattRequestNotSupported -> operationNotSupported
       case 'gatt_request_not_supported':
       case 'gattrequestnotsupported':
         return UniversalBleErrorCode.operationNotSupported;
-      // Consolidated: gattInvalid* -> invalid*
       case 'gatt_invalid_offset':
       case 'gattinvalidoffset':
         return UniversalBleErrorCode.invalidOffset;
       case 'gatt_invalid_attribute_length':
       case 'gattinvalidattributelength':
         return UniversalBleErrorCode.invalidAttributeLength;
-      // Consolidated: gattConnectionCongested -> connectionFailed
       case 'gatt_connection_congested':
       case 'gattconnectioncongested':
         return UniversalBleErrorCode.connectionFailed;
@@ -301,24 +238,18 @@ class ErrorMapper {
       case 'gatt_invalid_pdu':
       case 'gattinvalidpdu':
         return UniversalBleErrorCode.invalidPdu;
-      // Consolidated: gattPrepareQueueFull -> operationInProgress
       case 'gatt_prepare_queue_full':
       case 'gattpreparequeuefull':
         return UniversalBleErrorCode.operationInProgress;
-      // Consolidated: gattAttrNotFound -> serviceNotFound (attribute could be service/characteristic)
       case 'gatt_attr_not_found':
       case 'gattattrnotfound':
         return UniversalBleErrorCode.serviceNotFound;
-      // Consolidated: gattAttrNotLong -> invalidAttributeLength
       case 'gatt_attr_not_long':
       case 'gattattrnotlong':
         return UniversalBleErrorCode.invalidAttributeLength;
-      // Consolidated: gattUnsupportedGroup -> operationNotSupported
       case 'gatt_unsupported_group':
       case 'gattunsupportedgroup':
         return UniversalBleErrorCode.operationNotSupported;
-
-      // Consolidated: Feature errors -> notSupported
       case 'feature_not_configured':
       case 'featurenotconfigured':
       case 'feature_not_supported':
@@ -326,8 +257,6 @@ class ErrorMapper {
       case 'feature_supported':
       case 'featuresupported':
         return UniversalBleErrorCode.notSupported;
-
-      // Consolidated: Profile errors -> failed or notSupported
       case 'error_profile_service_not_bound':
       case 'errorprofileservicenotbound':
         return UniversalBleErrorCode.failed;
@@ -346,118 +275,18 @@ class ErrorMapper {
       case 'error_unknown':
       case 'errorunknown':
         return UniversalBleErrorCode.unknownError;
-
-      // Web-specific
       case 'webbluetoothgloballydisabled':
       case 'web_bluetooth_globally_disabled':
         return UniversalBleErrorCode.webBluetoothGloballyDisabled;
-
       default:
         return null;
     }
   }
 
-  /// Maps error message string to UniversalBleErrorCode
-  static UniversalBleErrorCode? _mapErrorMessage(String message) {
-    final lowerMessage = message.toLowerCase();
-
-    // Characteristic property errors
-    if (lowerMessage.contains('does not support read')) {
-      return UniversalBleErrorCode.characteristicDoesNotSupportRead;
-    }
-    if (lowerMessage.contains('does not support write') &&
-        lowerMessage.contains('withoutresponse')) {
-      return UniversalBleErrorCode
-          .characteristicDoesNotSupportWriteWithoutResponse;
-    }
-    if (lowerMessage.contains('does not support write')) {
-      return UniversalBleErrorCode.characteristicDoesNotSupportWrite;
-    }
-    if (lowerMessage.contains('does not support notify')) {
-      return UniversalBleErrorCode.characteristicDoesNotSupportNotify;
-    }
-    if (lowerMessage.contains('does not support indicate')) {
-      return UniversalBleErrorCode.characteristicDoesNotSupportIndicate;
-    }
-
-    // Device/Service/Characteristic not found
-    if (lowerMessage.contains('unknown deviceid') ||
-        lowerMessage.contains('device not found') ||
-        lowerMessage.contains('not found')) {
-      return UniversalBleErrorCode.deviceNotFound;
-    }
-    if (lowerMessage.contains('unknown characteristic') ||
-        lowerMessage.contains('characteristic not found')) {
-      return UniversalBleErrorCode.characteristicNotFound;
-    }
-    if (lowerMessage.contains('service not found')) {
-      return UniversalBleErrorCode.serviceNotFound;
-    }
-    if (lowerMessage.contains('invalid service uuid')) {
-      return UniversalBleErrorCode.invalidServiceUuid;
-    }
-
-    // Connection errors
-    if (lowerMessage.contains('device disconnected')) {
-      return UniversalBleErrorCode.deviceDisconnected;
-    }
-    if (lowerMessage.contains('connection timeout')) {
-      return UniversalBleErrorCode.connectionTimeout;
-    }
-    if (lowerMessage.contains('connection failed')) {
-      return UniversalBleErrorCode.connectionFailed;
-    }
-    if (lowerMessage.contains('connection already in progress')) {
-      return UniversalBleErrorCode.connectionInProgress;
-    }
-
-    // Bluetooth availability
-    if (lowerMessage.contains('bluetooth not enabled') ||
-        lowerMessage.contains('bluetooth is not available')) {
-      return UniversalBleErrorCode.bluetoothNotEnabled;
-    }
-
-    // Pairing errors
-    if (lowerMessage.contains('not paired') &&
-        !lowerMessage.contains('already')) {
-      return UniversalBleErrorCode.notPaired;
-    }
-    if (lowerMessage.contains('not pairable')) {
-      return UniversalBleErrorCode.notPairable;
-    }
-    if (lowerMessage.contains('already paired')) {
-      return UniversalBleErrorCode.alreadyPaired;
-    }
-    if (lowerMessage.contains('pairing failed')) {
-      return UniversalBleErrorCode.pairingFailed;
-    }
-    if (lowerMessage.contains('pairing cancelled')) {
-      return UniversalBleErrorCode.pairingCancelled;
-    }
-
-    // Read/Write errors
-    if (lowerMessage.contains('read failed') ||
-        lowerMessage.contains('failed to read')) {
-      return UniversalBleErrorCode.readFailed;
-    }
-    if (lowerMessage.contains('write failed') ||
-        lowerMessage.contains('failed to write')) {
-      return UniversalBleErrorCode.writeFailed;
-    }
-    if (lowerMessage.contains('no value')) {
-      return UniversalBleErrorCode.readFailed;
-    }
-
-    return null;
-  }
-
-  /// Maps numeric error codes (GATT status, HCI codes, etc.)
-  static UniversalBleErrorCode _mapNumericErrorCode(int code) {
-    // GATT status codes
+  static UniversalBleErrorCode _parseNumericErrorCode(int code) {
     switch (code) {
-      case 0x00: // GATT_SUCCESS
-        return UniversalBleErrorCode
-            .unknownError; // Success, but we need an error
+      case 0x00:
+        return UniversalBleErrorCode.unknownError;
       case 0x01:
         return UniversalBleErrorCode.invalidHandle;
       case 0x02:

@@ -3,8 +3,8 @@ import 'dart:async';
 import 'package:bluez/bluez.dart';
 import 'package:flutter/services.dart';
 import 'package:universal_ble/src/models/model_exports.dart';
+import 'package:universal_ble/src/utils/universal_ble_error_parser.dart';
 import 'package:universal_ble/src/utils/universal_ble_filter_util.dart';
-import 'package:universal_ble/src/utils/error_mapper.dart';
 import 'package:universal_ble/src/universal_ble_pigeon/universal_ble.g.dart';
 import 'package:universal_ble/src/universal_ble_platform_interface.dart';
 import 'package:universal_ble/src/utils/universal_logger.dart';
@@ -183,9 +183,9 @@ class UniversalBleLinux extends UniversalBlePlatform {
     await Future.delayed(const Duration(seconds: 1));
 
     if (device.gattServices.isEmpty && !device.servicesResolved) {
-      throw UniversalBleException.fromErrorCode(
-        UniversalBleErrorCode.failed,
-        "Failed to resolve services",
+      throw UniversalBleException(
+        code: UniversalBleErrorCode.failed,
+        message: "Failed to resolve services",
       );
     }
 
@@ -223,9 +223,9 @@ class UniversalBleLinux extends UniversalBlePlatform {
         orElse: () => null);
 
     if (c == null) {
-      throw UniversalBleException.fromErrorCode(
-        UniversalBleErrorCode.characteristicNotFound,
-        'Unknown characteristic:$characteristic',
+      throw UniversalBleException(
+        code: UniversalBleErrorCode.characteristicNotFound,
+        message: 'Unknown characteristic:$characteristic',
       );
     }
     return c;
@@ -325,9 +325,9 @@ class UniversalBleLinux extends UniversalBlePlatform {
   Future<int> requestMtu(String deviceId, int expectedMtu) async {
     final device = _findDeviceById(deviceId);
     if (!device.connected) {
-      throw UniversalBleException.fromErrorCode(
-        UniversalBleErrorCode.deviceDisconnected,
-        'Device not connected',
+      throw UniversalBleException(
+        code: UniversalBleErrorCode.deviceDisconnected,
+        message: 'Device not connected',
       );
     }
     for (BlueZGattService service in device.gattServices) {
@@ -337,9 +337,9 @@ class UniversalBleLinux extends UniversalBlePlatform {
         if (mtu != null) return mtu - 3;
       }
     }
-    throw UniversalBleException.fromErrorCode(
-      UniversalBleErrorCode.operationNotSupported,
-      'MTU not available',
+    throw UniversalBleException(
+      code: UniversalBleErrorCode.operationNotSupported,
+      message: 'MTU not available',
     );
   }
 
@@ -408,9 +408,9 @@ class UniversalBleLinux extends UniversalBlePlatform {
             (device) => device?.address == deviceId,
             orElse: () => null);
     if (device == null) {
-      throw UniversalBleException.fromErrorCode(
-        UniversalBleErrorCode.deviceNotFound,
-        'Unknown deviceId:$deviceId',
+      throw UniversalBleException(
+        code: UniversalBleErrorCode.deviceNotFound,
+        message: 'Unknown deviceId:$deviceId',
       );
     }
     return device;
@@ -477,9 +477,9 @@ class UniversalBleLinux extends UniversalBlePlatform {
     }
 
     if (client.adapters.isEmpty) {
-      throw UniversalBleException.fromErrorCode(
-        UniversalBleErrorCode.bluetoothNotAvailable,
-        'Bluetooth adapter unavailable',
+      throw UniversalBleException(
+        code: UniversalBleErrorCode.bluetoothNotAvailable,
+        message: 'Bluetooth adapter unavailable',
       );
     }
   }
@@ -609,22 +609,13 @@ extension on BlueZFailedException {
     required UniversalBleErrorCode defaultCode,
   }) {
     // Map BlueZ error code to UniversalBleErrorCode
-    final errorCode = this.errorCode;
-    // TODO: test this if we are getting error code as Int or not
-    UniversalBleErrorCode code = UniversalBleErrorCode.unknownError;
-    if (errorCode != null) {
-      if (int.tryParse(errorCode) != null) {
-        code = ErrorMapper.fromNumericCode(int.parse(errorCode));
-      } else {
-        code = ErrorMapper.fromStringCode(errorCode);
-      }
-    }
+    UniversalBleErrorCode code = UniversalBleErrorParser.getCode(errorCode);
     if (code == UniversalBleErrorCode.unknownError) {
       code = defaultCode;
     }
-    throw UniversalBleException.fromErrorCode(
-      code,
-      message,
+    throw UniversalBleException(
+      code: code,
+      message: message,
       details: errorCode,
     );
   }
