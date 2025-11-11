@@ -309,11 +309,9 @@ void UniversalBlePlugin::ReadValue(
         .Completed([&, result](IAsyncOperation<GattReadResult> const &sender,
                                AsyncStatus const args) {
           const auto read_value_result = sender.GetResults();
-          auto error =
-              gatt_communication_status_to_error(read_value_result.Status());
-          if (error.has_value()) {
-            result(create_flutter_error(map_gatt_status_to_enum(error),
-                                        error.value()));
+          const auto status = read_value_result.Status();
+          if (status != GattCommunicationStatus::Success) {
+            result(create_flutter_error_from_gatt_communication_status(status));
           } else {
             result(to_bytevc(read_value_result.Value()));
           }
@@ -322,7 +320,7 @@ void UniversalBlePlugin::ReadValue(
     return result(err);
   } catch (...) {
     std::cout << "ReadValueLog: Unknown error" << std::endl;
-    return result(FlutterError("Failed", "Unknown error"));
+    return result(create_flutter_unknown_error());
   }
 }
 
@@ -376,11 +374,9 @@ void UniversalBlePlugin::WriteValue(
                 return;
               }
 
-              const auto error =
-                  gatt_communication_status_to_error(sender.GetResults());
-              if (error.has_value()) {
-                result(create_flutter_error(map_gatt_status_to_enum(error),
-                                            error.value()));
+              const auto status = sender.GetResults();
+              if (status != GattCommunicationStatus::Success) {
+                result(create_flutter_error_from_gatt_communication_status(status));
               } else {
                 result(std::nullopt);
               }
@@ -389,7 +385,7 @@ void UniversalBlePlugin::WriteValue(
     result(err);
   } catch (...) {
     std::cout << "WriteValue: Unknown error" << std::endl;
-    result(FlutterError("Failed", "Unknown error"));
+    result(create_flutter_unknown_error());
   }
 }
 
@@ -408,7 +404,7 @@ void UniversalBlePlugin::RequestMtu(
         .Completed([&, result](IAsyncOperation<GattSession> const &sender,
                                AsyncStatus const args) {
           if (args == AsyncStatus::Error) {
-            result(FlutterError("Failed", "Encountered an error."));
+            result(create_flutter_unknown_error());
             return;
           }
 
@@ -457,12 +453,9 @@ UniversalBlePlugin::UnPair(const std::string &device_id) {
     const auto device_unpairing_result =
         async_get(device_information.Pairing().UnpairAsync());
 
-    const auto error =
-        device_unpairing_result_to_string(device_unpairing_result.Status());
-
-    if (error.has_value()) {
-      return create_flutter_error(map_gatt_status_to_enum(error),
-                                  error.value());
+    const auto status = device_unpairing_result.Status();
+    if (status != DeviceUnpairingResultStatus::Unpaired) {
+      return create_flutter_error_from_unpairing_status(status);
     }
     return std::nullopt;
   } catch (const FlutterError &err) {
@@ -536,7 +529,7 @@ fire_and_forget UniversalBlePlugin::PairAsync(
       result(is_paired);
 
       const std::string *error_msg = nullptr;
-      const auto error_str = parse_pairing_fail_error(pair_result);
+      const auto error_str = device_pairing_result_to_string(pair_result.Status());
       if (error_str.has_value()) {
         error_msg = &error_str.value();
       }
@@ -587,7 +580,7 @@ fire_and_forget UniversalBlePlugin::CustomPairAsync(
       result(is_paired);
 
       const std::string *error_msg = nullptr;
-      const auto error_str = parse_pairing_fail_error(pair_result);
+      const auto error_str = device_pairing_result_to_string(status);
       if (error_str.has_value()) {
         error_msg = &error_str.value();
       }
@@ -1192,10 +1185,8 @@ fire_and_forget UniversalBlePlugin::SetNotifiableAsync(
         co_await gatt_characteristic
             .WriteClientCharacteristicConfigurationDescriptorAsync(
                 descriptor_value);
-    const auto error = gatt_communication_status_to_error(status);
-    if (error.has_value()) {
-      result(create_flutter_error(map_gatt_status_to_enum(error),
-                                  error.value()));
+    if (status != GattCommunicationStatus::Success) {
+      result(create_flutter_error_from_gatt_communication_status(status));
       co_return;
     }
 
@@ -1229,7 +1220,7 @@ fire_and_forget UniversalBlePlugin::SetNotifiableAsync(
     result(err);
   } catch (...) {
     std::cout << "SetNotifiableLog: Unknown error" << std::endl;
-    result(FlutterError("Failed", "Unknown error"));
+    result(create_flutter_unknown_error());
   }
 }
 

@@ -1,6 +1,10 @@
 #pragma once
 
 #include <string>
+#include <optional>
+#include "helper/universal_enum.h"
+#include "helper/universal_ble_base.h"
+#include "generated/universal_ble.g.h"
 
 namespace universal_ble
 {
@@ -46,9 +50,9 @@ namespace universal_ble
         return std::nullopt;
     }
 
-	inline std::optional<std::string> parse_pairing_fail_error(const DevicePairingResult& result)
+	inline std::optional<std::string> device_pairing_result_to_string(const DevicePairingResultStatus result)
 	{
-		switch (result.Status())
+		switch (result)
 		{
 			case DevicePairingResultStatus::Paired: return std::nullopt;
 			case DevicePairingResultStatus::AlreadyPaired: return "AlreadyPaired";
