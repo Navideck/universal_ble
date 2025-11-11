@@ -61,11 +61,11 @@ namespace universal_ble
         {
             if (gatt_map.count(service_uuid) == 0)
             {
-                throw FlutterError("IllegalArgument", "Service not found");
+                throw create_flutter_error(UniversalBleErrorCode::kServiceNotFound, "Service not found");
             }
             if (gatt_map[service_uuid].characteristics.count(characteristic_uuid) == 0)
             {
-                throw FlutterError("IllegalArgument", "Characteristic not found");
+                throw create_flutter_error(UniversalBleErrorCode::kCharacteristicNotFound, "Characteristic not found");
             }
             return gatt_map[service_uuid].characteristics.at(characteristic_uuid);
         }

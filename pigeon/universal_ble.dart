@@ -169,3 +169,87 @@ class UniversalManufacturerData {
     required this.data,
   });
 }
+
+/// Unified error codes for all platforms
+enum UniversalBleErrorCode {
+  // General errors
+  unknownError,
+  failed,
+  notSupported,
+  notImplemented,
+  channelError,
+
+  // Bluetooth availability errors
+  bluetoothNotAvailable,
+  bluetoothNotEnabled,
+  bluetoothNotAllowed,
+  bluetoothUnauthorized,
+
+  // Connection errors
+  deviceDisconnected,
+  connectionTimeout,
+  connectionFailed,
+  connectionRejected,
+  connectionLimitExceeded,
+  connectionAlreadyExists,
+  connectionTerminated,
+  connectionInProgress,
+
+  // Device/Service/Characteristic errors
+  illegalArgument,
+  deviceNotFound,
+  serviceNotFound,
+  characteristicNotFound,
+  invalidServiceUuid,
+  invalidCharacteristicUuid,
+  invalidOffset,
+  invalidAttributeLength,
+  invalidPdu,
+  invalidHandle,
+
+  // Operation errors
+  readFailed,
+  readNotPermitted,
+  writeFailed,
+  writeNotPermitted,
+  writeRequestBusy,
+  invalidAction,
+  operationNotSupported,
+  operationTimeout,
+  operationCancelled,
+  operationInProgress,
+
+  // Characteristic property errors
+  characteristicDoesNotSupportRead,
+  characteristicDoesNotSupportWrite,
+  characteristicDoesNotSupportWriteWithoutResponse,
+  characteristicDoesNotSupportNotify,
+  characteristicDoesNotSupportIndicate,
+
+  // Pairing errors
+  notPaired,
+  notPairable,
+  alreadyPaired,
+  pairingFailed,
+  pairingCancelled,
+  pairingTimeout,
+  pairingNotAllowed,
+  authenticationFailure,
+  insufficientAuthentication,
+  insufficientAuthorization,
+  insufficientEncryption,
+  insufficientKeySize,
+  protectionLevelNotMet,
+  accessDenied,
+
+  // Unpairing errors
+  unpairingFailed,
+  alreadyUnpaired,
+
+  // Scan errors
+  scanFailed,
+  stoppingScanInProgress,
+
+  // Web-specific errors
+  webBluetoothGloballyDisabled,
+}

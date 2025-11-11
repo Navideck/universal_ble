@@ -55,11 +55,11 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
   }
 
   func enableBluetooth(completion: @escaping (Result<Bool, Error>) -> Void) {
-    completion(Result.failure(PigeonError(code: "NotSupported", message: nil, details: nil)))
+    completion(Result.failure(createFlutterError(code: .notSupported)))
   }
 
   func disableBluetooth(completion: @escaping (Result<Bool, any Error>) -> Void) {
-    completion(Result.failure(PigeonError(code: "NotSupported", message: nil, details: nil)))
+    completion(Result.failure(createFlutterError(code: .notSupported)))
   }
 
   func startScan(filter: UniversalScanFilter?) throws {
@@ -122,7 +122,7 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
     characteristicReadFutures.removeAll { future in
       if future.deviceId == deviceId {
         future.result(
-          Result.failure(PigeonError(code: "DeviceDisconnected", message: "Device Disconnected", details: nil))
+          Result.failure(createFlutterError(code: .deviceDisconnected, message: "Device Disconnected"))
         )
         return true
       }
@@ -131,7 +131,7 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
     characteristicWriteFutures.removeAll { future in
       if future.deviceId == deviceId {
         future.result(
-          Result.failure(PigeonError(code: "DeviceDisconnected", message: "Device Disconnected", details: nil))
+          Result.failure(createFlutterError(code: .deviceDisconnected, message: "Device Disconnected"))
         )
         return true
       }
@@ -140,7 +140,7 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
     characteristicNotifyFutures.removeAll { future in
       if future.deviceId == deviceId {
         future.result(
-          Result.failure(PigeonError(code: "DeviceDisconnected", message: "Device Disconnected", details: nil))
+          Result.failure(createFlutterError(code: .deviceDisconnected, message: "Device Disconnected"))
         )
         return true
       }
@@ -149,7 +149,7 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
     discoverServicesFutures.removeAll { future in
       if future.deviceId == deviceId {
         future.result(
-          Result.failure(PigeonError(code: "DeviceDisconnected", message: "Device Disconnected", details: nil))
+          Result.failure(createFlutterError(code: .deviceDisconnected, message: "Device Disconnected"))
         )
         return true
       }
@@ -161,7 +161,7 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
   func discoverServices(deviceId: String, completion: @escaping (Result<[UniversalBleService], Error>) -> Void) {
     guard let peripheral = deviceId.findPeripheral(manager: manager) else {
       completion(
-        Result.failure(PigeonError(code: "IllegalArgument", message: "Unknown deviceId:\(self)", details: nil))
+        Result.failure(createFlutterError(code: .deviceNotFound, message: "Unknown deviceId:\(self)"))
       )
       return
     }
@@ -198,22 +198,22 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
 
   func setNotifiable(deviceId: String, service: String, characteristic: String, bleInputProperty: Int64, completion: @escaping (Result<Void, any Error>) -> Void) {
     guard let peripheral = deviceId.findPeripheral(manager: manager) else {
-      completion(Result.failure(PigeonError(code: "IllegalArgument", message: "Unknown deviceId:\(self)", details: nil)))
+      completion(Result.failure(createFlutterError(code: .deviceNotFound, message: "Unknown deviceId:\(deviceId)")))
       return
     }
 
     guard let gattCharacteristic = peripheral.getCharacteristic(characteristic, of: service) else {
-      completion(Result.failure(PigeonError(code: "IllegalArgument", message: "Unknown characteristic:\(characteristic)", details: nil)))
+      completion(Result.failure(createFlutterError(code: .characteristicNotFound, message: "Unknown characteristic:\(characteristic)")))
       return
     }
 
     if bleInputProperty == BleInputProperty.notification.rawValue && !gattCharacteristic.properties.contains(.notify) {
-      completion(Result.failure(PigeonError(code: "InvalidAction", message: "Characteristic does not support notify", details: nil)))
+      completion(Result.failure(createFlutterError(code: .characteristicDoesNotSupportNotify, message: "Characteristic does not support notify")))
       return
     }
 
     if bleInputProperty == BleInputProperty.indication.rawValue && !gattCharacteristic.properties.contains(.indicate) {
-      completion(Result.failure(PigeonError(code: "InvalidAction", message: "Characteristic does not support indicate", details: nil)))
+      completion(Result.failure(createFlutterError(code: .characteristicDoesNotSupportIndicate, message: "Characteristic does not support indicate")))
       return
     }
 
@@ -224,15 +224,15 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
 
   func readValue(deviceId: String, service: String, characteristic: String, completion: @escaping (Result<FlutterStandardTypedData, Error>) -> Void) {
     guard let peripheral = deviceId.findPeripheral(manager: manager) else {
-      completion(Result.failure(PigeonError(code: "IllegalArgument", message: "Unknown deviceId:\(self)", details: nil)))
+      completion(Result.failure(createFlutterError(code: .deviceNotFound, message: "Unknown deviceId:\(self)")))
       return
     }
     guard let gattCharacteristic = peripheral.getCharacteristic(characteristic, of: service) else {
-      completion(Result.failure(PigeonError(code: "IllegalArgument", message: "Unknown characteristic:\(characteristic)", details: nil)))
+      completion(Result.failure(createFlutterError(code: .characteristicNotFound, message: "Unknown characteristic:\(characteristic)")))
       return
     }
     if !gattCharacteristic.properties.contains(.read) {
-      completion(Result.failure(PigeonError(code: "InvalidAction", message: "Characteristic does not support read", details: nil)))
+      completion(Result.failure(createFlutterError(code: .characteristicDoesNotSupportRead, message: "Characteristic does not support read")))
       return
     }
     peripheral.readValue(for: gattCharacteristic)
@@ -241,11 +241,11 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
 
   func writeValue(deviceId: String, service: String, characteristic: String, value: FlutterStandardTypedData, bleOutputProperty: Int64, completion: @escaping (Result<Void, Error>) -> Void) {
     guard let peripheral = deviceId.findPeripheral(manager: manager) else {
-      completion(Result.failure(PigeonError(code: "IllegalArgument", message: "Unknown deviceId:\(self)", details: nil)))
+      completion(Result.failure(createFlutterError(code: .deviceNotFound, message: "Unknown deviceId:\(self)")))
       return
     }
     guard let gattCharacteristic = peripheral.getCharacteristic(characteristic, of: service) else {
-      completion(Result.failure(PigeonError(code: "IllegalArgument", message: "Unknown characteristic:\(characteristic)", details: nil)))
+      completion(Result.failure(createFlutterError(code: .characteristicNotFound, message: "Unknown characteristic:\(characteristic)")))
       return
     }
 
@@ -253,12 +253,12 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
 
     if type == CBCharacteristicWriteType.withResponse {
       if !gattCharacteristic.properties.contains(.write) {
-        completion(Result.failure(PigeonError(code: "InvalidAction", message: "Characteristic does not support write withResponse", details: nil)))
+        completion(Result.failure(createFlutterError(code: .characteristicDoesNotSupportWrite, message: "Characteristic does not support write withResponse")))
         return
       }
     } else if type == CBCharacteristicWriteType.withoutResponse {
       if !gattCharacteristic.properties.contains(.writeWithoutResponse) {
-        completion(Result.failure(PigeonError(code: "InvalidAction", message: "Characteristic does not support write withoutResponse", details: nil)))
+        completion(Result.failure(createFlutterError(code: .characteristicDoesNotSupportWriteWithoutResponse, message: "Characteristic does not support write withoutResponse")))
         return
       }
     }
@@ -275,7 +275,7 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
 
   func requestMtu(deviceId: String, expectedMtu _: Int64, completion: @escaping (Result<Int64, Error>) -> Void) {
     guard let peripheral = deviceId.findPeripheral(manager: manager) else {
-      completion(Result.failure(PigeonError(code: "IllegalArgument", message: "Unknown deviceId:\(self)", details: nil)))
+      completion(Result.failure(createFlutterError(code: .deviceNotFound, message: "Unknown deviceId:\(self)")))
       return
     }
     let mtu = peripheral.maximumWriteValueLength(for: CBCharacteristicWriteType.withoutResponse)
@@ -285,15 +285,15 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
   }
 
   func isPaired(deviceId _: String, completion: @escaping (Result<Bool, Error>) -> Void) {
-    completion(Result.failure(PigeonError(code: "NotSupported", message: nil, details: nil)))
+    completion(Result.failure(createFlutterError(code: .notSupported)))
   }
 
   func pair(deviceId _: String, completion: @escaping (Result<Bool, Error>) -> Void) {
-    completion(Result.failure(PigeonError(code: "Implemented in Dart", message: nil, details: nil)))
+    completion(Result.failure(createFlutterError(code: .notImplemented)))
   }
 
   func unPair(deviceId _: String) throws {
-    throw PigeonError(code: "NotSupported", message: nil, details: nil)
+    throw createFlutterError(code: .notSupported)
   }
 
   func getSystemDevices(withServices: [String], completion: @escaping (Result<[UniversalBleScanResult], Error>) -> Void) {
@@ -427,8 +427,8 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
   public func peripheral(_ peripheral: CBPeripheral, didWriteValueFor characteristic: CBCharacteristic, error: Error?) {
     characteristicWriteFutures.removeAll { future in
       if future.deviceId == peripheral.uuid.uuidString && future.characteristicId == characteristic.uuid.uuidStr && future.serviceId == characteristic.service?.uuid.uuidStr {
-        if let pigeonError = error?.toPigeonError() {
-          future.result(Result.failure(pigeonError))
+        if let flutterError = error?.toFlutterError() {
+          future.result(Result.failure(flutterError))
         } else {
           future.result(Result.success({}()))
         }
@@ -441,8 +441,8 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
   public func peripheral(_ peripheral: CBPeripheral, didUpdateNotificationStateFor characteristic: CBCharacteristic, error: Error?) {
     characteristicNotifyFutures.removeAll { future in
       if future.deviceId == peripheral.uuid.uuidString && future.characteristicId == characteristic.uuid.uuidStr && future.serviceId == characteristic.service?.uuid.uuidStr {
-        if let pigeonError = error?.toPigeonError() {
-          future.result(Result.failure(pigeonError))
+        if let flutterError = error?.toFlutterError() {
+          future.result(Result.failure(flutterError))
         } else {
           future.result(Result.success({}()))
         }
@@ -467,13 +467,13 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
     // Update futures for readValue
     characteristicReadFutures.removeAll { future in
       if future.deviceId == peripheral.uuid.uuidString && future.characteristicId == characteristic.uuid.uuidStr && future.serviceId == characteristic.service?.uuid.uuidStr {
-        if let pigeonError = error?.toPigeonError() {
-          future.result(Result.failure(pigeonError))
+        if let flutterError = error?.toFlutterError() {
+          future.result(Result.failure(flutterError))
         } else {
           if let characteristicValue = characteristic.value {
             future.result(Result.success(FlutterStandardTypedData(bytes: characteristicValue)))
           } else {
-            future.result(Result.failure(PigeonError(code: "ReadFailed", message: "No value", details: nil)))
+            future.result(Result.failure(createFlutterError(code: .readFailed, message: "No value")))
           }
         }
         return true
@@ -484,15 +484,15 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
 }
 
 extension CBPeripheral {
-    func saveCache(){
-        discoveredPeripherals[self.uuid.uuidString] = self
-    }
+  func saveCache() {
+    discoveredPeripherals[uuid.uuidString] = self
+  }
 }
 
 extension String {
   func getPeripheral(manager: CBCentralManager) throws -> CBPeripheral {
     guard let peripheral = findPeripheral(manager: manager) else {
-      throw PigeonError(code: "IllegalArgument", message: "Unknown deviceId:\(self)", details: nil)
+      throw createFlutterError(code: .deviceNotFound, message: "Unknown deviceId:\(self)")
     }
     return peripheral
   }
@@ -515,7 +515,7 @@ extension [String] {
   func toCBUUID() throws -> [CBUUID] {
     return try compactMap { serviceUUID in
       guard UUID(uuidString: serviceUUID) != nil else {
-        throw PigeonError(code: "IllegalArgument", message: "Invalid service UUID:\(serviceUUID)", details: nil)
+        throw createFlutterError(code: .invalidServiceUuid, message: "Invalid service UUID:\(serviceUUID)")
       }
       return CBUUID(string: serviceUUID)
     }

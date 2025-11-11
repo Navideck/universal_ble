@@ -17,6 +17,7 @@ A cross-platform (Android/iOS/macOS/Windows/Linux/Web) Bluetooth Low Energy (BLE
 - [Requesting MTU](#requesting-mtu)
 - [Command Queue](#command-queue)
 - [Timeout](#timeout)
+- [Error Handling](#error-handling)
 - [UUID Format Agnostic](#uuid-format-agnostic)
 
 ## API Support
@@ -455,6 +456,56 @@ UniversalBle.timeout = null;
 ```
 
 You can also specify the `timeout` parameter when sending a command. This will override the global timeout.
+
+## Error Handling
+
+Universal BLE provides a unified and type-safe error handling system across all platforms. All errors are represented using the `UniversalBleException` base class with typed error codes from the `UniversalBleErrorCode` enum.
+
+### Exception Types
+
+- **`UniversalBleException`**: Base exception class for all BLE errors
+- **`ConnectionException`**: Thrown for connection-related errors
+- **`PairingException`**: Thrown for pairing-related errors
+- **`WebBluetoothGloballyDisabled`**: Thrown when Web Bluetooth is globally disabled
+
+### Error Codes
+
+All errors are categorized using the `UniversalBleErrorCode` enum, which includes codes for:
+- Connection errors (timeout, failed, rejected, etc.)
+- Pairing errors (failed, cancelled, not allowed, etc.)
+- Operation errors (not supported, timeout, cancelled, etc.)
+- Permission errors (not allowed, unauthorized, access denied, etc.)
+- Device errors (not found, disconnected, etc.)
+- Service/Characteristic errors (not found, invalid UUID, etc.)
+- And many more...
+
+### Usage
+
+```dart
+try {
+  await bleDevice.connect();
+} on ConnectionException catch (e) {
+  // Handle connection-specific errors
+  switch (e.code) {
+    case UniversalBleErrorCode.connectionTimeout:
+      // Handle timeout
+      break;
+    case UniversalBleErrorCode.connectionFailed:
+      // Handle connection failure
+      break;
+    case UniversalBleErrorCode.deviceDisconnected:
+      // Handle disconnection
+      break;
+    default:
+      // Handle other connection errors
+  }
+} on UniversalBleException catch (e) {
+  // Handle other BLE errors
+  print('Error code: ${e.code}, Message: ${e.message}');
+}
+```
+
+The error parser automatically converts platform-specific error formats (strings, numeric codes, PlatformExceptions) into the unified `UniversalBleErrorCode` enum, ensuring consistent error handling across all platforms.
 
 ## UUID Format Agnostic
 

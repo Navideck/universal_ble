@@ -17,6 +17,7 @@ import android.util.SparseArray
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.util.UUID
+import androidx.core.util.size
 
 private const val TAG = "UniversalBlePlugin"
 
@@ -46,8 +47,8 @@ enum class BleInputProperty(val value: Long) {
 }
 
 enum class BleOutputProperty(val value: Long) {
-    withResponse(0),
-    withoutResponse(1);
+    WithResponse(0),
+    WithoutResponse(1);
 }
 
 
@@ -80,7 +81,10 @@ fun List<String>.toUUIDList(): List<UUID> {
 
 fun String.toBluetoothGatt(): BluetoothGatt {
     return this.findGatt()
-        ?: throw FlutterError("IllegalArgument", "Unknown deviceId: $this", null)
+        ?: throw createFlutterError(
+            UniversalBleErrorCode.DEVICE_NOT_FOUND,
+            "Unknown deviceId: $this",
+        )
 }
 
 fun String.isKnownGatt(): Boolean {
@@ -122,53 +126,6 @@ fun Int.parseScanErrorMessage(): String {
     }
 }
 
-fun Int.parseBluetoothStatusCodeError(): String? {
-    if (this == BluetoothStatusCodes.SUCCESS) return null
-    return when (this) {
-        BluetoothStatusCodes.ERROR_BLUETOOTH_NOT_ENABLED -> "ERROR_BLUETOOTH_NOT_ENABLED"
-        BluetoothStatusCodes.ERROR_BLUETOOTH_NOT_ALLOWED -> "ERROR_BLUETOOTH_NOT_ALLOWED"
-        BluetoothStatusCodes.ERROR_DEVICE_NOT_BONDED -> "ERROR_DEVICE_NOT_BONDED"
-        BluetoothStatusCodes.ERROR_GATT_WRITE_NOT_ALLOWED -> "ERROR_GATT_WRITE_NOT_ALLOWED"
-        BluetoothStatusCodes.ERROR_GATT_WRITE_REQUEST_BUSY -> "ERROR_GATT_WRITE_REQUEST_BUSY"
-        BluetoothStatusCodes.ERROR_MISSING_BLUETOOTH_CONNECT_PERMISSION -> "ERROR_MISSING_BLUETOOTH_CONNECT_PERMISSION"
-        BluetoothStatusCodes.ERROR_PROFILE_SERVICE_NOT_BOUND -> "ERROR_PROFILE_SERVICE_NOT_BOUND"
-        BluetoothStatusCodes.ERROR_UNKNOWN -> "ERROR_UNKNOWN"
-        BluetoothStatusCodes.FEATURE_NOT_CONFIGURED -> "FEATURE_NOT_CONFIGURED"
-        BluetoothStatusCodes.FEATURE_NOT_SUPPORTED -> "FEATURE_NOT_SUPPORTED"
-        BluetoothStatusCodes.FEATURE_SUPPORTED -> "FEATURE_SUPPORTED"
-        else -> "ErrorCode: $this"
-    }
-}
-
-fun Int.parseGattErrorCode(): String? {
-    return when (this) {
-        BluetoothGatt.GATT_SUCCESS -> null
-        BluetoothGatt.GATT_READ_NOT_PERMITTED -> "GATT_READ_NOT_PERMITTED"
-        BluetoothGatt.GATT_WRITE_NOT_PERMITTED -> "GATT_WRITE_NOT_PERMITTED"
-        BluetoothGatt.GATT_INSUFFICIENT_AUTHENTICATION -> "GATT_INSUFFICIENT_AUTHENTICATION"
-        BluetoothGatt.GATT_REQUEST_NOT_SUPPORTED -> "GATT_REQUEST_NOT_SUPPORTED"
-        BluetoothGatt.GATT_INVALID_OFFSET -> "GATT_INVALID_OFFSET"
-        BluetoothGatt.GATT_INSUFFICIENT_AUTHORIZATION -> "GATT_INSUFFICIENT_AUTHORIZATION"
-        BluetoothGatt.GATT_INVALID_ATTRIBUTE_LENGTH -> "GATT_INVALID_ATTRIBUTE_LENGTH"
-        BluetoothGatt.GATT_INSUFFICIENT_ENCRYPTION -> "GATT_INSUFFICIENT_ENCRYPTION"
-        BluetoothGatt.GATT_CONNECTION_CONGESTED -> "GATT_CONNECTION_CONGESTED"
-        BluetoothGatt.GATT_FAILURE -> "GATT_FAILURE"
-        BluetoothStatusCodes.ERROR_GATT_WRITE_NOT_ALLOWED -> "ERROR_GATT_WRITE_NOT_ALLOWED"
-        BluetoothStatusCodes.ERROR_GATT_WRITE_REQUEST_BUSY -> "ERROR_GATT_WRITE_REQUEST_BUSY"
-        BluetoothStatusCodes.FEATURE_NOT_CONFIGURED -> "FEATURE_NOT_CONFIGURED"
-        0x01 -> "GATT_INVALID_HANDLE"
-        0x04 -> "GATT_INVALID_PDU"
-        0x09 -> "GATT_PREPARE_QUEUE_FULL"
-        0x0a -> "GATT_ATTR_NOT_FOUND"
-        0x0b -> "GATT_ATTR_NOT_LONG"
-        0x0c -> "GATT_INSUFFICIENT_KEY_SIZE"
-        0x0e -> "GATT_UNLIKELY"
-        0x10 -> "GATT_UNSUPPORTED_GROUP"
-        0x11 -> "GATT_INSUFFICIENT_RESOURCES"
-        else -> "Unknown Error: $this"
-    }
-}
-
 val ScanResult.manufacturerDataList: List<UniversalManufacturerData>
     get() {
         return scanRecord?.manufacturerSpecificData?.toList()?.map { (key, value) ->
@@ -177,7 +134,7 @@ val ScanResult.manufacturerDataList: List<UniversalManufacturerData>
     }
 
 fun <T> SparseArray<T>.toList(): List<Pair<Int, T>> {
-    return (0 until size()).map { index ->
+    return (0 until size).map { index ->
         keyAt(index) to valueAt(index)
     }
 }
@@ -189,16 +146,6 @@ fun BluetoothGatt.getCharacteristic(
     return getService(UUID.fromString(service))?.getCharacteristic(UUID.fromString(characteristic))
 }
 
-fun subscriptionFailedError(error: String? = null): Result<Unit> {
-    return Result.failure(
-        FlutterError(
-            "Failed",
-            "Failed to update subscription state",
-            error
-        )
-    )
-}
-
 fun BluetoothDevice.removeBond() {
     try {
         javaClass.getMethod("removeBond").invoke(this)
@@ -206,7 +153,6 @@ fun BluetoothDevice.removeBond() {
         Log.e(TAG, "Removing bond failed. ${e.message}")
     }
 }
-
 
 fun BluetoothGattCharacteristic.getPropertiesList(): ArrayList<Long> {
     val propertiesList = arrayListOf<Long>()
@@ -241,16 +187,54 @@ fun BluetoothGattCharacteristic.getPropertiesList(): ArrayList<Long> {
 fun Short.toByteArray(byteOrder: ByteOrder = ByteOrder.LITTLE_ENDIAN): ByteArray =
     ByteBuffer.allocate(2 /*Short.SIZE_BYTES*/).order(byteOrder).putShort(this).array()
 
-// Errors
-fun unknownCharacteristicError(char: String) =
-    FlutterError("IllegalArgument", "Unknown error", null)
 
+fun createFlutterError(
+    code: UniversalBleErrorCode,
+    message: String? = null,
+    details: String? = null,
+) = FlutterError(code.raw.toString(), message, details ?: code.toString())
 
-val DeviceDisconnectedError: FlutterError = FlutterError(
-    "DeviceDisconnected",
-    "Device Disconnected",
-    null
-)
+fun gattStatusToUniversalBleErrorCode(code: Int): UniversalBleErrorCode {
+    return when (code) {
+        BluetoothGatt.GATT_READ_NOT_PERMITTED -> UniversalBleErrorCode.READ_NOT_PERMITTED
+        BluetoothGatt.GATT_WRITE_NOT_PERMITTED -> UniversalBleErrorCode.WRITE_NOT_PERMITTED
+        BluetoothGatt.GATT_INSUFFICIENT_AUTHENTICATION -> UniversalBleErrorCode.INSUFFICIENT_AUTHENTICATION
+        BluetoothGatt.GATT_INSUFFICIENT_AUTHORIZATION -> UniversalBleErrorCode.INSUFFICIENT_AUTHORIZATION
+        BluetoothGatt.GATT_INSUFFICIENT_ENCRYPTION -> UniversalBleErrorCode.INSUFFICIENT_ENCRYPTION
+        BluetoothGatt.GATT_REQUEST_NOT_SUPPORTED -> UniversalBleErrorCode.OPERATION_NOT_SUPPORTED
+        BluetoothGatt.GATT_INVALID_OFFSET -> UniversalBleErrorCode.INVALID_OFFSET
+        BluetoothGatt.GATT_INVALID_ATTRIBUTE_LENGTH -> UniversalBleErrorCode.INVALID_ATTRIBUTE_LENGTH
+        BluetoothGatt.GATT_CONNECTION_CONGESTED -> UniversalBleErrorCode.CONNECTION_FAILED
+        BluetoothGatt.GATT_FAILURE -> UniversalBleErrorCode.FAILED
+        0x01 -> UniversalBleErrorCode.INVALID_HANDLE
+        0x04 -> UniversalBleErrorCode.INVALID_PDU
+        0x09 -> UniversalBleErrorCode.OPERATION_IN_PROGRESS
+        0x0a -> UniversalBleErrorCode.SERVICE_NOT_FOUND
+        0x0b -> UniversalBleErrorCode.INVALID_ATTRIBUTE_LENGTH
+        0x0c -> UniversalBleErrorCode.INSUFFICIENT_KEY_SIZE
+        0x0e -> UniversalBleErrorCode.FAILED
+        0x10 -> UniversalBleErrorCode.OPERATION_NOT_SUPPORTED
+        0x11 -> UniversalBleErrorCode.FAILED
+        else -> UniversalBleErrorCode.UNKNOWN_ERROR
+    }
+}
+
+fun Int.parseBluetoothStatusCodeError(): UniversalBleErrorCode? {
+    if (this == BluetoothStatusCodes.SUCCESS) return null
+    return when (this) {
+        BluetoothStatusCodes.ERROR_BLUETOOTH_NOT_ENABLED -> UniversalBleErrorCode.BLUETOOTH_NOT_ENABLED
+        BluetoothStatusCodes.ERROR_BLUETOOTH_NOT_ALLOWED -> UniversalBleErrorCode.BLUETOOTH_NOT_ALLOWED
+        BluetoothStatusCodes.ERROR_DEVICE_NOT_BONDED -> UniversalBleErrorCode.NOT_PAIRED
+        BluetoothStatusCodes.ERROR_GATT_WRITE_NOT_ALLOWED -> UniversalBleErrorCode.WRITE_NOT_PERMITTED
+        BluetoothStatusCodes.ERROR_GATT_WRITE_REQUEST_BUSY -> UniversalBleErrorCode.WRITE_REQUEST_BUSY
+        BluetoothStatusCodes.ERROR_MISSING_BLUETOOTH_CONNECT_PERMISSION -> UniversalBleErrorCode.CONNECTION_FAILED
+        BluetoothStatusCodes.ERROR_PROFILE_SERVICE_NOT_BOUND -> UniversalBleErrorCode.SERVICE_NOT_FOUND
+        BluetoothStatusCodes.ERROR_UNKNOWN -> UniversalBleErrorCode.UNKNOWN_ERROR
+        BluetoothStatusCodes.FEATURE_NOT_CONFIGURED -> UniversalBleErrorCode.NOT_IMPLEMENTED
+        BluetoothStatusCodes.FEATURE_NOT_SUPPORTED -> UniversalBleErrorCode.NOT_SUPPORTED
+        else -> null
+    }
+}
 
 fun Int.parseHciErrorCode(): String? {
     return when (this) {

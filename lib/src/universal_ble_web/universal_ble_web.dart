@@ -4,6 +4,7 @@ import 'dart:collection';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_web_bluetooth/flutter_web_bluetooth.dart';
 import 'package:universal_ble/src/utils/universal_logger.dart';
+import 'package:universal_ble/src/universal_ble_pigeon/universal_ble.g.dart';
 import 'package:universal_ble/universal_ble.dart';
 
 class UniversalBleWeb extends UniversalBlePlatform {
@@ -35,7 +36,12 @@ class UniversalBleWeb extends UniversalBlePlatform {
     Duration? connectionTimeout = const Duration(seconds: 10),
   }) async {
     var device = _getDeviceById(deviceId);
-    if (device == null) throw "$deviceId Not Found";
+    if (device == null) {
+      throw UniversalBleException(
+        code: UniversalBleErrorCode.deviceNotFound,
+        message: "$deviceId Not Found",
+      );
+    }
     await device.connect(timeout: connectionTimeout);
 
     // Subscribe to Connection Stream
@@ -92,7 +98,7 @@ class UniversalBleWeb extends UniversalBlePlatform {
     } catch (e) {
       String error = e.toString().replaceAll("DeviceNotFoundError:", "").trim();
       if (error.toLowerCase().contains("api globally disabled")) {
-        throw WebBluetoothGloballyDisabled(error);
+        throw WebBluetoothGloballyDisabled(message: error);
       }
       rethrow;
     }
@@ -154,8 +160,10 @@ class UniversalBleWeb extends UniversalBlePlatform {
     );
 
     if (bleCharacteristic == null) {
-      throw Exception(
-        'Characteristic $characteristic for service $service not found',
+      throw UniversalBleException(
+        code: UniversalBleErrorCode.characteristicNotFound,
+        message:
+            'Characteristic $characteristic for service $service not found',
       );
     }
 
@@ -195,8 +203,10 @@ class UniversalBleWeb extends UniversalBlePlatform {
     );
 
     if (bleCharacteristic == null) {
-      throw Exception(
-        'Characteristic $characteristic for service $service not found',
+      throw UniversalBleException(
+        code: UniversalBleErrorCode.characteristicNotFound,
+        message:
+            'Characteristic $characteristic for service $service not found',
       );
     }
 
@@ -221,8 +231,11 @@ class UniversalBleWeb extends UniversalBlePlatform {
       characteristicId: characteristic,
     );
     if (bleCharacteristic == null) {
-      throw Exception(
-          'Characteristic $characteristic for service $service not found');
+      throw UniversalBleException(
+        code: UniversalBleErrorCode.characteristicNotFound,
+        message:
+            'Characteristic $characteristic for service $service not found',
+      );
     }
     var data = timeout != null
         ? bleCharacteristic.readValue(timeout: timeout)
@@ -233,29 +246,44 @@ class UniversalBleWeb extends UniversalBlePlatform {
   /// `Unimplemented`
   @override
   Future<int> requestMtu(String deviceId, int expectedMtu) {
-    throw UnimplementedError();
+    throw UniversalBleException(
+      code: UniversalBleErrorCode.notImplemented,
+      message: "requestMtu is not implemented on Web platform",
+    );
   }
 
   @override
   Future<bool> isPaired(String deviceId) {
-    throw UnimplementedError();
+    throw UniversalBleException(
+      code: UniversalBleErrorCode.notImplemented,
+      message: "isPaired is not implemented on Web platform",
+    );
   }
 
   @override
   Future<bool> pair(String deviceId) {
-    throw UnimplementedError();
+    throw UniversalBleException(
+      code: UniversalBleErrorCode.notImplemented,
+      message: "pair is not implemented on Web platform",
+    );
   }
 
   @override
   Future<void> unpair(String deviceId) {
-    throw UnimplementedError();
+    throw UniversalBleException(
+      code: UniversalBleErrorCode.notImplemented,
+      message: "unpair is not implemented on Web platform",
+    );
   }
 
   @override
   Future<List<BleDevice>> getSystemDevices(
     List<String>? withServices,
   ) {
-    throw UnimplementedError();
+    throw UniversalBleException(
+      code: UniversalBleErrorCode.notImplemented,
+      message: "getSystemDevices is not implemented on Web platform",
+    );
   }
 
   /// Helpers
@@ -335,12 +363,18 @@ class UniversalBleWeb extends UniversalBlePlatform {
 
   @override
   Future<bool> enableBluetooth() {
-    throw UnimplementedError();
+    throw UniversalBleException(
+      code: UniversalBleErrorCode.notImplemented,
+      message: "enableBluetooth is not implemented on Web platform",
+    );
   }
 
   @override
   Future<bool> disableBluetooth() {
-    throw UnimplementedError();
+    throw UniversalBleException(
+      code: UniversalBleErrorCode.notImplemented,
+      message: "disableBluetooth is not implemented on Web platform",
+    );
   }
 
   RequestOptionsBuilder _getRequestOptionBuilder(

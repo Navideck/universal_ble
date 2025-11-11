@@ -1,3 +1,4 @@
+import 'package:universal_ble/src/universal_ble_pigeon/universal_ble.g.dart';
 import 'package:universal_ble/src/utils/cache_handler.dart';
 import 'package:universal_ble/universal_ble.dart';
 
@@ -105,13 +106,17 @@ extension BleDeviceExtension on BleDevice {
     }
 
     if (discoveredServices.isEmpty) {
-      throw ServiceNotFoundException('No services found');
+      throw UniversalBleException(
+        code: UniversalBleErrorCode.serviceNotFound,
+        message: 'No services found',
+      );
     }
 
     return discoveredServices.firstWhere(
       (s) => BleUuidParser.compareStrings(s.uuid, service),
-      orElse: () => throw ServiceNotFoundException(
-        'Service "$service" not available',
+      orElse: () => throw UniversalBleException(
+        code: UniversalBleErrorCode.serviceNotFound,
+        message: 'Service "$service" not available',
       ),
     );
   }

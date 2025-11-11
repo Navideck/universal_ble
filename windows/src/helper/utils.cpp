@@ -1,8 +1,11 @@
-#include "Utils.h"
+#include "utils.h"
+#include "../generated/universal_ble.g.h"
+#include "../enum_parser.h"
 
 #include <iomanip>
 #include <iostream>
 #include <sstream>
+#include <algorithm>
 #include <windows.h>
 #include <stdio.h>
 #include <sdkddkver.h>
@@ -156,6 +159,144 @@ namespace universal_ble
 
         // Windows 11 => MajorVersion = 10 and BuildNumber >= 22000
         return rove.dwMajorVersion == 10 && rove.dwBuildNumber >= 22000;
+    }
+
+    FlutterError create_flutter_error(
+        UniversalBleErrorCode code,
+        const std::string& message,
+        const std::string& details
+    )
+    {
+        // Pass the enum's underlying integer value as string in code, and enum name or details in details
+        std::string code_str = std::to_string(static_cast<int>(code));
+        std::string details_str = details.empty() ? std::to_string(static_cast<int>(code)) : details;
+        return FlutterError(code_str, message, details_str);
+    }
+
+    FlutterError create_flutter_error_from_gatt_communication_status(
+        GattCommunicationStatus status,
+        const std::string& message
+    )
+    {
+        if (status == GattCommunicationStatus::Success) {
+            // Success case - shouldn't normally create an error, but if called, return unknown
+            return create_flutter_error(UniversalBleErrorCode::kUnknownError, message);
+        }
+        
+        UniversalBleErrorCode error_code;
+        switch (status)
+        {
+        case GattCommunicationStatus::Unreachable:
+        case GattCommunicationStatus::ProtocolError:
+        case GattCommunicationStatus::AccessDenied:
+        default:
+            error_code = UniversalBleErrorCode::kFailed;
+            break;
+        }
+        
+        auto error_message = gatt_communication_status_to_error(status);
+        std::string final_message = message.empty() && error_message.has_value() 
+            ? error_message.value() 
+            : message;
+        return create_flutter_error(error_code, final_message);
+    }
+
+    FlutterError create_flutter_error_from_pairing_status(
+        DevicePairingResultStatus status,
+        const std::string& message
+    )
+    {
+        if (status == DevicePairingResultStatus::Paired) {
+            // Success case - shouldn't normally create an error, but if called, return unknown
+            return create_flutter_error(UniversalBleErrorCode::kUnknownError, message);
+        }
+        
+        UniversalBleErrorCode error_code;
+        switch (status)
+        {
+        case DevicePairingResultStatus::AlreadyPaired:
+            error_code = UniversalBleErrorCode::kAlreadyPaired;
+            break;
+        case DevicePairingResultStatus::ConnectionRejected:
+            error_code = UniversalBleErrorCode::kConnectionRejected;
+            break;
+        case DevicePairingResultStatus::NotPaired:
+            error_code = UniversalBleErrorCode::kNotPaired;
+            break;
+        case DevicePairingResultStatus::NotReadyToPair:
+        case DevicePairingResultStatus::TooManyConnections:
+        case DevicePairingResultStatus::HardwareFailure:
+        case DevicePairingResultStatus::NoSupportedProfiles:
+        case DevicePairingResultStatus::InvalidCeremonyData:
+        case DevicePairingResultStatus::RequiredHandlerNotRegistered:
+        case DevicePairingResultStatus::RejectedByHandler:
+        case DevicePairingResultStatus::RemoteDeviceHasAssociation:
+            error_code = UniversalBleErrorCode::kPairingFailed;
+            break;
+        case DevicePairingResultStatus::AuthenticationTimeout:
+        case DevicePairingResultStatus::AuthenticationNotAllowed:
+        case DevicePairingResultStatus::AuthenticationFailure:
+            error_code = UniversalBleErrorCode::kAuthenticationFailure;
+            break;
+        case DevicePairingResultStatus::ProtectionLevelCouldNotBeMet:
+            error_code = UniversalBleErrorCode::kProtectionLevelNotMet;
+            break;
+        case DevicePairingResultStatus::AccessDenied:
+            error_code = UniversalBleErrorCode::kAccessDenied;
+            break;
+        case DevicePairingResultStatus::PairingCanceled:
+            error_code = UniversalBleErrorCode::kPairingCancelled;
+            break;
+        case DevicePairingResultStatus::OperationAlreadyInProgress:
+            error_code = UniversalBleErrorCode::kOperationInProgress;
+            break;
+        default:
+            error_code = UniversalBleErrorCode::kPairingFailed;
+            break;
+        }
+        
+        auto error_message = device_pairing_result_to_string(status);
+        std::string final_message = message.empty() && error_message.has_value() 
+            ? error_message.value() 
+            : message;
+        return create_flutter_error(error_code, final_message);
+    }
+
+    FlutterError create_flutter_error_from_unpairing_status(
+        DeviceUnpairingResultStatus status,
+        const std::string& message
+    )
+    {
+        if (status == DeviceUnpairingResultStatus::Unpaired) {
+            // Success case - shouldn't normally create an error, but if called, return unknown
+            return create_flutter_error(UniversalBleErrorCode::kUnknownError, message);
+        }
+        
+        UniversalBleErrorCode error_code;
+        switch (status)
+        {
+        case DeviceUnpairingResultStatus::Failed:
+            error_code = UniversalBleErrorCode::kUnpairingFailed;
+            break;
+        case DeviceUnpairingResultStatus::AlreadyUnpaired:
+            error_code = UniversalBleErrorCode::kAlreadyUnpaired;
+            break;
+        case DeviceUnpairingResultStatus::AccessDenied:
+            error_code = UniversalBleErrorCode::kAccessDenied;
+            break;
+        case DeviceUnpairingResultStatus::OperationAlreadyInProgress:
+            error_code = UniversalBleErrorCode::kOperationInProgress;
+            break;
+        default:
+            error_code = UniversalBleErrorCode::kUnpairingFailed;
+            break;
+        }
+        
+        auto error_message = device_unpairing_result_to_string(status);
+        std::string final_message = message.empty() && error_message.has_value() 
+            ? error_message.value() 
+            : message;
+        return create_flutter_error(error_code, final_message);
     }
 
 } // namespace universal_ble
