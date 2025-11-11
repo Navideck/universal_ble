@@ -58,7 +58,7 @@ namespace universal_ble
     );
     
     // Create Flutter unknown error
-    FlutterError create_flutter_unknown_error(
+    inline FlutterError create_flutter_unknown_error(
         const std::string& message = "Unknown error"
     ) {
         return create_flutter_error(UniversalBleErrorCode::kUnknownError, message);
