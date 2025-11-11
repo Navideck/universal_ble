@@ -1,3 +1,6 @@
+## 1.0.0
+* Unified error codes for all platforms
+
 ## 0.21.1
 * Fix device name resolution on Windows
 * Add `exclusionFilters` to filter out devices from scan results
