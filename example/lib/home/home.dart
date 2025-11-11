@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:universal_ble/universal_ble.dart';
@@ -24,7 +26,10 @@ class _MyAppState extends State<MyApp> {
   TextEditingController servicesFilterController = TextEditingController();
   TextEditingController namePrefixController = TextEditingController();
   TextEditingController manufacturerDataController = TextEditingController();
+  StreamSubscription<AvailabilityState>? _availabilityStreamSubscription;
 
+  bool get isTrackingAvailabilityState =>
+      _availabilityStreamSubscription != null;
   AvailabilityState? bleAvailabilityState;
   ScanFilter? scanFilter;
 
@@ -40,12 +45,6 @@ class _MyAppState extends State<MyApp> {
     /// Setup queue and timeout
     UniversalBle.queueType = _queueType;
     UniversalBle.timeout = const Duration(seconds: 10);
-
-    UniversalBle.availabilityStream.listen((state) {
-      setState(() {
-        bleAvailabilityState = state;
-      });
-    });
 
     UniversalBle.scanStream.listen((result) {
       // log(result.toString());
@@ -64,6 +63,17 @@ class _MyAppState extends State<MyApp> {
     // UniversalBle.onQueueUpdate = (String id, int remainingItems) {
     //   debugPrint("Queue: $id RemainingItems: $remainingItems");
     // };
+  }
+
+  void trackAvailabilityState() {
+    _availabilityStreamSubscription = UniversalBle.availabilityStream.listen(
+      (state) {
+        setState(() {
+          bleAvailabilityState = state;
+        });
+      },
+    );
+    setState(() {});
   }
 
   Future<void> startScan() async {
@@ -116,6 +126,15 @@ class _MyAppState extends State<MyApp> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(message)),
     );
+  }
+
+  @override
+  void dispose() {
+    _availabilityStreamSubscription?.cancel();
+    servicesFilterController.dispose();
+    namePrefixController.dispose();
+    manufacturerDataController.dispose();
+    super.dispose();
   }
 
   @override
@@ -198,6 +217,11 @@ class _MyAppState extends State<MyApp> {
                       }
                     },
                   ),
+                if (!isTrackingAvailabilityState)
+                  PlatformButton(
+                    text: 'Track Availability State',
+                    onPressed: trackAvailabilityState,
+                  ),
                 if (BleCapabilities.supportsConnectedDevicesApi)
                   PlatformButton(
                     text: 'System Devices',
@@ -235,12 +259,13 @@ class _MyAppState extends State<MyApp> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Padding(
-                padding: const EdgeInsets.all(8.0),
-                child: Text(
-                  'Ble Availability : ${bleAvailabilityState?.name}',
+              if (isTrackingAvailabilityState)
+                Padding(
+                  padding: const EdgeInsets.all(8.0),
+                  child: Text(
+                    'Ble Availability : ${bleAvailabilityState?.name}',
+                  ),
                 ),
-              ),
             ],
           ),
           const Divider(color: Colors.blue),
