@@ -63,6 +63,13 @@ class _MyAppState extends State<MyApp> {
     // UniversalBle.onQueueUpdate = (String id, int remainingItems) {
     //   debugPrint("Queue: $id RemainingItems: $remainingItems");
     // };
+
+    UniversalBle.isScanning().then((value) {
+      debugPrint("Is Scanning: $value");
+      setState(() {
+        _isScanning = value;
+      });
+    });
   }
 
   void trackAvailabilityState() {

@@ -88,6 +88,14 @@ class UniversalBle {
     );
   }
 
+  /// Check if currently scanning for devices.
+  /// Returns `true` if scanning is active, `false` otherwise.
+  static Future<bool> isScanning() async {
+    return await _bleCommandQueue.queueCommand(
+      () => _platform.isScanning(),
+    );
+  }
+
   /// Connect to a device.
   /// It is advised to stop scanning before connecting.
   /// It throws error if device connection fails.

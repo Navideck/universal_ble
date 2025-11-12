@@ -43,6 +43,8 @@ abstract class UniversalBlePlatform {
 
   Future<void> stopScan();
 
+  Future<bool> isScanning();
+
   Future<void> connect(String deviceId, {Duration? connectionTimeout});
 
   Future<void> disconnect(String deviceId);

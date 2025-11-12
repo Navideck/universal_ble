@@ -88,6 +88,13 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
     manager.stopScan()
   }
 
+  func isScanning() throws -> Bool {
+    if CBCentralManager.authorization == CBManagerAuthorization.allowedAlways {
+      return manager.isScanning
+    }
+    return false
+  }
+
   func connect(deviceId: String) throws {
     let peripheral = try deviceId.getPeripheral(manager: manager)
     peripheral.delegate = self

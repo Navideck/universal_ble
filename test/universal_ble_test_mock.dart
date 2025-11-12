@@ -95,4 +95,9 @@ abstract class UniversalBlePlatformMock extends UniversalBlePlatform {
       BleOutputProperty bleOutputProperty) {
     throw UnimplementedError();
   }
+
+  @override
+  Future<bool> isScanning() {
+    throw UnimplementedError();
+  }
 }

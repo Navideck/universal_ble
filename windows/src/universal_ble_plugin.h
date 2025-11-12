@@ -158,6 +158,7 @@ namespace universal_ble
         ErrorOr<int64_t> GetConnectionState(const std::string &device_id) override;
         std::optional<FlutterError> StartScan(const UniversalScanFilter *filter) override;
         std::optional<FlutterError> StopScan() override;
+        ErrorOr<bool> IsScanning() override;
         std::optional<FlutterError> Connect(const std::string &device_id) override;
         std::optional<FlutterError> Disconnect(const std::string &device_id) override;
         void DiscoverServices(
