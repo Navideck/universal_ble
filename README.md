@@ -80,6 +80,9 @@ UniversalBle.startScan(
 
 // Stop scanning
 UniversalBle.stopScan();
+
+// Check if scanning
+UniversalBle.isScanning();
 ```
 
 Before initiating a scan, ensure that Bluetooth is available:
