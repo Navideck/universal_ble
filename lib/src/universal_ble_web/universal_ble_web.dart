@@ -20,6 +20,7 @@ class UniversalBleWeb extends UniversalBlePlatform {
   final Map<String, StreamSubscription> _connectedDeviceStreamList = {};
   final Map<String, StreamSubscription> _characteristicStreamList = {};
   final Map<String, List<_UniversalWebBluetoothService>> _serviceCache = {};
+  bool _isScanning = false;
 
   @override
   Future<BleConnectionState> getConnectionState(String deviceId) async {
@@ -83,6 +84,7 @@ class UniversalBleWeb extends UniversalBlePlatform {
     PlatformConfig? platformConfig,
   }) async {
     try {
+      _isScanning = true;
       FlutterWebBluetooth.instance.isAvailable;
       BluetoothDevice device = await FlutterWebBluetooth.instance.requestDevice(
         _getRequestOptionBuilder(scanFilter, platformConfig?.web),
@@ -101,6 +103,8 @@ class UniversalBleWeb extends UniversalBlePlatform {
         throw WebBluetoothGloballyDisabled(message: error);
       }
       rethrow;
+    } finally {
+      _isScanning = false;
     }
   }
 
@@ -145,6 +149,9 @@ class UniversalBleWeb extends UniversalBlePlatform {
   Future<void> stopScan() async {
     _disposeAdvertisementWatcher();
   }
+
+  @override
+  Future<bool> isScanning() async => _isScanning;
 
   @override
   Future<void> setNotifiable(

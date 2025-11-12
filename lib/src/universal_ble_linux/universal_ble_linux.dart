@@ -126,6 +126,12 @@ class UniversalBleLinux extends UniversalBlePlatform {
   }
 
   @override
+  Future<bool> isScanning() async {
+    await _ensureInitialized();
+    return _activeAdapter?.discovering == true;
+  }
+
+  @override
   Future<BleConnectionState> getConnectionState(String deviceId) async {
     BlueZDevice? device = _devices[deviceId] ??
         _client.devices.cast<BlueZDevice?>().firstWhere(

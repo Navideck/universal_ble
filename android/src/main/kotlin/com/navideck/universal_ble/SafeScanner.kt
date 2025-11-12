@@ -36,6 +36,7 @@ class SafeScanner(private val bluetoothManager: BluetoothManager) {
     private val handler = Handler(Looper.myLooper()!!)
     private val startTimes = LinkedList<Long>()
     private var awaitingScan = false
+    private var isScanning = false
 
     fun startScan(filters: List<ScanFilter>, settings: ScanSettings, callback: ScanCallback) {
         val now = System.currentTimeMillis()
@@ -52,7 +53,7 @@ class SafeScanner(private val bluetoothManager: BluetoothManager) {
             }
 
             awaitingScan = true
-            val delay = startTimes.first + EXCESSIVE_SCANNING_PERIOD_MS - now + 2_000
+            val delay = startTimes.first() + EXCESSIVE_SCANNING_PERIOD_MS - now + 2_000
             Log.e(TAG, "startScan: too frequent, schedule auto-start after $delay ms $startTimes")
 
             handler.postDelayed({
@@ -65,8 +66,10 @@ class SafeScanner(private val bluetoothManager: BluetoothManager) {
             startTimes.addLast(now)
             try {
                 bluetoothManager.adapter.bluetoothLeScanner?.startScan(filters, settings, callback)
+                isScanning = true
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to start Scan : $e")
+                isScanning = false
             }
         }
     }
@@ -75,5 +78,10 @@ class SafeScanner(private val bluetoothManager: BluetoothManager) {
         awaitingScan = false
         handler.removeCallbacksAndMessages(null)
         bluetoothManager.adapter.bluetoothLeScanner?.stopScan(callback)
+        isScanning = false
+    }
+
+    fun isScanning(): Boolean {
+        return isScanning || awaitingScan
     }
 }

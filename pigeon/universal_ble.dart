@@ -34,6 +34,8 @@ abstract class UniversalBlePlatformChannel {
 
   void stopScan();
 
+  bool isScanning();
+
   void connect(String deviceId);
 
   void disconnect(String deviceId);

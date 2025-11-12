@@ -20,9 +20,9 @@ EXTERNAL SOURCES:
     :path: Flutter/ephemeral/.symlinks/plugins/universal_ble/darwin
 
 SPEC CHECKSUMS:
-  device_info_plus: b0fafc687fb901e2af612763340f1b0d4352f8e5
+  device_info_plus: 5401765fde0b8d062a2f8eb65510fb17e77cf07f
   FlutterMacOS: d0db08ddef1a9af05a5ec4b724367152bb0500b1
-  universal_ble: ff19787898040d721109c6324472e5dd4bc86adc
+  universal_ble: cf52a7b3fd2e7c14d6d7262e9fdadb72ab6b88a6
 
 PODFILE CHECKSUM: 9ebaf0ce3d369aaa26a9ea0e159195ed94724cf3
 

@@ -1,5 +1,6 @@
 ## 1.0.0
 * Unified error codes for all platforms
+* Add `isScanning` api
 
 ## 0.21.1
 * Fix device name resolution on Windows

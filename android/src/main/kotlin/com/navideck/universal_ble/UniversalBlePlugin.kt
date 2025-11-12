@@ -187,6 +187,10 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
         safeScanner.stopScan(scanCallback)
     }
 
+    override fun isScanning(): Boolean {
+      return  safeScanner.isScanning()
+    }
+
     override fun connect(deviceId: String) {
         // If already connected, send connected message,
         // if connecting, do nothing

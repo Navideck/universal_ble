@@ -58,6 +58,10 @@ class UniversalBlePigeonChannel extends UniversalBlePlatform {
       _executeWithErrorHandling(() => _channel.stopScan());
 
   @override
+  Future<bool> isScanning() =>
+      _executeWithErrorHandling(() => _channel.isScanning());
+
+  @override
   Future<BleConnectionState> getConnectionState(String deviceId) async {
     int state = await _executeWithErrorHandling(
         () => _channel.getConnectionState(deviceId));

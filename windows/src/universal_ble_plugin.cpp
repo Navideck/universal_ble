@@ -212,6 +212,15 @@ std::optional<FlutterError> UniversalBlePlugin::StopScan() {
   }
 };
 
+ErrorOr<bool> UniversalBlePlugin::IsScanning() {
+  if (bluetooth_le_watcher_ != nullptr) {
+    try {
+      return bluetooth_le_watcher_.Status() == BluetoothLEAdvertisementWatcherStatus::Started;
+    } catch (...) {}
+  }
+  return false;
+}
+
 ErrorOr<int64_t>
 UniversalBlePlugin::GetConnectionState(const std::string &device_id) {
   const auto it = connected_devices_.find(str_to_mac_address(device_id));

@@ -39,6 +39,7 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
   private var characteristicWriteWithoutResponseFutures = [CharacteristicWriteFuture]()
   private var characteristicNotifyFutures = [CharacteristicNotifyFuture]()
   private var discoverServicesFutures = [DiscoverServicesFuture]()
+  private var isManageScanning = false
 
   init(callbackChannel: UniversalBleCallbackChannel) {
     self.callbackChannel = callbackChannel
@@ -82,10 +83,31 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
     let options = [CBCentralManagerScanOptionAllowDuplicatesKey: true]
 
     manager.scanForPeripherals(withServices: withServices, options: options)
+    isManageScanning = true
   }
 
   func stopScan() throws {
     manager.stopScan()
+    isManageScanning = false
+  }
+
+  func isScanning() throws -> Bool {
+    var hasAuthorization = true
+    #if os(iOS)
+      if #available(iOS 13.1, *) {
+        hasAuthorization = CBCentralManager.authorization == .allowedAlways
+      } else {
+        return isManageScanning
+      }
+    #elseif os(macOS)
+      hasAuthorization = CBCentralManager.authorization == .allowedAlways
+    #endif
+
+    if hasAuthorization {
+      return manager.isScanning
+    }
+
+    return isManageScanning
   }
 
   func connect(deviceId: String) throws {
