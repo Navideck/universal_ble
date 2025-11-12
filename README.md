@@ -406,6 +406,67 @@ When developing cross-platform BLE applications and devices:
 - Implement data fragmentation for larger transfers
 - Handle platform-specific MTU size based on current value
 
+#### Resetting State on Hot Restart
+
+During Flutter hot restart in debug mode, the app state is reset but native Bluetooth connections and scan operations may persist. This can lead to connection issues or stale state. 
+
+<details> 
+<summary>Use the following helper function to properly clean up BLE state before your app restarts.</summary>
+
+```dart
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  // Reset BLE state before app initialization
+  await resetBleState();
+  runApp(MyApp());
+}
+
+/// Resets BLE state by stopping scans and disconnecting all devices.
+/// Make sure you have Bluetooth permissions before calling this function.
+Future<void> resetBleState() async {
+  // Skip reset in release mode or on web
+  if (!kDebugMode || kIsWeb) return;
+
+  // Check Bluetooth availability
+  AvailabilityState availabilityState =
+      await UniversalBle.getBluetoothAvailabilityState();
+
+  // Skip if Bluetooth is not powered on
+  if (availabilityState != AvailabilityState.poweredOn) {
+    debugPrint('Reset: Bluetooth is not powered on');
+    return;
+  }
+
+  // Stop scanning
+  if (await UniversalBle.isScanning()) {
+    debugPrint('Reset: Stopping scan');
+    await UniversalBle.stopScan();
+  }
+
+  // Disconnect all connected devices
+  List<String> withServices = [];
+
+  // On Apple platforms, you must specify services to discover connected devices
+  if (defaultTargetPlatform == TargetPlatform.macOS ||
+      defaultTargetPlatform == TargetPlatform.iOS) {
+    // Replace with your known device service UUIDs
+    withServices = ["0x180A"];
+  }
+
+  List<BleDevice> connectedDevices =
+      await UniversalBle.getSystemDevices(withServices: withServices);
+
+  for (var device in connectedDevices) {
+    debugPrint('Reset: Disconnecting device: ${device.deviceId}');
+    await UniversalBle.disconnect(device.deviceId);
+  }
+
+  debugPrint('Reset: Done');
+}
+```
+
+</details> 
+
 ## Command Queue
 
 By default, all commands are executed in a global queue (`QueueType.global`), with each command waiting for the previous one to finish. While this method is slower it is the safest to avoid command exceptions and therefore is the default.
