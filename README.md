@@ -8,7 +8,6 @@ A cross-platform (Android/iOS/macOS/Windows/Linux/Web) Bluetooth Low Energy (BLE
 
 ## Features
 
-- [Request Permissions](#permissions)
 - [Scanning](#scanning)
 - [Connecting](#connecting)
 - [Discovering Services](#discovering-services)
@@ -20,12 +19,12 @@ A cross-platform (Android/iOS/macOS/Windows/Linux/Web) Bluetooth Low Energy (BLE
 - [Timeout](#timeout)
 - [Error Handling](#error-handling)
 - [UUID Format Agnostic](#uuid-format-agnostic)
+- [Request Permissions](#permissions)
 
 ## API Support
 
 |                               | Android | iOS | macOS | Windows | Linux | Web |
 | :---------------------------- | :-----: | :-: | :---: | :-----: | :---: | :-: |
-| requestPermissions             |   ✔️    | ✔️  |  ✔️   |   ✔️    |  ✔️   | ✔️  |
 | startScan/stopScan            |   ✔️    | ✔️  |  ✔️   |   ✔️    |  ✔️   | ✔️  |
 | connect/disconnect            |   ✔️    | ✔️  |  ✔️   |   ✔️    |  ✔️   | ✔️  |
 | getSystemDevices              |   ✔️    | ✔️  |  ✔️   |   ✔️    |  ✔️   | ❌  |
@@ -41,6 +40,7 @@ A cross-platform (Android/iOS/macOS/Windows/Linux/Web) Bluetooth Low Energy (BLE
 | enable/disable Bluetooth      |   ✔️    | ❌  |  ❌   |   ✔️    |  ✔️   | ❌  |
 | onAvailabilityChange          |   ✔️    | ✔️  |  ✔️   |   ✔️    |  ✔️   | ✔️  |
 | requestMtu                    |   ✔️    | ✔️  |  ✔️   |   ✔️    |  ✔️   | ❌  |
+| requestPermissions            |   ✔️    | ✔️  |  ✔️   |   ✔️    |  ✔️   | ✔️  |
 
 ## Getting Started
 
@@ -55,49 +55,6 @@ and import it wherever you want to use it:
 
 ```dart
 import 'package:universal_ble/universal_ble.dart';
-```
-
-### Permissions
-
-Before using BLE features, you need to request the necessary permissions. First, add the required permissions to your project configuration (see [Platform specific setup](#platform-specific-setup)).
-
-#### Requesting Permissions
-
-Call `requestPermissions()` to request all necessary BLE permissions. This method:
-
-- Returns successfully if all permissions are already granted or accepted by the user
-- Throws a `UniversalBleException` if permissions are denied by the user
-- Always succeeds on `Windows`, `Linux`, and `Web` (no runtime permissions required)
-
-```dart
-UniversalBle.requestPermissions(
-  withAndroidFineLocation: false,
-);
-```
-
-#### Android Location Permission
-
-The `withAndroidFineLocation` parameter controls location permission requests on Android:
-
-- **Android 12+ (API 31+)**:
-  - `withAndroidFineLocation: true` → Requests `ACCESS_FINE_LOCATION` permission
-  - `withAndroidFineLocation: false` → Only requests Bluetooth permissions (no location permission)
-- **Android 11 and below**:
-  - Location permission is always requested if declared in your manifest (required for BLE scanning)
-  - The `withAndroidFineLocation` parameter is ignored
-
-For defining required permissions in Android Manifest, check [Platform specific setup](#platform-specific-setup) for Android
-
-> **Note**: Permissions are automatically requested when calling `startScan()`. To configure location permission requests during scanning, use the `platformConfig` parameter:
-
-```dart
-UniversalBle.startScan(
-  platformConfig: PlatformConfig(
-    android: AndroidOptions(
-      requestLocationPermission: false,
-    ),
-  ),
-);
 ```
 
 ### Scanning
@@ -674,7 +631,7 @@ If your app uses iBeacons or BLUETOOTH_SCAN to determine location, change the la
 <uses-permission android:name="android.permission.BLUETOOTH_SCAN" />
 ```
 
-You need to programmatically request permissions on runtime with `requestPermissions`
+You need to programmatically request permissions on runtime, check [permissions](#permissions)
 
 ### iOS / macOS
 
@@ -716,6 +673,49 @@ UniversalBle.startScan(
     )
   )
 )
+```
+
+### Permissions
+
+Before using BLE features, you need to request the necessary permissions. First, add the required permissions to your project configuration (see [Platform specific setup](#platform-specific-setup)).
+
+#### Requesting Permissions
+
+Call `requestPermissions()` to request all necessary BLE permissions. This method:
+
+- Returns successfully if all permissions are already granted or accepted by the user
+- Throws a `UniversalBleException` if permissions are denied by the user
+- Always succeeds on `Windows`, `Linux`, and `Web` (no runtime permissions required)
+
+```dart
+UniversalBle.requestPermissions(
+  withAndroidFineLocation: false,
+);
+```
+
+#### Android Location Permission
+
+The `withAndroidFineLocation` parameter controls location permission requests on Android:
+
+- **Android 12+ (API 31+)**:
+  - `withAndroidFineLocation: true` → Requests `ACCESS_FINE_LOCATION` permission
+  - `withAndroidFineLocation: false` → Only requests Bluetooth permissions (no location permission)
+- **Android 11 and below**:
+  - Location permission is always requested if declared in your manifest (required for BLE scanning)
+  - The `withAndroidFineLocation` parameter is ignored
+
+For defining required permissions in Android Manifest, check [Platform specific setup](#platform-specific-setup) for Android
+
+> **Note**: Permissions are automatically requested when calling `startScan()`. To configure location permission requests during scanning, use the `platformConfig` parameter:
+
+```dart
+UniversalBle.startScan(
+  platformConfig: PlatformConfig(
+    android: AndroidOptions(
+      requestLocationPermission: false,
+    ),
+  ),
+);
 ```
 
 ## Customizing Platform Implementation of Universal Ble
