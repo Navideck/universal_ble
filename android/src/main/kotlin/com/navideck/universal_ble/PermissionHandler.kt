@@ -142,6 +142,7 @@ class PermissionHandler(
             }
         } else {
             // Android 11 and below
+            permissionsToRequest.add(Manifest.permission.BLUETOOTH)
             // Location permission is MANDATORY
             // Prefer ACCESS_FINE_LOCATION over ACCESS_COARSE_LOCATION
             permissionsToRequest.addAll(getLocationPermissionsToAsk())
@@ -201,50 +202,37 @@ class PermissionHandler(
         val sdkInt = Build.VERSION.SDK_INT
         val missingPermissions = mutableListOf<String>()
 
-
-        val hasDeclaredBluetoothScan = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            hasPermissionInManifest(Manifest.permission.BLUETOOTH_SCAN)
-        } else {
-            false
-        }
-
-        val hasDeclaredBluetoothConnect = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            hasPermissionInManifest(Manifest.permission.BLUETOOTH_CONNECT)
-        } else {
-            false
-        }
-
         val hasDeclaredFineLocation =
             hasPermissionInManifest(Manifest.permission.ACCESS_FINE_LOCATION)
         val hasDeclaredCoarseLocation =
             hasPermissionInManifest(Manifest.permission.ACCESS_COARSE_LOCATION)
-
+        val hasDeclaredLocationPermission = hasDeclaredFineLocation || hasDeclaredCoarseLocation
 
         // Android 12+ (API 31+)
+        @SuppressLint("InlinedApi")
         if (sdkInt >= Build.VERSION_CODES.S) {
             // BLUETOOTH_SCAN is mandatory on Android 12+
-            if (!hasDeclaredBluetoothConnect) {
-                @SuppressLint("InlinedApi")
+            if (!hasPermissionInManifest(Manifest.permission.BLUETOOTH_SCAN)) {
                 missingPermissions.add(Manifest.permission.BLUETOOTH_SCAN)
             }
 
             // BLUETOOTH_CONNECT is mandatory on Android 12+
-            if (!hasDeclaredBluetoothScan) {
-                @SuppressLint("InlinedApi")
+            if (!hasPermissionInManifest(Manifest.permission.BLUETOOTH_CONNECT)) {
                 missingPermissions.add(Manifest.permission.BLUETOOTH_CONNECT)
             }
 
             // Location permission is optional on Android 12+ (depends on neverForLocation and withFineLocation)
             // Only validate if it's actually needed
-            if (hasDeclaredBluetoothScan && withFineLocation) {
-                if (!hasDeclaredFineLocation && !hasDeclaredCoarseLocation) {
-                    missingPermissions.add("${Manifest.permission.ACCESS_FINE_LOCATION} or ${Manifest.permission.ACCESS_COARSE_LOCATION}")
-                }
+            if (withFineLocation && !hasDeclaredLocationPermission) {
+                missingPermissions.add("${Manifest.permission.ACCESS_FINE_LOCATION} or ${Manifest.permission.ACCESS_COARSE_LOCATION}")
             }
         } else {
             // Android 11 and below
-            // Location permission is MANDATORY for BLE scanning
-            if (!hasDeclaredFineLocation && !hasDeclaredCoarseLocation) {
+            if (!hasPermissionInManifest(Manifest.permission.BLUETOOTH)) {
+                missingPermissions.add(Manifest.permission.BLUETOOTH)
+            }
+            // Android 11 and below, Location permission is MANDATORY for BLE scanning
+            if (!hasDeclaredLocationPermission) {
                 missingPermissions.add("${Manifest.permission.ACCESS_FINE_LOCATION} or ${Manifest.permission.ACCESS_COARSE_LOCATION}")
             }
         }

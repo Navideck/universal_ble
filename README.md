@@ -8,7 +8,7 @@ A cross-platform (Android/iOS/macOS/Windows/Linux/Web) Bluetooth Low Energy (BLE
 
 ## Features
 
-- [Request Permission](#permissions)
+- [Request Permissions](#permissions)
 - [Scanning](#scanning)
 - [Connecting](#connecting)
 - [Discovering Services](#discovering-services)
@@ -25,7 +25,7 @@ A cross-platform (Android/iOS/macOS/Windows/Linux/Web) Bluetooth Low Energy (BLE
 
 |                               | Android | iOS | macOS | Windows | Linux | Web |
 | :---------------------------- | :-----: | :-: | :---: | :-----: | :---: | :-: |
-| requestPermission             |   ✔️    | ✔️  |  ✔️   |   ✔️    |  ✔️   | ✔️  |
+| requestPermissions             |   ✔️    | ✔️  |  ✔️   |   ✔️    |  ✔️   | ✔️  |
 | startScan/stopScan            |   ✔️    | ✔️  |  ✔️   |   ✔️    |  ✔️   | ✔️  |
 | connect/disconnect            |   ✔️    | ✔️  |  ✔️   |   ✔️    |  ✔️   | ✔️  |
 | getSystemDevices              |   ✔️    | ✔️  |  ✔️   |   ✔️    |  ✔️   | ❌  |
