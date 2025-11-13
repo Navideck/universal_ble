@@ -21,7 +21,7 @@ class MyApp extends StatefulWidget {
 
 class _MyAppState extends State<MyApp> {
   final _bleDevices = <BleDevice>[];
-  List<BleDevice> _hiddenDevices = [];
+  final _hiddenDevices = <BleDevice>[];
   bool _isScanning = false;
   QueueType _queueType = QueueType.global;
   TextEditingController servicesFilterController = TextEditingController();
@@ -271,7 +271,8 @@ class _MyAppState extends State<MyApp> {
                     text: 'Hide Discovered Devices',
                     onPressed: () {
                       setState(() {
-                        _hiddenDevices = _bleDevices.toList();
+                        _hiddenDevices.clear();
+                        _hiddenDevices.addAll(_bleDevices);
                         _bleDevices.clear();
                       });
                     },
