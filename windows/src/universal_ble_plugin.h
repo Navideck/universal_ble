@@ -161,6 +161,9 @@ namespace universal_ble
         ErrorOr<bool> IsScanning() override;
         std::optional<FlutterError> Connect(const std::string &device_id) override;
         std::optional<FlutterError> Disconnect(const std::string &device_id) override;
+        void RequestPermissions(
+            bool with_android_fine_location,
+            std::function<void(std::optional<FlutterError> reply)> result) override;
         void DiscoverServices(
             const std::string &device_id,
             std::function<void(ErrorOr<flutter::EncodableList> reply)> result) override;

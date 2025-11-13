@@ -63,6 +63,20 @@ class UniversalBle {
     );
   }
 
+  /// Request permissions.
+  /// if all permissions are already granted or granted by user, this method will succeed.
+  /// it will throw exception if permissions are denied by user.
+  /// [withAndroidFineLocation] is used to request fine location permission on Android 12+ (API 31+).
+  /// on Android lower than 12, this method will request location permission regardless of the [withAndroidFineLocation] value.
+  /// `Windows`, `Linux` and `Web` will always succeed.
+  static Future<void> requestPermissions({
+    bool withAndroidFineLocation = false,
+  }) async {
+    return _platform.requestPermissions(
+      withAndroidFineLocation: withAndroidFineLocation,
+    );
+  }
+
   /// Start scan.
   /// Scan results will arrive in [onScanResult] listener.
   /// It might throw errors if Bluetooth is not available.

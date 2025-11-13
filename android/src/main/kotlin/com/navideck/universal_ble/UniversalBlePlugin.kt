@@ -39,9 +39,12 @@ private const val TAG = "UniversalBlePlugin"
 
 @SuppressLint("MissingPermission")
 class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(), FlutterPlugin,
-    ActivityAware, PluginRegistry.ActivityResultListener {
+    ActivityAware, PluginRegistry.ActivityResultListener,
+    PluginRegistry.RequestPermissionsResultListener {
     private val bluetoothEnableRequestCode = 2342313
     private val bluetoothDisableRequestCode = 2342414
+    private val permissionRequestCode = 2342515
+    private var permissionHandler: PermissionHandler? = null
     private var callbackChannel: UniversalBleCallbackChannel? = null
     private var mainThreadHandler: Handler? = null
     private lateinit var context: Context
@@ -93,6 +96,20 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
                     ?: AvailabilityState.Unknown.value
             )
         )
+    }
+
+    override fun requestPermissions(withAndroidFineLocation: Boolean, callback: (Result<Unit>) -> Unit) {
+        if (permissionHandler == null) {
+            callback(
+                Result.failure(
+                    createFlutterError(
+                        UniversalBleErrorCode.FAILED,
+                        "PermissionHandler is not initialized"
+                    )
+                )
+            )
+        }
+        permissionHandler?.requestPermissions(withAndroidFineLocation, callback)
     }
 
     override fun enableBluetooth(callback: (Result<Boolean>) -> Unit) {
@@ -188,7 +205,7 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
     }
 
     override fun isScanning(): Boolean {
-      return  safeScanner.isScanning()
+        return safeScanner.isScanning()
     }
 
     override fun connect(deviceId: String) {
@@ -1130,13 +1147,28 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
 
     override fun onAttachedToActivity(binding: ActivityPluginBinding) {
         activity = binding.activity
+        permissionHandler = PermissionHandler(context, binding.activity, permissionRequestCode)
         binding.addActivityResultListener(this)
+        binding.addRequestPermissionsResultListener(this)
     }
 
     override fun onDetachedFromActivity() {
         activity = null
+        permissionHandler = null
     }
 
     override fun onDetachedFromActivityForConfigChanges() {}
-    override fun onReattachedToActivityForConfigChanges(binding: ActivityPluginBinding) {}
+    override fun onReattachedToActivityForConfigChanges(binding: ActivityPluginBinding) {
+        activity = binding.activity
+        permissionHandler = PermissionHandler(context, binding.activity, permissionRequestCode)
+    }
+
+    override fun onRequestPermissionsResult(
+        requestCode: Int,
+        permissions: Array<out String>,
+        grantResults: IntArray,
+    ): Boolean {
+        return permissionHandler?.handlePermissionResult(requestCode, permissions, grantResults)
+            ?: false
+    }
 }

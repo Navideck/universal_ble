@@ -33,6 +33,7 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
   private var universalBleFilterUtil = UniversalBleFilterUtil()
   private lazy var manager: CBCentralManager = .init(delegate: self, queue: nil)
   private var availabilityStateUpdateHandlers: [(Result<Int64, Error>) -> Void] = []
+  private var requestPermissionStateUpdateHandlers: [(Result<Void, Error>) -> Void] = []
   private var discoveredServicesProgressMap: [String: [UniversalBleService]] = [:]
   private var characteristicReadFutures = [CharacteristicReadFuture]()
   private var characteristicWriteFutures = [CharacteristicWriteFuture]()
@@ -52,6 +53,27 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
     } else {
       availabilityStateUpdateHandlers.append(completion)
       _ = manager
+    }
+  }
+
+  func requestPermissions(withAndroidFineLocation _: Bool, completion: @escaping (Result<Void, any Error>) -> Void) {
+    if manager.state != .unknown {
+      completePermissionRequest(completion: completion)
+    } else {
+      requestPermissionStateUpdateHandlers.append(completion)
+      _ = manager
+    }
+  }
+
+  func completePermissionRequest(completion: @escaping (Result<Void, any Error>) -> Void) {
+    let state = manager.state
+    switch state {
+    case .unauthorized:
+      completion(.failure(createFlutterError(code: .bluetoothUnauthorized, message: "Not authorized to access Bluetooth")))
+    case .unsupported:
+      completion(.failure(createFlutterError(code: .notSupported, message: "Bluetooth is not supported")))
+    default:
+      completion(.success(()))
     }
   }
 
@@ -345,6 +367,11 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
     // Complete Pending state handler
     availabilityStateUpdateHandlers.removeAll { handler in
       handler(.success(state))
+      return true
+    }
+    // Complete Pending permission request handler
+    requestPermissionStateUpdateHandlers.removeAll { handler in
+      completePermissionRequest(completion: handler)
       return true
     }
   }

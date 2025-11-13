@@ -118,6 +118,14 @@ void UniversalBlePlugin::DisableBluetooth(
       });
 }
 
+void UniversalBlePlugin::RequestPermissions(
+    bool with_android_fine_location,
+    std::function<void(std::optional<FlutterError> reply)> result) {
+    // Windows does not require runtime permissions for Bluetooth
+    result(std::nullopt);
+    return;
+}
+
 std::optional<FlutterError>
 UniversalBlePlugin::StartScan(const UniversalScanFilter *filter) {
 

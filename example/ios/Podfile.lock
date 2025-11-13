@@ -1,39 +1,27 @@
 PODS:
-  - device_info_plus (0.0.1):
-    - Flutter
   - Flutter (1.0.0)
   - integration_test (0.0.1):
-    - Flutter
-  - permission_handler_apple (9.3.0):
     - Flutter
   - universal_ble (0.0.1):
     - Flutter
     - FlutterMacOS
 
 DEPENDENCIES:
-  - device_info_plus (from `.symlinks/plugins/device_info_plus/ios`)
   - Flutter (from `Flutter`)
   - integration_test (from `.symlinks/plugins/integration_test/ios`)
-  - permission_handler_apple (from `.symlinks/plugins/permission_handler_apple/ios`)
   - universal_ble (from `.symlinks/plugins/universal_ble/darwin`)
 
 EXTERNAL SOURCES:
-  device_info_plus:
-    :path: ".symlinks/plugins/device_info_plus/ios"
   Flutter:
     :path: Flutter
   integration_test:
     :path: ".symlinks/plugins/integration_test/ios"
-  permission_handler_apple:
-    :path: ".symlinks/plugins/permission_handler_apple/ios"
   universal_ble:
     :path: ".symlinks/plugins/universal_ble/darwin"
 
 SPEC CHECKSUMS:
-  device_info_plus: c6fb39579d0f423935b0c9ce7ee2f44b71b9fce6
   Flutter: cabc95a1d2626b1b06e7179b784ebcf0c0cde467
   integration_test: 252f60fa39af5e17c3aa9899d35d908a0721b573
-  permission_handler_apple: 9878588469a2b0d0fc1e048d9f43605f92e6cec2
   universal_ble: cf52a7b3fd2e7c14d6d7262e9fdadb72ab6b88a6
 
 PODFILE CHECKSUM: 4f1c12611da7338d21589c0b2ecd6bd20b109694

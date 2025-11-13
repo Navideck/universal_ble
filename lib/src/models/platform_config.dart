@@ -1,8 +1,9 @@
 /// Platform specific config to scan devices
 class PlatformConfig {
   WebOptions? web;
+  AndroidOptions? android;
 
-  PlatformConfig({this.web});
+  PlatformConfig({this.web, this.android});
 }
 
 /// Web options to scan devices
@@ -20,4 +21,11 @@ class WebOptions {
     this.optionalServices = const [],
     this.optionalManufacturerData = const [],
   });
+}
+
+/// Android options to scan devices
+class AndroidOptions {
+  bool requestLocationPermission;
+
+  AndroidOptions({this.requestLocationPermission = true});
 }
