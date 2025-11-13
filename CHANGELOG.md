@@ -1,6 +1,7 @@
 ## 1.0.0
 * Unified error codes for all platforms
 * Add `isScanning` api
+* Add `requestPermissions` api and auto ask permission on `startScan`
 
 ## 0.21.1
 * Fix device name resolution on Windows

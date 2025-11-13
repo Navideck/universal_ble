@@ -8,6 +8,7 @@ A cross-platform (Android/iOS/macOS/Windows/Linux/Web) Bluetooth Low Energy (BLE
 
 ## Features
 
+- [Request Permission](#permissions)
 - [Scanning](#scanning)
 - [Connecting](#connecting)
 - [Discovering Services](#discovering-services)
@@ -22,23 +23,24 @@ A cross-platform (Android/iOS/macOS/Windows/Linux/Web) Bluetooth Low Energy (BLE
 
 ## API Support
 
-|                      | Android | iOS | macOS | Windows | Linux | Web |
-| :------------------- | :-----: | :-: | :---: | :-----: | :----------: | :-: |
-| startScan/stopScan   |   ✔️    | ✔️  |  ✔️   |   ✔️    |      ✔️      | ✔️  |
-| connect/disconnect   |   ✔️    | ✔️  |  ✔️   |   ✔️    |      ✔️      | ✔️  |
-| getSystemDevices     |   ✔️    | ✔️  |  ✔️   |   ✔️    |      ✔️      | ❌  |
-| discoverServices     |   ✔️    | ✔️  |  ✔️   |   ✔️    |      ✔️      | ✔️  |
-| read                 |   ✔️    | ✔️  |  ✔️   |   ✔️    |      ✔️      | ✔️  |
-| write                |   ✔️    | ✔️  |  ✔️   |   ✔️    |      ✔️      | ✔️  |
-| subscriptions        |   ✔️    | ✔️  |  ✔️   |   ✔️    |      ✔️      | ✔️  |
-| pair                 |   ✔️    | ✔️  |  ✔️   |   ✔️    |      ✔️      | ⏺  |
-| unpair               |   ✔️    | ❌  |  ❌   |   ✔️    |      ✔️      | ❌  |
-| isPaired           |   ✔️    | ✔️  |  ✔️   |   ✔️    |      ✔️      | ✔️  |
-| onPairingStateChange |   ✔️    | ⏺  |  ⏺   |   ✔️    |      ✔️      | ⏺  |
-| getBluetoothAvailabilityState |   ✔️    | ✔️  |  ✔️   |   ✔️    |      ✔️      | ❌  |
-| enable/disable Bluetooth      |   ✔️    | ❌  |  ❌   |   ✔️    |      ✔️      | ❌  |
-| onAvailabilityChange |   ✔️    | ✔️  |  ✔️   |   ✔️    |      ✔️      | ✔️  |
-| requestMtu           |   ✔️    | ✔️  |  ✔️   |   ✔️    |      ✔️      | ❌  |
+|                               | Android | iOS | macOS | Windows | Linux | Web |
+| :---------------------------- | :-----: | :-: | :---: | :-----: | :---: | :-: |
+| requestPermission             |   ✔️    | ✔️  |  ✔️   |   ✔️    |  ✔️   | ✔️  |
+| startScan/stopScan            |   ✔️    | ✔️  |  ✔️   |   ✔️    |  ✔️   | ✔️  |
+| connect/disconnect            |   ✔️    | ✔️  |  ✔️   |   ✔️    |  ✔️   | ✔️  |
+| getSystemDevices              |   ✔️    | ✔️  |  ✔️   |   ✔️    |  ✔️   | ❌  |
+| discoverServices              |   ✔️    | ✔️  |  ✔️   |   ✔️    |  ✔️   | ✔️  |
+| read                          |   ✔️    | ✔️  |  ✔️   |   ✔️    |  ✔️   | ✔️  |
+| write                         |   ✔️    | ✔️  |  ✔️   |   ✔️    |  ✔️   | ✔️  |
+| subscriptions                 |   ✔️    | ✔️  |  ✔️   |   ✔️    |  ✔️   | ✔️  |
+| pair                          |   ✔️    | ✔️  |  ✔️   |   ✔️    |  ✔️   |  ⏺  |
+| unpair                        |   ✔️    | ❌  |  ❌   |   ✔️    |  ✔️   | ❌  |
+| isPaired                      |   ✔️    | ✔️  |  ✔️   |   ✔️    |  ✔️   | ✔️  |
+| onPairingStateChange          |   ✔️    |  ⏺  |   ⏺   |   ✔️    |  ✔️   |  ⏺  |
+| getBluetoothAvailabilityState |   ✔️    | ✔️  |  ✔️   |   ✔️    |  ✔️   | ❌  |
+| enable/disable Bluetooth      |   ✔️    | ❌  |  ❌   |   ✔️    |  ✔️   | ❌  |
+| onAvailabilityChange          |   ✔️    | ✔️  |  ✔️   |   ✔️    |  ✔️   | ✔️  |
+| requestMtu                    |   ✔️    | ✔️  |  ✔️   |   ✔️    |  ✔️   | ❌  |
 
 ## Getting Started
 
@@ -53,6 +55,49 @@ and import it wherever you want to use it:
 
 ```dart
 import 'package:universal_ble/universal_ble.dart';
+```
+
+### Permissions
+
+Before using BLE features, you need to request the necessary permissions. First, add the required permissions to your project configuration (see [Platform specific setup](#platform-specific-setup)).
+
+#### Requesting Permissions
+
+Call `requestPermissions()` to request all necessary BLE permissions. This method:
+
+- Returns successfully if all permissions are already granted or accepted by the user
+- Throws a `UniversalBleException` if permissions are denied by the user
+- Always succeeds on `Windows`, `Linux`, and `Web` (no runtime permissions required)
+
+```dart
+UniversalBle.requestPermissions(
+  withAndroidFineLocation: false,
+);
+```
+
+#### Android Location Permission
+
+The `withAndroidFineLocation` parameter controls location permission requests on Android:
+
+- **Android 12+ (API 31+)**:
+  - `withAndroidFineLocation: true` → Requests `ACCESS_FINE_LOCATION` permission
+  - `withAndroidFineLocation: false` → Only requests Bluetooth permissions (no location permission)
+- **Android 11 and below**:
+  - Location permission is always requested if declared in your manifest (required for BLE scanning)
+  - The `withAndroidFineLocation` parameter is ignored
+
+For defining required permissions in Android Manifest, check [Platform specific setup](#platform-specific-setup) for Android
+
+> **Note**: Permissions are automatically requested when calling `startScan()`. To configure location permission requests during scanning, use the `platformConfig` parameter:
+
+```dart
+UniversalBle.startScan(
+  platformConfig: PlatformConfig(
+    android: AndroidOptions(
+      requestLocationPermission: false,
+    ),
+  ),
+);
 ```
 
 ### Scanning
@@ -128,7 +173,7 @@ You can optionally set a filter when scanning. A filter can have multiple condit
 
 ##### With Services
 
-When setting this parameter, the scan results will only include devices that advertise any of the specified services. 
+When setting this parameter, the scan results will only include devices that advertise any of the specified services.
 
 ```dart
 List<String> withServices;
@@ -213,7 +258,7 @@ BleConnectionState connectionState = await bleDevice.connectionState;
 
 ### Discovering Services
 
-After establishing a connection, services need to be discovered. This method will discover all services and their characteristics. 
+After establishing a connection, services need to be discovered. This method will discover all services and their characteristics.
 
 If you don't call this method then it will be automatically called when you try to get any service or characteristic.
 
@@ -320,15 +365,17 @@ await bleDevice.pair();
 ```
 
 ##### Pair on Apple and web
+
 For Apple and Web, pairing support depends on the device. Pairing is triggered automatically by the OS when you try to read/write from/to an encrypted characteristic.
 
-Calling `bleDevice.pair()` will only trigger pairing if the device has an *encrypted read characteristic*.
+Calling `bleDevice.pair()` will only trigger pairing if the device has an _encrypted read characteristic_.
 
 If your device only has encrypted write characteristics or you happen to know which encrypted read characteristic you want to use, you can pass it with a `pairingCommand`.
 
 ```dart
 await bleDevice.pair(pairingCommand: BleCommand(service:"SERVICE", characteristic:"ENCRYPTED_CHARACTERISTIC"));
 ```
+
 After pairing you can check the pairing status.
 
 #### Pairing status
@@ -349,6 +396,7 @@ bool? isPaired = await bleDevice.isPaired(pairingCommand: BleCommand(service:"SE
 ```
 
 ##### Discovering encrypted characteristic
+
 To discover encrypted characteristics, make sure your device is not paired and use the example app to read/write to all discovered characteristics one by one. If one of them triggers pairing, that means it is encrypted and you can use it to construct `BleCommand(service:"SERVICE", characteristic:"ENCRYPTED_CHARACTERISTIC")`.
 
 #### Pairing state changes
@@ -361,6 +409,7 @@ bleDevice.pairingStateStream.listen((bool paired) {
 ```
 
 #### Unpair
+
 ```dart
 bleDevice.unpair();
 ```
@@ -411,7 +460,7 @@ When developing cross-platform BLE applications and devices:
 
 #### Resetting State on Hot Restart
 
-During Flutter hot restart in debug mode, the app state is reset but native Bluetooth connections and scan operations may persist. This can lead to connection issues or stale state. 
+During Flutter hot restart in debug mode, the app state is reset but native Bluetooth connections and scan operations may persist. This can lead to connection issues or stale state.
 
 <details> 
 <summary>Use the following helper function to properly clean up BLE state before your app restarts.</summary>
@@ -468,7 +517,7 @@ Future<void> resetBleState() async {
 }
 ```
 
-</details> 
+</details>
 
 ## Command Queue
 
@@ -500,6 +549,7 @@ UniversalBle.onQueueUpdate = (String id, int remainingItems) {
 ```
 
 To clear the queue:
+
 ```dart
   /// Use [BleCommandQueue.globalQueueId] to clear the global queue.
   /// To clear the queue of a specific device, use `deviceId` as [id].
@@ -535,6 +585,7 @@ Universal BLE provides a unified and type-safe error handling system across all 
 ### Error Codes
 
 All errors are categorized using the `UniversalBleErrorCode` enum, which includes codes for:
+
 - Connection errors (timeout, failed, rejected, etc.)
 - Pairing errors (failed, cancelled, not allowed, etc.)
 - Operation errors (not supported, timeout, cancelled, etc.)
@@ -623,9 +674,7 @@ If your app uses iBeacons or BLUETOOTH_SCAN to determine location, change the la
 <uses-permission android:name="android.permission.BLUETOOTH_SCAN" />
 ```
 
-You need to programmatically request permissions on runtime. You could use a package such as [permission_handler](https://pub.dev/packages/permission_handler).
-For Android 12+, request `Permission.bluetoothScan` and `Permission.bluetoothConnect`.
-For Android 11 and below, request `Permission.location`.
+You need to programmatically request permissions on runtime with `requestPermissions`
 
 ### iOS / macOS
 
@@ -640,6 +689,7 @@ Your Bluetooth adapter needs to support at least Bluetooth 4.0. If you have more
 When publishing on Windows, you need to declare the following [capabilities](https://learn.microsoft.com/en-us/windows/uwp/packaging/app-capability-declarations): `bluetooth, radios`.
 
 When publishing on Linux as a snap, you need to declare the `bluez` plug in `snapcraft.yaml`.
+
 ```
 ...
   plugs:
@@ -688,7 +738,8 @@ For more granular control, you can use the [Low-Level API](README.low_level.md).
 Here are some of the apps leveraging the power of `universal_ble` in production:
 
 | <img src="assets/bt_cam_icon.svg" alt="BT Cam Icon" width="224" height="224"> | [**BT Cam**](https://btcam.app)<br>A Bluetooth remote app for DSLR and mirrorless cameras. Compatible with Canon, Nikon, Sony, Fujifilm, GoPro, Olympus, Panasonic, Pentax, and Blackmagic. Built using Universal BLE to connect and control cameras across iOS, Android, macOS, Windows, Linux & Web. |
-|:--:|:--|
+| :---------------------------------------------------------------------------: | :----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+
 > 💡 **Built something cool with Universal BLE?**  
 > We'd love to showcase your app here!  
 > Open a pull request and add it to this section. Please include your app icon in svg!
