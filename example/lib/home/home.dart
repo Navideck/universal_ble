@@ -267,15 +267,19 @@ class _MyAppState extends State<MyApp> {
                     },
                   )
                 else if (_bleDevices.isNotEmpty)
-                  PlatformButton(
-                    text: 'Hide Already Discovered Devices',
-                    onPressed: () {
-                      setState(() {
-                        _hiddenDevices.clear();
-                        _hiddenDevices.addAll(_bleDevices);
-                        _bleDevices.clear();
-                      });
-                    },
+                  Tooltip(
+                    message:
+                        'Hide already discovered devices. When you turn on a new device, it will be easier to spot.',
+                    child: PlatformButton(
+                      text: 'Hide Already Discovered Devices',
+                      onPressed: () {
+                        setState(() {
+                          _hiddenDevices.clear();
+                          _hiddenDevices.addAll(_bleDevices);
+                          _bleDevices.clear();
+                        });
+                      },
+                    ),
                   ),
                 if (_bleDevices.isNotEmpty)
                   PlatformButton(
