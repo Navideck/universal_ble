@@ -124,4 +124,9 @@ class _UniversalBleMock extends UniversalBlePlatformMock {
       {Duration? timeout}) async {
     return charValue ?? Uint8List(0);
   }
+
+  @override
+  Future<void> requestPermissions({bool withAndroidFineLocation = false}) {
+    throw UnimplementedError();
+  }
 }

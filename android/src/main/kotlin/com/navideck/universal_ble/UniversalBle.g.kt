@@ -443,6 +443,7 @@ private open class UniversalBlePigeonCodec : StandardMessageCodec() {
  */
 interface UniversalBlePlatformChannel {
   fun getBluetoothAvailabilityState(callback: (Result<Long>) -> Unit)
+  fun requestPermissions(withAndroidFineLocation: Boolean, callback: (Result<Unit>) -> Unit)
   fun enableBluetooth(callback: (Result<Boolean>) -> Unit)
   fun disableBluetooth(callback: (Result<Boolean>) -> Unit)
   fun startScan(filter: UniversalScanFilter?)
@@ -481,6 +482,25 @@ interface UniversalBlePlatformChannel {
               } else {
                 val data = result.getOrNull()
                 reply.reply(UniversalBlePigeonUtils.wrapResult(data))
+              }
+            }
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.universal_ble.UniversalBlePlatformChannel.requestPermissions$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { message, reply ->
+            val args = message as List<Any?>
+            val withAndroidFineLocationArg = args[0] as Boolean
+            api.requestPermissions(withAndroidFineLocationArg) { result: Result<Unit> ->
+              val error = result.exceptionOrNull()
+              if (error != null) {
+                reply.reply(UniversalBlePigeonUtils.wrapError(error))
+              } else {
+                reply.reply(UniversalBlePigeonUtils.wrapResult(null))
               }
             }
           }

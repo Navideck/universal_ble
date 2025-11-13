@@ -15,7 +15,8 @@ class UniversalBleException implements Exception {
   });
 
   @override
-  String toString() => message;
+  String toString() =>
+      "UniversalBleException: Code: $code, Message: $message, Details: $details";
 
   factory UniversalBleException.fromError(dynamic error) {
     String message = error.toString();

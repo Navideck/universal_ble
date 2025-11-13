@@ -44,7 +44,7 @@ class UniversalBlePigeonChannel extends UniversalBlePlatform {
     ScanFilter? scanFilter,
     PlatformConfig? platformConfig,
   }) async {
-    await _ensureInitialized();
+    await _ensureInitialized(platformConfig);
     _bleFilter.scanFilter = scanFilter;
     await _executeWithErrorHandling(
       () => _channel.startScan(
@@ -143,6 +143,14 @@ class UniversalBlePigeonChannel extends UniversalBlePlatform {
       _executeWithErrorHandling(() => _channel.unPair(deviceId));
 
   @override
+  Future<void> requestPermissions(
+      {bool withAndroidFineLocation = false}) async {
+    await _executeWithErrorHandling(
+      () => _channel.requestPermissions(withAndroidFineLocation),
+    );
+  }
+
+  @override
   Future<List<BleDevice>> getSystemDevices(
     List<String>? withServices,
   ) async {
@@ -179,26 +187,15 @@ class UniversalBlePigeonChannel extends UniversalBlePlatform {
     }
   }
 
-  Future<void> _ensureInitialized() async {
-    // Check bluetooth availability on Apple
-    // so that it will ask permission only when required, and throw error on failed
-    if (defaultTargetPlatform == TargetPlatform.iOS ||
+  Future<void> _ensureInitialized(PlatformConfig? platformConfig) async {
+    // Check bluetooth availability on Apple and Android
+    if (defaultTargetPlatform == TargetPlatform.android ||
+        defaultTargetPlatform == TargetPlatform.iOS ||
         defaultTargetPlatform == TargetPlatform.macOS) {
-      AvailabilityState state = await getBluetoothAvailabilityState();
-      switch (state) {
-        case AvailabilityState.unauthorized:
-          throw UniversalBleException(
-            code: UniversalBleErrorCode.bluetoothUnauthorized,
-            message: "Not authorized to access Bluetooth",
-          );
-        case AvailabilityState.unsupported:
-          throw UniversalBleException(
-            code: UniversalBleErrorCode.notSupported,
-            message: "Bluetooth is not supported",
-          );
-        default:
-        // Ignore rest..
-      }
+      await requestPermissions(
+        withAndroidFineLocation:
+            platformConfig?.android?.requestLocationPermission ?? false,
+      );
     }
   }
 }

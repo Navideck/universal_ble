@@ -7,7 +7,6 @@ import 'package:universal_ble_example/data/mock_universal_ble.dart';
 import 'package:universal_ble_example/home/widgets/scan_filter_widget.dart';
 import 'package:universal_ble_example/home/widgets/scanned_devices_placeholder_widget.dart';
 import 'package:universal_ble_example/home/widgets/scanned_item_widget.dart';
-import 'package:universal_ble_example/data/permission_handler.dart';
 import 'package:universal_ble_example/peripheral_details/peripheral_detail_page.dart';
 import 'package:universal_ble_example/widgets/platform_button.dart';
 import 'package:universal_ble_example/widgets/responsive_buttons_grid.dart';
@@ -84,9 +83,7 @@ class _MyAppState extends State<MyApp> {
   }
 
   Future<void> startScan() async {
-    await UniversalBle.startScan(
-      scanFilter: scanFilter,
-    );
+    await UniversalBle.startScan(scanFilter: scanFilter);
   }
 
   Future<void> _getSystemDevices() async {
@@ -217,10 +214,13 @@ class _MyAppState extends State<MyApp> {
                   PlatformButton(
                     text: 'Check Permissions',
                     onPressed: () async {
-                      bool hasPermissions =
-                          await PermissionHandler.arePermissionsGranted();
-                      if (hasPermissions) {
+                      try {
+                        await UniversalBle.requestPermissions(
+                          withAndroidFineLocation: false,
+                        );
                         showSnackbar("Permissions granted");
+                      } catch (e) {
+                        showSnackbar(e.toString());
                       }
                     },
                   ),

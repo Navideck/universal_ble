@@ -252,6 +252,12 @@ class UniversalBleWeb extends UniversalBlePlatform {
 
   /// `Unimplemented`
   @override
+  Future<void> requestPermissions(
+      {bool withAndroidFineLocation = false}) async {
+    // No permissions to request on Web
+  }
+
+  @override
   Future<int> requestMtu(String deviceId, int expectedMtu) {
     throw UniversalBleException(
       code: UniversalBleErrorCode.notImplemented,

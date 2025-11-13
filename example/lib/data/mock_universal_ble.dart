@@ -131,4 +131,9 @@ class MockUniversalBle extends UniversalBlePlatform {
   Future<bool> disableBluetooth() {
     throw UnimplementedError();
   }
+
+  @override
+  Future<void> requestPermissions({bool withAndroidFineLocation = false}) {
+    throw UnimplementedError();
+  }
 }
