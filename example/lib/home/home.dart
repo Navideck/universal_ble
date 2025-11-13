@@ -21,6 +21,7 @@ class MyApp extends StatefulWidget {
 
 class _MyAppState extends State<MyApp> {
   final _bleDevices = <BleDevice>[];
+  List<BleDevice> _hiddenDevices = [];
   bool _isScanning = false;
   QueueType _queueType = QueueType.global;
   TextEditingController servicesFilterController = TextEditingController();
@@ -48,6 +49,11 @@ class _MyAppState extends State<MyApp> {
 
     UniversalBle.scanStream.listen((result) {
       // log(result.toString());
+      // If device is already in hidden devices, skip
+      if (_hiddenDevices.any((e) => e.deviceId == result.deviceId)) {
+        // debugPrint("Skipping hidden device: ${result.deviceId}");
+        return;
+      }
       int index = _bleDevices.indexWhere((e) => e.deviceId == result.deviceId);
       if (index == -1) {
         _bleDevices.add(result);
@@ -251,6 +257,25 @@ class _MyAppState extends State<MyApp> {
                   text: 'Scan Filters',
                   onPressed: _showScanFilterBottomSheet,
                 ),
+                if (_hiddenDevices.isNotEmpty)
+                  PlatformButton(
+                    text: 'Unhide ${_hiddenDevices.length} Devices',
+                    onPressed: () {
+                      setState(() {
+                        _hiddenDevices.clear();
+                      });
+                    },
+                  )
+                else if (_bleDevices.isNotEmpty)
+                  PlatformButton(
+                    text: 'Hide Discovered Devices',
+                    onPressed: () {
+                      setState(() {
+                        _hiddenDevices = _bleDevices.toList();
+                        _bleDevices.clear();
+                      });
+                    },
+                  ),
                 if (_bleDevices.isNotEmpty)
                   PlatformButton(
                     text: 'Clear List',
