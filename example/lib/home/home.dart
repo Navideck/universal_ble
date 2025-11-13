@@ -268,7 +268,7 @@ class _MyAppState extends State<MyApp> {
                   )
                 else if (_bleDevices.isNotEmpty)
                   PlatformButton(
-                    text: 'Hide Discovered Devices',
+                    text: 'Hide Already Discovered Devices',
                     onPressed: () {
                       setState(() {
                         _hiddenDevices.clear();
