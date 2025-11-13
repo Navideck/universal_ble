@@ -142,7 +142,9 @@ class PermissionHandler(
             }
         } else {
             // Android 11 and below
-            permissionsToRequest.add(Manifest.permission.BLUETOOTH)
+            if (!hasPermissionGranted(Manifest.permission.BLUETOOTH)) {
+                permissionsToRequest.add(Manifest.permission.BLUETOOTH)
+            }
             // Location permission is MANDATORY
             // Prefer ACCESS_FINE_LOCATION over ACCESS_COARSE_LOCATION
             permissionsToRequest.addAll(getLocationPermissionsToAsk())
@@ -151,16 +153,12 @@ class PermissionHandler(
     }
 
     private fun getLocationPermissionsToAsk(): List<String> {
-        val hasDeclaredFineLocation =
-            hasPermissionInManifest(Manifest.permission.ACCESS_FINE_LOCATION)
-        val hasDeclaredCoarseLocation =
-            hasPermissionInManifest(Manifest.permission.ACCESS_COARSE_LOCATION)
         val permissionsToRequest = mutableListOf<String>()
-        if (hasDeclaredFineLocation) {
+        if (hasPermissionInManifest(Manifest.permission.ACCESS_FINE_LOCATION)) {
             if (!hasPermissionGranted(Manifest.permission.ACCESS_FINE_LOCATION)) {
                 permissionsToRequest.add(Manifest.permission.ACCESS_FINE_LOCATION)
             }
-        } else if (hasDeclaredCoarseLocation) {
+        } else if (hasPermissionInManifest(Manifest.permission.ACCESS_COARSE_LOCATION)) {
             if (!hasPermissionGranted(Manifest.permission.ACCESS_COARSE_LOCATION)) {
                 permissionsToRequest.add(Manifest.permission.ACCESS_COARSE_LOCATION)
             }
