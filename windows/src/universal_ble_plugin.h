@@ -147,6 +147,7 @@ namespace universal_ble
         void OnDeviceInfoReceived(const DeviceInformation& device_info);
         void BluetoothLeDeviceConnectionStatusChanged(const BluetoothLEDevice& sender, const IInspectable& args);
         void CleanConnection(uint64_t bluetooth_address);
+        void DisposeServices(const std::unique_ptr<BluetoothDeviceAgent> &device_agent);
  
 
     	void GattCharacteristicValueChanged(const GattCharacteristic& sender, const GattValueChangedEventArgs& args);

@@ -2,6 +2,8 @@
 * Unified error codes for all platforms
 * Add `isScanning` api
 * Add `requestPermissions` api and auto ask permission on `startScan`
+* `disconnect` now waits for disconnection confirmation before returning
+* Improve Windows disconnection event handling and cleanup
 
 ## 0.21.1
 * Fix device name resolution on Windows

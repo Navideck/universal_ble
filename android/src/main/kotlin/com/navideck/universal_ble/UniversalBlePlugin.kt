@@ -98,7 +98,10 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
         )
     }
 
-    override fun requestPermissions(withAndroidFineLocation: Boolean, callback: (Result<Unit>) -> Unit) {
+    override fun requestPermissions(
+        withAndroidFineLocation: Boolean,
+        callback: (Result<Unit>) -> Unit,
+    ) {
         if (permissionHandler == null) {
             callback(
                 Result.failure(
@@ -243,21 +246,31 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
     }
 
     override fun disconnect(deviceId: String) {
-        cleanConnection(deviceId.toBluetoothGatt())
+        val gatt = deviceId.findGatt()
+        if (gatt == null) {
+            mainThreadHandler?.post {
+                callbackChannel?.onConnectionChanged(deviceId, false, null) {}
+            }
+        } else {
+            cleanConnection(gatt)
+        }
     }
 
     override fun getConnectionState(deviceId: String): Long {
-        val connectionState = bluetoothManager.getConnectionState(
-            bluetoothManager.adapter.getRemoteDevice(deviceId),
-            BluetoothProfile.GATT
-        )
-
-        return if (deviceId.isKnownGatt() || connectionState == BluetoothGatt.STATE_DISCONNECTED || connectionState == BluetoothGatt.STATE_DISCONNECTING) {
-            connectionState.toBleConnectionState().value
-        } else {
-            // Might be connected with device, but not with app
-            Log.e(TAG, "Device might be connected but not known to this app")
-            BleConnectionState.Disconnected.value
+        try {
+            val connectionState = bluetoothManager.getConnectionState(
+                bluetoothManager.adapter.getRemoteDevice(deviceId),
+                BluetoothProfile.GATT
+            )
+            return if (deviceId.isKnownGatt() || connectionState == BluetoothGatt.STATE_DISCONNECTED || connectionState == BluetoothGatt.STATE_DISCONNECTING) {
+                connectionState.toBleConnectionState().value
+            } else {
+                // Might be connected with device, but not with app
+                Log.e(TAG, "Device might be connected but not known to this app")
+                BleConnectionState.Disconnected.value
+            }
+        } catch (e: Exception) {
+            return BleConnectionState.Disconnected.value
         }
     }
 
