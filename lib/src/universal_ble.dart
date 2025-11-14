@@ -120,42 +120,18 @@ class UniversalBle {
     Duration? timeout,
   }) async {
     timeout ??= const Duration(seconds: 60);
-    StreamSubscription? connectionSubscription;
-    Completer<bool> completer = Completer();
+    Completer<bool> completer =
+        _connectionEventCompleter(deviceId, timeout: timeout);
 
-    void handleError(dynamic error) {
-      if (completer.isCompleted) return;
-      connectionSubscription?.cancel();
-      completer.completeError(ConnectionException(error));
-    }
+    _platform.connect(deviceId, connectionTimeout: timeout).catchError(
+      (error) {
+        if (completer.isCompleted) return;
+        completer.completeError(ConnectionException(error));
+      },
+    );
 
-    try {
-      connectionSubscription = _platform
-          .bleConnectionUpdateStreamController.stream
-          .where((e) => e.deviceId == deviceId)
-          .listen(
-        (e) {
-          if (e.error != null) {
-            handleError(e.error);
-          } else {
-            if (!completer.isCompleted) {
-              completer.complete(e.isConnected);
-            }
-          }
-        },
-        onError: handleError,
-        cancelOnError: true,
-      );
-
-      _platform
-          .connect(deviceId, connectionTimeout: timeout)
-          .catchError(handleError);
-
-      if (!await completer.future.timeout(timeout)) {
-        throw ConnectionException("Failed to connect");
-      }
-    } finally {
-      connectionSubscription?.cancel();
+    if (!await completer.future.timeout(timeout)) {
+      throw ConnectionException("Failed to connect");
     }
   }
 
@@ -165,11 +141,43 @@ class UniversalBle {
     String deviceId, {
     Duration? timeout,
   }) async {
-    return await _bleCommandQueue.queueCommand(
-      () => _platform.disconnect(deviceId),
-      timeout: timeout,
-      deviceId: deviceId,
-    );
+    timeout ??= const Duration(seconds: 60);
+    BleConnectionState? connectionState;
+    try {
+      connectionState = await _platform.getConnectionState(deviceId);
+    } catch (e) {
+      UniversalLogger.logError("Get connection state failed: $e");
+    }
+
+    if (connectionState == BleConnectionState.disconnected ||
+        connectionState == BleConnectionState.disconnecting) {
+      _platform.updateConnection(deviceId, false);
+      UniversalLogger.logInfo(
+        "Device $deviceId already disconnected: $connectionState",
+      );
+      return;
+    }
+
+    try {
+      Completer<bool> completer =
+          _connectionEventCompleter(deviceId, timeout: timeout);
+
+      await _bleCommandQueue
+          .queueCommand(() => _platform.disconnect(deviceId),
+              timeout: timeout, deviceId: deviceId)
+          .catchError(
+        (error) {
+          if (completer.isCompleted) return;
+          completer.completeError(ConnectionException(error));
+        },
+      );
+
+      if (await completer.future.timeout(timeout)) {
+        UniversalLogger.logError("Disconnect verification failed: $deviceId");
+      }
+    } catch (e) {
+      UniversalLogger.logError("Disconnect failed: $e");
+    }
   }
 
   /// Discover services of a device.
@@ -503,6 +511,52 @@ class UniversalBle {
     final Duration? timeout,
   }) {
     return read(deviceId, service, characteristic, timeout: timeout);
+  }
+
+  static Completer<bool> _connectionEventCompleter(
+    String deviceId, {
+    Duration? timeout,
+  }) {
+    timeout ??= const Duration(seconds: 60);
+    StreamSubscription? connectionSubscription;
+    Completer<bool> completer = Completer();
+
+    void cancelSubscription() {
+      connectionSubscription?.cancel();
+      connectionSubscription = null;
+    }
+
+    void handleError(dynamic error) {
+      cancelSubscription();
+      if (completer.isCompleted) return;
+      completer.completeError(ConnectionException(error));
+    }
+
+    connectionSubscription = _platform
+        .bleConnectionUpdateStreamController.stream
+        .where((e) => e.deviceId == deviceId)
+        .listen(
+      (e) {
+        cancelSubscription();
+        if (e.error != null) {
+          handleError(e.error);
+        } else {
+          if (!completer.isCompleted) {
+            completer.complete(e.isConnected);
+          }
+        }
+      },
+      onError: handleError,
+      cancelOnError: true,
+    );
+
+    completer.future.timeout(timeout).then((_) {
+      cancelSubscription();
+    }).catchError((_) {
+      cancelSubscription();
+    });
+
+    return completer;
   }
 
   static Future<void> _sendBleInputPropertyCommand(

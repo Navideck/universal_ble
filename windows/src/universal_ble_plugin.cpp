@@ -256,12 +256,15 @@ std::optional<FlutterError>
 UniversalBlePlugin::Disconnect(const std::string &device_id) {
   auto device_address = str_to_mac_address(device_id);
   const auto it = connected_devices_.find(device_address);
-  if (it == connected_devices_.end()) {
-      return create_flutter_error(UniversalBleErrorCode::kDeviceNotFound,
-          "Unknown devicesId:" + device_id);
+  if (it != connected_devices_.end()) {
+    it->second->device.Close();
+    DisposeServices(it->second);
+  } else {
+    ui_thread_handler_.Post([device_id] {
+      callback_channel->OnConnectionChanged(device_id, false, nullptr,
+                                            SuccessCallback, ErrorCallback);
+    });
   }
-  it->second->device.Close();
-  DisposeServices(it->second);
   return std::nullopt;
 }
 

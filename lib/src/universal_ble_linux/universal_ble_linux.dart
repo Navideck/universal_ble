@@ -133,10 +133,7 @@ class UniversalBleLinux extends UniversalBlePlatform {
 
   @override
   Future<BleConnectionState> getConnectionState(String deviceId) async {
-    BlueZDevice? device = _devices[deviceId] ??
-        _client.devices.cast<BlueZDevice?>().firstWhere(
-            (device) => device?.address == deviceId,
-            orElse: () => null);
+    BlueZDevice? device = _getDeviceById(deviceId);
     bool connected = device?.connected ?? false;
     return connected
         ? BleConnectionState.connected
@@ -155,12 +152,12 @@ class UniversalBleLinux extends UniversalBlePlatform {
 
   @override
   Future<void> disconnect(String deviceId) async {
-    final device = _findDeviceById(deviceId);
-    if (!device.connected) {
+    final device = _getDeviceById(deviceId);
+    if (device?.connected ?? false) {
       updateConnection(deviceId, false);
-      return;
+    } else {
+      await device?.disconnect();
     }
-    await device.disconnect();
   }
 
   @override
@@ -415,10 +412,7 @@ class UniversalBleLinux extends UniversalBlePlatform {
   }
 
   BlueZDevice _findDeviceById(String deviceId) {
-    final device = _devices[deviceId] ??
-        _client.devices.cast<BlueZDevice?>().firstWhere(
-            (device) => device?.address == deviceId,
-            orElse: () => null);
+    final device = _getDeviceById(deviceId);
     if (device == null) {
       throw UniversalBleException(
         code: UniversalBleErrorCode.deviceNotFound,
@@ -426,6 +420,13 @@ class UniversalBleLinux extends UniversalBlePlatform {
       );
     }
     return device;
+  }
+
+  BlueZDevice? _getDeviceById(String deviceId) {
+    return _devices[deviceId] ??
+        _client.devices.cast<BlueZDevice?>().firstWhere(
+            (device) => device?.address == deviceId,
+            orElse: () => null);
   }
 
   Future<void> _ensureInitialized() async {

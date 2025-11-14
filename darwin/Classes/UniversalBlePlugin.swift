@@ -139,7 +139,10 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
   }
 
   func disconnect(deviceId: String) throws {
-    let peripheral = try deviceId.getPeripheral(manager: manager)
+    guard let peripheral = deviceId.findPeripheral(manager: manager) else {
+      callbackChannel.onConnectionChanged(deviceId: deviceId, connected: false, error: nil) { _ in }
+      return
+    }
     if peripheral.state != CBPeripheralState.disconnected {
       manager.cancelPeripheralConnection(peripheral)
     }
@@ -147,7 +150,9 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
   }
 
   func getConnectionState(deviceId: String) throws -> Int64 {
-    let peripheral = try deviceId.getPeripheral(manager: manager)
+    guard let peripheral = deviceId.findPeripheral(manager: manager) else {
+      return BlueConnectionState.disconnected.rawValue
+    }
     switch peripheral.state {
     case .connecting:
       return BlueConnectionState.connecting.rawValue
@@ -158,7 +163,7 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
     case .disconnected:
       return BlueConnectionState.disconnected.rawValue
     @unknown default:
-      fatalError()
+      return BlueConnectionState.disconnected.rawValue
     }
   }
 
