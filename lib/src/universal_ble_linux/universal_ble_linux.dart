@@ -153,11 +153,10 @@ class UniversalBleLinux extends UniversalBlePlatform {
   @override
   Future<void> disconnect(String deviceId) async {
     final device = _getDeviceById(deviceId);
-    if (device?.connected ?? false) {
-      updateConnection(deviceId, false);
-    } else {
+    if (device?.connected != true) {
       await device?.disconnect();
     }
+    updateConnection(deviceId, false);
   }
 
   @override
@@ -411,6 +410,8 @@ class UniversalBleLinux extends UniversalBlePlatform {
         : AvailabilityState.poweredOff;
   }
 
+  /// Find device by id from cache or from client
+  /// Throws exception if device not found
   BlueZDevice _findDeviceById(String deviceId) {
     final device = _getDeviceById(deviceId);
     if (device == null) {
@@ -422,6 +423,7 @@ class UniversalBleLinux extends UniversalBlePlatform {
     return device;
   }
 
+  /// Get device by id from cache or from client
   BlueZDevice? _getDeviceById(String deviceId) {
     return _devices[deviceId] ??
         _client.devices.cast<BlueZDevice?>().firstWhere(
