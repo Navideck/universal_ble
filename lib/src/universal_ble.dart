@@ -173,7 +173,9 @@ class UniversalBle {
       );
 
       if (await completer.future.timeout(timeout)) {
-        UniversalLogger.logError("Disconnect verification failed: $deviceId");
+        UniversalLogger.logError(
+          "Device $deviceId is still connected after disconnect attempt",
+        );
       }
     } catch (e) {
       UniversalLogger.logError("Disconnect failed: $e");
