@@ -58,8 +58,6 @@ class UniversalBleWeb extends UniversalBlePlatform {
 
   @override
   Future<void> disconnect(String deviceId) async {
-    _cleanConnection(deviceId);
-    updateConnection(deviceId, false);
     _getDeviceById(deviceId)?.disconnect();
   }
 
@@ -318,10 +316,10 @@ class UniversalBleWeb extends UniversalBlePlatform {
   }
 
   void _cleanConnection(String deviceId) {
-    _connectedDeviceStreamList.removeWhere((key, value) {
-      if (key == deviceId) value.cancel();
-      return key == deviceId;
-    });
+    // _connectedDeviceStreamList.removeWhere((key, value) {
+    //   if (key == deviceId) value.cancel();
+    //   return key == deviceId;
+    // });
     _characteristicStreamList.removeWhere((key, value) {
       if (key.contains(deviceId)) value.cancel();
       return key.contains(deviceId);
