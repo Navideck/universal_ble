@@ -29,6 +29,12 @@ class ServicesListWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final favoriteStarColor = Colors.amber;
+    final subscribedNotificationIconColor = Colors.green;
+    final selectedColor = Colors.blue;
+    final selectedServiceCardColor = selectedColor.withAlpha(40);
+    final selectedCharacteristicBackgroundColor = selectedColor.withAlpha(20);
+
     // Sort services: favorites first, then system services, then others
     final sortedServices = List<BleService>.from(discoveredServices);
     sortedServices.sort((a, b) {
@@ -44,7 +50,6 @@ class ServicesListWidget extends StatelessWidget {
       }
       return 0;
     });
-
     return ListView.builder(
       shrinkWrap: !scrollable,
       physics: scrollable ? null : const NeverScrollableScrollPhysics(),
@@ -54,11 +59,10 @@ class ServicesListWidget extends StatelessWidget {
         final isFavorite = favoriteServices?.contains(service.uuid) ?? false;
         final isSystem = isSystemService?.call(service.uuid) ?? false;
         final isSelected = selectedService?.uuid == service.uuid;
-
         return Padding(
           padding: const EdgeInsets.all(8.0),
           child: Card(
-            color: isSelected ? Colors.blue.withAlpha(10) : null,
+            color: isSelected ? selectedServiceCardColor : null,
             child: ExpandablePanel(
               header: Padding(
                 padding: const EdgeInsets.all(8.0),
@@ -72,7 +76,7 @@ class ServicesListWidget extends StatelessWidget {
                             child: Text(
                               service.uuid,
                               style: TextStyle(
-                                color: isSystem ? Colors.blue : null,
+                                color: isSystem ? selectedColor : null,
                                 fontWeight: isSelected ? FontWeight.bold : null,
                               ),
                             ),
@@ -84,7 +88,7 @@ class ServicesListWidget extends StatelessWidget {
                       IconButton(
                         icon: Icon(
                           isFavorite ? Icons.star : Icons.star_border,
-                          color: isFavorite ? Colors.amber : null,
+                          color: isFavorite ? favoriteStarColor : null,
                         ),
                         onPressed: () => onFavoriteToggle!(service.uuid),
                         iconSize: 20,
@@ -103,11 +107,11 @@ class ServicesListWidget extends StatelessWidget {
                     child: Container(
                       decoration: BoxDecoration(
                         color: isCharSelected
-                            ? Colors.blue.withAlpha(20)
+                            ? selectedCharacteristicBackgroundColor
                             : Colors.transparent,
                         borderRadius: BorderRadius.circular(4),
                         border: isCharSelected
-                            ? Border.all(color: Colors.blue, width: 2)
+                            ? Border.all(color: selectedColor, width: 2)
                             : null,
                       ),
                       child: InkWell(
@@ -123,12 +127,14 @@ class ServicesListWidget extends StatelessWidget {
                                 children: [
                                   Icon(
                                     Icons.arrow_right_outlined,
-                                    color: isCharSelected ? Colors.blue : null,
+                                    color: isCharSelected
+                                        ? selectedColor
+                                        : null,
                                   ),
                                   if (isSubscribed)
-                                    const Icon(
+                                    Icon(
                                       Icons.notifications_active,
-                                      color: Colors.green,
+                                      color: subscribedNotificationIconColor,
                                       size: 16,
                                     ),
                                   Expanded(
@@ -139,7 +145,7 @@ class ServicesListWidget extends StatelessWidget {
                                             ? FontWeight.bold
                                             : null,
                                         color: isCharSelected
-                                            ? Colors.blue
+                                            ? selectedColor
                                             : null,
                                       ),
                                     ),

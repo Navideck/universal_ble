@@ -153,7 +153,7 @@ class _PeripheralDetailPageState extends State<PeripheralDetailPage> {
         _addLog('Read', data);
       },
       onError: (error) {
-        _addLog('ReadError', '$error');
+        _addLog('ReadError', error);
       },
     );
   }
@@ -190,7 +190,7 @@ class _PeripheralDetailPageState extends State<PeripheralDetailPage> {
         _addLog('Write${writeWithResponse ? "" : "WithoutResponse"}', value);
       },
       onError: (error) {
-        _addLog('WriteError', '$error');
+        _addLog('WriteError', error);
       },
     );
   }
@@ -286,11 +286,6 @@ class _PeripheralDetailPageState extends State<PeripheralDetailPage> {
     return null;
   }
 
-  String _manufacturerDataToHex(ManufacturerData data) {
-    final fullData = data.toUint8List();
-    return hex.encode(fullData);
-  }
-
   Future<T> _executeWithLoading<T>(
     Future<T> Function() action, {
     Function(dynamic error)? onError,
@@ -354,42 +349,6 @@ class _PeripheralDetailPageState extends State<PeripheralDetailPage> {
                     color: Theme.of(context).secondaryHeaderColor,
                     child: Column(
                       children: [
-                        // Selected service/char always visible at top
-                        if (selectedService != null &&
-                            selectedCharacteristic != null)
-                          Container(
-                            color: Theme.of(
-                              context,
-                            ).primaryColor.withValues(alpha: 0.1),
-                            padding: const EdgeInsets.all(8.0),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Row(
-                                  children: [
-                                    const Icon(Icons.info_outline, size: 16),
-                                    const SizedBox(width: 4),
-                                    Expanded(
-                                      child: SelectableText(
-                                        'Selected: ${selectedCharacteristic!.uuid}',
-                                        style: const TextStyle(
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                SelectableText(
-                                  'Service: ${selectedService!.uuid}',
-                                  style: const TextStyle(fontSize: 12),
-                                ),
-                                SelectableText(
-                                  'Properties: ${selectedCharacteristic!.properties.map((e) => e.name).join(", ")}',
-                                  style: const TextStyle(fontSize: 12),
-                                ),
-                              ],
-                            ),
-                          ),
                         Expanded(
                           child: discoveredServices.isEmpty
                               ? const Center(
@@ -520,7 +479,7 @@ class _PeripheralDetailPageState extends State<PeripheralDetailPage> {
                                                 top: 4.0,
                                               ),
                                               child: SelectableText(
-                                                'Company ID: ${data.companyId} (0x${data.companyId.toRadixString(16).toUpperCase().padLeft(4, '0')})\nHex: ${_manufacturerDataToHex(data)}',
+                                                'Company ID: ${data.companyIdRadix16}\nPayload: ${data.payloadHex}',
                                                 style: const TextStyle(
                                                   fontSize: 12,
                                                   fontFamily: 'monospace',
@@ -545,7 +504,7 @@ class _PeripheralDetailPageState extends State<PeripheralDetailPage> {
                                                 top: 2.0,
                                               ),
                                               child: SelectableText(
-                                                '• $service${_isSystemService(service) ? " (System)" : ""}',
+                                                '• $service',
                                                 style: TextStyle(
                                                   fontSize: 12,
                                                   color:
@@ -598,7 +557,6 @@ class _PeripheralDetailPageState extends State<PeripheralDetailPage> {
                                 ],
                               ),
                             ),
-                            // Selected characteristic info
                             if (selectedCharacteristic == null)
                               Padding(
                                 padding: const EdgeInsets.all(16.0),
