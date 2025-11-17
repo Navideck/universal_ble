@@ -56,7 +56,7 @@ class RssiSignalIndicator extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 4),
-        SelectableText('$rssi'),
+        Text('$rssi'),
       ],
     );
   }

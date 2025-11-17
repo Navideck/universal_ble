@@ -18,16 +18,16 @@ class ScannedItemWidget extends StatelessWidget {
       child: Card(
         child: ListTile(
           leading: RssiSignalIndicator(rssi: bleDevice.rssi ?? 0),
-          title: SelectableText(name),
+          title: Text(name),
           subtitle: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              SelectableText(bleDevice.deviceId),
+              Text(bleDevice.deviceId),
               if (rawManufacturerData.isNotEmpty)
                 ...rawManufacturerData.map(
                   (data) => Padding(
                     padding: const EdgeInsets.only(top: 4.0),
-                    child: SelectableText(
+                    child: Text(
                       'Manufacturer: ${data.companyIdRadix16}-${data.payloadHex}',
                       style: const TextStyle(fontSize: 12),
                     ),
@@ -39,7 +39,7 @@ class ScannedItemWidget extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const SelectableText(
+                      const Text(
                         'Advertised Services:',
                         style: TextStyle(
                           fontWeight: FontWeight.bold,
@@ -47,7 +47,7 @@ class ScannedItemWidget extends StatelessWidget {
                         ),
                       ),
                       ...bleDevice.services.map(
-                        (service) => SelectableText(
+                        (service) => Text(
                           '  • $service',
                           style: const TextStyle(fontSize: 12),
                         ),

@@ -69,7 +69,7 @@ class ServicesListWidget extends StatelessWidget {
                       child: Row(
                         children: [
                           Expanded(
-                            child: SelectableText(
+                            child: Text(
                               service.uuid,
                               style: TextStyle(
                                 color: isSystem ? Colors.blue : null,
@@ -132,7 +132,7 @@ class ServicesListWidget extends StatelessWidget {
                                       size: 16,
                                     ),
                                   Expanded(
-                                    child: SelectableText(
+                                    child: Text(
                                       e.uuid,
                                       style: TextStyle(
                                         fontWeight: isCharSelected
@@ -146,7 +146,7 @@ class ServicesListWidget extends StatelessWidget {
                                   ),
                                 ],
                               ),
-                              SelectableText(
+                              Text(
                                 "Properties: ${e.properties.map((e) => e.name).join(", ")}",
                                 style: const TextStyle(fontSize: 12),
                               ),

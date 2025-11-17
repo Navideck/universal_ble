@@ -79,13 +79,13 @@ class _MyAppState extends State<MyApp> {
   }
 
   void trackAvailabilityState() {
-    _availabilityStreamSubscription = UniversalBle.availabilityStream.listen(
-      (state) {
-        setState(() {
-          bleAvailabilityState = state;
-        });
-      },
-    );
+    _availabilityStreamSubscription = UniversalBle.availabilityStream.listen((
+      state,
+    ) {
+      setState(() {
+        bleAvailabilityState = state;
+      });
+    });
     setState(() {});
   }
 
@@ -99,7 +99,8 @@ class _MyAppState extends State<MyApp> {
             defaultTargetPlatform == TargetPlatform.iOS) &&
         (scanFilter?.withServices ?? []).isEmpty) {
       showSnackbar(
-          "No services filter was set for getting system connected devices. Using default services...");
+        "No services filter was set for getting system connected devices. Using default services...",
+      );
     }
 
     List<BleDevice> devices = await UniversalBle.getSystemDevices(
@@ -134,9 +135,9 @@ class _MyAppState extends State<MyApp> {
   }
 
   void showSnackbar(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 
   @override
@@ -175,11 +176,10 @@ class _MyAppState extends State<MyApp> {
             const Padding(
               padding: EdgeInsets.all(8.0),
               child: SizedBox(
-                  width: 20,
-                  height: 20,
-                  child: CircularProgressIndicator.adaptive(
-                    strokeWidth: 2,
-                  )),
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator.adaptive(strokeWidth: 2),
+              ),
             ),
         ],
       ),
@@ -316,7 +316,7 @@ class _MyAppState extends State<MyApp> {
               if (isTrackingAvailabilityState)
                 Padding(
                   padding: const EdgeInsets.all(8.0),
-                  child: SelectableText(
+                  child: Text(
                     'Ble Availability : ${bleAvailabilityState?.name}',
                   ),
                 ),
@@ -351,37 +351,33 @@ class _MyAppState extends State<MyApp> {
             child: _isScanning && _bleDevices.isEmpty
                 ? const Center(child: CircularProgressIndicator.adaptive())
                 : !_isScanning && _bleDevices.isEmpty
-                    ? const ScannedDevicesPlaceholderWidget()
-                    : _filteredDevices.isEmpty
-                        ? const Center(
-                            child:
-                                SelectableText('No devices match your filter'))
-                        : ListView.separated(
-                            itemCount: _filteredDevices.length,
-                            separatorBuilder: (context, index) =>
-                                const Divider(),
-                            itemBuilder: (context, index) {
-                              BleDevice device = _filteredDevices[
-                                  _filteredDevices.length - index - 1];
-                              return ScannedItemWidget(
-                                bleDevice: device,
-                                onTap: () {
-                                  Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (_) =>
-                                          PeripheralDetailPage(device),
-                                    ),
-                                  );
-                                  // Stop scan but keep results visible
-                                  UniversalBle.stopScan();
-                                  setState(() {
-                                    _isScanning = false;
-                                  });
-                                },
-                              );
-                            },
-                          ),
+                ? const ScannedDevicesPlaceholderWidget()
+                : _filteredDevices.isEmpty
+                ? const Center(child: Text('No devices match your filter'))
+                : ListView.separated(
+                    itemCount: _filteredDevices.length,
+                    separatorBuilder: (context, index) => const Divider(),
+                    itemBuilder: (context, index) {
+                      BleDevice device =
+                          _filteredDevices[_filteredDevices.length - index - 1];
+                      return ScannedItemWidget(
+                        bleDevice: device,
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => PeripheralDetailPage(device),
+                            ),
+                          );
+                          // Stop scan but keep results visible
+                          UniversalBle.stopScan();
+                          setState(() {
+                            _isScanning = false;
+                          });
+                        },
+                      );
+                    },
+                  ),
           ),
         ],
       ),

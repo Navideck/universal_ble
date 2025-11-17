@@ -38,7 +38,7 @@ class ResultWidget extends StatelessWidget {
               child: Padding(
                 padding:
                     const EdgeInsets.symmetric(horizontal: 11, vertical: 2),
-                child: SelectableText(results[index]),
+                child: Text(results[index]),
               ),
             );
           },
