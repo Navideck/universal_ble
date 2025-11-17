@@ -255,14 +255,16 @@ UniversalBlePlugin::Connect(const std::string &device_id) {
 std::optional<FlutterError>
 UniversalBlePlugin::Disconnect(const std::string &device_id) {
   auto device_address = str_to_mac_address(device_id);
-  CleanConnection(device_address);
-  // TODO: send disconnect event only after disconnect is complete
-  ui_thread_handler_.Post([device_address] {
-    callback_channel->OnConnectionChanged(mac_address_to_str(device_address),
-                                          false, nullptr, SuccessCallback,
-                                          ErrorCallback);
-  });
-
+  const auto it = connected_devices_.find(device_address);
+  if (it != connected_devices_.end()) {
+    it->second->device.Close();
+    DisposeServices(it->second);
+  } else {
+    ui_thread_handler_.Post([device_id] {
+      callback_channel->OnConnectionChanged(device_id, false, nullptr,
+                                            SuccessCallback, ErrorCallback);
+    });
+  }
   return std::nullopt;
 }
 
@@ -1033,18 +1035,22 @@ void UniversalBlePlugin::CleanConnection(const uint64_t bluetooth_address) {
     const auto device_agent = std::move(node.mapped());
     device_agent->device.ConnectionStatusChanged(
         device_agent->connection_status_changed_token);
-    // Clean up all characteristics tokens
-    for (auto &[service_id, service] : device_agent->gatt_map) {
-      for (auto &[char_id, characteristic] : service.characteristics) {
-        if (characteristic.subscription_token.has_value()) {
-          characteristic.obj.ValueChanged(
-              characteristic.subscription_token.value());
-          characteristic.subscription_token = std::nullopt;
+    DisposeServices(device_agent);
+  }
+}
+
+void UniversalBlePlugin::DisposeServices(const std::unique_ptr<BluetoothDeviceAgent> &device_agent)
+{
+    for (auto& [service_id, service] : device_agent->gatt_map) {
+        for (auto& [char_id, characteristic] : service.characteristics) {
+            if (characteristic.subscription_token.has_value()) {
+                characteristic.obj.ValueChanged(
+                    characteristic.subscription_token.value());
+                characteristic.subscription_token = std::nullopt;
+            }
         }
-      }
     }
     device_agent->gatt_map.clear();
-  }
 }
 
 fire_and_forget UniversalBlePlugin::GetSystemDevicesAsync(

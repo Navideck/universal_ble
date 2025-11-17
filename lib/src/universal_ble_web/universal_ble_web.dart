@@ -58,8 +58,6 @@ class UniversalBleWeb extends UniversalBlePlatform {
 
   @override
   Future<void> disconnect(String deviceId) async {
-    _cleanConnection(deviceId);
-    updateConnection(deviceId, false);
     _getDeviceById(deviceId)?.disconnect();
   }
 
