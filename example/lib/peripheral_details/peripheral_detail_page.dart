@@ -4,6 +4,7 @@ import 'package:convert/convert.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:universal_ble/universal_ble.dart';
+import 'package:universal_ble_example/data/storage_service.dart';
 import 'package:universal_ble_example/peripheral_details/widgets/result_widget.dart';
 import 'package:universal_ble_example/peripheral_details/widgets/services_list_widget.dart';
 import 'package:universal_ble_example/widgets/platform_button.dart';
@@ -58,6 +59,20 @@ class _PeripheralDetailPageState extends State<PeripheralDetailPage> {
         });
       }
     });
+    _loadFavoriteServices();
+  }
+
+  void _loadFavoriteServices() {
+    final favorites = StorageService.instance.getFavoriteServices();
+    setState(() {
+      _favoriteServices.addAll(favorites);
+    });
+  }
+
+  Future<void> _saveFavoriteServices() async {
+    await StorageService.instance.setFavoriteServices(
+      _favoriteServices.toList(),
+    );
   }
 
   @override
@@ -407,6 +422,7 @@ class _PeripheralDetailPageState extends State<PeripheralDetailPage> {
                                         _favoriteServices.add(serviceUuid);
                                       }
                                     });
+                                    _saveFavoriteServices();
                                   },
                                   isSystemService: _isSystemService,
                                 ),
@@ -834,6 +850,7 @@ class _PeripheralDetailPageState extends State<PeripheralDetailPage> {
                                       _favoriteServices.add(serviceUuid);
                                     }
                                   });
+                                  _saveFavoriteServices();
                                 },
                                 isSystemService: _isSystemService,
                               ),
