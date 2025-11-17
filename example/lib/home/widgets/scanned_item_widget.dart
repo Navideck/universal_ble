@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:universal_ble/universal_ble.dart';
+import 'package:universal_ble_example/home/widgets/rssi_signal_indicator.dart';
 
 class ScannedItemWidget extends StatelessWidget {
   final BleDevice bleDevice;
@@ -10,31 +11,52 @@ class ScannedItemWidget extends StatelessWidget {
   Widget build(BuildContext context) {
     String? name = bleDevice.name;
     List<ManufacturerData> rawManufacturerData = bleDevice.manufacturerDataList;
-    ManufacturerData? manufacturerData;
-    if (rawManufacturerData.isNotEmpty) {
-      manufacturerData = rawManufacturerData.first;
-    }
     if (name == null || name.isEmpty) name = 'N/A';
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 8.0),
       child: Card(
         child: ListTile(
-          title: Text(
-            '$name (${bleDevice.rssi})',
-          ),
+          leading: RssiSignalIndicator(rssi: bleDevice.rssi ?? 0),
+          title: SelectableText(name),
           subtitle: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(bleDevice.deviceId),
-              Visibility(
-                visible: manufacturerData != null,
-                child: Text(manufacturerData.toString()),
-              ),
+              SelectableText(bleDevice.deviceId),
+              if (rawManufacturerData.isNotEmpty)
+                ...rawManufacturerData.map(
+                  (data) => Padding(
+                    padding: const EdgeInsets.only(top: 4.0),
+                    child: SelectableText(
+                      'Manufacturer: ${data.companyIdRadix16}-${data.payloadHex}',
+                      style: const TextStyle(fontSize: 12),
+                    ),
+                  ),
+                ),
+              if (bleDevice.services.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(top: 4.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const SelectableText(
+                        'Advertised Services:',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 12,
+                        ),
+                      ),
+                      ...bleDevice.services.map(
+                        (service) => SelectableText(
+                          '  • $service',
+                          style: const TextStyle(fontSize: 12),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               bleDevice.paired == true
-                  ? const Text(
-                      "Paired",
-                      style: TextStyle(color: Colors.green),
-                    )
+                  ? const Text("Paired", style: TextStyle(color: Colors.green))
                   : const Text(
                       "Not Paired",
                       style: TextStyle(color: Colors.red),

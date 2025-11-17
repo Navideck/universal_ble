@@ -26,6 +26,7 @@ class _MyAppState extends State<MyApp> {
   TextEditingController servicesFilterController = TextEditingController();
   TextEditingController namePrefixController = TextEditingController();
   TextEditingController manufacturerDataController = TextEditingController();
+  final TextEditingController _searchFilterController = TextEditingController();
   StreamSubscription<AvailabilityState>? _availabilityStreamSubscription;
 
   bool get isTrackingAvailabilityState =>
@@ -144,7 +145,23 @@ class _MyAppState extends State<MyApp> {
     servicesFilterController.dispose();
     namePrefixController.dispose();
     manufacturerDataController.dispose();
+    _searchFilterController.dispose();
     super.dispose();
+  }
+
+  List<BleDevice> get _filteredDevices {
+    if (_searchFilterController.text.isEmpty) {
+      return _bleDevices;
+    }
+    final filter = _searchFilterController.text.toLowerCase();
+    return _bleDevices.where((device) {
+      final name = device.name?.toLowerCase() ?? '';
+      final deviceId = device.deviceId.toLowerCase();
+      final services = device.services.join(' ').toLowerCase();
+      return name.contains(filter) ||
+          deviceId.contains(filter) ||
+          services.contains(filter);
+    }).toList();
   }
 
   @override
@@ -299,41 +316,72 @@ class _MyAppState extends State<MyApp> {
               if (isTrackingAvailabilityState)
                 Padding(
                   padding: const EdgeInsets.all(8.0),
-                  child: Text(
+                  child: SelectableText(
                     'Ble Availability : ${bleAvailabilityState?.name}',
                   ),
                 ),
             ],
           ),
+          // Search filter
+          if (_bleDevices.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.all(8.0),
+              child: TextField(
+                controller: _searchFilterController,
+                decoration: InputDecoration(
+                  labelText: 'Filter devices',
+                  hintText: 'Search by name, ID, or services...',
+                  prefixIcon: const Icon(Icons.search),
+                  suffixIcon: _searchFilterController.text.isNotEmpty
+                      ? IconButton(
+                          icon: const Icon(Icons.clear),
+                          onPressed: () {
+                            _searchFilterController.clear();
+                            setState(() {});
+                          },
+                        )
+                      : null,
+                  border: const OutlineInputBorder(),
+                ),
+                onChanged: (_) => setState(() {}),
+              ),
+            ),
           const Divider(color: Colors.blue),
           Expanded(
             child: _isScanning && _bleDevices.isEmpty
                 ? const Center(child: CircularProgressIndicator.adaptive())
                 : !_isScanning && _bleDevices.isEmpty
                     ? const ScannedDevicesPlaceholderWidget()
-                    : ListView.separated(
-                        itemCount: _bleDevices.length,
-                        separatorBuilder: (context, index) => const Divider(),
-                        itemBuilder: (context, index) {
-                          BleDevice device =
-                              _bleDevices[_bleDevices.length - index - 1];
-                          return ScannedItemWidget(
-                            bleDevice: device,
-                            onTap: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (_) => PeripheralDetailPage(device),
-                                ),
+                    : _filteredDevices.isEmpty
+                        ? const Center(
+                            child:
+                                SelectableText('No devices match your filter'))
+                        : ListView.separated(
+                            itemCount: _filteredDevices.length,
+                            separatorBuilder: (context, index) =>
+                                const Divider(),
+                            itemBuilder: (context, index) {
+                              BleDevice device = _filteredDevices[
+                                  _filteredDevices.length - index - 1];
+                              return ScannedItemWidget(
+                                bleDevice: device,
+                                onTap: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) =>
+                                          PeripheralDetailPage(device),
+                                    ),
+                                  );
+                                  // Stop scan but keep results visible
+                                  UniversalBle.stopScan();
+                                  setState(() {
+                                    _isScanning = false;
+                                  });
+                                },
                               );
-                              UniversalBle.stopScan();
-                              setState(() {
-                                _isScanning = false;
-                              });
                             },
-                          );
-                        },
-                      ),
+                          ),
           ),
         ],
       ),
