@@ -1,6 +1,8 @@
 ## 1.0.0
 * Unified error codes for all platforms
+* BREAKING CHANGE: Bump minimum IOS version to 13.1
 * Add `isScanning` api
+* Add `hasPermissions` api
 * Add `requestPermissions` api and auto ask permission on `startScan`
 * `disconnect` now waits for disconnection confirmation before returning
 * Improve Windows disconnection event handling and cleanup

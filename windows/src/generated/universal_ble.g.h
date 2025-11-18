@@ -348,6 +348,7 @@ class UniversalBlePlatformChannel {
   UniversalBlePlatformChannel& operator=(const UniversalBlePlatformChannel&) = delete;
   virtual ~UniversalBlePlatformChannel() {}
   virtual void GetBluetoothAvailabilityState(std::function<void(ErrorOr<int64_t> reply)> result) = 0;
+  virtual ErrorOr<bool> HasPermissions(bool with_android_fine_location) = 0;
   virtual void RequestPermissions(
     bool with_android_fine_location,
     std::function<void(std::optional<FlutterError> reply)> result) = 0;

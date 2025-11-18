@@ -55,7 +55,19 @@ class _ScanFilterWidgetState extends State<ScanFilterWidget> {
       if (manufacturerDataText.isNotEmpty) {
         List<String> manufacturerData = manufacturerDataText.split(',');
         for (String manufacturer in manufacturerData) {
-          int? companyIdentifier = int.tryParse(manufacturer);
+          String trimmed = manufacturer.trim();
+          // Remove 0x prefix if present, otherwise parse as decimal or hex
+          int? companyIdentifier;
+          if (trimmed.toLowerCase().startsWith('0x')) {
+            companyIdentifier = int.tryParse(trimmed.substring(2), radix: 16);
+          } else {
+            // Try parsing as hex first (if it contains letters), then decimal
+            if (trimmed.contains(RegExp(r'[a-fA-F]'))) {
+              companyIdentifier = int.tryParse(trimmed, radix: 16);
+            } else {
+              companyIdentifier = int.tryParse(trimmed);
+            }
+          }
           if (companyIdentifier == null) {
             throw Exception("Invalid Manufacturer Data $manufacturer");
           }
@@ -136,6 +148,7 @@ class _ScanFilterWidgetState extends State<ScanFilterWidget> {
             maxLines: 2,
             decoration: const InputDecoration(
               labelText: "Manufacturer Data Company IDs",
+              hintText: "Enter decimal or hex (e.g., 76 or 0x004C)",
               border: OutlineInputBorder(),
             ),
           ),
