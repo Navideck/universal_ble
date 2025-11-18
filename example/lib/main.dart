@@ -15,7 +15,20 @@ void main() async {
     MaterialApp(
       title: 'Universal BLE',
       debugShowCheckedModeBanner: false,
-      darkTheme: ThemeData.dark(),
+      theme: ThemeData(
+        useMaterial3: true,
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: Colors.blue,
+          brightness: Brightness.light,
+        ),
+      ),
+      darkTheme: ThemeData(
+        useMaterial3: true,
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: Colors.blue,
+          brightness: Brightness.dark,
+        ),
+      ),
       themeMode: ThemeMode.system,
       home: hasPermission ? const Home() : const PermissionScreen(),
     ),
