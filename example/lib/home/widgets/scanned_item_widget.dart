@@ -105,37 +105,6 @@ class ScannedItemWidget extends StatelessWidget {
                                   ),
                                 ),
                               ),
-                            const SizedBox(width: 10),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 8,
-                                vertical: 4,
-                              ),
-                              decoration: BoxDecoration(
-                                color: bleDevice.paired == true
-                                    ? Colors.green.withValues(alpha: 0.2)
-                                    : Colors.orange.withValues(alpha: 0.2),
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: Text(
-                                bleDevice.paired == true
-                                    ? 'Paired'
-                                    : 'Unpaired',
-                                style: TextStyle(
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.w600,
-                                  color: bleDevice.paired == true
-                                      ? Colors.green.shade700
-                                      : Colors.orange.shade700,
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 4),
-                            Icon(
-                              Icons.chevron_right,
-                              color:
-                                  colorScheme.onSurface.withValues(alpha: 0.4),
-                            ),
                           ],
                         ),
                         const SizedBox(height: 6),
@@ -162,21 +131,47 @@ class ScannedItemWidget extends StatelessWidget {
                             ),
                           ],
                         ),
-                        if (!isExpanded) ...[
-                          if (rawManufacturerData.isNotEmpty) ...[
-                            const SizedBox(height: 8),
-                            Wrap(
-                              spacing: 4,
-                              runSpacing: 4,
-                              children: rawManufacturerData.take(2).map((data) {
+                        const SizedBox(height: 6),
+                        Wrap(
+                          spacing: 4,
+                          runSpacing: 4,
+                          children: [
+                            // Pair status
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 4,
+                              ),
+                              decoration: BoxDecoration(
+                                color: bleDevice.paired == true
+                                    ? Colors.green.withValues(alpha: 0.2)
+                                    : Colors.orange.withValues(alpha: 0.2),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Text(
+                                bleDevice.paired == true
+                                    ? 'Paired'
+                                    : 'Unpaired',
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w600,
+                                  color: bleDevice.paired == true
+                                      ? Colors.green.shade700
+                                      : Colors.orange.shade700,
+                                ),
+                              ),
+                            ),
+                            // Manufacturer data (only in collapsed mode)
+                            if (!isExpanded) ...[
+                              ...rawManufacturerData.take(2).map((data) {
                                 return Container(
                                   padding: const EdgeInsets.symmetric(
-                                    horizontal: 6,
-                                    vertical: 2,
+                                    horizontal: 8,
+                                    vertical: 4,
                                   ),
                                   decoration: BoxDecoration(
                                     color: colorScheme.secondaryContainer,
-                                    borderRadius: BorderRadius.circular(6),
+                                    borderRadius: BorderRadius.circular(8),
                                   ),
                                   child: Text(
                                     data.companyIdRadix16,
@@ -187,16 +182,11 @@ class ScannedItemWidget extends StatelessWidget {
                                     ),
                                   ),
                                 );
-                              }).toList(),
-                            ),
-                          ],
-                          if (bleDevice.services.isNotEmpty) ...[
-                            const SizedBox(height: 8),
-                            Wrap(
-                              spacing: 4,
-                              runSpacing: 4,
-                              children:
-                                  bleDevice.services.take(3).map((service) {
+                              }),
+                            ],
+                            // Services (only in collapsed mode)
+                            if (!isExpanded) ...[
+                              ...bleDevice.services.take(3).map((service) {
                                 return Container(
                                   padding: const EdgeInsets.symmetric(
                                     horizontal: 8,
@@ -217,12 +207,9 @@ class ScannedItemWidget extends StatelessWidget {
                                     ),
                                   ),
                                 );
-                              }).toList(),
-                            ),
-                            if (bleDevice.services.length > 3)
-                              Padding(
-                                padding: const EdgeInsets.only(top: 4),
-                                child: Text(
+                              }),
+                              if (bleDevice.services.length > 3)
+                                Text(
                                   '+${bleDevice.services.length - 3} more',
                                   style: TextStyle(
                                     fontSize: 10,
@@ -230,9 +217,9 @@ class ScannedItemWidget extends StatelessWidget {
                                         .withValues(alpha: 0.5),
                                   ),
                                 ),
-                              ),
+                            ],
                           ],
-                        ],
+                        ),
                       ],
                     ),
                   ),
@@ -304,15 +291,6 @@ class ScannedItemWidget extends StatelessWidget {
                                           crossAxisAlignment:
                                               CrossAxisAlignment.start,
                                           children: [
-                                            Text(
-                                              'Payload: ',
-                                              style: TextStyle(
-                                                fontSize: 10,
-                                                color: colorScheme
-                                                    .onSecondaryContainer
-                                                    .withValues(alpha: 0.8),
-                                              ),
-                                            ),
                                             Expanded(
                                               child: SelectableText(
                                                 data.payloadHex,
