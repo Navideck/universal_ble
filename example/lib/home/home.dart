@@ -10,14 +10,14 @@ import 'package:universal_ble_example/home/widgets/scanned_item_widget.dart';
 import 'package:universal_ble_example/peripheral_details/peripheral_detail_page.dart';
 import 'package:universal_ble_example/widgets/responsive_buttons_grid.dart';
 
-class MyApp extends StatefulWidget {
-  const MyApp({super.key});
+class Home extends StatefulWidget {
+  const Home({super.key});
 
   @override
-  State createState() => _MyAppState();
+  State createState() => _HomeState();
 }
 
-class _MyAppState extends State<MyApp> {
+class _HomeState extends State<Home> {
   final _bleDevices = <BleDevice>[];
   final _hiddenDevices = <BleDevice>[];
   bool _isScanning = false;
@@ -28,6 +28,7 @@ class _MyAppState extends State<MyApp> {
   final TextEditingController _searchFilterController = TextEditingController();
   AvailabilityState? bleAvailabilityState;
   ScanFilter? scanFilter;
+  final Map<String, bool> _isExpanded = {};
 
   @override
   void initState() {
@@ -125,15 +126,6 @@ class _MyAppState extends State<MyApp> {
     ).showSnackBar(SnackBar(content: Text(message)));
   }
 
-  @override
-  void dispose() {
-    servicesFilterController.dispose();
-    namePrefixController.dispose();
-    manufacturerDataController.dispose();
-    _searchFilterController.dispose();
-    super.dispose();
-  }
-
   List<BleDevice> get _filteredDevices {
     if (_searchFilterController.text.isEmpty) {
       return _bleDevices;
@@ -158,6 +150,15 @@ class _MyAppState extends State<MyApp> {
   }
 
   @override
+  void dispose() {
+    servicesFilterController.dispose();
+    namePrefixController.dispose();
+    manufacturerDataController.dispose();
+    _searchFilterController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
@@ -172,11 +173,13 @@ class _MyAppState extends State<MyApp> {
               color: _getBluetoothIconColor(colorScheme),
             ),
             const SizedBox(width: 12),
-            const Text(
-              'Universal BLE',
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                letterSpacing: 0.5,
+            Expanded(
+              child: const Text(
+                'Universal BLE',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: 0.5,
+                ),
               ),
             ),
           ],
@@ -184,39 +187,82 @@ class _MyAppState extends State<MyApp> {
         elevation: 0,
         backgroundColor: colorScheme.surface,
         actions: [
-          if (_isScanning)
-            Container(
-              margin: const EdgeInsets.all(12.0),
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              decoration: BoxDecoration(
-                color: colorScheme.primaryContainer,
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  SizedBox(
-                    width: 16,
-                    height: 16,
-                    child: CircularProgressIndicator.adaptive(
-                      strokeWidth: 2,
-                      valueColor: AlwaysStoppedAnimation<Color>(
-                        colorScheme.primary,
-                      ),
+          PopupMenuButton<QueueType>(
+            icon: const Icon(Icons.queue),
+            tooltip: 'Queue Type',
+            onSelected: (QueueType value) {
+              setState(() {
+                _queueType = value;
+                UniversalBle.queueType = _queueType;
+              });
+            },
+            itemBuilder: (BuildContext context) => [
+              PopupMenuItem<QueueType>(
+                value: QueueType.global,
+                child: Row(
+                  children: [
+                    Icon(
+                      _queueType == QueueType.global
+                          ? Icons.check
+                          : Icons.radio_button_unchecked,
+                      size: 20,
+                      color: _queueType == QueueType.global
+                          ? colorScheme.primary
+                          : colorScheme.onSurface.withValues(alpha: 0.6),
                     ),
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    'Scanning...',
-                    style: TextStyle(
-                      color: colorScheme.onPrimaryContainer,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ],
+                    const SizedBox(width: 12),
+                    const Text('Global'),
+                  ],
+                ),
               ),
+              PopupMenuItem<QueueType>(
+                value: QueueType.perDevice,
+                child: Row(
+                  children: [
+                    Icon(
+                      _queueType == QueueType.perDevice
+                          ? Icons.check
+                          : Icons.radio_button_unchecked,
+                      size: 20,
+                      color: _queueType == QueueType.perDevice
+                          ? colorScheme.primary
+                          : colorScheme.onSurface.withValues(alpha: 0.6),
+                    ),
+                    const SizedBox(width: 12),
+                    const Text('Per Device'),
+                  ],
+                ),
+              ),
+              PopupMenuItem<QueueType>(
+                value: QueueType.none,
+                child: Row(
+                  children: [
+                    Icon(
+                      _queueType == QueueType.none
+                          ? Icons.check
+                          : Icons.radio_button_unchecked,
+                      size: 20,
+                      color: _queueType == QueueType.none
+                          ? colorScheme.primary
+                          : colorScheme.onSurface.withValues(alpha: 0.6),
+                    ),
+                    const SizedBox(width: 12),
+                    const Text('None'),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          IconButton(
+            icon: Icon(
+              Icons.filter_list,
+              color: scanFilter != null
+                  ? colorScheme.primary
+                  : colorScheme.onSurface,
             ),
+            tooltip: 'Scan Filters',
+            onPressed: _showScanFilterBottomSheet,
+          ),
         ],
       ),
       body: Column(
@@ -238,59 +284,7 @@ class _MyAppState extends State<MyApp> {
             ),
             child: ResponsiveButtonsGrid(
               children: [
-                _buildActionButton(
-                  context,
-                  _isScanning ? 'Stop Scan' : 'Start Scan',
-                  _isScanning ? Icons.stop : Icons.play_arrow,
-                  _isScanning ? colorScheme.error : colorScheme.primary,
-                  _isBluetoothAvailable
-                      ? () async {
-                          if (_isScanning) {
-                            await UniversalBle.stopScan();
-                            setState(() {
-                              _isScanning = false;
-                            });
-                          } else {
-                            setState(() {
-                              _bleDevices.clear();
-                              _isScanning = true;
-                            });
-                            try {
-                              await _startScan();
-                            } catch (e) {
-                              setState(() {
-                                _isScanning = false;
-                              });
-                              showSnackbar(e.toString());
-                            }
-                          }
-                        }
-                      : null,
-                ),
-                if (BleCapabilities.supportsBluetoothEnableApi)
-                  bleAvailabilityState != AvailabilityState.poweredOn
-                      ? _buildActionButton(
-                          context,
-                          'Enable Bluetooth',
-                          Icons.bluetooth,
-                          colorScheme.primary,
-                          () async {
-                            bool isEnabled =
-                                await UniversalBle.enableBluetooth();
-                            showSnackbar("BluetoothEnabled: $isEnabled");
-                          },
-                        )
-                      : _buildActionButton(
-                          context,
-                          'Disable Bluetooth',
-                          Icons.bluetooth_disabled,
-                          colorScheme.error,
-                          () async {
-                            bool isDisabled =
-                                await UniversalBle.disableBluetooth();
-                            showSnackbar("BluetoothDisabled: $isDisabled");
-                          },
-                        ),
+                _buildScanButton(context, colorScheme),
                 if (BleCapabilities.supportsConnectedDevicesApi)
                   _buildActionButton(
                     context,
@@ -299,29 +293,6 @@ class _MyAppState extends State<MyApp> {
                     colorScheme.primary,
                     _isBluetoothAvailable ? _getSystemDevices : null,
                   ),
-                _buildActionButton(
-                  context,
-                  'Queue: ${_queueType.name}',
-                  Icons.queue,
-                  colorScheme.secondary,
-                  () {
-                    setState(() {
-                      _queueType = switch (_queueType) {
-                        QueueType.global => QueueType.perDevice,
-                        QueueType.perDevice => QueueType.none,
-                        QueueType.none => QueueType.global,
-                      };
-                      UniversalBle.queueType = _queueType;
-                    });
-                  },
-                ),
-                _buildActionButton(
-                  context,
-                  'Scan Filters',
-                  Icons.filter_list,
-                  colorScheme.tertiary,
-                  _showScanFilterBottomSheet,
-                ),
                 if (_hiddenDevices.isNotEmpty)
                   _buildActionButton(
                     context,
@@ -333,41 +304,10 @@ class _MyAppState extends State<MyApp> {
                         _hiddenDevices.clear();
                       });
                     },
-                  )
-                else if (_bleDevices.isNotEmpty)
-                  Tooltip(
-                    message:
-                        'Hide already discovered devices. When you turn on a new device, it will be easier to spot.',
-                    child: _buildActionButton(
-                      context,
-                      'Hide Discovered',
-                      Icons.visibility_off,
-                      colorScheme.outline,
-                      () {
-                        setState(() {
-                          _hiddenDevices.clear();
-                          _hiddenDevices.addAll(_bleDevices);
-                          _bleDevices.clear();
-                        });
-                      },
-                    ),
-                  ),
-                if (_bleDevices.isNotEmpty)
-                  _buildActionButton(
-                    context,
-                    'Clear List',
-                    Icons.clear_all,
-                    colorScheme.error,
-                    () {
-                      setState(() {
-                        _bleDevices.clear();
-                      });
-                    },
                   ),
               ],
             ),
           ),
-
           // Search filter
           if (_bleDevices.isNotEmpty)
             Padding(
@@ -438,10 +378,60 @@ class _MyAppState extends State<MyApp> {
                     ),
                     child: Text(
                       _filteredDevices.length == _bleDevices.length
-                          ? '${_bleDevices.length} device${_bleDevices.length == 1 ? '' : 's'} found'
+                          ? '${_bleDevices.length} device${_bleDevices.length == 1 ? '' : 's'}'
                           : '${_filteredDevices.length} of ${_bleDevices.length} devices',
                       style: TextStyle(
                         color: colorScheme.onPrimaryContainer,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                  const Spacer(),
+                  if (_hiddenDevices.isEmpty) ...[
+                    Tooltip(
+                      message:
+                          'Hide already discovered devices. When you turn on a new device, it will be easier to spot.',
+                      child: TextButton.icon(
+                        onPressed: () {
+                          setState(() {
+                            _hiddenDevices.clear();
+                            _hiddenDevices.addAll(_bleDevices);
+                            _bleDevices.clear();
+                          });
+                        },
+                        icon: Icon(
+                          Icons.visibility_off,
+                          size: 18,
+                          color: colorScheme.onSurface,
+                        ),
+                        label: Text(
+                          'Hide',
+                          style: TextStyle(
+                            color: colorScheme.onSurface,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                  ],
+                  TextButton.icon(
+                    onPressed: () {
+                      setState(() {
+                        _bleDevices.clear();
+                      });
+                    },
+                    icon: Icon(
+                      Icons.clear_all,
+                      size: 18,
+                      color: colorScheme.error,
+                    ),
+                    label: Text(
+                      'Clear',
+                      style: TextStyle(
+                        color: colorScheme.error,
                         fontSize: 12,
                         fontWeight: FontWeight.w600,
                       ),
@@ -593,6 +583,14 @@ class _MyAppState extends State<MyApp> {
                                       _filteredDevices.length - index - 1];
                                   return ScannedItemWidget(
                                     bleDevice: device,
+                                    isExpanded:
+                                        _isExpanded[device.deviceId] ?? false,
+                                    onExpand: (isExpanded) {
+                                      setState(() {
+                                        _isExpanded[device.deviceId] =
+                                            isExpanded;
+                                      });
+                                    },
                                     onTap: () {
                                       Navigator.push(
                                         context,
@@ -616,6 +614,91 @@ class _MyAppState extends State<MyApp> {
     );
   }
 
+  Widget _buildScanButton(BuildContext context, ColorScheme colorScheme) {
+    final isEnabled = _isBluetoothAvailable;
+    final brightness = ThemeData.estimateBrightnessForColor(
+      _isScanning ? colorScheme.error : colorScheme.primary,
+    );
+    final textColor = isEnabled
+        ? (brightness == Brightness.dark ? Colors.white : Colors.black87)
+        : colorScheme.onSurface.withValues(alpha: 0.38);
+    final buttonColor = isEnabled
+        ? (_isScanning ? colorScheme.error : colorScheme.primary)
+        : colorScheme.onSurface.withValues(alpha: 0.12);
+
+    return Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: isEnabled
+            ? [
+                BoxShadow(
+                  color: buttonColor.withValues(alpha: 0.2),
+                  blurRadius: 4,
+                  offset: const Offset(0, 2),
+                ),
+              ]
+            : [],
+      ),
+      child: ElevatedButton.icon(
+        onPressed: isEnabled
+            ? () async {
+                if (_isScanning) {
+                  await UniversalBle.stopScan();
+                  setState(() {
+                    _isScanning = false;
+                  });
+                } else {
+                  setState(() {
+                    _bleDevices.clear();
+                    _isScanning = true;
+                  });
+                  try {
+                    await _startScan();
+                  } catch (e) {
+                    setState(() {
+                      _isScanning = false;
+                    });
+                    showSnackbar(e.toString());
+                  }
+                }
+              }
+            : null,
+        icon: _isScanning
+            ? SizedBox(
+                width: 16,
+                height: 16,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  valueColor: AlwaysStoppedAnimation<Color>(textColor),
+                ),
+              )
+            : const Icon(
+                Icons.play_arrow,
+                size: 18,
+              ),
+        label: Text(
+          _isScanning ? 'Stop Scan' : 'Start Scan',
+          style: const TextStyle(fontSize: 12),
+          overflow: TextOverflow.ellipsis,
+        ),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: buttonColor,
+          foregroundColor: textColor,
+          disabledBackgroundColor: buttonColor,
+          disabledForegroundColor: textColor,
+          padding: const EdgeInsets.symmetric(
+            horizontal: 12,
+            vertical: 12,
+          ),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          elevation: 0,
+        ),
+      ),
+    );
+  }
+
   Widget _buildActionButton(
     BuildContext context,
     String text,
@@ -626,16 +709,12 @@ class _MyAppState extends State<MyApp> {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
     final isEnabled = onPressed != null;
-
-    // Determine text color based on background brightness
     final brightness = ThemeData.estimateBrightnessForColor(color);
     final textColor = isEnabled
         ? (brightness == Brightness.dark ? Colors.white : Colors.black87)
         : colorScheme.onSurface.withValues(alpha: 0.38);
-
     final buttonColor =
         isEnabled ? color : colorScheme.onSurface.withValues(alpha: 0.12);
-
     return Container(
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(12),

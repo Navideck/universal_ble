@@ -2,14 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:universal_ble/universal_ble.dart';
 import 'package:universal_ble_example/home/home.dart';
 
-class SplashScreen extends StatefulWidget {
-  const SplashScreen({super.key});
+class PermissionScreen extends StatefulWidget {
+  const PermissionScreen({super.key});
 
   @override
-  State<SplashScreen> createState() => _SplashScreenState();
+  State<PermissionScreen> createState() => _PermissionScreenState();
 }
 
-class _SplashScreenState extends State<SplashScreen>
+class _PermissionScreenState extends State<PermissionScreen>
     with WidgetsBindingObserver {
   final bool _withAndroidFineLocation = false;
   bool _isChecking = true;
@@ -51,7 +51,7 @@ class _SplashScreenState extends State<SplashScreen>
         // No permissions needed, go directly to home
         if (mounted) {
           Navigator.of(context).pushReplacement(
-            MaterialPageRoute(builder: (_) => const MyApp()),
+            MaterialPageRoute(builder: (_) => const Home()),
           );
         }
         return;
@@ -70,7 +70,7 @@ class _SplashScreenState extends State<SplashScreen>
       if (hasPermissions && mounted) {
         // Permissions already granted, go to home
         Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (_) => const MyApp()),
+          MaterialPageRoute(builder: (_) => const Home()),
         );
       }
     } catch (e) {
@@ -95,7 +95,7 @@ class _SplashScreenState extends State<SplashScreen>
       // Permissions granted, go to home
       if (mounted) {
         Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (_) => const MyApp()),
+          MaterialPageRoute(builder: (_) => const Home()),
         );
       }
     } catch (e) {
