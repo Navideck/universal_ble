@@ -6,7 +6,7 @@ class ServicesListWidget extends StatelessWidget {
   final List<BleService> discoveredServices;
   final bool scrollable;
   final void Function(BleService service, BleCharacteristic characteristic)?
-  onTap;
+      onTap;
   final BleService? selectedService;
   final BleCharacteristic? selectedCharacteristic;
   final Set<String>? favoriteServices;
@@ -29,11 +29,12 @@ class ServicesListWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     final favoriteStarColor = Colors.amber;
     final subscribedNotificationIconColor = Colors.green;
-    final selectedColor = Colors.blue;
-    final selectedServiceCardColor = selectedColor.withAlpha(40);
-    final selectedCharacteristicBackgroundColor = selectedColor.withAlpha(20);
+    final selectedColor = colorScheme.primary;
+    final selectedCharacteristicBackgroundColor =
+        colorScheme.primaryContainer.withValues(alpha: 0.5);
 
     // Sort services: favorites first, then system services, then others
     final sortedServices = List<BleService>.from(discoveredServices);
@@ -57,112 +58,166 @@ class ServicesListWidget extends StatelessWidget {
       itemBuilder: (BuildContext context, int index) {
         final service = sortedServices[index];
         final isFavorite = favoriteServices?.contains(service.uuid) ?? false;
-        final isSystem = isSystemService?.call(service.uuid) ?? false;
         final isSelected = selectedService?.uuid == service.uuid;
         return Padding(
-          padding: const EdgeInsets.all(8.0),
+          padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
           child: Card(
-            color: isSelected ? selectedServiceCardColor : null,
+            elevation: isSelected ? 2 : 1,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+              side: isSelected
+                  ? BorderSide(color: selectedColor, width: 2)
+                  : BorderSide.none,
+            ),
             child: ExpandablePanel(
               header: Padding(
-                padding: const EdgeInsets.all(8.0),
+                padding: const EdgeInsets.all(12.0),
                 child: Row(
                   children: [
-                    const Icon(Icons.arrow_forward_ios),
+                    Icon(
+                      Icons.arrow_forward_ios,
+                      size: 14,
+                      color: colorScheme.onSurface.withValues(alpha: 0.6),
+                    ),
+                    const SizedBox(width: 8),
                     Expanded(
-                      child: Row(
-                        children: [
-                          Expanded(
-                            child: Text(
-                              service.uuid,
-                              style: TextStyle(
-                                color: isSystem ? selectedColor : null,
-                                fontWeight: isSelected ? FontWeight.bold : null,
-                              ),
-                            ),
-                          ),
-                        ],
+                      child: Text(
+                        service.uuid,
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontFamily: 'monospace',
+                          color: colorScheme.onSurface,
+                          fontWeight:
+                              isSelected ? FontWeight.bold : FontWeight.w500,
+                        ),
                       ),
                     ),
-                    if (onFavoriteToggle != null)
+                    if (onFavoriteToggle != null) ...[
+                      const SizedBox(width: 8),
                       IconButton(
                         icon: Icon(
                           isFavorite ? Icons.star : Icons.star_border,
-                          color: isFavorite ? favoriteStarColor : null,
+                          color: isFavorite
+                              ? favoriteStarColor
+                              : colorScheme.onSurface.withValues(alpha: 0.4),
                         ),
                         onPressed: () => onFavoriteToggle!(service.uuid),
                         iconSize: 20,
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(
+                          minWidth: 32,
+                          minHeight: 32,
+                        ),
                       ),
+                    ],
                   ],
                 ),
               ),
               collapsed: const SizedBox(),
-              expanded: Column(
-                children: service.characteristics.map((e) {
-                  final isCharSelected = selectedCharacteristic?.uuid == e.uuid;
-                  final isSubscribed =
-                      subscribedCharacteristics?[e.uuid] ?? false;
-                  return Padding(
-                    padding: const EdgeInsets.all(8.0),
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: isCharSelected
-                            ? selectedCharacteristicBackgroundColor
-                            : Colors.transparent,
-                        borderRadius: BorderRadius.circular(4),
-                        border: isCharSelected
-                            ? Border.all(color: selectedColor, width: 2)
-                            : null,
+              expanded: Padding(
+                padding: const EdgeInsets.only(bottom: 8.0),
+                child: Column(
+                  children: service.characteristics.map((e) {
+                    final isCharSelected =
+                        selectedCharacteristic?.uuid == e.uuid;
+                    final isSubscribed =
+                        subscribedCharacteristics?[e.uuid] ?? false;
+                    return Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8.0,
+                        vertical: 4.0,
                       ),
-                      child: InkWell(
-                        onTap: () {
-                          onTap?.call(service, e);
-                        },
-                        child: Padding(
-                          padding: const EdgeInsets.all(8.0),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                children: [
-                                  Icon(
-                                    Icons.arrow_right_outlined,
-                                    color: isCharSelected
-                                        ? selectedColor
-                                        : null,
-                                  ),
-                                  if (isSubscribed)
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: isCharSelected
+                              ? selectedCharacteristicBackgroundColor
+                              : colorScheme.surfaceContainerHighest
+                                  .withValues(alpha: 0.3),
+                          borderRadius: BorderRadius.circular(8),
+                          border: isCharSelected
+                              ? Border.all(color: selectedColor, width: 1.5)
+                              : null,
+                        ),
+                        child: InkWell(
+                          onTap: () {
+                            onTap?.call(service, e);
+                          },
+                          borderRadius: BorderRadius.circular(8),
+                          child: Padding(
+                            padding: const EdgeInsets.all(12.0),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
                                     Icon(
-                                      Icons.notifications_active,
-                                      color: subscribedNotificationIconColor,
+                                      Icons.arrow_right_outlined,
                                       size: 16,
+                                      color: isCharSelected
+                                          ? selectedColor
+                                          : colorScheme.onSurface
+                                              .withValues(alpha: 0.6),
                                     ),
-                                  Expanded(
-                                    child: Text(
-                                      e.uuid,
-                                      style: TextStyle(
-                                        fontWeight: isCharSelected
-                                            ? FontWeight.bold
-                                            : null,
-                                        color: isCharSelected
-                                            ? selectedColor
-                                            : null,
+                                    const SizedBox(width: 8),
+                                    if (isSubscribed) ...[
+                                      Icon(
+                                        Icons.notifications_active,
+                                        color: subscribedNotificationIconColor,
+                                        size: 16,
+                                      ),
+                                      const SizedBox(width: 4),
+                                    ],
+                                    Expanded(
+                                      child: Text(
+                                        e.uuid,
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          fontFamily: 'monospace',
+                                          fontWeight: isCharSelected
+                                              ? FontWeight.bold
+                                              : FontWeight.w500,
+                                          color: isCharSelected
+                                              ? selectedColor
+                                              : colorScheme.onSurface,
+                                        ),
                                       ),
                                     ),
-                                  ),
-                                ],
-                              ),
-                              Text(
-                                "Properties: ${e.properties.map((e) => e.name).join(", ")}",
-                                style: const TextStyle(fontSize: 12),
-                              ),
-                            ],
+                                  ],
+                                ),
+                                const SizedBox(height: 8),
+                                Wrap(
+                                  spacing: 6,
+                                  runSpacing: 6,
+                                  children: e.properties.map((prop) {
+                                    return Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 6,
+                                        vertical: 2,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: colorScheme.secondaryContainer,
+                                        borderRadius: BorderRadius.circular(4),
+                                      ),
+                                      child: Text(
+                                        prop.name,
+                                        style: TextStyle(
+                                          fontSize: 10,
+                                          color:
+                                              colorScheme.onSecondaryContainer,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                    );
+                                  }).toList(),
+                                ),
+                              ],
+                            ),
                           ),
                         ),
                       ),
-                    ),
-                  );
-                }).toList(),
+                    );
+                  }).toList(),
+                ),
               ),
             ),
           ),

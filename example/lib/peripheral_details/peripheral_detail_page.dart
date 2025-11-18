@@ -7,8 +7,6 @@ import 'package:universal_ble/universal_ble.dart';
 import 'package:universal_ble_example/data/storage_service.dart';
 import 'package:universal_ble_example/peripheral_details/widgets/result_widget.dart';
 import 'package:universal_ble_example/peripheral_details/widgets/services_list_widget.dart';
-import 'package:universal_ble_example/widgets/platform_button.dart';
-import 'package:universal_ble_example/widgets/responsive_buttons_grid.dart';
 import 'package:universal_ble_example/widgets/responsive_view.dart';
 
 class PeripheralDetailPage extends StatefulWidget {
@@ -30,6 +28,7 @@ class _PeripheralDetailPageState extends State<PeripheralDetailPage> {
   final binaryCode = TextEditingController();
   final Set<String> _favoriteServices = {};
   bool _isLoading = false;
+  bool _isDeviceInfoExpanded = false;
   final Map<String, bool> _subscribedCharacteristics = {};
 
   StreamSubscription? connectionStreamSubscription;
@@ -309,31 +308,105 @@ class _PeripheralDetailPageState extends State<PeripheralDetailPage> {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Scaffold(
       appBar: AppBar(
-        title: SelectableText(bleDevice.name ?? "Unknown"),
-        centerTitle: false,
-        elevation: 4,
-        actions: [
-          if (_isLoading)
-            const Padding(
-              padding: EdgeInsets.all(8.0),
-              child: SizedBox(
-                width: 20,
-                height: 20,
-                child: CircularProgressIndicator.adaptive(strokeWidth: 2),
-              ),
-            ),
-          Padding(
-            padding: const EdgeInsets.all(8.0),
-            child: Icon(
+        title: Row(
+          children: [
+            Icon(
               isConnected
                   ? Icons.bluetooth_connected
                   : Icons.bluetooth_disabled,
-              color: isConnected ? Colors.greenAccent : Colors.red,
+              color: isConnected
+                  ? Colors.green
+                  : colorScheme.onSurface.withValues(alpha: 0.6),
               size: 20,
             ),
-          ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: SelectableText(
+                bleDevice.name ?? "Unknown Device",
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: 0.5,
+                ),
+              ),
+            ),
+          ],
+        ),
+        centerTitle: false,
+        elevation: 0,
+        actions: [
+          if (_isLoading)
+            Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  valueColor: AlwaysStoppedAnimation<Color>(
+                    colorScheme.primary,
+                  ),
+                ),
+              ),
+            ),
+          if (isConnected)
+            Container(
+              margin: const EdgeInsets.only(right: 16),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                color: Colors.green.withValues(alpha: 0.2),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.check_circle,
+                    size: 16,
+                    color: Colors.green.shade700,
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    'Connected',
+                    style: TextStyle(
+                      color: Colors.green.shade700,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            )
+          else
+            Container(
+              margin: const EdgeInsets.only(right: 16),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                color: Colors.orange.withValues(alpha: 0.2),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.bluetooth_disabled,
+                    size: 16,
+                    color: Colors.orange.shade700,
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    'Disconnected',
+                    style: TextStyle(
+                      color: Colors.orange.shade700,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            ),
         ],
       ),
       body: ResponsiveView(
@@ -346,14 +419,88 @@ class _PeripheralDetailPageState extends State<PeripheralDetailPage> {
                 Expanded(
                   flex: 1,
                   child: Container(
-                    color: Theme.of(context).secondaryHeaderColor,
+                    decoration: BoxDecoration(
+                      color: colorScheme.surfaceContainerHighest,
+                      border: Border(
+                        right: BorderSide(
+                          color: colorScheme.outline.withValues(alpha: 0.2),
+                          width: 1,
+                        ),
+                      ),
+                    ),
                     child: Column(
                       children: [
+                        Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: colorScheme.surface,
+                            border: Border(
+                              bottom: BorderSide(
+                                color:
+                                    colorScheme.outline.withValues(alpha: 0.2),
+                                width: 1,
+                              ),
+                            ),
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(
+                                Icons.apps,
+                                color: colorScheme.primary,
+                                size: 20,
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
+                                'Services',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 16,
+                                  color: colorScheme.onSurface,
+                                ),
+                              ),
+                              const Spacer(),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                  vertical: 4,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: colorScheme.primaryContainer,
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Text(
+                                  '${discoveredServices.length}',
+                                  style: TextStyle(
+                                    color: colorScheme.onPrimaryContainer,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
                         Expanded(
                           child: discoveredServices.isEmpty
-                              ? const Center(
-                                  child: SelectableText(
-                                    'No Services Discovered',
+                              ? Center(
+                                  child: Column(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Icon(
+                                        Icons.apps_outlined,
+                                        size: 48,
+                                        color: colorScheme.onSurface
+                                            .withValues(alpha: 0.3),
+                                      ),
+                                      const SizedBox(height: 16),
+                                      Text(
+                                        'No Services Discovered',
+                                        style: TextStyle(
+                                          color: colorScheme.onSurface
+                                              .withValues(alpha: 0.6),
+                                        ),
+                                      ),
+                                    ],
                                   ),
                                 )
                               : ServicesListWidget(
@@ -395,164 +542,341 @@ class _PeripheralDetailPageState extends State<PeripheralDetailPage> {
                 flex: deviceType == DeviceType.desktop ? 3 : 1,
                 child: Column(
                   children: [
-                    // Selected service/char always visible at top (mobile/tablet)
-                    if (deviceType != DeviceType.desktop &&
-                        selectedService != null &&
-                        selectedCharacteristic != null)
-                      Container(
-                        color: Theme.of(
-                          context,
-                        ).primaryColor.withValues(alpha: 0.1),
-                        padding: const EdgeInsets.all(8.0),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              children: [
-                                const Icon(Icons.info_outline, size: 16),
-                                const SizedBox(width: 4),
-                                Expanded(
-                                  child: SelectableText(
-                                    'Selected: ${selectedCharacteristic!.uuid}',
-                                    style: const TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                            SelectableText(
-                              'Service: ${selectedService!.uuid}',
-                              style: const TextStyle(fontSize: 12),
-                            ),
-                            SelectableText(
-                              'Properties: ${selectedCharacteristic!.properties.map((e) => e.name).join(", ")}',
-                              style: const TextStyle(fontSize: 12),
-                            ),
-                          ],
-                        ),
-                      ),
                     Expanded(
                       child: SingleChildScrollView(
                         child: Column(
                           children: [
                             // Device info with manufacturer data and advertised services
                             Padding(
-                              padding: const EdgeInsets.all(8.0),
+                              padding: const EdgeInsets.all(16.0),
                               child: Card(
-                                child: SizedBox(
-                                  width: double.infinity,
-                                  child: Padding(
-                                    padding: const EdgeInsets.all(8.0),
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        const SelectableText(
-                                          'Device Information',
-                                          style: TextStyle(
-                                            fontWeight: FontWeight.bold,
-                                            fontSize: 16,
-                                          ),
+                                elevation: 2,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: Theme(
+                                  data: Theme.of(context).copyWith(
+                                    dividerColor: Colors.transparent,
+                                  ),
+                                  child: ExpansionTile(
+                                    initiallyExpanded: _isDeviceInfoExpanded,
+                                    onExpansionChanged: (expanded) {
+                                      setState(() {
+                                        _isDeviceInfoExpanded = expanded;
+                                      });
+                                    },
+                                    tilePadding: const EdgeInsets.symmetric(
+                                      horizontal: 16,
+                                      vertical: 8,
+                                    ),
+                                    childrenPadding: const EdgeInsets.only(
+                                      left: 16,
+                                      right: 16,
+                                      bottom: 16,
+                                    ),
+                                    leading: Icon(
+                                      Icons.info_outline,
+                                      color: colorScheme.primary,
+                                      size: 24,
+                                    ),
+                                    title: Text(
+                                      'Device Information',
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 18,
+                                        color: colorScheme.onSurface,
+                                      ),
+                                    ),
+                                    subtitle: !_isDeviceInfoExpanded
+                                        ? Padding(
+                                            padding:
+                                                const EdgeInsets.only(top: 4),
+                                            child: Column(
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.start,
+                                              children: [
+                                                Text(
+                                                  'Name: ${bleDevice.name ?? "Unknown"}',
+                                                  style: TextStyle(
+                                                    fontSize: 12,
+                                                    color: colorScheme.onSurface
+                                                        .withValues(alpha: 0.7),
+                                                  ),
+                                                ),
+                                                const SizedBox(height: 2),
+                                                Text(
+                                                  'ID: ${bleDevice.deviceId}',
+                                                  style: TextStyle(
+                                                    fontSize: 11,
+                                                    fontFamily: 'monospace',
+                                                    color: colorScheme.onSurface
+                                                        .withValues(alpha: 0.6),
+                                                  ),
+                                                  maxLines: 1,
+                                                  overflow:
+                                                      TextOverflow.ellipsis,
+                                                ),
+                                              ],
+                                            ),
+                                          )
+                                        : null,
+                                    expandedCrossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      _buildInfoRow(
+                                        context,
+                                        'Device ID',
+                                        bleDevice.deviceId,
+                                        Icons.fingerprint,
+                                      ),
+                                      const SizedBox(height: 12),
+                                      _buildInfoRow(
+                                        context,
+                                        'Name',
+                                        bleDevice.name ?? "Unknown",
+                                        Icons.label,
+                                      ),
+                                      // Manufacturer data
+                                      if (bleDevice
+                                          .manufacturerDataList.isNotEmpty) ...[
+                                        const SizedBox(height: 16),
+                                        Row(
+                                          children: [
+                                            Icon(
+                                              Icons.memory,
+                                              size: 18,
+                                              color: colorScheme.secondary,
+                                            ),
+                                            const SizedBox(width: 8),
+                                            Text(
+                                              'Manufacturer Data',
+                                              style: TextStyle(
+                                                fontWeight: FontWeight.bold,
+                                                fontSize: 14,
+                                                color: colorScheme.onSurface,
+                                              ),
+                                            ),
+                                          ],
                                         ),
                                         const SizedBox(height: 8),
-                                        SelectableText(
-                                          'Device ID: ${bleDevice.deviceId}',
+                                        ...bleDevice.manufacturerDataList.map(
+                                          (data) => Padding(
+                                            padding: const EdgeInsets.only(
+                                              bottom: 8.0,
+                                            ),
+                                            child: Container(
+                                              padding: const EdgeInsets.all(12),
+                                              decoration: BoxDecoration(
+                                                color: colorScheme
+                                                    .secondaryContainer,
+                                                borderRadius:
+                                                    BorderRadius.circular(8),
+                                              ),
+                                              child: Column(
+                                                crossAxisAlignment:
+                                                    CrossAxisAlignment.start,
+                                                children: [
+                                                  Row(
+                                                    children: [
+                                                      Text(
+                                                        'Company ID: ',
+                                                        style: TextStyle(
+                                                          fontSize: 12,
+                                                          fontWeight:
+                                                              FontWeight.w600,
+                                                          color: colorScheme
+                                                              .onSecondaryContainer,
+                                                        ),
+                                                      ),
+                                                      Expanded(
+                                                        child: SelectableText(
+                                                          data.companyIdRadix16,
+                                                          style: TextStyle(
+                                                            fontSize: 12,
+                                                            fontFamily:
+                                                                'monospace',
+                                                            color: colorScheme
+                                                                .onSecondaryContainer,
+                                                          ),
+                                                        ),
+                                                      ),
+                                                    ],
+                                                  ),
+                                                  if (data.payloadHex
+                                                      .isNotEmpty) ...[
+                                                    const SizedBox(height: 4),
+                                                    Row(
+                                                      crossAxisAlignment:
+                                                          CrossAxisAlignment
+                                                              .start,
+                                                      children: [
+                                                        Text(
+                                                          'Payload: ',
+                                                          style: TextStyle(
+                                                            fontSize: 11,
+                                                            color: colorScheme
+                                                                .onSecondaryContainer
+                                                                .withValues(
+                                                                    alpha: 0.8),
+                                                          ),
+                                                        ),
+                                                        Expanded(
+                                                          child: SelectableText(
+                                                            data.payloadHex,
+                                                            style: TextStyle(
+                                                              fontSize: 11,
+                                                              fontFamily:
+                                                                  'monospace',
+                                                              color: colorScheme
+                                                                  .onSecondaryContainer
+                                                                  .withValues(
+                                                                      alpha:
+                                                                          0.8),
+                                                            ),
+                                                          ),
+                                                        ),
+                                                      ],
+                                                    ),
+                                                  ],
+                                                ],
+                                              ),
+                                            ),
+                                          ),
                                         ),
-                                        SelectableText(
-                                          'Name: ${bleDevice.name ?? "Unknown"}',
-                                        ),
-                                        // Manufacturer data
-                                        if (bleDevice
-                                            .manufacturerDataList
-                                            .isNotEmpty) ...[
-                                          const SizedBox(height: 8),
-                                          const SelectableText(
-                                            'Manufacturer Data:',
-                                            style: TextStyle(
-                                              fontWeight: FontWeight.bold,
-                                            ),
-                                          ),
-                                          ...bleDevice.manufacturerDataList.map(
-                                            (data) => Padding(
-                                              padding: const EdgeInsets.only(
-                                                top: 4.0,
-                                              ),
-                                              child: SelectableText(
-                                                'Company ID: ${data.companyIdRadix16}\nPayload: ${data.payloadHex}',
-                                                style: const TextStyle(
-                                                  fontSize: 12,
-                                                  fontFamily: 'monospace',
-                                                ),
-                                              ),
-                                            ),
-                                          ),
-                                        ],
-                                        // Advertised services
-                                        if (bleDevice.services.isNotEmpty) ...[
-                                          const SizedBox(height: 8),
-                                          const SelectableText(
-                                            'Advertised Services:',
-                                            style: TextStyle(
-                                              fontWeight: FontWeight.bold,
-                                            ),
-                                          ),
-                                          ...bleDevice.services.map(
-                                            (service) => Padding(
-                                              padding: const EdgeInsets.only(
-                                                left: 8.0,
-                                                top: 2.0,
-                                              ),
-                                              child: SelectableText(
-                                                '• $service',
-                                                style: TextStyle(
-                                                  fontSize: 12,
-                                                  color:
-                                                      _isSystemService(service)
-                                                      ? Colors.blue
-                                                      : null,
-                                                ),
-                                              ),
-                                            ),
-                                          ),
-                                        ],
                                       ],
-                                    ),
+                                      // Advertised services
+                                      if (bleDevice.services.isNotEmpty) ...[
+                                        const SizedBox(height: 16),
+                                        Row(
+                                          children: [
+                                            Icon(
+                                              Icons.list,
+                                              size: 18,
+                                              color: colorScheme.tertiary,
+                                            ),
+                                            const SizedBox(width: 8),
+                                            Text(
+                                              'Advertised Services',
+                                              style: TextStyle(
+                                                fontWeight: FontWeight.bold,
+                                                fontSize: 14,
+                                                color: colorScheme.onSurface,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                        const SizedBox(height: 8),
+                                        Wrap(
+                                          spacing: 6,
+                                          runSpacing: 6,
+                                          children: bleDevice.services
+                                              .map(
+                                                (service) => Container(
+                                                  padding: const EdgeInsets
+                                                      .symmetric(
+                                                    horizontal: 10,
+                                                    vertical: 6,
+                                                  ),
+                                                  decoration: BoxDecoration(
+                                                    color: colorScheme
+                                                        .tertiaryContainer,
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                            8),
+                                                  ),
+                                                  child: SelectableText(
+                                                    service,
+                                                    style: TextStyle(
+                                                      fontSize: 11,
+                                                      fontFamily: 'monospace',
+                                                      color: colorScheme
+                                                          .onTertiaryContainer,
+                                                      fontWeight:
+                                                          FontWeight.w500,
+                                                    ),
+                                                  ),
+                                                ),
+                                              )
+                                              .toList(),
+                                        ),
+                                      ],
+                                    ],
                                   ),
                                 ),
                               ),
                             ),
                             // Connect/Disconnect buttons
                             Padding(
-                              padding: const EdgeInsets.all(8.0),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 16.0,
+                                vertical: 8.0,
+                              ),
                               child: Row(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceEvenly,
-                                children: <Widget>[
-                                  PlatformButton(
-                                    text: 'Connect',
-                                    enabled: !isConnected,
-                                    onPressed: () async {
-                                      await _executeWithLoading(
-                                        () async {
-                                          await bleDevice.connect();
-                                          _addLog("ConnectionResult", true);
-                                        },
-                                        onError: (error) {
-                                          _addLog(
-                                            'ConnectError (${error.runtimeType})',
-                                            error,
-                                          );
-                                        },
-                                      );
-                                    },
+                                children: [
+                                  Expanded(
+                                    child: ElevatedButton.icon(
+                                      onPressed: !isConnected
+                                          ? () async {
+                                              await _executeWithLoading(
+                                                () async {
+                                                  await bleDevice.connect();
+                                                  _addLog(
+                                                      "ConnectionResult", true);
+                                                },
+                                                onError: (error) {
+                                                  _addLog(
+                                                    'ConnectError (${error.runtimeType})',
+                                                    error,
+                                                  );
+                                                },
+                                              );
+                                            }
+                                          : null,
+                                      icon: Icon(
+                                        Icons.bluetooth_connected,
+                                        size: 20,
+                                      ),
+                                      label: const Text('Connect'),
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: colorScheme.primary,
+                                        foregroundColor: colorScheme.onPrimary,
+                                        padding: const EdgeInsets.symmetric(
+                                          vertical: 16,
+                                        ),
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius:
+                                              BorderRadius.circular(12),
+                                        ),
+                                        elevation: 2,
+                                      ),
+                                    ),
                                   ),
-                                  PlatformButton(
-                                    text: 'Disconnect',
-                                    enabled: isConnected,
-                                    onPressed: () {
-                                      bleDevice.disconnect();
-                                    },
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: ElevatedButton.icon(
+                                      onPressed: isConnected
+                                          ? () {
+                                              bleDevice.disconnect();
+                                            }
+                                          : null,
+                                      icon: Icon(
+                                        Icons.bluetooth_disabled,
+                                        size: 20,
+                                      ),
+                                      label: const Text('Disconnect'),
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: colorScheme.error,
+                                        foregroundColor: colorScheme.onError,
+                                        padding: const EdgeInsets.symmetric(
+                                          vertical: 16,
+                                        ),
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius:
+                                              BorderRadius.circular(12),
+                                        ),
+                                        elevation: 2,
+                                      ),
+                                    ),
                                   ),
                                 ],
                               ),
@@ -560,227 +884,497 @@ class _PeripheralDetailPageState extends State<PeripheralDetailPage> {
                             if (selectedCharacteristic == null)
                               Padding(
                                 padding: const EdgeInsets.all(16.0),
-                                child: SelectableText(
-                                  discoveredServices.isEmpty
-                                      ? "Please discover services"
-                                      : "Please select a characteristic to read/write",
-                                  style: const TextStyle(
-                                    fontStyle: FontStyle.italic,
+                                child: Container(
+                                  padding: const EdgeInsets.all(16),
+                                  decoration: BoxDecoration(
+                                    color: colorScheme.surfaceContainerHighest,
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      Icon(
+                                        Icons.info_outline,
+                                        color: colorScheme.onSurface
+                                            .withValues(alpha: 0.6),
+                                      ),
+                                      const SizedBox(width: 12),
+                                      Expanded(
+                                        child: Text(
+                                          discoveredServices.isEmpty
+                                              ? "Please discover services"
+                                              : "Please select a characteristic to read/write",
+                                          style: TextStyle(
+                                            fontStyle: FontStyle.italic,
+                                            color: colorScheme.onSurface
+                                                .withValues(alpha: 0.7),
+                                          ),
+                                        ),
+                                      ),
+                                    ],
                                   ),
                                 ),
                               )
                             else
                               Padding(
                                 padding: const EdgeInsets.symmetric(
-                                  horizontal: 8.0,
+                                  horizontal: 16.0,
+                                  vertical: 8.0,
                                 ),
-                                child: Card(
-                                  color: Colors.blue.withValues(alpha: 0.1),
-                                  child: Padding(
-                                    padding: const EdgeInsets.all(8.0),
+                                child:
+                                    _buildSelectedCharacteristicCard(context),
+                              ),
+                            Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 16.0,
+                                vertical: 8.0,
+                              ),
+                              child: Card(
+                                elevation: 2,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: Padding(
+                                  padding: const EdgeInsets.all(16.0),
+                                  child: Form(
+                                    key: valueFormKey,
                                     child: Column(
                                       crossAxisAlignment:
                                           CrossAxisAlignment.start,
                                       children: [
                                         Row(
                                           children: [
-                                            const Icon(
-                                              Icons.check_circle,
-                                              color: Colors.green,
+                                            Icon(
+                                              Icons.edit,
+                                              color: colorScheme.primary,
                                               size: 20,
                                             ),
                                             const SizedBox(width: 8),
-                                            const Expanded(
-                                              child: Text(
-                                                'Ready to communicate',
-                                                style: TextStyle(
-                                                  fontWeight: FontWeight.bold,
-                                                  color: Colors.green,
-                                                ),
+                                            Text(
+                                              'Read/Write',
+                                              style: TextStyle(
+                                                fontWeight: FontWeight.bold,
+                                                fontSize: 16,
+                                                color: colorScheme.onSurface,
                                               ),
                                             ),
                                           ],
                                         ),
-                                        const SizedBox(height: 8),
-                                        SelectableText(
-                                          "Characteristic: ${selectedCharacteristic!.uuid}",
-                                          style: const TextStyle(
-                                            fontWeight: FontWeight.bold,
+                                        const SizedBox(height: 16),
+                                        TextFormField(
+                                          controller: binaryCode,
+                                          enabled: isConnected &&
+                                              _hasSelectedCharacteristicProperty([
+                                                CharacteristicProperty.write,
+                                                CharacteristicProperty
+                                                    .writeWithoutResponse,
+                                              ]),
+                                          validator: (value) {
+                                            if (value == null ||
+                                                value.isEmpty) {
+                                              return 'Please enter a value';
+                                            }
+                                            try {
+                                              hex.decode(binaryCode.text);
+                                              return null;
+                                            } catch (e) {
+                                              return 'Please enter a valid hex value ( without spaces or 0x (e.g. F0BB) )';
+                                            }
+                                          },
+                                          decoration: InputDecoration(
+                                            hintText:
+                                                "Enter Hex values without spaces or 0x (e.g. F0BB)",
+                                            border: OutlineInputBorder(
+                                              borderRadius:
+                                                  BorderRadius.circular(12),
+                                            ),
+                                            filled: true,
+                                            fillColor: colorScheme
+                                                .surfaceContainerHighest,
+                                            prefixIcon: Icon(
+                                              Icons.code,
+                                              color: colorScheme.primary,
+                                            ),
                                           ),
                                         ),
-                                        SelectableText(
-                                          "Service: ${selectedService?.uuid ?? "Unknown"}",
-                                        ),
-                                        SelectableText(
-                                          "Properties: ${selectedCharacteristic!.properties.map((e) => e.name).join(", ")}",
+                                        const SizedBox(height: 12),
+                                        Row(
+                                          children: [
+                                            Expanded(
+                                              child: ElevatedButton.icon(
+                                                onPressed: isConnected &&
+                                                        _hasSelectedCharacteristicProperty([
+                                                          CharacteristicProperty
+                                                              .write,
+                                                          CharacteristicProperty
+                                                              .writeWithoutResponse,
+                                                        ])
+                                                    ? _writeValue
+                                                    : null,
+                                                icon: const Icon(Icons.send),
+                                                label: const Text('Write'),
+                                                style: ElevatedButton.styleFrom(
+                                                  backgroundColor:
+                                                      colorScheme.primary,
+                                                  foregroundColor:
+                                                      colorScheme.onPrimary,
+                                                  padding: const EdgeInsets
+                                                      .symmetric(
+                                                    vertical: 16,
+                                                  ),
+                                                  shape: RoundedRectangleBorder(
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                            12),
+                                                  ),
+                                                ),
+                                              ),
+                                            ),
+                                            const SizedBox(width: 12),
+                                            Expanded(
+                                              child: ElevatedButton.icon(
+                                                onPressed: isConnected &&
+                                                        _hasSelectedCharacteristicProperty([
+                                                          CharacteristicProperty
+                                                              .read,
+                                                        ])
+                                                    ? _readValue
+                                                    : null,
+                                                icon:
+                                                    const Icon(Icons.download),
+                                                label: const Text('Read'),
+                                                style: ElevatedButton.styleFrom(
+                                                  backgroundColor:
+                                                      colorScheme.secondary,
+                                                  foregroundColor:
+                                                      colorScheme.onSecondary,
+                                                  padding: const EdgeInsets
+                                                      .symmetric(
+                                                    vertical: 16,
+                                                  ),
+                                                  shape: RoundedRectangleBorder(
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                            12),
+                                                  ),
+                                                ),
+                                              ),
+                                            ),
+                                          ],
                                         ),
                                       ],
                                     ),
                                   ),
                                 ),
                               ),
-                            Padding(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 8.0,
-                              ),
-                              child: Form(
-                                key: valueFormKey,
-                                child: Row(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Expanded(
-                                      child: TextFormField(
-                                        controller: binaryCode,
-                                        enabled:
-                                            isConnected &&
-                                            _hasSelectedCharacteristicProperty([
-                                              CharacteristicProperty.write,
-                                              CharacteristicProperty
-                                                  .writeWithoutResponse,
-                                            ]),
-                                        validator: (value) {
-                                          if (value == null || value.isEmpty) {
-                                            return 'Please enter a value';
-                                          }
-                                          try {
-                                            hex.decode(binaryCode.text);
-                                            return null;
-                                          } catch (e) {
-                                            return 'Please enter a valid hex value ( without spaces or 0x (e.g. F0BB) )';
-                                          }
-                                        },
-                                        decoration: const InputDecoration(
-                                          hintText:
-                                              "Enter Hex values without spaces or 0x (e.g. F0BB)",
-                                          border: OutlineInputBorder(),
-                                        ),
-                                      ),
-                                    ),
-                                    const SizedBox(width: 8),
-                                    PlatformButton(
-                                      text: 'Write',
-                                      enabled:
-                                          isConnected &&
-                                          _hasSelectedCharacteristicProperty([
-                                            CharacteristicProperty.write,
-                                            CharacteristicProperty
-                                                .writeWithoutResponse,
-                                          ]),
-                                      onPressed: _writeValue,
-                                    ),
-                                    const SizedBox(width: 8),
-                                    PlatformButton(
-                                      text: 'Read',
-                                      enabled:
-                                          isConnected &&
-                                          _hasSelectedCharacteristicProperty([
-                                            CharacteristicProperty.read,
-                                          ]),
-                                      onPressed: _readValue,
-                                    ),
-                                  ],
-                                ),
-                              ),
                             ),
 
-                            const Divider(),
                             // Action buttons
                             Padding(
-                              padding: const EdgeInsets.all(8.0),
-                              child: ResponsiveButtonsGrid(
-                                children: [
-                                  PlatformButton(
-                                    onPressed: () async {
-                                      _discoverServices();
-                                    },
-                                    enabled: isConnected,
-                                    text: 'Discover Services',
+                              padding: const EdgeInsets.all(16.0),
+                              child: Card(
+                                elevation: 2,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: Padding(
+                                  padding: const EdgeInsets.all(16.0),
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Row(
+                                        children: [
+                                          Icon(
+                                            Icons.settings,
+                                            color: colorScheme.primary,
+                                            size: 20,
+                                          ),
+                                          const SizedBox(width: 8),
+                                          Text(
+                                            'Actions',
+                                            style: TextStyle(
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 16,
+                                              color: colorScheme.onSurface,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      const SizedBox(height: 16),
+                                      Wrap(
+                                        spacing: 12,
+                                        runSpacing: 12,
+                                        children: [
+                                          ElevatedButton.icon(
+                                            onPressed: isConnected
+                                                ? () async {
+                                                    _discoverServices();
+                                                  }
+                                                : null,
+                                            icon: const Icon(Icons.search),
+                                            label:
+                                                const Text('Discover Services'),
+                                            style: ElevatedButton.styleFrom(
+                                              backgroundColor:
+                                                  colorScheme.primary,
+                                              foregroundColor:
+                                                  colorScheme.onPrimary,
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                horizontal: 16,
+                                                vertical: 12,
+                                              ),
+                                              shape: RoundedRectangleBorder(
+                                                borderRadius:
+                                                    BorderRadius.circular(8),
+                                              ),
+                                            ),
+                                          ),
+                                          OutlinedButton.icon(
+                                            onPressed: () async {
+                                              _addLog(
+                                                'ConnectionState',
+                                                await bleDevice.connectionState,
+                                              );
+                                            },
+                                            icon:
+                                                const Icon(Icons.info_outline),
+                                            label:
+                                                const Text('Connection State'),
+                                            style: OutlinedButton.styleFrom(
+                                              foregroundColor:
+                                                  colorScheme.onSurface,
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                horizontal: 16,
+                                                vertical: 12,
+                                              ),
+                                              shape: RoundedRectangleBorder(
+                                                borderRadius:
+                                                    BorderRadius.circular(8),
+                                              ),
+                                            ),
+                                          ),
+                                          if (BleCapabilities
+                                              .supportsRequestMtuApi)
+                                            ElevatedButton.icon(
+                                              onPressed: isConnected
+                                                  ? () async {
+                                                      await _executeWithLoading(
+                                                        () async {
+                                                          int mtu =
+                                                              await bleDevice
+                                                                  .requestMtu(
+                                                                      247);
+                                                          _addLog('MTU', mtu);
+                                                        },
+                                                        onError: (error) {
+                                                          _addLog(
+                                                              'RequestMtuError',
+                                                              error);
+                                                        },
+                                                      );
+                                                    }
+                                                  : null,
+                                              icon: const Icon(Icons.speed),
+                                              label: const Text('Request MTU'),
+                                              style: ElevatedButton.styleFrom(
+                                                backgroundColor:
+                                                    colorScheme.secondary,
+                                                foregroundColor:
+                                                    colorScheme.onSecondary,
+                                                padding:
+                                                    const EdgeInsets.symmetric(
+                                                  horizontal: 16,
+                                                  vertical: 12,
+                                                ),
+                                                shape: RoundedRectangleBorder(
+                                                  borderRadius:
+                                                      BorderRadius.circular(8),
+                                                ),
+                                              ),
+                                            ),
+                                          ElevatedButton.icon(
+                                            onPressed: isConnected &&
+                                                    discoveredServices
+                                                        .isNotEmpty &&
+                                                    selectedCharacteristic !=
+                                                        null &&
+                                                    _hasSelectedCharacteristicProperty([
+                                                      CharacteristicProperty
+                                                          .notify,
+                                                      CharacteristicProperty
+                                                          .indicate,
+                                                    ])
+                                                ? _subscribeChar
+                                                : null,
+                                            icon: const Icon(
+                                                Icons.notifications_active),
+                                            label: const Text('Subscribe'),
+                                            style: ElevatedButton.styleFrom(
+                                              backgroundColor: Colors.green,
+                                              foregroundColor: Colors.white,
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                horizontal: 16,
+                                                vertical: 12,
+                                              ),
+                                              shape: RoundedRectangleBorder(
+                                                borderRadius:
+                                                    BorderRadius.circular(8),
+                                              ),
+                                            ),
+                                          ),
+                                          OutlinedButton.icon(
+                                            onPressed: isConnected &&
+                                                    discoveredServices
+                                                        .isNotEmpty &&
+                                                    selectedCharacteristic !=
+                                                        null &&
+                                                    _hasSelectedCharacteristicProperty([
+                                                      CharacteristicProperty
+                                                          .notify,
+                                                      CharacteristicProperty
+                                                          .indicate,
+                                                    ])
+                                                ? _unsubscribeChar
+                                                : null,
+                                            icon: const Icon(
+                                                Icons.notifications_off),
+                                            label: const Text('Unsubscribe'),
+                                            style: OutlinedButton.styleFrom(
+                                              foregroundColor:
+                                                  colorScheme.onSurface,
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                horizontal: 16,
+                                                vertical: 12,
+                                              ),
+                                              shape: RoundedRectangleBorder(
+                                                borderRadius:
+                                                    BorderRadius.circular(8),
+                                              ),
+                                            ),
+                                          ),
+                                          ElevatedButton.icon(
+                                            onPressed: isConnected &&
+                                                    discoveredServices
+                                                        .isNotEmpty
+                                                ? _subscribeToAllCharacteristics
+                                                : null,
+                                            icon: const Icon(
+                                                Icons.notifications_active),
+                                            label: const Text('Subscribe All'),
+                                            style: ElevatedButton.styleFrom(
+                                              backgroundColor: Colors.green,
+                                              foregroundColor: Colors.white,
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                horizontal: 16,
+                                                vertical: 12,
+                                              ),
+                                              shape: RoundedRectangleBorder(
+                                                borderRadius:
+                                                    BorderRadius.circular(8),
+                                              ),
+                                            ),
+                                          ),
+                                          ElevatedButton.icon(
+                                            onPressed: BleCapabilities
+                                                    .supportsAllPairingKinds
+                                                ? () async {
+                                                    await _executeWithLoading(
+                                                      () async {
+                                                        await bleDevice.pair();
+                                                        _addLog(
+                                                            "Pairing Result",
+                                                            true);
+                                                      },
+                                                      onError: (error) {
+                                                        _addLog(
+                                                            'PairError', error);
+                                                      },
+                                                    );
+                                                  }
+                                                : null,
+                                            icon: const Icon(Icons.link),
+                                            label: const Text('Pair'),
+                                            style: ElevatedButton.styleFrom(
+                                              backgroundColor:
+                                                  colorScheme.tertiary,
+                                              foregroundColor:
+                                                  colorScheme.onTertiary,
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                horizontal: 16,
+                                                vertical: 12,
+                                              ),
+                                              shape: RoundedRectangleBorder(
+                                                borderRadius:
+                                                    BorderRadius.circular(8),
+                                              ),
+                                            ),
+                                          ),
+                                          OutlinedButton.icon(
+                                            onPressed: () async {
+                                              await _executeWithLoading(
+                                                () async {
+                                                  bool? isPaired =
+                                                      await bleDevice
+                                                          .isPaired();
+                                                  _addLog('isPaired', isPaired);
+                                                },
+                                                onError: (error) {
+                                                  _addLog(
+                                                      'isPairedError', error);
+                                                },
+                                              );
+                                            },
+                                            icon:
+                                                const Icon(Icons.check_circle),
+                                            label: const Text('Check Paired'),
+                                            style: OutlinedButton.styleFrom(
+                                              foregroundColor:
+                                                  colorScheme.onSurface,
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                horizontal: 16,
+                                                vertical: 12,
+                                              ),
+                                              shape: RoundedRectangleBorder(
+                                                borderRadius:
+                                                    BorderRadius.circular(8),
+                                              ),
+                                            ),
+                                          ),
+                                          OutlinedButton.icon(
+                                            onPressed: () async {
+                                              await bleDevice.unpair();
+                                            },
+                                            icon: const Icon(Icons.link_off),
+                                            label: const Text('Unpair'),
+                                            style: OutlinedButton.styleFrom(
+                                              foregroundColor:
+                                                  colorScheme.error,
+                                              side: BorderSide(
+                                                color: colorScheme.error,
+                                              ),
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                horizontal: 16,
+                                                vertical: 12,
+                                              ),
+                                              shape: RoundedRectangleBorder(
+                                                borderRadius:
+                                                    BorderRadius.circular(8),
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ],
                                   ),
-                                  PlatformButton(
-                                    onPressed: () async {
-                                      _addLog(
-                                        'ConnectionState',
-                                        await bleDevice.connectionState,
-                                      );
-                                    },
-                                    text: 'Connection State',
-                                  ),
-                                  if (BleCapabilities.supportsRequestMtuApi)
-                                    PlatformButton(
-                                      enabled: isConnected,
-                                      onPressed: () async {
-                                        await _executeWithLoading(
-                                          () async {
-                                            int mtu = await bleDevice
-                                                .requestMtu(247);
-                                            _addLog('MTU', mtu);
-                                          },
-                                          onError: (error) {
-                                            _addLog('RequestMtuError', error);
-                                          },
-                                        );
-                                      },
-                                      text: 'Request Mtu',
-                                    ),
-                                  PlatformButton(
-                                    enabled:
-                                        isConnected &&
-                                        discoveredServices.isNotEmpty,
-                                    onPressed: _subscribeChar,
-                                    text: 'Subscribe',
-                                  ),
-                                  PlatformButton(
-                                    enabled:
-                                        isConnected &&
-                                        discoveredServices.isNotEmpty,
-                                    onPressed: _unsubscribeChar,
-                                    text: 'Unsubscribe',
-                                  ),
-                                  PlatformButton(
-                                    enabled:
-                                        isConnected &&
-                                        discoveredServices.isNotEmpty,
-                                    onPressed: _subscribeToAllCharacteristics,
-                                    text: 'Subscribe to All',
-                                  ),
-                                  PlatformButton(
-                                    enabled:
-                                        BleCapabilities.supportsAllPairingKinds,
-                                    onPressed: () async {
-                                      await _executeWithLoading(
-                                        () async {
-                                          await bleDevice.pair();
-                                          _addLog("Pairing Result", true);
-                                        },
-                                        onError: (error) {
-                                          _addLog('PairError', error);
-                                        },
-                                      );
-                                    },
-                                    text: 'Pair',
-                                  ),
-                                  PlatformButton(
-                                    onPressed: () async {
-                                      await _executeWithLoading(
-                                        () async {
-                                          bool? isPaired = await bleDevice
-                                              .isPaired();
-                                          _addLog('isPaired', isPaired);
-                                        },
-                                        onError: (error) {
-                                          _addLog('isPairedError', error);
-                                        },
-                                      );
-                                    },
-                                    text: 'isPaired',
-                                  ),
-                                  PlatformButton(
-                                    onPressed: () async {
-                                      await bleDevice.unpair();
-                                    },
-                                    text: 'Unpair',
-                                  ),
-                                ],
+                                ),
                               ),
                             ),
                             // Services list (mobile/tablet)
@@ -846,6 +1440,202 @@ class _PeripheralDetailPageState extends State<PeripheralDetailPage> {
     return properties.any(
       (property) =>
           selectedCharacteristic?.properties.contains(property) ?? false,
+    );
+  }
+
+  Widget _buildInfoRow(
+    BuildContext context,
+    String label,
+    String value,
+    IconData icon,
+  ) {
+    final colorScheme = Theme.of(context).colorScheme;
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(
+          icon,
+          size: 18,
+          color: colorScheme.onSurface.withValues(alpha: 0.6),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 12,
+                  color: colorScheme.onSurface.withValues(alpha: 0.6),
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              const SizedBox(height: 2),
+              SelectableText(
+                value,
+                style: TextStyle(
+                  fontSize: 14,
+                  color: colorScheme.onSurface,
+                  fontFamily: label == 'Device ID' ? 'monospace' : null,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSelectedCharacteristicCard(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    if (selectedCharacteristic == null) return const SizedBox.shrink();
+
+    return Card(
+      elevation: 2,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+      ),
+      color: colorScheme.primaryContainer.withValues(alpha: 0.3),
+      child: Padding(
+        padding: const EdgeInsets.all(12.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(
+                  Icons.settings,
+                  size: 16,
+                  color: colorScheme.onSurface.withValues(alpha: 0.6),
+                ),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        'Characteristic',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: colorScheme.onSurface.withValues(alpha: 0.6),
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      SelectableText(
+                        selectedCharacteristic!.uuid,
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontFamily: 'monospace',
+                          color: colorScheme.onSurface,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(
+                  Icons.apps,
+                  size: 16,
+                  color: colorScheme.onSurface.withValues(alpha: 0.6),
+                ),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        'Service',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: colorScheme.onSurface.withValues(alpha: 0.6),
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      SelectableText(
+                        selectedService?.uuid ?? "Unknown",
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontFamily: 'monospace',
+                          color: colorScheme.onSurface,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(
+                  Icons.tune,
+                  size: 16,
+                  color: colorScheme.onSurface.withValues(alpha: 0.6),
+                ),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        'Properties',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: colorScheme.onSurface.withValues(alpha: 0.6),
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Wrap(
+                        spacing: 4,
+                        runSpacing: 4,
+                        children:
+                            selectedCharacteristic!.properties.map((prop) {
+                          return Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 6,
+                              vertical: 2,
+                            ),
+                            decoration: BoxDecoration(
+                              color: colorScheme.secondaryContainer,
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: Text(
+                              prop.name,
+                              style: TextStyle(
+                                fontSize: 10,
+                                color: colorScheme.onSecondaryContainer,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          );
+                        }).toList(),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
