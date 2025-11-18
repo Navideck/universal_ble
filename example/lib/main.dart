@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:universal_ble_example/data/storage_service.dart';
-import 'package:universal_ble_example/home/home.dart';
+import 'package:universal_ble_example/home/splash_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -12,7 +12,7 @@ void main() async {
       debugShowCheckedModeBanner: false,
       darkTheme: ThemeData.dark(),
       themeMode: ThemeMode.system,
-      home: const MyApp(),
+      home: const SplashScreen(),
     ),
   );
 }

@@ -473,6 +473,7 @@ class UniversalBlePigeonCodec: FlutterStandardMessageCodec, @unchecked Sendable 
 /// Generated protocol from Pigeon that represents a handler of messages from Flutter.
 protocol UniversalBlePlatformChannel {
   func getBluetoothAvailabilityState(completion: @escaping (Result<Int64, Error>) -> Void)
+  func hasPermissions(withAndroidFineLocation: Bool) throws -> Bool
   func requestPermissions(withAndroidFineLocation: Bool, completion: @escaping (Result<Void, Error>) -> Void)
   func enableBluetooth(completion: @escaping (Result<Bool, Error>) -> Void)
   func disableBluetooth(completion: @escaping (Result<Bool, Error>) -> Void)
@@ -513,6 +514,21 @@ class UniversalBlePlatformChannelSetup {
       }
     } else {
       getBluetoothAvailabilityStateChannel.setMessageHandler(nil)
+    }
+    let hasPermissionsChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.universal_ble.UniversalBlePlatformChannel.hasPermissions\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    if let api = api {
+      hasPermissionsChannel.setMessageHandler { message, reply in
+        let args = message as! [Any?]
+        let withAndroidFineLocationArg = args[0] as! Bool
+        do {
+          let result = try api.hasPermissions(withAndroidFineLocation: withAndroidFineLocationArg)
+          reply(wrapResult(result))
+        } catch {
+          reply(wrapError(error))
+        }
+      }
+    } else {
+      hasPermissionsChannel.setMessageHandler(nil)
     }
     let requestPermissionsChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.universal_ble.UniversalBlePlatformChannel.requestPermissions\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
     if let api = api {

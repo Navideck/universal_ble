@@ -535,6 +535,34 @@ void UniversalBlePlatformChannel::SetUp(
     }
   }
   {
+    BasicMessageChannel<> channel(binary_messenger, "dev.flutter.pigeon.universal_ble.UniversalBlePlatformChannel.hasPermissions" + prepended_suffix, &GetCodec());
+    if (api != nullptr) {
+      channel.SetMessageHandler([api](const EncodableValue& message, const flutter::MessageReply<EncodableValue>& reply) {
+        try {
+          const auto& args = std::get<EncodableList>(message);
+          const auto& encodable_with_android_fine_location_arg = args.at(0);
+          if (encodable_with_android_fine_location_arg.IsNull()) {
+            reply(WrapError("with_android_fine_location_arg unexpectedly null."));
+            return;
+          }
+          const auto& with_android_fine_location_arg = std::get<bool>(encodable_with_android_fine_location_arg);
+          ErrorOr<bool> output = api->HasPermissions(with_android_fine_location_arg);
+          if (output.has_error()) {
+            reply(WrapError(output.error()));
+            return;
+          }
+          EncodableList wrapped;
+          wrapped.push_back(EncodableValue(std::move(output).TakeValue()));
+          reply(EncodableValue(std::move(wrapped)));
+        } catch (const std::exception& exception) {
+          reply(WrapError(exception.what()));
+        }
+      });
+    } else {
+      channel.SetMessageHandler(nullptr);
+    }
+  }
+  {
     BasicMessageChannel<> channel(binary_messenger, "dev.flutter.pigeon.universal_ble.UniversalBlePlatformChannel.requestPermissions" + prepended_suffix, &GetCodec());
     if (api != nullptr) {
       channel.SetMessageHandler([api](const EncodableValue& message, const flutter::MessageReply<EncodableValue>& reply) {

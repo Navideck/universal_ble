@@ -98,6 +98,10 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
         )
     }
 
+    override fun hasPermissions(withAndroidFineLocation: Boolean): Boolean {
+        return permissionHandler?.hasPermissions(withAndroidFineLocation) ?: false
+    }
+
     override fun requestPermissions(
         withAndroidFineLocation: Boolean,
         callback: (Result<Unit>) -> Unit,
@@ -269,7 +273,7 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
                 Log.e(TAG, "Device might be connected but not known to this app")
                 BleConnectionState.Disconnected.value
             }
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             return BleConnectionState.Disconnected.value
         }
     }

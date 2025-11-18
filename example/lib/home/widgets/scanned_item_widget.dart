@@ -9,62 +9,179 @@ class ScannedItemWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
     String? name = bleDevice.name;
     List<ManufacturerData> rawManufacturerData = bleDevice.manufacturerDataList;
-    if (name == null || name.isEmpty) name = 'N/A';
+    if (name == null || name.isEmpty) name = 'Unknown Device';
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 8.0),
-      child: Card(
-        child: ListTile(
-          leading: RssiSignalIndicator(rssi: bleDevice.rssi ?? 0),
-          title: Text(name),
-          subtitle: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+    return Card(
+      elevation: 2,
+      margin: EdgeInsets.zero,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(16),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(
             children: [
-              Text(bleDevice.deviceId),
-              if (rawManufacturerData.isNotEmpty)
-                ...rawManufacturerData.map(
-                  (data) => Padding(
-                    padding: const EdgeInsets.only(top: 4.0),
-                    child: Text(
-                      'Manufacturer: ${data.companyIdRadix16}-${data.payloadHex}',
-                      style: const TextStyle(fontSize: 12),
-                    ),
-                  ),
+              // Signal indicator
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: colorScheme.primaryContainer.withValues(alpha: 0.5),
+                  borderRadius: BorderRadius.circular(12),
                 ),
-              if (bleDevice.services.isNotEmpty)
-                Padding(
-                  padding: const EdgeInsets.only(top: 4.0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'Advertised Services:',
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 12,
+                child: RssiSignalIndicator(rssi: bleDevice.rssi ?? 0),
+              ),
+              const SizedBox(width: 16),
+              // Device info
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            name,
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: colorScheme.onSurface,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
                         ),
-                      ),
-                      ...bleDevice.services.map(
-                        (service) => Text(
-                          '  • $service',
-                          style: const TextStyle(fontSize: 12),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: bleDevice.paired == true
+                                ? Colors.green.withValues(alpha: 0.2)
+                                : Colors.orange.withValues(alpha: 0.2),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Text(
+                            bleDevice.paired == true ? 'Paired' : 'Unpaired',
+                            style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w600,
+                              color: bleDevice.paired == true
+                                  ? Colors.green.shade700
+                                  : Colors.orange.shade700,
+                            ),
+                          ),
                         ),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.fingerprint,
+                          size: 12,
+                          color: colorScheme.onSurface.withValues(alpha: 0.6),
+                        ),
+                        const SizedBox(width: 4),
+                        Expanded(
+                          child: Text(
+                            bleDevice.deviceId,
+                            style: TextStyle(
+                              fontSize: 12,
+                              color:
+                                  colorScheme.onSurface.withValues(alpha: 0.7),
+                              fontFamily: 'monospace',
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+                    if (rawManufacturerData.isNotEmpty) ...[
+                      const SizedBox(height: 8),
+                      Wrap(
+                        spacing: 4,
+                        runSpacing: 4,
+                        children: rawManufacturerData.take(2).map((data) {
+                          return Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 6,
+                              vertical: 2,
+                            ),
+                            decoration: BoxDecoration(
+                              color: colorScheme.secondaryContainer,
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Text(
+                              data.companyIdRadix16,
+                              style: TextStyle(
+                                fontSize: 10,
+                                color: colorScheme.onSecondaryContainer,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          );
+                        }).toList(),
                       ),
                     ],
-                  ),
+                    if (bleDevice.services.isNotEmpty) ...[
+                      const SizedBox(height: 8),
+                      Wrap(
+                        spacing: 4,
+                        runSpacing: 4,
+                        children: bleDevice.services.take(3).map((service) {
+                          return Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 4,
+                            ),
+                            decoration: BoxDecoration(
+                              color: colorScheme.tertiaryContainer,
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Text(
+                              service.length > 12
+                                  ? '${service.substring(0, 12)}...'
+                                  : service,
+                              style: TextStyle(
+                                fontSize: 10,
+                                color: colorScheme.onTertiaryContainer,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          );
+                        }).toList(),
+                      ),
+                      if (bleDevice.services.length > 3)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 4),
+                          child: Text(
+                            '+${bleDevice.services.length - 3} more',
+                            style: TextStyle(
+                              fontSize: 10,
+                              color:
+                                  colorScheme.onSurface.withValues(alpha: 0.5),
+                            ),
+                          ),
+                        ),
+                    ],
+                  ],
                 ),
-              bleDevice.paired == true
-                  ? const Text("Paired", style: TextStyle(color: Colors.green))
-                  : const Text(
-                      "Not Paired",
-                      style: TextStyle(color: Colors.red),
-                    ),
+              ),
+              const SizedBox(width: 8),
+              Icon(
+                Icons.chevron_right,
+                color: colorScheme.onSurface.withValues(alpha: 0.4),
+              ),
             ],
           ),
-          trailing: const Icon(Icons.arrow_forward_ios),
-          onTap: onTap,
         ),
       ),
     );
