@@ -20,7 +20,7 @@ class MockUniversalBle extends UniversalBlePlatform {
       CharacteristicProperty.read,
       CharacteristicProperty.write,
       CharacteristicProperty.notify,
-    ]),
+    ], []),
   ]);
 
   @override

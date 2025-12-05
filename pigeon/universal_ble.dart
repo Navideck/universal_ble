@@ -138,7 +138,13 @@ class UniversalBleService {
 class UniversalBleCharacteristic {
   String uuid;
   List<int> properties;
-  UniversalBleCharacteristic(this.uuid, this.properties);
+  List<UniversalBleDescriptor> descriptors;
+  UniversalBleCharacteristic(this.uuid, this.properties, this.descriptors);
+}
+
+class UniversalBleDescriptor {
+  String uuid;
+  UniversalBleDescriptor(this.uuid);
 }
 
 /// Scan Filters

@@ -210,6 +210,8 @@ extension _BleServiceExtension on UniversalBleService {
         deviceId: deviceId,
         serviceId: uuid,
         uuid: characteristic.uuid,
+        descriptors: List<BleDescriptor>.from(
+            characteristic.descriptors.map((e) => BleDescriptor(e.uuid))),
         properties: List<CharacteristicProperty>.from(
           properties.map((e) => CharacteristicProperty.parse(e ?? 1)),
         ),

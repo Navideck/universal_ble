@@ -12,6 +12,7 @@ BleCharacteristic mockBleCharacteristic = BleCharacteristic.withMetaData(
   serviceId: serviceId,
   uuid: characteristicId,
   properties: CharacteristicProperty.values,
+  descriptors: [],
 );
 BleService mockBleService = BleService(serviceId, [mockBleCharacteristic]);
 

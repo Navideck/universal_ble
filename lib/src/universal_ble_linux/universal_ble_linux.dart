@@ -205,6 +205,9 @@ class UniversalBleLinux extends UniversalBlePlatform {
           serviceId: serviceId,
           uuid: e.uuid.toString(),
           properties: properties,
+          descriptors: e.descriptors
+              .map((e) => BleDescriptor(e.uuid.toString()))
+              .toList(),
         );
       }).toList();
       services.add(

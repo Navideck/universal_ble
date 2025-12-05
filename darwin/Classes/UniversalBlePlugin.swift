@@ -451,11 +451,29 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
   }
 
   public func peripheral(_ peripheral: CBPeripheral, didDiscoverCharacteristicsFor service: CBService, error _: Error?) {
+    for characteristic in service.characteristics ?? [] {
+      if let _ = characteristic.descriptors {
+        self.peripheral(peripheral, didDiscoverDescriptorsFor: characteristic, error: nil)
+      } else {
+        peripheral.discoverDescriptors(for: characteristic)
+      }
+    }
+  }
+
+  public func peripheral(_ peripheral: CBPeripheral, didDiscoverDescriptorsFor characteristic: CBCharacteristic, error _: Error?) {
     let deviceId = peripheral.identifier.uuidString
+    guard let service = characteristic.service else {
+      return
+    }
     var universalBleCharacteristicsList: [UniversalBleCharacteristic] = []
     for characteristic in service.characteristics ?? [] {
       universalBleCharacteristicsList.append(
-        UniversalBleCharacteristic(uuid: characteristic.uuid.uuidString, properties: characteristic.properties.toCharacteristicProperty))
+        UniversalBleCharacteristic(
+          uuid: characteristic.uuid.uuidString,
+          properties: characteristic.properties.toCharacteristicProperty,
+          descriptors: (characteristic.descriptors ?? []).map { UniversalBleDescriptor(uuid: $0.uuid.uuidString) }
+        )
+      )
     }
     // Update discoveredServicesProgressMap
     if let index = discoveredServicesProgressMap[deviceId]?.firstIndex(where: { $0.uuid == service.uuid.uuidString }) {
