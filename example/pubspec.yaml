@@ -15,6 +15,7 @@ dependencies:
   shared_preferences: ^2.5.3
   universal_ble:
     path: ../
+  package_info: ^2.0.2
 
 dev_dependencies:
   integration_test:

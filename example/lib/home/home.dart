@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:universal_ble/universal_ble.dart';
 import 'package:universal_ble_example/data/mock_universal_ble.dart';
+import 'package:universal_ble_example/home/widgets/drawer.dart';
 import 'package:universal_ble_example/home/widgets/scan_filter_widget.dart';
 import 'package:universal_ble_example/home/widgets/scanned_devices_placeholder_widget.dart';
 import 'package:universal_ble_example/home/widgets/scanned_item_widget.dart';
@@ -265,6 +266,7 @@ class _HomeState extends State<Home> {
           ),
         ],
       ),
+      drawer: AppDrawer(),
       body: Column(
         children: [
           // Action Buttons Section
@@ -293,153 +295,161 @@ class _HomeState extends State<Home> {
                     colorScheme.primary,
                     _isBluetoothAvailable ? _getSystemDevices : null,
                   ),
-                if (_hiddenDevices.isNotEmpty)
-                  _buildActionButton(
-                    context,
-                    'Unhide ${_hiddenDevices.length}',
-                    Icons.visibility,
-                    colorScheme.primary,
-                    () {
-                      setState(() {
-                        _hiddenDevices.clear();
-                      });
-                    },
-                  ),
               ],
             ),
           ),
           // Search filter
-          if (_bleDevices.isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              child: Container(
-                decoration: BoxDecoration(
-                  color: colorScheme.surfaceContainerHighest,
-                  borderRadius: BorderRadius.circular(12),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.05),
-                      blurRadius: 8,
-                      offset: const Offset(0, 2),
-                    ),
-                  ],
-                ),
-                child: TextField(
-                  controller: _searchFilterController,
-                  decoration: InputDecoration(
-                    hintText: 'Search by name, ID, or services...',
-                    prefixIcon: Icon(
-                      Icons.search,
-                      color: colorScheme.primary,
-                    ),
-                    suffixIcon: _searchFilterController.text.isNotEmpty
-                        ? IconButton(
-                            icon: Icon(
-                              Icons.clear,
-                              color:
-                                  colorScheme.onSurface.withValues(alpha: 0.6),
-                            ),
-                            onPressed: () {
-                              _searchFilterController.clear();
-                              setState(() {});
-                            },
-                          )
-                        : null,
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide.none,
-                    ),
-                    filled: true,
-                    fillColor: colorScheme.surfaceContainerHighest,
-                    contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 16,
-                    ),
-                  ),
-                  onChanged: (_) => setState(() {}),
-                ),
-              ),
-            ),
-
-          // Device count badge
-          if (_bleDevices.isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              child: Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 6,
-                    ),
-                    decoration: BoxDecoration(
-                      color: colorScheme.primaryContainer,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Text(
-                      _filteredDevices.length == _bleDevices.length
-                          ? '${_bleDevices.length} device${_bleDevices.length == 1 ? '' : 's'}'
-                          : '${_filteredDevices.length} of ${_bleDevices.length} devices',
-                      style: TextStyle(
-                        color: colorScheme.onPrimaryContainer,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                  const Spacer(),
-                  if (_hiddenDevices.isEmpty) ...[
-                    Tooltip(
-                      message:
-                          'Hide already discovered devices. When you turn on a new device, it will be easier to spot.',
-                      child: TextButton.icon(
-                        onPressed: () {
-                          setState(() {
-                            _hiddenDevices.clear();
-                            _hiddenDevices.addAll(_bleDevices);
-                            _bleDevices.clear();
-                          });
-                        },
-                        icon: Icon(
-                          Icons.visibility_off,
-                          size: 18,
-                          color: colorScheme.onSurface,
-                        ),
-                        label: Text(
-                          'Hide',
-                          style: TextStyle(
-                            color: colorScheme.onSurface,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 4),
-                  ],
-                  TextButton.icon(
-                    onPressed: () {
-                      setState(() {
-                        _bleDevices.clear();
-                      });
-                    },
-                    icon: Icon(
-                      Icons.clear_all,
-                      size: 18,
-                      color: colorScheme.error,
-                    ),
-                    label: Text(
-                      'Clear',
-                      style: TextStyle(
-                        color: colorScheme.error,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            child: Container(
+              decoration: BoxDecoration(
+                color: colorScheme.surfaceContainerHighest,
+                borderRadius: BorderRadius.circular(12),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.05),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
                   ),
                 ],
               ),
+              child: TextField(
+                controller: _searchFilterController,
+                decoration: InputDecoration(
+                  hintText: 'Search by name, ID, or services...',
+                  prefixIcon: Icon(
+                    Icons.search,
+                    color: colorScheme.primary,
+                  ),
+                  suffixIcon: _searchFilterController.text.isNotEmpty
+                      ? IconButton(
+                          icon: Icon(
+                            Icons.clear,
+                            color: colorScheme.onSurface.withValues(alpha: 0.6),
+                          ),
+                          onPressed: () {
+                            _searchFilterController.clear();
+                            setState(() {});
+                          },
+                        )
+                      : null,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide.none,
+                  ),
+                  filled: true,
+                  fillColor: colorScheme.surfaceContainerHighest,
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 16,
+                  ),
+                ),
+                onChanged: (_) => setState(() {}),
+              ),
             ),
+          ),
+          // Device count badge
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 6,
+                  ),
+                  decoration: BoxDecoration(
+                    color: colorScheme.primaryContainer,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    _filteredDevices.length == _bleDevices.length
+                        ? '${_bleDevices.length} device${_bleDevices.length == 1 ? '' : 's'}${_hiddenDevices.isNotEmpty ? ' / ${_hiddenDevices.length} hidden' : ''}'
+                        : '${_filteredDevices.length} of ${_bleDevices.length} devices',
+                    style: TextStyle(
+                      color: colorScheme.onPrimaryContainer,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+                const Spacer(),
+                if (_hiddenDevices.isNotEmpty)
+                  Tooltip(
+                    message: 'Show hidden devices.',
+                    child: TextButton.icon(
+                      onPressed: () {
+                        setState(() {
+                          _hiddenDevices.clear();
+                        });
+                      },
+                      icon: Icon(
+                        Icons.visibility,
+                        size: 18,
+                        color: colorScheme.onSurface,
+                      ),
+                      label: Text(
+                        'Unhide',
+                        style: TextStyle(
+                          color: colorScheme.onSurface,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  )
+                else if (_bleDevices.isNotEmpty)
+                  Tooltip(
+                    message:
+                        'Hide already discovered devices. When you turn on a new device, it will be easier to spot.',
+                    child: TextButton.icon(
+                      onPressed: () {
+                        setState(() {
+                          _hiddenDevices.clear();
+                          _hiddenDevices.addAll(_bleDevices);
+                          _bleDevices.clear();
+                        });
+                      },
+                      icon: Icon(
+                        Icons.visibility_off,
+                        size: 18,
+                        color: colorScheme.onSurface,
+                      ),
+                      label: Text(
+                        'Hide',
+                        style: TextStyle(
+                          color: colorScheme.onSurface,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ),
+                const SizedBox(width: 4),
+                TextButton.icon(
+                  onPressed: () {
+                    setState(() {
+                      _bleDevices.clear();
+                    });
+                  },
+                  icon: Icon(
+                    Icons.clear_all,
+                    size: 18,
+                    color: colorScheme.error,
+                  ),
+                  label: Text(
+                    'Clear',
+                    style: TextStyle(
+                      color: colorScheme.error,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const Divider(),
           // Devices List
           Expanded(
             child: !_isBluetoothAvailable
