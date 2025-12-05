@@ -217,7 +217,7 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
     }
 
     // Check if discovery is already in progress
-    if let existingDiscovery = activeServiceDiscoveries[deviceId] {
+    if activeServiceDiscoveries[deviceId] != nil {
       print("Services discovery already in progress for :\(deviceId), waiting for completion.")
       discoverServicesFutures.append(DiscoverServicesFuture(deviceId: deviceId, result: completion))
       return
