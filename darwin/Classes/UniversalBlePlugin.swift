@@ -322,6 +322,93 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
     }
   }
 
+  func batchWrite(commands: [UniversalBleWriteCommand], completion: @escaping (Result<Void, Error>) -> Void) {
+    if commands.isEmpty {
+      completion(Result.success({}()))
+      return
+    }
+
+    let group = DispatchGroup()
+    var errors: [String: Error] = [:]
+    let errorsLock = NSLock()
+
+    for command in commands {
+      group.enter()
+
+      guard let peripheral = command.deviceId.findPeripheral(manager: manager) else {
+        errorsLock.lock()
+        errors[command.deviceId] = createFlutterError(code: .deviceNotFound, message: "Unknown deviceId:\(command.deviceId)")
+        errorsLock.unlock()
+        group.leave()
+        continue
+      }
+
+      guard let gattCharacteristic = peripheral.getCharacteristic(command.characteristic, of: command.service) else {
+        errorsLock.lock()
+        errors[command.deviceId] = createFlutterError(code: .characteristicNotFound, message: "Unknown characteristic:\(command.characteristic)")
+        errorsLock.unlock()
+        group.leave()
+        continue
+      }
+
+      let type = command.bleOutputProperty == BleOutputProperty.withoutResponse.rawValue
+        ? CBCharacteristicWriteType.withoutResponse
+        : CBCharacteristicWriteType.withResponse
+
+      // Validate write type support
+      if type == .withResponse && !gattCharacteristic.properties.contains(.write) {
+        errorsLock.lock()
+        errors[command.deviceId] = createFlutterError(code: .characteristicDoesNotSupportWrite, message: "Characteristic does not support write withResponse")
+        errorsLock.unlock()
+        group.leave()
+        continue
+      } else if type == .withoutResponse && !gattCharacteristic.properties.contains(.writeWithoutResponse) {
+        errorsLock.lock()
+        errors[command.deviceId] = createFlutterError(code: .characteristicDoesNotSupportWriteWithoutResponse, message: "Characteristic does not support write withoutResponse")
+        errorsLock.unlock()
+        group.leave()
+        continue
+      }
+
+      // Execute the write
+      peripheral.writeValue(command.value.data, for: gattCharacteristic, type: type)
+
+      // Create a future to track completion
+      let future = CharacteristicWriteFuture(
+        deviceId: command.deviceId,
+        characteristicId: gattCharacteristic.uuid.uuidStr,
+        serviceId: gattCharacteristic.service?.uuid.uuidStr,
+        result: { writeResult in
+          switch writeResult {
+          case .success:
+            break
+          case .failure(let error):
+            errorsLock.lock()
+            errors[command.deviceId] = error
+            errorsLock.unlock()
+          }
+          group.leave()
+        }
+      )
+
+      if type == .withResponse {
+        characteristicWriteFutures.append(future)
+      } else {
+        characteristicWriteWithoutResponseFutures.append(future)
+      }
+    }
+
+    group.notify(queue: .main) {
+      if errors.isEmpty {
+        completion(Result.success({}()))
+      } else {
+        // Return first error (or aggregate them)
+        let errorMessage = errors.map { "\($0.key): \($0.value.localizedDescription)" }.joined(separator: "; ")
+        completion(Result.failure(createFlutterError(code: .writeFailed, message: "Batch write failed: \(errorMessage)")))
+      }
+    }
+  }
+
   func requestMtu(deviceId: String, expectedMtu _: Int64, completion: @escaping (Result<Int64, Error>) -> Void) {
     guard let peripheral = deviceId.findPeripheral(manager: manager) else {
       completion(Result.failure(createFlutterError(code: .deviceNotFound, message: "Unknown deviceId:\(self)")))

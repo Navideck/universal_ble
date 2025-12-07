@@ -17,7 +17,6 @@ import 'package:pigeon/pigeon.dart';
     debugGenerators: true,
   ),
 )
-
 /// Flutter -> Native
 @HostApi()
 abstract class UniversalBlePlatformChannel {
@@ -55,11 +54,7 @@ abstract class UniversalBlePlatformChannel {
   List<UniversalBleService> discoverServices(String deviceId);
 
   @async
-  Uint8List readValue(
-    String deviceId,
-    String service,
-    String characteristic,
-  );
+  Uint8List readValue(String deviceId, String service, String characteristic);
 
   @async
   int requestMtu(String deviceId, int expectedMtu);
@@ -73,6 +68,12 @@ abstract class UniversalBlePlatformChannel {
     int bleOutputProperty,
   );
 
+  /// Batch write to multiple devices in parallel
+  /// All writes are executed simultaneously without waiting for individual completions
+  /// Returns when all writes have completed (or failed)
+  @async
+  void batchWrite(List<UniversalBleWriteCommand> commands);
+
   @async
   bool isPaired(String deviceId);
 
@@ -82,9 +83,7 @@ abstract class UniversalBlePlatformChannel {
   void unPair(String deviceId);
 
   @async
-  List<UniversalBleScanResult> getSystemDevices(
-    List<String> withServices,
-  );
+  List<UniversalBleScanResult> getSystemDevices(List<String> withServices);
 
   int getConnectionState(String deviceId);
 }
@@ -104,11 +103,7 @@ abstract class UniversalBleCallbackChannel {
     Uint8List value,
   );
 
-  void onConnectionChanged(
-    String deviceId,
-    bool connected,
-    String? error,
-  );
+  void onConnectionChanged(String deviceId, bool connected, String? error);
 }
 
 class UniversalBleScanResult {
@@ -178,6 +173,23 @@ class UniversalManufacturerData {
   UniversalManufacturerData({
     required this.companyIdentifier,
     required this.data,
+  });
+}
+
+/// Command for batch write operations
+class UniversalBleWriteCommand {
+  final String deviceId;
+  final String service;
+  final String characteristic;
+  final Uint8List value;
+  final int bleOutputProperty;
+
+  UniversalBleWriteCommand({
+    required this.deviceId,
+    required this.service,
+    required this.characteristic,
+    required this.value,
+    required this.bleOutputProperty,
   });
 }
 

@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:typed_data';
+import 'package:universal_ble/src/universal_ble_pigeon/universal_ble.g.dart';
 import 'package:universal_ble/src/utils/cache_handler.dart';
 import 'package:universal_ble/src/utils/universal_ble_stream_controller.dart';
 import 'package:universal_ble/universal_ble.dart';
@@ -15,11 +16,15 @@ abstract class UniversalBlePlatform {
 
   final _scanStreamController = UniversalBleStreamController<BleDevice>();
 
-  final bleConnectionUpdateStreamController = UniversalBleStreamController<
-      ({String deviceId, bool isConnected, String? error})>();
+  final bleConnectionUpdateStreamController =
+      UniversalBleStreamController<
+        ({String deviceId, bool isConnected, String? error})
+      >();
 
-  final _valueStreamController = UniversalBleStreamController<
-      ({String deviceId, String characteristicId, Uint8List value})>();
+  final _valueStreamController =
+      UniversalBleStreamController<
+        ({String deviceId, String characteristicId, Uint8List value})
+      >();
 
   final _pairStateStreamController =
       UniversalBleStreamController<({String deviceId, bool isPaired})>();
@@ -27,8 +32,8 @@ abstract class UniversalBlePlatform {
   /// Send latest availability state upon subscribing
   late final _availabilityStreamController =
       UniversalBleStreamController<AvailabilityState>(
-    initialEvent: getBluetoothAvailabilityState,
-  );
+        initialEvent: getBluetoothAvailabilityState,
+      );
 
   Future<AvailabilityState> getBluetoothAvailabilityState();
 
@@ -53,8 +58,12 @@ abstract class UniversalBlePlatform {
 
   Future<List<BleService>> discoverServices(String deviceId);
 
-  Future<void> setNotifiable(String deviceId, String service,
-      String characteristic, BleInputProperty bleInputProperty);
+  Future<void> setNotifiable(
+    String deviceId,
+    String service,
+    String characteristic,
+    BleInputProperty bleInputProperty,
+  );
 
   Future<Uint8List> readValue(
     String deviceId,
@@ -64,11 +73,14 @@ abstract class UniversalBlePlatform {
   });
 
   Future<void> writeValue(
-      String deviceId,
-      String service,
-      String characteristic,
-      Uint8List value,
-      BleOutputProperty bleOutputProperty);
+    String deviceId,
+    String service,
+    String characteristic,
+    Uint8List value,
+    BleOutputProperty bleOutputProperty,
+  );
+
+  Future<void> batchWrite(List<UniversalBleWriteCommand> commands);
 
   Future<int> requestMtu(String deviceId, int expectedMtu);
 
@@ -80,9 +92,7 @@ abstract class UniversalBlePlatform {
 
   Future<BleConnectionState> getConnectionState(String deviceId);
 
-  Future<List<BleDevice>> getSystemDevices(
-    List<String>? withServices,
-  );
+  Future<List<BleDevice>> getSystemDevices(List<String>? withServices);
 
   bool receivesAdvertisements(String deviceId) => true;
 
@@ -102,15 +112,18 @@ abstract class UniversalBlePlatform {
     String characteristicId,
   ) {
     characteristicId = BleUuidParser.string(characteristicId);
-    return _valueStreamController.stream.where((e) {
-      return e.deviceId == deviceId && e.characteristicId == characteristicId;
-    }).map((e) => e.value);
+    return _valueStreamController.stream
+        .where((e) {
+          return e.deviceId == deviceId &&
+              e.characteristicId == characteristicId;
+        })
+        .map((e) => e.value);
   }
 
-  Stream<bool> pairingStateStream(String deviceId) =>
-      _pairStateStreamController.stream
-          .where((e) => e.deviceId == deviceId)
-          .map((e) => e.isPaired);
+  Stream<bool> pairingStateStream(String deviceId) => _pairStateStreamController
+      .stream
+      .where((e) => e.deviceId == deviceId)
+      .map((e) => e.isPaired);
 
   /// Update Handlers
   void updateScanResult(BleDevice bleDevice) {
@@ -174,11 +187,11 @@ abstract class UniversalBlePlatform {
 }
 
 // Callback types
-typedef OnConnectionChange = void Function(
-    String deviceId, bool isConnected, String? error);
+typedef OnConnectionChange =
+    void Function(String deviceId, bool isConnected, String? error);
 
-typedef OnValueChange = void Function(
-    String deviceId, String characteristicId, Uint8List value);
+typedef OnValueChange =
+    void Function(String deviceId, String characteristicId, Uint8List value);
 
 typedef OnScanResult = void Function(BleDevice scanResult);
 
