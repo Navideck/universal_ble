@@ -319,7 +319,12 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
                 characteristics = service.characteristics.map {
                     UniversalBleCharacteristic(
                         uuid = it.uuid.toString(),
-                        properties = it.getPropertiesList()
+                        properties = it.getPropertiesList(),
+                        descriptors = it.descriptors.map { descriptor ->
+                            UniversalBleDescriptor(
+                                uuid = descriptor.uuid.toString()
+                            )
+                        }
                     )
                 }
             )
