@@ -29,6 +29,7 @@ namespace universal_ble
     {
         GattCharacteristic obj = nullptr;
         std::optional<event_token> subscription_token; 
+        std::vector<std::string> descriptor_uuids_{};
     };
 
     struct GattServiceObject

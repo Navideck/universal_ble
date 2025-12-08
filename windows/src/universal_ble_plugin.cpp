@@ -121,9 +121,9 @@ void UniversalBlePlugin::DisableBluetooth(
 void UniversalBlePlugin::RequestPermissions(
     bool with_android_fine_location,
     std::function<void(std::optional<FlutterError> reply)> result) {
-    // Windows does not require runtime permissions for Bluetooth
-    result(std::nullopt);
-    return;
+  // Windows does not require runtime permissions for Bluetooth
+  result(std::nullopt);
+  return;
 }
 
 std::optional<FlutterError>
@@ -223,8 +223,10 @@ std::optional<FlutterError> UniversalBlePlugin::StopScan() {
 ErrorOr<bool> UniversalBlePlugin::IsScanning() {
   if (bluetooth_le_watcher_ != nullptr) {
     try {
-      return bluetooth_le_watcher_.Status() == BluetoothLEAdvertisementWatcherStatus::Started;
-    } catch (...) {}
+      return bluetooth_le_watcher_.Status() ==
+             BluetoothLEAdvertisementWatcherStatus::Started;
+    } catch (...) {
+    }
   }
   return false;
 }
@@ -369,7 +371,8 @@ void UniversalBlePlugin::WriteValue(
       if ((properties & GattCharacteristicProperties::WriteWithoutResponse) ==
           GattCharacteristicProperties::None) {
         result(create_flutter_error(
-            UniversalBleErrorCode::kCharacteristicDoesNotSupportWriteWithoutResponse,
+            UniversalBleErrorCode::
+                kCharacteristicDoesNotSupportWriteWithoutResponse,
             "Characteristic does not support WriteWithoutResponse"));
         return;
       }
@@ -384,22 +387,22 @@ void UniversalBlePlugin::WriteValue(
     }
 
     gatt_characteristic.WriteValueAsync(from_bytevc(value), write_option)
-        .Completed(
-            [&, result](IAsyncOperation<GattCommunicationStatus> const &sender,
-                        AsyncStatus const args) {
-              if (args == AsyncStatus::Error) {
-                result(create_flutter_error(UniversalBleErrorCode::kFailed,
-                                            "Encountered an error."));
-                return;
-              }
+        .Completed([&, result](
+                       IAsyncOperation<GattCommunicationStatus> const &sender,
+                       AsyncStatus const args) {
+          if (args == AsyncStatus::Error) {
+            result(create_flutter_error(UniversalBleErrorCode::kFailed,
+                                        "Encountered an error."));
+            return;
+          }
 
-              const auto status = sender.GetResults();
-              if (status != GattCommunicationStatus::Success) {
-                result(create_flutter_error_from_gatt_communication_status(status));
-              } else {
-                result(std::nullopt);
-              }
-            });
+          const auto status = sender.GetResults();
+          if (status != GattCommunicationStatus::Success) {
+            result(create_flutter_error_from_gatt_communication_status(status));
+          } else {
+            result(std::nullopt);
+          }
+        });
   } catch (const FlutterError &err) {
     result(err);
   } catch (...) {
@@ -548,7 +551,8 @@ fire_and_forget UniversalBlePlugin::PairAsync(
       result(is_paired);
 
       const std::string *error_msg = nullptr;
-      const auto error_str = device_pairing_result_to_string(pair_result.Status());
+      const auto error_str =
+          device_pairing_result_to_string(pair_result.Status());
       if (error_str.has_value()) {
         error_msg = &error_str.value();
       }
@@ -996,6 +1000,16 @@ fire_and_forget UniversalBlePlugin::ConnectAsync(uint64_t bluetooth_address) {
       gatt_characteristic.obj = characteristic;
       gatt_characteristic.subscription_token = std::nullopt;
       std::string characteristic_uuid = guid_to_uuid(characteristic.Uuid());
+
+      auto descriptors_result = co_await characteristic.GetDescriptorsAsync(
+          BluetoothCacheMode::Uncached);
+      if (descriptors_result.Status() == GattCommunicationStatus::Success) {
+        auto descriptors = descriptors_result.Descriptors();
+        for (auto &&descriptor : descriptors) {
+          gatt_characteristic.descriptor_uuids_.push_back(
+              guid_to_uuid(descriptor.Uuid()));
+        }
+      }
       gatt_service.characteristics.insert_or_assign(
           characteristic_uuid, std::move(gatt_characteristic));
     }
@@ -1039,18 +1053,18 @@ void UniversalBlePlugin::CleanConnection(const uint64_t bluetooth_address) {
   }
 }
 
-void UniversalBlePlugin::DisposeServices(const std::unique_ptr<BluetoothDeviceAgent> &device_agent)
-{
-    for (auto& [service_id, service] : device_agent->gatt_map) {
-        for (auto& [char_id, characteristic] : service.characteristics) {
-            if (characteristic.subscription_token.has_value()) {
-                characteristic.obj.ValueChanged(
-                    characteristic.subscription_token.value());
-                characteristic.subscription_token = std::nullopt;
-            }
-        }
+void UniversalBlePlugin::DisposeServices(
+    const std::unique_ptr<BluetoothDeviceAgent> &device_agent) {
+  for (auto &[service_id, service] : device_agent->gatt_map) {
+    for (auto &[char_id, characteristic] : service.characteristics) {
+      if (characteristic.subscription_token.has_value()) {
+        characteristic.obj.ValueChanged(
+            characteristic.subscription_token.value());
+        characteristic.subscription_token = std::nullopt;
+      }
     }
-    device_agent->gatt_map.clear();
+  }
+  device_agent->gatt_map.clear();
 }
 
 fire_and_forget UniversalBlePlugin::GetSystemDevicesAsync(
@@ -1121,8 +1135,15 @@ void UniversalBlePlugin::DiscoverServicesAsync(
         const auto properties_value = c.CharacteristicProperties();
         auto properties = properties_to_flutter_encodable(properties_value);
 
-        universal_characteristics.push_back(flutter::CustomEncodableValue(
-            UniversalBleCharacteristic(to_uuidstr(c.Uuid()), properties)));
+        auto descriptors = flutter::EncodableList();
+        for (auto &descriptor_uuid : characteristic.descriptor_uuids_) {
+          descriptors.push_back(flutter::CustomEncodableValue(
+              UniversalBleDescriptor(descriptor_uuid)));
+        }
+
+        universal_characteristics.push_back(
+            flutter::CustomEncodableValue(UniversalBleCharacteristic(
+                to_uuidstr(c.Uuid()), properties, descriptors)));
       }
 
       auto universal_ble_service =
