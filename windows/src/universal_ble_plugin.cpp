@@ -271,9 +271,9 @@ UniversalBlePlugin::Disconnect(const std::string &device_id) {
 }
 
 void UniversalBlePlugin::DiscoverServices(
-    const std::string &device_id,
+    const std::string &device_id, bool with_descriptors,
     std::function<void(ErrorOr<flutter::EncodableList> reply)> result) {
-  DiscoverServicesAsync(device_id, result);
+  DiscoverServicesAsync(device_id, with_descriptors, result);
 }
 
 void UniversalBlePlugin::SetNotifiable(
@@ -1098,7 +1098,7 @@ fire_and_forget UniversalBlePlugin::GetSystemDevicesAsync(
 }
 
 fire_and_forget UniversalBlePlugin::DiscoverServicesAsync(
-    const std::string &device_id,
+    const std::string &device_id, bool with_descriptors,
     std::function<void(ErrorOr<flutter::EncodableList> reply)> result) {
   try {
     const auto it = connected_devices_.find(str_to_mac_address(device_id));
@@ -1116,24 +1116,27 @@ fire_and_forget UniversalBlePlugin::DiscoverServicesAsync(
         const auto properties_value = c.CharacteristicProperties();
         auto properties = properties_to_flutter_encodable(properties_value);
         auto descriptors = flutter::EncodableList();
-        try {
-          // move continuation to background and execute in safe thread context
-          co_await winrt::resume_background();
-          auto descriptor_result =
-              co_await c.GetDescriptorsAsync(BluetoothCacheMode::Uncached);
-          if (descriptor_result.Status() == GattCommunicationStatus::Success) {
-            auto descriptors_list = descriptor_result.Descriptors();
-            for (auto &&descriptor : descriptors_list) {
-              descriptors.push_back(flutter::CustomEncodableValue(
-                  UniversalBleDescriptor(to_uuidstr(descriptor.Uuid()))));
+        if (with_descriptors) {
+          try {
+            // move continuation to background and execute in safe thread
+            // context
+            co_await winrt::resume_background();
+            auto descriptor_result =
+                co_await c.GetDescriptorsAsync(BluetoothCacheMode::Cached);
+            if (descriptor_result.Status() ==
+                GattCommunicationStatus::Success) {
+              auto descriptors_list = descriptor_result.Descriptors();
+              for (auto &&descriptor : descriptors_list) {
+                descriptors.push_back(flutter::CustomEncodableValue(
+                    UniversalBleDescriptor(to_uuidstr(descriptor.Uuid()))));
+              }
             }
+          } catch (...) {
+            std::cout << "DiscoverServicesAsync: failed to get descriptors for "
+                         "characteristic: "
+                      << std::endl;
           }
-        } catch (...) {
-          std::cout << "DiscoverServicesAsync: failed to get descriptors for "
-                       "characteristic: "
-                    << std::endl;
         }
-
         universal_characteristics.push_back(
             flutter::CustomEncodableValue(UniversalBleCharacteristic(
                 to_uuidstr(c.Uuid()), properties, descriptors)));

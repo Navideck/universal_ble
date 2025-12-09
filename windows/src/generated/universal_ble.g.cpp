@@ -836,7 +836,13 @@ void UniversalBlePlatformChannel::SetUp(
             return;
           }
           const auto& device_id_arg = std::get<std::string>(encodable_device_id_arg);
-          api->DiscoverServices(device_id_arg, [reply](ErrorOr<EncodableList>&& output) {
+          const auto& encodable_with_descriptors_arg = args.at(1);
+          if (encodable_with_descriptors_arg.IsNull()) {
+            reply(WrapError("with_descriptors_arg unexpectedly null."));
+            return;
+          }
+          const auto& with_descriptors_arg = std::get<bool>(encodable_with_descriptors_arg);
+          api->DiscoverServices(device_id_arg, with_descriptors_arg, [reply](ErrorOr<EncodableList>&& output) {
             if (output.has_error()) {
               reply(WrapError(output.error()));
               return;

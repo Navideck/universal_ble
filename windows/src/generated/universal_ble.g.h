@@ -390,6 +390,7 @@ class UniversalBlePlatformChannel {
     std::function<void(std::optional<FlutterError> reply)> result) = 0;
   virtual void DiscoverServices(
     const std::string& device_id,
+    bool with_descriptors,
     std::function<void(ErrorOr<flutter::EncodableList> reply)> result) = 0;
   virtual void ReadValue(
     const std::string& device_id,

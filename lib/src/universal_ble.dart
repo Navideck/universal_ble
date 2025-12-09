@@ -185,10 +185,11 @@ class UniversalBle {
   /// Discover services of a device.
   static Future<List<BleService>> discoverServices(
     String deviceId, {
+    bool withDescriptors = false,
     Duration? timeout,
   }) async {
     return await _bleCommandQueue.queueCommand(
-      () => _platform.discoverServices(deviceId),
+      () => _platform.discoverServices(deviceId, withDescriptors),
       timeout: timeout,
       deviceId: deviceId,
     );

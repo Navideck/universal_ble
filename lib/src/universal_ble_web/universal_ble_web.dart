@@ -62,10 +62,11 @@ class UniversalBleWeb extends UniversalBlePlatform {
   }
 
   @override
-  Future<List<BleService>> discoverServices(String deviceId) async {
+  Future<List<BleService>> discoverServices(
+      String deviceId, bool withDescriptors) async {
     List<BleService> services = [];
     for (var service in await _getServices(deviceId)) {
-      services.add(await service._toBleService(deviceId));
+      services.add(await service._toBleService(deviceId, withDescriptors));
     }
     return services;
   }
@@ -539,15 +540,20 @@ class _UniversalWebBluetoothService {
     return null;
   }
 
-  Future<BleService> _toBleService(String deviceId) async {
+  Future<BleService> _toBleService(
+    String deviceId,
+    bool withDescriptors,
+  ) async {
     List<BleCharacteristic> bleCharacteristics = [];
     for (var characteristic in characteristics) {
       List<BleDescriptor> descriptors = [];
-      try {
-        var bluetoothDescriptors = await characteristic.getDescriptors();
-        descriptors =
-            bluetoothDescriptors.map((e) => BleDescriptor(e.uuid)).toList();
-      } catch (_) {}
+      if (withDescriptors) {
+        try {
+          var bluetoothDescriptors = await characteristic.getDescriptors();
+          descriptors =
+              bluetoothDescriptors.map((e) => BleDescriptor(e.uuid)).toList();
+        } catch (_) {}
+      }
       bleCharacteristics.add(BleCharacteristic.withMetaData(
         deviceId: deviceId,
         serviceId: service.uuid,

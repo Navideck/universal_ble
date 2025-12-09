@@ -516,7 +516,7 @@ protocol UniversalBlePlatformChannel {
   func connect(deviceId: String) throws
   func disconnect(deviceId: String) throws
   func setNotifiable(deviceId: String, service: String, characteristic: String, bleInputProperty: Int64, completion: @escaping (Result<Void, Error>) -> Void)
-  func discoverServices(deviceId: String, completion: @escaping (Result<[UniversalBleService], Error>) -> Void)
+  func discoverServices(deviceId: String, withDescriptors: Bool, completion: @escaping (Result<[UniversalBleService], Error>) -> Void)
   func readValue(deviceId: String, service: String, characteristic: String, completion: @escaping (Result<FlutterStandardTypedData, Error>) -> Void)
   func requestMtu(deviceId: String, expectedMtu: Int64, completion: @escaping (Result<Int64, Error>) -> Void)
   func writeValue(deviceId: String, service: String, characteristic: String, value: FlutterStandardTypedData, bleOutputProperty: Int64, completion: @escaping (Result<Void, Error>) -> Void)
@@ -691,7 +691,8 @@ class UniversalBlePlatformChannelSetup {
       discoverServicesChannel.setMessageHandler { message, reply in
         let args = message as! [Any?]
         let deviceIdArg = args[0] as! String
-        api.discoverServices(deviceId: deviceIdArg) { result in
+        let withDescriptorsArg = args[1] as! Bool
+        api.discoverServices(deviceId: deviceIdArg, withDescriptors: withDescriptorsArg) { result in
           switch result {
           case .success(let res):
             reply(wrapResult(res))

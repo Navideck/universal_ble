@@ -87,7 +87,8 @@ class _UniversalBleMock extends UniversalBlePlatformMock {
   Uint8List? charValue;
 
   @override
-  Future<List<BleService>> discoverServices(String deviceId) async {
+  Future<List<BleService>> discoverServices(
+      String deviceId, bool withDescriptors) async {
     return <BleService>[mockBleService];
   }
 

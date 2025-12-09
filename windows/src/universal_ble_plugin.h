@@ -135,6 +135,7 @@ namespace universal_ble
             std::function<void(ErrorOr<flutter::EncodableList> reply)> result);
         static fire_and_forget IsPairedAsync(const std::string& device_id, std::function<void(ErrorOr<bool> reply)> result);
     	fire_and_forget DiscoverServicesAsync(const std::string &device_id,
+            bool with_descriptors,
             std::function<void(ErrorOr<flutter::EncodableList> reply)> result);
 
         void PairingRequestedHandler(DeviceInformationCustomPairing sender, const DevicePairingRequestedEventArgs& event_args);
@@ -168,6 +169,7 @@ namespace universal_ble
             std::function<void(std::optional<FlutterError> reply)> result) override;
         void DiscoverServices(
             const std::string &device_id,
+            bool with_descriptors,
             std::function<void(ErrorOr<flutter::EncodableList> reply)> result) override;
         void SetNotifiable(
             const std::string &device_id,

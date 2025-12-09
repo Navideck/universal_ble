@@ -53,7 +53,8 @@ class MockUniversalBle extends UniversalBlePlatform {
   }
 
   @override
-  Future<List<BleService>> discoverServices(String deviceId) async {
+  Future<List<BleService>> discoverServices(
+      String deviceId, bool withDescriptors) async {
     return [_mockService];
   }
 

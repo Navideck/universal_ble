@@ -52,7 +52,10 @@ abstract class UniversalBlePlatformChannel {
   );
 
   @async
-  List<UniversalBleService> discoverServices(String deviceId);
+  List<UniversalBleService> discoverServices(
+    String deviceId,
+    bool withDescriptors,
+  );
 
   @async
   Uint8List readValue(
