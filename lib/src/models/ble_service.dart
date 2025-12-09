@@ -61,6 +61,13 @@ class BleCharacteristic {
 class BleDescriptor {
   String uuid;
   BleDescriptor(String uuid) : uuid = BleUuidParser.string(uuid);
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) || other is BleDescriptor && uuid == other.uuid;
+
+  @override
+  int get hashCode => uuid.hashCode;
 }
 
 enum CharacteristicProperty {
