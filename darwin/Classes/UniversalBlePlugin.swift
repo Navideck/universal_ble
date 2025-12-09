@@ -208,7 +208,7 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
     activeServiceDiscoveries[deviceId] = nil
   }
 
-  func discoverServices(deviceId: String, completion: @escaping (Result<[UniversalBleService], Error>) -> Void) {
+  func discoverServices(deviceId: String, withDescriptors: Bool, completion: @escaping (Result<[UniversalBleService], Error>) -> Void) {
     guard let peripheral = deviceId.findPeripheral(manager: manager) else {
       completion(
         Result.failure(createFlutterError(code: .deviceNotFound, message: "Unknown deviceId:\(deviceId)"))
@@ -238,6 +238,7 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
     let discovery = UniversalBleAsyncServiceDiscovery(
       peripheral: peripheral,
       deviceId: deviceId,
+      withDescriptors: withDescriptors,
       completion: wrappedCompletion
     )
 

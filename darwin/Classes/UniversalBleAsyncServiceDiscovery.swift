@@ -17,11 +17,13 @@ class UniversalBleAsyncServiceDiscovery: NSObject {
     private var discoveredDescriptorsSet: Set<String> = []
     private var expectedCharacteristicsCountMap: [String: Int] = [:]
     private var isDiscoveryInProgress = false
+    private var withDescriptors: Bool
 
-    init(peripheral: CBPeripheral, deviceId: String, completion: @escaping (Result<[UniversalBleService], Error>) -> Void) {
+    init(peripheral: CBPeripheral, deviceId: String, withDescriptors: Bool, completion: @escaping (Result<[UniversalBleService], Error>) -> Void) {
         self.peripheral = peripheral
         self.deviceId = deviceId
         self.completion = completion
+        self.withDescriptors = withDescriptors
         super.init()
     }
 
@@ -90,13 +92,28 @@ class UniversalBleAsyncServiceDiscovery: NSObject {
             return
         }
 
-        // Discover descriptors for each characteristic
-        for characteristic in characteristics {
-            if let cachedDescriptors = characteristic.descriptors, !cachedDescriptors.isEmpty {
-                handleDescriptorsDiscovered(for: characteristic)
-            } else {
-                peripheral.discoverDescriptors(for: characteristic)
+        if withDescriptors {
+            for characteristic in characteristics {
+                if let cachedDescriptors = characteristic.descriptors, !cachedDescriptors.isEmpty {
+                    handleDescriptorsDiscovered(for: characteristic)
+                } else {
+                    peripheral.discoverDescriptors(for: characteristic)
+                }
             }
+        } else {
+            if let index = discoveredServicesProgressMap.firstIndex(where: { $0.uuid == serviceUuid }) {
+                discoveredServicesProgressMap[index] = UniversalBleService(
+                    uuid: serviceUuid,
+                    characteristics: characteristics.map {
+                        UniversalBleCharacteristic(
+                            uuid: $0.uuid.uuidString,
+                            properties: $0.properties.toCharacteristicProperty,
+                            descriptors: []
+                        )
+                    }
+                )
+            }
+            checkAndCompleteDiscovery()
         }
     }
 

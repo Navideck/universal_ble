@@ -183,6 +183,7 @@ class UniversalBle {
   }
 
   /// Discover services of a device.
+  /// Set [withDescriptors] to `true` to discover characteristics with descriptors.
   static Future<List<BleService>> discoverServices(
     String deviceId, {
     bool withDescriptors = false,
