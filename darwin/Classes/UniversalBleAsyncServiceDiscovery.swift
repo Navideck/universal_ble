@@ -56,11 +56,17 @@ class UniversalBleAsyncServiceDiscovery: NSObject {
         discoveredDescriptorsSet = Set<String>()
         expectedCharacteristicsCountMap = [:]
 
+        // If no services, complete discovery immediately
+        guard !services.isEmpty else {
+            checkForDiscoveryCompletion()
+            return
+        }
+
         // Discover characteristics for each service
         for service in services {
             if let cachedChar = service.characteristics, !cachedChar.isEmpty {
                 // Characteristics already cached, process them
-                handleCharacteristicsDiscovered(for: service)
+                processCharacteristicsForService(service)
             } else {
                 // Need to discover characteristics
                 peripheral.discoverCharacteristics(nil, for: service)
@@ -68,7 +74,7 @@ class UniversalBleAsyncServiceDiscovery: NSObject {
         }
     }
 
-    private func handleCharacteristicsDiscovered(for service: CBService) {
+    private func processCharacteristicsForService(_ service: CBService) {
         let serviceUuid = service.uuid.uuidString
         guard let characteristics = service.characteristics else {
             // Service has no characteristics, mark as complete
@@ -76,7 +82,7 @@ class UniversalBleAsyncServiceDiscovery: NSObject {
             if let index = discoveredServicesProgressMap.firstIndex(where: { $0.uuid == serviceUuid }) {
                 discoveredServicesProgressMap[index] = UniversalBleService(uuid: serviceUuid, characteristics: [])
             }
-            checkAndCompleteDiscovery()
+            checkForDiscoveryCompletion()
             return
         }
 
@@ -88,7 +94,7 @@ class UniversalBleAsyncServiceDiscovery: NSObject {
             if let index = discoveredServicesProgressMap.firstIndex(where: { $0.uuid == serviceUuid }) {
                 discoveredServicesProgressMap[index] = UniversalBleService(uuid: serviceUuid, characteristics: [])
             }
-            checkAndCompleteDiscovery()
+            checkForDiscoveryCompletion()
             return
         }
 
@@ -113,7 +119,7 @@ class UniversalBleAsyncServiceDiscovery: NSObject {
                     }
                 )
             }
-            checkAndCompleteDiscovery()
+            checkForDiscoveryCompletion()
         }
     }
 
@@ -161,11 +167,11 @@ class UniversalBleAsyncServiceDiscovery: NSObject {
                 discoveredServicesProgressMap[index] = UniversalBleService(uuid: serviceUuid, characteristics: universalBleCharacteristicsList)
             }
 
-            checkAndCompleteDiscovery()
+            checkForDiscoveryCompletion()
         }
     }
 
-    private func checkAndCompleteDiscovery() {
+    private func checkForDiscoveryCompletion() {
         // Check if all services have been fully discovered (all characteristics with all descriptors)
         guard discoveredServicesProgressMap.allSatisfy({ $0.characteristics != nil }) else {
             return
@@ -197,7 +203,7 @@ extension UniversalBleAsyncServiceDiscovery {
             cleanup()
             return
         }
-        handleCharacteristicsDiscovered(for: service)
+        processCharacteristicsForService(service)
     }
 
     func handleDidDiscoverDescriptorsFor(_: CBPeripheral, characteristic: CBCharacteristic, error: Error?) {
