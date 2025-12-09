@@ -273,22 +273,7 @@ UniversalBlePlugin::Disconnect(const std::string &device_id) {
 void UniversalBlePlugin::DiscoverServices(
     const std::string &device_id,
     std::function<void(ErrorOr<flutter::EncodableList> reply)> result) {
-  try {
-    const auto it = connected_devices_.find(str_to_mac_address(device_id));
-    if (it == connected_devices_.end()) {
-      result(create_flutter_error(UniversalBleErrorCode::kDeviceNotFound,
-                                  "Unknown devicesId:" + device_id));
-      return;
-    }
-    auto device_agent = *it->second;
-    DiscoverServicesAsync(device_agent, result);
-  } catch (const FlutterError &err) {
-    return result(err);
-  } catch (...) {
-    std::cout << "DiscoverServicesLog: Unknown error" << std::endl;
-    return result(create_flutter_error(UniversalBleErrorCode::kUnknownError,
-                                       "Unknown error"));
-  }
+  DiscoverServicesAsync(device_id, result);
 }
 
 void UniversalBlePlugin::SetNotifiable(
@@ -1000,16 +985,6 @@ fire_and_forget UniversalBlePlugin::ConnectAsync(uint64_t bluetooth_address) {
       gatt_characteristic.obj = characteristic;
       gatt_characteristic.subscription_token = std::nullopt;
       std::string characteristic_uuid = guid_to_uuid(characteristic.Uuid());
-
-      auto descriptors_result = co_await characteristic.GetDescriptorsAsync(
-          BluetoothCacheMode::Uncached);
-      if (descriptors_result.Status() == GattCommunicationStatus::Success) {
-        auto descriptors = descriptors_result.Descriptors();
-        for (auto &&descriptor : descriptors) {
-          gatt_characteristic.descriptor_uuids_.push_back(
-              guid_to_uuid(descriptor.Uuid()));
-        }
-      }
       gatt_service.characteristics.insert_or_assign(
           characteristic_uuid, std::move(gatt_characteristic));
     }
@@ -1122,23 +1097,41 @@ fire_and_forget UniversalBlePlugin::GetSystemDevicesAsync(
   }
 }
 
-void UniversalBlePlugin::DiscoverServicesAsync(
-    BluetoothDeviceAgent &bluetooth_device_agent,
-    const std::function<void(ErrorOr<flutter::EncodableList> reply)> &result) {
+fire_and_forget UniversalBlePlugin::DiscoverServicesAsync(
+    const std::string &device_id,
+    std::function<void(ErrorOr<flutter::EncodableList> reply)> result) {
   try {
+    const auto it = connected_devices_.find(str_to_mac_address(device_id));
+    if (it == connected_devices_.end()) {
+      result(create_flutter_error(UniversalBleErrorCode::kDeviceNotFound,
+                                  "Unknown devicesId:" + device_id));
+      co_return;
+    }
+
     auto universal_services = flutter::EncodableList();
-    for (auto &[service_id, service] : bluetooth_device_agent.gatt_map) {
+    for (auto &[service_id, service] : it->second->gatt_map) {
       flutter::EncodableList universal_characteristics;
       for (auto [char_id, characteristic] : service.characteristics) {
         auto &c = characteristic.obj;
-
         const auto properties_value = c.CharacteristicProperties();
         auto properties = properties_to_flutter_encodable(properties_value);
-
         auto descriptors = flutter::EncodableList();
-        for (auto &descriptor_uuid : characteristic.descriptor_uuids_) {
-          descriptors.push_back(flutter::CustomEncodableValue(
-              UniversalBleDescriptor(descriptor_uuid)));
+        try {
+          // move continuation to background and execute in safe thread context
+          co_await winrt::resume_background();
+          auto descriptor_result =
+              co_await c.GetDescriptorsAsync(BluetoothCacheMode::Uncached);
+          if (descriptor_result.Status() == GattCommunicationStatus::Success) {
+            auto descriptors_list = descriptor_result.Descriptors();
+            for (auto &&descriptor : descriptors_list) {
+              descriptors.push_back(flutter::CustomEncodableValue(
+                  UniversalBleDescriptor(to_uuidstr(descriptor.Uuid()))));
+            }
+          }
+        } catch (...) {
+          std::cout << "DiscoverServicesAsync: failed to get descriptors for "
+                       "characteristic: "
+                    << std::endl;
         }
 
         universal_characteristics.push_back(
@@ -1153,10 +1146,16 @@ void UniversalBlePlugin::DiscoverServicesAsync(
           flutter::CustomEncodableValue(universal_ble_service));
     }
     result(universal_services);
+  } catch (const hresult_error &err) {
+    const int error_code = err.code();
+    result(create_flutter_error(UniversalBleErrorCode::kFailed,
+                                "DiscoverServicesAsync failed",
+                                std::to_string(error_code)));
+  } catch (const FlutterError &err) {
+    result(err);
   } catch (...) {
     result(create_flutter_error(UniversalBleErrorCode::kUnknownError,
                                 "Unknown error"));
-    std::cout << "DiscoverServiceError: Unknown error" << '\n';
   }
 }
 

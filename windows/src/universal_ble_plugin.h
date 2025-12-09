@@ -29,7 +29,6 @@ namespace universal_ble
     {
         GattCharacteristic obj = nullptr;
         std::optional<event_token> subscription_token; 
-        std::vector<std::string> descriptor_uuids_{};
     };
 
     struct GattServiceObject
@@ -135,8 +134,9 @@ namespace universal_ble
             std::vector<std::string> with_services,
             std::function<void(ErrorOr<flutter::EncodableList> reply)> result);
         static fire_and_forget IsPairedAsync(const std::string& device_id, std::function<void(ErrorOr<bool> reply)> result);
+    	fire_and_forget DiscoverServicesAsync(const std::string &device_id,
+            std::function<void(ErrorOr<flutter::EncodableList> reply)> result);
 
-        static void DiscoverServicesAsync(BluetoothDeviceAgent& bluetooth_device_agent, const std::function<void(ErrorOr<flutter::EncodableList> reply)>&);
         void PairingRequestedHandler(DeviceInformationCustomPairing sender, const DevicePairingRequestedEventArgs& event_args);
 
         void RadioStateChanged(const Radio& sender, const IInspectable&);
