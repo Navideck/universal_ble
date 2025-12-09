@@ -63,8 +63,13 @@ class BleDescriptor {
   BleDescriptor(String uuid) : uuid = BleUuidParser.string(uuid);
 
   @override
-  bool operator ==(Object other) =>
-      identical(this, other) || other is BleDescriptor && uuid == other.uuid;
+  String toString() => 'BleDescriptor{uuid: $uuid}';
+
+  @override
+  bool operator ==(Object other) {
+    if (other is! BleDescriptor) return false;
+    return other.uuid == uuid;
+  }
 
   @override
   int get hashCode => uuid.hashCode;
