@@ -12,6 +12,7 @@ BleCharacteristic mockBleCharacteristic = BleCharacteristic.withMetaData(
   serviceId: serviceId,
   uuid: characteristicId,
   properties: CharacteristicProperty.values,
+  descriptors: [],
 );
 BleService mockBleService = BleService(serviceId, [mockBleCharacteristic]);
 
@@ -86,7 +87,8 @@ class _UniversalBleMock extends UniversalBlePlatformMock {
   Uint8List? charValue;
 
   @override
-  Future<List<BleService>> discoverServices(String deviceId) async {
+  Future<List<BleService>> discoverServices(
+      String deviceId, bool withDescriptors) async {
     return <BleService>[mockBleService];
   }
 

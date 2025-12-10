@@ -18,11 +18,13 @@ class BleService {
 class BleCharacteristic {
   String uuid;
   List<CharacteristicProperty> properties;
+  List<BleDescriptor> descriptors;
   ({String deviceId, String serviceId})? metaData;
 
   BleCharacteristic(
     String uuid,
     this.properties,
+    this.descriptors,
   ) : uuid = BleUuidParser.string(uuid);
 
   BleCharacteristic.withMetaData({
@@ -30,6 +32,7 @@ class BleCharacteristic {
     required String serviceId,
     required String uuid,
     required this.properties,
+    required this.descriptors,
   })  : uuid = BleUuidParser.string(uuid),
         metaData = (
           deviceId: deviceId,
@@ -53,6 +56,23 @@ class BleCharacteristic {
 
   @override
   int get hashCode => uuid.hashCode ^ properties.hashCode ^ metaData.hashCode;
+}
+
+class BleDescriptor {
+  String uuid;
+  BleDescriptor(String uuid) : uuid = BleUuidParser.string(uuid);
+
+  @override
+  String toString() => 'BleDescriptor{uuid: $uuid}';
+
+  @override
+  bool operator ==(Object other) {
+    if (other is! BleDescriptor) return false;
+    return other.uuid == uuid;
+  }
+
+  @override
+  int get hashCode => uuid.hashCode;
 }
 
 enum CharacteristicProperty {

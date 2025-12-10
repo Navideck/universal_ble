@@ -18,7 +18,8 @@ abstract class UniversalBlePlatformMock extends UniversalBlePlatform {
   }
 
   @override
-  Future<List<BleService>> discoverServices(String deviceId) {
+  Future<List<BleService>> discoverServices(
+      String deviceId, bool withDescriptors) {
     throw UnimplementedError();
   }
 

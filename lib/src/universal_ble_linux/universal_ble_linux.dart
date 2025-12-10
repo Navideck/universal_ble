@@ -160,7 +160,10 @@ class UniversalBleLinux extends UniversalBlePlatform {
   }
 
   @override
-  Future<List<BleService>> discoverServices(String deviceId) async {
+  Future<List<BleService>> discoverServices(
+    String deviceId,
+    bool withDescriptors,
+  ) async {
     final device = _findDeviceById(deviceId);
     if (device.gattServices.isEmpty && !device.servicesResolved) {
       await device.propertiesChanged.firstWhere((element) {
@@ -205,6 +208,11 @@ class UniversalBleLinux extends UniversalBlePlatform {
           serviceId: serviceId,
           uuid: e.uuid.toString(),
           properties: properties,
+          descriptors: withDescriptors
+              ? e.descriptors
+                  .map((e) => BleDescriptor(e.uuid.toString()))
+                  .toList()
+              : [],
         );
       }).toList();
       services.add(

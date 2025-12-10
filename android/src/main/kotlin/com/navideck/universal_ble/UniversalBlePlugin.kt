@@ -276,12 +276,19 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
 
     override fun discoverServices(
         deviceId: String,
+        withDescriptors: Boolean,
         callback: (Result<List<UniversalBleService>>) -> Unit,
     ) {
         try {
             val gatt = deviceId.toBluetoothGatt()
             if (gatt.discoverServices()) {
-                discoverServicesFutureList.add(DiscoverServicesFuture(deviceId, callback))
+                discoverServicesFutureList.add(
+                    DiscoverServicesFuture(
+                        deviceId,
+                        withDescriptors,
+                        callback
+                    )
+                )
             } else {
                 callback(
                     Result.failure(
@@ -313,20 +320,22 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
             return
         }
         setCachedServices(gatt.device.address, gatt.services.map { it.uuid.toString() })
-        val universalBleServices = gatt.services.map { service ->
-            UniversalBleService(
-                uuid = service.uuid.toString(),
-                characteristics = service.characteristics.map {
-                    UniversalBleCharacteristic(
-                        uuid = it.uuid.toString(),
-                        properties = it.getPropertiesList()
-                    )
-                }
-            )
-        }
         discoverServicesFutureList.filter { it.deviceId == gatt.device.address }.forEach {
             discoverServicesFutureList.remove(it)
-            it.result(Result.success(universalBleServices))
+            it.result(Result.success(gatt.services.map { service ->
+                UniversalBleService(
+                    uuid = service.uuid.toString(),
+                    characteristics = service.characteristics.map { char ->
+                        UniversalBleCharacteristic(
+                            uuid = char.uuid.toString(),
+                            properties = char.getPropertiesList(),
+                            descriptors = if (it.withDescriptors) char.descriptors.map { descriptor ->
+                                UniversalBleDescriptor(descriptor.uuid.toString())
+                            } else listOf()
+                        )
+                    }
+                )
+            }))
         }
     }
 
@@ -818,7 +827,10 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
 
             if (gatt.discoverServices()) {
                 discoverServicesFutureList.add(
-                    DiscoverServicesFuture(device.address) { uuids: Result<List<UniversalBleService>> ->
+                    DiscoverServicesFuture(
+                        device.address,
+                        false
+                    ) { uuids: Result<List<UniversalBleService>> ->
                         if (uuids.isSuccess) {
                             updateCallback(uuids.getOrNull()?.map { it.uuid })
                         } else {

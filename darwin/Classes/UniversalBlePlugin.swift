@@ -34,7 +34,7 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
   private lazy var manager: CBCentralManager = .init(delegate: self, queue: nil)
   private var availabilityStateUpdateHandlers: [(Result<Int64, Error>) -> Void] = []
   private var requestPermissionStateUpdateHandlers: [(Result<Void, Error>) -> Void] = []
-  private var discoveredServicesProgressMap: [String: [UniversalBleService]] = [:]
+  private var activeServiceDiscoveries: [String: UniversalBleAsyncServiceDiscovery] = [:]
   private var characteristicReadFutures = [CharacteristicReadFuture]()
   private var characteristicWriteFutures = [CharacteristicWriteFuture]()
   private var characteristicWriteWithoutResponseFutures = [CharacteristicWriteFuture]()
@@ -204,45 +204,46 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
       }
       return false
     }
-    discoveredServicesProgressMap[deviceId] = nil
+    activeServiceDiscoveries[deviceId]?.cleanup()
+    activeServiceDiscoveries[deviceId] = nil
   }
 
-  func discoverServices(deviceId: String, completion: @escaping (Result<[UniversalBleService], Error>) -> Void) {
+  func discoverServices(deviceId: String, withDescriptors: Bool, completion: @escaping (Result<[UniversalBleService], Error>) -> Void) {
     guard let peripheral = deviceId.findPeripheral(manager: manager) else {
       completion(
-        Result.failure(createFlutterError(code: .deviceNotFound, message: "Unknown deviceId:\(self)"))
+        Result.failure(createFlutterError(code: .deviceNotFound, message: "Unknown deviceId:\(deviceId)"))
       )
       return
     }
 
-    if discoveredServicesProgressMap[deviceId] != nil {
+    // Check if discovery is already in progress
+    if activeServiceDiscoveries[deviceId] != nil {
       print("Services discovery already in progress for :\(deviceId), waiting for completion.")
       discoverServicesFutures.append(DiscoverServicesFuture(deviceId: deviceId, result: completion))
       return
     }
 
-    if let cachedServices = peripheral.services {
-      // If services already discovered no need to discover again
-      if !cachedServices.isEmpty {
-        // print("Services already cached for this peripheral")
-        discoverServicesFutures.append(DiscoverServicesFuture(deviceId: deviceId, result: completion))
-        self.peripheral(peripheral, didDiscoverServices: nil)
-        return
+    let wrappedCompletion: (Result<[UniversalBleService], Error>) -> Void = { result in
+      completion(result)
+      self.discoverServicesFutures.removeAll { future in
+        if future.deviceId == deviceId {
+          future.result(result)
+          return true
+        }
+        return false
       }
+      self.activeServiceDiscoveries[deviceId] = nil
     }
 
-    peripheral.discoverServices(nil)
-    discoverServicesFutures.append(DiscoverServicesFuture(deviceId: deviceId, result: completion))
-  }
+    let discovery = UniversalBleAsyncServiceDiscovery(
+      peripheral: peripheral,
+      deviceId: deviceId,
+      withDescriptors: withDescriptors,
+      completion: wrappedCompletion
+    )
 
-  private func onServicesDiscovered(deviceId: String, services: [UniversalBleService]) {
-    discoverServicesFutures.removeAll { future in
-      if future.deviceId == deviceId {
-        future.result(Result.success(services))
-        return true
-      }
-      return false
-    }
+    activeServiceDiscoveries[deviceId] = discovery
+    discovery.startDiscovery()
   }
 
   func setNotifiable(deviceId: String, service: String, characteristic: String, bleInputProperty: Int64, completion: @escaping (Result<Void, any Error>) -> Void) {
@@ -432,40 +433,16 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
     cleanUpConnection(deviceId: peripheral.uuid.uuidString)
   }
 
-  public func peripheral(_ peripheral: CBPeripheral, didDiscoverServices _: Error?) {
-    let deviceId = peripheral.identifier.uuidString
-    guard let services = peripheral.services else {
-      onServicesDiscovered(deviceId: deviceId, services: [])
-      return
-    }
-    discoveredServicesProgressMap[deviceId] = services.map { UniversalBleService(uuid: $0.uuid.uuidString, characteristics: nil) }
-    for service in services {
-      if let cachedChar = service.characteristics {
-        if !cachedChar.isEmpty {
-          self.peripheral(peripheral, didDiscoverCharacteristicsFor: service, error: nil)
-          continue
-        }
-      }
-      peripheral.discoverCharacteristics(nil, for: service)
-    }
+  public func peripheral(_ peripheral: CBPeripheral, didDiscoverServices error: Error?) {
+    activeServiceDiscoveries[peripheral.identifier.uuidString]?.handleDidDiscoverServices(peripheral, error: error)
   }
 
-  public func peripheral(_ peripheral: CBPeripheral, didDiscoverCharacteristicsFor service: CBService, error _: Error?) {
-    let deviceId = peripheral.identifier.uuidString
-    var universalBleCharacteristicsList: [UniversalBleCharacteristic] = []
-    for characteristic in service.characteristics ?? [] {
-      universalBleCharacteristicsList.append(
-        UniversalBleCharacteristic(uuid: characteristic.uuid.uuidString, properties: characteristic.properties.toCharacteristicProperty))
-    }
-    // Update discoveredServicesProgressMap
-    if let index = discoveredServicesProgressMap[deviceId]?.firstIndex(where: { $0.uuid == service.uuid.uuidString }) {
-      discoveredServicesProgressMap[deviceId]?[index] = UniversalBleService(uuid: service.uuid.uuidString, characteristics: universalBleCharacteristicsList)
-    }
-    // Check if all services and their characteristics have been discovered
-    if discoveredServicesProgressMap[deviceId]?.allSatisfy({ $0.characteristics != nil }) ?? false {
-      onServicesDiscovered(deviceId: deviceId, services: discoveredServicesProgressMap[deviceId] ?? [])
-      discoveredServicesProgressMap[deviceId] = nil
-    }
+  public func peripheral(_ peripheral: CBPeripheral, didDiscoverCharacteristicsFor service: CBService, error: Error?) {
+    activeServiceDiscoveries[peripheral.identifier.uuidString]?.handleDidDiscoverCharacteristicsFor(peripheral, service: service, error: error)
+  }
+
+  public func peripheral(_ peripheral: CBPeripheral, didDiscoverDescriptorsFor characteristic: CBCharacteristic, error: Error?) {
+    activeServiceDiscoveries[peripheral.identifier.uuidString]?.handleDidDiscoverDescriptorsFor(peripheral, characteristic: characteristic, error: error)
   }
 
   public func peripheralIsReady(toSendWriteWithoutResponse peripheral: CBPeripheral) {

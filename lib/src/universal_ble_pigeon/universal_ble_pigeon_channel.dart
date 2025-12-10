@@ -77,10 +77,13 @@ class UniversalBlePigeonChannel extends UniversalBlePlatform {
       _executeWithErrorHandling(() => _channel.disconnect(deviceId));
 
   @override
-  Future<List<BleService>> discoverServices(String deviceId) async {
+  Future<List<BleService>> discoverServices(
+    String deviceId,
+    bool withDescriptors,
+  ) async {
     List<UniversalBleService?> universalBleServices =
         await _executeWithErrorHandling(
-            () => _channel.discoverServices(deviceId));
+            () => _channel.discoverServices(deviceId, withDescriptors));
     return List<BleService>.from(universalBleServices
         .where((e) => e != null)
         .map((e) => e!.toBleService(deviceId))
@@ -210,6 +213,8 @@ extension _BleServiceExtension on UniversalBleService {
         deviceId: deviceId,
         serviceId: uuid,
         uuid: characteristic.uuid,
+        descriptors: List<BleDescriptor>.from(
+            characteristic.descriptors.map((e) => BleDescriptor(e.uuid))),
         properties: List<CharacteristicProperty>.from(
           properties.map((e) => CharacteristicProperty.parse(e ?? 1)),
         ),

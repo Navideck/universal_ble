@@ -52,7 +52,10 @@ abstract class UniversalBlePlatformChannel {
   );
 
   @async
-  List<UniversalBleService> discoverServices(String deviceId);
+  List<UniversalBleService> discoverServices(
+    String deviceId,
+    bool withDescriptors,
+  );
 
   @async
   Uint8List readValue(
@@ -138,7 +141,13 @@ class UniversalBleService {
 class UniversalBleCharacteristic {
   String uuid;
   List<int> properties;
-  UniversalBleCharacteristic(this.uuid, this.properties);
+  List<UniversalBleDescriptor> descriptors;
+  UniversalBleCharacteristic(this.uuid, this.properties, this.descriptors);
+}
+
+class UniversalBleDescriptor {
+  String uuid;
+  UniversalBleDescriptor(this.uuid);
 }
 
 /// Scan Filters

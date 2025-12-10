@@ -51,7 +51,8 @@ abstract class UniversalBlePlatform {
 
   Future<void> disconnect(String deviceId);
 
-  Future<List<BleService>> discoverServices(String deviceId);
+  Future<List<BleService>> discoverServices(
+      String deviceId, bool withDescriptors);
 
   Future<void> setNotifiable(String deviceId, String service,
       String characteristic, BleInputProperty bleInputProperty);

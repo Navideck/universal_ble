@@ -62,10 +62,14 @@ class UniversalBleWeb extends UniversalBlePlatform {
   }
 
   @override
-  Future<List<BleService>> discoverServices(String deviceId) async =>
-      (await _getServices(deviceId))
-          .map((e) => e._bleService(deviceId))
-          .toList();
+  Future<List<BleService>> discoverServices(
+      String deviceId, bool withDescriptors) async {
+    List<BleService> services = [];
+    for (var service in await _getServices(deviceId)) {
+      services.add(await service._toBleService(deviceId, withDescriptors));
+    }
+    return services;
+  }
 
   @override
   Future<AvailabilityState> getBluetoothAvailabilityState() async {
@@ -536,24 +540,40 @@ class _UniversalWebBluetoothService {
     return null;
   }
 
-  BleService _bleService(String deviceId) => BleService(
-        service.uuid,
-        characteristics.map((e) {
-          return BleCharacteristic.withMetaData(
-              deviceId: deviceId,
-              serviceId: service.uuid,
-              uuid: e.uuid,
-              properties: [
-                if (e.properties.broadcast) CharacteristicProperty.broadcast,
-                if (e.properties.read) CharacteristicProperty.read,
-                if (e.properties.write) CharacteristicProperty.write,
-                if (e.properties.writeWithoutResponse)
-                  CharacteristicProperty.writeWithoutResponse,
-                if (e.properties.notify) CharacteristicProperty.notify,
-                if (e.properties.indicate) CharacteristicProperty.indicate,
-                if (e.properties.authenticatedSignedWrites)
-                  CharacteristicProperty.authenticatedSignedWrites,
-              ]);
-        }).toList(),
-      );
+  Future<BleService> _toBleService(
+    String deviceId,
+    bool withDescriptors,
+  ) async {
+    List<BleCharacteristic> bleCharacteristics = [];
+    for (var characteristic in characteristics) {
+      List<BleDescriptor> descriptors = [];
+      if (withDescriptors) {
+        try {
+          var bluetoothDescriptors = await characteristic.getDescriptors();
+          descriptors =
+              bluetoothDescriptors.map((e) => BleDescriptor(e.uuid)).toList();
+        } catch (_) {}
+      }
+      bleCharacteristics.add(BleCharacteristic.withMetaData(
+        deviceId: deviceId,
+        serviceId: service.uuid,
+        uuid: characteristic.uuid,
+        properties: [
+          if (characteristic.properties.broadcast)
+            CharacteristicProperty.broadcast,
+          if (characteristic.properties.read) CharacteristicProperty.read,
+          if (characteristic.properties.write) CharacteristicProperty.write,
+          if (characteristic.properties.writeWithoutResponse)
+            CharacteristicProperty.writeWithoutResponse,
+          if (characteristic.properties.notify) CharacteristicProperty.notify,
+          if (characteristic.properties.indicate)
+            CharacteristicProperty.indicate,
+          if (characteristic.properties.authenticatedSignedWrites)
+            CharacteristicProperty.authenticatedSignedWrites,
+        ],
+        descriptors: descriptors,
+      ));
+    }
+    return BleService(service.uuid, bleCharacteristics);
+  }
 }
