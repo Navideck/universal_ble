@@ -315,6 +315,7 @@ fun Int.parseHciErrorCode(): String? {
 // Future result classes
 class DiscoverServicesFuture(
     val deviceId: String,
+    val withDescriptors: Boolean,
     val result: (Result<List<UniversalBleService>>) -> Unit,
 )
 

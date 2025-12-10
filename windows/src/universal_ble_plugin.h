@@ -134,8 +134,10 @@ namespace universal_ble
             std::vector<std::string> with_services,
             std::function<void(ErrorOr<flutter::EncodableList> reply)> result);
         static fire_and_forget IsPairedAsync(const std::string& device_id, std::function<void(ErrorOr<bool> reply)> result);
+    	fire_and_forget DiscoverServicesAsync(const std::string &device_id,
+            bool with_descriptors,
+            std::function<void(ErrorOr<flutter::EncodableList> reply)> result);
 
-        static void DiscoverServicesAsync(BluetoothDeviceAgent& bluetooth_device_agent, const std::function<void(ErrorOr<flutter::EncodableList> reply)>&);
         void PairingRequestedHandler(DeviceInformationCustomPairing sender, const DevicePairingRequestedEventArgs& event_args);
 
         void RadioStateChanged(const Radio& sender, const IInspectable&);
@@ -168,6 +170,7 @@ namespace universal_ble
             std::function<void(std::optional<FlutterError> reply)> result) override;
         void DiscoverServices(
             const std::string &device_id,
+            bool with_descriptors,
             std::function<void(ErrorOr<flutter::EncodableList> reply)> result) override;
         void SetNotifiable(
             const std::string &device_id,

@@ -224,16 +224,20 @@ class UniversalBleCharacteristic {
   UniversalBleCharacteristic({
     required this.uuid,
     required this.properties,
+    required this.descriptors,
   });
 
   String uuid;
 
   List<int> properties;
 
+  List<UniversalBleDescriptor> descriptors;
+
   List<Object?> _toList() {
     return <Object?>[
       uuid,
       properties,
+      descriptors,
     ];
   }
 
@@ -246,6 +250,8 @@ class UniversalBleCharacteristic {
     return UniversalBleCharacteristic(
       uuid: result[0]! as String,
       properties: (result[1] as List<Object?>?)!.cast<int>(),
+      descriptors:
+          (result[2] as List<Object?>?)!.cast<UniversalBleDescriptor>(),
     );
   }
 
@@ -254,6 +260,47 @@ class UniversalBleCharacteristic {
   bool operator ==(Object other) {
     if (other is! UniversalBleCharacteristic ||
         other.runtimeType != runtimeType) {
+      return false;
+    }
+    if (identical(this, other)) {
+      return true;
+    }
+    return _deepEquals(encode(), other.encode());
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  int get hashCode => Object.hashAll(_toList());
+}
+
+class UniversalBleDescriptor {
+  UniversalBleDescriptor({
+    required this.uuid,
+  });
+
+  String uuid;
+
+  List<Object?> _toList() {
+    return <Object?>[
+      uuid,
+    ];
+  }
+
+  Object encode() {
+    return _toList();
+  }
+
+  static UniversalBleDescriptor decode(Object result) {
+    result as List<Object?>;
+    return UniversalBleDescriptor(
+      uuid: result[0]! as String,
+    );
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  bool operator ==(Object other) {
+    if (other is! UniversalBleDescriptor || other.runtimeType != runtimeType) {
       return false;
     }
     if (identical(this, other)) {
@@ -438,14 +485,17 @@ class _PigeonCodec extends StandardMessageCodec {
     } else if (value is UniversalBleCharacteristic) {
       buffer.putUint8(132);
       writeValue(buffer, value.encode());
-    } else if (value is UniversalScanFilter) {
+    } else if (value is UniversalBleDescriptor) {
       buffer.putUint8(133);
       writeValue(buffer, value.encode());
-    } else if (value is UniversalManufacturerDataFilter) {
+    } else if (value is UniversalScanFilter) {
       buffer.putUint8(134);
       writeValue(buffer, value.encode());
-    } else if (value is UniversalManufacturerData) {
+    } else if (value is UniversalManufacturerDataFilter) {
       buffer.putUint8(135);
+      writeValue(buffer, value.encode());
+    } else if (value is UniversalManufacturerData) {
+      buffer.putUint8(136);
       writeValue(buffer, value.encode());
     } else {
       super.writeValue(buffer, value);
@@ -465,10 +515,12 @@ class _PigeonCodec extends StandardMessageCodec {
       case 132:
         return UniversalBleCharacteristic.decode(readValue(buffer)!);
       case 133:
-        return UniversalScanFilter.decode(readValue(buffer)!);
+        return UniversalBleDescriptor.decode(readValue(buffer)!);
       case 134:
-        return UniversalManufacturerDataFilter.decode(readValue(buffer)!);
+        return UniversalScanFilter.decode(readValue(buffer)!);
       case 135:
+        return UniversalManufacturerDataFilter.decode(readValue(buffer)!);
+      case 136:
         return UniversalManufacturerData.decode(readValue(buffer)!);
       default:
         return super.readValueOfType(type, buffer);
@@ -799,7 +851,8 @@ class UniversalBlePlatformChannel {
     }
   }
 
-  Future<List<UniversalBleService>> discoverServices(String deviceId) async {
+  Future<List<UniversalBleService>> discoverServices(
+      String deviceId, bool withDescriptors) async {
     final String pigeonVar_channelName =
         'dev.flutter.pigeon.universal_ble.UniversalBlePlatformChannel.discoverServices$pigeonVar_messageChannelSuffix';
     final BasicMessageChannel<Object?> pigeonVar_channel =
@@ -809,7 +862,7 @@ class UniversalBlePlatformChannel {
       binaryMessenger: pigeonVar_binaryMessenger,
     );
     final Future<Object?> pigeonVar_sendFuture =
-        pigeonVar_channel.send(<Object?>[deviceId]);
+        pigeonVar_channel.send(<Object?>[deviceId, withDescriptors]);
     final List<Object?>? pigeonVar_replyList =
         await pigeonVar_sendFuture as List<Object?>?;
     if (pigeonVar_replyList == null) {

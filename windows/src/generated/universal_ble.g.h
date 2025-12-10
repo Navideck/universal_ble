@@ -211,13 +211,17 @@ class UniversalBleCharacteristic {
   // Constructs an object setting all fields.
   explicit UniversalBleCharacteristic(
     const std::string& uuid,
-    const flutter::EncodableList& properties);
+    const flutter::EncodableList& properties,
+    const flutter::EncodableList& descriptors);
 
   const std::string& uuid() const;
   void set_uuid(std::string_view value_arg);
 
   const flutter::EncodableList& properties() const;
   void set_properties(const flutter::EncodableList& value_arg);
+
+  const flutter::EncodableList& descriptors() const;
+  void set_descriptors(const flutter::EncodableList& value_arg);
 
  private:
   static UniversalBleCharacteristic FromEncodableList(const flutter::EncodableList& list);
@@ -227,6 +231,26 @@ class UniversalBleCharacteristic {
   friend class PigeonInternalCodecSerializer;
   std::string uuid_;
   flutter::EncodableList properties_;
+  flutter::EncodableList descriptors_;
+};
+
+
+// Generated class from Pigeon that represents data sent in messages.
+class UniversalBleDescriptor {
+ public:
+  // Constructs an object setting all fields.
+  explicit UniversalBleDescriptor(const std::string& uuid);
+
+  const std::string& uuid() const;
+  void set_uuid(std::string_view value_arg);
+
+ private:
+  static UniversalBleDescriptor FromEncodableList(const flutter::EncodableList& list);
+  flutter::EncodableList ToEncodableList() const;
+  friend class UniversalBlePlatformChannel;
+  friend class UniversalBleCallbackChannel;
+  friend class PigeonInternalCodecSerializer;
+  std::string uuid_;
 };
 
 
@@ -367,6 +391,7 @@ class UniversalBlePlatformChannel {
     std::function<void(std::optional<FlutterError> reply)> result) = 0;
   virtual void DiscoverServices(
     const std::string& device_id,
+    bool with_descriptors,
     std::function<void(ErrorOr<flutter::EncodableList> reply)> result) = 0;
   virtual void ReadValue(
     const std::string& device_id,

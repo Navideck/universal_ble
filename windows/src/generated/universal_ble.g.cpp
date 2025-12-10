@@ -214,9 +214,11 @@ UniversalBleService UniversalBleService::FromEncodableList(const EncodableList& 
 
 UniversalBleCharacteristic::UniversalBleCharacteristic(
   const std::string& uuid,
-  const EncodableList& properties)
+  const EncodableList& properties,
+  const EncodableList& descriptors)
  : uuid_(uuid),
-    properties_(properties) {}
+    properties_(properties),
+    descriptors_(descriptors) {}
 
 const std::string& UniversalBleCharacteristic::uuid() const {
   return uuid_;
@@ -236,18 +238,56 @@ void UniversalBleCharacteristic::set_properties(const EncodableList& value_arg) 
 }
 
 
+const EncodableList& UniversalBleCharacteristic::descriptors() const {
+  return descriptors_;
+}
+
+void UniversalBleCharacteristic::set_descriptors(const EncodableList& value_arg) {
+  descriptors_ = value_arg;
+}
+
+
 EncodableList UniversalBleCharacteristic::ToEncodableList() const {
   EncodableList list;
-  list.reserve(2);
+  list.reserve(3);
   list.push_back(EncodableValue(uuid_));
   list.push_back(EncodableValue(properties_));
+  list.push_back(EncodableValue(descriptors_));
   return list;
 }
 
 UniversalBleCharacteristic UniversalBleCharacteristic::FromEncodableList(const EncodableList& list) {
   UniversalBleCharacteristic decoded(
     std::get<std::string>(list[0]),
-    std::get<EncodableList>(list[1]));
+    std::get<EncodableList>(list[1]),
+    std::get<EncodableList>(list[2]));
+  return decoded;
+}
+
+// UniversalBleDescriptor
+
+UniversalBleDescriptor::UniversalBleDescriptor(const std::string& uuid)
+ : uuid_(uuid) {}
+
+const std::string& UniversalBleDescriptor::uuid() const {
+  return uuid_;
+}
+
+void UniversalBleDescriptor::set_uuid(std::string_view value_arg) {
+  uuid_ = value_arg;
+}
+
+
+EncodableList UniversalBleDescriptor::ToEncodableList() const {
+  EncodableList list;
+  list.reserve(1);
+  list.push_back(EncodableValue(uuid_));
+  return list;
+}
+
+UniversalBleDescriptor UniversalBleDescriptor::FromEncodableList(const EncodableList& list) {
+  UniversalBleDescriptor decoded(
+    std::get<std::string>(list[0]));
   return decoded;
 }
 
@@ -439,12 +479,15 @@ EncodableValue PigeonInternalCodecSerializer::ReadValueOfType(
         return CustomEncodableValue(UniversalBleCharacteristic::FromEncodableList(std::get<EncodableList>(ReadValue(stream))));
       }
     case 133: {
-        return CustomEncodableValue(UniversalScanFilter::FromEncodableList(std::get<EncodableList>(ReadValue(stream))));
+        return CustomEncodableValue(UniversalBleDescriptor::FromEncodableList(std::get<EncodableList>(ReadValue(stream))));
       }
     case 134: {
-        return CustomEncodableValue(UniversalManufacturerDataFilter::FromEncodableList(std::get<EncodableList>(ReadValue(stream))));
+        return CustomEncodableValue(UniversalScanFilter::FromEncodableList(std::get<EncodableList>(ReadValue(stream))));
       }
     case 135: {
+        return CustomEncodableValue(UniversalManufacturerDataFilter::FromEncodableList(std::get<EncodableList>(ReadValue(stream))));
+      }
+    case 136: {
         return CustomEncodableValue(UniversalManufacturerData::FromEncodableList(std::get<EncodableList>(ReadValue(stream))));
       }
     default:
@@ -476,18 +519,23 @@ void PigeonInternalCodecSerializer::WriteValue(
       WriteValue(EncodableValue(std::any_cast<UniversalBleCharacteristic>(*custom_value).ToEncodableList()), stream);
       return;
     }
-    if (custom_value->type() == typeid(UniversalScanFilter)) {
+    if (custom_value->type() == typeid(UniversalBleDescriptor)) {
       stream->WriteByte(133);
+      WriteValue(EncodableValue(std::any_cast<UniversalBleDescriptor>(*custom_value).ToEncodableList()), stream);
+      return;
+    }
+    if (custom_value->type() == typeid(UniversalScanFilter)) {
+      stream->WriteByte(134);
       WriteValue(EncodableValue(std::any_cast<UniversalScanFilter>(*custom_value).ToEncodableList()), stream);
       return;
     }
     if (custom_value->type() == typeid(UniversalManufacturerDataFilter)) {
-      stream->WriteByte(134);
+      stream->WriteByte(135);
       WriteValue(EncodableValue(std::any_cast<UniversalManufacturerDataFilter>(*custom_value).ToEncodableList()), stream);
       return;
     }
     if (custom_value->type() == typeid(UniversalManufacturerData)) {
-      stream->WriteByte(135);
+      stream->WriteByte(136);
       WriteValue(EncodableValue(std::any_cast<UniversalManufacturerData>(*custom_value).ToEncodableList()), stream);
       return;
     }
@@ -816,7 +864,13 @@ void UniversalBlePlatformChannel::SetUp(
             return;
           }
           const auto& device_id_arg = std::get<std::string>(encodable_device_id_arg);
-          api->DiscoverServices(device_id_arg, [reply](ErrorOr<EncodableList>&& output) {
+          const auto& encodable_with_descriptors_arg = args.at(1);
+          if (encodable_with_descriptors_arg.IsNull()) {
+            reply(WrapError("with_descriptors_arg unexpectedly null."));
+            return;
+          }
+          const auto& with_descriptors_arg = std::get<bool>(encodable_with_descriptors_arg);
+          api->DiscoverServices(device_id_arg, with_descriptors_arg, [reply](ErrorOr<EncodableList>&& output) {
             if (output.has_error()) {
               reply(WrapError(output.error()));
               return;

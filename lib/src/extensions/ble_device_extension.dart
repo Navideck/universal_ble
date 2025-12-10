@@ -78,9 +78,11 @@ extension BleDeviceExtension on BleDevice {
   /// Returns cached services if already discovered after connection.
   Future<List<BleService>> discoverServices({
     Duration? timeout,
+    bool withDescriptors = false,
   }) async {
     List<BleService> servicesCache = await UniversalBle.discoverServices(
       deviceId,
+      withDescriptors: withDescriptors,
       timeout: timeout,
     );
     CacheHandler.instance.saveServices(deviceId, servicesCache);

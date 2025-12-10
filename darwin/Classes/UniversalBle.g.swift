@@ -275,25 +275,54 @@ struct UniversalBleService: Hashable {
 struct UniversalBleCharacteristic: Hashable {
   var uuid: String
   var properties: [Int64]
+  var descriptors: [UniversalBleDescriptor]
 
 
   // swift-format-ignore: AlwaysUseLowerCamelCase
   static func fromList(_ pigeonVar_list: [Any?]) -> UniversalBleCharacteristic? {
     let uuid = pigeonVar_list[0] as! String
     let properties = pigeonVar_list[1] as! [Int64]
+    let descriptors = pigeonVar_list[2] as! [UniversalBleDescriptor]
 
     return UniversalBleCharacteristic(
       uuid: uuid,
-      properties: properties
+      properties: properties,
+      descriptors: descriptors
     )
   }
   func toList() -> [Any?] {
     return [
       uuid,
       properties,
+      descriptors,
     ]
   }
   static func == (lhs: UniversalBleCharacteristic, rhs: UniversalBleCharacteristic) -> Bool {
+    return deepEqualsUniversalBle(lhs.toList(), rhs.toList())  }
+  func hash(into hasher: inout Hasher) {
+    deepHashUniversalBle(value: toList(), hasher: &hasher)
+  }
+}
+
+/// Generated class from Pigeon that represents data sent in messages.
+struct UniversalBleDescriptor: Hashable {
+  var uuid: String
+
+
+  // swift-format-ignore: AlwaysUseLowerCamelCase
+  static func fromList(_ pigeonVar_list: [Any?]) -> UniversalBleDescriptor? {
+    let uuid = pigeonVar_list[0] as! String
+
+    return UniversalBleDescriptor(
+      uuid: uuid
+    )
+  }
+  func toList() -> [Any?] {
+    return [
+      uuid
+    ]
+  }
+  static func == (lhs: UniversalBleDescriptor, rhs: UniversalBleDescriptor) -> Bool {
     return deepEqualsUniversalBle(lhs.toList(), rhs.toList())  }
   func hash(into hasher: inout Hasher) {
     deepHashUniversalBle(value: toList(), hasher: &hasher)
@@ -413,10 +442,12 @@ private class UniversalBlePigeonCodecReader: FlutterStandardReader {
     case 132:
       return UniversalBleCharacteristic.fromList(self.readValue() as! [Any?])
     case 133:
-      return UniversalScanFilter.fromList(self.readValue() as! [Any?])
+      return UniversalBleDescriptor.fromList(self.readValue() as! [Any?])
     case 134:
-      return UniversalManufacturerDataFilter.fromList(self.readValue() as! [Any?])
+      return UniversalScanFilter.fromList(self.readValue() as! [Any?])
     case 135:
+      return UniversalManufacturerDataFilter.fromList(self.readValue() as! [Any?])
+    case 136:
       return UniversalManufacturerData.fromList(self.readValue() as! [Any?])
     default:
       return super.readValue(ofType: type)
@@ -438,14 +469,17 @@ private class UniversalBlePigeonCodecWriter: FlutterStandardWriter {
     } else if let value = value as? UniversalBleCharacteristic {
       super.writeByte(132)
       super.writeValue(value.toList())
-    } else if let value = value as? UniversalScanFilter {
+    } else if let value = value as? UniversalBleDescriptor {
       super.writeByte(133)
       super.writeValue(value.toList())
-    } else if let value = value as? UniversalManufacturerDataFilter {
+    } else if let value = value as? UniversalScanFilter {
       super.writeByte(134)
       super.writeValue(value.toList())
-    } else if let value = value as? UniversalManufacturerData {
+    } else if let value = value as? UniversalManufacturerDataFilter {
       super.writeByte(135)
+      super.writeValue(value.toList())
+    } else if let value = value as? UniversalManufacturerData {
+      super.writeByte(136)
       super.writeValue(value.toList())
     } else {
       super.writeValue(value)
@@ -483,7 +517,7 @@ protocol UniversalBlePlatformChannel {
   func connect(deviceId: String) throws
   func disconnect(deviceId: String) throws
   func setNotifiable(deviceId: String, service: String, characteristic: String, bleInputProperty: Int64, completion: @escaping (Result<Void, Error>) -> Void)
-  func discoverServices(deviceId: String, completion: @escaping (Result<[UniversalBleService], Error>) -> Void)
+  func discoverServices(deviceId: String, withDescriptors: Bool, completion: @escaping (Result<[UniversalBleService], Error>) -> Void)
   func readValue(deviceId: String, service: String, characteristic: String, completion: @escaping (Result<FlutterStandardTypedData, Error>) -> Void)
   func requestMtu(deviceId: String, expectedMtu: Int64, completion: @escaping (Result<Int64, Error>) -> Void)
   func writeValue(deviceId: String, service: String, characteristic: String, value: FlutterStandardTypedData, bleOutputProperty: Int64, completion: @escaping (Result<Void, Error>) -> Void)
@@ -673,7 +707,8 @@ class UniversalBlePlatformChannelSetup {
       discoverServicesChannel.setMessageHandler { message, reply in
         let args = message as! [Any?]
         let deviceIdArg = args[0] as! String
-        api.discoverServices(deviceId: deviceIdArg) { result in
+        let withDescriptorsArg = args[1] as! Bool
+        api.discoverServices(deviceId: deviceIdArg, withDescriptors: withDescriptorsArg) { result in
           switch result {
           case .success(let res):
             reply(wrapResult(res))

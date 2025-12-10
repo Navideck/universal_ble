@@ -6,6 +6,7 @@
 * Add `requestPermissions` api and auto ask permission on `startScan`
 * `disconnect` now waits for disconnection confirmation before returning
 * Improve Windows disconnection event handling and cleanup
+* Add `withDescriptors` parameter in `discoverServices` API
 
 ## 0.21.1
 * Fix device name resolution on Windows

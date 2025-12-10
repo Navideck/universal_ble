@@ -182,6 +182,10 @@ class ServicesListWidget extends StatelessWidget {
                                         ),
                                       ),
                                     ),
+                                    if (e.descriptors.isNotEmpty)
+                                      Text(
+                                        "Descriptors: ${e.descriptors.map((e) => e.uuid).join(', ')}",
+                                      )
                                   ],
                                 ),
                                 const SizedBox(height: 8),

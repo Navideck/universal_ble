@@ -229,24 +229,55 @@ data class UniversalBleService (
 /** Generated class from Pigeon that represents data sent in messages. */
 data class UniversalBleCharacteristic (
   val uuid: String,
-  val properties: List<Long>
+  val properties: List<Long>,
+  val descriptors: List<UniversalBleDescriptor>
 )
  {
   companion object {
     fun fromList(pigeonVar_list: List<Any?>): UniversalBleCharacteristic {
       val uuid = pigeonVar_list[0] as String
       val properties = pigeonVar_list[1] as List<Long>
-      return UniversalBleCharacteristic(uuid, properties)
+      val descriptors = pigeonVar_list[2] as List<UniversalBleDescriptor>
+      return UniversalBleCharacteristic(uuid, properties, descriptors)
     }
   }
   fun toList(): List<Any?> {
     return listOf(
       uuid,
       properties,
+      descriptors,
     )
   }
   override fun equals(other: Any?): Boolean {
     if (other !is UniversalBleCharacteristic) {
+      return false
+    }
+    if (this === other) {
+      return true
+    }
+    return UniversalBlePigeonUtils.deepEquals(toList(), other.toList())  }
+
+  override fun hashCode(): Int = toList().hashCode()
+}
+
+/** Generated class from Pigeon that represents data sent in messages. */
+data class UniversalBleDescriptor (
+  val uuid: String
+)
+ {
+  companion object {
+    fun fromList(pigeonVar_list: List<Any?>): UniversalBleDescriptor {
+      val uuid = pigeonVar_list[0] as String
+      return UniversalBleDescriptor(uuid)
+    }
+  }
+  fun toList(): List<Any?> {
+    return listOf(
+      uuid,
+    )
+  }
+  override fun equals(other: Any?): Boolean {
+    if (other !is UniversalBleDescriptor) {
       return false
     }
     if (this === other) {
@@ -384,15 +415,20 @@ private open class UniversalBlePigeonCodec : StandardMessageCodec() {
       }
       133.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          UniversalScanFilter.fromList(it)
+          UniversalBleDescriptor.fromList(it)
         }
       }
       134.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          UniversalManufacturerDataFilter.fromList(it)
+          UniversalScanFilter.fromList(it)
         }
       }
       135.toByte() -> {
+        return (readValue(buffer) as? List<Any?>)?.let {
+          UniversalManufacturerDataFilter.fromList(it)
+        }
+      }
+      136.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
           UniversalManufacturerData.fromList(it)
         }
@@ -418,16 +454,20 @@ private open class UniversalBlePigeonCodec : StandardMessageCodec() {
         stream.write(132)
         writeValue(stream, value.toList())
       }
-      is UniversalScanFilter -> {
+      is UniversalBleDescriptor -> {
         stream.write(133)
         writeValue(stream, value.toList())
       }
-      is UniversalManufacturerDataFilter -> {
+      is UniversalScanFilter -> {
         stream.write(134)
         writeValue(stream, value.toList())
       }
-      is UniversalManufacturerData -> {
+      is UniversalManufacturerDataFilter -> {
         stream.write(135)
+        writeValue(stream, value.toList())
+      }
+      is UniversalManufacturerData -> {
+        stream.write(136)
         writeValue(stream, value.toList())
       }
       else -> super.writeValue(stream, value)
@@ -453,7 +493,7 @@ interface UniversalBlePlatformChannel {
   fun connect(deviceId: String)
   fun disconnect(deviceId: String)
   fun setNotifiable(deviceId: String, service: String, characteristic: String, bleInputProperty: Long, callback: (Result<Unit>) -> Unit)
-  fun discoverServices(deviceId: String, callback: (Result<List<UniversalBleService>>) -> Unit)
+  fun discoverServices(deviceId: String, withDescriptors: Boolean, callback: (Result<List<UniversalBleService>>) -> Unit)
   fun readValue(deviceId: String, service: String, characteristic: String, callback: (Result<ByteArray>) -> Unit)
   fun requestMtu(deviceId: String, expectedMtu: Long, callback: (Result<Long>) -> Unit)
   fun writeValue(deviceId: String, service: String, characteristic: String, value: ByteArray, bleOutputProperty: Long, callback: (Result<Unit>) -> Unit)
@@ -675,7 +715,8 @@ interface UniversalBlePlatformChannel {
           channel.setMessageHandler { message, reply ->
             val args = message as List<Any?>
             val deviceIdArg = args[0] as String
-            api.discoverServices(deviceIdArg) { result: Result<List<UniversalBleService>> ->
+            val withDescriptorsArg = args[1] as Boolean
+            api.discoverServices(deviceIdArg, withDescriptorsArg) { result: Result<List<UniversalBleService>> ->
               val error = result.exceptionOrNull()
               if (error != null) {
                 reply.reply(UniversalBlePigeonUtils.wrapError(error))
