@@ -16,7 +16,7 @@ A new Flutter plugin project.
   s.source_files = 'Classes/**/*'
   s.ios.dependency 'Flutter'
   s.osx.dependency 'FlutterMacOS'
-  s.ios.deployment_target = '9.0'
+  s.ios.deployment_target = '13.1'
   s.osx.deployment_target = '10.12'
 
   # Flutter.framework does not contain a i386 slice.

@@ -8,6 +8,9 @@ class ManufacturerData {
 
   String get companyIdRadix16 => "0x0${companyId.toRadixString(16)}";
 
+  String get payloadHex =>
+      "0x${payload.map((e) => e.toRadixString(16).toUpperCase().padLeft(2, '0')).join('')}";
+
   factory ManufacturerData.fromData(Uint8List data) {
     if (data.length < 2) {
       throw const FormatException("Invalid Manufacturer Data");

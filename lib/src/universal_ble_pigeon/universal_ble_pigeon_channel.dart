@@ -146,6 +146,13 @@ class UniversalBlePigeonChannel extends UniversalBlePlatform {
       _executeWithErrorHandling(() => _channel.unPair(deviceId));
 
   @override
+  Future<bool> hasPermissions({bool withAndroidFineLocation = false}) async {
+    return await _executeWithErrorHandling(
+      () => _channel.hasPermissions(withAndroidFineLocation),
+    );
+  }
+
+  @override
   Future<void> requestPermissions(
       {bool withAndroidFineLocation = false}) async {
     await _executeWithErrorHandling(

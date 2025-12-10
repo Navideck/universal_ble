@@ -24,6 +24,8 @@ abstract class UniversalBlePlatformChannel {
   @async
   int getBluetoothAvailabilityState();
 
+  bool hasPermissions(bool withAndroidFineLocation);
+
   @async
   void requestPermissions(bool withAndroidFineLocation);
 
