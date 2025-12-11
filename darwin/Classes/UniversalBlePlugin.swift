@@ -363,7 +363,7 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
       return UniversalBleScanResult(
         deviceId: id,
         name: name,
-        timestamp:  Int64(Date().timeIntervalSince1970 * 1000)
+        timestamp: Int64(Date().timeIntervalSince1970 * 1000)
       )
     }))
   }
@@ -409,7 +409,7 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
     if !universalBleFilterUtil.filterDevice(name: displayName, manufacturerData: universalManufacturerData, services: services) {
       return
     }
-      
+
     callbackChannel.onScanResult(result: UniversalBleScanResult(
       deviceId: peripheral.uuid.uuidString,
       name: displayName,
@@ -417,7 +417,7 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
       rssi: RSSI as? Int64,
       manufacturerDataList: manufacturerDataList,
       services: services?.map { $0.uuidStr },
-      timestamp:  Int64(Date().timeIntervalSince1970 * 1000)
+      timestamp: Int64(Date().timeIntervalSince1970 * 1000)
     )) { _ in }
   }
 
