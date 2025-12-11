@@ -678,6 +678,10 @@ void UniversalBlePlugin::PushUniversalScanResult(
 
   // Filter final result before sending to Flutter
   if (is_connectable && filterDevice(scan_result)) {
+    scan_result.set_timestamp(
+        std::chrono::duration_cast<std::chrono::milliseconds>(
+            std::chrono::system_clock::now().time_since_epoch())
+            .count());
     ui_thread_handler_.Post([scan_result] {
       callback_channel->OnScanResult(scan_result, SuccessCallback,
                                      ErrorCallback);
