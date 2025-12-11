@@ -30,6 +30,8 @@ class ScannedItemWidget extends StatelessWidget {
                 visible: manufacturerData != null,
                 child: Text(manufacturerData.toString()),
               ),
+              if (bleDevice.timestampDateTime != null)
+                Text("Last Seen: ${bleDevice.timestampDateTime}"),
               bleDevice.paired == true
                   ? const Text(
                       "Paired",

@@ -121,6 +121,7 @@ class UniversalBleScanResult {
   final int? rssi;
   final List<UniversalManufacturerData>? manufacturerDataList;
   final List<String>? services;
+  final int? timestamp;
 
   UniversalBleScanResult({
     required this.name,
@@ -129,6 +130,7 @@ class UniversalBleScanResult {
     required this.rssi,
     required this.manufacturerDataList,
     required this.services,
+    required this.timestamp,
   });
 }
 

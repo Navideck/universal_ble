@@ -8,6 +8,7 @@ class BleDevice {
   String? rawName;
   int? rssi;
   bool? paired;
+  int? timestamp;
 
   /// List of services advertised by the device.
   List<String> services;
@@ -38,10 +39,15 @@ class BleDevice {
     this.services = const [],
     this.isSystemDevice,
     this.manufacturerDataList = const [],
+    this.timestamp,
   }) {
     rawName = name;
     this.name = name?.replaceAll(RegExp(r'[^ -~]'), '').trim();
   }
+
+  DateTime? get timestampDateTime => timestamp != null
+      ? DateTime.fromMillisecondsSinceEpoch(timestamp!)
+      : null;
 
   @override
   String toString() {
@@ -52,6 +58,7 @@ class BleDevice {
         'paired: $paired, '
         'services: $services, '
         'isSystemDevice: $isSystemDevice, '
+        'timestamp: $timestamp, '
         'manufacturerDataList: $manufacturerDataList';
   }
 }

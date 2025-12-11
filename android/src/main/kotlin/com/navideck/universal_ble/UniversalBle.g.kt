@@ -159,7 +159,8 @@ data class UniversalBleScanResult (
   val isPaired: Boolean? = null,
   val rssi: Long? = null,
   val manufacturerDataList: List<UniversalManufacturerData>? = null,
-  val services: List<String>? = null
+  val services: List<String>? = null,
+  val timestamp: Long? = null
 )
  {
   companion object {
@@ -170,7 +171,8 @@ data class UniversalBleScanResult (
       val rssi = pigeonVar_list[3] as Long?
       val manufacturerDataList = pigeonVar_list[4] as List<UniversalManufacturerData>?
       val services = pigeonVar_list[5] as List<String>?
-      return UniversalBleScanResult(deviceId, name, isPaired, rssi, manufacturerDataList, services)
+      val timestamp = pigeonVar_list[6] as Long?
+      return UniversalBleScanResult(deviceId, name, isPaired, rssi, manufacturerDataList, services, timestamp)
     }
   }
   fun toList(): List<Any?> {
@@ -181,6 +183,7 @@ data class UniversalBleScanResult (
       rssi,
       manufacturerDataList,
       services,
+      timestamp,
     )
   }
   override fun equals(other: Any?): Boolean {

@@ -24,6 +24,7 @@ import android.content.IntentFilter
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
+import android.os.SystemClock
 import android.util.Log
 import io.flutter.embedding.engine.plugins.FlutterPlugin
 import io.flutter.embedding.engine.plugins.activity.ActivityAware
@@ -761,6 +762,7 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
                         isPaired = it.bondState == BOND_BONDED,
                         manufacturerDataList = null,
                         rssi = null,
+                        timestamp = System.currentTimeMillis()
                     )
                 }
             )
@@ -1020,7 +1022,8 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
                         isPaired = result.device.bondState == BOND_BONDED,
                         manufacturerDataList = manufacturerDataList,
                         rssi = result.rssi.toLong(),
-                        services = serviceUuids.map { it.toString() }.toList()
+                        services = serviceUuids.map { it.toString() }.toList(),
+                        timestamp = System.currentTimeMillis()
                     )
                 ) {}
             }

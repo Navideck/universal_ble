@@ -677,6 +677,7 @@ extension BlueZDeviceExtension on BlueZDevice {
       isSystemDevice: isSystemDevice,
       services: uuids.map((e) => e.toString()).toList(),
       manufacturerDataList: manufacturerDataList,
+      timestamp: DateTime.now().millisecondsSinceEpoch,
     );
   }
 }

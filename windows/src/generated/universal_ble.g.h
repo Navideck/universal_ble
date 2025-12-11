@@ -136,7 +136,8 @@ class UniversalBleScanResult {
     const bool* is_paired,
     const int64_t* rssi,
     const flutter::EncodableList* manufacturer_data_list,
-    const flutter::EncodableList* services);
+    const flutter::EncodableList* services,
+    const int64_t* timestamp);
 
   const std::string& device_id() const;
   void set_device_id(std::string_view value_arg);
@@ -161,6 +162,10 @@ class UniversalBleScanResult {
   void set_services(const flutter::EncodableList* value_arg);
   void set_services(const flutter::EncodableList& value_arg);
 
+  const int64_t* timestamp() const;
+  void set_timestamp(const int64_t* value_arg);
+  void set_timestamp(int64_t value_arg);
+
  private:
   static UniversalBleScanResult FromEncodableList(const flutter::EncodableList& list);
   flutter::EncodableList ToEncodableList() const;
@@ -173,6 +178,7 @@ class UniversalBleScanResult {
   std::optional<int64_t> rssi_;
   std::optional<flutter::EncodableList> manufacturer_data_list_;
   std::optional<flutter::EncodableList> services_;
+  std::optional<int64_t> timestamp_;
 };
 
 

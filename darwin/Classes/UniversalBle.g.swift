@@ -205,6 +205,7 @@ struct UniversalBleScanResult: Hashable {
   var rssi: Int64? = nil
   var manufacturerDataList: [UniversalManufacturerData]? = nil
   var services: [String]? = nil
+  var timestamp: Int64? = nil
 
 
   // swift-format-ignore: AlwaysUseLowerCamelCase
@@ -215,6 +216,7 @@ struct UniversalBleScanResult: Hashable {
     let rssi: Int64? = nilOrValue(pigeonVar_list[3])
     let manufacturerDataList: [UniversalManufacturerData]? = nilOrValue(pigeonVar_list[4])
     let services: [String]? = nilOrValue(pigeonVar_list[5])
+    let timestamp: Int64? = nilOrValue(pigeonVar_list[6])
 
     return UniversalBleScanResult(
       deviceId: deviceId,
@@ -222,7 +224,8 @@ struct UniversalBleScanResult: Hashable {
       isPaired: isPaired,
       rssi: rssi,
       manufacturerDataList: manufacturerDataList,
-      services: services
+      services: services,
+      timestamp: timestamp
     )
   }
   func toList() -> [Any?] {
@@ -233,6 +236,7 @@ struct UniversalBleScanResult: Hashable {
       rssi,
       manufacturerDataList,
       services,
+      timestamp,
     ]
   }
   static func == (lhs: UniversalBleScanResult, rhs: UniversalBleScanResult) -> Bool {
