@@ -499,6 +499,7 @@ extension _BluetoothDeviceExtension on BluetoothDevice {
       manufacturerDataList: manufacturerDataMap?.toManufacturerDataList() ?? [],
       rssi: rssi,
       services: services,
+      timestamp: DateTime.now().millisecondsSinceEpoch,
     );
   }
 }

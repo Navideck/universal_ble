@@ -362,7 +362,8 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
       let name = advertisementNameCache[id] ?? discoveredPeripherals[id]?.name ?? peripheral.name ?? ""
       return UniversalBleScanResult(
         deviceId: id,
-        name: name
+        name: name,
+        timestamp: Int64(Date().timeIntervalSince1970 * 1000)
       )
     }))
   }
@@ -415,7 +416,8 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
       isPaired: nil,
       rssi: RSSI as? Int64,
       manufacturerDataList: manufacturerDataList,
-      services: services?.map { $0.uuidStr }
+      services: services?.map { $0.uuidStr },
+      timestamp: Int64(Date().timeIntervalSince1970 * 1000)
     )) { _ in }
   }
 
