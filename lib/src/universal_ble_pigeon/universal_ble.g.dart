@@ -15,7 +15,8 @@ PlatformException _createConnectionError(String channelName) {
   );
 }
 
-List<Object?> wrapResponse({Object? result, PlatformException? error, bool empty = false}) {
+List<Object?> wrapResponse(
+    {Object? result, PlatformException? error, bool empty = false}) {
   if (empty) {
     return <Object?>[];
   }
@@ -24,20 +25,21 @@ List<Object?> wrapResponse({Object? result, PlatformException? error, bool empty
   }
   return <Object?>[error.code, error.message, error.details];
 }
+
 bool _deepEquals(Object? a, Object? b) {
   if (a is List && b is List) {
     return a.length == b.length &&
         a.indexed
-        .every(((int, dynamic) item) => _deepEquals(item.$2, b[item.$1]));
+            .every(((int, dynamic) item) => _deepEquals(item.$2, b[item.$1]));
   }
   if (a is Map && b is Map) {
-    return a.length == b.length && a.entries.every((MapEntry<Object?, Object?> entry) =>
-        (b as Map<Object?, Object?>).containsKey(entry.key) &&
-        _deepEquals(entry.value, b[entry.key]));
+    return a.length == b.length &&
+        a.entries.every((MapEntry<Object?, Object?> entry) =>
+            (b as Map<Object?, Object?>).containsKey(entry.key) &&
+            _deepEquals(entry.value, b[entry.key]));
   }
   return a == b;
 }
-
 
 /// Unified error codes for all platforms
 enum UniversalBleErrorCode {
@@ -142,7 +144,8 @@ class UniversalBleScanResult {
   }
 
   Object encode() {
-    return _toList();  }
+    return _toList();
+  }
 
   static UniversalBleScanResult decode(Object result) {
     result as List<Object?>;
@@ -151,7 +154,8 @@ class UniversalBleScanResult {
       name: result[1] as String?,
       isPaired: result[2] as bool?,
       rssi: result[3] as int?,
-      manufacturerDataList: (result[4] as List<Object?>?)?.cast<UniversalManufacturerData>(),
+      manufacturerDataList:
+          (result[4] as List<Object?>?)?.cast<UniversalManufacturerData>(),
       services: (result[5] as List<Object?>?)?.cast<String>(),
       timestamp: result[6] as int?,
     );
@@ -171,8 +175,7 @@ class UniversalBleScanResult {
 
   @override
   // ignore: avoid_equals_and_hash_code_on_mutable_classes
-  int get hashCode => Object.hashAll(_toList())
-;
+  int get hashCode => Object.hashAll(_toList());
 }
 
 class UniversalBleService {
@@ -193,13 +196,15 @@ class UniversalBleService {
   }
 
   Object encode() {
-    return _toList();  }
+    return _toList();
+  }
 
   static UniversalBleService decode(Object result) {
     result as List<Object?>;
     return UniversalBleService(
       uuid: result[0]! as String,
-      characteristics: (result[1] as List<Object?>?)?.cast<UniversalBleCharacteristic>(),
+      characteristics:
+          (result[1] as List<Object?>?)?.cast<UniversalBleCharacteristic>(),
     );
   }
 
@@ -217,8 +222,7 @@ class UniversalBleService {
 
   @override
   // ignore: avoid_equals_and_hash_code_on_mutable_classes
-  int get hashCode => Object.hashAll(_toList())
-;
+  int get hashCode => Object.hashAll(_toList());
 }
 
 class UniversalBleCharacteristic {
@@ -243,21 +247,24 @@ class UniversalBleCharacteristic {
   }
 
   Object encode() {
-    return _toList();  }
+    return _toList();
+  }
 
   static UniversalBleCharacteristic decode(Object result) {
     result as List<Object?>;
     return UniversalBleCharacteristic(
       uuid: result[0]! as String,
       properties: (result[1] as List<Object?>?)!.cast<int>(),
-      descriptors: (result[2] as List<Object?>?)!.cast<UniversalBleDescriptor>(),
+      descriptors:
+          (result[2] as List<Object?>?)!.cast<UniversalBleDescriptor>(),
     );
   }
 
   @override
   // ignore: avoid_equals_and_hash_code_on_mutable_classes
   bool operator ==(Object other) {
-    if (other is! UniversalBleCharacteristic || other.runtimeType != runtimeType) {
+    if (other is! UniversalBleCharacteristic ||
+        other.runtimeType != runtimeType) {
       return false;
     }
     if (identical(this, other)) {
@@ -268,8 +275,7 @@ class UniversalBleCharacteristic {
 
   @override
   // ignore: avoid_equals_and_hash_code_on_mutable_classes
-  int get hashCode => Object.hashAll(_toList())
-;
+  int get hashCode => Object.hashAll(_toList());
 }
 
 class UniversalBleDescriptor {
@@ -286,7 +292,8 @@ class UniversalBleDescriptor {
   }
 
   Object encode() {
-    return _toList();  }
+    return _toList();
+  }
 
   static UniversalBleDescriptor decode(Object result) {
     result as List<Object?>;
@@ -309,8 +316,7 @@ class UniversalBleDescriptor {
 
   @override
   // ignore: avoid_equals_and_hash_code_on_mutable_classes
-  int get hashCode => Object.hashAll(_toList())
-;
+  int get hashCode => Object.hashAll(_toList());
 }
 
 /// Scan Filters
@@ -336,14 +342,16 @@ class UniversalScanFilter {
   }
 
   Object encode() {
-    return _toList();  }
+    return _toList();
+  }
 
   static UniversalScanFilter decode(Object result) {
     result as List<Object?>;
     return UniversalScanFilter(
       withServices: (result[0] as List<Object?>?)!.cast<String>(),
       withNamePrefix: (result[1] as List<Object?>?)!.cast<String>(),
-      withManufacturerData: (result[2] as List<Object?>?)!.cast<UniversalManufacturerDataFilter>(),
+      withManufacturerData: (result[2] as List<Object?>?)!
+          .cast<UniversalManufacturerDataFilter>(),
     );
   }
 
@@ -361,8 +369,7 @@ class UniversalScanFilter {
 
   @override
   // ignore: avoid_equals_and_hash_code_on_mutable_classes
-  int get hashCode => Object.hashAll(_toList())
-;
+  int get hashCode => Object.hashAll(_toList());
 }
 
 class UniversalManufacturerDataFilter {
@@ -387,7 +394,8 @@ class UniversalManufacturerDataFilter {
   }
 
   Object encode() {
-    return _toList();  }
+    return _toList();
+  }
 
   static UniversalManufacturerDataFilter decode(Object result) {
     result as List<Object?>;
@@ -401,7 +409,8 @@ class UniversalManufacturerDataFilter {
   @override
   // ignore: avoid_equals_and_hash_code_on_mutable_classes
   bool operator ==(Object other) {
-    if (other is! UniversalManufacturerDataFilter || other.runtimeType != runtimeType) {
+    if (other is! UniversalManufacturerDataFilter ||
+        other.runtimeType != runtimeType) {
       return false;
     }
     if (identical(this, other)) {
@@ -412,8 +421,7 @@ class UniversalManufacturerDataFilter {
 
   @override
   // ignore: avoid_equals_and_hash_code_on_mutable_classes
-  int get hashCode => Object.hashAll(_toList())
-;
+  int get hashCode => Object.hashAll(_toList());
 }
 
 class UniversalManufacturerData {
@@ -434,7 +442,8 @@ class UniversalManufacturerData {
   }
 
   Object encode() {
-    return _toList();  }
+    return _toList();
+  }
 
   static UniversalManufacturerData decode(Object result) {
     result as List<Object?>;
@@ -447,7 +456,8 @@ class UniversalManufacturerData {
   @override
   // ignore: avoid_equals_and_hash_code_on_mutable_classes
   bool operator ==(Object other) {
-    if (other is! UniversalManufacturerData || other.runtimeType != runtimeType) {
+    if (other is! UniversalManufacturerData ||
+        other.runtimeType != runtimeType) {
       return false;
     }
     if (identical(this, other)) {
@@ -458,10 +468,8 @@ class UniversalManufacturerData {
 
   @override
   // ignore: avoid_equals_and_hash_code_on_mutable_classes
-  int get hashCode => Object.hashAll(_toList())
-;
+  int get hashCode => Object.hashAll(_toList());
 }
-
 
 class _PigeonCodec extends StandardMessageCodec {
   const _PigeonCodec();
@@ -470,28 +478,28 @@ class _PigeonCodec extends StandardMessageCodec {
     if (value is int) {
       buffer.putUint8(4);
       buffer.putInt64(value);
-    }    else if (value is UniversalBleErrorCode) {
+    } else if (value is UniversalBleErrorCode) {
       buffer.putUint8(129);
       writeValue(buffer, value.index);
-    }    else if (value is UniversalBleScanResult) {
+    } else if (value is UniversalBleScanResult) {
       buffer.putUint8(130);
       writeValue(buffer, value.encode());
-    }    else if (value is UniversalBleService) {
+    } else if (value is UniversalBleService) {
       buffer.putUint8(131);
       writeValue(buffer, value.encode());
-    }    else if (value is UniversalBleCharacteristic) {
+    } else if (value is UniversalBleCharacteristic) {
       buffer.putUint8(132);
       writeValue(buffer, value.encode());
-    }    else if (value is UniversalBleDescriptor) {
+    } else if (value is UniversalBleDescriptor) {
       buffer.putUint8(133);
       writeValue(buffer, value.encode());
-    }    else if (value is UniversalScanFilter) {
+    } else if (value is UniversalScanFilter) {
       buffer.putUint8(134);
       writeValue(buffer, value.encode());
-    }    else if (value is UniversalManufacturerDataFilter) {
+    } else if (value is UniversalManufacturerDataFilter) {
       buffer.putUint8(135);
       writeValue(buffer, value.encode());
-    }    else if (value is UniversalManufacturerData) {
+    } else if (value is UniversalManufacturerData) {
       buffer.putUint8(136);
       writeValue(buffer, value.encode());
     } else {
@@ -502,22 +510,22 @@ class _PigeonCodec extends StandardMessageCodec {
   @override
   Object? readValueOfType(int type, ReadBuffer buffer) {
     switch (type) {
-      case 129: 
+      case 129:
         final value = readValue(buffer) as int?;
         return value == null ? null : UniversalBleErrorCode.values[value];
-      case 130: 
+      case 130:
         return UniversalBleScanResult.decode(readValue(buffer)!);
-      case 131: 
+      case 131:
         return UniversalBleService.decode(readValue(buffer)!);
-      case 132: 
+      case 132:
         return UniversalBleCharacteristic.decode(readValue(buffer)!);
-      case 133: 
+      case 133:
         return UniversalBleDescriptor.decode(readValue(buffer)!);
-      case 134: 
+      case 134:
         return UniversalScanFilter.decode(readValue(buffer)!);
-      case 135: 
+      case 135:
         return UniversalManufacturerDataFilter.decode(readValue(buffer)!);
-      case 136: 
+      case 136:
         return UniversalManufacturerData.decode(readValue(buffer)!);
       default:
         return super.readValueOfType(type, buffer);
@@ -530,9 +538,11 @@ class UniversalBlePlatformChannel {
   /// Constructor for [UniversalBlePlatformChannel].  The [binaryMessenger] named argument is
   /// available for dependency injection.  If it is left null, the default
   /// BinaryMessenger will be used which routes to the host platform.
-  UniversalBlePlatformChannel({BinaryMessenger? binaryMessenger, String messageChannelSuffix = ''})
+  UniversalBlePlatformChannel(
+      {BinaryMessenger? binaryMessenger, String messageChannelSuffix = ''})
       : pigeonVar_binaryMessenger = binaryMessenger,
-        pigeonVar_messageChannelSuffix = messageChannelSuffix.isNotEmpty ? '.$messageChannelSuffix' : '';
+        pigeonVar_messageChannelSuffix =
+            messageChannelSuffix.isNotEmpty ? '.$messageChannelSuffix' : '';
   final BinaryMessenger? pigeonVar_binaryMessenger;
 
   static const MessageCodec<Object?> pigeonChannelCodec = _PigeonCodec();
@@ -540,7 +550,8 @@ class UniversalBlePlatformChannel {
   final String pigeonVar_messageChannelSuffix;
 
   Future<int> getBluetoothAvailabilityState() async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.universal_ble.UniversalBlePlatformChannel.getBluetoothAvailabilityState$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.universal_ble.UniversalBlePlatformChannel.getBluetoothAvailabilityState$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
@@ -567,13 +578,15 @@ class UniversalBlePlatformChannel {
   }
 
   Future<void> requestPermissions(bool withAndroidFineLocation) async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.universal_ble.UniversalBlePlatformChannel.requestPermissions$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.universal_ble.UniversalBlePlatformChannel.requestPermissions$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[withAndroidFineLocation]);
+    final Future<Object?> pigeonVar_sendFuture =
+        pigeonVar_channel.send(<Object?>[withAndroidFineLocation]);
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
     if (pigeonVar_replyList == null) {
       throw _createConnectionError(pigeonVar_channelName);
@@ -589,7 +602,8 @@ class UniversalBlePlatformChannel {
   }
 
   Future<bool> enableBluetooth() async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.universal_ble.UniversalBlePlatformChannel.enableBluetooth$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.universal_ble.UniversalBlePlatformChannel.enableBluetooth$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
@@ -616,7 +630,8 @@ class UniversalBlePlatformChannel {
   }
 
   Future<bool> disableBluetooth() async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.universal_ble.UniversalBlePlatformChannel.disableBluetooth$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.universal_ble.UniversalBlePlatformChannel.disableBluetooth$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
@@ -643,13 +658,15 @@ class UniversalBlePlatformChannel {
   }
 
   Future<void> startScan(UniversalScanFilter? filter) async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.universal_ble.UniversalBlePlatformChannel.startScan$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.universal_ble.UniversalBlePlatformChannel.startScan$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[filter]);
+    final Future<Object?> pigeonVar_sendFuture =
+        pigeonVar_channel.send(<Object?>[filter]);
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
     if (pigeonVar_replyList == null) {
       throw _createConnectionError(pigeonVar_channelName);
@@ -665,7 +682,8 @@ class UniversalBlePlatformChannel {
   }
 
   Future<void> stopScan() async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.universal_ble.UniversalBlePlatformChannel.stopScan$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.universal_ble.UniversalBlePlatformChannel.stopScan$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
@@ -687,7 +705,8 @@ class UniversalBlePlatformChannel {
   }
 
   Future<bool> isScanning() async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.universal_ble.UniversalBlePlatformChannel.isScanning$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.universal_ble.UniversalBlePlatformChannel.isScanning$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
@@ -714,13 +733,15 @@ class UniversalBlePlatformChannel {
   }
 
   Future<void> connect(String deviceId) async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.universal_ble.UniversalBlePlatformChannel.connect$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.universal_ble.UniversalBlePlatformChannel.connect$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[deviceId]);
+    final Future<Object?> pigeonVar_sendFuture =
+        pigeonVar_channel.send(<Object?>[deviceId]);
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
     if (pigeonVar_replyList == null) {
       throw _createConnectionError(pigeonVar_channelName);
@@ -736,13 +757,15 @@ class UniversalBlePlatformChannel {
   }
 
   Future<void> disconnect(String deviceId) async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.universal_ble.UniversalBlePlatformChannel.disconnect$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.universal_ble.UniversalBlePlatformChannel.disconnect$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[deviceId]);
+    final Future<Object?> pigeonVar_sendFuture =
+        pigeonVar_channel.send(<Object?>[deviceId]);
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
     if (pigeonVar_replyList == null) {
       throw _createConnectionError(pigeonVar_channelName);
@@ -757,14 +780,17 @@ class UniversalBlePlatformChannel {
     }
   }
 
-  Future<void> setNotifiable(String deviceId, String service, String characteristic, int bleInputProperty) async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.universal_ble.UniversalBlePlatformChannel.setNotifiable$pigeonVar_messageChannelSuffix';
+  Future<void> setNotifiable(String deviceId, String service,
+      String characteristic, int bleInputProperty) async {
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.universal_ble.UniversalBlePlatformChannel.setNotifiable$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[deviceId, service, characteristic, bleInputProperty]);
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel
+        .send(<Object?>[deviceId, service, characteristic, bleInputProperty]);
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
     if (pigeonVar_replyList == null) {
       throw _createConnectionError(pigeonVar_channelName);
@@ -779,14 +805,17 @@ class UniversalBlePlatformChannel {
     }
   }
 
-  Future<List<UniversalBleService>> discoverServices(String deviceId, bool withDescriptors) async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.universal_ble.UniversalBlePlatformChannel.discoverServices$pigeonVar_messageChannelSuffix';
+  Future<List<UniversalBleService>> discoverServices(
+      String deviceId, bool withDescriptors) async {
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.universal_ble.UniversalBlePlatformChannel.discoverServices$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[deviceId, withDescriptors]);
+    final Future<Object?> pigeonVar_sendFuture =
+        pigeonVar_channel.send(<Object?>[deviceId, withDescriptors]);
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
     if (pigeonVar_replyList == null) {
       throw _createConnectionError(pigeonVar_channelName);
@@ -802,18 +831,22 @@ class UniversalBlePlatformChannel {
         message: 'Host platform returned null value for non-null return value.',
       );
     } else {
-      return (pigeonVar_replyList[0] as List<Object?>?)!.cast<UniversalBleService>();
+      return (pigeonVar_replyList[0] as List<Object?>?)!
+          .cast<UniversalBleService>();
     }
   }
 
-  Future<Uint8List> readValue(String deviceId, String service, String characteristic) async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.universal_ble.UniversalBlePlatformChannel.readValue$pigeonVar_messageChannelSuffix';
+  Future<Uint8List> readValue(
+      String deviceId, String service, String characteristic) async {
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.universal_ble.UniversalBlePlatformChannel.readValue$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[deviceId, service, characteristic]);
+    final Future<Object?> pigeonVar_sendFuture =
+        pigeonVar_channel.send(<Object?>[deviceId, service, characteristic]);
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
     if (pigeonVar_replyList == null) {
       throw _createConnectionError(pigeonVar_channelName);
@@ -834,13 +867,15 @@ class UniversalBlePlatformChannel {
   }
 
   Future<int> requestMtu(String deviceId, int expectedMtu) async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.universal_ble.UniversalBlePlatformChannel.requestMtu$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.universal_ble.UniversalBlePlatformChannel.requestMtu$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[deviceId, expectedMtu]);
+    final Future<Object?> pigeonVar_sendFuture =
+        pigeonVar_channel.send(<Object?>[deviceId, expectedMtu]);
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
     if (pigeonVar_replyList == null) {
       throw _createConnectionError(pigeonVar_channelName);
@@ -860,14 +895,17 @@ class UniversalBlePlatformChannel {
     }
   }
 
-  Future<void> writeValue(String deviceId, String service, String characteristic, Uint8List value, int bleOutputProperty) async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.universal_ble.UniversalBlePlatformChannel.writeValue$pigeonVar_messageChannelSuffix';
+  Future<void> writeValue(String deviceId, String service,
+      String characteristic, Uint8List value, int bleOutputProperty) async {
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.universal_ble.UniversalBlePlatformChannel.writeValue$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[deviceId, service, characteristic, value, bleOutputProperty]);
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
+        <Object?>[deviceId, service, characteristic, value, bleOutputProperty]);
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
     if (pigeonVar_replyList == null) {
       throw _createConnectionError(pigeonVar_channelName);
@@ -883,13 +921,15 @@ class UniversalBlePlatformChannel {
   }
 
   Future<bool> isPaired(String deviceId) async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.universal_ble.UniversalBlePlatformChannel.isPaired$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.universal_ble.UniversalBlePlatformChannel.isPaired$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[deviceId]);
+    final Future<Object?> pigeonVar_sendFuture =
+        pigeonVar_channel.send(<Object?>[deviceId]);
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
     if (pigeonVar_replyList == null) {
       throw _createConnectionError(pigeonVar_channelName);
@@ -910,13 +950,15 @@ class UniversalBlePlatformChannel {
   }
 
   Future<bool> pair(String deviceId) async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.universal_ble.UniversalBlePlatformChannel.pair$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.universal_ble.UniversalBlePlatformChannel.pair$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[deviceId]);
+    final Future<Object?> pigeonVar_sendFuture =
+        pigeonVar_channel.send(<Object?>[deviceId]);
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
     if (pigeonVar_replyList == null) {
       throw _createConnectionError(pigeonVar_channelName);
@@ -937,13 +979,15 @@ class UniversalBlePlatformChannel {
   }
 
   Future<void> unPair(String deviceId) async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.universal_ble.UniversalBlePlatformChannel.unPair$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.universal_ble.UniversalBlePlatformChannel.unPair$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[deviceId]);
+    final Future<Object?> pigeonVar_sendFuture =
+        pigeonVar_channel.send(<Object?>[deviceId]);
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
     if (pigeonVar_replyList == null) {
       throw _createConnectionError(pigeonVar_channelName);
@@ -958,14 +1002,17 @@ class UniversalBlePlatformChannel {
     }
   }
 
-  Future<List<UniversalBleScanResult>> getSystemDevices(List<String> withServices) async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.universal_ble.UniversalBlePlatformChannel.getSystemDevices$pigeonVar_messageChannelSuffix';
+  Future<List<UniversalBleScanResult>> getSystemDevices(
+      List<String> withServices) async {
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.universal_ble.UniversalBlePlatformChannel.getSystemDevices$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[withServices]);
+    final Future<Object?> pigeonVar_sendFuture =
+        pigeonVar_channel.send(<Object?>[withServices]);
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
     if (pigeonVar_replyList == null) {
       throw _createConnectionError(pigeonVar_channelName);
@@ -981,18 +1028,21 @@ class UniversalBlePlatformChannel {
         message: 'Host platform returned null value for non-null return value.',
       );
     } else {
-      return (pigeonVar_replyList[0] as List<Object?>?)!.cast<UniversalBleScanResult>();
+      return (pigeonVar_replyList[0] as List<Object?>?)!
+          .cast<UniversalBleScanResult>();
     }
   }
 
   Future<int> getConnectionState(String deviceId) async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.universal_ble.UniversalBlePlatformChannel.getConnectionState$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.universal_ble.UniversalBlePlatformChannel.getConnectionState$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[deviceId]);
+    final Future<Object?> pigeonVar_sendFuture =
+        pigeonVar_channel.send(<Object?>[deviceId]);
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
     if (pigeonVar_replyList == null) {
       throw _createConnectionError(pigeonVar_channelName);
@@ -1023,22 +1073,29 @@ abstract class UniversalBleCallbackChannel {
 
   void onScanResult(UniversalBleScanResult result);
 
-  void onValueChanged(String deviceId, String characteristicId, Uint8List value);
+  void onValueChanged(
+      String deviceId, String characteristicId, Uint8List value);
 
   void onConnectionChanged(String deviceId, bool connected, String? error);
 
-  static void setUp(UniversalBleCallbackChannel? api, {BinaryMessenger? binaryMessenger, String messageChannelSuffix = '',}) {
-    messageChannelSuffix = messageChannelSuffix.isNotEmpty ? '.$messageChannelSuffix' : '';
+  static void setUp(
+    UniversalBleCallbackChannel? api, {
+    BinaryMessenger? binaryMessenger,
+    String messageChannelSuffix = '',
+  }) {
+    messageChannelSuffix =
+        messageChannelSuffix.isNotEmpty ? '.$messageChannelSuffix' : '';
     {
       final pigeonVar_channel = BasicMessageChannel<Object?>(
-          'dev.flutter.pigeon.universal_ble.UniversalBleCallbackChannel.onAvailabilityChanged$messageChannelSuffix', pigeonChannelCodec,
+          'dev.flutter.pigeon.universal_ble.UniversalBleCallbackChannel.onAvailabilityChanged$messageChannelSuffix',
+          pigeonChannelCodec,
           binaryMessenger: binaryMessenger);
       if (api == null) {
         pigeonVar_channel.setMessageHandler(null);
       } else {
         pigeonVar_channel.setMessageHandler((Object? message) async {
           assert(message != null,
-          'Argument for dev.flutter.pigeon.universal_ble.UniversalBleCallbackChannel.onAvailabilityChanged was null.');
+              'Argument for dev.flutter.pigeon.universal_ble.UniversalBleCallbackChannel.onAvailabilityChanged was null.');
           final List<Object?> args = (message as List<Object?>?)!;
           final int? arg_state = (args[0] as int?);
           assert(arg_state != null,
@@ -1048,22 +1105,24 @@ abstract class UniversalBleCallbackChannel {
             return wrapResponse(empty: true);
           } on PlatformException catch (e) {
             return wrapResponse(error: e);
-          }          catch (e) {
-            return wrapResponse(error: PlatformException(code: 'error', message: e.toString()));
+          } catch (e) {
+            return wrapResponse(
+                error: PlatformException(code: 'error', message: e.toString()));
           }
         });
       }
     }
     {
       final pigeonVar_channel = BasicMessageChannel<Object?>(
-          'dev.flutter.pigeon.universal_ble.UniversalBleCallbackChannel.onPairStateChange$messageChannelSuffix', pigeonChannelCodec,
+          'dev.flutter.pigeon.universal_ble.UniversalBleCallbackChannel.onPairStateChange$messageChannelSuffix',
+          pigeonChannelCodec,
           binaryMessenger: binaryMessenger);
       if (api == null) {
         pigeonVar_channel.setMessageHandler(null);
       } else {
         pigeonVar_channel.setMessageHandler((Object? message) async {
           assert(message != null,
-          'Argument for dev.flutter.pigeon.universal_ble.UniversalBleCallbackChannel.onPairStateChange was null.');
+              'Argument for dev.flutter.pigeon.universal_ble.UniversalBleCallbackChannel.onPairStateChange was null.');
           final List<Object?> args = (message as List<Object?>?)!;
           final String? arg_deviceId = (args[0] as String?);
           assert(arg_deviceId != null,
@@ -1077,24 +1136,27 @@ abstract class UniversalBleCallbackChannel {
             return wrapResponse(empty: true);
           } on PlatformException catch (e) {
             return wrapResponse(error: e);
-          }          catch (e) {
-            return wrapResponse(error: PlatformException(code: 'error', message: e.toString()));
+          } catch (e) {
+            return wrapResponse(
+                error: PlatformException(code: 'error', message: e.toString()));
           }
         });
       }
     }
     {
       final pigeonVar_channel = BasicMessageChannel<Object?>(
-          'dev.flutter.pigeon.universal_ble.UniversalBleCallbackChannel.onScanResult$messageChannelSuffix', pigeonChannelCodec,
+          'dev.flutter.pigeon.universal_ble.UniversalBleCallbackChannel.onScanResult$messageChannelSuffix',
+          pigeonChannelCodec,
           binaryMessenger: binaryMessenger);
       if (api == null) {
         pigeonVar_channel.setMessageHandler(null);
       } else {
         pigeonVar_channel.setMessageHandler((Object? message) async {
           assert(message != null,
-          'Argument for dev.flutter.pigeon.universal_ble.UniversalBleCallbackChannel.onScanResult was null.');
+              'Argument for dev.flutter.pigeon.universal_ble.UniversalBleCallbackChannel.onScanResult was null.');
           final List<Object?> args = (message as List<Object?>?)!;
-          final UniversalBleScanResult? arg_result = (args[0] as UniversalBleScanResult?);
+          final UniversalBleScanResult? arg_result =
+              (args[0] as UniversalBleScanResult?);
           assert(arg_result != null,
               'Argument for dev.flutter.pigeon.universal_ble.UniversalBleCallbackChannel.onScanResult was null, expected non-null UniversalBleScanResult.');
           try {
@@ -1102,22 +1164,24 @@ abstract class UniversalBleCallbackChannel {
             return wrapResponse(empty: true);
           } on PlatformException catch (e) {
             return wrapResponse(error: e);
-          }          catch (e) {
-            return wrapResponse(error: PlatformException(code: 'error', message: e.toString()));
+          } catch (e) {
+            return wrapResponse(
+                error: PlatformException(code: 'error', message: e.toString()));
           }
         });
       }
     }
     {
       final pigeonVar_channel = BasicMessageChannel<Object?>(
-          'dev.flutter.pigeon.universal_ble.UniversalBleCallbackChannel.onValueChanged$messageChannelSuffix', pigeonChannelCodec,
+          'dev.flutter.pigeon.universal_ble.UniversalBleCallbackChannel.onValueChanged$messageChannelSuffix',
+          pigeonChannelCodec,
           binaryMessenger: binaryMessenger);
       if (api == null) {
         pigeonVar_channel.setMessageHandler(null);
       } else {
         pigeonVar_channel.setMessageHandler((Object? message) async {
           assert(message != null,
-          'Argument for dev.flutter.pigeon.universal_ble.UniversalBleCallbackChannel.onValueChanged was null.');
+              'Argument for dev.flutter.pigeon.universal_ble.UniversalBleCallbackChannel.onValueChanged was null.');
           final List<Object?> args = (message as List<Object?>?)!;
           final String? arg_deviceId = (args[0] as String?);
           assert(arg_deviceId != null,
@@ -1129,26 +1193,29 @@ abstract class UniversalBleCallbackChannel {
           assert(arg_value != null,
               'Argument for dev.flutter.pigeon.universal_ble.UniversalBleCallbackChannel.onValueChanged was null, expected non-null Uint8List.');
           try {
-            api.onValueChanged(arg_deviceId!, arg_characteristicId!, arg_value!);
+            api.onValueChanged(
+                arg_deviceId!, arg_characteristicId!, arg_value!);
             return wrapResponse(empty: true);
           } on PlatformException catch (e) {
             return wrapResponse(error: e);
-          }          catch (e) {
-            return wrapResponse(error: PlatformException(code: 'error', message: e.toString()));
+          } catch (e) {
+            return wrapResponse(
+                error: PlatformException(code: 'error', message: e.toString()));
           }
         });
       }
     }
     {
       final pigeonVar_channel = BasicMessageChannel<Object?>(
-          'dev.flutter.pigeon.universal_ble.UniversalBleCallbackChannel.onConnectionChanged$messageChannelSuffix', pigeonChannelCodec,
+          'dev.flutter.pigeon.universal_ble.UniversalBleCallbackChannel.onConnectionChanged$messageChannelSuffix',
+          pigeonChannelCodec,
           binaryMessenger: binaryMessenger);
       if (api == null) {
         pigeonVar_channel.setMessageHandler(null);
       } else {
         pigeonVar_channel.setMessageHandler((Object? message) async {
           assert(message != null,
-          'Argument for dev.flutter.pigeon.universal_ble.UniversalBleCallbackChannel.onConnectionChanged was null.');
+              'Argument for dev.flutter.pigeon.universal_ble.UniversalBleCallbackChannel.onConnectionChanged was null.');
           final List<Object?> args = (message as List<Object?>?)!;
           final String? arg_deviceId = (args[0] as String?);
           assert(arg_deviceId != null,
@@ -1162,8 +1229,9 @@ abstract class UniversalBleCallbackChannel {
             return wrapResponse(empty: true);
           } on PlatformException catch (e) {
             return wrapResponse(error: e);
-          }          catch (e) {
-            return wrapResponse(error: PlatformException(code: 'error', message: e.toString()));
+          } catch (e) {
+            return wrapResponse(
+                error: PlatformException(code: 'error', message: e.toString()));
           }
         });
       }
