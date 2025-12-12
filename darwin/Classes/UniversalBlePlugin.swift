@@ -359,7 +359,7 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
     if servicesFilter.isEmpty {
       UniversalBleLogger.shared.logInfo("No services filter was set for getting system connected devices. Using default services...")
 
-      // Add several generic servicesƒ
+      // Add several generic services
       servicesFilter = ["1800", "1801", "180A", "180D", "1810", "181B", "1808", "181D", "1816", "1814", "181A", "1802", "1803", "1804", "1815", "1805", "1807", "1806", "1848", "185E", "180F", "1812", "180E", "1813"]
     }
     let filterCBUUID = servicesFilter.map { CBUUID(string: $0) }

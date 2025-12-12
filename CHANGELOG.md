@@ -1,5 +1,6 @@
 ## 1.0.0
 * BREAKING CHANGE: `OnValueChange` callback also includes timestamp
+* Fix Windows 11 crash on cancelling pairing
 * Unified error codes for all platforms
 * Add `isScanning` api
 * Add `requestPermissions` api and auto ask permission on `startScan`
@@ -7,6 +8,7 @@
 * Improve Windows disconnection event handling and cleanup
 * Add `withDescriptors` parameter in `discoverServices` API
 * Add `timestamp` in `BleDevice` 
+* Add `setLogLevel` api for configuring logs
 
 ## 0.21.1
 * Fix device name resolution on Windows
