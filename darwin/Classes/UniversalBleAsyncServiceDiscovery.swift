@@ -30,7 +30,7 @@ class UniversalBleAsyncServiceDiscovery: NSObject {
     /// Starts the service discovery process
     func startDiscovery() {
         guard !isDiscoveryInProgress else {
-            print("Service discovery already in progress for device: \(deviceId)")
+            UniversalBleLogger.shared.logWarning("Service discovery already in progress for device: \(deviceId)")
             return
         }
         isDiscoveryInProgress = true

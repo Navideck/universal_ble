@@ -24,6 +24,14 @@ class UniversalBle {
     _bleCommandQueue.timeout = duration;
   }
 
+  /// Set log level for both Dart and native implementations.
+  /// Only effective in debug builds.
+  static Future<void> setLogLevel(BleLogLevel logLevel) async {
+    if (!kDebugMode) return;
+    UniversalLogger.setLogLevel(logLevel);
+    await _platform.setLogLevel(logLevel);
+  }
+
   /// Set how commands will be executed. By default, all commands are executed in a global queue (`QueueType.global`),
   /// with each command waiting for the previous one to finish.
   ///

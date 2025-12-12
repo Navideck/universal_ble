@@ -41,6 +41,15 @@ bool _deepEquals(Object? a, Object? b) {
   return a == b;
 }
 
+enum UniversalBleLogLevel {
+  none,
+  error,
+  warning,
+  info,
+  debug,
+  verbose,
+}
+
 /// Unified error codes for all platforms
 enum UniversalBleErrorCode {
   unknownError,
@@ -478,29 +487,32 @@ class _PigeonCodec extends StandardMessageCodec {
     if (value is int) {
       buffer.putUint8(4);
       buffer.putInt64(value);
-    } else if (value is UniversalBleErrorCode) {
+    } else if (value is UniversalBleLogLevel) {
       buffer.putUint8(129);
       writeValue(buffer, value.index);
-    } else if (value is UniversalBleScanResult) {
+    } else if (value is UniversalBleErrorCode) {
       buffer.putUint8(130);
-      writeValue(buffer, value.encode());
-    } else if (value is UniversalBleService) {
+      writeValue(buffer, value.index);
+    } else if (value is UniversalBleScanResult) {
       buffer.putUint8(131);
       writeValue(buffer, value.encode());
-    } else if (value is UniversalBleCharacteristic) {
+    } else if (value is UniversalBleService) {
       buffer.putUint8(132);
       writeValue(buffer, value.encode());
-    } else if (value is UniversalBleDescriptor) {
+    } else if (value is UniversalBleCharacteristic) {
       buffer.putUint8(133);
       writeValue(buffer, value.encode());
-    } else if (value is UniversalScanFilter) {
+    } else if (value is UniversalBleDescriptor) {
       buffer.putUint8(134);
       writeValue(buffer, value.encode());
-    } else if (value is UniversalManufacturerDataFilter) {
+    } else if (value is UniversalScanFilter) {
       buffer.putUint8(135);
       writeValue(buffer, value.encode());
-    } else if (value is UniversalManufacturerData) {
+    } else if (value is UniversalManufacturerDataFilter) {
       buffer.putUint8(136);
+      writeValue(buffer, value.encode());
+    } else if (value is UniversalManufacturerData) {
+      buffer.putUint8(137);
       writeValue(buffer, value.encode());
     } else {
       super.writeValue(buffer, value);
@@ -512,20 +524,23 @@ class _PigeonCodec extends StandardMessageCodec {
     switch (type) {
       case 129:
         final value = readValue(buffer) as int?;
-        return value == null ? null : UniversalBleErrorCode.values[value];
+        return value == null ? null : UniversalBleLogLevel.values[value];
       case 130:
-        return UniversalBleScanResult.decode(readValue(buffer)!);
+        final value = readValue(buffer) as int?;
+        return value == null ? null : UniversalBleErrorCode.values[value];
       case 131:
-        return UniversalBleService.decode(readValue(buffer)!);
+        return UniversalBleScanResult.decode(readValue(buffer)!);
       case 132:
-        return UniversalBleCharacteristic.decode(readValue(buffer)!);
+        return UniversalBleService.decode(readValue(buffer)!);
       case 133:
-        return UniversalBleDescriptor.decode(readValue(buffer)!);
+        return UniversalBleCharacteristic.decode(readValue(buffer)!);
       case 134:
-        return UniversalScanFilter.decode(readValue(buffer)!);
+        return UniversalBleDescriptor.decode(readValue(buffer)!);
       case 135:
-        return UniversalManufacturerDataFilter.decode(readValue(buffer)!);
+        return UniversalScanFilter.decode(readValue(buffer)!);
       case 136:
+        return UniversalManufacturerDataFilter.decode(readValue(buffer)!);
+      case 137:
         return UniversalManufacturerData.decode(readValue(buffer)!);
       default:
         return super.readValueOfType(type, buffer);
@@ -1061,6 +1076,30 @@ class UniversalBlePlatformChannel {
       return (pigeonVar_replyList[0] as int?)!;
     }
   }
+
+  Future<void> setLogLevel(UniversalBleLogLevel logLevel) async {
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.universal_ble.UniversalBlePlatformChannel.setLogLevel$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture =
+        pigeonVar_channel.send(<Object?>[logLevel]);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+    if (pigeonVar_replyList == null) {
+      throw _createConnectionError(pigeonVar_channelName);
+    } else if (pigeonVar_replyList.length > 1) {
+      throw PlatformException(
+        code: pigeonVar_replyList[0]! as String,
+        message: pigeonVar_replyList[1] as String?,
+        details: pigeonVar_replyList[2],
+      );
+    } else {
+      return;
+    }
+  }
 }
 
 /// Native -> Flutter
@@ -1073,8 +1112,8 @@ abstract class UniversalBleCallbackChannel {
 
   void onScanResult(UniversalBleScanResult result);
 
-  void onValueChanged(
-      String deviceId, String characteristicId, Uint8List value);
+  void onValueChanged(String deviceId, String characteristicId, Uint8List value,
+      int? timestamp);
 
   void onConnectionChanged(String deviceId, bool connected, String? error);
 
@@ -1192,9 +1231,10 @@ abstract class UniversalBleCallbackChannel {
           final Uint8List? arg_value = (args[2] as Uint8List?);
           assert(arg_value != null,
               'Argument for dev.flutter.pigeon.universal_ble.UniversalBleCallbackChannel.onValueChanged was null, expected non-null Uint8List.');
+          final int? arg_timestamp = (args[3] as int?);
           try {
-            api.onValueChanged(
-                arg_deviceId!, arg_characteristicId!, arg_value!);
+            api.onValueChanged(arg_deviceId!, arg_characteristicId!, arg_value!,
+                arg_timestamp);
             return wrapResponse(empty: true);
           } on PlatformException catch (e) {
             return wrapResponse(error: e);

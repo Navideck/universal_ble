@@ -164,6 +164,10 @@ class UniversalBlePigeonChannel extends UniversalBlePlatform {
     );
   }
 
+  @override
+  Future<void> setLogLevel(BleLogLevel logLevel) => _executeWithErrorHandling(
+      () => _channel.setLogLevel(logLevel.toUniversalBleLogLevel()));
+
   /// To set listeners
   void _setupListeners() {
     UniversalBleCallbackChannel.setUp(_UniversalBleCallbackHandler(
@@ -253,8 +257,12 @@ class _UniversalBleCallbackHandler extends UniversalBleCallbackChannel {
 
   @override
   void onValueChanged(
-          String deviceId, String characteristicId, Uint8List value) =>
-      valueChanged(deviceId, characteristicId, value);
+    String deviceId,
+    String characteristicId,
+    Uint8List value,
+    int? timestamp,
+  ) =>
+      valueChanged(deviceId, characteristicId, value, timestamp);
 
   @override
   void onPairStateChange(String deviceId, bool isPaired, String? error) =>
@@ -297,4 +305,15 @@ extension _ScanFilterExtension on ScanFilter? {
       withManufacturerData: manufacturerDataFilters ?? [],
     );
   }
+}
+
+extension _BleLogLevelExtension on BleLogLevel {
+  UniversalBleLogLevel toUniversalBleLogLevel() => switch (this) {
+        BleLogLevel.none => UniversalBleLogLevel.none,
+        BleLogLevel.error => UniversalBleLogLevel.error,
+        BleLogLevel.warning => UniversalBleLogLevel.warning,
+        BleLogLevel.info => UniversalBleLogLevel.info,
+        BleLogLevel.debug => UniversalBleLogLevel.debug,
+        BleLogLevel.verbose => UniversalBleLogLevel.verbose,
+      };
 }

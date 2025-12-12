@@ -93,7 +93,7 @@ extension BleDeviceExtension on BleDevice {
   ///
   /// [service] is the UUID of the service.
   /// [preferCached] indicates whether to use cached services. If cache is empty, discoverServices() will be called.
-  /// might throw [NotFoundException]
+  /// might throw [UniversalBleException]
   Future<BleService> getService(
     String service, {
     bool preferCached = true,
@@ -128,7 +128,7 @@ extension BleDeviceExtension on BleDevice {
   /// [service] is the UUID of the service.
   /// [characteristic] is the UUID of the characteristic.
   /// [preferCached] indicates whether to use cached services. If cache is empty, discoverServices() will be called.
-  /// might throw [NotFoundException]
+  /// might throw [UniversalBleException]
   Future<BleCharacteristic> getCharacteristic(
     String characteristic, {
     required String service,

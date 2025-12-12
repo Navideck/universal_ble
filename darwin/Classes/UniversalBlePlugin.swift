@@ -93,7 +93,7 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
     var withServices: [CBUUID] = try filter?.withServices.compactMap { $0 }.toCBUUID() ?? []
 
     if usesCustomFilters {
-      print("Using Custom Filters")
+      UniversalBleLogger.shared.logInfo("Using Custom Filters")
       universalBleFilterUtil.scanFilter = filter
       universalBleFilterUtil.scanFilterServicesUUID = withServices
       withServices = []
@@ -130,6 +130,10 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
     }
 
     return isManageScanning
+  }
+
+  func setLogLevel(logLevel: UniversalBleLogLevel) throws {
+    UniversalBleLogger.shared.setLogLevel(logLevel)
   }
 
   func connect(deviceId: String) throws {
@@ -218,7 +222,7 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
 
     // Check if discovery is already in progress
     if activeServiceDiscoveries[deviceId] != nil {
-      print("Services discovery already in progress for :\(deviceId), waiting for completion.")
+      UniversalBleLogger.shared.logWarning("Services discovery already in progress for :\(deviceId), waiting for completion.")
       discoverServicesFutures.append(DiscoverServicesFuture(deviceId: deviceId, result: completion))
       return
     }
@@ -247,6 +251,7 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
   }
 
   func setNotifiable(deviceId: String, service: String, characteristic: String, bleInputProperty: Int64, completion: @escaping (Result<Void, any Error>) -> Void) {
+    UniversalBleLogger.shared.logDebug("SET_NOTIFY -> \(deviceId) \(service) \(characteristic) input=\(bleInputProperty)")
     guard let peripheral = deviceId.findPeripheral(manager: manager) else {
       completion(Result.failure(createFlutterError(code: .deviceNotFound, message: "Unknown deviceId:\(deviceId)")))
       return
@@ -273,6 +278,7 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
   }
 
   func readValue(deviceId: String, service: String, characteristic: String, completion: @escaping (Result<FlutterStandardTypedData, Error>) -> Void) {
+    UniversalBleLogger.shared.logDebug("READ -> \(deviceId) \(service) \(characteristic)")
     guard let peripheral = deviceId.findPeripheral(manager: manager) else {
       completion(Result.failure(createFlutterError(code: .deviceNotFound, message: "Unknown deviceId:\(self)")))
       return
@@ -290,6 +296,7 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
   }
 
   func writeValue(deviceId: String, service: String, characteristic: String, value: FlutterStandardTypedData, bleOutputProperty: Int64, completion: @escaping (Result<Void, Error>) -> Void) {
+    UniversalBleLogger.shared.logDebug("WRITE -> \(deviceId) \(service) \(characteristic) len=\(value.data.count) property=\(bleOutputProperty)")
     guard let peripheral = deviceId.findPeripheral(manager: manager) else {
       completion(Result.failure(createFlutterError(code: .deviceNotFound, message: "Unknown deviceId:\(self)")))
       return
@@ -324,6 +331,7 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
   }
 
   func requestMtu(deviceId: String, expectedMtu _: Int64, completion: @escaping (Result<Int64, Error>) -> Void) {
+    UniversalBleLogger.shared.logDebug("REQUEST_MTU -> \(deviceId)")
     guard let peripheral = deviceId.findPeripheral(manager: manager) else {
       completion(Result.failure(createFlutterError(code: .deviceNotFound, message: "Unknown deviceId:\(self)")))
       return
@@ -349,7 +357,7 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
   func getSystemDevices(withServices: [String], completion: @escaping (Result<[UniversalBleScanResult], Error>) -> Void) {
     var servicesFilter = withServices
     if servicesFilter.isEmpty {
-      print("No services filter was set for getting system connected devices. Using default services...")
+      UniversalBleLogger.shared.logInfo("No services filter was set for getting system connected devices. Using default services...")
 
       // Add several generic services
       servicesFilter = ["1800", "1801", "180A", "180D", "1810", "181B", "1808", "181D", "1816", "1814", "181A", "1802", "1803", "1804", "1815", "1805", "1807", "1806", "1848", "185E", "180F", "1812", "180E", "1813"]
@@ -461,6 +469,7 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
     characteristicWriteFutures.removeAll { future in
       if future.deviceId == peripheral.uuid.uuidString && future.characteristicId == characteristic.uuid.uuidStr && future.serviceId == characteristic.service?.uuid.uuidStr {
         if let flutterError = error?.toFlutterError() {
+          UniversalBleLogger.shared.logError("WRITE_FAILED <- \(peripheral.uuid.uuidString) \(characteristic.uuid.uuidStr): \(flutterError.message ?? "")")
           future.result(Result.failure(flutterError))
         } else {
           future.result(Result.success({}()))
@@ -475,6 +484,7 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
     characteristicNotifyFutures.removeAll { future in
       if future.deviceId == peripheral.uuid.uuidString && future.characteristicId == characteristic.uuid.uuidStr && future.serviceId == characteristic.service?.uuid.uuidStr {
         if let flutterError = error?.toFlutterError() {
+          UniversalBleLogger.shared.logError("SET_NOTIFY_FAILED <- \(peripheral.uuid.uuidString) \(characteristic.uuid.uuidStr): \(flutterError.message ?? "")")
           future.result(Result.failure(flutterError))
         } else {
           future.result(Result.success({}()))
@@ -486,10 +496,24 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
   }
 
   public func peripheral(_ peripheral: CBPeripheral, didUpdateValueFor characteristic: CBCharacteristic, error: Error?) {
+    if let error {
+      UniversalBleLogger.shared.logError("NOTIFY_ERROR <- \(peripheral.uuid.uuidString) \(characteristic.uuid.uuidStr): \(error.localizedDescription)")
+    }
+
+    if characteristic.isNotifying, let characteristicValue = characteristic.value {
+      let preview = characteristicValue.prefix(8).map { String(format: "%02X", $0) }.joined()
+      UniversalBleLogger.shared.logVerbose("NOTIFY <- \(peripheral.uuid.uuidString) \(characteristic.uuid.uuidStr) len=\(characteristicValue.count) data=\(preview)")
+    }
+
     // Update callbackChannel if notifying
     if characteristic.isNotifying {
       if let characteristicValue = characteristic.value {
-        callbackChannel.onValueChanged(deviceId: peripheral.uuid.uuidString, characteristicId: characteristic.uuid.uuidStr, value: FlutterStandardTypedData(bytes: characteristicValue)) { _ in }
+        callbackChannel.onValueChanged(
+          deviceId: peripheral.uuid.uuidString,
+          characteristicId: characteristic.uuid.uuidStr,
+          value: FlutterStandardTypedData(bytes: characteristicValue),
+          timestamp: Int64(Date().timeIntervalSince1970 * 1000)
+        ) { _ in }
       }
     }
 
@@ -501,6 +525,7 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
     characteristicReadFutures.removeAll { future in
       if future.deviceId == peripheral.uuid.uuidString && future.characteristicId == characteristic.uuid.uuidStr && future.serviceId == characteristic.service?.uuid.uuidStr {
         if let flutterError = error?.toFlutterError() {
+          UniversalBleLogger.shared.logError("READ_FAILED <- \(peripheral.uuid.uuidString) \(characteristic.uuid.uuidStr): \(flutterError.message ?? "")")
           future.result(Result.failure(flutterError))
         } else {
           if let characteristicValue = characteristic.value {

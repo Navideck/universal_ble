@@ -57,6 +57,15 @@ template<class T> class ErrorOr {
 };
 
 
+enum class UniversalBleLogLevel {
+  kNone = 0,
+  kError = 1,
+  kWarning = 2,
+  kInfo = 3,
+  kDebug = 4,
+  kVerbose = 5
+};
+
 // Unified error codes for all platforms
 enum class UniversalBleErrorCode {
   kUnknownError = 0,
@@ -425,6 +434,7 @@ class UniversalBlePlatformChannel {
     const flutter::EncodableList& with_services,
     std::function<void(ErrorOr<flutter::EncodableList> reply)> result) = 0;
   virtual ErrorOr<int64_t> GetConnectionState(const std::string& device_id) = 0;
+  virtual std::optional<FlutterError> SetLogLevel(const UniversalBleLogLevel& log_level) = 0;
 
   // The codec used by UniversalBlePlatformChannel.
   static const flutter::StandardMessageCodec& GetCodec();
@@ -469,6 +479,7 @@ class UniversalBleCallbackChannel {
     const std::string& device_id,
     const std::string& characteristic_id,
     const std::vector<uint8_t>& value,
+    const int64_t* timestamp,
     std::function<void(void)>&& on_success,
     std::function<void(const FlutterError&)>&& on_error);
   void OnConnectionChanged(
