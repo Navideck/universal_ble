@@ -162,9 +162,9 @@ class UniversalBleWeb extends UniversalBlePlatform {
     String characteristic,
     BleInputProperty bleInputProperty,
   ) async {
-    final ts = DateTime.now().toIso8601String();
     UniversalLogger.logInfo(
-      "[$ts] SET_NOTIFY -> $deviceId $service $characteristic input=${bleInputProperty.name}",
+      "SET_NOTIFY -> $deviceId $service $characteristic input=${bleInputProperty.name}",
+      withTimestamp: true,
     );
     final bleCharacteristic = await _getBleCharacteristic(
       deviceId: deviceId,
@@ -195,7 +195,8 @@ class UniversalBleWeb extends UniversalBlePlatform {
             .map((e) => e.toRadixString(16).padLeft(2, '0'))
             .join();
         UniversalLogger.logVerbose(
-          "[$ts] NOTIFY <- $deviceId $characteristic len=${event.lengthInBytes} data=$preview",
+          "NOTIFY <- $deviceId $characteristic len=${event.lengthInBytes} data=$preview",
+          withTimestamp: true,
         );
         updateCharacteristicValue(
           deviceId,
@@ -218,9 +219,9 @@ class UniversalBleWeb extends UniversalBlePlatform {
     Uint8List value,
     BleOutputProperty bleOutputProperty,
   ) async {
-    final ts = DateTime.now().toIso8601String();
     UniversalLogger.logInfo(
-      "[$ts] WRITE -> $deviceId $service $characteristic len=${value.length} property=${bleOutputProperty.name}",
+      "WRITE -> $deviceId $service $characteristic len=${value.length} property=${bleOutputProperty.name}",
+      withTimestamp: true,
     );
     final bleCharacteristic = await _getBleCharacteristic(
       deviceId: deviceId,
@@ -251,8 +252,10 @@ class UniversalBleWeb extends UniversalBlePlatform {
     String characteristic, {
     final Duration? timeout,
   }) async {
-    final ts = DateTime.now().toIso8601String();
-    UniversalLogger.logInfo("[$ts] READ -> $deviceId $service $characteristic");
+    UniversalLogger.logInfo(
+      "READ -> $deviceId $service $characteristic",
+      withTimestamp: true,
+    );
     var bleCharacteristic = await _getBleCharacteristic(
       deviceId: deviceId,
       serviceId: service,
