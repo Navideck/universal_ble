@@ -87,7 +87,7 @@ private:
                 << " Message: " << error.message() << std::endl;
     }
   }
-  static int64_t GetCurrentTimestamp() {
+  static int64_t GetCurrentTimestampMillis() {
     return std::chrono::duration_cast<std::chrono::milliseconds>(
                std::chrono::system_clock::now().time_since_epoch())
         .count();

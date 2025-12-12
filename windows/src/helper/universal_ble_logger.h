@@ -17,6 +17,8 @@ public:
   static void LogInfo(const std::string &message);
   static void LogDebug(const std::string &message);
   static void LogVerbose(const std::string &message);
+  static void LogDebugWithTimestamp(const std::string &message);
+  static void LogVerboseWithTimestamp(const std::string &message);
 
 private:
   static UniversalBleLogLevel current_level_;
