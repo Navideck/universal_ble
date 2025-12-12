@@ -381,7 +381,7 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
                 @Suppress("DEPRECATION")
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                     val status = gatt.writeDescriptor(descriptor, value)
-                    if (gatt.writeDescriptor(descriptor, value) != BluetoothStatusCodes.SUCCESS) {
+                    if (status != BluetoothStatusCodes.SUCCESS) {
                         callback(
                             Result.failure(
                                 createFlutterError(
