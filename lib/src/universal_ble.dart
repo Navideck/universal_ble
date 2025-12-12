@@ -25,7 +25,9 @@ class UniversalBle {
   }
 
   /// Set log level for both Dart and native implementations.
+  /// Only effective in debug builds.
   static Future<void> setLogLevel(BleLogLevel logLevel) async {
+    if (!kDebugMode) return;
     UniversalLogger.setLogLevel(logLevel);
     await _platform.setLogLevel(logLevel);
   }

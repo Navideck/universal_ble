@@ -745,6 +745,23 @@ class UniversalBleMock extends UniversalBlePlatform {
 UniversalBle.setInstance(UniversalBleMock());
 ```
 
+## Logging
+
+Configure logging to help debug Ble operations
+
+### Usage
+
+Set the log level during app initialization, default level is `none`
+
+```dart
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  // Enable verbose logging to see all BLE operations
+  await UniversalBle.setLogLevel(BleLogLevel.verbose);
+  runApp(MyApp());
+}
+```
+
 ## Low level API
 
 For more granular control, you can use the [Low-Level API](README.low_level.md). This API is "Device ID"-based, offering greater flexibility by enabling direct calls without the need for object instances.
