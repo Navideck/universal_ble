@@ -95,6 +95,10 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
         )
     }
 
+    override fun hasPermissions(withAndroidFineLocation: Boolean): Boolean {
+        return permissionHandler?.hasPermissions(withAndroidFineLocation) ?: false
+    }
+
     override fun requestPermissions(
         withAndroidFineLocation: Boolean,
         callback: (Result<Unit>) -> Unit,

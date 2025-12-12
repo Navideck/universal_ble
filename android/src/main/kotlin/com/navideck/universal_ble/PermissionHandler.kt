@@ -25,6 +25,18 @@ class PermissionHandler(
     private var permissionRequestCallback: ((Result<Unit>) -> Unit)? = null
 
     /**
+     * Check if we have required permissions
+     */
+    fun hasPermissions(withFineLocation: Boolean): Boolean {
+        val validationError = validateRequiredPermissions(withFineLocation)
+        if (validationError != null) {
+            throw validationError
+        }
+        val permissionsToRequest = getRequiredPermissions(withFineLocation)
+        return permissionsToRequest.isEmpty()
+    }
+
+    /**
      * Requests the required Bluetooth permissions based on the manifest and Android version.
      *
      * @param callback Called with the result of the permission request

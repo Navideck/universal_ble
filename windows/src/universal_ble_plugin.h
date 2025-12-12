@@ -177,6 +177,7 @@ private:
   ErrorOr<bool> IsScanning() override;
   std::optional<FlutterError> Connect(const std::string &device_id) override;
   std::optional<FlutterError> Disconnect(const std::string &device_id) override;
+  ErrorOr<bool> HasPermissions(bool with_android_fine_location) override;
   void RequestPermissions(
       bool with_android_fine_location,
       std::function<void(std::optional<FlutterError> reply)> result) override;

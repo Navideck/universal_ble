@@ -1,8 +1,10 @@
 ## 1.0.0
 * BREAKING CHANGE: `OnValueChange` callback also includes timestamp
+* BREAKING CHANGE: Bump minimum IOS version to 13.1
 * Fix Windows 11 crash on cancelling pairing
 * Unified error codes for all platforms
 * Add `isScanning` api
+* Add `hasPermissions` api
 * Add `requestPermissions` api and auto ask permission on `startScan`
 * `disconnect` now waits for disconnection confirmation before returning
 * Improve Windows disconnection event handling and cleanup

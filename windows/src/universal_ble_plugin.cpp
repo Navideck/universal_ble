@@ -119,6 +119,11 @@ void UniversalBlePlugin::DisableBluetooth(
       });
 }
 
+ErrorOr<bool> UniversalBlePlugin::HasPermissions(bool with_android_fine_location) {
+  // Windows does not require runtime permissions for Bluetooth
+  return true;
+}
+
 void UniversalBlePlugin::RequestPermissions(
     bool with_android_fine_location,
     std::function<void(std::optional<FlutterError> reply)> result) {

@@ -431,12 +431,6 @@ class UniversalBleLinux extends UniversalBlePlatform {
         .toList();
   }
 
-  @override
-  Future<void> requestPermissions(
-      {bool withAndroidFineLocation = false}) async {
-    // No permissions to request on linux
-  }
-
   AvailabilityState get _availabilityState {
     return _activeAdapter?.powered == true
         ? AvailabilityState.poweredOn

@@ -71,6 +71,18 @@ class UniversalBle {
     );
   }
 
+  /// Check if has permissions.
+  /// [withAndroidFineLocation] is used to check fine location permission on Android 12+ (API 31+).
+  /// on Android lower than 12, this method will check location permission regardless of the [withAndroidFineLocation] value.
+  /// `Windows`, `Linux` and `Web` will always return true.
+  static Future<bool> hasPermissions({
+    bool withAndroidFineLocation = false,
+  }) async {
+    return _platform.hasPermissions(
+      withAndroidFineLocation: withAndroidFineLocation,
+    );
+  }
+
   /// Request permissions.
   /// if all permissions are already granted or granted by user, this method will succeed.
   /// it will throw exception if permissions are denied by user.

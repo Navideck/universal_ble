@@ -56,6 +56,10 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
     }
   }
 
+  func hasPermissions(withAndroidFineLocation _: Bool) throws -> Bool {
+    return CBCentralManager.authorization == .allowedAlways
+  }
+
   func requestPermissions(withAndroidFineLocation _: Bool, completion: @escaping (Result<Void, any Error>) -> Void) {
     if manager.state != .unknown {
       completePermissionRequest(completion: completion)
@@ -114,21 +118,9 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
   }
 
   func isScanning() throws -> Bool {
-    var hasAuthorization = true
-    #if os(iOS)
-      if #available(iOS 13.1, *) {
-        hasAuthorization = CBCentralManager.authorization == .allowedAlways
-      } else {
-        return isManageScanning
-      }
-    #elseif os(macOS)
-      hasAuthorization = CBCentralManager.authorization == .allowedAlways
-    #endif
-
-    if hasAuthorization {
+    if CBCentralManager.authorization == .allowedAlways {
       return manager.isScanning
     }
-
     return isManageScanning
   }
 
