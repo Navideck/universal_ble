@@ -1040,7 +1040,7 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
         }
 
         override fun onBatchScanResults(results: MutableList<ScanResult>?) {
-        UniversalBleLogger.logVerbose("onBatchScanResults: $results")
+            UniversalBleLogger.logVerbose("onBatchScanResults: $results")
         }
     }
 
@@ -1048,7 +1048,7 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
     override fun onConnectionStateChange(
         gatt: BluetoothGatt,
         status: Int,
-        newState: Int
+        newState: Int,
     ) {
         UniversalBleLogger.logDebug(
             "onConnectionStateChange-> Status: $status ${status.parseHciErrorCode()}, NewState: $newState"

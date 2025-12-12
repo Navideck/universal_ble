@@ -509,10 +509,10 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
     if characteristic.isNotifying {
       if let characteristicValue = characteristic.value {
         callbackChannel.onValueChanged(
-            deviceId: peripheral.uuid.uuidString,
-            characteristicId: characteristic.uuid.uuidStr,
-            value: FlutterStandardTypedData(bytes: characteristicValue),
-            timestamp: Int64(Date().timeIntervalSince1970 * 1000)
+          deviceId: peripheral.uuid.uuidString,
+          characteristicId: characteristic.uuid.uuidStr,
+          value: FlutterStandardTypedData(bytes: characteristicValue),
+          timestamp: Int64(Date().timeIntervalSince1970 * 1000)
         ) { _ in }
       }
     }
