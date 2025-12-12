@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
-import 'package:universal_ble/src/models/ble_log_level.dart';
 import 'package:universal_ble/src/utils/ble_command_queue.dart';
 import 'package:universal_ble/src/universal_ble_linux/universal_ble_linux.dart';
 import 'package:universal_ble/src/universal_ble_pigeon/universal_ble_pigeon_channel.dart';
