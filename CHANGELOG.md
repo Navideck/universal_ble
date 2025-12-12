@@ -1,4 +1,5 @@
 ## 1.0.0
+* BREAKING CHANGE: `OnValueChange` callback also includes timestamp
 * Unified error codes for all platforms
 * Add `isScanning` api
 * Add `requestPermissions` api and auto ask permission on `startScan`

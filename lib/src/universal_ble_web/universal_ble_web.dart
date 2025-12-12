@@ -201,6 +201,7 @@ class UniversalBleWeb extends UniversalBlePlatform {
           deviceId,
           characteristic,
           event.buffer.asUint8List(),
+          DateTime.now().millisecondsSinceEpoch,
         );
       });
     } else {

@@ -1084,7 +1084,8 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
             callbackChannel?.onValueChanged(
                 deviceIdArg = gatt.device.address,
                 characteristicIdArg = characteristic.uuid.toString(),
-                valueArg = value
+                valueArg = value,
+                timestampArg = System.currentTimeMillis()
             ) {}
         }
     }

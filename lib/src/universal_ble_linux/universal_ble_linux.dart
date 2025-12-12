@@ -279,6 +279,7 @@ class UniversalBleLinux extends UniversalBlePlatform {
                 deviceId,
                 characteristic,
                 Uint8List.fromList(char.value),
+                DateTime.now().millisecondsSinceEpoch,
               );
               break;
             default:

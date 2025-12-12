@@ -257,8 +257,12 @@ class _UniversalBleCallbackHandler extends UniversalBleCallbackChannel {
 
   @override
   void onValueChanged(
-          String deviceId, String characteristicId, Uint8List value) =>
-      valueChanged(deviceId, characteristicId, value);
+    String deviceId,
+    String characteristicId,
+    Uint8List value,
+    int? timestamp,
+  ) =>
+      valueChanged(deviceId, characteristicId, value, timestamp);
 
   @override
   void onPairStateChange(String deviceId, bool isPaired, String? error) =>

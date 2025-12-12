@@ -479,6 +479,7 @@ class UniversalBleCallbackChannel {
     const std::string& device_id,
     const std::string& characteristic_id,
     const std::vector<uint8_t>& value,
+    const int64_t* timestamp,
     std::function<void(void)>&& on_success,
     std::function<void(const FlutterError&)>&& on_error);
   void OnConnectionChanged(

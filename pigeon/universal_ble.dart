@@ -107,6 +107,7 @@ abstract class UniversalBleCallbackChannel {
     String deviceId,
     String characteristicId,
     Uint8List value,
+    int? timestamp,
   );
 
   void onConnectionChanged(

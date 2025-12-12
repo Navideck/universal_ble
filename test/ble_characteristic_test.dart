@@ -106,6 +106,7 @@ class _UniversalBleMock extends UniversalBlePlatformMock {
         deviceId,
         characteristic,
         Uint8List.fromList([1, 2, 3]),
+        DateTime.now().millisecondsSinceEpoch,
       );
     });
   }
