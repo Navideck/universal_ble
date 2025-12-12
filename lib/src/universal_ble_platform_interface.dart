@@ -37,7 +37,12 @@ abstract class UniversalBlePlatform {
 
   Future<bool> disableBluetooth();
 
-  Future<void> requestPermissions({bool withAndroidFineLocation = false});
+  Future<bool> hasPermissions({bool withAndroidFineLocation = false}) async {
+    return true;
+  }
+
+  Future<void> requestPermissions(
+      {bool withAndroidFineLocation = false}) async {}
 
   Future<void> startScan({
     ScanFilter? scanFilter,

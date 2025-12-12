@@ -216,7 +216,20 @@ class _MyAppState extends State<MyApp> {
                             showSnackbar("BluetoothDisabled: $isDisabled");
                           },
                         ),
-                if (BleCapabilities.requiresRuntimePermission)
+                if (BleCapabilities.requiresRuntimePermission) ...[
+                  PlatformButton(
+                    text: 'Has Permissions',
+                    onPressed: () async {
+                      try {
+                        bool hasPermissions = await UniversalBle.hasPermissions(
+                          withAndroidFineLocation: false,
+                        );
+                        showSnackbar("Has Permissions: $hasPermissions");
+                      } catch (e) {
+                        showSnackbar(e.toString());
+                      }
+                    },
+                  ),
                   PlatformButton(
                     text: 'Request Permissions',
                     onPressed: () async {
@@ -230,6 +243,7 @@ class _MyAppState extends State<MyApp> {
                       }
                     },
                   ),
+                ],
                 if (!isTrackingAvailabilityState)
                   PlatformButton(
                     text: 'Track Availability State',
