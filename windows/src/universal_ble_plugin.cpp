@@ -295,8 +295,8 @@ void UniversalBlePlugin::ReadValue(
     const std::string &device_id, const std::string &service,
     const std::string &characteristic,
     std::function<void(ErrorOr<std::vector<uint8_t>> reply)> result) {
-  UniversalBleLogger::LogInfo("READ -> " + device_id + " " + service + " " +
-                              characteristic);
+  UniversalBleLogger::LogDebug("READ -> " + device_id + " " + service + " " +
+                               characteristic);
   try {
     const auto it = connected_devices_.find(str_to_mac_address(device_id));
     if (it == connected_devices_.end()) {
@@ -348,7 +348,7 @@ void UniversalBlePlugin::WriteValue(
     const std::string &characteristic, const std::vector<uint8_t> &value,
     int64_t ble_output_property,
     std::function<void(std::optional<FlutterError> reply)> result) {
-  UniversalBleLogger::LogInfo(
+  UniversalBleLogger::LogDebug(
       "WRITE -> " + device_id + " " + service + " " + characteristic +
       " len=" + std::to_string(value.size()) +
       " property=" + std::to_string(ble_output_property));
@@ -420,8 +420,8 @@ void UniversalBlePlugin::WriteValue(
 void UniversalBlePlugin::RequestMtu(
     const std::string &device_id, int64_t expected_mtu,
     std::function<void(ErrorOr<int64_t> reply)> result) {
-  UniversalBleLogger::LogInfo("REQUEST_MTU -> " + device_id +
-                              " expected=" + std::to_string(expected_mtu));
+  UniversalBleLogger::LogDebug("REQUEST_MTU -> " + device_id +
+                               " expected=" + std::to_string(expected_mtu));
   try {
     const auto it = connected_devices_.find(str_to_mac_address(device_id));
     if (it == connected_devices_.end()) {
@@ -1210,9 +1210,9 @@ fire_and_forget UniversalBlePlugin::SetNotifiableAsync(
     const std::string &device_id, const std::string &service,
     const std::string &characteristic, const int64_t ble_input_property,
     const std::function<void(std::optional<FlutterError> reply)> result) {
-  UniversalBleLogger::LogInfo("SET_NOTIFY -> " + device_id + " " + service +
-                              " " + characteristic +
-                              " input=" + std::to_string(ble_input_property));
+  UniversalBleLogger::LogDebug("SET_NOTIFY -> " + device_id + " " + service +
+                               " " + characteristic +
+                               " input=" + std::to_string(ble_input_property));
   try {
     const auto it = connected_devices_.find(str_to_mac_address(device_id));
     if (it == connected_devices_.end()) {
@@ -1307,23 +1307,14 @@ void UniversalBlePlugin::GattCharacteristicValueChanged(
   auto device_id =
       mac_address_to_str(sender.Service().Device().BluetoothAddress());
 
-  // Create hex preview of first 8 bytes
-  std::stringstream preview_stream;
-  for (size_t i = 0; i < std::min(bytes.size(), size_t(8)); ++i) {
-    preview_stream << std::hex << std::setfill('0') << std::setw(2)
-                   << static_cast<int>(bytes[i]);
-  }
-  std::string preview = preview_stream.str();
-
   UniversalBleLogger::LogVerbose("NOTIFY <- " + device_id + " " + uuid +
-                                 " len=" + std::to_string(bytes.size()) +
-                                 " data=" + preview);
+                                 " len=" + std::to_string(bytes.size()));
 
   ui_thread_handler_.Post([sender, bytes] {
     auto uuid = to_uuidstr(sender.Uuid());
     callback_channel->OnValueChanged(
         mac_address_to_str(sender.Service().Device().BluetoothAddress()), uuid,
-        bytes, GetCurrentTimestamp(), SuccessCallback, ErrorCallback);
+        bytes, &GetCurrentTimestamp(), SuccessCallback, ErrorCallback);
   });
 }
 

@@ -87,6 +87,11 @@ private:
                 << " Message: " << error.message() << std::endl;
     }
   }
+  static int64_t GetCurrentTimestamp() {
+    return std::chrono::duration_cast<std::chrono::milliseconds>(
+               std::chrono::system_clock::now().time_since_epoch())
+        .count();
+  }
 
   flutter::PluginRegistrarWindows *registrar_;
   bool initialized_ = false;
@@ -112,12 +117,6 @@ private:
   event_token device_watcher_enumeration_completed_token_;
   event_token device_watcher_stopped_token_;
   event_revoker<IRadio> radio_state_changed_revoker_;
-
-  int64_t GetCurrentTimestamp() {
-    return std::chrono::duration_cast<std::chrono::milliseconds>(
-        std::chrono::system_clock::now().time_since_epoch())
-        .count();
-  }
 
   fire_and_forget InitializeAsync();
   fire_and_forget ConnectAsync(uint64_t bluetooth_address);

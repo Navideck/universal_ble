@@ -251,7 +251,7 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
   }
 
   func setNotifiable(deviceId: String, service: String, characteristic: String, bleInputProperty: Int64, completion: @escaping (Result<Void, any Error>) -> Void) {
-    UniversalBleLogger.shared.logInfo("SET_NOTIFY -> \(deviceId) \(service) \(characteristic) input=\(bleInputProperty)")
+    UniversalBleLogger.shared.logDebug("SET_NOTIFY -> \(deviceId) \(service) \(characteristic) input=\(bleInputProperty)")
     guard let peripheral = deviceId.findPeripheral(manager: manager) else {
       completion(Result.failure(createFlutterError(code: .deviceNotFound, message: "Unknown deviceId:\(deviceId)")))
       return
@@ -278,7 +278,7 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
   }
 
   func readValue(deviceId: String, service: String, characteristic: String, completion: @escaping (Result<FlutterStandardTypedData, Error>) -> Void) {
-    UniversalBleLogger.shared.logInfo("READ -> \(deviceId) \(service) \(characteristic)")
+    UniversalBleLogger.shared.logDebug("READ -> \(deviceId) \(service) \(characteristic)")
     guard let peripheral = deviceId.findPeripheral(manager: manager) else {
       completion(Result.failure(createFlutterError(code: .deviceNotFound, message: "Unknown deviceId:\(self)")))
       return
@@ -296,7 +296,7 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
   }
 
   func writeValue(deviceId: String, service: String, characteristic: String, value: FlutterStandardTypedData, bleOutputProperty: Int64, completion: @escaping (Result<Void, Error>) -> Void) {
-    UniversalBleLogger.shared.logInfo("WRITE -> \(deviceId) \(service) \(characteristic) len=\(value.data.count) property=\(bleOutputProperty)")
+    UniversalBleLogger.shared.logDebug("WRITE -> \(deviceId) \(service) \(characteristic) len=\(value.data.count) property=\(bleOutputProperty)")
     guard let peripheral = deviceId.findPeripheral(manager: manager) else {
       completion(Result.failure(createFlutterError(code: .deviceNotFound, message: "Unknown deviceId:\(self)")))
       return
@@ -331,7 +331,7 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
   }
 
   func requestMtu(deviceId: String, expectedMtu _: Int64, completion: @escaping (Result<Int64, Error>) -> Void) {
-    UniversalBleLogger.shared.logInfo("REQUEST_MTU -> \(deviceId)")
+    UniversalBleLogger.shared.logDebug("REQUEST_MTU -> \(deviceId)")
     guard let peripheral = deviceId.findPeripheral(manager: manager) else {
       completion(Result.failure(createFlutterError(code: .deviceNotFound, message: "Unknown deviceId:\(self)")))
       return

@@ -162,7 +162,7 @@ class UniversalBleWeb extends UniversalBlePlatform {
     String characteristic,
     BleInputProperty bleInputProperty,
   ) async {
-    UniversalLogger.logInfo(
+    UniversalLogger.logDebug(
       "SET_NOTIFY -> $deviceId $service $characteristic input=${bleInputProperty.name}",
       withTimestamp: true,
     );
@@ -219,7 +219,7 @@ class UniversalBleWeb extends UniversalBlePlatform {
     Uint8List value,
     BleOutputProperty bleOutputProperty,
   ) async {
-    UniversalLogger.logInfo(
+    UniversalLogger.logDebug(
       "WRITE -> $deviceId $service $characteristic len=${value.length} property=${bleOutputProperty.name}",
       withTimestamp: true,
     );
@@ -252,7 +252,7 @@ class UniversalBleWeb extends UniversalBlePlatform {
     String characteristic, {
     final Duration? timeout,
   }) async {
-    UniversalLogger.logInfo(
+    UniversalLogger.logDebug(
       "READ -> $deviceId $service $characteristic",
       withTimestamp: true,
     );

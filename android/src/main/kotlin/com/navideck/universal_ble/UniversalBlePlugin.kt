@@ -349,7 +349,7 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
         callback: (Result<Unit>) -> Unit,
     ) {
         try {
-            UniversalBleLogger.logInfo("SET_NOTIFY -> $deviceId $service $characteristic input=$bleInputProperty")
+            UniversalBleLogger.logDebug("SET_NOTIFY -> $deviceId $service $characteristic input=$bleInputProperty")
             val gatt = deviceId.toBluetoothGatt()
             val gattCharacteristic: BluetoothGattCharacteristic? =
                 gatt.getCharacteristic(service, characteristic)
@@ -458,7 +458,7 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
         callback: (Result<ByteArray>) -> Unit,
     ) {
         try {
-            UniversalBleLogger.logInfo("READ -> $deviceId $service $characteristic")
+            UniversalBleLogger.logDebug("READ -> $deviceId $service $characteristic")
             val gatt = deviceId.toBluetoothGatt()
             val gattCharacteristic = gatt.getCharacteristic(service, characteristic)
             if (gattCharacteristic == null) {
@@ -548,7 +548,7 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
         callback: (Result<Unit>) -> Unit,
     ) {
         try {
-            UniversalBleLogger.logInfo("WRITE -> $deviceId $service $characteristic len=${value.size} property=$bleOutputProperty")
+            UniversalBleLogger.logDebug("WRITE -> $deviceId $service $characteristic len=${value.size} property=$bleOutputProperty")
             val gatt = deviceId.toBluetoothGatt()
             val gattCharacteristic = gatt.getCharacteristic(service, characteristic)
             if (gattCharacteristic == null) {
@@ -663,7 +663,7 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
 
 
     override fun requestMtu(deviceId: String, expectedMtu: Long, callback: (Result<Long>) -> Unit) {
-        UniversalBleLogger.logInfo("REQUEST_MTU -> $deviceId expected=$expectedMtu")
+        UniversalBleLogger.logDebug("REQUEST_MTU -> $deviceId expected=$expectedMtu")
         try {
             val gatt = deviceId.toBluetoothGatt()
             gatt.requestMtu(expectedMtu.toInt())
