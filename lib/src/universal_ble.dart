@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
+import 'package:universal_ble/src/models/ble_log_level.dart';
 import 'package:universal_ble/src/utils/ble_command_queue.dart';
 import 'package:universal_ble/src/universal_ble_linux/universal_ble_linux.dart';
 import 'package:universal_ble/src/universal_ble_pigeon/universal_ble_pigeon_channel.dart';
@@ -22,6 +23,12 @@ class UniversalBle {
   /// Set to null to disable.
   static set timeout(Duration? duration) {
     _bleCommandQueue.timeout = duration;
+  }
+
+  /// Set log level for both Dart and native implementations.
+  static Future<void> setLogLevel(BleLogLevel logLevel) async {
+    UniversalLogger.setLogLevel(logLevel);
+    await _platform.setLogLevel(logLevel);
   }
 
   /// Set how commands will be executed. By default, all commands are executed in a global queue (`QueueType.global`),

@@ -81,6 +81,21 @@ class FlutterError (
   val details: Any? = null
 ) : Throwable()
 
+enum class UniversalBleLogLevel(val raw: Int) {
+  NONE(0),
+  ERROR(1),
+  WARNING(2),
+  INFO(3),
+  DEBUG(4),
+  VERBOSE(5);
+
+  companion object {
+    fun ofRaw(raw: Int): UniversalBleLogLevel? {
+      return values().firstOrNull { it.raw == raw }
+    }
+  }
+}
+
 /** Unified error codes for all platforms */
 enum class UniversalBleErrorCode(val raw: Int) {
   UNKNOWN_ERROR(0),
@@ -398,40 +413,45 @@ private open class UniversalBlePigeonCodec : StandardMessageCodec() {
     return when (type) {
       129.toByte() -> {
         return (readValue(buffer) as Long?)?.let {
-          UniversalBleErrorCode.ofRaw(it.toInt())
+          UniversalBleLogLevel.ofRaw(it.toInt())
         }
       }
       130.toByte() -> {
-        return (readValue(buffer) as? List<Any?>)?.let {
-          UniversalBleScanResult.fromList(it)
+        return (readValue(buffer) as Long?)?.let {
+          UniversalBleErrorCode.ofRaw(it.toInt())
         }
       }
       131.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          UniversalBleService.fromList(it)
+          UniversalBleScanResult.fromList(it)
         }
       }
       132.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          UniversalBleCharacteristic.fromList(it)
+          UniversalBleService.fromList(it)
         }
       }
       133.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          UniversalBleDescriptor.fromList(it)
+          UniversalBleCharacteristic.fromList(it)
         }
       }
       134.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          UniversalScanFilter.fromList(it)
+          UniversalBleDescriptor.fromList(it)
         }
       }
       135.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          UniversalManufacturerDataFilter.fromList(it)
+          UniversalScanFilter.fromList(it)
         }
       }
       136.toByte() -> {
+        return (readValue(buffer) as? List<Any?>)?.let {
+          UniversalManufacturerDataFilter.fromList(it)
+        }
+      }
+      137.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
           UniversalManufacturerData.fromList(it)
         }
@@ -441,36 +461,40 @@ private open class UniversalBlePigeonCodec : StandardMessageCodec() {
   }
   override fun writeValue(stream: ByteArrayOutputStream, value: Any?)   {
     when (value) {
-      is UniversalBleErrorCode -> {
+      is UniversalBleLogLevel -> {
         stream.write(129)
         writeValue(stream, value.raw.toLong())
       }
-      is UniversalBleScanResult -> {
+      is UniversalBleErrorCode -> {
         stream.write(130)
-        writeValue(stream, value.toList())
+        writeValue(stream, value.raw.toLong())
       }
-      is UniversalBleService -> {
+      is UniversalBleScanResult -> {
         stream.write(131)
         writeValue(stream, value.toList())
       }
-      is UniversalBleCharacteristic -> {
+      is UniversalBleService -> {
         stream.write(132)
         writeValue(stream, value.toList())
       }
-      is UniversalBleDescriptor -> {
+      is UniversalBleCharacteristic -> {
         stream.write(133)
         writeValue(stream, value.toList())
       }
-      is UniversalScanFilter -> {
+      is UniversalBleDescriptor -> {
         stream.write(134)
         writeValue(stream, value.toList())
       }
-      is UniversalManufacturerDataFilter -> {
+      is UniversalScanFilter -> {
         stream.write(135)
         writeValue(stream, value.toList())
       }
-      is UniversalManufacturerData -> {
+      is UniversalManufacturerDataFilter -> {
         stream.write(136)
+        writeValue(stream, value.toList())
+      }
+      is UniversalManufacturerData -> {
+        stream.write(137)
         writeValue(stream, value.toList())
       }
       else -> super.writeValue(stream, value)
@@ -504,6 +528,7 @@ interface UniversalBlePlatformChannel {
   fun unPair(deviceId: String)
   fun getSystemDevices(withServices: List<String>, callback: (Result<List<UniversalBleScanResult>>) -> Unit)
   fun getConnectionState(deviceId: String): Long
+  fun setLogLevel(logLevel: UniversalBleLogLevel)
 
   companion object {
     /** The codec used by UniversalBlePlatformChannel. */
@@ -867,6 +892,24 @@ interface UniversalBlePlatformChannel {
             val deviceIdArg = args[0] as String
             val wrapped: List<Any?> = try {
               listOf(api.getConnectionState(deviceIdArg))
+            } catch (exception: Throwable) {
+              UniversalBlePigeonUtils.wrapError(exception)
+            }
+            reply.reply(wrapped)
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.universal_ble.UniversalBlePlatformChannel.setLogLevel$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { message, reply ->
+            val args = message as List<Any?>
+            val logLevelArg = args[0] as UniversalBleLogLevel
+            val wrapped: List<Any?> = try {
+              api.setLogLevel(logLevelArg)
+              listOf(null)
             } catch (exception: Throwable) {
               UniversalBlePigeonUtils.wrapError(exception)
             }

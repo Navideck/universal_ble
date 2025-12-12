@@ -1,7 +1,9 @@
 import 'dart:async';
 import 'dart:typed_data';
+import 'package:universal_ble/src/models/ble_log_level.dart';
 import 'package:universal_ble/src/utils/cache_handler.dart';
 import 'package:universal_ble/src/utils/universal_ble_stream_controller.dart';
+import 'package:universal_ble/src/utils/universal_logger.dart';
 import 'package:universal_ble/universal_ble.dart';
 
 abstract class UniversalBlePlatform {
@@ -84,6 +86,9 @@ abstract class UniversalBlePlatform {
   Future<List<BleDevice>> getSystemDevices(
     List<String>? withServices,
   );
+
+  Future<void> setLogLevel(BleLogLevel logLevel) async =>
+      UniversalLogger.setLogLevel(logLevel);
 
   bool receivesAdvertisements(String deviceId) => true;
 

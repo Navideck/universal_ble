@@ -132,6 +132,15 @@ func deepHashUniversalBle(value: Any?, hasher: inout Hasher) {
 
     
 
+enum UniversalBleLogLevel: Int {
+  case none = 0
+  case error = 1
+  case warning = 2
+  case info = 3
+  case debug = 4
+  case verbose = 5
+}
+
 /// Unified error codes for all platforms
 enum UniversalBleErrorCode: Int {
   case unknownError = 0
@@ -436,22 +445,28 @@ private class UniversalBlePigeonCodecReader: FlutterStandardReader {
     case 129:
       let enumResultAsInt: Int? = nilOrValue(self.readValue() as! Int?)
       if let enumResultAsInt = enumResultAsInt {
-        return UniversalBleErrorCode(rawValue: enumResultAsInt)
+        return UniversalBleLogLevel(rawValue: enumResultAsInt)
       }
       return nil
     case 130:
-      return UniversalBleScanResult.fromList(self.readValue() as! [Any?])
+      let enumResultAsInt: Int? = nilOrValue(self.readValue() as! Int?)
+      if let enumResultAsInt = enumResultAsInt {
+        return UniversalBleErrorCode(rawValue: enumResultAsInt)
+      }
+      return nil
     case 131:
-      return UniversalBleService.fromList(self.readValue() as! [Any?])
+      return UniversalBleScanResult.fromList(self.readValue() as! [Any?])
     case 132:
-      return UniversalBleCharacteristic.fromList(self.readValue() as! [Any?])
+      return UniversalBleService.fromList(self.readValue() as! [Any?])
     case 133:
-      return UniversalBleDescriptor.fromList(self.readValue() as! [Any?])
+      return UniversalBleCharacteristic.fromList(self.readValue() as! [Any?])
     case 134:
-      return UniversalScanFilter.fromList(self.readValue() as! [Any?])
+      return UniversalBleDescriptor.fromList(self.readValue() as! [Any?])
     case 135:
-      return UniversalManufacturerDataFilter.fromList(self.readValue() as! [Any?])
+      return UniversalScanFilter.fromList(self.readValue() as! [Any?])
     case 136:
+      return UniversalManufacturerDataFilter.fromList(self.readValue() as! [Any?])
+    case 137:
       return UniversalManufacturerData.fromList(self.readValue() as! [Any?])
     default:
       return super.readValue(ofType: type)
@@ -461,29 +476,32 @@ private class UniversalBlePigeonCodecReader: FlutterStandardReader {
 
 private class UniversalBlePigeonCodecWriter: FlutterStandardWriter {
   override func writeValue(_ value: Any) {
-    if let value = value as? UniversalBleErrorCode {
+    if let value = value as? UniversalBleLogLevel {
       super.writeByte(129)
       super.writeValue(value.rawValue)
-    } else if let value = value as? UniversalBleScanResult {
+    } else if let value = value as? UniversalBleErrorCode {
       super.writeByte(130)
-      super.writeValue(value.toList())
-    } else if let value = value as? UniversalBleService {
+      super.writeValue(value.rawValue)
+    } else if let value = value as? UniversalBleScanResult {
       super.writeByte(131)
       super.writeValue(value.toList())
-    } else if let value = value as? UniversalBleCharacteristic {
+    } else if let value = value as? UniversalBleService {
       super.writeByte(132)
       super.writeValue(value.toList())
-    } else if let value = value as? UniversalBleDescriptor {
+    } else if let value = value as? UniversalBleCharacteristic {
       super.writeByte(133)
       super.writeValue(value.toList())
-    } else if let value = value as? UniversalScanFilter {
+    } else if let value = value as? UniversalBleDescriptor {
       super.writeByte(134)
       super.writeValue(value.toList())
-    } else if let value = value as? UniversalManufacturerDataFilter {
+    } else if let value = value as? UniversalScanFilter {
       super.writeByte(135)
       super.writeValue(value.toList())
-    } else if let value = value as? UniversalManufacturerData {
+    } else if let value = value as? UniversalManufacturerDataFilter {
       super.writeByte(136)
+      super.writeValue(value.toList())
+    } else if let value = value as? UniversalManufacturerData {
+      super.writeByte(137)
       super.writeValue(value.toList())
     } else {
       super.writeValue(value)
@@ -529,6 +547,7 @@ protocol UniversalBlePlatformChannel {
   func unPair(deviceId: String) throws
   func getSystemDevices(withServices: [String], completion: @escaping (Result<[UniversalBleScanResult], Error>) -> Void)
   func getConnectionState(deviceId: String) throws -> Int64
+  func setLogLevel(logLevel: UniversalBleLogLevel) throws
 }
 
 /// Generated setup class from Pigeon to handle messages through the `binaryMessenger`.
@@ -846,6 +865,21 @@ class UniversalBlePlatformChannelSetup {
       }
     } else {
       getConnectionStateChannel.setMessageHandler(nil)
+    }
+    let setLogLevelChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.universal_ble.UniversalBlePlatformChannel.setLogLevel\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    if let api = api {
+      setLogLevelChannel.setMessageHandler { message, reply in
+        let args = message as! [Any?]
+        let logLevelArg = args[0] as! UniversalBleLogLevel
+        do {
+          try api.setLogLevel(logLevel: logLevelArg)
+          reply(wrapResult(nil))
+        } catch {
+          reply(wrapError(error))
+        }
+      }
+    } else {
+      setLogLevelChannel.setMessageHandler(nil)
     }
   }
 }

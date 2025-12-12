@@ -162,6 +162,10 @@ class UniversalBleWeb extends UniversalBlePlatform {
     String characteristic,
     BleInputProperty bleInputProperty,
   ) async {
+    final ts = DateTime.now().toIso8601String();
+    UniversalLogger.logInfo(
+      "[$ts] SET_NOTIFY -> $deviceId $service $characteristic input=${bleInputProperty.name}",
+    );
     final bleCharacteristic = await _getBleCharacteristic(
       deviceId: deviceId,
       serviceId: service,
@@ -185,6 +189,14 @@ class UniversalBleWeb extends UniversalBlePlatform {
       await bleCharacteristic.startNotifications();
       _characteristicStreamList[characteristicKey] =
           bleCharacteristic.value.listen((ByteData event) {
+        final preview = event.buffer
+            .asUint8List()
+            .take(8)
+            .map((e) => e.toRadixString(16).padLeft(2, '0'))
+            .join();
+        UniversalLogger.logVerbose(
+          "[$ts] NOTIFY <- $deviceId $characteristic len=${event.lengthInBytes} data=$preview",
+        );
         updateCharacteristicValue(
           deviceId,
           characteristic,
@@ -205,6 +217,10 @@ class UniversalBleWeb extends UniversalBlePlatform {
     Uint8List value,
     BleOutputProperty bleOutputProperty,
   ) async {
+    final ts = DateTime.now().toIso8601String();
+    UniversalLogger.logInfo(
+      "[$ts] WRITE -> $deviceId $service $characteristic len=${value.length} property=${bleOutputProperty.name}",
+    );
     final bleCharacteristic = await _getBleCharacteristic(
       deviceId: deviceId,
       serviceId: service,
@@ -234,6 +250,8 @@ class UniversalBleWeb extends UniversalBlePlatform {
     String characteristic, {
     final Duration? timeout,
   }) async {
+    final ts = DateTime.now().toIso8601String();
+    UniversalLogger.logInfo("[$ts] READ -> $deviceId $service $characteristic");
     var bleCharacteristic = await _getBleCharacteristic(
       deviceId: deviceId,
       serviceId: service,

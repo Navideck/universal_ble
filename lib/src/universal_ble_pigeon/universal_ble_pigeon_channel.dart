@@ -164,6 +164,10 @@ class UniversalBlePigeonChannel extends UniversalBlePlatform {
     );
   }
 
+  @override
+  Future<void> setLogLevel(BleLogLevel logLevel) => _executeWithErrorHandling(
+      () => _channel.setLogLevel(logLevel.toUniversalBleLogLevel()));
+
   /// To set listeners
   void _setupListeners() {
     UniversalBleCallbackChannel.setUp(_UniversalBleCallbackHandler(
@@ -297,4 +301,15 @@ extension _ScanFilterExtension on ScanFilter? {
       withManufacturerData: manufacturerDataFilters ?? [],
     );
   }
+}
+
+extension _BleLogLevelExtension on BleLogLevel {
+  UniversalBleLogLevel toUniversalBleLogLevel() => switch (this) {
+        BleLogLevel.none => UniversalBleLogLevel.none,
+        BleLogLevel.error => UniversalBleLogLevel.error,
+        BleLogLevel.warning => UniversalBleLogLevel.warning,
+        BleLogLevel.info => UniversalBleLogLevel.info,
+        BleLogLevel.debug => UniversalBleLogLevel.debug,
+        BleLogLevel.verbose => UniversalBleLogLevel.verbose,
+      };
 }

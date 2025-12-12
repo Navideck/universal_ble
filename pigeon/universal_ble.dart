@@ -90,6 +90,8 @@ abstract class UniversalBlePlatformChannel {
   );
 
   int getConnectionState(String deviceId);
+
+  void setLogLevel(UniversalBleLogLevel logLevel);
 }
 
 /// Native -> Flutter
@@ -132,6 +134,15 @@ class UniversalBleScanResult {
     required this.services,
     required this.timestamp,
   });
+}
+
+enum UniversalBleLogLevel {
+  none,
+  error,
+  warning,
+  info,
+  debug,
+  verbose,
 }
 
 class UniversalBleService {

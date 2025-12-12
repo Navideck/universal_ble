@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:universal_ble/universal_ble.dart';
 import 'package:universal_ble_example/home/home.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await UniversalBle.setLogLevel(BleLogLevel.verbose);
   runApp(
     MaterialApp(
       title: 'Universal BLE',
