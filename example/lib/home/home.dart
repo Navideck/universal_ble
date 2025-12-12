@@ -218,7 +218,7 @@ class _MyAppState extends State<MyApp> {
                         ),
                 if (BleCapabilities.requiresRuntimePermission) ...[
                   PlatformButton(
-                    text: 'has Permissions',
+                    text: 'Has Permissions',
                     onPressed: () async {
                       try {
                         bool hasPermissions = await UniversalBle.hasPermissions(
