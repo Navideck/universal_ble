@@ -16,7 +16,7 @@ EXTERNAL SOURCES:
 
 SPEC CHECKSUMS:
   FlutterMacOS: d0db08ddef1a9af05a5ec4b724367152bb0500b1
-  universal_ble: 88f0a8e6955b99ed96855cf46552119cf676c3dd
+  universal_ble: 65e1257dffc557cc7991a93d253beeddc7c1dc92
 
 PODFILE CHECKSUM: 9ebaf0ce3d369aaa26a9ea0e159195ed94724cf3
 
