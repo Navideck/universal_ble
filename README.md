@@ -1,8 +1,16 @@
 # Universal BLE
 
-[![universal_ble version](https://img.shields.io/pub/v/universal_ble?label=universal_ble)](https://pub.dev/packages/universal_ble)
+[![pub package](https://img.shields.io/pub/v/universal_ble?label=universal_ble&color=blue)](https://pub.dev/packages/universal_ble)
+[![License](https://img.shields.io/badge/license-BSD%203--Clause-blue.svg)](https://opensource.org/licenses/BSD-3-Clause)
+[![Platform](https://img.shields.io/badge/platform-Android%20%7C%20iOS%20%7C%20macOS%20%7C%20Windows%20%7C%20Linux%20%7C%20Web-lightgrey)](https://github.com/Navideck/universal_ble)
+[![GitHub stars](https://img.shields.io/github/stars/Navideck/universal_ble?style=social)](https://github.com/Navideck/universal_ble)
+[![pub points](https://img.shields.io/pub/points/universal_ble?color=2E7D32)](https://pub.dev/packages/universal_ble/score)
+[![Flutter](https://img.shields.io/badge/Flutter-%3E%3D3.3.0-blue.svg?logo=flutter)](https://flutter.dev)
+[![Dart](https://img.shields.io/badge/Dart-%3E%3D3.1.3-blue.svg?logo=dart)](https://dart.dev)
 
 A cross-platform (Android/iOS/macOS/Windows/Linux/Web) Bluetooth Low Energy (BLE) plugin for Flutter.
+
+> **Free**: This package is free for commercial or personal use as long as you adhere to the [BSD 3-Clause License](LICENSE).
 
 [Try it online](https://navideck.github.io/universal_ble/), provided your browser supports [Web Bluetooth](https://caniuse.com/web-bluetooth).
 
@@ -766,13 +774,22 @@ void main() async {
 
 For more granular control, you can use the [Low-Level API](README.low_level.md). This API is "Device ID"-based, offering greater flexibility by enabling direct calls without the need for object instances.
 
-## 🧩 Apps using Universal BLE
+## App showcase
 
-Here are some of the apps leveraging the power of `universal_ble` in production:
+Here are some of the apps leveraging the power of `universal_ble`:
 
-| <img src="assets/bt_cam_icon.svg" alt="BT Cam Icon" width="224" height="224"> | [**BT Cam**](https://btcam.app)<br>A Bluetooth remote app for DSLR and mirrorless cameras. Compatible with Canon, Nikon, Sony, Fujifilm, GoPro, Olympus, Panasonic, Pentax, and Blackmagic. Built using Universal BLE to connect and control cameras across iOS, Android, macOS, Windows, Linux & Web. |
-| :---------------------------------------------------------------------------: | :----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+- [**Universal BLE**](https://apps.apple.com/app/id6756538573) ([App Store](https://apps.apple.com/app/id6756538573) | [Play Store](https://play.google.com/store/apps/details?id=com.navideck.universalble)) - A comprehensive developer tool for exploring and testing Bluetooth Low Energy (BLE) devices. It enables scanning for nearby BLE devices, connecting to peripherals, discovering and exploring services, characteristics, and descriptors. Supports reading and writing characteristic values, enabling notifications and indications, viewing device information and signal strength, and provides detailed logging of BLE operations. Perfect for developers, engineers, and hobbyist tinkerers working with BLE-enabled devices across iOS, Android, macOS, Windows, Linux & Web.
+- [**BT Cam**](https://btcam.app) - A Bluetooth remote app for DSLR and mirrorless cameras. Compatible with Canon, Nikon, Sony, Fujifilm, GoPro, Olympus, Panasonic, Pentax, and Blackmagic. Built using Universal BLE to connect and control cameras across iOS, Android, macOS, Windows, Linux & Web.
+- [**TukToro**](https://tuktoro.com/en/pages/download-math-learning-app) - Interactive math learning app for kids. Available on iPad and Android tablets, featuring hand-drawn levels, didactic learning games, and ad-free child-safe environment.
+- [**BikeControl**](https://github.com/jonasbark/swiftcontrol) - Control your favorite trainer app using Zwift Click, Zwift Ride, Zwift Play, Shimano Di2, or other similar devices. Enables virtual gear shifting, steering, workout intensity adjustment, and more across iOS, Android, macOS, Windows, and Linux.
+- [**Roll Feathers**](https://github.com/cliftbar/roll_feathers) - Companion app for Bluetooth enabled dice. Connect multiple supported dice (Pixel Dice, GoDice, Virtual Dice), track roll history, and integrate with Home Assistant. Available on Android, iOS, macOS, Windows, Linux, and Web.
+- [**OpenEarable**](https://open-earable.teco.edu/) - Fully open-source AI platform for ear-based sensing applications with true wireless audio. Features high-precision sensors for biosensing, cardiac monitoring, and motion tracking. Cross-platform support for iOS, Android, and desktop platforms.
+- [**Ledger Flutter Plus**](https://github.com/vespr-wallet/ledger-flutter-plus) - A Flutter plugin to scan, connect & sign transactions using Ledger Nano devices via USB & BLE. Supports Android, iOS, and Web platforms for secure cryptocurrency wallet management.
+- [**Flutter MIDI Command**](https://pub.dev/packages/flutter_midi_command) - Flutter plugin for sending and receiving MIDI messages between Flutter and physical/virtual MIDI devices. Supports USB and BLE transports across iOS, macOS, Android, Linux, and Windows.
+- [**NT Helper**](https://github.com/thorinside/nt_helper) - Cross-platform Flutter application for editing presets on the Expert Sleepers Disting NT module. Provides comprehensive preset management, algorithm editing, parameter mapping, and routing analysis. Available on Windows, macOS, Linux, iOS, and Android.
+- [**MOCs Train Controller**](https://github.com/sonnny/mocs_train_controller) - Model train controller using Raspberry Pi Pico W and Flutter. Control trains via Bluetooth Low Energy with support for Android, iOS, and Linux platforms.
+
 
 > 💡 **Built something cool with Universal BLE?**  
 > We'd love to showcase your app here!  
-> Open a pull request and add it to this section. Please include your app icon in svg!
+> Open a pull request and add it to this section.
