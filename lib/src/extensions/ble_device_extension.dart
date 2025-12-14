@@ -22,7 +22,13 @@ extension BleDeviceExtension on BleDevice {
   /// Disconnects from the device.
   Future<void> disconnect() => UniversalBle.disconnect(deviceId);
 
-  /// Requests a specific MTU (Maximum Transmission Unit) size for the connection.
+  /// Requests an MTU (Maximum Transmission Unit) value for the connection.
+  ///
+  /// **⚠️ Note:** Requesting an MTU is a *best-effort* operation. The final MTU is
+  /// often controlled by the OS and remote device. Returns the negotiated MTU value,
+  /// which may differ from `expectedMtu`.
+  ///
+  /// See [UniversalBle.requestMtu] for platform limitations and best practices.
   Future<int> requestMtu(int expectedMtu) =>
       UniversalBle.requestMtu(deviceId, expectedMtu);
 

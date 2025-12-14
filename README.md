@@ -397,88 +397,56 @@ UniversalBle.disableBluetooth();
 
 ```dart
 int mtu = await bleDevice.requestMtu(256);
-```
+````
+
+> ⚠️ Note: Requesting an MTU is a *best-effort* operation.
+> On many platforms the final MTU is fully controlled by the OS and remote device.
 
 #### Platform Limitations
 
-On most platforms, the MTU can only be queried but not manually set:
+MTU negotiation is largely platform- and stack-managed, and often cannot be
+explicitly controlled by applications:
 
-- **iOS/macOS**: System automatically sets MTU to 185 bytes maximum
-- **Android 14+**: System automatically sets MTU to 517 bytes for the first GATT client
-- **Windows**: MTU can only be queried
-- **Linux**: MTU can only be queried
-- **Web**: No mechanism to query or modify MTU size
+* **iOS / macOS**
+
+  * MTU is fully OS-managed; apps cannot request or set it.
+  * Historically ~185 bytes, but modern devices may negotiate larger MTUs
+    (≈247–517) automatically.
+
+* **Android**
+
+  * **Android ≤ 13**: Apps may request MTU once per connection (up to 517).
+    If never requested, the default MTU is 23.
+  * **Android 14+**: The first GATT client effectively drives MTU negotiation
+    to 517 (or the link’s maximum); subsequent MTU requests are ignored.
+
+* **Windows**
+
+  * MTU is automatically negotiated by the OS.
+  * Apps cannot set it; they can only query the effective PDU size.
+
+* **Linux (BlueZ)**
+
+  * MTU is negotiated automatically by default.
+  * The standard D-Bus GATT API does not expose MTU control.
+  * MTU can be requested via BlueZ tools or lower-level APIs, but most apps
+    treat it as stack-defined.
+
+* **Web**
+
+  * MTU is negotiated internally by the browser/OS.
+  * No API exists to query or modify the MTU size.
 
 #### Best Practices
 
 When developing cross-platform BLE applications and devices:
 
-- Design for default MTU size (23 bytes) as default
-- Dynamically adapt to use larger packet sizes when the system provides them
-- Take advantage of the increased throughput when available without requiring it
-- Implement data fragmentation for larger transfers
-- Handle platform-specific MTU size based on current value
+* Always design for the default ATT MTU (23 bytes)
+* Treat MTU requests as opportunistic, not guaranteed
+* Dynamically adapt packet sizes based on the negotiated MTU
+* Implement application-level fragmentation for larger payloads
+* Take advantage of higher MTUs when available, without depending on them
 
-#### Resetting State on Hot Restart
-
-During Flutter hot restart in debug mode, the app state is reset but native Bluetooth connections and scan operations may persist. This can lead to connection issues or stale state.
-
-<details> 
-<summary>Use the following helper function to properly clean up BLE state before your app restarts.</summary>
-
-```dart
-void main() async {
-  WidgetsFlutterBinding.ensureInitialized();
-  // Reset BLE state before app initialization
-  await resetBleState();
-  runApp(MyApp());
-}
-
-/// Resets BLE state by stopping scans and disconnecting all devices.
-/// Make sure you have Bluetooth permissions before calling this function.
-Future<void> resetBleState() async {
-  // Skip reset in release mode or on web
-  if (!kDebugMode || kIsWeb) return;
-
-  // Check Bluetooth availability
-  AvailabilityState availabilityState =
-      await UniversalBle.getBluetoothAvailabilityState();
-
-  // Skip if Bluetooth is not powered on
-  if (availabilityState != AvailabilityState.poweredOn) {
-    debugPrint('Reset: Bluetooth is not powered on');
-    return;
-  }
-
-  // Stop scanning
-  if (await UniversalBle.isScanning()) {
-    debugPrint('Reset: Stopping scan');
-    await UniversalBle.stopScan();
-  }
-
-  // Disconnect all connected devices
-  List<String> withServices = [];
-
-  // On Apple platforms, you must specify services to discover connected devices
-  if (defaultTargetPlatform == TargetPlatform.macOS ||
-      defaultTargetPlatform == TargetPlatform.iOS) {
-    // Replace with your known device service UUIDs
-    withServices = ["0x180A"];
-  }
-
-  List<BleDevice> connectedDevices =
-      await UniversalBle.getSystemDevices(withServices: withServices);
-
-  for (var device in connectedDevices) {
-    debugPrint('Reset: Disconnecting device: ${device.deviceId}');
-    await UniversalBle.disconnect(device.deviceId);
-  }
-
-  debugPrint('Reset: Done');
-}
-```
-
-</details>
 
 ## Command Queue
 
@@ -761,6 +729,67 @@ void main() async {
   runApp(MyApp());
 }
 ```
+
+## Resetting State on Hot Restart
+
+During Flutter hot restart in debug mode, the app state is reset but native Bluetooth connections and scan operations may persist. This can lead to connection issues or stale state.
+
+<details> 
+<summary>Use the following helper function to properly clean up BLE state before your app restarts.</summary>
+
+```dart
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  // Reset BLE state before app initialization
+  await resetBleState();
+  runApp(MyApp());
+}
+
+/// Resets BLE state by stopping scans and disconnecting all devices.
+/// Make sure you have Bluetooth permissions before calling this function.
+Future<void> resetBleState() async {
+  // Skip reset in release mode or on web
+  if (!kDebugMode || kIsWeb) return;
+
+  // Check Bluetooth availability
+  AvailabilityState availabilityState =
+      await UniversalBle.getBluetoothAvailabilityState();
+
+  // Skip if Bluetooth is not powered on
+  if (availabilityState != AvailabilityState.poweredOn) {
+    debugPrint('Reset: Bluetooth is not powered on');
+    return;
+  }
+
+  // Stop scanning
+  if (await UniversalBle.isScanning()) {
+    debugPrint('Reset: Stopping scan');
+    await UniversalBle.stopScan();
+  }
+
+  // Disconnect all connected devices
+  List<String> withServices = [];
+
+  // On Apple platforms, you must specify services to discover connected devices
+  if (defaultTargetPlatform == TargetPlatform.macOS ||
+      defaultTargetPlatform == TargetPlatform.iOS) {
+    // Replace with your known device service UUIDs
+    withServices = ["0x180A"];
+  }
+
+  List<BleDevice> connectedDevices =
+      await UniversalBle.getSystemDevices(withServices: withServices);
+
+  for (var device in connectedDevices) {
+    debugPrint('Reset: Disconnecting device: ${device.deviceId}');
+    await UniversalBle.disconnect(device.deviceId);
+  }
+
+  debugPrint('Reset: Done');
+}
+```
+
+</details>
 
 ## Low level API
 
