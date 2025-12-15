@@ -313,9 +313,21 @@ class UniversalBle {
     );
   }
 
-  /// Request MTU value.
-  /// It will **attempt** to set the MTU (Maximum Transmission Unit) but it is not guaranteed to succeed due to platform limitations.
-  /// It will always return the current MTU.
+  /// Requests an MTU (Maximum Transmission Unit) value for the connection.
+  ///
+  /// **⚠️ Note:** Requesting an MTU is a *best-effort* operation. On many platforms
+  /// the final MTU is fully controlled by the OS and remote device. This method
+  /// returns the current/negotiated MTU value, which may differ from `expectedMtu`.
+  ///
+  /// **Platform Limitations:**
+  /// * **iOS/macOS**: MTU is OS-managed; apps cannot request it (~185-517 bytes auto-negotiated)
+  /// * **Android ≤13**: May request once per connection (up to 517), default is 23
+  /// * **Android 14+**: First GATT client drives MTU to 517; subsequent requests ignored
+  /// * **Windows/Linux**: MTU is automatically negotiated; apps can only query it
+  /// * **Web**: Not supported (no API available)
+  ///
+  /// **Best Practices:** Design for default ATT MTU (23 bytes), treat requests as
+  /// opportunistic, and implement fragmentation for larger payloads.
   static Future<int> requestMtu(
     String deviceId,
     int expectedMtu, {
