@@ -283,6 +283,15 @@ class UniversalBleWeb extends UniversalBlePlatform {
     );
   }
 
+  /// `Unimplemented`
+  @override
+  Future<int> readRssi(String deviceId) {
+    throw UniversalBleException(
+      code: UniversalBleErrorCode.notImplemented,
+      message: "readRssi is not implemented on Web platform",
+    );
+  }
+
   @override
   Future<bool> isPaired(String deviceId) {
     throw UniversalBleException(

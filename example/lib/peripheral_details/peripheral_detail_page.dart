@@ -370,6 +370,18 @@ class _PeripheralDetailPageState extends State<PeripheralDetailPage> {
                                 text: 'Request Mtu',
                               ),
                             PlatformButton(
+                              enabled: isConnected,
+                              onPressed: () async {
+                                try {
+                                  int rssi = await bleDevice.readRssi();
+                                  _addLog('RSSI', '$rssi dBm');
+                                } catch (e) {
+                                  _addLog('ReadRssiError (${e.runtimeType})', e);
+                                }
+                              },
+                              text: 'Get RSSI',
+                            ),
+                            PlatformButton(
                               enabled: isConnected &&
                                   discoveredServices.isNotEmpty &&
                                   _hasSelectedCharacteristicProperty([

@@ -23,6 +23,7 @@ A cross-platform (Android/iOS/macOS/Windows/Linux/Web) Bluetooth Low Energy (BLE
 - [Pairing](#pairing)
 - [Bluetooth Availability](#bluetooth-availability)
 - [Requesting MTU](#requesting-mtu)
+- [Reading RSSI](#reading-rssi)
 - [Command Queue](#command-queue)
 - [Timeout](#timeout)
 - [Error Handling](#error-handling)
@@ -48,6 +49,7 @@ A cross-platform (Android/iOS/macOS/Windows/Linux/Web) Bluetooth Low Energy (BLE
 | enable/disable Bluetooth      |   ✔️    | ❌  |  ❌   |   ✔️    |  ✔️   | ❌  |
 | onAvailabilityChange          |   ✔️    | ✔️  |  ✔️   |   ✔️    |  ✔️   | ✔️  |
 | requestMtu                    |   ✔️    | ✔️  |  ✔️   |   ✔️    |  ✔️   | ❌  |
+| readRssi                      |   ✔️    | ✔️  |  ✔️   |   ❌    |  ❌   | ❌  |
 | requestPermissions            |   ✔️    | ✔️  |  ✔️   |   ✔️    |  ✔️   | ✔️  |
 
 ## Getting Started
@@ -405,7 +407,7 @@ UniversalBle.disableBluetooth();
 
 ```dart
 int mtu = await bleDevice.requestMtu(256);
-````
+```
 
 > ⚠️ Note: Requesting an MTU is a *best-effort* operation.
 > On many platforms the final MTU is fully controlled by the OS and remote device.
@@ -454,6 +456,23 @@ When developing cross-platform BLE applications and devices:
 * Dynamically adapt packet sizes based on the negotiated MTU
 * Implement application-level fragmentation for larger payloads
 * Take advantage of higher MTUs when available, without depending on them
+
+
+### Reading RSSI
+
+Read the signal strength (RSSI) of a connected device.
+
+```dart
+int rssi = await bleDevice.readRssi();
+```
+
+> ⚠️ Note: The device must be connected before reading RSSI.
+
+#### Platform Limitations
+
+* **Android / iOS / macOS**: Fully supported.
+
+* **Windows / Linux / Web**: Not supported.
 
 
 ## Command Queue

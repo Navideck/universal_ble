@@ -93,6 +93,9 @@ abstract class UniversalBlePlatformChannel {
 
   int getConnectionState(String deviceId);
 
+  @async
+  int readRssi(String deviceId);
+
   void setLogLevel(UniversalBleLogLevel logLevel);
 }
 

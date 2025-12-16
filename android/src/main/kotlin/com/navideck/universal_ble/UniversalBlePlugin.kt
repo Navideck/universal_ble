@@ -60,6 +60,7 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
     private val writeResultFutureList = mutableListOf<WriteResultFuture>()
     private val subscriptionResultFutureList = mutableListOf<SubscriptionResultFuture>()
     private val pairResultFutures = mutableMapOf<String, (Result<Boolean>) -> Unit>()
+    private val rssiResultFutureList = mutableListOf<RssiResultFuture>()
 
     override fun onAttachedToEngine(flutterPluginBinding: FlutterPlugin.FlutterPluginBinding) {
         UniversalBlePlatformChannel.setUp(flutterPluginBinding.binaryMessenger, this)
@@ -277,6 +278,45 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
 
     override fun setLogLevel(logLevel: UniversalBleLogLevel) {
         UniversalBleLogger.setLogLevel(logLevel)
+    }
+
+    override fun readRssi(deviceId: String, callback: (Result<Long>) -> Unit) {
+        try {
+            val gatt = deviceId.toBluetoothGatt()
+            if (gatt.readRemoteRssi()) {
+                rssiResultFutureList.add(RssiResultFuture(deviceId, callback))
+            } else {
+                callback(
+                    Result.failure(
+                        createFlutterError(
+                            UniversalBleErrorCode.FAILED,
+                            "Failed to read RSSI"
+                        )
+                    )
+                )
+            }
+        } catch (e: FlutterError) {
+            callback(Result.failure(e))
+        }
+    }
+
+    override fun onReadRemoteRssi(gatt: BluetoothGatt?, rssi: Int, status: Int) {
+        val deviceId = gatt?.device?.address ?: return
+        rssiResultFutureList.filter { it.deviceId == deviceId }.forEach {
+            rssiResultFutureList.remove(it)
+            if (status == BluetoothGatt.GATT_SUCCESS) {
+                it.result(Result.success(rssi.toLong()))
+            } else {
+                it.result(
+                    Result.failure(
+                        createFlutterError(
+                            UniversalBleErrorCode.FAILED,
+                            "Failed to read RSSI"
+                        )
+                    )
+                )
+            }
+        }
     }
 
     override fun discoverServices(
@@ -934,6 +974,14 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
             }
         }
         discoverServicesFutureList.removeAll {
+            if (it.deviceId == gatt.device.address) {
+                it.result(Result.failure(deviceDisconnectedError))
+                true
+            } else {
+                false
+            }
+        }
+        rssiResultFutureList.removeAll {
             if (it.deviceId == gatt.device.address) {
                 it.result(Result.failure(deviceDisconnectedError))
                 true
