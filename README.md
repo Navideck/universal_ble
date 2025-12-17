@@ -1,5 +1,9 @@
 # Universal BLE
 
+<div align="center">
+  <img src="assets/universal_ble_icon.png" alt="Universal BLE Icon" width="128" height="128">
+</div>
+
 [![pub package](https://img.shields.io/pub/v/universal_ble?label=universal_ble&color=blue)](https://pub.dev/packages/universal_ble)
 [![License](https://img.shields.io/badge/license-BSD%203--Clause-blue.svg)](https://opensource.org/licenses/BSD-3-Clause)
 [![Platform](https://img.shields.io/badge/platform-Android%20%7C%20iOS%20%7C%20macOS%20%7C%20Windows%20%7C%20Linux%20%7C%20Web-lightgrey)](https://github.com/Navideck/universal_ble)
