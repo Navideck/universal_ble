@@ -302,19 +302,23 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
 
     override fun onReadRemoteRssi(gatt: BluetoothGatt?, rssi: Int, status: Int) {
         val deviceId = gatt?.device?.address ?: return
-        rssiResultFutureList.filter { it.deviceId == deviceId }.forEach {
-            rssiResultFutureList.remove(it)
-            if (status == BluetoothGatt.GATT_SUCCESS) {
-                it.result(Result.success(rssi.toLong()))
-            } else {
-                it.result(
-                    Result.failure(
-                        createFlutterError(
-                            UniversalBleErrorCode.FAILED,
-                            "Failed to read RSSI"
+        rssiResultFutureList.removeAll {
+            if (it.deviceId == deviceId) {
+                if (status == BluetoothGatt.GATT_SUCCESS) {
+                    it.result(Result.success(rssi.toLong()))
+                } else {
+                    it.result(
+                        Result.failure(
+                            createFlutterError(
+                                UniversalBleErrorCode.FAILED,
+                                "Failed to read RSSI"
+                            )
                         )
                     )
-                )
+                }
+                true
+            } else {
+                false
             }
         }
     }
@@ -351,36 +355,44 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
 
     override fun onServicesDiscovered(gatt: BluetoothGatt, status: Int) {
         if (status != BluetoothGatt.GATT_SUCCESS) {
-            discoverServicesFutureList.filter { it.deviceId == gatt.device.address }.forEach {
-                discoverServicesFutureList.remove(it)
-                it.result(
-                    Result.failure(
-                        createFlutterError(
-                            UniversalBleErrorCode.FAILED,
-                            "Failed to discover services"
+            discoverServicesFutureList.removeAll {
+                if (it.deviceId == gatt.device.address) {
+                    it.result(
+                        Result.failure(
+                            createFlutterError(
+                                UniversalBleErrorCode.FAILED,
+                                "Failed to discover services"
+                            )
                         )
                     )
-                )
+                    true
+                } else {
+                    false
+                }
             }
             return
         }
         setCachedServices(gatt.device.address, gatt.services.map { it.uuid.toString() })
-        discoverServicesFutureList.filter { it.deviceId == gatt.device.address }.forEach {
-            discoverServicesFutureList.remove(it)
-            it.result(Result.success(gatt.services.map { service ->
-                UniversalBleService(
-                    uuid = service.uuid.toString(),
-                    characteristics = service.characteristics.map { char ->
-                        UniversalBleCharacteristic(
-                            uuid = char.uuid.toString(),
-                            properties = char.getPropertiesList(),
-                            descriptors = if (it.withDescriptors) char.descriptors.map { descriptor ->
-                                UniversalBleDescriptor(descriptor.uuid.toString())
-                            } else listOf()
-                        )
-                    }
-                )
-            }))
+        discoverServicesFutureList.removeAll {
+            if (it.deviceId == gatt.device.address) {
+                it.result(Result.success(gatt.services.map { service ->
+                    UniversalBleService(
+                        uuid = service.uuid.toString(),
+                        characteristics = service.characteristics.map { char ->
+                            UniversalBleCharacteristic(
+                                uuid = char.uuid.toString(),
+                                properties = char.getPropertiesList(),
+                                descriptors = if (it.withDescriptors) char.descriptors.map { descriptor ->
+                                    UniversalBleDescriptor(descriptor.uuid.toString())
+                                } else listOf()
+                            )
+                        }
+                    )
+                }))
+                true
+            } else {
+                false
+            }
         }
     }
 
@@ -557,29 +569,31 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
         value: ByteArray,
         status: Int,
     ) {
-        readResultFutureList.filter {
-            it.deviceId == gatt.device.address &&
-                    it.characteristicId == characteristic.uuid.toString() &&
-                    it.serviceId == characteristic.service.uuid.toString()
-        }.forEach {
-            readResultFutureList.remove(it)
-            if (status == BluetoothGatt.GATT_SUCCESS) {
-                it.result(Result.success(value))
-            } else {
-                UniversalBleLogger.logError(
-                    "READ_FAILED <- ${gatt.device.address} ${characteristic.uuid} status=$status"
-                )
-                it.result(
-                    Result.failure(
-                        createFlutterError(
-                            gattStatusToUniversalBleErrorCode(status),
-                            "Failed to read",
-                            status.toString()
+        readResultFutureList.removeAll {
+            if (it.deviceId == gatt.device.address &&
+                it.characteristicId == characteristic.uuid.toString() &&
+                it.serviceId == characteristic.service.uuid.toString()
+            ) {
+                if (status == BluetoothGatt.GATT_SUCCESS) {
+                    it.result(Result.success(value))
+                } else {
+                    UniversalBleLogger.logError(
+                        "READ_FAILED <- ${gatt.device.address} ${characteristic.uuid} status=$status"
+                    )
+                    it.result(
+                        Result.failure(
+                            createFlutterError(
+                                gattStatusToUniversalBleErrorCode(status),
+                                "Failed to read",
+                                status.toString()
+                            )
                         )
                     )
-                )
+                }
+                true
+            } else {
+                false
             }
-
         }
     }
 
@@ -680,27 +694,30 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
         characteristic: BluetoothGattCharacteristic,
         status: Int,
     ) {
-        writeResultFutureList.filter {
-            it.deviceId == gatt?.device?.address &&
-                    it.characteristicId == characteristic.uuid.toString() &&
-                    it.serviceId == characteristic.service.uuid.toString()
-        }.forEach {
-            writeResultFutureList.remove(it)
-            if (status == BluetoothGatt.GATT_SUCCESS) {
-                it.result(Result.success(Unit))
-            } else {
-                UniversalBleLogger.logError(
-                    "WRITE_FAILED <- ${gatt?.device?.address} ${characteristic.uuid} status=$status"
-                )
-                it.result(
-                    Result.failure(
-                        createFlutterError(
-                            gattStatusToUniversalBleErrorCode(status),
-                            "Failed to write",
-                            status.toString()
+        writeResultFutureList.removeAll {
+            if (it.deviceId == gatt?.device?.address &&
+                it.characteristicId == characteristic.uuid.toString() &&
+                it.serviceId == characteristic.service.uuid.toString()
+            ) {
+                if (status == BluetoothGatt.GATT_SUCCESS) {
+                    it.result(Result.success(Unit))
+                } else {
+                    UniversalBleLogger.logError(
+                        "WRITE_FAILED <- ${gatt?.device?.address} ${characteristic.uuid} status=$status"
+                    )
+                    it.result(
+                        Result.failure(
+                            createFlutterError(
+                                gattStatusToUniversalBleErrorCode(status),
+                                "Failed to write",
+                                status.toString()
+                            )
                         )
                     )
-                )
+                }
+                true
+            } else {
+                false
             }
         }
     }
@@ -719,19 +736,23 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
 
     override fun onMtuChanged(gatt: BluetoothGatt?, mtu: Int, status: Int) {
         val deviceId = gatt?.device?.address ?: return
-        mtuResultFutureList.filter { it.deviceId == deviceId }.forEach {
-            mtuResultFutureList.remove(it)
-            if (status == BluetoothGatt.GATT_SUCCESS) {
-                it.result(Result.success(mtu.toLong()))
-            } else {
-                it.result(
-                    Result.failure(
-                        createFlutterError(
-                            UniversalBleErrorCode.FAILED,
-                            "Failed to change MTU"
+        mtuResultFutureList.removeAll {
+            if (it.deviceId == deviceId) {
+                if (status == BluetoothGatt.GATT_SUCCESS) {
+                    it.result(Result.success(mtu.toLong()))
+                } else {
+                    it.result(
+                        Result.failure(
+                            createFlutterError(
+                                UniversalBleErrorCode.FAILED,
+                                "Failed to change MTU"
+                            )
                         )
                     )
-                )
+                }
+                true
+            } else {
+                false
             }
         }
     }
@@ -1164,24 +1185,27 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
         service: String,
         status: Int,
     ) {
-        subscriptionResultFutureList.filter {
-            it.deviceId == deviceId &&
-                    it.characteristicId == characteristic &&
-                    it.serviceId == service
-        }.forEach {
-            subscriptionResultFutureList.remove(it)
-            if (status != BluetoothGatt.GATT_SUCCESS) {
-                it.result(
-                    Result.failure(
-                        createFlutterError(
-                            gattStatusToUniversalBleErrorCode(status),
-                            "Failed to update subscription state",
-                            status.toString()
+        subscriptionResultFutureList.removeAll {
+            if (it.deviceId == deviceId &&
+                it.characteristicId == characteristic &&
+                it.serviceId == service
+            ) {
+                if (status != BluetoothGatt.GATT_SUCCESS) {
+                    it.result(
+                        Result.failure(
+                            createFlutterError(
+                                gattStatusToUniversalBleErrorCode(status),
+                                "Failed to update subscription state",
+                                status.toString()
+                            )
                         )
                     )
-                )
+                } else {
+                    it.result(Result.success(Unit))
+                }
+                true
             } else {
-                it.result(Result.success(Unit))
+                false
             }
         }
     }
