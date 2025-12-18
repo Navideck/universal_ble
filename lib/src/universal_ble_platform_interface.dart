@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:typed_data';
 import 'package:universal_ble/src/utils/cache_handler.dart';
 import 'package:universal_ble/src/utils/universal_ble_stream_controller.dart';
+import 'package:universal_ble/src/utils/universal_logger.dart';
 import 'package:universal_ble/universal_ble.dart';
 
 abstract class UniversalBlePlatform {
@@ -90,6 +91,9 @@ abstract class UniversalBlePlatform {
     List<String>? withServices,
   );
 
+  Future<void> setLogLevel(BleLogLevel logLevel) async =>
+      UniversalLogger.setLogLevel(logLevel);
+
   bool receivesAdvertisements(String deviceId) => true;
 
   /// Streams
@@ -147,6 +151,7 @@ abstract class UniversalBlePlatform {
     String deviceId,
     String characteristicId,
     Uint8List value,
+    int? timestamp,
   ) {
     characteristicId = BleUuidParser.string(characteristicId);
     _valueStreamController.add((
@@ -155,7 +160,7 @@ abstract class UniversalBlePlatform {
       value: value,
     ));
     try {
-      onValueChange?.call(deviceId, characteristicId, value);
+      onValueChange?.call(deviceId, characteristicId, value, timestamp);
     } catch (_) {}
   }
 
@@ -181,10 +186,17 @@ abstract class UniversalBlePlatform {
 
 // Callback types
 typedef OnConnectionChange = void Function(
-    String deviceId, bool isConnected, String? error);
+  String deviceId,
+  bool isConnected,
+  String? error,
+);
 
 typedef OnValueChange = void Function(
-    String deviceId, String characteristicId, Uint8List value);
+  String deviceId,
+  String characteristicId,
+  Uint8List value,
+  int? timestamp,
+);
 
 typedef OnScanResult = void Function(BleDevice scanResult);
 

@@ -24,6 +24,14 @@ class UniversalBle {
     _bleCommandQueue.timeout = duration;
   }
 
+  /// Set log level for both Dart and native implementations.
+  /// Only effective in debug builds.
+  static Future<void> setLogLevel(BleLogLevel logLevel) async {
+    if (!kDebugMode) return;
+    UniversalLogger.setLogLevel(logLevel);
+    await _platform.setLogLevel(logLevel);
+  }
+
   /// Set how commands will be executed. By default, all commands are executed in a global queue (`QueueType.global`),
   /// with each command waiting for the previous one to finish.
   ///
@@ -65,7 +73,7 @@ class UniversalBle {
 
   /// Check if has permissions.
   /// [withAndroidFineLocation] is used to check fine location permission on Android 12+ (API 31+).
-  /// on Android lower than 12, this method will check location permission regardless of the [withAndroidFineLocation] value.
+  /// On Android lower than 12, this method will check location permission regardless of the [withAndroidFineLocation] value.
   /// `Windows`, `Linux` and `Web` will always return true.
   static Future<bool> hasPermissions({
     bool withAndroidFineLocation = false,
@@ -305,9 +313,21 @@ class UniversalBle {
     );
   }
 
-  /// Request MTU value.
-  /// It will **attempt** to set the MTU (Maximum Transmission Unit) but it is not guaranteed to succeed due to platform limitations.
-  /// It will always return the current MTU.
+  /// Requests an MTU (Maximum Transmission Unit) value for the connection.
+  ///
+  /// **⚠️ Note:** Requesting an MTU is a *best-effort* operation. On many platforms
+  /// the final MTU is fully controlled by the OS and remote device. This method
+  /// returns the current/negotiated MTU value, which may differ from `expectedMtu`.
+  ///
+  /// **Platform Limitations:**
+  /// * **iOS/macOS**: MTU is OS-managed; apps cannot request it (~185-517 bytes auto-negotiated)
+  /// * **Android ≤13**: May request once per connection (up to 517), default is 23
+  /// * **Android 14+**: First GATT client drives MTU to 517; subsequent requests ignored
+  /// * **Windows/Linux**: MTU is automatically negotiated; apps can only query it
+  /// * **Web**: Not supported (no API available)
+  ///
+  /// **Best Practices:** Design for default ATT MTU (23 bytes), treat requests as
+  /// opportunistic, and implement fragmentation for larger payloads.
   static Future<int> requestMtu(
     String deviceId,
     int expectedMtu, {

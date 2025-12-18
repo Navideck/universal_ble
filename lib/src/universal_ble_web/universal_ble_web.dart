@@ -162,6 +162,10 @@ class UniversalBleWeb extends UniversalBlePlatform {
     String characteristic,
     BleInputProperty bleInputProperty,
   ) async {
+    UniversalLogger.logDebug(
+      "SET_NOTIFY -> $deviceId $service $characteristic input=${bleInputProperty.name}",
+      withTimestamp: true,
+    );
     final bleCharacteristic = await _getBleCharacteristic(
       deviceId: deviceId,
       serviceId: service,
@@ -185,10 +189,20 @@ class UniversalBleWeb extends UniversalBlePlatform {
       await bleCharacteristic.startNotifications();
       _characteristicStreamList[characteristicKey] =
           bleCharacteristic.value.listen((ByteData event) {
+        final preview = event.buffer
+            .asUint8List()
+            .take(8)
+            .map((e) => e.toRadixString(16).padLeft(2, '0'))
+            .join();
+        UniversalLogger.logVerbose(
+          "NOTIFY <- $deviceId $characteristic len=${event.lengthInBytes} data=$preview",
+          withTimestamp: true,
+        );
         updateCharacteristicValue(
           deviceId,
           characteristic,
           event.buffer.asUint8List(),
+          DateTime.now().millisecondsSinceEpoch,
         );
       });
     } else {
@@ -205,6 +219,10 @@ class UniversalBleWeb extends UniversalBlePlatform {
     Uint8List value,
     BleOutputProperty bleOutputProperty,
   ) async {
+    UniversalLogger.logDebug(
+      "WRITE -> $deviceId $service $characteristic len=${value.length} property=${bleOutputProperty.name}",
+      withTimestamp: true,
+    );
     final bleCharacteristic = await _getBleCharacteristic(
       deviceId: deviceId,
       serviceId: service,
@@ -234,6 +252,10 @@ class UniversalBleWeb extends UniversalBlePlatform {
     String characteristic, {
     final Duration? timeout,
   }) async {
+    UniversalLogger.logDebug(
+      "READ -> $deviceId $service $characteristic",
+      withTimestamp: true,
+    );
     var bleCharacteristic = await _getBleCharacteristic(
       deviceId: deviceId,
       serviceId: service,
@@ -493,6 +515,7 @@ extension _BluetoothDeviceExtension on BluetoothDevice {
       manufacturerDataList: manufacturerDataMap?.toManufacturerDataList() ?? [],
       rssi: rssi,
       services: services,
+      timestamp: DateTime.now().millisecondsSinceEpoch,
     );
   }
 }

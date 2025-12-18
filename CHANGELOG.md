@@ -1,4 +1,8 @@
 ## 1.0.0
+* BREAKING CHANGE: `OnValueChange` callback also includes timestamp
+* BREAKING CHANGE: Bump minimum IOS version to 13.1
+* BREAKING CHANGE: Bump minimum MacOS version to 10.15
+* Fix Windows 11 crash on cancelling pairing
 * Unified error codes for all platforms
 * BREAKING CHANGE: Bump minimum IOS version to 13.1
 * Add `isScanning` api
@@ -7,6 +11,8 @@
 * `disconnect` now waits for disconnection confirmation before returning
 * Improve Windows disconnection event handling and cleanup
 * Add `withDescriptors` parameter in `discoverServices` API
+* Add `timestamp` in `BleDevice` 
+* Add `setLogLevel` api for configuring logs
 
 ## 0.21.1
 * Fix device name resolution on Windows

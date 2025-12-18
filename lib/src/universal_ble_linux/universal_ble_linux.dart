@@ -244,6 +244,10 @@ class UniversalBleLinux extends UniversalBlePlatform {
   @override
   Future<void> setNotifiable(String deviceId, String service,
       String characteristic, BleInputProperty bleInputProperty) async {
+    UniversalLogger.logDebug(
+      "SET_NOTIFY -> $deviceId $service $characteristic input=${bleInputProperty.name}",
+      withTimestamp: true,
+    );
     final char = _getCharacteristic(deviceId, service, characteristic);
 
     String characteristicKey = "${deviceId}_${service}_$characteristic";
@@ -265,10 +269,15 @@ class UniversalBleLinux extends UniversalBlePlatform {
         for (String property in properties) {
           switch (property) {
             case BluezProperty.value:
+              UniversalLogger.logVerbose(
+                "NOTIFY <- $deviceId $service $characteristic len=${char.value.length} data=${char.value}",
+                withTimestamp: true,
+              );
               updateCharacteristicValue(
                 deviceId,
                 characteristic,
                 Uint8List.fromList(char.value),
+                DateTime.now().millisecondsSinceEpoch,
               );
               break;
             default:
@@ -293,11 +302,19 @@ class UniversalBleLinux extends UniversalBlePlatform {
     String characteristic, {
     final Duration? timeout,
   }) async {
+    UniversalLogger.logDebug(
+      "READ -> $deviceId $service $characteristic",
+      withTimestamp: true,
+    );
     try {
       final c = _getCharacteristic(deviceId, service, characteristic);
       final data = await c.readValue();
       return Uint8List.fromList(data);
     } on BlueZFailedException catch (e) {
+      UniversalLogger.logError(
+        "READ_FAILED <- $deviceId $service $characteristic ${e.message}",
+        withTimestamp: true,
+      );
       throw e.toUniversalBleException(
         defaultCode: UniversalBleErrorCode.readFailed,
       );
@@ -311,6 +328,10 @@ class UniversalBleLinux extends UniversalBlePlatform {
       String characteristic,
       Uint8List value,
       BleOutputProperty bleOutputProperty) async {
+    UniversalLogger.logDebug(
+      "WRITE -> $deviceId $service $characteristic len=${value.length} property=${bleOutputProperty.name}",
+      withTimestamp: true,
+    );
     try {
       final c = _getCharacteristic(deviceId, service, characteristic);
       if (bleOutputProperty == BleOutputProperty.withResponse) {
@@ -325,6 +346,10 @@ class UniversalBleLinux extends UniversalBlePlatform {
         );
       }
     } on BlueZFailedException catch (e) {
+      UniversalLogger.logError(
+        "WRITE_FAILED <- $deviceId $service $characteristic ${e.message}",
+        withTimestamp: true,
+      );
       throw e.toUniversalBleException(
         defaultCode: UniversalBleErrorCode.writeFailed,
       );
@@ -671,6 +696,7 @@ extension BlueZDeviceExtension on BlueZDevice {
       isSystemDevice: isSystemDevice,
       services: uuids.map((e) => e.toString()).toList(),
       manufacturerDataList: manufacturerDataList,
+      timestamp: DateTime.now().millisecondsSinceEpoch,
     );
   }
 }

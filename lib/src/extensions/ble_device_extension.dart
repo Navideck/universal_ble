@@ -22,7 +22,13 @@ extension BleDeviceExtension on BleDevice {
   /// Disconnects from the device.
   Future<void> disconnect() => UniversalBle.disconnect(deviceId);
 
-  /// Requests a specific MTU (Maximum Transmission Unit) size for the connection.
+  /// Requests an MTU (Maximum Transmission Unit) value for the connection.
+  ///
+  /// **⚠️ Note:** Requesting an MTU is a *best-effort* operation. The final MTU is
+  /// often controlled by the OS and remote device. Returns the negotiated MTU value,
+  /// which may differ from `expectedMtu`.
+  ///
+  /// See [UniversalBle.requestMtu] for platform limitations and best practices.
   Future<int> requestMtu(int expectedMtu) =>
       UniversalBle.requestMtu(deviceId, expectedMtu);
 
@@ -93,7 +99,7 @@ extension BleDeviceExtension on BleDevice {
   ///
   /// [service] is the UUID of the service.
   /// [preferCached] indicates whether to use cached services. If cache is empty, discoverServices() will be called.
-  /// might throw [NotFoundException]
+  /// might throw [UniversalBleException]
   Future<BleService> getService(
     String service, {
     bool preferCached = true,
@@ -128,7 +134,7 @@ extension BleDeviceExtension on BleDevice {
   /// [service] is the UUID of the service.
   /// [characteristic] is the UUID of the characteristic.
   /// [preferCached] indicates whether to use cached services. If cache is empty, discoverServices() will be called.
-  /// might throw [NotFoundException]
+  /// might throw [UniversalBleException]
   Future<BleCharacteristic> getCharacteristic(
     String characteristic, {
     required String service,

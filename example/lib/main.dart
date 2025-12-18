@@ -7,6 +7,7 @@ import 'package:universal_ble_example/home/permission_screen.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await StorageService.instance.init();
+  await UniversalBle.setLogLevel(BleLogLevel.verbose);
   bool hasPermission = await UniversalBle.hasPermissions(
     withAndroidFineLocation: false,
   );

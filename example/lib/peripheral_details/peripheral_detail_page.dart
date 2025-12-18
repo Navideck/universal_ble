@@ -104,10 +104,14 @@ class _PeripheralDetailPageState extends State<PeripheralDetailPage> {
     String deviceId,
     String characteristicId,
     Uint8List value,
+    int? timestamp,
   ) {
     String s = String.fromCharCodes(value);
     String data = '$s\nraw :  ${value.toString()}';
-    debugPrint('_handleValueChange $characteristicId, $s');
+    DateTime? timestampDateTime = timestamp != null
+        ? DateTime.fromMillisecondsSinceEpoch(timestamp)
+        : null;
+    debugPrint('_handleValueChange ($timestampDateTime) $characteristicId, $s');
     _addLog("Value", data);
   }
 
