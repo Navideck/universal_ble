@@ -12,10 +12,11 @@ dependencies:
   convert: ^3.1.1
   expandable: ^5.0.1
   cupertino_icons: ^1.0.2
-  shared_preferences: ^2.5.3
+  shared_preferences: ^2.5.4
+  package_info: ^2.0.2
+  url_launcher: ^6.3.2
   universal_ble:
     path: ../
-  package_info: ^2.0.2
 
 dev_dependencies:
   integration_test:
@@ -23,6 +24,12 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^6.0.0
+  flutter_launcher_icons:
+    git:
+      url: https://github.com/Navideck/flutter_launcher_icons.git
+      ref: improve-windows-ico-generation
 
 flutter:
   uses-material-design: true
+  assets:
+    - assets/icon.png

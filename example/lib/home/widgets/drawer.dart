@@ -1,5 +1,10 @@
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:package_info/package_info.dart';
+import 'package:universal_ble/universal_ble.dart';
+import 'package:universal_ble_example/home/scanner_screen.dart';
+import 'package:universal_ble_example/home/system_devices_screen.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class AppDrawer extends StatefulWidget {
   const AppDrawer({super.key});
@@ -9,9 +14,17 @@ class AppDrawer extends StatefulWidget {
 }
 
 class _AppDrawerState extends State<AppDrawer> {
-  Widget icon = const Icon(Icons.info_outline);
+  void _navigateToScreen(BuildContext context, Widget screen) {
+    Navigator.pop(context);
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(builder: (_) => screen),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Drawer(
       child: Column(
         children: [
@@ -20,11 +33,11 @@ class _AppDrawerState extends State<AppDrawer> {
             child: DrawerHeader(
               padding: const EdgeInsets.only(top: 0, left: 16),
               decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.primary,
+                color: colorScheme.primary,
               ),
               child: Row(
                 children: [
-                  icon,
+                  Image.asset('assets/icon.png', width: 40, height: 40),
                   const SizedBox(width: 10),
                   Expanded(
                     child: Text(
@@ -33,7 +46,7 @@ class _AppDrawerState extends State<AppDrawer> {
                       style:
                           Theme.of(context).textTheme.headlineMedium?.copyWith(
                                 fontWeight: FontWeight.bold,
-                                color: Theme.of(context).colorScheme.onPrimary,
+                                color: colorScheme.onPrimary,
                                 height: 1,
                               ),
                     ),
@@ -42,11 +55,25 @@ class _AppDrawerState extends State<AppDrawer> {
               ),
             ),
           ),
+          ListTile(
+            leading: const Icon(Icons.search),
+            title: const Text('Scanner'),
+            onTap: () => _navigateToScreen(context, const ScannerScreen()),
+          ),
+          if (BleCapabilities.supportsConnectedDevicesApi)
+            ListTile(
+              leading: const Icon(Icons.devices),
+              title: const Text('System Devices'),
+              onTap: () =>
+                  _navigateToScreen(context, const SystemDevicesScreen()),
+            ),
+          const Divider(),
           FutureBuilder(
             future: PackageInfo.fromPlatform(),
             builder: (_, snapshot) => AboutListTile(
               icon: const Icon(Icons.info_outline),
-              applicationIcon: const Icon(Icons.info_outline),
+              applicationIcon:
+                  Image.asset('assets/icon.png', width: 40, height: 40),
               applicationName: 'Universal BLE',
               applicationVersion:
                   "${snapshot.data?.version} (${snapshot.data?.buildNumber})",
@@ -58,29 +85,17 @@ class _AppDrawerState extends State<AppDrawer> {
                   text: TextSpan(
                     children: [
                       TextSpan(
-                        text: "Learn More",
-                        style: Theme.of(context).textTheme.bodyMedium!,
+                        text: 'Learn More',
+                        style: const TextStyle(
+                          color: Colors.blue,
+                          decoration: TextDecoration.underline,
+                        ),
+                        recognizer: TapGestureRecognizer()
+                          ..onTap = () {
+                            launchUrl(Uri.parse(
+                                "https://github.com/Navideck/universal_ble"));
+                          },
                       ),
-                      const WidgetSpan(
-                        child: SizedBox(width: 9),
-                      ),
-                      TextSpan(
-                        text: "https://github.com/Navideck/universal_ble",
-                        style: Theme.of(context).textTheme.bodyMedium!,
-                      ),
-                      const WidgetSpan(
-                        child: SizedBox(width: 9),
-                      ),
-                      // TextSpan(
-                      //   style: Theme.of(context)
-                      //       .textTheme
-                      //       .bodyMedium!
-                      //       .copyWith(fontWeight: FontWeight.bold),
-                      //   text: "https://github.com/Navideck/universal_ble",
-                      //   recognizer: TapGestureRecognizer()
-                      //     ..onTap = () async => openUrl(controller.url),
-                      // ),
-                      const TextSpan(text: '.'),
                     ],
                   ),
                 ),
@@ -89,41 +104,6 @@ class _AppDrawerState extends State<AppDrawer> {
           ),
         ],
       ),
-    );
-  }
-}
-
-class _DrawerTile extends StatelessWidget {
-  final IconData? icon;
-  final String title;
-  final Widget? subtitle;
-  final Function()? onTap;
-  final Function()? onLongPress;
-  final Widget? trailing;
-  const _DrawerTile({
-    super.key,
-    required this.title,
-    required this.onTap,
-    this.subtitle,
-    this.onLongPress,
-    this.icon,
-    this.trailing,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return ListTile(
-      leading: icon == null
-          ? null
-          : Padding(
-              padding: const EdgeInsets.all(2.0),
-              child: Icon(icon),
-            ),
-      title: Text(title),
-      subtitle: subtitle,
-      onTap: onTap,
-      onLongPress: onLongPress,
-      trailing: trailing,
     );
   }
 }

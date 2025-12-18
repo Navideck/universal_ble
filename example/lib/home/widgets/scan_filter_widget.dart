@@ -31,9 +31,13 @@ class _ScanFilterWidgetState extends State<ScanFilterWidget> {
       List<String> namePrefixes = [];
       List<ManufacturerDataFilter> manufacturerDataFilters = [];
 
-      // Parse Services
+      // Parse Services - handle both comma and newline separated
       if (widget.servicesFilterController.text.isNotEmpty) {
-        List<String> services = widget.servicesFilterController.text.split(',');
+        List<String> services = widget.servicesFilterController.text
+            .split(',')
+            .map((e) => e.trim())
+            .where((s) => s.isNotEmpty)
+            .toList();
         for (String service in services) {
           try {
             serviceUUids.add(BleUuidParser.string(service.trim()));
@@ -43,16 +47,20 @@ class _ScanFilterWidgetState extends State<ScanFilterWidget> {
         }
       }
 
-      // Parse Name Prefix
+      // Parse Name Prefix - handle both comma and newline separated
       String namePrefix = widget.namePrefixController.text;
       if (namePrefix.isNotEmpty) {
         namePrefixes = namePrefix.split(',').map((e) => e.trim()).toList();
       }
 
-      // Parse Manufacturer Data
+      // Parse Manufacturer Data - handle both comma and newline separated
       String manufacturerDataText = widget.manufacturerDataController.text;
       if (manufacturerDataText.isNotEmpty) {
-        List<String> manufacturerData = manufacturerDataText.split(',');
+        List<String> manufacturerData = manufacturerDataText
+            .split(',')
+            .map((e) => e.trim())
+            .where((s) => s.isNotEmpty)
+            .toList();
         for (String manufacturer in manufacturerData) {
           String trimmed = manufacturer.trim();
           // Remove 0x prefix if present, otherwise parse as decimal or hex
@@ -155,14 +163,12 @@ class _ScanFilterWidgetState extends State<ScanFilterWidget> {
               ),
               const SizedBox(height: 8),
               Text(
-                "Filter devices by name, services, or manufacturer data. Use commas to separate multiple values.",
+                "Filter devices by name, services, or manufacturer data. Enter multiple values separated by commas.",
                 style: theme.textTheme.bodySmall?.copyWith(
                   color: colorScheme.onSurface.withValues(alpha: 0.6),
                 ),
               ),
               const SizedBox(height: 24),
-
-              // Error Display
               if (error != null)
                 Container(
                   margin: const EdgeInsets.only(bottom: 16),
@@ -201,34 +207,30 @@ class _ScanFilterWidgetState extends State<ScanFilterWidget> {
                 title: "Name Prefixes",
                 icon: Icons.text_fields,
                 controller: widget.namePrefixController,
-                hintText: "e.g. MyDevice, Sensor",
+                hintText: "e.g. MyDevice Sensor",
                 helperText: "Device names starting with these prefixes",
               ),
               const SizedBox(height: 16),
-
               // Services Filter
               _buildFilterCard(
                 context: context,
                 title: "Service UUIDs",
                 icon: Icons.apps,
                 controller: widget.servicesFilterController,
-                hintText: "e.g. 0000180f-0000-1000-8000-00805f9b34fb",
-                helperText:
-                    "Comma-separated service UUIDs (16-bit, 32-bit, or 128-bit)",
+                hintText: "e.g. 0000180f-0000-1000-8000-00805f9b34fb,180F",
+                helperText: "Service UUIDs (16-bit, 32-bit, or 128-bit)",
               ),
               const SizedBox(height: 16),
-
               // Manufacturer Data Filter
               _buildFilterCard(
                 context: context,
                 title: "Manufacturer Company IDs",
                 icon: Icons.business,
                 controller: widget.manufacturerDataController,
-                hintText: "e.g. 76, 0x004C, 0xFF",
-                helperText: "Decimal or hex format (e.g. 76 or 0x004C)",
+                hintText: "e.g. 76,0x004C",
+                helperText: "Company identifiers in decimal or hex format",
               ),
               const SizedBox(height: 24),
-
               // Action Buttons
               Row(
                 children: [
@@ -316,7 +318,7 @@ class _ScanFilterWidgetState extends State<ScanFilterWidget> {
             const SizedBox(height: 12),
             TextFormField(
               controller: controller,
-              maxLines: 2,
+              maxLines: title.contains('Service') ? 3 : 2,
               style: const TextStyle(fontFamily: 'monospace'),
               decoration: InputDecoration(
                 hintText: hintText,

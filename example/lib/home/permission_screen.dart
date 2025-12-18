@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:universal_ble/universal_ble.dart';
-import 'package:universal_ble_example/home/home.dart';
+import 'package:universal_ble_example/home/scanner_screen.dart';
 
 class PermissionScreen extends StatefulWidget {
   const PermissionScreen({super.key});
@@ -16,6 +16,14 @@ class _PermissionScreenState extends State<PermissionScreen>
   bool _hasPermissions = false;
   bool _isRequesting = false;
   String? _errorMessage;
+
+  void navigateToHome() {
+    if (mounted) {
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(builder: (_) => const ScannerScreen()),
+      );
+    }
+  }
 
   @override
   void initState() {
@@ -49,11 +57,7 @@ class _PermissionScreenState extends State<PermissionScreen>
       // Check if permissions are required for this platform
       if (!BleCapabilities.requiresRuntimePermission) {
         // No permissions needed, go directly to home
-        if (mounted) {
-          Navigator.of(context).pushReplacement(
-            MaterialPageRoute(builder: (_) => const Home()),
-          );
-        }
+        navigateToHome();
         return;
       }
 
@@ -69,9 +73,7 @@ class _PermissionScreenState extends State<PermissionScreen>
 
       if (hasPermissions && mounted) {
         // Permissions already granted, go to home
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (_) => const Home()),
-        );
+        navigateToHome();
       }
     } catch (e) {
       setState(() {
@@ -94,9 +96,7 @@ class _PermissionScreenState extends State<PermissionScreen>
 
       // Permissions granted, go to home
       if (mounted) {
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (_) => const Home()),
-        );
+        navigateToHome();
       }
     } catch (e) {
       setState(() {
