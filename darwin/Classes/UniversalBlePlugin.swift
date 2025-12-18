@@ -40,6 +40,7 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
   private var characteristicWriteWithoutResponseFutures = [CharacteristicWriteFuture]()
   private var characteristicNotifyFutures = [CharacteristicNotifyFuture]()
   private var discoverServicesFutures = [DiscoverServicesFuture]()
+  private var rssiReadFutures = [RssiReadFuture]()
   private var isManageScanning = false
 
   init(callbackChannel: UniversalBleCallbackChannel) {
@@ -200,6 +201,15 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
       }
       return false
     }
+    rssiReadFutures.removeAll { future in
+      if future.deviceId == deviceId {
+        future.result(
+          Result.failure(createFlutterError(code: .deviceDisconnected, message: "Device Disconnected"))
+        )
+        return true
+      }
+      return false
+    }
     activeServiceDiscoveries[deviceId]?.cleanup()
     activeServiceDiscoveries[deviceId] = nil
   }
@@ -332,6 +342,16 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
     let GATT_HEADER_LENGTH = 3
     let mtuResult = Int64(mtu + GATT_HEADER_LENGTH)
     completion(Result.success(mtuResult))
+  }
+
+  func readRssi(deviceId: String, completion: @escaping (Result<Int64, Error>) -> Void) {
+    UniversalBleLogger.shared.logDebug("READ_RSSI -> \(deviceId)")
+    guard let peripheral = deviceId.findPeripheral(manager: manager) else {
+      completion(Result.failure(createFlutterError(code: .deviceNotFound, message: "Unknown deviceId:\(deviceId)")))
+      return
+    }
+    peripheral.readRSSI()
+    rssiReadFutures.append(RssiReadFuture(deviceId: deviceId, result: completion))
   }
 
   func isPaired(deviceId _: String, completion: @escaping (Result<Bool, Error>) -> Void) {
@@ -525,6 +545,21 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
           } else {
             future.result(Result.failure(createFlutterError(code: .readFailed, message: "No value")))
           }
+        }
+        return true
+      }
+      return false
+    }
+  }
+
+  public func peripheral(_ peripheral: CBPeripheral, didReadRSSI RSSI: NSNumber, error: Error?) {
+    rssiReadFutures.removeAll { future in
+      if future.deviceId == peripheral.uuid.uuidString {
+        if let flutterError = error?.toFlutterError() {
+          UniversalBleLogger.shared.logError("READ_RSSI_FAILED <- \(peripheral.uuid.uuidString): \(flutterError.message ?? "")")
+          future.result(Result.failure(flutterError))
+        } else {
+          future.result(Result.success(RSSI.int64Value))
         }
         return true
       }

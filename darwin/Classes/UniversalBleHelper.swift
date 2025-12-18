@@ -258,3 +258,13 @@ class DiscoverServicesFuture {
         self.result = result
     }
 }
+
+class RssiReadFuture {
+    let deviceId: String
+    let result: (Result<Int64, Error>) -> Void
+
+    init(deviceId: String, result: @escaping (Result<Int64, Error>) -> Void) {
+        self.deviceId = deviceId
+        self.result = result
+    }
+}

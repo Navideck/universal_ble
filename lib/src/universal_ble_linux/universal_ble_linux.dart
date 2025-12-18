@@ -379,6 +379,14 @@ class UniversalBleLinux extends UniversalBlePlatform {
   }
 
   @override
+  Future<int> readRssi(String deviceId) async {
+    throw UniversalBleException(
+      code: UniversalBleErrorCode.notImplemented,
+      message: "readRssi is not implemented on Linux platform",
+    );
+  }
+
+  @override
   Future<bool> pair(String deviceId) async {
     BlueZDevice device = _findDeviceById(deviceId);
     try {

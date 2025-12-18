@@ -79,6 +79,8 @@ abstract class UniversalBlePlatform {
 
   Future<int> requestMtu(String deviceId, int expectedMtu);
 
+  Future<int> readRssi(String deviceId);
+
   Future<bool> isPaired(String deviceId);
 
   Future<bool> pair(String deviceId);

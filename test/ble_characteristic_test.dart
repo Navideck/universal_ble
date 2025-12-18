@@ -132,4 +132,9 @@ class _UniversalBleMock extends UniversalBlePlatformMock {
   Future<void> requestPermissions({bool withAndroidFineLocation = false}) {
     throw UnimplementedError();
   }
+
+  @override
+  Future<int> readRssi(String deviceId) async {
+    return -50; // Mock RSSI value
+  }
 }

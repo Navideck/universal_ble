@@ -548,6 +548,7 @@ protocol UniversalBlePlatformChannel {
   func unPair(deviceId: String) throws
   func getSystemDevices(withServices: [String], completion: @escaping (Result<[UniversalBleScanResult], Error>) -> Void)
   func getConnectionState(deviceId: String) throws -> Int64
+  func readRssi(deviceId: String, completion: @escaping (Result<Int64, Error>) -> Void)
   func setLogLevel(logLevel: UniversalBleLogLevel) throws
 }
 
@@ -881,6 +882,23 @@ class UniversalBlePlatformChannelSetup {
       }
     } else {
       getConnectionStateChannel.setMessageHandler(nil)
+    }
+    let readRssiChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.universal_ble.UniversalBlePlatformChannel.readRssi\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    if let api = api {
+      readRssiChannel.setMessageHandler { message, reply in
+        let args = message as! [Any?]
+        let deviceIdArg = args[0] as! String
+        api.readRssi(deviceId: deviceIdArg) { result in
+          switch result {
+          case .success(let res):
+            reply(wrapResult(res))
+          case .failure(let error):
+            reply(wrapError(error))
+          }
+        }
+      }
+    } else {
+      readRssiChannel.setMessageHandler(nil)
     }
     let setLogLevelChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.universal_ble.UniversalBlePlatformChannel.setLogLevel\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
     if let api = api {

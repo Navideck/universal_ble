@@ -131,3 +131,19 @@ This method will **attempt** to set the MTU (Maximum Transmission Unit) but it i
 ```dart
 int mtu = await UniversalBle.requestMtu(widget.deviceId, 247);
 ```
+
+### Read RSSI
+
+Read the signal strength (RSSI) of a connected device.
+
+```dart
+int rssi = await UniversalBle.readRssi(deviceId);
+```
+
+> ⚠️ Note: The device must be connected before reading RSSI.
+
+#### Platform Limitations
+
+* **Android / iOS / macOS**: Fully supported.
+
+* **Windows / Linux / Web**: Not supported.

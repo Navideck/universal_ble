@@ -435,6 +435,9 @@ class UniversalBlePlatformChannel {
     const flutter::EncodableList& with_services,
     std::function<void(ErrorOr<flutter::EncodableList> reply)> result) = 0;
   virtual ErrorOr<int64_t> GetConnectionState(const std::string& device_id) = 0;
+  virtual void ReadRssi(
+    const std::string& device_id,
+    std::function<void(ErrorOr<int64_t> reply)> result) = 0;
   virtual std::optional<FlutterError> SetLogLevel(const UniversalBleLogLevel& log_level) = 0;
 
   // The codec used by UniversalBlePlatformChannel.
