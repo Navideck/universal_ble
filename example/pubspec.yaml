@@ -13,7 +13,7 @@ dependencies:
   expandable: ^5.0.1
   cupertino_icons: ^1.0.2
   shared_preferences: ^2.5.4
-  package_info: ^2.0.2
+  package_info_plus: ^9.0.0
   url_launcher: ^6.3.2
   universal_ble:
     path: ../

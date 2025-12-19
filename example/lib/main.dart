@@ -7,13 +7,23 @@ import 'package:universal_ble_example/home/scanner_screen.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await StorageService.instance.init();
-  await UniversalBle.setLogLevel(BleLogLevel.verbose);
+  // await UniversalBle.setLogLevel(BleLogLevel.verbose);
   bool hasPermission = await UniversalBle.hasPermissions(
     withAndroidFineLocation: false,
   );
 
-  runApp(
-    MaterialApp(
+  runApp(MyApp(
+    hasPermission: hasPermission,
+  ));
+}
+
+class MyApp extends StatelessWidget {
+  final bool hasPermission;
+  const MyApp({super.key, required this.hasPermission});
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
       title: 'Universal BLE',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
@@ -32,6 +42,6 @@ void main() async {
       ),
       themeMode: ThemeMode.system,
       home: hasPermission ? ScannerScreen() : const PermissionScreen(),
-    ),
-  );
+    );
+  }
 }

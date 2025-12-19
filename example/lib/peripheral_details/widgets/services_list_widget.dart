@@ -1,6 +1,7 @@
 import 'package:expandable/expandable.dart';
 import 'package:flutter/material.dart';
 import 'package:universal_ble/universal_ble.dart';
+import 'package:universal_ble_example/data/utils.dart';
 
 class ServicesListWidget extends StatelessWidget {
   final List<BleService> discoveredServices;
@@ -12,7 +13,6 @@ class ServicesListWidget extends StatelessWidget {
   final Set<String>? favoriteServices;
   final Map<String, bool>? subscribedCharacteristics;
   final void Function(String serviceUuid)? onFavoriteToggle;
-  final bool Function(String uuid)? isSystemService;
 
   const ServicesListWidget({
     super.key,
@@ -24,7 +24,6 @@ class ServicesListWidget extends StatelessWidget {
     this.favoriteServices,
     this.subscribedCharacteristics,
     this.onFavoriteToggle,
-    this.isSystemService,
   });
 
   @override
@@ -44,8 +43,8 @@ class ServicesListWidget extends StatelessWidget {
       if (aIsFavorite != bIsFavorite) {
         return aIsFavorite ? -1 : 1;
       }
-      final aIsSystem = isSystemService?.call(a.uuid) ?? false;
-      final bIsSystem = isSystemService?.call(b.uuid) ?? false;
+      final aIsSystem = isSystemService(a.uuid);
+      final bIsSystem = isSystemService(b.uuid);
       if (aIsSystem != bIsSystem) {
         return aIsSystem ? 1 : -1;
       }

@@ -1,6 +1,6 @@
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
-import 'package:package_info/package_info.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:universal_ble/universal_ble.dart';
 import 'package:universal_ble_example/home/scanner_screen.dart';
 import 'package:universal_ble_example/home/system_devices_screen.dart';
