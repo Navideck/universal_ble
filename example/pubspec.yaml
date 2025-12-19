@@ -24,6 +24,7 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^6.0.0
+  package_rename: ^1.10.1
   flutter_launcher_icons:
     git:
       url: https://github.com/Navideck/flutter_launcher_icons.git

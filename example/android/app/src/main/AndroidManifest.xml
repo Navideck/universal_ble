@@ -6,7 +6,7 @@
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" android:maxSdkVersion="30" />
 
     <application
-        android:label="universal_ble_example"
+        android:label="Universal BLE"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity
