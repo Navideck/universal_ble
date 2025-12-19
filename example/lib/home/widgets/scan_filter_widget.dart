@@ -133,142 +133,145 @@ class _ScanFilterWidgetState extends State<ScanFilterWidget> {
             top: 20,
             bottom: MediaQuery.of(context).viewInsets.bottom + 20,
           ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              // Header
-              Row(
-                children: [
-                  Icon(
-                    Icons.filter_list,
-                    color: colorScheme.primary,
-                    size: 28,
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Text(
-                      "Scan Filters",
-                      style: theme.textTheme.titleLarge?.copyWith(
-                        fontWeight: FontWeight.bold,
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                // Header
+                Row(
+                  children: [
+                    Icon(
+                      Icons.filter_list,
+                      color: colorScheme.primary,
+                      size: 28,
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        "Scan Filters",
+                        style: theme.textTheme.titleLarge?.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                     ),
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.close),
-                    onPressed: () => Navigator.pop(context),
-                    tooltip: 'Close',
-                  ),
-                ],
-              ),
-              const SizedBox(height: 8),
-              Text(
-                "Filter devices by name, services, or manufacturer data. Enter multiple values separated by commas.",
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: colorScheme.onSurface.withValues(alpha: 0.6),
+                    IconButton(
+                      icon: const Icon(Icons.close),
+                      onPressed: () => Navigator.pop(context),
+                      tooltip: 'Close',
+                    ),
+                  ],
                 ),
-              ),
-              const SizedBox(height: 24),
-              if (error != null)
-                Container(
-                  margin: const EdgeInsets.only(bottom: 16),
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: colorScheme.errorContainer,
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(
-                      color: colorScheme.error.withValues(alpha: 0.3),
+                Text(
+                  "Filter devices by name, services, or manufacturer data. Enter multiple values separated by commas.",
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: colorScheme.onSurface.withValues(alpha: 0.6),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                if (error != null)
+                  Container(
+                    margin: const EdgeInsets.only(bottom: 16),
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: colorScheme.errorContainer,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                        color: colorScheme.error.withValues(alpha: 0.3),
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.error_outline,
+                          color: colorScheme.error,
+                          size: 20,
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            error!,
+                            style: TextStyle(
+                              color: colorScheme.onErrorContainer,
+                              fontSize: 13,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                  child: Row(
-                    children: [
-                      Icon(
-                        Icons.error_outline,
-                        color: colorScheme.error,
-                        size: 20,
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Text(
-                          error!,
-                          style: TextStyle(
-                            color: colorScheme.onErrorContainer,
-                            fontSize: 13,
+
+                // Name Prefix Filter
+                _buildFilterCard(
+                  context: context,
+                  title: "Name Prefixes",
+                  icon: Icons.text_fields,
+                  controller: widget.namePrefixController,
+                  hintText: "e.g. MyDevice Sensor",
+                  helperText: "Device names starting with these prefixes",
+                ),
+                const SizedBox(height: 16),
+                // Services Filter
+                _buildFilterCard(
+                  context: context,
+                  title: "Service UUIDs",
+                  maxLines: 3,
+                  icon: Icons.apps,
+                  controller: widget.servicesFilterController,
+                  hintText: "e.g. 0000180f-0000-1000-8000-00805f9b34fb,180F",
+                  helperText: "Service UUIDs (16-bit, 32-bit, or 128-bit)",
+                ),
+                const SizedBox(height: 16),
+                // Manufacturer Data Filter
+                _buildFilterCard(
+                  context: context,
+                  title: "Manufacturer Company IDs",
+                  icon: Icons.business,
+                  controller: widget.manufacturerDataController,
+                  hintText: "e.g. 76,0x004C",
+                  helperText: "Company identifiers in decimal or hex format",
+                ),
+                const SizedBox(height: 24),
+                // Action Buttons
+                Row(
+                  children: [
+                    Expanded(
+                      flex: 2,
+                      child: OutlinedButton.icon(
+                        onPressed: clearFilter,
+                        icon: const Icon(Icons.clear_all),
+                        label: const Text('Clear All'),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: colorScheme.onSurface,
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
                           ),
                         ),
                       ),
-                    ],
-                  ),
+                    ),
+                    const SizedBox(width: 5),
+                    Expanded(
+                      flex: 3,
+                      child: ElevatedButton.icon(
+                        onPressed: applyFilter,
+                        icon: const Icon(Icons.check),
+                        label: const Text('Apply Filters'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: colorScheme.primary,
+                          foregroundColor: colorScheme.onPrimary,
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
-
-              // Name Prefix Filter
-              _buildFilterCard(
-                context: context,
-                title: "Name Prefixes",
-                icon: Icons.text_fields,
-                controller: widget.namePrefixController,
-                hintText: "e.g. MyDevice Sensor",
-                helperText: "Device names starting with these prefixes",
-              ),
-              const SizedBox(height: 16),
-              // Services Filter
-              _buildFilterCard(
-                context: context,
-                title: "Service UUIDs",
-                icon: Icons.apps,
-                controller: widget.servicesFilterController,
-                hintText: "e.g. 0000180f-0000-1000-8000-00805f9b34fb,180F",
-                helperText: "Service UUIDs (16-bit, 32-bit, or 128-bit)",
-              ),
-              const SizedBox(height: 16),
-              // Manufacturer Data Filter
-              _buildFilterCard(
-                context: context,
-                title: "Manufacturer Company IDs",
-                icon: Icons.business,
-                controller: widget.manufacturerDataController,
-                hintText: "e.g. 76,0x004C",
-                helperText: "Company identifiers in decimal or hex format",
-              ),
-              const SizedBox(height: 24),
-              // Action Buttons
-              Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      onPressed: clearFilter,
-                      icon: const Icon(Icons.clear_all),
-                      label: const Text('Clear All'),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: colorScheme.onSurface,
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    flex: 2,
-                    child: ElevatedButton.icon(
-                      onPressed: applyFilter,
-                      icon: const Icon(Icons.check),
-                      label: const Text('Apply Filters'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: colorScheme.primary,
-                        foregroundColor: colorScheme.onPrimary,
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 8),
-            ],
+                const SizedBox(height: 8),
+              ],
+            ),
           ),
         ),
       ),
@@ -282,6 +285,7 @@ class _ScanFilterWidgetState extends State<ScanFilterWidget> {
     required TextEditingController controller,
     required String hintText,
     required String helperText,
+    int maxLines = 2,
   }) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
@@ -295,7 +299,7 @@ class _ScanFilterWidgetState extends State<ScanFilterWidget> {
         ),
       ),
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(8),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -307,18 +311,20 @@ class _ScanFilterWidgetState extends State<ScanFilterWidget> {
                   color: colorScheme.primary,
                 ),
                 const SizedBox(width: 8),
-                Text(
-                  title,
-                  style: theme.textTheme.titleSmall?.copyWith(
-                    fontWeight: FontWeight.w600,
+                Expanded(
+                  child: Text(
+                    title,
+                    style: theme.textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 4),
             TextFormField(
               controller: controller,
-              maxLines: title.contains('Service') ? 3 : 2,
+              maxLines: maxLines,
               style: const TextStyle(fontFamily: 'monospace'),
               decoration: InputDecoration(
                 hintText: hintText,
@@ -351,8 +357,8 @@ class _ScanFilterWidgetState extends State<ScanFilterWidget> {
                 fillColor:
                     colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
                 contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 12,
+                  horizontal: 8,
+                  vertical: 8,
                 ),
               ),
             ),

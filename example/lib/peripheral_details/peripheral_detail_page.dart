@@ -1585,6 +1585,7 @@ class _PeripheralDetailPageState extends State<PeripheralDetailPage> {
                                       ),
                                     ),
                                   ),
+
                                   // Services list (mobile/tablet)
                                   if (deviceType != DeviceType.desktop)
                                     ServicesListWidget(

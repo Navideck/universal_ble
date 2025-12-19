@@ -6,6 +6,7 @@ import 'package:universal_ble/universal_ble.dart';
 import 'package:universal_ble_example/data/mock_universal_ble.dart';
 import 'package:universal_ble_example/home/widgets/ble_availability_icon.dart';
 import 'package:universal_ble_example/home/widgets/drawer.dart';
+import 'package:universal_ble_example/home/widgets/queue_selector_widget.dart';
 import 'package:universal_ble_example/home/widgets/scan_filter_widget.dart';
 import 'package:universal_ble_example/home/widgets/scanned_devices_placeholder_widget.dart';
 import 'package:universal_ble_example/home/widgets/scanned_item_widget.dart';
@@ -67,26 +68,37 @@ class _ScannerScreenState extends State<ScannerScreen> {
   }
 
   Future<void> _startScan() async {
-    PlatformConfig? platformConfig;
-    if (kIsWeb && _webServicesController.text.isNotEmpty) {
-      List<String> webServices = _webServicesController.text
-          .split(',')
-          .where((s) => s.trim().isNotEmpty)
-          .map((s) {
-        try {
-          return BleUuidParser.string(s.trim());
-        } catch (_) {
-          return s.trim();
-        }
-      }).toList();
-      platformConfig = PlatformConfig(
-        web: WebOptions(optionalServices: webServices),
+    setState(() {
+      _bleDevices.clear();
+      _isScanning = true;
+    });
+    try {
+      PlatformConfig? platformConfig;
+      if (kIsWeb && _webServicesController.text.isNotEmpty) {
+        List<String> webServices = _webServicesController.text
+            .split(',')
+            .where((s) => s.trim().isNotEmpty)
+            .map((s) {
+          try {
+            return BleUuidParser.string(s.trim());
+          } catch (_) {
+            return s.trim();
+          }
+        }).toList();
+        platformConfig = PlatformConfig(
+          web: WebOptions(optionalServices: webServices),
+        );
+      }
+      await UniversalBle.startScan(
+        scanFilter: scanFilter,
+        platformConfig: platformConfig,
       );
+    } catch (e) {
+      setState(() {
+        _isScanning = false;
+      });
+      showSnackbar(e.toString());
     }
-    await UniversalBle.startScan(
-      scanFilter: scanFilter,
-      platformConfig: platformConfig,
-    );
   }
 
   void _showScanFilterBottomSheet() {
@@ -150,154 +162,17 @@ class _ScannerScreenState extends State<ScannerScreen> {
   }
 
   void _showQueueBottomSheet() {
-    final colorScheme = Theme.of(context).colorScheme;
     showModalBottomSheet(
       context: context,
-      builder: (context) {
-        return Container(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Icon(
-                    Icons.queue,
-                    color: colorScheme.primary,
-                    size: 28,
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Text(
-                      "Queue Type",
-                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                            fontWeight: FontWeight.bold,
-                          ),
-                    ),
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.close),
-                    onPressed: () => Navigator.pop(context),
-                    tooltip: 'Close',
-                  ),
-                ],
-              ),
-              const SizedBox(height: 8),
-              Text(
-                "Controls how BLE commands are executed. Global queue executes all commands sequentially. Per Device queue executes commands for each device separately. None executes all commands in parallel.",
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: colorScheme.onSurface.withValues(alpha: 0.6),
-                    ),
-              ),
-              const SizedBox(height: 24),
-              _buildQueueOption(
-                context,
-                QueueType.global,
-                'Global',
-                'All commands from all devices execute sequentially in a single queue',
-                Icons.queue,
-              ),
-              const SizedBox(height: 12),
-              _buildQueueOption(
-                context,
-                QueueType.perDevice,
-                'Per Device',
-                'Commands for each device execute in separate queues',
-                Icons.devices,
-              ),
-              const SizedBox(height: 12),
-              _buildQueueOption(
-                context,
-                QueueType.none,
-                'None',
-                'All commands execute in parallel without queuing',
-                Icons.all_inclusive,
-              ),
-              const SizedBox(height: 8),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _buildQueueOption(
-    BuildContext context,
-    QueueType value,
-    String title,
-    String description,
-    IconData icon,
-  ) {
-    final colorScheme = Theme.of(context).colorScheme;
-    final isSelected = _queueType == value;
-    return InkWell(
-      onTap: () {
-        setState(() {
-          _queueType = value;
-          UniversalBle.queueType = _queueType;
-        });
-        Navigator.pop(context);
-      },
-      borderRadius: BorderRadius.circular(12),
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: isSelected
-              ? colorScheme.primaryContainer
-              : colorScheme.surfaceContainerHighest,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: isSelected
-                ? colorScheme.primary
-                : colorScheme.outline.withValues(alpha: 0.2),
-            width: isSelected ? 2 : 1,
-          ),
-        ),
-        child: Row(
-          children: [
-            Icon(
-              icon,
-              color: isSelected
-                  ? colorScheme.onPrimaryContainer
-                  : colorScheme.onSurface,
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 16,
-                      color: isSelected
-                          ? colorScheme.onPrimaryContainer
-                          : colorScheme.onSurface,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    description,
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: isSelected
-                          ? colorScheme.onPrimaryContainer
-                              .withValues(alpha: 0.7)
-                          : colorScheme.onSurface.withValues(alpha: 0.6),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            if (isSelected)
-              Icon(
-                Icons.check_circle,
-                color: colorScheme.primary,
-              ),
-          ],
-        ),
+      builder: (context) => QueueSelectorWidget(
+        queueType: _queueType,
+        onQueueTypeChanged: (queueType) {
+          setState(() {
+            _queueType = queueType;
+            UniversalBle.queueType = _queueType;
+          });
+          Navigator.pop(context);
+        },
       ),
     );
   }
@@ -351,18 +226,7 @@ class _ScannerScreenState extends State<ScannerScreen> {
                         _isScanning = false;
                       });
                     } else {
-                      setState(() {
-                        _bleDevices.clear();
-                        _isScanning = true;
-                      });
-                      try {
-                        await _startScan();
-                      } catch (e) {
-                        setState(() {
-                          _isScanning = false;
-                        });
-                        showSnackbar(e.toString());
-                      }
+                      await _startScan();
                     }
                   }
                 : null,
@@ -506,128 +370,59 @@ class _ScannerScreenState extends State<ScannerScreen> {
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             child: Row(
               children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 6,
-                  ),
-                  decoration: BoxDecoration(
-                    color: colorScheme.primaryContainer,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        _filteredDevices.length == _bleDevices.length
-                            ? '${_bleDevices.length} device${_bleDevices.length == 1 ? '' : 's'}'
-                            : '${_filteredDevices.length} of ${_bleDevices.length} devices',
-                        style: TextStyle(
-                          color: colorScheme.onPrimaryContainer,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      if (_hiddenDevices.isNotEmpty) ...[
-                        const SizedBox(width: 8),
-                        Text(
-                          '/ ${_hiddenDevices.length} hidden',
-                          style: TextStyle(
-                            color: colorScheme.onPrimaryContainer
-                                .withValues(alpha: 0.7),
-                            fontSize: 12,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ],
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 8),
-                if (_hiddenDevices.isNotEmpty)
-                  Tooltip(
-                    message: 'Show hidden devices.',
-                    child: TextButton.icon(
-                      onPressed: () {
-                        setState(() {
-                          _hiddenDevices.clear();
-                        });
-                      },
-                      icon: Icon(
-                        Icons.visibility,
-                        size: 18,
-                        color: colorScheme.onSurface,
-                      ),
-                      label: Text(
-                        'Unhide',
-                        style: TextStyle(
-                          color: colorScheme.onSurface,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                  )
-                else if (_bleDevices.isNotEmpty)
-                  Tooltip(
-                    message:
-                        'Hide already discovered devices. When you turn on a new device, it will be easier to spot.',
-                    child: TextButton.icon(
-                      onPressed: () {
-                        setState(() {
-                          _hiddenDevices.clear();
-                          _hiddenDevices.addAll(_bleDevices);
-                          _bleDevices.clear();
-                        });
-                      },
-                      icon: Icon(
-                        Icons.visibility_off,
-                        size: 18,
-                        color: colorScheme.onSurface,
-                      ),
-                      label: Text(
-                        'Hide ${_bleDevices.length}',
-                        style: TextStyle(
-                          color: colorScheme.onSurface,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                  ),
-                const Spacer(),
-                // Scan Filter button
-                if (scanFilter != null)
-                  Container(
-                    margin: const EdgeInsets.only(right: 8),
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 4,
-                    ),
-                    decoration: BoxDecoration(
-                      color: colorScheme.primaryContainer,
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Row(
+                Tooltip(
+                  message: _hiddenDevices.isNotEmpty
+                      ? 'Show hidden devices'
+                      : _bleDevices.isNotEmpty
+                          ? 'Hide already discovered devices. When you turn on a new device, it will be easier to spot.'
+                          : '',
+                  child: TextButton.icon(
+                    onPressed:
+                        _bleDevices.isNotEmpty || _hiddenDevices.isNotEmpty
+                            ? () {
+                                if (_hiddenDevices.isNotEmpty) {
+                                  // Unhide all devices
+                                  setState(() {
+                                    _hiddenDevices.clear();
+                                  });
+                                } else if (_bleDevices.isNotEmpty) {
+                                  // Hide all devices
+                                  setState(() {
+                                    _hiddenDevices.clear();
+                                    _hiddenDevices.addAll(_bleDevices);
+                                    _bleDevices.clear();
+                                  });
+                                }
+                              }
+                            : null,
+                    label: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(
-                          Icons.filter_list,
-                          size: 14,
-                          color: colorScheme.onPrimaryContainer,
-                        ),
-                        const SizedBox(width: 4),
                         Text(
-                          'Filter',
+                          '${_bleDevices.length} ${_hiddenDevices.isNotEmpty ? "/ ${_hiddenDevices.length}" : ""} device${_bleDevices.length == 1 ? '' : 's'}',
                           style: TextStyle(
                             color: colorScheme.onPrimaryContainer,
-                            fontSize: 11,
+                            fontSize: 12,
                             fontWeight: FontWeight.w600,
                           ),
                         ),
+                        const SizedBox(width: 4),
+                        Icon(
+                          _hiddenDevices.isNotEmpty
+                              ? Icons.visibility
+                              : Icons.visibility_off,
+                          size: 16,
+                          color: colorScheme.onPrimaryContainer,
+                        ),
                       ],
                     ),
+                    style: TextButton.styleFrom(
+                      padding: EdgeInsets.symmetric(horizontal: 8),
+                      backgroundColor: colorScheme.primaryContainer,
+                    ),
                   ),
+                ),
+                const Spacer(),
                 TextButton.icon(
                   onPressed: _showScanFilterBottomSheet,
                   icon: Icon(
@@ -649,6 +444,12 @@ class _ScannerScreenState extends State<ScannerScreen> {
                       fontWeight: FontWeight.w600,
                     ),
                   ),
+                  style: TextButton.styleFrom(
+                    padding: EdgeInsets.symmetric(horizontal: 8),
+                    backgroundColor: scanFilter != null
+                        ? colorScheme.primaryContainer
+                        : null,
+                  ),
                 ),
                 const SizedBox(width: 4),
                 TextButton.icon(
@@ -669,6 +470,9 @@ class _ScannerScreenState extends State<ScannerScreen> {
                       fontSize: 12,
                       fontWeight: FontWeight.w600,
                     ),
+                  ),
+                  style: TextButton.styleFrom(
+                    padding: EdgeInsets.symmetric(horizontal: 8),
                   ),
                 ),
               ],
@@ -781,7 +585,7 @@ class _ScannerScreenState extends State<ScannerScreen> {
                         ),
                       )
                     : !_isScanning && _bleDevices.isEmpty
-                        ? const ScannedDevicesPlaceholderWidget()
+                        ? ScannedDevicesPlaceholderWidget(onTap: _startScan)
                         : _filteredDevices.isEmpty
                             ? Center(
                                 child: Column(
