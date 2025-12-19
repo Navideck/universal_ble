@@ -217,12 +217,13 @@ class _PeripheralDetailPageState extends State<PeripheralDetailPage> {
   }
 
   Future<void> _unsubscribeChar() async {
-    if (selectedCharacteristic == null) return;
+    final char = selectedCharacteristic;
+    if (char == null) return;
     await _executeWithLoading(
       () async {
-        await selectedCharacteristic?.unsubscribe();
+        await char.unsubscribe();
         setState(() {
-          _subscribedCharacteristics.remove(selectedCharacteristic?.uuid);
+          _subscribedCharacteristics.remove(char.uuid);
         });
         _addLog('BleCharSubscription', 'UnSubscribed');
       },
@@ -287,6 +288,9 @@ class _PeripheralDetailPageState extends State<PeripheralDetailPage> {
     });
     try {
       return await action();
+    } catch (e) {
+      onError?.call(e);
+      rethrow;
     } finally {
       setState(() {
         _isLoading = false;
@@ -694,7 +698,15 @@ class _PeripheralDetailPageState extends State<PeripheralDetailPage> {
         child: ElevatedButton.icon(
           onPressed: () async {
             if (isConnected) {
-              bleDevice.disconnect();
+              await _executeWithLoading(
+                () async {
+                  await bleDevice.disconnect();
+                  _addLog("DisconnectResult", true);
+                },
+                onError: (error) {
+                  _addLog('DisconnectError', error);
+                },
+              );
             } else {
               await _executeWithLoading(
                 () async {
@@ -879,7 +891,7 @@ class _PeripheralDetailPageState extends State<PeripheralDetailPage> {
                               ),
                             ],
                           ),
-                          if (data.payloadHex.isNotEmpty) ...[
+                          if (data.payloadRadix16.isNotEmpty) ...[
                             const SizedBox(height: 4),
                             Row(
                               crossAxisAlignment: CrossAxisAlignment.start,
@@ -894,7 +906,7 @@ class _PeripheralDetailPageState extends State<PeripheralDetailPage> {
                                 ),
                                 Expanded(
                                   child: SelectableText(
-                                    data.payloadHex,
+                                    data.payloadRadix16,
                                     style: TextStyle(
                                       fontSize: 11,
                                       fontFamily: 'monospace',
@@ -1169,7 +1181,14 @@ class _PeripheralDetailPageState extends State<PeripheralDetailPage> {
                     ),
                     OutlinedButton.icon(
                       onPressed: () async {
-                        await bleDevice.unpair();
+                        await _executeWithLoading(
+                          () async {
+                            await bleDevice.unpair();
+                          },
+                          onError: (error) {
+                            _addLog('UnpairError', error);
+                          },
+                        );
                       },
                       icon: const Icon(Icons.link_off),
                       label: const Text('Unpair'),

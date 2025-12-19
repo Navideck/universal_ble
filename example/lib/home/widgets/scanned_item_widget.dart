@@ -285,7 +285,7 @@ class ScannedItemWidget extends StatelessWidget {
                                           ),
                                         ],
                                       ),
-                                      if (data.payloadHex.isNotEmpty) ...[
+                                      if (data.payloadRadix16.isNotEmpty) ...[
                                         const SizedBox(height: 4),
                                         Row(
                                           crossAxisAlignment:
@@ -293,7 +293,7 @@ class ScannedItemWidget extends StatelessWidget {
                                           children: [
                                             Expanded(
                                               child: SelectableText(
-                                                data.payloadHex,
+                                                data.payloadRadix16,
                                                 style: TextStyle(
                                                   fontSize: 10,
                                                   color: colorScheme
@@ -318,8 +318,8 @@ class ScannedItemWidget extends StatelessWidget {
                                   ),
                                   onPressed: () {
                                     final textToCopy = data
-                                            .payloadHex.isNotEmpty
-                                        ? 'Company ID: ${data.companyIdRadix16}\nPayload: ${data.payloadHex}'
+                                            .payloadRadix16.isNotEmpty
+                                        ? 'Company ID: ${data.companyIdRadix16}\nPayload: ${data.payloadRadix16}'
                                         : 'Company ID: ${data.companyIdRadix16}';
                                     Clipboard.setData(
                                       ClipboardData(text: textToCopy),
