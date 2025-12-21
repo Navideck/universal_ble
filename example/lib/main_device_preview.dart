@@ -26,6 +26,12 @@ void main() async {
           physicalWidth: 1242,
           physicalHeight: 2688,
         ),
+        createCustomDevice(
+          name: 'App Store iPad 2752x2064',
+          physicalWidth: 2752,
+          physicalHeight: 2064,
+          deviceType: DeviceType.tablet,
+        ),
       ],
       tools: [
         ...DevicePreview.defaultTools,
@@ -55,6 +61,7 @@ DeviceInfo createCustomDevice({
   required double physicalWidth,
   required double physicalHeight,
   double pixelRatio = 3.0,
+  DeviceType deviceType = DeviceType.phone,
 }) {
   final logicalWidth = physicalWidth / pixelRatio;
   final logicalHeight = physicalHeight / pixelRatio;
@@ -62,7 +69,7 @@ DeviceInfo createCustomDevice({
   return DeviceInfo(
     identifier: DeviceIdentifier(
       TargetPlatform.iOS,
-      DeviceType.phone,
+      deviceType,
       name,
     ),
     name: name,
