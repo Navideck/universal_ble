@@ -92073,7 +92073,7 @@ $2(a,b){var s=null,r=A.aGl("assets/icon.png",40,40),q=b.b,p=q==null,o=p?s:q.c
 q=p?s:q.d
 p=A.Qu(s,-1,s)
 p.U=new A.amV()
-return new A.rZ(B.pH,"Universal BLE",A.k(o)+" ("+A.k(q)+")",r,"\xa9 2023 Navideck",A.b([B.mc,A.ag6(s,s,s,B.bN,s,s,!0,s,A.cv(A.b([A.cv(s,s,p,B.Uw,"Learn More")],t.VO),s,s,s,s),B.el,s,s,B.as,B.aG)],t.p),s)},
+return new A.rZ(B.pH,"Universal BLE",A.k(o)+" ("+A.k(q)+")",r,"\xa9 2025 Navideck",A.b([B.mc,A.ag6(s,s,s,B.bN,s,s,!0,s,A.cv(A.b([A.cv(s,s,p,B.Uw,"Learn More")],t.VO),s,s,s,s),B.el,s,s,B.as,B.aG)],t.p),s)},
 $S:606}
 A.amV.prototype={
 $0(){A.aDM(A.fF("https://github.com/Navideck/universal_ble",0,null))},
