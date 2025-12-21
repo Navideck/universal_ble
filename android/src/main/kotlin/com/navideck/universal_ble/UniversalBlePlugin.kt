@@ -270,7 +270,7 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
                 UniversalBleLogger.logError("Device might be connected but not known to this app")
                 BleConnectionState.Disconnected.value
             }
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             return BleConnectionState.Disconnected.value
         }
     }
