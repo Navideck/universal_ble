@@ -40,5 +40,12 @@
                 "--web-port=8080"
             ],
         },
+        {
+            "name": "device_preview",
+            "cwd": "example",
+            "request": "launch",
+            "type": "dart",
+            "program": "lib/main_device_preview.dart"
+        },
     ],
 }
