@@ -1012,8 +1012,8 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
 
         override fun onScanResult(callbackType: Int, result: ScanResult) {
 
-            result.scanRecord?.bytes?.let {
-                val advList: Map<Int, ByteArray> = parseAdvertisementBytes(it)
+            result.scanRecord?.bytes?.let { scanRecord ->
+                val advList: Map<Int, ByteArray> = parseAdvertisementBytes(scanRecord)
                 val manufacturerData = getManufacturerSpecificData(advList)
                 val serviceData = getServiceData(advList)
                 val timestampSeconds = (result.timestampNanos / NANOSECONDS_PER_SECOND)
@@ -1021,14 +1021,17 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
                 val name = result.scanRecord?.deviceName ?: ""
                 val rssi = result.rssi.toByte()
                 val address = device.address.toByteArray()
-                val nameBytes = name.toByte()
+                val nameBytes =  name.toByteArray()
 
-                Log.d("Tentacle","ManufacturerData $manufacturerData, " +
-                        "ServiceData $serviceData, " +
-                        "Rssi $rssi " +
-                        "TimeStamp: $timestampSeconds, " +
-                        "Address: $address, " +
-                        "Name: $nameBytes")
+                // Print byteArray as list of integers
+                Log.d("Tentacle",
+                    "Name: [${nameBytes.map { it.toInt() }.joinToString(", ")}]\n"+
+                    "ManufacturerData: [${manufacturerData.map { it.toInt() }.joinToString(", ")}]\n"+
+                    "ServiceData: [${serviceData.map { it.toInt() }.joinToString(", ")}]\n"+
+                    "Rssi: $rssi\n"+
+                    "TimeStamp: $timestampSeconds\n"+
+                    "Address: [${address.map { it.toInt() }.joinToString(", ")}]\n\n"
+                )
             }
 
             // UniversalBleLogger.logVerbose("onScanResult: $result")
