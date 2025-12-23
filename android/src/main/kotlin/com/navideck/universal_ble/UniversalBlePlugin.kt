@@ -24,6 +24,7 @@ import android.content.IntentFilter
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
+import android.util.Log
 import io.flutter.embedding.engine.plugins.FlutterPlugin
 import io.flutter.embedding.engine.plugins.activity.ActivityAware
 import io.flutter.embedding.engine.plugins.activity.ActivityPluginBinding
@@ -32,6 +33,9 @@ import java.util.UUID
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import androidx.core.content.edit
+import com.navideck.universal_ble.AdvertisementParser.getManufacturerSpecificData
+import com.navideck.universal_ble.AdvertisementParser.getServiceData
+import com.navideck.universal_ble.AdvertisementParser.parseAdvertisementBytes
 
 
 @SuppressLint("MissingPermission")
@@ -999,12 +1003,33 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
     }
 
 
+    val NANOSECONDS_PER_SECOND: Double = (1000 * 1000 * 1000).toDouble()
+
     private val scanCallback = object : ScanCallback() {
         override fun onScanFailed(errorCode: Int) {
             UniversalBleLogger.logError("OnScanFailed: ${errorCode.parseScanErrorMessage()}")
         }
 
         override fun onScanResult(callbackType: Int, result: ScanResult) {
+
+            result.scanRecord?.bytes?.let {
+                val advList: Map<Int, ByteArray> = parseAdvertisementBytes(it)
+                val manufacturerData = getManufacturerSpecificData(advList)
+                val serviceData = getServiceData(advList)
+                val timestampSeconds = (result.timestampNanos / NANOSECONDS_PER_SECOND)
+                val device = result.device
+                val name = result.scanRecord?.deviceName ?: ""
+                val rssi = result.rssi.toByte()
+                val address = device.address.toByteArray()
+                val nameBytes = name.toByte()
+
+                Log.d("Tentacle","ManufacturerData $manufacturerData, " +
+                        "ServiceData $serviceData, " +
+                        "Rssi $rssi " +
+                        "TimeStamp: $timestampSeconds, " +
+                        "Address: $address, " +
+                        "Name: $nameBytes")
+            }
 
             // UniversalBleLogger.logVerbose("onScanResult: $result")
             var serviceUuids: Array<UUID> = arrayOf()
