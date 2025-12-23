@@ -1,6 +1,6 @@
 Universal BLE is an open source powerful developer tool for exploring and testing Bluetooth Low Energy (BLE) devices.
 
-Universal BLE is a comprehensive cross-platform developer tool that empowers developers, engineers, and hobbyists to explore, test, and debug Bluetooth Low Energy (BLE) devices with ease. Built with Flutter and supporting iOS, Android, macOS, Windows, Linux, and Web platforms, this powerful tool provides everything you need to work with BLE-enabled devices.
+Universal BLE is a comprehensive cross-platform developer tool that empowers developers, engineers, and hobbyists to explore, test, and debug Bluetooth Low Energy (BLE) devices with ease. Built with Flutter and supporting multiple platforms, this powerful tool provides everything you need to work with BLE-enabled devices.
 
 Built on the open source universal_ble Flutter plugin - one of the most comprehensive cross-platform BLE solutions available. Package: https://pub.dev/packages/universal_ble
 
