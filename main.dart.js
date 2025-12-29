@@ -91516,7 +91516,7 @@ if(l.e)r.push(A.a2l(k,new A.kV(s,t.ZU)))
 else if(!l.f){i=l.r
 p=i?k:l.gRF()
 o=i?A.dt(A.a2l(2,new A.kV(j.c,t.ZU)),20,20):B.pG
-s=A.b([A.iO(o,A.aj(i?"Requesting Permissions...":"Grant Permissions",k,k,k,B.Vo,k,k),p,A.iP(k,k,s,k,k,k,k,k,k,j.c,k,k,B.oZ,k,new A.be(A.aW(12),B.k),k,k,k,k,k))],q)
+s=A.b([A.iO(o,A.aj(i?"Requesting Permissions...":"Get Started",k,k,k,B.Vo,k,k),p,A.iP(k,k,s,k,k,k,k,k,k,j.c,k,k,B.oZ,k,new A.be(A.aW(12),B.k),k,k,k,k,k))],q)
 i=l.w
 if(i!=null){p=j.id
 if(p==null)p=j.fy
