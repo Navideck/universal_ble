@@ -179,7 +179,7 @@ class _PermissionScreenState extends State<PermissionScreen>
                         label: Text(
                           _isRequesting
                               ? 'Requesting Permissions...'
-                              : 'Grant Permissions',
+                              : 'Get Started',
                           style: const TextStyle(fontSize: 16),
                         ),
                         style: ElevatedButton.styleFrom(
