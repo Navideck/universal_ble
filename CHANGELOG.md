@@ -1,5 +1,5 @@
 ## 1.0.1
-* Fix Windows release build compilation 
+* Fix Windows release build compilation
 
 ## 1.0.0
 * BREAKING CHANGE: `OnValueChange` callback also includes timestamp
