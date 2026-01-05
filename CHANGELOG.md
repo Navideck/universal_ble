@@ -1,3 +1,6 @@
+## 1.0.1
+* Enforce C++20 standard for Windows builds
+
 ## 1.0.0
 * BREAKING CHANGE: `OnValueChange` callback also includes timestamp
 * BREAKING CHANGE: Bump minimum IOS version to 13.1
