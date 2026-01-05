@@ -31,16 +31,6 @@ if(NOT ret EQUAL 0)
 endif()
 
 # ############### NuGet install end ################
-
-# Compilation settings that should be applied to most targets.
-function(APPLY_STANDARD_SETTINGS TARGET)
-  target_compile_features(${TARGET} PUBLIC cxx_std_20)
-  target_compile_options(${TARGET} PRIVATE /W4 /WX /wd"4100")
-  target_compile_options(${TARGET} PRIVATE /EHsc)
-  target_compile_definitions(${TARGET} PRIVATE "_HAS_EXCEPTIONS=0")
-  target_compile_definitions(${TARGET} PRIVATE "$<$<CONFIG:Debug>:_DEBUG>")
-endfunction()
-
 list(APPEND PLUGIN_SOURCES
   "src/universal_ble_plugin.cpp"
   "src/universal_ble_plugin.h"
@@ -66,11 +56,24 @@ add_library(${PLUGIN_NAME} SHARED
   ${PLUGIN_SOURCES}
 )
 
+# Compilation settings that should be applied to most targets.
+function(apply_standard_settings TARGET)
+  target_compile_features(${TARGET} PUBLIC cxx_std_20)
+  target_compile_options(${TARGET} PRIVATE /W4 /WX /wd"4100")
+  target_compile_options(${TARGET} PRIVATE /EHsc)
+  target_compile_definitions(${TARGET} PRIVATE "_HAS_EXCEPTIONS=0")
+  target_compile_definitions(${TARGET} PRIVATE "$<$<CONFIG:Debug>:_DEBUG>")
+endfunction()
+
 apply_standard_settings(${PLUGIN_NAME})
 
 # ############### NuGet import begin ################
 set_target_properties(${PLUGIN_NAME} PROPERTIES VS_PROJECT_IMPORT
   ${CMAKE_BINARY_DIR}/packages/Microsoft.Windows.CppWinRT.${CPPWINRT_VERSION}/build/native/Microsoft.Windows.CppWinRT.props
+)
+
+target_link_libraries(${PLUGIN_NAME} PRIVATE
+  ${CMAKE_BINARY_DIR}/packages/Microsoft.Windows.CppWinRT.${CPPWINRT_VERSION}/build/native/Microsoft.Windows.CppWinRT.targets
 )
 
 # ############### NuGet import end ################
