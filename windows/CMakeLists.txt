@@ -21,16 +21,34 @@ if(NOT NUGET)
   set(NUGET ${nuget_SOURCE_DIR}/nuget.exe)
 endif()
 
-execute_process(COMMAND
-  ${NUGET} install "Microsoft.Windows.CppWinRT" -Version ${CPPWINRT_VERSION} -OutputDirectory packages
-  WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
-  RESULT_VARIABLE ret)
+# Use CMAKE_CURRENT_BINARY_DIR for plugin's build directory (absolute path)
+get_filename_component(PLUGIN_BUILD_DIR ${CMAKE_CURRENT_BINARY_DIR} ABSOLUTE)
+set(NUGET_PACKAGES_DIR "${PLUGIN_BUILD_DIR}/packages")
+set(CPPWINRT_PACKAGE_DIR "${NUGET_PACKAGES_DIR}/Microsoft.Windows.CppWinRT.${CPPWINRT_VERSION}")
 
-if(NOT ret EQUAL 0)
-  message(FATAL_ERROR "Failed to install nuget package Microsoft.Windows.CppWinRT.${CPPWINRT_VERSION}")
+# Only install if package doesn't exist
+if(NOT EXISTS "${CPPWINRT_PACKAGE_DIR}")
+  execute_process(COMMAND
+    ${NUGET} install "Microsoft.Windows.CppWinRT" -Version ${CPPWINRT_VERSION} -OutputDirectory packages
+    WORKING_DIRECTORY ${PLUGIN_BUILD_DIR}
+    RESULT_VARIABLE ret)
+
+  if(NOT ret EQUAL 0)
+    message(FATAL_ERROR "Failed to install nuget package Microsoft.Windows.CppWinRT.${CPPWINRT_VERSION}")
+  endif()
 endif()
 
 # ############### NuGet install end ################
+
+# Compilation settings that should be applied to most targets.
+function(APPLY_STANDARD_SETTINGS TARGET)
+  target_compile_features(${TARGET} PUBLIC cxx_std_20)
+  target_compile_options(${TARGET} PRIVATE /W4 /WX /wd"4100")
+  target_compile_options(${TARGET} PRIVATE /EHsc)
+  target_compile_definitions(${TARGET} PRIVATE "_HAS_EXCEPTIONS=0")
+  target_compile_definitions(${TARGET} PRIVATE "$<$<CONFIG:Debug>:_DEBUG>")
+endfunction()
+
 list(APPEND PLUGIN_SOURCES
   "src/universal_ble_plugin.cpp"
   "src/universal_ble_plugin.h"
@@ -59,12 +77,16 @@ add_library(${PLUGIN_NAME} SHARED
 apply_standard_settings(${PLUGIN_NAME})
 
 # ############### NuGet import begin ################
-set_target_properties(${PLUGIN_NAME} PROPERTIES VS_PROJECT_IMPORT
-  ${CMAKE_BINARY_DIR}/packages/Microsoft.Windows.CppWinRT.${CPPWINRT_VERSION}/build/native/Microsoft.Windows.CppWinRT.props
-)
+set(CPPWINRT_PROPS "${CPPWINRT_PACKAGE_DIR}/build/native/Microsoft.Windows.CppWinRT.props")
 
-target_link_libraries(${PLUGIN_NAME} PRIVATE
-  ${CMAKE_BINARY_DIR}/packages/Microsoft.Windows.CppWinRT.${CPPWINRT_VERSION}/build/native/Microsoft.Windows.CppWinRT.targets
+if(NOT EXISTS "${CPPWINRT_PROPS}")
+  message(FATAL_ERROR "CppWinRT props file not found: ${CPPWINRT_PROPS}")
+endif()
+
+# Import CppWinRT props file - MSBuild will automatically handle the targets file
+# The props file imports the targets file internally, so we don't need to link it
+set_target_properties(${PLUGIN_NAME} PROPERTIES VS_PROJECT_IMPORT
+  "${CPPWINRT_PROPS}"
 )
 
 # ############### NuGet import end ################
