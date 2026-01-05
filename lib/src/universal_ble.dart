@@ -340,6 +340,28 @@ class UniversalBle {
     );
   }
 
+  /// Read the RSSI value of a connected device.
+  ///
+  /// Returns the current RSSI value in dBm. This value indicates the signal strength
+  /// between the device and the connected peripheral. Lower (more negative) values
+  /// indicate weaker signal, while higher (less negative) values indicate stronger signal.
+  ///
+  /// **Note**: The device must be connected before reading RSSI.
+  ///
+  /// Throws [BleException] if:
+  /// - The device is not connected
+  /// - Reading RSSI fails
+  static Future<int> readRssi(
+    String deviceId, {
+    Duration? timeout,
+  }) async {
+    return await _bleCommandQueue.queueCommand(
+      () => _platform.readRssi(deviceId),
+      timeout: timeout,
+      deviceId: deviceId,
+    );
+  }
+
   /// Check if a device is paired.
   ///
   /// For `Apple` and `Web`, you have to pass a "pairingCommand" with an encrypted read or write characteristic.

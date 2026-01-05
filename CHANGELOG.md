@@ -1,3 +1,6 @@
+## 1.1.0
+* Add readRssi method
+
 ## 1.0.1
 * Enforce C++20 standard for Windows builds
 

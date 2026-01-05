@@ -134,6 +134,10 @@ class UniversalBlePigeonChannel extends UniversalBlePlatform {
           () => _channel.requestMtu(deviceId, expectedMtu));
 
   @override
+  Future<int> readRssi(String deviceId) =>
+      _executeWithErrorHandling(() => _channel.readRssi(deviceId));
+
+  @override
   Future<bool> isPaired(String deviceId) =>
       _executeWithErrorHandling(() => _channel.isPaired(deviceId));
 

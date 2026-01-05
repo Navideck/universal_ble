@@ -1097,6 +1097,30 @@ class _PeripheralDetailPageState extends State<PeripheralDetailPage> {
                         ),
                       ),
                     ),
+                    OutlinedButton.icon(
+                      onPressed: isConnected
+                          ? () async {
+                              try {
+                                int rssi = await bleDevice.readRssi();
+                                _addLog('RSSI', '$rssi dBm');
+                              } catch (e) {
+                                _addLog('ReadRssiError (${e.runtimeType})', e);
+                              }
+                            }
+                          : null,
+                      icon: const Icon(Icons.signal_cellular_alt),
+                      label: const Text('Get RSSI'),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: colorScheme.onSurface,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 12,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                    ),
                     if (BleCapabilities.supportsRequestMtuApi)
                       ElevatedButton.icon(
                         onPressed: isConnected

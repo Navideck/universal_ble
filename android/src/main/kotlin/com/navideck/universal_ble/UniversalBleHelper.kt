@@ -344,3 +344,8 @@ class SubscriptionResultFuture(
     val serviceId: String,
     val result: (Result<Unit>) -> Unit,
 )
+
+class RssiResultFuture(
+    val deviceId: String,
+    val result: (Result<Long>) -> Unit,
+)

@@ -200,6 +200,8 @@ private:
       std::function<void(std::optional<FlutterError> reply)> result) override;
   void RequestMtu(const std::string &device_id, int64_t expected_mtu,
                   std::function<void(ErrorOr<int64_t> reply)> result) override;
+  void ReadRssi(const std::string &device_id,
+                std::function<void(ErrorOr<int64_t> reply)> result) override;
   void IsPaired(const std::string &device_id,
                 std::function<void(ErrorOr<bool> reply)> result) override;
   void Pair(const std::string &device_id,

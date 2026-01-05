@@ -451,6 +451,13 @@ void UniversalBlePlugin::RequestMtu(
   }
 }
 
+void UniversalBlePlugin::ReadRssi(
+    const std::string &device_id,
+    std::function<void(ErrorOr<int64_t> reply)> result) {
+  result(create_flutter_error(UniversalBleErrorCode::kNotImplemented,
+                              "readRssi is not implemented on Windows platform"));
+}
+
 void UniversalBlePlugin::IsPaired(
     const std::string &device_id,
     std::function<void(ErrorOr<bool> reply)> result) {

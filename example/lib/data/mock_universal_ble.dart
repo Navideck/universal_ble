@@ -114,6 +114,12 @@ class MockUniversalBle extends UniversalBlePlatform {
   }
 
   @override
+  Future<int> readRssi(String deviceId) async {
+    await Future.delayed(const Duration(milliseconds: 500));
+    return -50; // Mock RSSI value in dBm
+  }
+
+  @override
   Future<void> setNotifiable(String deviceId, String service,
       String characteristic, BleInputProperty bleInputProperty) async {}
 
