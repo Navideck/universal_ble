@@ -1,0 +1,32 @@
+package_rename_config:
+  android:
+    app_name: "Universal BLE"
+    package_name: "com.navideck.universalble"
+    override_old_package: "com.navideck.universal_ble_example"
+    lang: "kotlin"
+
+  ios:
+    app_name: "Universal BLE"
+    bundle_name: "Universal BLE"
+    package_name: "com.navideck.universalble"
+
+  linux:
+    app_name: "Universal BLE"
+    package_name: "com.navideck.universalble"
+    exe_name: "universal_ble"
+
+  macos:
+    app_name: "Universal BLE"
+    package_name: "com.navideck.universalble"
+    copyright_notice: "Copyright © 2025 com.navideck. All rights reserved."
+
+  windows:
+    app_name: "Universal BLE"
+    organization: "Navideck"
+    copyright_notice: "Copyright © 2025 com.navideck. All rights reserved."
+    exe_name: "universal_ble"
+
+  web:
+    app_name: "Universal BLE"
+    short_app_name: "Universal BLE"
+    description: "Universal BLE"

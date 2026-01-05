@@ -5,6 +5,7 @@ import 'package:universal_ble/universal_ble.dart';
 
 /// Mock implementation of [UniversalBlePlatform] for testing
 class MockUniversalBle extends UniversalBlePlatform {
+  final Map<String, BleConnectionState> _connectionStateMap = {};
   final _mockBleDevice = BleDevice(
     name: 'MockDevice',
     deviceId: 'MockDeviceId',
@@ -15,12 +16,20 @@ class MockUniversalBle extends UniversalBlePlatform {
   Uint8List _serviceValue = utf8.encode('Result');
   bool _isScanning = false;
 
-  final BleService _mockService = BleService('180', [
-    BleCharacteristic('180A', [
-      CharacteristicProperty.read,
-      CharacteristicProperty.write,
-      CharacteristicProperty.notify,
-    ], []),
+  final BleService _mockService = BleService('180a', [
+    BleCharacteristic.withMetaData(
+      deviceId: 'MockDeviceId',
+      serviceId: '180a',
+      uuid: '220a',
+      properties: [
+        CharacteristicProperty.read,
+        CharacteristicProperty.write,
+        CharacteristicProperty.notify,
+      ],
+      descriptors: [
+        BleDescriptor('220b'),
+      ],
+    ),
   ]);
 
   @override
@@ -45,11 +54,13 @@ class MockUniversalBle extends UniversalBlePlatform {
   @override
   Future<void> connect(String deviceId, {Duration? connectionTimeout}) async {
     updateConnection(deviceId, true);
+    _connectionStateMap[deviceId] = BleConnectionState.connected;
   }
 
   @override
   Future<void> disconnect(String deviceId) async {
     updateConnection(deviceId, false);
+    _connectionStateMap[deviceId] = BleConnectionState.disconnected;
   }
 
   @override
@@ -71,7 +82,7 @@ class MockUniversalBle extends UniversalBlePlatform {
 
   @override
   Future<List<BleDevice>> getSystemDevices(List<String>? withServices) async {
-    return [];
+    return [_mockBleDevice];
   }
 
   @override
@@ -130,17 +141,18 @@ class MockUniversalBle extends UniversalBlePlatform {
   }
 
   @override
-  Future<BleConnectionState> getConnectionState(String deviceId) {
-    throw UnimplementedError();
+  Future<BleConnectionState> getConnectionState(String deviceId) async {
+    return _connectionStateMap[deviceId] ?? BleConnectionState.disconnected;
   }
 
   @override
-  Future<bool> disableBluetooth() {
-    throw UnimplementedError();
+  Future<bool> disableBluetooth() async {
+    return true;
   }
 
   @override
-  Future<void> requestPermissions({bool withAndroidFineLocation = false}) {
-    throw UnimplementedError();
+  Future<void> requestPermissions(
+      {bool withAndroidFineLocation = false}) async {
+    return;
   }
 }
