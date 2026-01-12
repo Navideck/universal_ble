@@ -158,40 +158,39 @@ class ResultWidget extends StatelessWidget {
   Widget _buildLogItem(ColorScheme colorScheme, int index) {
     var reversedIndex = results.length - index - 1;
     final log = results[reversedIndex];
-    return InkWell(
-      onTap: () => onClearTap(reversedIndex),
-      child: Container(
-        padding: const EdgeInsets.symmetric(
-          horizontal: 16,
-          vertical: 12,
-        ),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Icon(
-              Icons.circle,
-              size: 6,
-              color: colorScheme.primary.withValues(alpha: 0.6),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: SelectableText(
-                log,
-                style: TextStyle(
-                  fontSize: 12,
-                  fontFamily: 'monospace',
-                  color: colorScheme.onSurface,
-                ),
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: 16,
+        vertical: 12,
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            child: SelectableText(
+              log,
+              style: TextStyle(
+                fontSize: 12,
+                fontFamily: 'monospace',
+                color: colorScheme.onSurface,
               ),
             ),
-            const SizedBox(width: 8),
-            Icon(
+          ),
+          const SizedBox(width: 8),
+          IconButton(
+            icon: Icon(
               Icons.close,
               size: 16,
               color: colorScheme.onSurface.withValues(alpha: 0.4),
             ),
-          ],
-        ),
+            onPressed: () => onClearTap(reversedIndex),
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(
+              minWidth: 24,
+              minHeight: 24,
+            ),
+          ),
+        ],
       ),
     );
   }
