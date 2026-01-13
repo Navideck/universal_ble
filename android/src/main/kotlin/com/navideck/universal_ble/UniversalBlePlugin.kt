@@ -1147,9 +1147,9 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
             }
         } else if (newState == BluetoothGatt.STATE_DISCONNECTED) {
             val deviceId = gatt.device.address
-            val isAutoConnect = autoConnectDevices.contains(deviceId)
+            val shouldAutoConnect = autoConnectDevices.contains(deviceId)
             
-            if (isAutoConnect) {
+            if (shouldAutoConnect) {
                 mainThreadHandler?.post {
                     callbackChannel?.onConnectionChanged(
                         deviceId, false, status.parseHciErrorCode()
