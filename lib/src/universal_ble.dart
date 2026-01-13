@@ -136,6 +136,7 @@ class UniversalBle {
   /// Default connection timeout is 60 sec.
   ///
   /// [autoConnect] enables automatic reconnection when the device becomes available.
+  /// Default value is `false`.
   /// Ignored on `Windows`, `Linux` and `Web`.
   ///
   /// Call [disconnect] to prevent auto-reconnect even while a device is disconnected.

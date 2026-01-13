@@ -203,15 +203,6 @@ Connects to the BLE device. This method initiates a connection to the Bluetooth 
 await bleDevice.connect();
 ```
 
-You can enable automatic reconnection by setting the `autoConnect` parameter to `true`. When enabled, the system will automatically attempt to reconnect to the device when it becomes available.
-
-```dart
-await bleDevice.connect();
-
-// Or using the static method
-await UniversalBle.connect(deviceId);
-```
-
 #### Disconnect
 
 Disconnects from the BLE device. This method terminates the connection to the Bluetooth device.
@@ -242,7 +233,8 @@ BleConnectionState connectionState = await bleDevice.connectionState;
 ```
 
 #### Auto-connect
-You can pass the `autoConnect` parameter to automatically re-connect devices after unexpected disconnection.
+You can enable automatic reconnection by setting the `autoConnect` parameter to `true`. When enabled, the system will automatically attempt to reconnect to the device when it becomes available again.
+
 ```dart
 await bleDevice.connect(autoConnect: true);
 ```
