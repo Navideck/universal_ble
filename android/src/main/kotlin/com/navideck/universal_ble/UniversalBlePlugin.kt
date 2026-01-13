@@ -1149,22 +1149,24 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
             val deviceId = gatt.device.address
             val shouldAutoConnect = autoConnectDevices.contains(deviceId)
             
-            if (shouldAutoConnect) {
-                mainThreadHandler?.post {
-                    callbackChannel?.onConnectionChanged(
-                        deviceId, false, status.parseHciErrorCode()
-                    ) {}
-                }
-            } else {
-                cleanConnection(gatt)
-                mainThreadHandler?.post {
-                    callbackChannel?.onConnectionChanged(
-                        deviceId, false, status.parseHciErrorCode()
-                    ) {}
-                }
+            // Always clean up internal state (futures, etc.)
+            cleanUpConnection(deviceId)
+            
+            // Send connection changed callback
+            mainThreadHandler?.post {
+                callbackChannel?.onConnectionChanged(
+                    deviceId, false, status.parseHciErrorCode()
+                ) {}
+            }
+            
+            if (!shouldAutoConnect) {
+                // Only close GATT resources when autoConnect is disabled
+                gatt.removeCache()
+                gatt.disconnect()
                 UniversalBleLogger.logDebug("Closing gatt for ${gatt.device.name}")
                 gatt.close()
             }
+            // When autoConnect is enabled, keep GATT open for Android to reconnect
         }
     }
 
