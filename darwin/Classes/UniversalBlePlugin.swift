@@ -461,6 +461,12 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
     callbackChannel.onConnectionChanged(deviceId: peripheral.uuid.uuidString, connected: true, error: nil) { _ in }
   }
 
+  private func handlePeripheralDisconnection(deviceId: String, error: Error?) {
+    autoConnectDevices.remove(deviceId)
+    callbackChannel.onConnectionChanged(deviceId: deviceId, connected: false, error: error?.localizedDescription) { _ in }
+    cleanUpConnection(deviceId: deviceId)
+  }
+
   public func centralManager(
     _: CBCentralManager,
     didDisconnectPeripheral peripheral: CBPeripheral,
@@ -476,16 +482,12 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
       }
     }
     
-    autoConnectDevices.remove(deviceId)
-    callbackChannel.onConnectionChanged(deviceId: deviceId, connected: false, error: error?.localizedDescription) { _ in }
-    cleanUpConnection(deviceId: deviceId)
+    handlePeripheralDisconnection(deviceId: deviceId, error: error)
   }
 
   public func centralManager(_: CBCentralManager, didDisconnectPeripheral peripheral: CBPeripheral, error: Error?) {
     let deviceId = peripheral.uuid.uuidString
-    autoConnectDevices.remove(deviceId)
-    callbackChannel.onConnectionChanged(deviceId: deviceId, connected: false, error: error?.localizedDescription) { _ in }
-    cleanUpConnection(deviceId: deviceId)
+    handlePeripheralDisconnection(deviceId: deviceId, error: error)
   }
 
   public func centralManager(_: CBCentralManager, didFailToConnect peripheral: CBPeripheral, error: Error?) {
