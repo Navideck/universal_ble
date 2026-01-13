@@ -136,9 +136,9 @@ class UniversalBle {
   /// Default connection timeout is 60 sec.
   ///
   /// [autoConnect] enables automatic reconnection when the device becomes available.
-  /// On Android, this uses the `autoConnect` parameter in `connectGatt`.
-  /// On iOS, this uses `CBConnectPeripheralOptionEnableAutoReconnect` option.
   /// Ignored on `Windows`, `Linux` and `Web`.
+  ///
+  /// Call [disconnect] to prevent auto-reconnect even while a device is disconnected.
   ///
   /// Can throw `ConnectionException` or `PlatformException`.
   static Future<void> connect(
@@ -178,15 +178,6 @@ class UniversalBle {
       UniversalLogger.logError("Get connection state failed: $e");
     }
 
-    if (connectionState == BleConnectionState.disconnected ||
-        connectionState == BleConnectionState.disconnecting) {
-      _platform.updateConnection(deviceId, false);
-      UniversalLogger.logInfo(
-        "Device $deviceId already disconnected: $connectionState",
-      );
-      return;
-    }
-
     try {
       Completer<bool> completer =
           _connectionEventCompleter(deviceId, timeout: timeout);
@@ -200,6 +191,17 @@ class UniversalBle {
           completer.completeError(ConnectionException(error));
         },
       );
+
+      if (connectionState == BleConnectionState.disconnected ||
+          connectionState == BleConnectionState.disconnecting) {
+        // Device was already disconnected, but we still called platform disconnect
+        // to prevent auto-reconnect. Update connection state and return.
+        _platform.updateConnection(deviceId, false);
+        UniversalLogger.logInfo(
+          "Device $deviceId already disconnected: $connectionState. Cleanup performed to prevent auto-reconnect.",
+        );
+        return;
+      }
 
       if (await completer.future.timeout(timeout)) {
         UniversalLogger.logError(

@@ -42,6 +42,7 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
   private var discoverServicesFutures = [DiscoverServicesFuture]()
   private var rssiReadFutures = [RssiReadFuture]()
   private var isManageScanning = false
+  private var autoConnectDevices = Set<String>()
 
   init(callbackChannel: UniversalBleCallbackChannel) {
     self.callbackChannel = callbackChannel
@@ -133,23 +134,26 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
     let peripheral = try deviceId.getPeripheral(manager: manager)
     peripheral.delegate = self
     let shouldAutoConnect = autoConnect ?? false
+    
     if shouldAutoConnect {
-      // CBConnectPeripheralOptionEnableAutoReconnect is only available in iOS 17.0+, macOS 14.0+, watchOS 10.0+, tvOS 17.0+
+      autoConnectDevices.insert(deviceId)
       if #available(iOS 17.0, macOS 14.0, watchOS 10.0, tvOS 17.0, *) {
         let options: [String: Any] = [CBConnectPeripheralOptionEnableAutoReconnect: true]
         manager.connect(peripheral, options: options)
       } else {
-        // Fallback for platforms where auto reconnect option is unavailable
         manager.connect(peripheral)
       }
     } else {
+      autoConnectDevices.remove(deviceId)
       manager.connect(peripheral)
     }
   }
 
   func disconnect(deviceId: String) throws {
+    autoConnectDevices.remove(deviceId)
     guard let peripheral = deviceId.findPeripheral(manager: manager) else {
       callbackChannel.onConnectionChanged(deviceId: deviceId, connected: false, error: nil) { _ in }
+      cleanUpConnection(deviceId: deviceId)
       return
     }
     if peripheral.state != CBPeripheralState.disconnected {
@@ -457,9 +461,31 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
     callbackChannel.onConnectionChanged(deviceId: peripheral.uuid.uuidString, connected: true, error: nil) { _ in }
   }
 
-  public func centralManager(_: CBCentralManager, didDisconnectPeripheral peripheral: CBPeripheral, error _: Error?) {
-    callbackChannel.onConnectionChanged(deviceId: peripheral.uuid.uuidString, connected: false, error: nil) { _ in }
-    cleanUpConnection(deviceId: peripheral.uuid.uuidString)
+  public func centralManager(
+    _: CBCentralManager,
+    didDisconnectPeripheral peripheral: CBPeripheral,
+    timestamp: CFAbsoluteTime,
+    isReconnecting: Bool,
+    error: Error?
+  ) {
+    let deviceId = peripheral.uuid.uuidString
+    
+    if #available(iOS 17.0, macOS 14.0, watchOS 10.0, tvOS 17.0, *) {
+      if isReconnecting {
+        return
+      }
+    }
+    
+    autoConnectDevices.remove(deviceId)
+    callbackChannel.onConnectionChanged(deviceId: deviceId, connected: false, error: error?.localizedDescription) { _ in }
+    cleanUpConnection(deviceId: deviceId)
+  }
+
+  public func centralManager(_: CBCentralManager, didDisconnectPeripheral peripheral: CBPeripheral, error: Error?) {
+    let deviceId = peripheral.uuid.uuidString
+    autoConnectDevices.remove(deviceId)
+    callbackChannel.onConnectionChanged(deviceId: deviceId, connected: false, error: error?.localizedDescription) { _ in }
+    cleanUpConnection(deviceId: deviceId)
   }
 
   public func centralManager(_: CBCentralManager, didFailToConnect peripheral: CBPeripheral, error: Error?) {

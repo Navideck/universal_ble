@@ -61,6 +61,7 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
     private val subscriptionResultFutureList = mutableListOf<SubscriptionResultFuture>()
     private val pairResultFutures = mutableMapOf<String, (Result<Boolean>) -> Unit>()
     private val rssiResultFutureList = mutableListOf<RssiResultFuture>()
+    private val autoConnectDevices = mutableSetOf<String>()
 
     override fun onAttachedToEngine(flutterPluginBinding: FlutterPlugin.FlutterPluginBinding) {
         UniversalBlePlatformChannel.setUp(flutterPluginBinding.binaryMessenger, this)
@@ -233,6 +234,11 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
         }
 
         val shouldAutoConnect = autoConnect ?: false
+        if (shouldAutoConnect) {
+            autoConnectDevices.add(deviceId)
+        } else {
+            autoConnectDevices.remove(deviceId)
+        }
         val remoteDevice = bluetoothManager.adapter.getRemoteDevice(deviceId)
         val gatt = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             remoteDevice.connectGatt(
@@ -248,8 +254,10 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
     }
 
     override fun disconnect(deviceId: String) {
+        autoConnectDevices.remove(deviceId)
         val gatt = deviceId.findGatt()
         if (gatt == null) {
+            cleanUpConnection(deviceId)
             mainThreadHandler?.post {
                 callbackChannel?.onConnectionChanged(deviceId, false, null) {}
             }
@@ -955,15 +963,13 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
         }
     }
 
-    private fun cleanConnection(gatt: BluetoothGatt) {
-        gatt.removeCache()
-        gatt.disconnect()
+    private fun cleanUpConnection(deviceId: String) {
         val deviceDisconnectedError: FlutterError = createFlutterError(
             UniversalBleErrorCode.DEVICE_DISCONNECTED,
             "Device Disconnected",
         )
         readResultFutureList.removeAll {
-            if (it.deviceId == gatt.device.address) {
+            if (it.deviceId == deviceId) {
                 it.result(Result.failure(deviceDisconnectedError))
                 true
             } else {
@@ -971,7 +977,7 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
             }
         }
         writeResultFutureList.removeAll {
-            if (it.deviceId == gatt.device.address) {
+            if (it.deviceId == deviceId) {
                 it.result(Result.failure(deviceDisconnectedError))
                 true
             } else {
@@ -979,7 +985,7 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
             }
         }
         subscriptionResultFutureList.removeAll {
-            if (it.deviceId == gatt.device.address) {
+            if (it.deviceId == deviceId) {
                 it.result(Result.failure(deviceDisconnectedError))
                 true
             } else {
@@ -987,7 +993,7 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
             }
         }
         mtuResultFutureList.removeAll {
-            if (it.deviceId == gatt.device.address) {
+            if (it.deviceId == deviceId) {
                 it.result(Result.failure(deviceDisconnectedError))
                 true
             } else {
@@ -995,7 +1001,7 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
             }
         }
         discoverServicesFutureList.removeAll {
-            if (it.deviceId == gatt.device.address) {
+            if (it.deviceId == deviceId) {
                 it.result(Result.failure(deviceDisconnectedError))
                 true
             } else {
@@ -1003,13 +1009,19 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
             }
         }
         rssiResultFutureList.removeAll {
-            if (it.deviceId == gatt.device.address) {
+            if (it.deviceId == deviceId) {
                 it.result(Result.failure(deviceDisconnectedError))
                 true
             } else {
                 false
             }
         }
+    }
+
+    private fun cleanConnection(gatt: BluetoothGatt) {
+        gatt.removeCache()
+        gatt.disconnect()
+        cleanUpConnection(gatt.device.address)
     }
 
     private fun onBondStateUpdate(deviceId: String, bonded: Boolean, error: String? = null) {
@@ -1134,14 +1146,25 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
                 ) {}
             }
         } else if (newState == BluetoothGatt.STATE_DISCONNECTED) {
-            cleanConnection(gatt)
-            mainThreadHandler?.post {
-                callbackChannel?.onConnectionChanged(
-                    gatt.device.address, false, status.parseHciErrorCode()
-                ) {}
+            val deviceId = gatt.device.address
+            val isAutoConnect = autoConnectDevices.contains(deviceId)
+            
+            if (isAutoConnect) {
+                mainThreadHandler?.post {
+                    callbackChannel?.onConnectionChanged(
+                        deviceId, false, status.parseHciErrorCode()
+                    ) {}
+                }
+            } else {
+                cleanConnection(gatt)
+                mainThreadHandler?.post {
+                    callbackChannel?.onConnectionChanged(
+                        deviceId, false, status.parseHciErrorCode()
+                    ) {}
+                }
+                UniversalBleLogger.logDebug("Closing gatt for ${gatt.device.name}")
+                gatt.close()
             }
-            UniversalBleLogger.logDebug("Closing gatt for ${gatt.device.name}")
-            gatt.close()
         }
     }
 
