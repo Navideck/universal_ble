@@ -141,6 +141,17 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
         let options: [String: Any] = [CBConnectPeripheralOptionEnableAutoReconnect: true]
         manager.connect(peripheral, options: options)
       } else {
+        // Auto-reconnect via CBConnectPeripheralOptionEnableAutoReconnect is only
+        // available on iOS 17.0 / macOS 14.0 / watchOS 10.0 / tvOS 17.0 and later.
+        // On earlier OS versions, enabling `autoConnect` will NOT provide automatic
+        // reconnection behavior. Any desired reconnection must be handled manually
+        // (e.g., in central manager delegate callbacks).
+        UniversalBleLogger.shared.logInfo(
+          "autoConnect requested for device \(deviceId), " +
+          "but automatic reconnection via CBConnectPeripheralOptionEnableAutoReconnect " +
+          "is only available on iOS 17+/macOS 14+/watchOS 10+/tvOS 17+. " +
+          "On this OS version, reconnections must be handled manually."
+        )
         manager.connect(peripheral)
       }
     } else {
