@@ -84,8 +84,9 @@ class _AppDrawerState extends State<AppDrawer> {
                   textAlign: TextAlign.justify,
                   text: TextSpan(
                     children: [
+                      TextSpan(text: "Universal BLE is "),
                       TextSpan(
-                        text: 'Learn More',
+                        text: 'open source',
                         style: const TextStyle(
                           color: Colors.blue,
                           decoration: TextDecoration.underline,
@@ -94,6 +95,27 @@ class _AppDrawerState extends State<AppDrawer> {
                           ..onTap = () {
                             launchUrl(Uri.parse(
                                 "https://github.com/Navideck/universal_ble"));
+                          },
+                      ),
+                      TextSpan(text: "."),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 24),
+                RichText(
+                  textAlign: TextAlign.justify,
+                  text: TextSpan(
+                    children: [
+                      TextSpan(text: "Need help with your project? "),
+                      TextSpan(
+                        text: 'Hire us',
+                        style: const TextStyle(
+                          color: Colors.blue,
+                          decoration: TextDecoration.underline,
+                        ),
+                        recognizer: TapGestureRecognizer()
+                          ..onTap = () {
+                            launchUrl(Uri.parse('mailto:info@navideck.com'));
                           },
                       ),
                     ],
