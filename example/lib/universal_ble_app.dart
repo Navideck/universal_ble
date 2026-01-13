@@ -9,7 +9,7 @@ import 'package:universal_ble_example/home/scanner_screen.dart';
 Future<bool> initializeApp() async {
   WidgetsFlutterBinding.ensureInitialized();
   await StorageService.instance.init();
-  // await UniversalBle.setLogLevel(BleLogLevel.verbose);
+  await UniversalBle.setLogLevel(BleLogLevel.verbose);
   return await UniversalBle.hasPermissions(
     withAndroidFineLocation: false,
   );

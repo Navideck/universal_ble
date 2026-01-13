@@ -32,6 +32,7 @@ class _PeripheralDetailPageState extends State<PeripheralDetailPage> {
   bool _isDeviceInfoExpanded = false;
   bool _isDeviceActionsExpanded = true;
   final Map<String, bool> _subscribedCharacteristics = {};
+  bool _autoConnect = false;
 
   StreamSubscription? connectionStreamSubscription;
   StreamSubscription? pairingStateSubscription;
@@ -688,59 +689,155 @@ class _PeripheralDetailPageState extends State<PeripheralDetailPage> {
 
   Widget _buildConnectDisconnectButton() {
     final colorScheme = Theme.of(context).colorScheme;
-    return SizedBox(
-      width: double.infinity,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(
-          horizontal: 16.0,
-          vertical: 8.0,
-        ),
-        child: ElevatedButton.icon(
-          onPressed: () async {
-            if (isConnected) {
-              await _executeWithLoading(
-                () async {
-                  await bleDevice.disconnect();
-                  _addLog("DisconnectResult", true);
-                },
-                onError: (error) {
-                  _addLog('DisconnectError', error);
-                },
-              );
-            } else {
-              await _executeWithLoading(
-                () async {
-                  await bleDevice.connect();
-                  _addLog("ConnectionResult", true);
-                },
-                onError: (error) {
-                  _addLog(
-                    'ConnectError (${error.runtimeType})',
-                    error,
-                  );
-                },
-              );
-            }
-          },
-          icon: Icon(
-            isConnected ? Icons.bluetooth_disabled : Icons.bluetooth_connected,
-            size: 20,
-          ),
-          label: Text(isConnected ? 'Disconnect' : 'Connect'),
-          style: ElevatedButton.styleFrom(
-            backgroundColor:
-                isConnected ? colorScheme.error : colorScheme.primary,
-            foregroundColor:
-                isConnected ? colorScheme.onError : colorScheme.onPrimary,
-            padding: const EdgeInsets.symmetric(
-              vertical: 16,
-            ),
+    return Padding(
+      padding: const EdgeInsets.symmetric(
+        horizontal: 16.0,
+        vertical: 8.0,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // AutoConnect toggle
+          Card(
+            elevation: 1,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(12),
             ),
-            elevation: 2,
+            color: colorScheme.surfaceContainerHighest,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: 12,
+                vertical: 8,
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.autorenew,
+                    size: 18,
+                    color: colorScheme.primary,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Auto Reconnect',
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: colorScheme.onSurface,
+                          ),
+                        ),
+                        Text(
+                          'Automatically reconnect when device becomes available',
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: colorScheme.onSurface.withValues(alpha: 0.7),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Switch(
+                    value: _autoConnect,
+                    onChanged: (value) async {
+                      // If toggling off auto-connect, disconnect to prevent unwanted reconnections
+                      if (!value && _autoConnect) {
+                        if (isConnected) {
+                          // Device is connected, disconnect it to prevent auto-reconnect
+                          await _executeWithLoading(
+                            () async {
+                              await bleDevice.disconnect();
+                              _addLog("DisconnectResult",
+                                  "Disconnected to disable auto-reconnect");
+                            },
+                            onError: (error) {
+                              _addLog('DisconnectError', error);
+                            },
+                          );
+                        } else {
+                          // Device is already disconnected, but call disconnect() anyway
+                          // to ensure cleanup and prevent any pending auto-reconnection attempts
+                          await _executeWithLoading(
+                            () async {
+                              await bleDevice.disconnect();
+                              _addLog("DisconnectResult",
+                                  "Cleanup performed to prevent auto-reconnect");
+                            },
+                            onError: (error) {
+                              _addLog('DisconnectError', error);
+                            },
+                          );
+                        }
+                      }
+                      setState(() {
+                        _autoConnect = value;
+                      });
+                    },
+                    materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  ),
+                ],
+              ),
+            ),
           ),
-        ),
+          const SizedBox(height: 12),
+          // Connect/Disconnect button
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: () async {
+                if (isConnected) {
+                  await _executeWithLoading(
+                    () async {
+                      await bleDevice.disconnect();
+                      _addLog("DisconnectResult", true);
+                    },
+                    onError: (error) {
+                      _addLog('DisconnectError', error);
+                    },
+                  );
+                } else {
+                  await _executeWithLoading(
+                    () async {
+                      await bleDevice.connect(autoConnect: _autoConnect);
+                      _addLog(
+                        "ConnectionResult",
+                        "Connected${_autoConnect ? ' (Auto-reconnect enabled)' : ''}",
+                      );
+                    },
+                    onError: (error) {
+                      _addLog(
+                        'ConnectError (${error.runtimeType})',
+                        error,
+                      );
+                    },
+                  );
+                }
+              },
+              icon: Icon(
+                isConnected
+                    ? Icons.bluetooth_disabled
+                    : Icons.bluetooth_connected,
+                size: 20,
+              ),
+              label: Text(isConnected ? 'Disconnect' : 'Connect'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor:
+                    isConnected ? colorScheme.error : colorScheme.primary,
+                foregroundColor:
+                    isConnected ? colorScheme.onError : colorScheme.onPrimary,
+                padding: const EdgeInsets.symmetric(
+                  vertical: 16,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                elevation: 2,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
