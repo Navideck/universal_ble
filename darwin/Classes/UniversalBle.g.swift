@@ -536,7 +536,7 @@ protocol UniversalBlePlatformChannel {
   func startScan(filter: UniversalScanFilter?) throws
   func stopScan() throws
   func isScanning() throws -> Bool
-  func connect(deviceId: String) throws
+  func connect(deviceId: String, autoConnect: Bool?) throws
   func disconnect(deviceId: String) throws
   func setNotifiable(deviceId: String, service: String, characteristic: String, bleInputProperty: Int64, completion: @escaping (Result<Void, Error>) -> Void)
   func discoverServices(deviceId: String, withDescriptors: Bool, completion: @escaping (Result<[UniversalBleService], Error>) -> Void)
@@ -681,8 +681,9 @@ class UniversalBlePlatformChannelSetup {
       connectChannel.setMessageHandler { message, reply in
         let args = message as! [Any?]
         let deviceIdArg = args[0] as! String
+        let autoConnectArg: Bool? = nilOrValue(args[1])
         do {
-          try api.connect(deviceId: deviceIdArg)
+          try api.connect(deviceId: deviceIdArg, autoConnect: autoConnectArg)
           reply(wrapResult(nil))
         } catch {
           reply(wrapError(error))

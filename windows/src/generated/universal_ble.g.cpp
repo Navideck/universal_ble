@@ -791,7 +791,9 @@ void UniversalBlePlatformChannel::SetUp(
             return;
           }
           const auto& device_id_arg = std::get<std::string>(encodable_device_id_arg);
-          std::optional<FlutterError> output = api->Connect(device_id_arg);
+          const auto& encodable_auto_connect_arg = args.at(1);
+          const auto* auto_connect_arg = std::get_if<bool>(&encodable_auto_connect_arg);
+          std::optional<FlutterError> output = api->Connect(device_id_arg, auto_connect_arg);
           if (output.has_value()) {
             reply(WrapError(output.value()));
             return;

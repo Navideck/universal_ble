@@ -69,8 +69,8 @@ class UniversalBlePigeonChannel extends UniversalBlePlatform {
   }
 
   @override
-  Future<void> connect(String deviceId, {Duration? connectionTimeout}) =>
-      _executeWithErrorHandling(() => _channel.connect(deviceId));
+  Future<void> connect(String deviceId, {Duration? connectionTimeout, bool autoConnect = false}) =>
+      _executeWithErrorHandling(() => _channel.connect(deviceId, autoConnect: autoConnect));
 
   @override
   Future<void> disconnect(String deviceId) =>

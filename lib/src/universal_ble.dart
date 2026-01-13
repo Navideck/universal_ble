@@ -134,16 +134,25 @@ class UniversalBle {
   /// It is advised to stop scanning before connecting.
   /// It throws error if device connection fails.
   /// Default connection timeout is 60 sec.
+  ///
+  /// [autoConnect] enables automatic reconnection when the device becomes available.
+  /// On Android, this uses the `autoConnect` parameter in `connectGatt`.
+  /// On iOS, this uses `CBConnectPeripheralOptionEnableAutoReconnect` option.
+  /// Ignored on `Windows`, `Linux` and `Web`.
+  ///
   /// Can throw `ConnectionException` or `PlatformException`.
   static Future<void> connect(
     String deviceId, {
     Duration? timeout,
+    bool autoConnect = false,
   }) async {
     timeout ??= const Duration(seconds: 60);
     Completer<bool> completer =
         _connectionEventCompleter(deviceId, timeout: timeout);
 
-    _platform.connect(deviceId, connectionTimeout: timeout).catchError(
+    _platform
+        .connect(deviceId, connectionTimeout: timeout, autoConnect: autoConnect)
+        .catchError(
       (error) {
         if (completer.isCompleted) return;
         completer.completeError(ConnectionException(error));

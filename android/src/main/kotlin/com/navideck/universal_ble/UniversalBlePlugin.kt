@@ -213,7 +213,7 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
         return safeScanner.isScanning()
     }
 
-    override fun connect(deviceId: String) {
+    override fun connect(deviceId: String, autoConnect: Boolean?) {
         // If already connected, send connected message,
         // if connecting, do nothing
         deviceId.findGatt()?.let {
@@ -232,17 +232,17 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
             }
         }
 
-
+        val shouldAutoConnect = autoConnect ?: false
         val remoteDevice = bluetoothManager.adapter.getRemoteDevice(deviceId)
         val gatt = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             remoteDevice.connectGatt(
                 context,
-                false,
+                shouldAutoConnect,
                 this,
                 BluetoothDevice.TRANSPORT_LE
             )
         } else {
-            remoteDevice.connectGatt(context, false, this)
+            remoteDevice.connectGatt(context, shouldAutoConnect, this)
         }
         gatt.saveCacheIfNeeded()
     }

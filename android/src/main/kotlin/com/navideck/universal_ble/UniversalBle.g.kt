@@ -517,7 +517,7 @@ interface UniversalBlePlatformChannel {
   fun startScan(filter: UniversalScanFilter?)
   fun stopScan()
   fun isScanning(): Boolean
-  fun connect(deviceId: String)
+  fun connect(deviceId: String, autoConnect: Boolean?)
   fun disconnect(deviceId: String)
   fun setNotifiable(deviceId: String, service: String, characteristic: String, bleInputProperty: Long, callback: (Result<Unit>) -> Unit)
   fun discoverServices(deviceId: String, withDescriptors: Boolean, callback: (Result<List<UniversalBleService>>) -> Unit)
@@ -686,8 +686,9 @@ interface UniversalBlePlatformChannel {
           channel.setMessageHandler { message, reply ->
             val args = message as List<Any?>
             val deviceIdArg = args[0] as String
+            val autoConnectArg = args[1] as Boolean?
             val wrapped: List<Any?> = try {
-              api.connect(deviceIdArg)
+              api.connect(deviceIdArg, autoConnectArg)
               listOf(null)
             } catch (exception: Throwable) {
               UniversalBlePigeonUtils.wrapError(exception)

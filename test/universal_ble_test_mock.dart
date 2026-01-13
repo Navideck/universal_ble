@@ -3,7 +3,8 @@ import 'package:universal_ble/universal_ble.dart';
 
 abstract class UniversalBlePlatformMock extends UniversalBlePlatform {
   @override
-  Future<void> connect(String deviceId, {Duration? connectionTimeout}) {
+  Future<void> connect(String deviceId,
+      {bool autoConnect = false, Duration? connectionTimeout}) {
     throw UnimplementedError();
   }
 

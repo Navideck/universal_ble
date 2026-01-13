@@ -129,10 +129,22 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
     UniversalBleLogger.shared.setLogLevel(logLevel)
   }
 
-  func connect(deviceId: String) throws {
+  func connect(deviceId: String, autoConnect: Bool?) throws {
     let peripheral = try deviceId.getPeripheral(manager: manager)
     peripheral.delegate = self
-    manager.connect(peripheral)
+    let shouldAutoConnect = autoConnect ?? false
+    if shouldAutoConnect {
+      // CBConnectPeripheralOptionEnableAutoReconnect is only available in iOS 17.0+, macOS 14.0+, watchOS 10.0+, tvOS 17.0+
+      if #available(iOS 17.0, macOS 14.0, watchOS 10.0, tvOS 17.0, *) {
+        let options: [String: Any] = [CBConnectPeripheralOptionEnableAutoReconnect: true]
+        manager.connect(peripheral, options: options)
+      } else {
+        // Fallback for platforms where auto reconnect option is unavailable
+        manager.connect(peripheral)
+      }
+    } else {
+      manager.connect(peripheral)
+    }
   }
 
   func disconnect(deviceId: String) throws {
