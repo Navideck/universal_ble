@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:universal_ble/universal_ble.dart';
 import 'package:universal_ble_example/data/mock_universal_ble.dart';
 import 'package:universal_ble_example/home/widgets/ble_availability_icon.dart';
@@ -49,6 +50,13 @@ class _ScannerScreenState extends State<ScannerScreen> {
     UniversalBle.isScanning().then(
       (isScanning) => setState(() => _isScanning = isScanning),
     );
+
+    _loadScanFilters();
+
+    // Save search filter when it changes
+    _searchFilterController.addListener(() {
+      _saveScanFilters();
+    });
   }
 
   void _handleScanResult(BleDevice result) {
@@ -101,6 +109,123 @@ class _ScannerScreenState extends State<ScannerScreen> {
     }
   }
 
+  Future<void> _loadScanFilters() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final services = prefs.getString('scan_filter_services') ?? '';
+      final namePrefix = prefs.getString('scan_filter_name_prefix') ?? '';
+      final manufacturerData =
+          prefs.getString('scan_filter_manufacturer_data') ?? '';
+      final searchFilter = prefs.getString('scan_filter_search') ?? '';
+
+      servicesFilterController.text = services;
+      namePrefixController.text = namePrefix;
+      manufacturerDataController.text = manufacturerData;
+      _searchFilterController.text = searchFilter;
+
+      // Reconstruct the scan filter if any values exist
+      if (services.isNotEmpty ||
+          namePrefix.isNotEmpty ||
+          manufacturerData.isNotEmpty) {
+        _applyFilterFromControllers();
+      }
+    } catch (e) {
+      // Silently fail if preferences can't be loaded
+      debugPrint('Failed to load scan filters: $e');
+    }
+  }
+
+  Future<void> _saveScanFilters() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(
+          'scan_filter_services', servicesFilterController.text);
+      await prefs.setString(
+          'scan_filter_name_prefix', namePrefixController.text);
+      await prefs.setString(
+          'scan_filter_manufacturer_data', manufacturerDataController.text);
+      await prefs.setString('scan_filter_search', _searchFilterController.text);
+    } catch (e) {
+      debugPrint('Failed to save scan filters: $e');
+    }
+  }
+
+  void _applyFilterFromControllers() {
+    try {
+      List<String> serviceUUids = [];
+      List<String> namePrefixes = [];
+      List<ManufacturerDataFilter> manufacturerDataFilters = [];
+
+      // Parse Services
+      if (servicesFilterController.text.isNotEmpty) {
+        List<String> services = servicesFilterController.text
+            .split(',')
+            .map((e) => e.trim())
+            .where((s) => s.isNotEmpty)
+            .toList();
+        for (String service in services) {
+          try {
+            serviceUUids.add(BleUuidParser.string(service.trim()));
+          } on FormatException catch (_) {
+            // Skip invalid service UUIDs when loading from preferences
+            continue;
+          }
+        }
+      }
+
+      // Parse Name Prefix
+      String namePrefix = namePrefixController.text;
+      if (namePrefix.isNotEmpty) {
+        namePrefixes = namePrefix.split(',').map((e) => e.trim()).toList();
+      }
+
+      // Parse Manufacturer Data
+      String manufacturerDataText = manufacturerDataController.text;
+      if (manufacturerDataText.isNotEmpty) {
+        List<String> manufacturerData = manufacturerDataText
+            .split(',')
+            .map((e) => e.trim())
+            .where((s) => s.isNotEmpty)
+            .toList();
+        for (String manufacturer in manufacturerData) {
+          String trimmed = manufacturer.trim();
+          int? companyIdentifier;
+          if (trimmed.toLowerCase().startsWith('0x')) {
+            companyIdentifier = int.tryParse(trimmed.substring(2), radix: 16);
+          } else {
+            if (trimmed.contains(RegExp(r'[a-fA-F]'))) {
+              companyIdentifier = int.tryParse(trimmed, radix: 16);
+            } else {
+              companyIdentifier = int.tryParse(trimmed);
+            }
+          }
+          if (companyIdentifier == null) {
+            // Skip invalid manufacturer data when loading from preferences
+            continue;
+          }
+          manufacturerDataFilters.add(
+              ManufacturerDataFilter(companyIdentifier: companyIdentifier));
+        }
+      }
+
+      if (serviceUUids.isEmpty &&
+          namePrefixes.isEmpty &&
+          manufacturerDataFilters.isEmpty) {
+        scanFilter = null;
+      } else {
+        scanFilter = ScanFilter(
+          withServices: serviceUUids,
+          withNamePrefix: namePrefixes,
+          withManufacturerData: manufacturerDataFilters,
+        );
+      }
+      setState(() {});
+    } catch (e) {
+      // Silently fail if filter can't be applied
+      debugPrint('Failed to apply filter from controllers: $e');
+    }
+  }
+
   void _showScanFilterBottomSheet() {
     showModalBottomSheet(
       isScrollControlled: true,
@@ -114,6 +239,7 @@ class _ScannerScreenState extends State<ScannerScreen> {
             setState(() {
               scanFilter = filter;
             });
+            _saveScanFilters();
           },
         );
       },
@@ -274,6 +400,7 @@ class _ScannerScreenState extends State<ScannerScreen> {
                           ),
                           onPressed: () {
                             _searchFilterController.clear();
+                            _saveScanFilters();
                             setState(() {});
                           },
                         )
