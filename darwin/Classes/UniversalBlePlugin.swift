@@ -134,7 +134,7 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
     let peripheral = try deviceId.getPeripheral(manager: manager)
     peripheral.delegate = self
     let shouldAutoConnect = autoConnect ?? false
-    
+
     if shouldAutoConnect {
       autoConnectDevices.insert(deviceId)
       if #available(iOS 17.0, macOS 14.0, watchOS 10.0, tvOS 17.0, *) {
@@ -148,9 +148,9 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
         // (e.g., in central manager delegate callbacks).
         UniversalBleLogger.shared.logInfo(
           "autoConnect requested for device \(deviceId), " +
-          "but automatic reconnection via CBConnectPeripheralOptionEnableAutoReconnect " +
-          "is only available on iOS 17+/macOS 14+/watchOS 10+/tvOS 17+. " +
-          "On this OS version, reconnections must be handled manually."
+            "but automatic reconnection via CBConnectPeripheralOptionEnableAutoReconnect " +
+            "is only available on iOS 17+/macOS 14+/watchOS 10+/tvOS 17+. " +
+            "On this OS version, reconnections must be handled manually."
         )
         manager.connect(peripheral)
       }
@@ -452,11 +452,9 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
 
     var serviceData: [String: FlutterStandardTypedData]? = nil
     if let serviceDataDict = serviceDataDict {
-      var convertedServiceData: [String: FlutterStandardTypedData] = [:]
-      for (uuid, data) in serviceDataDict {
-        convertedServiceData[uuid.uuidStr] = FlutterStandardTypedData(bytes: data)
-      }
-      serviceData = convertedServiceData
+      serviceData = Dictionary(uniqueKeysWithValues: serviceDataDict.map { uuid, data in
+        (uuid.uuidStr, FlutterStandardTypedData(bytes: data))
+      })
     }
 
     let advertisedName = advertisementData[CBAdvertisementDataLocalNameKey] as? String
@@ -493,7 +491,7 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
   public func centralManager(
     _: CBCentralManager,
     didDisconnectPeripheral peripheral: CBPeripheral,
-    timestamp: CFAbsoluteTime,
+    timestamp _: CFAbsoluteTime,
     isReconnecting: Bool,
     error: Error?
   ) {
@@ -504,7 +502,7 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
         return
       }
     }
-    
+
     handlePeripheralDisconnection(deviceId: deviceId, error: error)
   }
 

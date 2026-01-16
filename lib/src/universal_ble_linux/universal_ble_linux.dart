@@ -702,15 +702,10 @@ extension BlueZDeviceExtension on BlueZDevice {
 
   Map<String, Uint8List> get serviceDataMap {
     try {
-      return serviceData.entries
-          .map((entry) => MapEntry(
-                entry.key.toString(),
-                Uint8List.fromList(entry.value),
-              ))
-          .fold<Map<String, Uint8List>>(
-        <String, Uint8List>{},
-        (map, entry) => map..[entry.key] = entry.value,
-      );
+      return {
+        for (final entry in serviceData.entries)
+          entry.key.toString(): Uint8List.fromList(entry.value),
+      };
     } catch (e) {
       return <String, Uint8List>{};
     }
