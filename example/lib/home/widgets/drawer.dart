@@ -77,7 +77,7 @@ class _AppDrawerState extends State<AppDrawer> {
               applicationName: 'Universal BLE',
               applicationVersion:
                   "${snapshot.data?.version} (${snapshot.data?.buildNumber})",
-              applicationLegalese: '\u{a9} 2025 Navideck',
+              applicationLegalese: '\u{a9} 2023 Navideck',
               aboutBoxChildren: [
                 const SizedBox(height: 24),
                 RichText(

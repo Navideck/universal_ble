@@ -141,7 +141,8 @@ class UniversalBleLinux extends UniversalBlePlatform {
   }
 
   @override
-  Future<void> connect(String deviceId, {Duration? connectionTimeout}) async {
+  Future<void> connect(String deviceId, {Duration? connectionTimeout, bool autoConnect = false}) async {
+    // Note: autoConnect is not directly supported on Linux platform
     final device = _findDeviceById(deviceId);
     if (device.connected) {
       updateConnection(deviceId, true);

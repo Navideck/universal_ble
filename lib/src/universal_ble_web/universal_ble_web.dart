@@ -35,7 +35,9 @@ class UniversalBleWeb extends UniversalBlePlatform {
   Future<void> connect(
     String deviceId, {
     Duration? connectionTimeout = const Duration(seconds: 10),
+    bool autoConnect = false,
   }) async {
+    // Note: autoConnect is not directly supported on Web platform
     var device = _getDeviceById(deviceId);
     if (device == null) {
       throw UniversalBleException(

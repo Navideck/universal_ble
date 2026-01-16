@@ -776,7 +776,7 @@ class UniversalBlePlatformChannel {
     }
   }
 
-  Future<void> connect(String deviceId) async {
+  Future<void> connect(String deviceId, {bool? autoConnect}) async {
     final pigeonVar_channelName =
         'dev.flutter.pigeon.universal_ble.UniversalBlePlatformChannel.connect$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
@@ -785,7 +785,7 @@ class UniversalBlePlatformChannel {
       binaryMessenger: pigeonVar_binaryMessenger,
     );
     final Future<Object?> pigeonVar_sendFuture =
-        pigeonVar_channel.send(<Object?>[deviceId]);
+        pigeonVar_channel.send(<Object?>[deviceId, autoConnect]);
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
     if (pigeonVar_replyList == null) {
       throw _createConnectionError(pigeonVar_channelName);

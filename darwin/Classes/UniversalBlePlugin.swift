@@ -42,6 +42,7 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
   private var discoverServicesFutures = [DiscoverServicesFuture]()
   private var rssiReadFutures = [RssiReadFuture]()
   private var isManageScanning = false
+  private var autoConnectDevices = Set<String>()
 
   init(callbackChannel: UniversalBleCallbackChannel) {
     self.callbackChannel = callbackChannel
@@ -129,15 +130,41 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
     UniversalBleLogger.shared.setLogLevel(logLevel)
   }
 
-  func connect(deviceId: String) throws {
+  func connect(deviceId: String, autoConnect: Bool?) throws {
     let peripheral = try deviceId.getPeripheral(manager: manager)
     peripheral.delegate = self
-    manager.connect(peripheral)
+    let shouldAutoConnect = autoConnect ?? false
+    
+    if shouldAutoConnect {
+      autoConnectDevices.insert(deviceId)
+      if #available(iOS 17.0, macOS 14.0, watchOS 10.0, tvOS 17.0, *) {
+        let options: [String: Any] = [CBConnectPeripheralOptionEnableAutoReconnect: true]
+        manager.connect(peripheral, options: options)
+      } else {
+        // Auto-reconnect via CBConnectPeripheralOptionEnableAutoReconnect is only
+        // available on iOS 17.0 / macOS 14.0 / watchOS 10.0 / tvOS 17.0 and later.
+        // On earlier OS versions, enabling `autoConnect` will NOT provide automatic
+        // reconnection behavior. Any desired reconnection must be handled manually
+        // (e.g., in central manager delegate callbacks).
+        UniversalBleLogger.shared.logInfo(
+          "autoConnect requested for device \(deviceId), " +
+          "but automatic reconnection via CBConnectPeripheralOptionEnableAutoReconnect " +
+          "is only available on iOS 17+/macOS 14+/watchOS 10+/tvOS 17+. " +
+          "On this OS version, reconnections must be handled manually."
+        )
+        manager.connect(peripheral)
+      }
+    } else {
+      autoConnectDevices.remove(deviceId)
+      manager.connect(peripheral)
+    }
   }
 
   func disconnect(deviceId: String) throws {
+    autoConnectDevices.remove(deviceId)
     guard let peripheral = deviceId.findPeripheral(manager: manager) else {
       callbackChannel.onConnectionChanged(deviceId: deviceId, connected: false, error: nil) { _ in }
+      cleanUpConnection(deviceId: deviceId)
       return
     }
     if peripheral.state != CBPeripheralState.disconnected {
@@ -445,9 +472,33 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
     callbackChannel.onConnectionChanged(deviceId: peripheral.uuid.uuidString, connected: true, error: nil) { _ in }
   }
 
-  public func centralManager(_: CBCentralManager, didDisconnectPeripheral peripheral: CBPeripheral, error _: Error?) {
-    callbackChannel.onConnectionChanged(deviceId: peripheral.uuid.uuidString, connected: false, error: nil) { _ in }
-    cleanUpConnection(deviceId: peripheral.uuid.uuidString)
+  private func handlePeripheralDisconnection(deviceId: String, error: Error?) {
+    autoConnectDevices.remove(deviceId)
+    callbackChannel.onConnectionChanged(deviceId: deviceId, connected: false, error: error?.localizedDescription) { _ in }
+    cleanUpConnection(deviceId: deviceId)
+  }
+
+  public func centralManager(
+    _: CBCentralManager,
+    didDisconnectPeripheral peripheral: CBPeripheral,
+    timestamp: CFAbsoluteTime,
+    isReconnecting: Bool,
+    error: Error?
+  ) {
+    let deviceId = peripheral.uuid.uuidString
+    
+    if #available(iOS 17.0, macOS 14.0, watchOS 10.0, tvOS 17.0, *) {
+      if isReconnecting {
+        return
+      }
+    }
+    
+    handlePeripheralDisconnection(deviceId: deviceId, error: error)
+  }
+
+  public func centralManager(_: CBCentralManager, didDisconnectPeripheral peripheral: CBPeripheral, error: Error?) {
+    let deviceId = peripheral.uuid.uuidString
+    handlePeripheralDisconnection(deviceId: deviceId, error: error)
   }
 
   public func centralManager(_: CBCentralManager, didFailToConnect peripheral: CBPeripheral, error: Error?) {

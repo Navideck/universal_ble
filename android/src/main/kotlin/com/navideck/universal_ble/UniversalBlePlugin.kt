@@ -61,6 +61,7 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
     private val subscriptionResultFutureList = mutableListOf<SubscriptionResultFuture>()
     private val pairResultFutures = mutableMapOf<String, (Result<Boolean>) -> Unit>()
     private val rssiResultFutureList = mutableListOf<RssiResultFuture>()
+    private val autoConnectDevices = mutableSetOf<String>()
 
     override fun onAttachedToEngine(flutterPluginBinding: FlutterPlugin.FlutterPluginBinding) {
         UniversalBlePlatformChannel.setUp(flutterPluginBinding.binaryMessenger, this)
@@ -213,7 +214,7 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
         return safeScanner.isScanning()
     }
 
-    override fun connect(deviceId: String) {
+    override fun connect(deviceId: String, autoConnect: Boolean?) {
         // If already connected, send connected message,
         // if connecting, do nothing
         deviceId.findGatt()?.let {
@@ -232,24 +233,31 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
             }
         }
 
-
+        val shouldAutoConnect = autoConnect ?: false
+        if (shouldAutoConnect) {
+            autoConnectDevices.add(deviceId)
+        } else {
+            autoConnectDevices.remove(deviceId)
+        }
         val remoteDevice = bluetoothManager.adapter.getRemoteDevice(deviceId)
         val gatt = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             remoteDevice.connectGatt(
                 context,
-                false,
+                shouldAutoConnect,
                 this,
                 BluetoothDevice.TRANSPORT_LE
             )
         } else {
-            remoteDevice.connectGatt(context, false, this)
+            remoteDevice.connectGatt(context, shouldAutoConnect, this)
         }
         gatt.saveCacheIfNeeded()
     }
 
     override fun disconnect(deviceId: String) {
+        autoConnectDevices.remove(deviceId)
         val gatt = deviceId.findGatt()
         if (gatt == null) {
+            cleanUpConnection(deviceId)
             mainThreadHandler?.post {
                 callbackChannel?.onConnectionChanged(deviceId, false, null) {}
             }
@@ -955,15 +963,13 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
         }
     }
 
-    private fun cleanConnection(gatt: BluetoothGatt) {
-        gatt.removeCache()
-        gatt.disconnect()
+    private fun cleanUpConnection(deviceId: String) {
         val deviceDisconnectedError: FlutterError = createFlutterError(
             UniversalBleErrorCode.DEVICE_DISCONNECTED,
             "Device Disconnected",
         )
         readResultFutureList.removeAll {
-            if (it.deviceId == gatt.device.address) {
+            if (it.deviceId == deviceId) {
                 it.result(Result.failure(deviceDisconnectedError))
                 true
             } else {
@@ -971,7 +977,7 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
             }
         }
         writeResultFutureList.removeAll {
-            if (it.deviceId == gatt.device.address) {
+            if (it.deviceId == deviceId) {
                 it.result(Result.failure(deviceDisconnectedError))
                 true
             } else {
@@ -979,7 +985,7 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
             }
         }
         subscriptionResultFutureList.removeAll {
-            if (it.deviceId == gatt.device.address) {
+            if (it.deviceId == deviceId) {
                 it.result(Result.failure(deviceDisconnectedError))
                 true
             } else {
@@ -987,7 +993,7 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
             }
         }
         mtuResultFutureList.removeAll {
-            if (it.deviceId == gatt.device.address) {
+            if (it.deviceId == deviceId) {
                 it.result(Result.failure(deviceDisconnectedError))
                 true
             } else {
@@ -995,7 +1001,7 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
             }
         }
         discoverServicesFutureList.removeAll {
-            if (it.deviceId == gatt.device.address) {
+            if (it.deviceId == deviceId) {
                 it.result(Result.failure(deviceDisconnectedError))
                 true
             } else {
@@ -1003,13 +1009,19 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
             }
         }
         rssiResultFutureList.removeAll {
-            if (it.deviceId == gatt.device.address) {
+            if (it.deviceId == deviceId) {
                 it.result(Result.failure(deviceDisconnectedError))
                 true
             } else {
                 false
             }
         }
+    }
+
+    private fun cleanConnection(gatt: BluetoothGatt) {
+        gatt.removeCache()
+        gatt.disconnect()
+        cleanUpConnection(gatt.device.address)
     }
 
     private fun onBondStateUpdate(deviceId: String, bonded: Boolean, error: String? = null) {
@@ -1134,14 +1146,27 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
                 ) {}
             }
         } else if (newState == BluetoothGatt.STATE_DISCONNECTED) {
-            cleanConnection(gatt)
+            val deviceId = gatt.device.address
+            val shouldAutoConnect = autoConnectDevices.contains(deviceId)
+            
+            // Always clean up internal state (futures, etc.)
+            cleanUpConnection(deviceId)
+            
+            // Send connection changed callback
             mainThreadHandler?.post {
                 callbackChannel?.onConnectionChanged(
-                    gatt.device.address, false, status.parseHciErrorCode()
+                    deviceId, false, status.parseHciErrorCode()
                 ) {}
             }
-            UniversalBleLogger.logDebug("Closing gatt for ${gatt.device.name}")
-            gatt.close()
+            
+            if (!shouldAutoConnect) {
+                // Only close GATT resources when autoConnect is disabled
+                gatt.removeCache()
+                gatt.disconnect()
+                UniversalBleLogger.logDebug("Closing gatt for ${gatt.device.name}")
+                gatt.close()
+            }
+            // When autoConnect is enabled, keep GATT open for Android to reconnect
         }
     }
 

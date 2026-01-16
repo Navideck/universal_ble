@@ -396,7 +396,9 @@ class UniversalBlePlatformChannel {
   virtual std::optional<FlutterError> StartScan(const UniversalScanFilter* filter) = 0;
   virtual std::optional<FlutterError> StopScan() = 0;
   virtual ErrorOr<bool> IsScanning() = 0;
-  virtual std::optional<FlutterError> Connect(const std::string& device_id) = 0;
+  virtual std::optional<FlutterError> Connect(
+    const std::string& device_id,
+    const bool* auto_connect) = 0;
   virtual std::optional<FlutterError> Disconnect(const std::string& device_id) = 0;
   virtual void SetNotifiable(
     const std::string& device_id,

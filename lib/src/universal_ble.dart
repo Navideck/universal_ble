@@ -134,16 +134,26 @@ class UniversalBle {
   /// It is advised to stop scanning before connecting.
   /// It throws error if device connection fails.
   /// Default connection timeout is 60 sec.
+  ///
+  /// [autoConnect] enables automatic reconnection when the device becomes available.
+  /// Default value is `false`.
+  /// Ignored on `Windows`, `Linux` and `Web`.
+  ///
+  /// Call [disconnect] to prevent auto-reconnect even while a device is disconnected.
+  ///
   /// Can throw `ConnectionException` or `PlatformException`.
   static Future<void> connect(
     String deviceId, {
     Duration? timeout,
+    bool autoConnect = false,
   }) async {
     timeout ??= const Duration(seconds: 60);
     Completer<bool> completer =
         _connectionEventCompleter(deviceId, timeout: timeout);
 
-    _platform.connect(deviceId, connectionTimeout: timeout).catchError(
+    _platform
+        .connect(deviceId, connectionTimeout: timeout, autoConnect: autoConnect)
+        .catchError(
       (error) {
         if (completer.isCompleted) return;
         completer.completeError(ConnectionException(error));
@@ -169,15 +179,6 @@ class UniversalBle {
       UniversalLogger.logError("Get connection state failed: $e");
     }
 
-    if (connectionState == BleConnectionState.disconnected ||
-        connectionState == BleConnectionState.disconnecting) {
-      _platform.updateConnection(deviceId, false);
-      UniversalLogger.logInfo(
-        "Device $deviceId already disconnected: $connectionState",
-      );
-      return;
-    }
-
     try {
       Completer<bool> completer =
           _connectionEventCompleter(deviceId, timeout: timeout);
@@ -191,6 +192,17 @@ class UniversalBle {
           completer.completeError(ConnectionException(error));
         },
       );
+
+      if (connectionState == BleConnectionState.disconnected ||
+          connectionState == BleConnectionState.disconnecting) {
+        // Device was already disconnected, but we still called platform disconnect
+        // to prevent auto-reconnect. Update connection state and return.
+        _platform.updateConnection(deviceId, false);
+        UniversalLogger.logInfo(
+          "Device $deviceId already disconnected: $connectionState. Cleanup performed to prevent auto-reconnect.",
+        );
+        return;
+      }
 
       if (await completer.future.timeout(timeout)) {
         UniversalLogger.logError(

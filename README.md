@@ -40,6 +40,7 @@ A cross-platform (Android/iOS/macOS/Windows/Linux/Web) Bluetooth Low Energy (BLE
 | :---------------------------- | :-----: | :-: | :---: | :-----: | :---: | :-: |
 | startScan/stopScan            |   ✔️    | ✔️  |  ✔️   |   ✔️    |  ✔️   | ✔️  |
 | connect/disconnect            |   ✔️    | ✔️  |  ✔️   |   ✔️    |  ✔️   | ✔️  |
+| autoConnect                   |   ✔️    | ✔️  |  ✔️   |   ❌    |  ❌   | ❌  |
 | getSystemDevices              |   ✔️    | ✔️  |  ✔️   |   ✔️    |  ✔️   | ❌  |
 | discoverServices              |   ✔️    | ✔️  |  ✔️   |   ✔️    |  ✔️   | ✔️  |
 | read                          |   ✔️    | ✔️  |  ✔️   |   ✔️    |  ✔️   | ✔️  |
@@ -229,6 +230,13 @@ bool isConnected = await bleDevice.isConnected;
 ```dart
 // Can be connected, disconnected, connecting or disconnecting
 BleConnectionState connectionState = await bleDevice.connectionState;
+```
+
+#### Auto-connect
+You can enable automatic reconnection by setting the `autoConnect` parameter to `true`. When enabled, the system will automatically attempt to reconnect to the device when it becomes available again.
+
+```dart
+await bleDevice.connect(autoConnect: true);
 ```
 
 ### Discovering Services
