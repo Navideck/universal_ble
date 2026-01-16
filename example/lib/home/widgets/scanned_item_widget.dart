@@ -132,17 +132,6 @@ class ScannedItemWidget extends StatelessWidget {
                           ],
                         ),
                         const SizedBox(height: 6),
-                        // TODO: Remove after testing
-                        if (bleDevice.serviceData.isNotEmpty) ...[
-                          Text(
-                            'Service Data: ${bleDevice.serviceData.toString().split(',').join('\n')}',
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.bold,
-                              color: colorScheme.onSurface,
-                            ),
-                          ),
-                        ],
                         Wrap(
                           spacing: 4,
                           runSpacing: 4,
