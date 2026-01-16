@@ -39,6 +39,7 @@ UniversalBleScanResult::UniversalBleScanResult(
   const bool* is_paired,
   const int64_t* rssi,
   const EncodableList* manufacturer_data_list,
+  const EncodableMap* service_data,
   const EncodableList* services,
   const int64_t* timestamp)
  : device_id_(device_id),
@@ -46,6 +47,7 @@ UniversalBleScanResult::UniversalBleScanResult(
     is_paired_(is_paired ? std::optional<bool>(*is_paired) : std::nullopt),
     rssi_(rssi ? std::optional<int64_t>(*rssi) : std::nullopt),
     manufacturer_data_list_(manufacturer_data_list ? std::optional<EncodableList>(*manufacturer_data_list) : std::nullopt),
+    service_data_(service_data ? std::optional<EncodableMap>(*service_data) : std::nullopt),
     services_(services ? std::optional<EncodableList>(*services) : std::nullopt),
     timestamp_(timestamp ? std::optional<int64_t>(*timestamp) : std::nullopt) {}
 
@@ -110,6 +112,19 @@ void UniversalBleScanResult::set_manufacturer_data_list(const EncodableList& val
 }
 
 
+const EncodableMap* UniversalBleScanResult::service_data() const {
+  return service_data_ ? &(*service_data_) : nullptr;
+}
+
+void UniversalBleScanResult::set_service_data(const EncodableMap* value_arg) {
+  service_data_ = value_arg ? std::optional<EncodableMap>(*value_arg) : std::nullopt;
+}
+
+void UniversalBleScanResult::set_service_data(const EncodableMap& value_arg) {
+  service_data_ = value_arg;
+}
+
+
 const EncodableList* UniversalBleScanResult::services() const {
   return services_ ? &(*services_) : nullptr;
 }
@@ -138,12 +153,13 @@ void UniversalBleScanResult::set_timestamp(int64_t value_arg) {
 
 EncodableList UniversalBleScanResult::ToEncodableList() const {
   EncodableList list;
-  list.reserve(7);
+  list.reserve(8);
   list.push_back(EncodableValue(device_id_));
   list.push_back(name_ ? EncodableValue(*name_) : EncodableValue());
   list.push_back(is_paired_ ? EncodableValue(*is_paired_) : EncodableValue());
   list.push_back(rssi_ ? EncodableValue(*rssi_) : EncodableValue());
   list.push_back(manufacturer_data_list_ ? EncodableValue(*manufacturer_data_list_) : EncodableValue());
+  list.push_back(service_data_ ? EncodableValue(*service_data_) : EncodableValue());
   list.push_back(services_ ? EncodableValue(*services_) : EncodableValue());
   list.push_back(timestamp_ ? EncodableValue(*timestamp_) : EncodableValue());
   return list;
@@ -168,11 +184,15 @@ UniversalBleScanResult UniversalBleScanResult::FromEncodableList(const Encodable
   if (!encodable_manufacturer_data_list.IsNull()) {
     decoded.set_manufacturer_data_list(std::get<EncodableList>(encodable_manufacturer_data_list));
   }
-  auto& encodable_services = list[5];
+  auto& encodable_service_data = list[5];
+  if (!encodable_service_data.IsNull()) {
+    decoded.set_service_data(std::get<EncodableMap>(encodable_service_data));
+  }
+  auto& encodable_services = list[6];
   if (!encodable_services.IsNull()) {
     decoded.set_services(std::get<EncodableList>(encodable_services));
   }
-  auto& encodable_timestamp = list[6];
+  auto& encodable_timestamp = list[7];
   if (!encodable_timestamp.IsNull()) {
     decoded.set_timestamp(std::get<int64_t>(encodable_timestamp));
   }

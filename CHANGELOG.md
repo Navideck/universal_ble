@@ -1,5 +1,6 @@
 ## 1.2.0
 * Add `autoConnect` parameter to `connect()` method for automatic reconnection support on Android and iOS/macOS
+* Add `serviceData` in `BleDevice`
 
 ## 1.1.0
 * Add readRssi method

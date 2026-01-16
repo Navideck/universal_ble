@@ -174,6 +174,7 @@ data class UniversalBleScanResult (
   val isPaired: Boolean? = null,
   val rssi: Long? = null,
   val manufacturerDataList: List<UniversalManufacturerData>? = null,
+  val serviceData: Map<String, ByteArray>? = null,
   val services: List<String>? = null,
   val timestamp: Long? = null
 )
@@ -185,9 +186,10 @@ data class UniversalBleScanResult (
       val isPaired = pigeonVar_list[2] as Boolean?
       val rssi = pigeonVar_list[3] as Long?
       val manufacturerDataList = pigeonVar_list[4] as List<UniversalManufacturerData>?
-      val services = pigeonVar_list[5] as List<String>?
-      val timestamp = pigeonVar_list[6] as Long?
-      return UniversalBleScanResult(deviceId, name, isPaired, rssi, manufacturerDataList, services, timestamp)
+      val serviceData = pigeonVar_list[5] as Map<String, ByteArray>?
+      val services = pigeonVar_list[6] as List<String>?
+      val timestamp = pigeonVar_list[7] as Long?
+      return UniversalBleScanResult(deviceId, name, isPaired, rssi, manufacturerDataList, serviceData, services, timestamp)
     }
   }
   fun toList(): List<Any?> {
@@ -197,6 +199,7 @@ data class UniversalBleScanResult (
       isPaired,
       rssi,
       manufacturerDataList,
+      serviceData,
       services,
       timestamp,
     )

@@ -119,7 +119,8 @@ void UniversalBlePlugin::DisableBluetooth(
       });
 }
 
-ErrorOr<bool> UniversalBlePlugin::HasPermissions(bool with_android_fine_location) {
+ErrorOr<bool>
+UniversalBlePlugin::HasPermissions(bool with_android_fine_location) {
   // Windows does not require runtime permissions for Bluetooth
   return true;
 }
@@ -261,7 +262,8 @@ UniversalBlePlugin::SetLogLevel(const UniversalBleLogLevel &log_level) {
 }
 
 std::optional<FlutterError>
-UniversalBlePlugin::Connect(const std::string &device_id, const bool *auto_connect) {
+UniversalBlePlugin::Connect(const std::string &device_id,
+                            const bool *auto_connect) {
   // Note: autoConnect is not directly supported on Windows platform
   ConnectAsync(str_to_mac_address(device_id));
   return std::nullopt;
@@ -455,8 +457,9 @@ void UniversalBlePlugin::RequestMtu(
 void UniversalBlePlugin::ReadRssi(
     const std::string &device_id,
     std::function<void(ErrorOr<int64_t> reply)> result) {
-  result(create_flutter_error(UniversalBleErrorCode::kNotImplemented,
-                              "readRssi is not implemented on Windows platform"));
+  result(
+      create_flutter_error(UniversalBleErrorCode::kNotImplemented,
+                           "readRssi is not implemented on Windows platform"));
 }
 
 void UniversalBlePlugin::IsPaired(
@@ -667,6 +670,68 @@ void UniversalBlePlugin::PairingRequestedHandler(
   const hstring pin = askForPairingPin();
   UniversalBleLogger::LogInfo("PairLog: Got Pin: " + to_string(pin));
   event_args.Accept(pin);
+}
+
+std::string
+UniversalBlePlugin::ExpandServiceUuid(const std::vector<uint8_t> &uuid_bytes,
+                                      uint8_t uuid_type) {
+  if (uuid_type ==
+      static_cast<uint8_t>(AdvertisementSectionType::ServiceData16BitUuids)) {
+    // 16-bit UUID: expand to full 128-bit format
+    if (uuid_bytes.size() >= 2) {
+      uint16_t uuid_16 = (uuid_bytes[1] << 8) | uuid_bytes[0];
+      char uuid_str[37];
+      sprintf_s(uuid_str, "0000%04x-0000-1000-8000-00805f9b34fb", uuid_16);
+      return std::string(uuid_str);
+    }
+  } else if (uuid_type ==
+             static_cast<uint8_t>(
+                 AdvertisementSectionType::ServiceData32BitUuids)) {
+    // 32-bit UUID: expand to full 128-bit format
+    if (uuid_bytes.size() >= 4) {
+      uint32_t uuid_32 = (uuid_bytes[3] << 24) | (uuid_bytes[2] << 16) |
+                         (uuid_bytes[1] << 8) | uuid_bytes[0];
+      char uuid_str[37];
+      sprintf_s(uuid_str, "%08x-0000-1000-8000-00805f9b34fb", uuid_32);
+      return std::string(uuid_str);
+    }
+  } else if (uuid_type ==
+             static_cast<uint8_t>(
+                 AdvertisementSectionType::ServiceData128BitUuids)) {
+    // 128-bit UUID: parse with proper endianness handling
+    // BLE service data stores UUIDs in little-endian byte order
+    // guid_to_uuid reads: Data1/Data2/Data3 as big-endian (reverse), Data4 as
+    // little-endian (forward)
+    if (uuid_bytes.size() >= 16) {
+      guid uuid_guid{};
+
+      // Data1: bytes [0-3] - guid_to_uuid reads in reverse (big-endian), so
+      // store in reverse
+      uuid_guid.Data1 = static_cast<uint32_t>(uuid_bytes[3]) |
+                        (static_cast<uint32_t>(uuid_bytes[2]) << 8) |
+                        (static_cast<uint32_t>(uuid_bytes[1]) << 16) |
+                        (static_cast<uint32_t>(uuid_bytes[0]) << 24);
+
+      // Data2: bytes [4-5] - guid_to_uuid reads in reverse (big-endian), so
+      // store in reverse
+      uuid_guid.Data2 = static_cast<uint16_t>(uuid_bytes[5]) |
+                        (static_cast<uint16_t>(uuid_bytes[4]) << 8);
+
+      // Data3: bytes [6-7] - guid_to_uuid reads in reverse (big-endian), so
+      // store in reverse
+      uuid_guid.Data3 = static_cast<uint16_t>(uuid_bytes[7]) |
+                        (static_cast<uint16_t>(uuid_bytes[6]) << 8);
+
+      // Data4: bytes [8-15] - guid_to_uuid reads in order (little-endian), so
+      // store in order
+      for (size_t i = 0; i < 8; i++) {
+        uuid_guid.Data4[i] = uuid_bytes[8 + i];
+      }
+
+      return guid_to_uuid(uuid_guid);
+    }
+  }
+  return std::string();
 }
 
 // Send device to callback channel
@@ -903,21 +968,74 @@ void UniversalBlePlugin::BluetoothLeWatcherReceived(
       }
     }
 
+    auto service_data_map = flutter::EncodableMap();
     auto data_section = args.Advertisement().DataSections();
     for (auto &&data : data_section) {
       auto data_bytes = to_bytevc(data.Data());
+      auto data_type = data.DataType();
+
       // Use CompleteName from dataType if localName is empty
       if (name.empty() &&
-          data.DataType() == static_cast<uint8_t>(
-                                 AdvertisementSectionType::CompleteLocalName)) {
+          data_type == static_cast<uint8_t>(
+                           AdvertisementSectionType::CompleteLocalName)) {
         name = std::string(data_bytes.begin(), data_bytes.end());
       }
       // Use ShortenedLocalName from dataType if localName is empty
       else if (name.empty() &&
-               data.DataType() ==
-                   static_cast<uint8_t>(
-                       AdvertisementSectionType::ShortenedLocalName)) {
+               data_type == static_cast<uint8_t>(
+                                AdvertisementSectionType::ShortenedLocalName)) {
         name = std::string(data_bytes.begin(), data_bytes.end());
+      }
+      // Extract service data
+      else if (data_type ==
+                   static_cast<uint8_t>(
+                       AdvertisementSectionType::ServiceData16BitUuids) ||
+               data_type ==
+                   static_cast<uint8_t>(
+                       AdvertisementSectionType::ServiceData32BitUuids) ||
+               data_type ==
+                   static_cast<uint8_t>(
+                       AdvertisementSectionType::ServiceData128BitUuids)) {
+        // Helper lambda to parse UUID and extract service data
+        auto parse_service_data =
+            [&](const std::vector<uint8_t> &bytes,
+                uint8_t type) -> std::pair<std::string, std::vector<uint8_t>> {
+          std::string uuid;
+          std::vector<uint8_t> data_payload;
+          size_t uuid_size = 0;
+
+          if (type == static_cast<uint8_t>(
+                          AdvertisementSectionType::ServiceData16BitUuids)) {
+            uuid_size = 2;
+          } else if (type ==
+                     static_cast<uint8_t>(
+                         AdvertisementSectionType::ServiceData32BitUuids)) {
+            uuid_size = 4;
+          } else if (type ==
+                     static_cast<uint8_t>(
+                         AdvertisementSectionType::ServiceData128BitUuids)) {
+            uuid_size = 16;
+          }
+
+          if (bytes.size() >= uuid_size) {
+            std::vector<uint8_t> uuid_bytes(bytes.begin(),
+                                            bytes.begin() + uuid_size);
+            uuid = ExpandServiceUuid(uuid_bytes, type);
+            if (bytes.size() > uuid_size) {
+              data_payload =
+                  std::vector<uint8_t>(bytes.begin() + uuid_size, bytes.end());
+            }
+          }
+
+          return {uuid, data_payload};
+        };
+
+        auto [service_uuid, service_data_bytes] =
+            parse_service_data(data_bytes, data_type);
+        if (!service_uuid.empty()) {
+          service_data_map[service_uuid] =
+              flutter::EncodableValue(service_data_bytes);
+        }
       }
     }
 
@@ -937,6 +1055,11 @@ void UniversalBlePlugin::BluetoothLeWatcherReceived(
     for (auto &&uuid : args.Advertisement().ServiceUuids())
       services.push_back(guid_to_uuid(uuid));
     universal_scan_result.set_services(services);
+
+    // Add service data
+    if (!service_data_map.empty()) {
+      universal_scan_result.set_service_data(&service_data_map);
+    }
 
     // check if this device already discovered in deviceWatcher
     auto it = device_watcher_devices_.get(device_id);

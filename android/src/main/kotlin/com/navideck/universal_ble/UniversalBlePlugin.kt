@@ -844,6 +844,7 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
                         deviceId = it.address,
                         isPaired = it.bondState == BOND_BONDED,
                         manufacturerDataList = null,
+                        serviceData = null,
                         rssi = null,
                         timestamp = System.currentTimeMillis()
                     )
@@ -1100,6 +1101,7 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
 
             val name = result.device.name
             val manufacturerDataList = result.manufacturerDataList
+            val serviceData = result.serviceData
 
             if (!universalBleFilterUtil.filterDevice(
                     name,
@@ -1116,6 +1118,7 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
                         deviceId = result.device.address,
                         isPaired = result.device.bondState == BOND_BONDED,
                         manufacturerDataList = manufacturerDataList,
+                        serviceData = serviceData,
                         rssi = result.rssi.toLong(),
                         services = serviceUuids.map { it.toString() }.toList(),
                         timestamp = System.currentTimeMillis()
