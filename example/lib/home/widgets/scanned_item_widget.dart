@@ -135,7 +135,7 @@ class ScannedItemWidget extends StatelessWidget {
                         // TODO: Remove after testing
                         if (bleDevice.serviceData.isNotEmpty) ...[
                           Text(
-                            'Service Data: ${bleDevice.serviceData}',
+                            'Service Data: ${bleDevice.serviceData.toString().split(',').join('\n')}',
                             style: TextStyle(
                               fontSize: 12,
                               fontWeight: FontWeight.bold,

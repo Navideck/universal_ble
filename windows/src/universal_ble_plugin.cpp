@@ -119,7 +119,8 @@ void UniversalBlePlugin::DisableBluetooth(
       });
 }
 
-ErrorOr<bool> UniversalBlePlugin::HasPermissions(bool with_android_fine_location) {
+ErrorOr<bool>
+UniversalBlePlugin::HasPermissions(bool with_android_fine_location) {
   // Windows does not require runtime permissions for Bluetooth
   return true;
 }
@@ -261,7 +262,8 @@ UniversalBlePlugin::SetLogLevel(const UniversalBleLogLevel &log_level) {
 }
 
 std::optional<FlutterError>
-UniversalBlePlugin::Connect(const std::string &device_id, const bool *auto_connect) {
+UniversalBlePlugin::Connect(const std::string &device_id,
+                            const bool *auto_connect) {
   // Note: autoConnect is not directly supported on Windows platform
   ConnectAsync(str_to_mac_address(device_id));
   return std::nullopt;
@@ -455,8 +457,9 @@ void UniversalBlePlugin::RequestMtu(
 void UniversalBlePlugin::ReadRssi(
     const std::string &device_id,
     std::function<void(ErrorOr<int64_t> reply)> result) {
-  result(create_flutter_error(UniversalBleErrorCode::kNotImplemented,
-                              "readRssi is not implemented on Windows platform"));
+  result(
+      create_flutter_error(UniversalBleErrorCode::kNotImplemented,
+                           "readRssi is not implemented on Windows platform"));
 }
 
 void UniversalBlePlugin::IsPaired(
@@ -667,6 +670,41 @@ void UniversalBlePlugin::PairingRequestedHandler(
   const hstring pin = askForPairingPin();
   UniversalBleLogger::LogInfo("PairLog: Got Pin: " + to_string(pin));
   event_args.Accept(pin);
+}
+
+std::string UniversalBlePlugin::ExpandServiceUuid(const std::vector<uint8_t> &uuid_bytes,
+                                      uint8_t uuid_type) {
+  if (uuid_type ==
+      static_cast<uint8_t>(AdvertisementSectionType::ServiceData16BitUuids)) {
+    // 16-bit UUID: expand to full 128-bit format
+    if (uuid_bytes.size() >= 2) {
+      uint16_t uuid_16 = (uuid_bytes[1] << 8) | uuid_bytes[0];
+      char uuid_str[37];
+      sprintf_s(uuid_str, "%04x0000-0000-1000-8000-00805f9b34fb", uuid_16);
+      return std::string(uuid_str);
+    }
+  } else if (uuid_type ==
+             static_cast<uint8_t>(
+                 AdvertisementSectionType::ServiceData32BitUuids)) {
+    // 32-bit UUID: expand to full 128-bit format
+    if (uuid_bytes.size() >= 4) {
+      uint32_t uuid_32 = (uuid_bytes[3] << 24) | (uuid_bytes[2] << 16) |
+                         (uuid_bytes[1] << 8) | uuid_bytes[0];
+      char uuid_str[37];
+      sprintf_s(uuid_str, "%08x-0000-1000-8000-00805f9b34fb", uuid_32);
+      return std::string(uuid_str);
+    }
+  } else if (uuid_type ==
+             static_cast<uint8_t>(
+                 AdvertisementSectionType::ServiceData128BitUuids)) {
+    // 128-bit UUID: convert directly
+    if (uuid_bytes.size() >= 16) {
+      guid uuid_guid;
+      memcpy(&uuid_guid, uuid_bytes.data(), 16);
+      return guid_to_uuid(uuid_guid);
+    }
+  }
+  return std::string();
 }
 
 // Send device to callback channel
@@ -908,80 +946,68 @@ void UniversalBlePlugin::BluetoothLeWatcherReceived(
     for (auto &&data : data_section) {
       auto data_bytes = to_bytevc(data.Data());
       auto data_type = data.DataType();
-      
+
       // Use CompleteName from dataType if localName is empty
       if (name.empty() &&
           data_type == static_cast<uint8_t>(
-                          AdvertisementSectionType::CompleteLocalName)) {
+                           AdvertisementSectionType::CompleteLocalName)) {
         name = std::string(data_bytes.begin(), data_bytes.end());
       }
       // Use ShortenedLocalName from dataType if localName is empty
       else if (name.empty() &&
-               data_type ==
-                   static_cast<uint8_t>(
-                       AdvertisementSectionType::ShortenedLocalName)) {
+               data_type == static_cast<uint8_t>(
+                                AdvertisementSectionType::ShortenedLocalName)) {
         name = std::string(data_bytes.begin(), data_bytes.end());
       }
       // Extract service data
-      else if (data_type == static_cast<uint8_t>(
-                                AdvertisementSectionType::ServiceData16BitUuids) ||
-               data_type == static_cast<uint8_t>(
-                                AdvertisementSectionType::ServiceData32BitUuids) ||
-               data_type == static_cast<uint8_t>(
-                                AdvertisementSectionType::ServiceData128BitUuids)) {
-        // Parse UUID and data from service data section
-        if (data_bytes.size() >= 2) {
-          std::string service_uuid;
-          std::vector<uint8_t> service_data_bytes;
-          
-          if (data_type == static_cast<uint8_t>(
-                              AdvertisementSectionType::ServiceData16BitUuids)) {
-            // 16-bit UUID: 2 bytes UUID + data
-            if (data_bytes.size() >= 2) {
-              uint16_t uuid_16 = (data_bytes[1] << 8) | data_bytes[0];
-              char uuid_str[37];
-              sprintf_s(uuid_str, "%04x0000-0000-1000-8000-00805f9b34fb", uuid_16);
-              service_uuid = std::string(uuid_str);
-              if (data_bytes.size() > 2) {
-                service_data_bytes = std::vector<uint8_t>(
-                    data_bytes.begin() + 2, data_bytes.end());
-              }
-            }
-          } else if (data_type == static_cast<uint8_t>(
-                                       AdvertisementSectionType::
-                                           ServiceData32BitUuids)) {
-            // 32-bit UUID: 4 bytes UUID + data
-            if (data_bytes.size() >= 4) {
-              uint32_t uuid_32 = (data_bytes[3] << 24) | (data_bytes[2] << 16) |
-                                  (data_bytes[1] << 8) | data_bytes[0];
-              char uuid_str[37];
-              sprintf_s(uuid_str, "%08x-0000-1000-8000-00805f9b34fb", uuid_32);
-              service_uuid = std::string(uuid_str);
-              if (data_bytes.size() > 4) {
-                service_data_bytes = std::vector<uint8_t>(
-                    data_bytes.begin() + 4, data_bytes.end());
-              }
-            }
-          } else if (data_type == static_cast<uint8_t>(
-                                       AdvertisementSectionType::
-                                           ServiceData128BitUuids)) {
-            // 128-bit UUID: 16 bytes UUID + data
-            if (data_bytes.size() >= 16) {
-              guid uuid_guid;
-              memcpy(&uuid_guid, data_bytes.data(), 16);
-              service_uuid = guid_to_uuid(uuid_guid);
-              if (data_bytes.size() > 16) {
-                service_data_bytes = std::vector<uint8_t>(
-                    data_bytes.begin() + 16, data_bytes.end());
-              }
+      else if (data_type ==
+                   static_cast<uint8_t>(
+                       AdvertisementSectionType::ServiceData16BitUuids) ||
+               data_type ==
+                   static_cast<uint8_t>(
+                       AdvertisementSectionType::ServiceData32BitUuids) ||
+               data_type ==
+                   static_cast<uint8_t>(
+                       AdvertisementSectionType::ServiceData128BitUuids)) {
+        // Helper lambda to parse UUID and extract service data
+        auto parse_service_data =
+            [&](const std::vector<uint8_t> &bytes,
+                uint8_t type) -> std::pair<std::string, std::vector<uint8_t>> {
+          std::string uuid;
+          std::vector<uint8_t> data_payload;
+          size_t uuid_size = 0;
+
+          if (type == static_cast<uint8_t>(
+                          AdvertisementSectionType::ServiceData16BitUuids)) {
+            uuid_size = 2;
+          } else if (type ==
+                     static_cast<uint8_t>(
+                         AdvertisementSectionType::ServiceData32BitUuids)) {
+            uuid_size = 4;
+          } else if (type ==
+                     static_cast<uint8_t>(
+                         AdvertisementSectionType::ServiceData128BitUuids)) {
+            uuid_size = 16;
+          }
+
+          if (bytes.size() >= uuid_size) {
+            std::vector<uint8_t> uuid_bytes(bytes.begin(),
+                                            bytes.begin() + uuid_size);
+            uuid = ExpandServiceUuid(uuid_bytes, type);
+            if (bytes.size() > uuid_size) {
+              data_payload =
+                  std::vector<uint8_t>(bytes.begin() + uuid_size, bytes.end());
             }
           }
-          
-          if (!service_uuid.empty()) {
-            service_data_map[service_uuid] = flutter::EncodableValue(
-                flutter::EncodableList(service_data_bytes.begin(),
-                                      service_data_bytes.end()));
-          }
+
+          return {uuid, data_payload};
+        };
+
+        auto [service_uuid, service_data_bytes] =
+            parse_service_data(data_bytes, data_type);
+        if (!service_uuid.empty()) {
+          service_data_map[service_uuid] =
+              flutter::EncodableValue(service_data_bytes);
         }
       }
     }
