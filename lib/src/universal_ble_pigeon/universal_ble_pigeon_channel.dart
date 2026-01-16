@@ -294,6 +294,7 @@ extension _UniversalBleScanResultExtension on UniversalBleScanResult {
               ?.map((e) => ManufacturerData(e.companyIdentifier, e.data))
               .toList() ??
           [],
+      serviceData: serviceData ?? {},
     );
   }
 }

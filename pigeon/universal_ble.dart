@@ -128,6 +128,7 @@ class UniversalBleScanResult {
   final bool? isPaired;
   final int? rssi;
   final List<UniversalManufacturerData>? manufacturerDataList;
+  final Map<String, Uint8List>? serviceData;
   final List<String>? services;
   final int? timestamp;
 
@@ -137,6 +138,7 @@ class UniversalBleScanResult {
     required this.isPaired,
     required this.rssi,
     required this.manufacturerDataList,
+    required this.serviceData,
     required this.services,
     required this.timestamp,
   });

@@ -134,11 +134,15 @@ class UniversalBleWeb extends UniversalBlePlatform {
 
       _deviceAdvertisementStreamList[device.id] =
           device.advertisements.listen((event) {
+        final serviceDataMap = event.serviceData.map(
+          (key, value) => MapEntry(key, value.buffer.asUint8List()),
+        );
         updateScanResult(
           device.toBleScanResult(
             rssi: event.rssi,
             manufacturerDataMap: event.manufacturerData,
             services: event.uuids.toSet().toList(),
+            serviceDataMap: serviceDataMap,
           ),
         );
       });
@@ -519,6 +523,7 @@ extension _BluetoothDeviceExtension on BluetoothDevice {
     int? rssi,
     UnmodifiableMapView<int, ByteData>? manufacturerDataMap,
     List<String> services = const [],
+    Map<String, Uint8List>? serviceDataMap,
   }) {
     return BleDevice(
       name: name,
@@ -526,6 +531,7 @@ extension _BluetoothDeviceExtension on BluetoothDevice {
       manufacturerDataList: manufacturerDataMap?.toManufacturerDataList() ?? [],
       rssi: rssi,
       services: services,
+      serviceData: serviceDataMap ?? {},
       timestamp: DateTime.now().millisecondsSinceEpoch,
     );
   }

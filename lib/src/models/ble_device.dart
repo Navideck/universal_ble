@@ -14,6 +14,7 @@ class BleDevice {
   List<String> services;
   bool? isSystemDevice;
   List<ManufacturerData> manufacturerDataList;
+  Map<String, Uint8List> serviceData;
 
   @Deprecated("Use `manufacturerDataList` instead")
   Uint8List? get manufacturerData => manufacturerDataList.isEmpty
@@ -52,6 +53,7 @@ class BleDevice {
     this.services = const [],
     this.isSystemDevice,
     this.manufacturerDataList = const [],
+    this.serviceData = const {},
     this.timestamp,
   }) {
     rawName = name;
@@ -72,6 +74,7 @@ class BleDevice {
         'services: $services, '
         'isSystemDevice: $isSystemDevice, '
         'timestamp: $timestamp, '
-        'manufacturerDataList: $manufacturerDataList';
+        'manufacturerDataList: $manufacturerDataList, '
+        'serviceData: $serviceData';
   }
 }

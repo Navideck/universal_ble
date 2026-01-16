@@ -141,7 +141,11 @@ class UniversalBleLinux extends UniversalBlePlatform {
   }
 
   @override
-  Future<void> connect(String deviceId, {Duration? connectionTimeout, bool autoConnect = false}) async {
+  Future<void> connect(
+    String deviceId, {
+    Duration? connectionTimeout,
+    bool autoConnect = false,
+  }) async {
     // Note: autoConnect is not directly supported on Linux platform
     final device = _findDeviceById(deviceId);
     if (device.connected) {
@@ -696,6 +700,22 @@ extension BlueZDeviceExtension on BlueZDevice {
           ManufacturerData(data.key.id, Uint8List.fromList(data.value)))
       .toList();
 
+  Map<String, Uint8List> get serviceDataMap {
+    try {
+      return serviceData.entries
+          .map((entry) => MapEntry(
+                entry.key.toString(),
+                Uint8List.fromList(entry.value),
+              ))
+          .fold<Map<String, Uint8List>>(
+        <String, Uint8List>{},
+        (map, entry) => map..[entry.key] = entry.value,
+      );
+    } catch (e) {
+      return <String, Uint8List>{};
+    }
+  }
+
   BleDevice toBleDevice({bool? isSystemDevice}) {
     return BleDevice(
       name: name,
@@ -705,6 +725,7 @@ extension BlueZDeviceExtension on BlueZDevice {
       isSystemDevice: isSystemDevice,
       services: uuids.map((e) => e.toString()).toList(),
       manufacturerDataList: manufacturerDataList,
+      serviceData: serviceDataMap,
       timestamp: DateTime.now().millisecondsSinceEpoch,
     );
   }

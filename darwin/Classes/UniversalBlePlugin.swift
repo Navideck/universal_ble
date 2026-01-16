@@ -410,6 +410,7 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
       return UniversalBleScanResult(
         deviceId: id,
         name: name,
+        serviceData: nil,
         timestamp: Int64(Date().timeIntervalSince1970 * 1000)
       )
     }))
@@ -437,6 +438,7 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
     // Extract manufacturer data and service UUIDs from the advertisement data
     let manufacturerData = advertisementData[CBAdvertisementDataManufacturerDataKey] as? Data
     let services = (advertisementData[CBAdvertisementDataServiceUUIDsKey] as? [CBUUID])
+    let serviceDataDict = advertisementData[CBAdvertisementDataServiceDataKey] as? [CBUUID: Data]
 
     var manufacturerDataList: [UniversalManufacturerData] = []
     var universalManufacturerData: UniversalManufacturerData? = nil
@@ -446,6 +448,15 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
       let data = FlutterStandardTypedData(bytes: msd.suffix(from: 2))
       universalManufacturerData = UniversalManufacturerData(companyIdentifier: Int64(companyIdentifier), data: data)
       manufacturerDataList.append(universalManufacturerData!)
+    }
+
+    var serviceData: [String: FlutterStandardTypedData]? = nil
+    if let serviceDataDict = serviceDataDict {
+      var convertedServiceData: [String: FlutterStandardTypedData] = [:]
+      for (uuid, data) in serviceDataDict {
+        convertedServiceData[uuid.uuidStr] = FlutterStandardTypedData(bytes: data)
+      }
+      serviceData = convertedServiceData
     }
 
     let advertisedName = advertisementData[CBAdvertisementDataLocalNameKey] as? String
@@ -463,6 +474,7 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
       isPaired: nil,
       rssi: RSSI as? Int64,
       manufacturerDataList: manufacturerDataList,
+      serviceData: serviceData,
       services: services?.map { $0.uuidStr },
       timestamp: Int64(Date().timeIntervalSince1970 * 1000)
     )) { _ in }
@@ -486,7 +498,7 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
     error: Error?
   ) {
     let deviceId = peripheral.uuid.uuidString
-    
+
     if #available(iOS 17.0, macOS 14.0, watchOS 10.0, tvOS 17.0, *) {
       if isReconnecting {
         return

@@ -122,6 +122,7 @@ class UniversalBleScanResult {
     this.isPaired,
     this.rssi,
     this.manufacturerDataList,
+    this.serviceData,
     this.services,
     this.timestamp,
   });
@@ -136,6 +137,8 @@ class UniversalBleScanResult {
 
   List<UniversalManufacturerData>? manufacturerDataList;
 
+  Map<String, Uint8List>? serviceData;
+
   List<String>? services;
 
   int? timestamp;
@@ -147,6 +150,7 @@ class UniversalBleScanResult {
       isPaired,
       rssi,
       manufacturerDataList,
+      serviceData,
       services,
       timestamp,
     ];
@@ -165,8 +169,10 @@ class UniversalBleScanResult {
       rssi: result[3] as int?,
       manufacturerDataList:
           (result[4] as List<Object?>?)?.cast<UniversalManufacturerData>(),
-      services: (result[5] as List<Object?>?)?.cast<String>(),
-      timestamp: result[6] as int?,
+      serviceData:
+          (result[5] as Map<Object?, Object?>?)?.cast<String, Uint8List>(),
+      services: (result[6] as List<Object?>?)?.cast<String>(),
+      timestamp: result[7] as int?,
     );
   }
 
