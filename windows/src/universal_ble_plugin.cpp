@@ -672,7 +672,8 @@ void UniversalBlePlugin::PairingRequestedHandler(
   event_args.Accept(pin);
 }
 
-std::string UniversalBlePlugin::ExpandServiceUuid(const std::vector<uint8_t> &uuid_bytes,
+std::string
+UniversalBlePlugin::ExpandServiceUuid(const std::vector<uint8_t> &uuid_bytes,
                                       uint8_t uuid_type) {
   if (uuid_type ==
       static_cast<uint8_t>(AdvertisementSectionType::ServiceData16BitUuids)) {
@@ -680,7 +681,7 @@ std::string UniversalBlePlugin::ExpandServiceUuid(const std::vector<uint8_t> &uu
     if (uuid_bytes.size() >= 2) {
       uint16_t uuid_16 = (uuid_bytes[1] << 8) | uuid_bytes[0];
       char uuid_str[37];
-      sprintf_s(uuid_str, "%04x0000-0000-1000-8000-00805f9b34fb", uuid_16);
+      sprintf_s(uuid_str, "0000%04x-0000-1000-8000-00805f9b34fb", uuid_16);
       return std::string(uuid_str);
     }
   } else if (uuid_type ==
@@ -697,10 +698,36 @@ std::string UniversalBlePlugin::ExpandServiceUuid(const std::vector<uint8_t> &uu
   } else if (uuid_type ==
              static_cast<uint8_t>(
                  AdvertisementSectionType::ServiceData128BitUuids)) {
-    // 128-bit UUID: convert directly
+    // 128-bit UUID: parse with proper endianness handling
+    // BLE service data stores UUIDs in little-endian byte order
+    // guid_to_uuid reads: Data1/Data2/Data3 as big-endian (reverse), Data4 as
+    // little-endian (forward)
     if (uuid_bytes.size() >= 16) {
-      guid uuid_guid;
-      memcpy(&uuid_guid, uuid_bytes.data(), 16);
+      guid uuid_guid{};
+
+      // Data1: bytes [0-3] - guid_to_uuid reads in reverse (big-endian), so
+      // store in reverse
+      uuid_guid.Data1 = static_cast<uint32_t>(uuid_bytes[3]) |
+                        (static_cast<uint32_t>(uuid_bytes[2]) << 8) |
+                        (static_cast<uint32_t>(uuid_bytes[1]) << 16) |
+                        (static_cast<uint32_t>(uuid_bytes[0]) << 24);
+
+      // Data2: bytes [4-5] - guid_to_uuid reads in reverse (big-endian), so
+      // store in reverse
+      uuid_guid.Data2 = static_cast<uint16_t>(uuid_bytes[5]) |
+                        (static_cast<uint16_t>(uuid_bytes[4]) << 8);
+
+      // Data3: bytes [6-7] - guid_to_uuid reads in reverse (big-endian), so
+      // store in reverse
+      uuid_guid.Data3 = static_cast<uint16_t>(uuid_bytes[7]) |
+                        (static_cast<uint16_t>(uuid_bytes[6]) << 8);
+
+      // Data4: bytes [8-15] - guid_to_uuid reads in order (little-endian), so
+      // store in order
+      for (size_t i = 0; i < 8; i++) {
+        uuid_guid.Data4[i] = uuid_bytes[8 + i];
+      }
+
       return guid_to_uuid(uuid_guid);
     }
   }
