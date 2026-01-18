@@ -255,6 +255,11 @@ class _ScannerScreenState extends State<ScannerScreen> {
     }
     final filter = _searchFilterController.text.toLowerCase();
     final companyService = CompanyIdentifierService.instance;
+
+    // Try to parse the filter as a company ID (supports hex and decimal formats)
+    final parsedCompanyId =
+        companyService.parseCompanyIdentifier(_searchFilterController.text);
+
     return _bleDevices.where((device) {
       final name = device.name?.toLowerCase() ?? '';
       final deviceId = device.deviceId.toLowerCase();
@@ -267,11 +272,25 @@ class _ScannerScreenState extends State<ScannerScreen> {
         return true;
       }
 
-      // Check if filter matches any company name from manufacturer data
+      // Check if filter matches any company name or company ID from manufacturer data
       for (final manufacturerData in device.manufacturerDataList) {
+        // Check company name match
         final companyName =
             companyService.getCompanyName(manufacturerData.companyId);
         if (companyName != null && companyName.toLowerCase().contains(filter)) {
+          return true;
+        }
+
+        // Check company ID match (if filter was parsed as a company ID)
+        if (parsedCompanyId != null &&
+            manufacturerData.companyId == parsedCompanyId) {
+          return true;
+        }
+
+        // Also check if filter matches the hex representation of company ID
+        final companyIdHex = manufacturerData.companyIdRadix16.toLowerCase();
+        if (companyIdHex.contains(filter) ||
+            companyIdHex.replaceAll('0x', '').contains(filter)) {
           return true;
         }
       }
@@ -348,7 +367,7 @@ class _ScannerScreenState extends State<ScannerScreen> {
                 child: TextField(
                   controller: _searchFilterController,
                   decoration: InputDecoration(
-                    hintText: 'Search by name, ID, services, or company...',
+                    hintText: 'Search by name, ID, service, company name/ID',
                     prefixIcon: Icon(
                       Icons.search,
                       color: colorScheme.primary,
