@@ -559,8 +559,20 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
   }
 
   public func peripheral(_ peripheral: CBPeripheral, didUpdateValueFor characteristic: CBCharacteristic, error: Error?) {
+    // Check if this is a read operation first
+    let isReadOperation = characteristicReadFutures.contains { future in
+      future.deviceId == peripheral.uuid.uuidString && future.characteristicId == characteristic.uuid.uuidStr && future.serviceId == characteristic.service?.uuid.uuidStr
+    }
+
+    // Log error appropriately based on operation type
     if let error {
-      UniversalBleLogger.shared.logError("NOTIFY_ERROR <- \(peripheral.uuid.uuidString) \(characteristic.uuid.uuidStr): \(error.localizedDescription)")
+      if isReadOperation {
+        // This is a read error, but we'll log it in the read future handler below
+        // to avoid duplicate logging
+      } else {
+        // This is a notify/indicate error
+        UniversalBleLogger.shared.logError("NOTIFY_ERROR <- \(peripheral.uuid.uuidString) \(characteristic.uuid.uuidStr): \(error.localizedDescription)")
+      }
     }
 
     if characteristic.isNotifying, let characteristicValue = characteristic.value {
