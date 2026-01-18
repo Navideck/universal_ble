@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:universal_ble/universal_ble.dart';
+import 'package:universal_ble_example/data/company_identifier_service.dart';
 
 class ScanFilterWidget extends StatefulWidget {
   final void Function(ScanFilter? filter) onScanFilter;
@@ -22,11 +23,13 @@ class ScanFilterWidget extends StatefulWidget {
 class _ScanFilterWidgetState extends State<ScanFilterWidget> {
   String? error;
 
-  void applyFilter() {
+  void applyFilter() async {
     setState(() {
       error = null;
     });
     try {
+      // Ensure company identifier service is loaded
+      await CompanyIdentifierService.instance.load();
       List<String> serviceUUids = [];
       List<String> namePrefixes = [];
       List<ManufacturerDataFilter> manufacturerDataFilters = [];
@@ -56,6 +59,7 @@ class _ScanFilterWidgetState extends State<ScanFilterWidget> {
       // Parse Manufacturer Data - handle both comma and newline separated
       String manufacturerDataText = widget.manufacturerDataController.text;
       if (manufacturerDataText.isNotEmpty) {
+        final companyService = CompanyIdentifierService.instance;
         List<String> manufacturerData = manufacturerDataText
             .split(',')
             .map((e) => e.trim())
@@ -63,20 +67,29 @@ class _ScanFilterWidgetState extends State<ScanFilterWidget> {
             .toList();
         for (String manufacturer in manufacturerData) {
           String trimmed = manufacturer.trim();
-          // Remove 0x prefix if present, otherwise parse as decimal or hex
           int? companyIdentifier;
-          if (trimmed.toLowerCase().startsWith('0x')) {
-            companyIdentifier = int.tryParse(trimmed.substring(2), radix: 16);
-          } else {
-            // Try parsing as hex first (if it contains letters), then decimal
-            if (trimmed.contains(RegExp(r'[a-fA-F]'))) {
-              companyIdentifier = int.tryParse(trimmed, radix: 16);
+
+          // First, try to find by company name (case-insensitive)
+          companyIdentifier = companyService.getCompanyIdFromName(trimmed);
+
+          // If not found by name, try parsing as company ID
+          if (companyIdentifier == null) {
+            // Remove 0x prefix if present, otherwise parse as decimal or hex
+            if (trimmed.toLowerCase().startsWith('0x')) {
+              companyIdentifier = int.tryParse(trimmed.substring(2), radix: 16);
             } else {
-              companyIdentifier = int.tryParse(trimmed);
+              // Try parsing as hex first (if it contains letters), then decimal
+              if (trimmed.contains(RegExp(r'[a-fA-F]'))) {
+                companyIdentifier = int.tryParse(trimmed, radix: 16);
+              } else {
+                companyIdentifier = int.tryParse(trimmed);
+              }
             }
           }
+
           if (companyIdentifier == null) {
-            throw Exception("Invalid Manufacturer Data $manufacturer");
+            throw Exception(
+                "Invalid Manufacturer Data or Company Name: $manufacturer");
           }
           manufacturerDataFilters.add(
               ManufacturerDataFilter(companyIdentifier: companyIdentifier));
@@ -95,11 +108,15 @@ class _ScanFilterWidgetState extends State<ScanFilterWidget> {
             withManufacturerData: manufacturerDataFilters,
           ),
         );
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Filters Applied")),
-        );
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text("Filters Applied")),
+          );
+        }
       }
-      Navigator.pop(context);
+      if (mounted) {
+        Navigator.pop(context);
+      }
     } catch (e) {
       setState(() {
         error = e.toString();
@@ -228,8 +245,9 @@ class _ScanFilterWidgetState extends State<ScanFilterWidget> {
                   title: "Manufacturer Company IDs",
                   icon: Icons.business,
                   controller: widget.manufacturerDataController,
-                  hintText: "e.g. 76,0x004C",
-                  helperText: "Company identifiers in decimal or hex format",
+                  hintText: "e.g. 76,0x004C,Apple Inc.",
+                  helperText:
+                      "Company identifiers (decimal/hex) or company names",
                 ),
                 const SizedBox(height: 24),
                 // Action Buttons

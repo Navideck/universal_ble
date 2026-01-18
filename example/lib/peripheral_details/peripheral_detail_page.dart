@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:universal_ble/universal_ble.dart';
+import 'package:universal_ble_example/data/company_identifier_service.dart';
 import 'package:universal_ble_example/data/storage_service.dart';
 import 'package:universal_ble_example/peripheral_details/widgets/result_widget.dart';
 import 'package:universal_ble_example/peripheral_details/widgets/services_list_widget.dart';
@@ -987,6 +988,43 @@ class _PeripheralDetailPageState extends State<PeripheralDetailPage> {
                                 ),
                               ),
                             ],
+                          ),
+                          Builder(
+                            builder: (context) {
+                              final companyName = CompanyIdentifierService
+                                  .instance
+                                  .getCompanyName(data.companyId);
+                              if (companyName != null) {
+                                return Padding(
+                                  padding: const EdgeInsets.only(top: 4),
+                                  child: Row(
+                                    children: [
+                                      Text(
+                                        'Company: ',
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w600,
+                                          color: colorScheme
+                                              .onSecondaryContainer,
+                                        ),
+                                      ),
+                                      Expanded(
+                                        child: SelectableText(
+                                          companyName,
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w500,
+                                            color: colorScheme
+                                                .onSecondaryContainer,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                );
+                              }
+                              return const SizedBox.shrink();
+                            },
                           ),
                           if (data.payloadRadix16.isNotEmpty) ...[
                             const SizedBox(height: 4),
