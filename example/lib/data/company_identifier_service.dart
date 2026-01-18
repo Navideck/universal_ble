@@ -55,7 +55,6 @@ class CompanyIdentifierService {
         _companyIdToName.clear();
         _companyNameToId.clear();
         _isLoaded = true;
-        _isLoading = false;
         return;
       }
 
