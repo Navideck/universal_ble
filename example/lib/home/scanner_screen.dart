@@ -194,10 +194,8 @@ class _ScannerScreenState extends State<ScannerScreen> {
             .where((s) => s.isNotEmpty)
             .toList();
         for (String manufacturer in manufacturerData) {
-          String trimmed = manufacturer.trim();
-          int? companyIdentifier;
-
-          companyIdentifier = companyService.parseCompanyIdentifier(trimmed);
+          final companyIdentifier =
+              companyService.parseCompanyIdentifier(manufacturer);
           if (companyIdentifier == null) {
             // Skip invalid manufacturer data when loading from preferences
             continue;

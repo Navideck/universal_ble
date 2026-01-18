@@ -226,7 +226,7 @@ class _ScanFilterWidgetState extends State<ScanFilterWidget> {
                   title: "Manufacturer Company IDs",
                   icon: Icons.business,
                   controller: widget.manufacturerDataController,
-                  hintText: "e.g. 76,0x004C,Apple Inc.",
+                  hintText: "e.g. 76,0x004C,Apple, Inc.",
                   helperText:
                       "Company identifiers (decimal/hex) or company names",
                 ),

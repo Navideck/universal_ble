@@ -16,6 +16,7 @@ class CompanyIdentifierService {
   final Map<String, int> _companyNameToId = {};
   bool _isLoading = false;
   bool _isLoaded = false;
+  bool _hasWarnedAboutNotLoaded = false;
 
   /// Parse company ID from a value (String hex or int)
   /// Supports formats: "0x1053", "0x004C", "1053", or integer value
@@ -34,13 +35,18 @@ class CompanyIdentifierService {
   }
 
   /// Load company identifiers from YAML file
+  ///
+  /// **Important:** This method should be called on app startup before using
+  /// any query methods (e.g., [getCompanyName], [getCompanyIdFromName], etc.).
+  /// If query methods are called before this method completes, they will return
+  /// null/empty values and log a warning.
   Future<void> load() async {
     if (_isLoaded || _isLoading) return;
     _isLoading = true;
 
     try {
       final String yamlString =
-          await rootBundle.loadString('lib/company_identifiers.yaml');
+          await rootBundle.loadString('assets/company_identifiers.yaml');
       final YamlMap yaml = loadYaml(yamlString) as YamlMap;
       final YamlList? companyIdentifiers =
           yaml['company_identifiers'] as YamlList?;
@@ -73,6 +79,8 @@ class CompanyIdentifierService {
         }
       }
 
+      // Reset warning flag after successful load
+      _hasWarnedAboutNotLoaded = false;
       _isLoaded = true;
     } on PlatformException catch (e) {
       // Handle file loading errors (e.g., file not found, permission issues)
@@ -105,9 +113,23 @@ class CompanyIdentifierService {
   }
 
   /// Get company name from company ID
+  ///
+  /// Returns the company name for the given [companyId], or `null` if:
+  /// - The company ID is not found in the loaded data
+  /// - The data has not been loaded yet (see [load] method)
+  ///
+  /// **Important:** The [load] method must be called on app startup before
+  /// using this method. If called before data is loaded, this method will
+  /// return `null` and log a warning (only once).
   String? getCompanyName(int companyId) {
     if (!_isLoaded) {
-      // Data not loaded, return null. The `load` method should be called on app startup.
+      if (!_hasWarnedAboutNotLoaded) {
+        _hasWarnedAboutNotLoaded = true;
+        debugPrint(
+          'CompanyIdentifierService: getCompanyName called before load() completed. '
+          'Company names will not be available until load() is called on app startup.',
+        );
+      }
       return null;
     }
     return _companyIdToName[companyId];
@@ -121,24 +143,69 @@ class CompanyIdentifierService {
   }
 
   /// Get company ID from company name (case-insensitive)
+  ///
+  /// Returns the company ID for the given [companyName], or `null` if:
+  /// - The company name is not found in the loaded data
+  /// - The data has not been loaded yet (see [load] method)
+  ///
+  /// **Important:** The [load] method must be called on app startup before
+  /// using this method. If called before data is loaded, this method will
+  /// return `null` and log a warning (only once).
   int? getCompanyIdFromName(String companyName) {
     if (!_isLoaded) {
+      if (!_hasWarnedAboutNotLoaded) {
+        _hasWarnedAboutNotLoaded = true;
+        debugPrint(
+          'CompanyIdentifierService: getCompanyIdFromName called before load() completed. '
+          'Company identifiers will not be available until load() is called on app startup.',
+        );
+      }
       return null;
     }
     return _companyNameToId[companyName.toLowerCase()];
   }
 
   /// Get all company names (for filtering/searching)
+  ///
+  /// Returns a list of all company names, or an empty list if:
+  /// - No company identifiers are loaded
+  /// - The data has not been loaded yet (see [load] method)
+  ///
+  /// **Important:** The [load] method must be called on app startup before
+  /// using this method. If called before data is loaded, this method will
+  /// return an empty list and log a warning (only once).
   List<String> getAllCompanyNames() {
     if (!_isLoaded) {
+      if (!_hasWarnedAboutNotLoaded) {
+        _hasWarnedAboutNotLoaded = true;
+        debugPrint(
+          'CompanyIdentifierService: getAllCompanyNames called before load() completed. '
+          'Company names will not be available until load() is called on app startup.',
+        );
+      }
       return [];
     }
     return _companyIdToName.values.toList();
   }
 
   /// Check if a string matches a company name (case-insensitive partial match)
+  ///
+  /// Returns `false` if:
+  /// - No match is found
+  /// - The data has not been loaded yet (see [load] method)
+  ///
+  /// **Important:** The [load] method must be called on app startup before
+  /// using this method. If called before data is loaded, this method will
+  /// return `false` and log a warning (only once).
   bool matchesCompanyName(String query) {
     if (!_isLoaded) {
+      if (!_hasWarnedAboutNotLoaded) {
+        _hasWarnedAboutNotLoaded = true;
+        debugPrint(
+          'CompanyIdentifierService: matchesCompanyName called before load() completed. '
+          'Company name matching will not be available until load() is called on app startup.',
+        );
+      }
       return false;
     }
     final lowerQuery = query.toLowerCase();
@@ -146,8 +213,23 @@ class CompanyIdentifierService {
   }
 
   /// Find company IDs that match a company name query (case-insensitive partial match)
+  ///
+  /// Returns a list of matching company IDs, or an empty list if:
+  /// - No matches are found
+  /// - The data has not been loaded yet (see [load] method)
+  ///
+  /// **Important:** The [load] method must be called on app startup before
+  /// using this method. If called before data is loaded, this method will
+  /// return an empty list and log a warning (only once).
   List<int> findCompanyIdsByName(String query) {
     if (!_isLoaded) {
+      if (!_hasWarnedAboutNotLoaded) {
+        _hasWarnedAboutNotLoaded = true;
+        debugPrint(
+          'CompanyIdentifierService: findCompanyIdsByName called before load() completed. '
+          'Company identifier search will not be available until load() is called on app startup.',
+        );
+      }
       return [];
     }
     final lowerQuery = query.toLowerCase();

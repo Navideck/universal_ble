@@ -38,4 +38,4 @@ flutter:
   uses-material-design: true
   assets:
     - assets/icon.png
-    - lib/company_identifiers.yaml
+    - assets/company_identifiers.yaml
