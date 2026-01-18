@@ -66,26 +66,7 @@ class _ScanFilterWidgetState extends State<ScanFilterWidget> {
             .where((s) => s.isNotEmpty)
             .toList();
         for (String manufacturer in manufacturerData) {
-          String trimmed = manufacturer.trim();
-          int? companyIdentifier;
-
-          // First, try to find by company name (case-insensitive)
-          companyIdentifier = companyService.getCompanyIdFromName(trimmed);
-
-          // If not found by name, try parsing as company ID
-          if (companyIdentifier == null) {
-            // Remove 0x prefix if present, otherwise parse as decimal or hex
-            if (trimmed.toLowerCase().startsWith('0x')) {
-              companyIdentifier = int.tryParse(trimmed.substring(2), radix: 16);
-            } else {
-              // Try parsing as hex first (if it contains letters), then decimal
-              if (trimmed.contains(RegExp(r'[a-fA-F]'))) {
-                companyIdentifier = int.tryParse(trimmed, radix: 16);
-              } else {
-                companyIdentifier = int.tryParse(trimmed);
-              }
-            }
-          }
+          final companyIdentifier = companyService.parseCompanyIdentifier(manufacturer);
 
           if (companyIdentifier == null) {
             throw Exception(

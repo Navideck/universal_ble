@@ -197,21 +197,7 @@ class _ScannerScreenState extends State<ScannerScreen> {
           String trimmed = manufacturer.trim();
           int? companyIdentifier;
 
-          // First, try to find by company name (case-insensitive)
-          companyIdentifier = companyService.getCompanyIdFromName(trimmed);
-
-          // If not found by name, try parsing as company ID
-          if (companyIdentifier == null) {
-            if (trimmed.toLowerCase().startsWith('0x')) {
-              companyIdentifier = int.tryParse(trimmed.substring(2), radix: 16);
-            } else {
-              if (trimmed.contains(RegExp(r'[a-fA-F]'))) {
-                companyIdentifier = int.tryParse(trimmed, radix: 16);
-              } else {
-                companyIdentifier = int.tryParse(trimmed);
-              }
-            }
-          }
+          companyIdentifier = companyService.parseCompanyIdentifier(trimmed);
           if (companyIdentifier == null) {
             // Skip invalid manufacturer data when loading from preferences
             continue;

@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:universal_ble/universal_ble.dart';
 import 'package:universal_ble_example/data/company_identifier_service.dart';
 import 'package:universal_ble_example/home/widgets/rssi_signal_indicator.dart';
+import 'package:universal_ble_example/widgets/company_info_widget.dart';
 
 class ScannedItemWidget extends StatelessWidget {
   final BleDevice bleDevice;
@@ -186,8 +187,8 @@ class ScannedItemWidget extends StatelessWidget {
                                         data.companyIdRadix16,
                                         style: TextStyle(
                                           fontSize: 10,
-                                          color: colorScheme
-                                              .onSecondaryContainer,
+                                          color:
+                                              colorScheme.onSecondaryContainer,
                                           fontWeight: FontWeight.w500,
                                           fontFamily: 'monospace',
                                         ),
@@ -313,47 +314,21 @@ class ScannedItemWidget extends StatelessWidget {
                                           ),
                                         ],
                                       ),
-                                      Builder(
-                                        builder: (context) {
-                                          final companyName =
-                                              CompanyIdentifierService
-                                                  .instance
-                                                  .getCompanyName(
-                                                      data.companyId);
-                                          if (companyName != null) {
-                                            return Padding(
-                                              padding: const EdgeInsets.only(
-                                                  top: 4),
-                                              child: Row(
-                                                children: [
-                                                  Text(
-                                                    'Company: ',
-                                                    style: TextStyle(
-                                                      fontSize: 11,
-                                                      fontWeight:
-                                                          FontWeight.w600,
-                                                      color: colorScheme
-                                                          .onSecondaryContainer,
-                                                    ),
-                                                  ),
-                                                  Expanded(
-                                                    child: SelectableText(
-                                                      companyName,
-                                                      style: TextStyle(
-                                                        fontSize: 11,
-                                                        fontWeight:
-                                                            FontWeight.w500,
-                                                        color: colorScheme
-                                                            .onSecondaryContainer,
-                                                      ),
-                                                    ),
-                                                  ),
-                                                ],
-                                              ),
-                                            );
-                                          }
-                                          return const SizedBox.shrink();
-                                        },
+                                      CompanyInfoWidget(
+                                        companyId: data.companyId,
+                                        colorScheme: colorScheme,
+                                        labelStyle: TextStyle(
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.w600,
+                                          color:
+                                              colorScheme.onSecondaryContainer,
+                                        ),
+                                        nameStyle: TextStyle(
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.w500,
+                                          color:
+                                              colorScheme.onSecondaryContainer,
+                                        ),
                                       ),
                                       if (data.payloadRadix16.isNotEmpty) ...[
                                         const SizedBox(height: 4),
