@@ -1,3 +1,11 @@
+## 1.2.0
+* Improved scan button visibility - converted to prominent filled button with text label
+* Enhanced "no devices found" state with explicit "Start Scan" call-to-action button
+* Moved search field to app bar header for better accessibility
+* Moved queue type settings to drawer menu as expandable section
+* Added tooltip to Bluetooth availability icon (tap to view on mobile)
+* Improved overall UI layout and navigation flow
+
 ## 1.1.0
 * Add support for `autoConnect` parameter
 * Display RSSI values in device details

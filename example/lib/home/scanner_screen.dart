@@ -7,7 +7,6 @@ import 'package:universal_ble/universal_ble.dart';
 import 'package:universal_ble_example/data/mock_universal_ble.dart';
 import 'package:universal_ble_example/home/widgets/ble_availability_icon.dart';
 import 'package:universal_ble_example/home/widgets/drawer.dart';
-import 'package:universal_ble_example/home/widgets/queue_selector_widget.dart';
 import 'package:universal_ble_example/home/widgets/scan_filter_widget.dart';
 import 'package:universal_ble_example/home/widgets/scanned_devices_placeholder_widget.dart';
 import 'package:universal_ble_example/home/widgets/scanned_item_widget.dart';
@@ -270,6 +269,25 @@ class _ScannerScreenState extends State<ScannerScreen> {
   bool get _isBluetoothAvailable =>
       bleAvailabilityState == AvailabilityState.poweredOn;
 
+  String _getBluetoothAvailabilityTooltip() {
+    switch (bleAvailabilityState) {
+      case AvailabilityState.poweredOn:
+        return 'Bluetooth is on';
+      case AvailabilityState.poweredOff:
+        return 'Bluetooth is off';
+      case AvailabilityState.resetting:
+        return 'Bluetooth is resetting';
+      case AvailabilityState.unauthorized:
+        return 'Bluetooth permission denied';
+      case AvailabilityState.unsupported:
+        return 'Bluetooth not supported';
+      case AvailabilityState.unknown:
+        return 'Bluetooth status unknown';
+      case null:
+        return 'Checking Bluetooth status...';
+    }
+  }
+
   @override
   void setState(VoidCallback fn) {
     if (mounted) super.setState(fn);
@@ -287,22 +305,6 @@ class _ScannerScreenState extends State<ScannerScreen> {
     super.dispose();
   }
 
-  void _showQueueBottomSheet() {
-    showModalBottomSheet(
-      context: context,
-      builder: (context) => QueueSelectorWidget(
-        queueType: _queueType,
-        onQueueTypeChanged: (queueType) {
-          setState(() {
-            _queueType = queueType;
-            UniversalBle.queueType = _queueType;
-          });
-          Navigator.pop(context);
-        },
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -310,22 +312,72 @@ class _ScannerScreenState extends State<ScannerScreen> {
 
     return Scaffold(
       backgroundColor: colorScheme.surface,
-      drawer: const AppDrawer(),
+      drawer: AppDrawer(
+        queueType: _queueType,
+        onQueueTypeChanged: (queueType) {
+          setState(() {
+            _queueType = queueType;
+            UniversalBle.queueType = _queueType;
+          });
+        },
+      ),
       appBar: AppBar(
         title: Row(
           children: [
-            BleAvailabilityIcon(onAvailabilityStateChanged: (state) {
-              setState(() => bleAvailabilityState = state);
-            }),
-            const SizedBox(width: 12),
             Expanded(
-              child: const Text(
-                'Scanner',
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  letterSpacing: 0.5,
+              child: Container(
+                height: 40,
+                decoration: BoxDecoration(
+                  color: colorScheme.surfaceContainerHighest,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: TextField(
+                  controller: _searchFilterController,
+                  decoration: InputDecoration(
+                    hintText: 'Search by name, ID, or services...',
+                    prefixIcon: Icon(
+                      Icons.search,
+                      color: colorScheme.primary,
+                      size: 20,
+                    ),
+                    suffixIcon: _searchFilterController.text.isNotEmpty
+                        ? IconButton(
+                            icon: Icon(
+                              Icons.clear,
+                              size: 20,
+                              color:
+                                  colorScheme.onSurface.withValues(alpha: 0.6),
+                            ),
+                            onPressed: () {
+                              _searchFilterController.clear();
+                              _saveScanFilters();
+                              setState(() {});
+                            },
+                          )
+                        : null,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      borderSide: BorderSide.none,
+                    ),
+                    filled: true,
+                    fillColor: colorScheme.surfaceContainerHighest,
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8,
+                    ),
+                    isDense: true,
+                  ),
+                  onChanged: (_) => setState(() {}),
                 ),
               ),
+            ),
+            const SizedBox(width: 12),
+            Tooltip(
+              message: _getBluetoothAvailabilityTooltip(),
+              triggerMode: TooltipTriggerMode.tap,
+              child: BleAvailabilityIcon(onAvailabilityStateChanged: (state) {
+                setState(() => bleAvailabilityState = state);
+              }),
             ),
           ],
         ),
@@ -338,88 +390,52 @@ class _ScannerScreenState extends State<ScannerScreen> {
           ),
         ),
         actions: [
-          IconButton(
-            icon: Icon(
-              _isScanning ? Icons.stop_circle : Icons.play_arrow,
-              color: _isScanning ? colorScheme.error : colorScheme.primary,
-            ),
-            tooltip: _isScanning ? 'Stop Scan' : 'Start Scan',
-            onPressed: _isBluetoothAvailable
-                ? () async {
-                    if (_isScanning) {
-                      await UniversalBle.stopScan();
-                      setState(() {
-                        _isScanning = false;
-                      });
-                    } else {
-                      await _startScan();
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
+            child: FilledButton.icon(
+              onPressed: _isBluetoothAvailable
+                  ? () async {
+                      if (_isScanning) {
+                        await UniversalBle.stopScan();
+                        setState(() {
+                          _isScanning = false;
+                        });
+                      } else {
+                        await _startScan();
+                      }
                     }
-                  }
-                : null,
-          ),
-          IconButton(
-            icon: Icon(
-              Icons.queue,
-              color: colorScheme.onSurface,
+                  : null,
+              icon: Icon(
+                _isScanning ? Icons.stop_circle : Icons.play_arrow,
+                size: 20,
+              ),
+              label: Text(
+                _isScanning ? 'Stop Scan' : 'Start Scan',
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              style: FilledButton.styleFrom(
+                backgroundColor:
+                    _isScanning ? colorScheme.error : colorScheme.primary,
+                foregroundColor:
+                    _isScanning ? colorScheme.onError : colorScheme.onPrimary,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 12,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                elevation: _isScanning ? 0 : 2,
+              ),
             ),
-            tooltip: 'Queue Type',
-            onPressed: _showQueueBottomSheet,
           ),
         ],
       ),
       body: Column(
         children: [
-          // Search filter
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            child: Container(
-              decoration: BoxDecoration(
-                color: colorScheme.surfaceContainerHighest,
-                borderRadius: BorderRadius.circular(12),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.05),
-                    blurRadius: 8,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
-              ),
-              child: TextField(
-                controller: _searchFilterController,
-                decoration: InputDecoration(
-                  hintText: 'Search by name, ID, or services...',
-                  prefixIcon: Icon(
-                    Icons.search,
-                    color: colorScheme.primary,
-                  ),
-                  suffixIcon: _searchFilterController.text.isNotEmpty
-                      ? IconButton(
-                          icon: Icon(
-                            Icons.clear,
-                            color: colorScheme.onSurface.withValues(alpha: 0.6),
-                          ),
-                          onPressed: () {
-                            _searchFilterController.clear();
-                            _saveScanFilters();
-                            setState(() {});
-                          },
-                        )
-                      : null,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide.none,
-                  ),
-                  filled: true,
-                  fillColor: colorScheme.surfaceContainerHighest,
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 16,
-                  ),
-                ),
-                onChanged: (_) => setState(() {}),
-              ),
-            ),
-          ),
           // Web Services input (only for web)
           if (kIsWeb)
             Padding(
