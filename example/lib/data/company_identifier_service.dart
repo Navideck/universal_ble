@@ -19,14 +19,21 @@ class CompanyIdentifierService {
   bool _hasWarnedAboutNotLoaded = false;
 
   /// Parse company ID from a value (String hex or int)
-  /// Supports formats: "0x1053", "0x004C", "1053", or integer value
+  /// Supports formats: "0x1053", "0x004C", "1053" (decimal), "4C" (hex), or integer value
+  /// Non-prefixed strings are parsed as decimal if they contain only digits,
+  /// or as hexadecimal if they contain hex characters (a-fA-F)
   int? _parseCompanyId(dynamic value) {
     if (value is String) {
       final trimmed = value.trim();
       if (trimmed.toLowerCase().startsWith('0x')) {
         return int.tryParse(trimmed.substring(2), radix: 16);
       } else {
-        return int.tryParse(trimmed, radix: 16);
+        // Try parsing as hex first (if it contains letters), then decimal
+        if (trimmed.contains(RegExp(r'[a-fA-F]'))) {
+          return int.tryParse(trimmed, radix: 16);
+        } else {
+          return int.tryParse(trimmed);
+        }
       }
     } else if (value is int) {
       return value;
