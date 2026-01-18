@@ -130,15 +130,24 @@ class _PeripheralDetailPageState extends State<PeripheralDetailPage> {
         setState(() {
           discoveredServices = services;
         });
-        _addLog(
-          "DiscoverServices",
-          kIsWeb
-              ? '${services.length} services discovered,\n$webWarning\n\n${_formattedServices(services)}'
-              : '${services.length} services discovered\n\n${_formattedServices(services)}',
-        );
+
+        // Build log message step-by-step for clarity
+        final StringBuffer logMessage = StringBuffer();
+        logMessage.write('${services.length} services discovered');
+        if (kIsWeb) {
+          logMessage.write(',\n$webWarning');
+        }
+        logMessage.write('\n\n${_formattedServices(services)}');
+
+        _addLog("DiscoverServices", logMessage.toString());
       },
       onError: (error) {
-        _addLog("DiscoverServicesError", '$error\n${kIsWeb ? webWarning : ""}');
+        final StringBuffer errorMessage = StringBuffer();
+        errorMessage.write(error);
+        if (kIsWeb) {
+          errorMessage.write('\n$webWarning');
+        }
+        _addLog("DiscoverServicesError", errorMessage.toString());
       },
     );
   }
@@ -315,12 +324,8 @@ class _PeripheralDetailPageState extends State<PeripheralDetailPage> {
             }),
             onCopyServices: discoveredServices.isNotEmpty
                 ? () async {
-                    final servicesText = _formattedServices(discoveredServices);
-                    await Clipboard.setData(
-                      ClipboardData(text: servicesText),
-                    );
+                    await _copyServicesToClipboard();
                     if (context.mounted) {
-                      _showSnackBar('All services copied to clipboard');
                       Navigator.pop(context);
                     }
                   }
@@ -329,6 +334,16 @@ class _PeripheralDetailPageState extends State<PeripheralDetailPage> {
         );
       },
     );
+  }
+
+  Future<void> _copyServicesToClipboard() async {
+    final servicesText = _formattedServices(discoveredServices);
+    await Clipboard.setData(
+      ClipboardData(text: servicesText),
+    );
+    if (context.mounted) {
+      _showSnackBar('All services copied to clipboard');
+    }
   }
 
   void _showSnackBar(String message) {
@@ -459,14 +474,7 @@ class _PeripheralDetailPageState extends State<PeripheralDetailPage> {
                     discoveredServices: discoveredServices,
                     serviceListBuilder: _buildServicesList,
                     onCopyServices: discoveredServices.isNotEmpty
-                        ? () async {
-                            final servicesText =
-                                _formattedServices(discoveredServices);
-                            await Clipboard.setData(
-                              ClipboardData(text: servicesText),
-                            );
-                            _showSnackBar('All services copied to clipboard');
-                          }
+                        ? _copyServicesToClipboard
                         : null,
                   ),
                 ),

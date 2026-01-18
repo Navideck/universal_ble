@@ -56,7 +56,7 @@ class ServicesSideWidget extends StatelessWidget {
                   ),
                 ),
                 const Spacer(),
-                if (onCopyServices != null && discoveredServices.isNotEmpty)
+                if (onCopyServices != null)
                   Padding(
                     padding: const EdgeInsets.only(right: 8),
                     child: IconButton(
