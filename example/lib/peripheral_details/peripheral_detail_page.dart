@@ -363,8 +363,7 @@ class _PeripheralDetailPageState extends State<PeripheralDetailPage> {
       for (var characteristic in service.characteristics) {
         final properties =
             characteristic.properties.map((p) => p.name).join(', ');
-        buffer.writeln(
-            '  Characteristic: ${characteristic.uuid} (properties: $properties)');
+        buffer.writeln('  ${characteristic.uuid} ($properties)');
       }
       buffer.writeln();
     }
