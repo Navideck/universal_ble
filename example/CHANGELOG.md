@@ -11,6 +11,8 @@
 * Display RSSI values in device details
 * Persist filters
 * Fix clear log button
+* Move "Copy Services" button to Services panel header
+* Enhance services format to be more detailed and human-readable
 
 ## 1.0.0
 * Initial release

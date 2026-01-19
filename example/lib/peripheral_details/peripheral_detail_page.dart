@@ -126,19 +126,28 @@ class _PeripheralDetailPageState extends State<PeripheralDetailPage> {
       () async {
         var services = await bleDevice.discoverServices(withDescriptors: false);
         debugPrint('${services.length} services discovered');
-        debugPrint(services.toString());
+        debugPrint(_formattedServices(services));
         setState(() {
           discoveredServices = services;
         });
+
+        // Build log message step-by-step for clarity
+        final StringBuffer logMessage = StringBuffer();
+        logMessage.write('${services.length} services discovered');
         if (kIsWeb) {
-          _addLog(
-            "DiscoverServices",
-            '${services.length} services discovered,\n$webWarning',
-          );
+          logMessage.write(',\n$webWarning');
         }
+        logMessage.write('\n\n${_formattedServices(services)}');
+
+        _addLog("DiscoverServices", logMessage.toString());
       },
       onError: (error) {
-        _addLog("DiscoverServicesError", '$error\n${kIsWeb ? webWarning : ""}');
+        final StringBuffer errorMessage = StringBuffer();
+        errorMessage.write(error);
+        if (kIsWeb) {
+          errorMessage.write('\n$webWarning');
+        }
+        _addLog("DiscoverServicesError", errorMessage.toString());
       },
     );
   }
@@ -313,10 +322,28 @@ class _PeripheralDetailPageState extends State<PeripheralDetailPage> {
             serviceListBuilder: () => _buildServicesList(onSelect: (_, __) {
               Navigator.pop(context);
             }),
+            onCopyServices: discoveredServices.isNotEmpty
+                ? () async {
+                    await _copyServicesToClipboard();
+                    if (context.mounted) {
+                      Navigator.pop(context);
+                    }
+                  }
+                : null,
           ),
         );
       },
     );
+  }
+
+  Future<void> _copyServicesToClipboard() async {
+    final servicesText = _formattedServices(discoveredServices);
+    await Clipboard.setData(
+      ClipboardData(text: servicesText),
+    );
+    if (context.mounted) {
+      _showSnackBar('All services copied to clipboard');
+    }
   }
 
   void _showSnackBar(String message) {
@@ -327,6 +354,20 @@ class _PeripheralDetailPageState extends State<PeripheralDetailPage> {
         ),
       );
     }
+  }
+
+  String _formattedServices(List<BleService> services) {
+    final buffer = StringBuffer();
+    for (var service in services) {
+      buffer.writeln('Service: ${service.uuid}');
+      for (var characteristic in service.characteristics) {
+        final properties =
+            characteristic.properties.map((p) => p.name).join(', ');
+        buffer.writeln('  ${characteristic.uuid} ($properties)');
+      }
+      buffer.writeln();
+    }
+    return buffer.toString().trim();
   }
 
   @override
@@ -431,6 +472,9 @@ class _PeripheralDetailPageState extends State<PeripheralDetailPage> {
                   child: ServicesSideWidget(
                     discoveredServices: discoveredServices,
                     serviceListBuilder: _buildServicesList,
+                    onCopyServices: discoveredServices.isNotEmpty
+                        ? _copyServicesToClipboard
+                        : null,
                   ),
                 ),
               // Main content
@@ -1151,29 +1195,6 @@ class _PeripheralDetailPageState extends State<PeripheralDetailPage> {
                         ),
                       ),
                     ),
-                    if (discoveredServices.isNotEmpty)
-                      OutlinedButton.icon(
-                        onPressed: () async {
-                          final servicesText =
-                              discoveredServices.map((s) => s.uuid).join('\n');
-                          await Clipboard.setData(
-                            ClipboardData(text: servicesText),
-                          );
-                          _showSnackBar('All services copied to clipboard');
-                        },
-                        icon: const Icon(Icons.copy),
-                        label: const Text('Copy Services'),
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: colorScheme.onSurface,
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 16,
-                            vertical: 12,
-                          ),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                        ),
-                      ),
                     OutlinedButton.icon(
                       onPressed: () async {
                         _addLog(

@@ -4,10 +4,12 @@ import 'package:universal_ble/universal_ble.dart';
 class ServicesSideWidget extends StatelessWidget {
   final List<BleService> discoveredServices;
   final Function() serviceListBuilder;
+  final VoidCallback? onCopyServices;
   const ServicesSideWidget({
     super.key,
     required this.discoveredServices,
     required this.serviceListBuilder,
+    this.onCopyServices,
   });
 
   @override
@@ -54,6 +56,22 @@ class ServicesSideWidget extends StatelessWidget {
                   ),
                 ),
                 const Spacer(),
+                if (onCopyServices != null)
+                  Padding(
+                    padding: const EdgeInsets.only(right: 8),
+                    child: IconButton(
+                      onPressed: onCopyServices,
+                      icon: const Icon(Icons.copy),
+                      iconSize: 18,
+                      tooltip: 'Copy Services',
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(
+                        minWidth: 32,
+                        minHeight: 32,
+                      ),
+                      color: colorScheme.onSurface,
+                    ),
+                  ),
                 Container(
                   padding: const EdgeInsets.symmetric(
                     horizontal: 8,
