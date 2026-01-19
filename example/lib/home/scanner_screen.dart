@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:universal_ble/universal_ble.dart';
+import 'package:universal_ble_example/data/company_identifier_service.dart';
 import 'package:universal_ble_example/data/mock_universal_ble.dart';
 import 'package:universal_ble_example/home/widgets/ble_availability_icon.dart';
 import 'package:universal_ble_example/home/widgets/drawer.dart';
@@ -51,6 +52,9 @@ class _ScannerScreenState extends State<ScannerScreen> {
     );
 
     _loadScanFilters();
+
+    // Load company identifiers in the background
+    CompanyIdentifierService.instance.load();
 
     // Save search filter when it changes
     _searchFilterController.addListener(() {
@@ -149,8 +153,10 @@ class _ScannerScreenState extends State<ScannerScreen> {
     }
   }
 
-  void _applyFilterFromControllers() {
+  void _applyFilterFromControllers() async {
     try {
+      // Ensure company identifier service is loaded
+      await CompanyIdentifierService.instance.load();
       List<String> serviceUUids = [];
       List<String> namePrefixes = [];
       List<ManufacturerDataFilter> manufacturerDataFilters = [];
@@ -181,23 +187,15 @@ class _ScannerScreenState extends State<ScannerScreen> {
       // Parse Manufacturer Data
       String manufacturerDataText = manufacturerDataController.text;
       if (manufacturerDataText.isNotEmpty) {
+        final companyService = CompanyIdentifierService.instance;
         List<String> manufacturerData = manufacturerDataText
             .split(',')
             .map((e) => e.trim())
             .where((s) => s.isNotEmpty)
             .toList();
         for (String manufacturer in manufacturerData) {
-          String trimmed = manufacturer.trim();
-          int? companyIdentifier;
-          if (trimmed.toLowerCase().startsWith('0x')) {
-            companyIdentifier = int.tryParse(trimmed.substring(2), radix: 16);
-          } else {
-            if (trimmed.contains(RegExp(r'[a-fA-F]'))) {
-              companyIdentifier = int.tryParse(trimmed, radix: 16);
-            } else {
-              companyIdentifier = int.tryParse(trimmed);
-            }
-          }
+          final companyIdentifier =
+              companyService.parseCompanyIdentifier(manufacturer);
           if (companyIdentifier == null) {
             // Skip invalid manufacturer data when loading from preferences
             continue;
@@ -256,13 +254,48 @@ class _ScannerScreenState extends State<ScannerScreen> {
       return _bleDevices;
     }
     final filter = _searchFilterController.text.toLowerCase();
+    final companyService = CompanyIdentifierService.instance;
+
+    // Try to parse the filter as a company ID (supports hex and decimal formats)
+    final parsedCompanyId =
+        companyService.parseCompanyIdentifier(_searchFilterController.text);
+
     return _bleDevices.where((device) {
       final name = device.name?.toLowerCase() ?? '';
       final deviceId = device.deviceId.toLowerCase();
       final services = device.services.join(' ').toLowerCase();
-      return name.contains(filter) ||
+
+      // Check if filter matches device name, ID, or services
+      if (name.contains(filter) ||
           deviceId.contains(filter) ||
-          services.contains(filter);
+          services.contains(filter)) {
+        return true;
+      }
+
+      // Check if filter matches any company name or company ID from manufacturer data
+      for (final manufacturerData in device.manufacturerDataList) {
+        // Check company name match
+        final companyName =
+            companyService.getCompanyName(manufacturerData.companyId);
+        if (companyName != null && companyName.toLowerCase().contains(filter)) {
+          return true;
+        }
+
+        // Check company ID match (if filter was parsed as a company ID)
+        if (parsedCompanyId != null &&
+            manufacturerData.companyId == parsedCompanyId) {
+          return true;
+        }
+
+        // Also check if filter matches the hex representation of company ID
+        final companyIdHex = manufacturerData.companyIdRadix16.toLowerCase();
+        if (companyIdHex.contains(filter) ||
+            companyIdHex.replaceAll('0x', '').contains(filter)) {
+          return true;
+        }
+      }
+
+      return false;
     }).toList();
   }
 
@@ -334,17 +367,15 @@ class _ScannerScreenState extends State<ScannerScreen> {
                 child: TextField(
                   controller: _searchFilterController,
                   decoration: InputDecoration(
-                    hintText: 'Search by name, ID, or services...',
+                    hintText: 'Search by name, ID, service, company name/ID',
                     prefixIcon: Icon(
                       Icons.search,
                       color: colorScheme.primary,
-                      size: 20,
                     ),
                     suffixIcon: _searchFilterController.text.isNotEmpty
                         ? IconButton(
                             icon: Icon(
                               Icons.clear,
-                              size: 20,
                               color:
                                   colorScheme.onSurface.withValues(alpha: 0.6),
                             ),
@@ -356,16 +387,15 @@ class _ScannerScreenState extends State<ScannerScreen> {
                           )
                         : null,
                     border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
+                      borderRadius: BorderRadius.circular(12),
                       borderSide: BorderSide.none,
                     ),
                     filled: true,
                     fillColor: colorScheme.surfaceContainerHighest,
                     contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 8,
+                      horizontal: 16,
+                      vertical: 16,
                     ),
-                    isDense: true,
                   ),
                   onChanged: (_) => setState(() {}),
                 ),

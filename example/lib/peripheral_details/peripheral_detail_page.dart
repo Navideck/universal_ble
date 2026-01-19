@@ -9,6 +9,7 @@ import 'package:universal_ble_example/data/storage_service.dart';
 import 'package:universal_ble_example/peripheral_details/widgets/result_widget.dart';
 import 'package:universal_ble_example/peripheral_details/widgets/services_list_widget.dart';
 import 'package:universal_ble_example/peripheral_details/widgets/services_side_widget.dart';
+import 'package:universal_ble_example/widgets/company_info_widget.dart';
 import 'package:universal_ble_example/widgets/responsive_view.dart';
 
 class PeripheralDetailPage extends StatefulWidget {
@@ -1031,6 +1032,20 @@ class _PeripheralDetailPageState extends State<PeripheralDetailPage> {
                                 ),
                               ),
                             ],
+                          ),
+                          CompanyInfoWidget(
+                            companyId: data.companyId,
+                            colorScheme: colorScheme,
+                            labelStyle: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: colorScheme.onSecondaryContainer,
+                            ),
+                            nameStyle: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w500,
+                              color: colorScheme.onSecondaryContainer,
+                            ),
                           ),
                           if (data.payloadRadix16.isNotEmpty) ...[
                             const SizedBox(height: 4),

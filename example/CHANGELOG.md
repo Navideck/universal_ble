@@ -4,6 +4,8 @@
 * Moved search field to app bar header for better accessibility
 * Moved queue type settings to drawer menu as expandable section
 * Added tooltip to Bluetooth availability icon (tap to view on mobile)
+* Display company name based on company identifier from manufacturer data
+* Enhanced search functionality - now supports searching by company name
 * Improved overall UI layout and navigation flow
 
 ## 1.1.0
