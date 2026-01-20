@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:universal_ble/universal_ble.dart';
 import 'package:universal_ble_example/data/storage_service.dart';
+import 'package:universal_ble_example/data/utils.dart';
 import 'package:universal_ble_example/peripheral_details/widgets/result_widget.dart';
 import 'package:universal_ble_example/peripheral_details/widgets/services_list_widget.dart';
 import 'package:universal_ble_example/peripheral_details/widgets/services_side_widget.dart';
@@ -41,6 +42,7 @@ class _PeripheralDetailPageState extends State<PeripheralDetailPage> {
   BleCharacteristic? selectedCharacteristic;
   final ScrollController _logsScrollController = ScrollController();
   final Set<String> _favoriteServices = {};
+  Set<CharacteristicProperty>? _currentPropertyFilters;
 
   void _loadFavoriteServices() {
     final favorites = StorageService.instance.getFavoriteServices();
@@ -105,12 +107,15 @@ class _PeripheralDetailPageState extends State<PeripheralDetailPage> {
     Uint8List value,
     int? timestamp,
   ) {
-    String s = String.fromCharCodes(value);
-    String data = '$s\nraw :  ${value.toString()}';
+    String data = _formatReadValue(value);
     DateTime? timestampDateTime = timestamp != null
         ? DateTime.fromMillisecondsSinceEpoch(timestamp)
         : null;
-    debugPrint('_handleValueChange ($timestampDateTime) $characteristicId, $s');
+    // Extract hex for debug print (format: (0x...))
+    String formattedHex =
+        '(0x${value.map((b) => b.toRadixString(16).padLeft(2, '0')).join()})';
+    debugPrint(
+        '_handleValueChange ($timestampDateTime) $characteristicId, $formattedHex');
     _addLog("Value", data);
   }
 
@@ -153,14 +158,44 @@ class _PeripheralDetailPageState extends State<PeripheralDetailPage> {
     );
   }
 
+  String _formatReadValue(Uint8List value) {
+    String formattedHex =
+        '(0x${value.map((b) => b.toRadixString(16).padLeft(2, '0')).join()})';
+    String stringValue = '';
+    try {
+      // Find the first null byte (0x00) to handle null-terminated strings
+      int nullIndex = value.indexOf(0);
+      Uint8List stringBytes =
+          nullIndex >= 0 ? value.sublist(0, nullIndex) : value;
+
+      if (stringBytes.isNotEmpty) {
+        stringValue = String.fromCharCodes(stringBytes);
+        // Check if it's a valid printable string (not just control characters)
+        // Allow tab, newline, carriage return
+        if (stringValue.isNotEmpty &&
+            !stringValue.codeUnits.every((code) =>
+                (code >= 32 && code <= 126) ||
+                    code == 9 ||
+                    code == 10 ||
+                    code == 13)) {
+          stringValue = '';
+        }
+      }
+    } catch (e) {
+      // Not a valid string, leave empty
+    }
+    return stringValue.isNotEmpty
+        ? '"$stringValue" $formattedHex\nraw: ${value.toString()}'
+        : '$formattedHex\nraw: ${value.toString()}';
+  }
+
   Future<void> _readValue() async {
     BleCharacteristic? selectedCharacteristic = this.selectedCharacteristic;
     if (selectedCharacteristic == null) return;
     await _executeWithLoading(
       () async {
         Uint8List value = await selectedCharacteristic.read();
-        String s = String.fromCharCodes(value);
-        String data = '$s\nraw :  ${value.toString()}';
+        String data = _formatReadValue(value);
         _addLog('Read', data);
       },
       onError: (error) {
@@ -278,6 +313,46 @@ class _PeripheralDetailPageState extends State<PeripheralDetailPage> {
     );
   }
 
+  Future<void> _readAllCharacteristics() async {
+    if (!isConnected || discoveredServices.isEmpty) return;
+    await _executeWithLoading(
+      () async {
+        int successCount = 0;
+        int errorCount = 0;
+        for (var service in discoveredServices) {
+          for (var characteristic in service.characteristics) {
+            if (characteristic.properties
+                .contains(CharacteristicProperty.read)) {
+              try {
+                Uint8List value = await characteristic.read();
+                String data = _formatReadValue(value);
+                _addLog(
+                  'ReadAll',
+                  '${service.uuid}/${characteristic.uuid}: $data',
+                );
+                successCount++;
+              } catch (e) {
+                errorCount++;
+                _addLog(
+                  'ReadAllError',
+                  '${service.uuid}/${characteristic.uuid}: $e',
+                );
+                debugPrint('Failed to read ${characteristic.uuid}: $e');
+              }
+            }
+          }
+        }
+        _addLog(
+          'ReadAll',
+          'Completed: $successCount successful${errorCount > 0 ? ', $errorCount failed' : ''}',
+        );
+      },
+      onError: (error) {
+        _addLog('ReadAllCharacteristicsError', error);
+      },
+    );
+  }
+
   CharacteristicSubscription? _getCharacteristicSubscription(
     BleCharacteristic characteristic,
   ) {
@@ -320,9 +395,32 @@ class _PeripheralDetailPageState extends State<PeripheralDetailPage> {
           padding: EdgeInsets.only(bottom: 10.0),
           child: ServicesSideWidget(
             discoveredServices: discoveredServices,
-            serviceListBuilder: () => _buildServicesList(onSelect: (_, __) {
-              Navigator.pop(context);
-            }),
+            selectedService: selectedService,
+            selectedCharacteristic: selectedCharacteristic,
+            initialPropertyFilters: _currentPropertyFilters,
+            serviceListBuilder: (propertyFilters, listKey) =>
+                _buildServicesList(
+              onSelect: (service, characteristic) {
+                setState(() {
+                  selectedService = service;
+                  selectedCharacteristic = characteristic;
+                });
+                Navigator.pop(context);
+              },
+              propertyFilters: propertyFilters,
+              listKey: listKey,
+            ),
+            onCharacteristicSelected: (service, characteristic) {
+              setState(() {
+                selectedService = service;
+                selectedCharacteristic = characteristic;
+              });
+            },
+            onPropertyFiltersChanged: (propertyFilters) {
+              setState(() {
+                _currentPropertyFilters = propertyFilters;
+              });
+            },
             onCopyServices: discoveredServices.isNotEmpty
                 ? () async {
                     await _copyServicesToClipboard();
@@ -472,7 +570,25 @@ class _PeripheralDetailPageState extends State<PeripheralDetailPage> {
                   flex: 1,
                   child: ServicesSideWidget(
                     discoveredServices: discoveredServices,
-                    serviceListBuilder: _buildServicesList,
+                    selectedService: selectedService,
+                    selectedCharacteristic: selectedCharacteristic,
+                    initialPropertyFilters: _currentPropertyFilters,
+                    serviceListBuilder: (propertyFilters, listKey) =>
+                        _buildServicesList(
+                      propertyFilters: propertyFilters,
+                      listKey: listKey,
+                    ),
+                    onCharacteristicSelected: (service, characteristic) {
+                      setState(() {
+                        selectedService = service;
+                        selectedCharacteristic = characteristic;
+                      });
+                    },
+                    onPropertyFiltersChanged: (propertyFilters) {
+                      setState(() {
+                        _currentPropertyFilters = propertyFilters;
+                      });
+                    },
                     onCopyServices: discoveredServices.isNotEmpty
                         ? _copyServicesToClipboard
                         : null,
@@ -540,7 +656,8 @@ class _PeripheralDetailPageState extends State<PeripheralDetailPage> {
         child: Padding(
           padding: const EdgeInsets.all(16.0),
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            spacing: 12,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Row(
                 children: [
@@ -560,48 +677,98 @@ class _PeripheralDetailPageState extends State<PeripheralDetailPage> {
                   ),
                 ],
               ),
-              const SizedBox(height: 16),
+              Row(
+                spacing: 12,
+                children: [
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      onPressed: isConnected &&
+                              _hasSelectedCharacteristicProperty([
+                                CharacteristicProperty.read,
+                              ])
+                          ? _readValue
+                          : null,
+                      icon: const Icon(Icons.download),
+                      label: const Text('Read'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: colorScheme.secondary,
+                        foregroundColor: colorScheme.onSecondary,
+                        padding: const EdgeInsets.symmetric(
+                          vertical: 16,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                    ),
+                  ),
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      onPressed: isConnected && discoveredServices.isNotEmpty
+                          ? _readAllCharacteristics
+                          : null,
+                      icon: const Icon(Icons.download),
+                      label: const Text('Read All'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.green,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(
+                          vertical: 16,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
               Form(
                 key: valueFormKey,
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
+                  spacing: 12,
                   children: [
-                    TextFormField(
-                      controller: binaryCode,
-                      enabled: isConnected &&
-                          _hasSelectedCharacteristicProperty([
-                            CharacteristicProperty.write,
-                            CharacteristicProperty.writeWithoutResponse,
-                          ]),
-                      validator: (value) {
-                        if (value == null || value.isEmpty) {
-                          return 'Please enter a value';
-                        }
-                        try {
-                          hex.decode(binaryCode.text);
-                          return null;
-                        } catch (e) {
-                          return 'Please enter a valid hex value ( without spaces or 0x (e.g. F0BB) )';
-                        }
-                      },
-                      decoration: InputDecoration(
-                        hintText:
-                            "Enter Hex values without spaces or 0x (e.g. F0BB)",
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        filled: true,
-                        fillColor: colorScheme.surfaceContainerHighest,
-                        prefixIcon: Icon(
-                          Icons.code,
-                          color: colorScheme.primary,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 12),
                     Row(
+                      spacing: 12,
                       children: [
                         Expanded(
+                          flex: 3,
+                          child: TextFormField(
+                            controller: binaryCode,
+                            enabled: isConnected &&
+                                _hasSelectedCharacteristicProperty([
+                                  CharacteristicProperty.write,
+                                  CharacteristicProperty.writeWithoutResponse,
+                                ]),
+                            validator: (value) {
+                              if (value == null || value.isEmpty) {
+                                return 'Please enter a value';
+                              }
+                              try {
+                                hex.decode(binaryCode.text);
+                                return null;
+                              } catch (e) {
+                                return 'Please enter a valid hex value ( without spaces or 0x (e.g. F0BB) )';
+                              }
+                            },
+                            decoration: InputDecoration(
+                              hintText:
+                                  "Enter Hex values without spaces or 0x (e.g. F0BB)",
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              filled: true,
+                              fillColor: colorScheme.surfaceContainerHighest,
+                              prefixIcon: Icon(
+                                Icons.code,
+                                color: colorScheme.primary,
+                              ),
+                            ),
+                          ),
+                        ),
+                        Expanded(
+                          flex: 1,
                           child: ElevatedButton.icon(
                             onPressed: isConnected &&
                                     _hasSelectedCharacteristicProperty([
@@ -625,35 +792,11 @@ class _PeripheralDetailPageState extends State<PeripheralDetailPage> {
                             ),
                           ),
                         ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: ElevatedButton.icon(
-                            onPressed: isConnected &&
-                                    _hasSelectedCharacteristicProperty([
-                                      CharacteristicProperty.read,
-                                    ])
-                                ? _readValue
-                                : null,
-                            icon: const Icon(Icons.download),
-                            label: const Text('Read'),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: colorScheme.secondary,
-                              foregroundColor: colorScheme.onSecondary,
-                              padding: const EdgeInsets.symmetric(
-                                vertical: 16,
-                              ),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                            ),
-                          ),
-                        ),
                       ],
                     ),
                   ],
                 ),
               ),
-              const SizedBox(height: 16),
               Wrap(
                 spacing: 12,
                 runSpacing: 12,
@@ -1218,7 +1361,7 @@ class _PeripheralDetailPageState extends State<PeripheralDetailPage> {
                         );
                       },
                       icon: const Icon(Icons.info_outline),
-                      label: const Text('State'),
+                      label: const Text('Connection State'),
                       style: OutlinedButton.styleFrom(
                         foregroundColor: colorScheme.onSurface,
                         padding: const EdgeInsets.symmetric(
@@ -1242,7 +1385,7 @@ class _PeripheralDetailPageState extends State<PeripheralDetailPage> {
                             }
                           : null,
                       icon: const Icon(Icons.signal_cellular_alt),
-                      label: const Text('Get RSSI'),
+                      label: const Text('RSSI'),
                       style: OutlinedButton.styleFrom(
                         foregroundColor: colorScheme.onSurface,
                         padding: const EdgeInsets.symmetric(
@@ -1324,7 +1467,7 @@ class _PeripheralDetailPageState extends State<PeripheralDetailPage> {
                         );
                       },
                       icon: const Icon(Icons.check_circle),
-                      label: const Text('Check Paired'),
+                      label: const Text('Pairing State'),
                       style: OutlinedButton.styleFrom(
                         foregroundColor: colorScheme.onSurface,
                         padding: const EdgeInsets.symmetric(
@@ -1336,33 +1479,34 @@ class _PeripheralDetailPageState extends State<PeripheralDetailPage> {
                         ),
                       ),
                     ),
-                    OutlinedButton.icon(
-                      onPressed: () async {
-                        await _executeWithLoading(
-                          () async {
-                            await bleDevice.unpair();
-                          },
-                          onError: (error) {
-                            _addLog('UnpairError', error);
-                          },
-                        );
-                      },
-                      icon: const Icon(Icons.link_off),
-                      label: const Text('Unpair'),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: colorScheme.error,
-                        side: BorderSide(
-                          color: colorScheme.error,
-                        ),
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 12,
-                        ),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
+                    if (BleCapabilities.hasSystemPairingApi)
+                      OutlinedButton.icon(
+                        onPressed: () async {
+                          await _executeWithLoading(
+                            () async {
+                              await bleDevice.unpair();
+                            },
+                            onError: (error) {
+                              _addLog('UnpairError', error);
+                            },
+                          );
+                        },
+                        icon: const Icon(Icons.link_off),
+                        label: const Text('Unpair'),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: colorScheme.error,
+                          side: BorderSide(
+                            color: colorScheme.error,
+                          ),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 12,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
                         ),
                       ),
-                    ),
                   ],
                 ),
               ),
@@ -1482,14 +1626,18 @@ class _PeripheralDetailPageState extends State<PeripheralDetailPage> {
 
   Widget _buildServicesList({
     Function(BleService, BleCharacteristic?)? onSelect,
+    Set<CharacteristicProperty>? propertyFilters,
+    GlobalKey<ServicesListWidgetState>? listKey,
   }) {
     return ServicesListWidget(
+      key: listKey,
       discoveredServices: discoveredServices,
       selectedService: selectedService,
       selectedCharacteristic: selectedCharacteristic,
       favoriteServices: _favoriteServices,
       subscribedCharacteristics: _subscribedCharacteristics,
       scrollable: true,
+      propertyFilters: propertyFilters,
       onTap: (service, characteristic) {
         setState(() {
           selectedService = service;
@@ -1512,9 +1660,61 @@ class _PeripheralDetailPageState extends State<PeripheralDetailPage> {
     );
   }
 
+  /// Returns a list of all filtered characteristics with their parent services
+  List<({BleService service, BleCharacteristic characteristic})>
+      _getFilteredCharacteristics() {
+    return getFilteredBleCharacteristics(
+      discoveredServices,
+      favoriteServices: _favoriteServices,
+      propertyFilters: _currentPropertyFilters,
+    );
+  }
+
+  void _navigateToPreviousCharacteristic() {
+    if (selectedCharacteristic == null) return;
+
+    final filtered = _getFilteredCharacteristics();
+    final result = navigateToAdjacentCharacteristic(
+      filtered,
+      selectedCharacteristic!.uuid,
+      false, // previous
+    );
+
+    if (result != null) {
+      setState(() {
+        selectedService = result.service;
+        selectedCharacteristic = result.characteristic;
+      });
+    }
+  }
+
+  void _navigateToNextCharacteristic() {
+    if (selectedCharacteristic == null) return;
+
+    final filtered = _getFilteredCharacteristics();
+    final result = navigateToAdjacentCharacteristic(
+      filtered,
+      selectedCharacteristic!.uuid,
+      true, // next
+    );
+
+    if (result != null) {
+      setState(() {
+        selectedService = result.service;
+        selectedCharacteristic = result.characteristic;
+      });
+    }
+  }
+
+  bool _canNavigateCharacteristics() {
+    final filtered = _getFilteredCharacteristics();
+    return filtered.length > 1;
+  }
+
   Widget _buildSelectedCharacteristicCard() {
     final colorScheme = Theme.of(context).colorScheme;
     if (selectedCharacteristic == null) return const SizedBox.shrink();
+    final canNavigate = _canNavigateCharacteristics();
     return Card(
       elevation: 2,
       shape: RoundedRectangleBorder(
@@ -1530,6 +1730,52 @@ class _PeripheralDetailPageState extends State<PeripheralDetailPage> {
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(
+                    Icons.apps,
+                    size: 16,
+                    color: colorScheme.onSurface.withValues(alpha: 0.6),
+                  ),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          'Service',
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: colorScheme.onSurface.withValues(alpha: 0.6),
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        InkWell(
+                          onTap: () {
+                            Clipboard.setData(ClipboardData(
+                              text: selectedService?.uuid ?? "",
+                            ));
+                            _showSnackBar('Copied to clipboard');
+                          },
+                          child: Text(
+                            selectedService?.uuid ?? "Unknown",
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontFamily: 'monospace',
+                              color: colorScheme.onSurface,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -1579,56 +1825,37 @@ class _PeripheralDetailPageState extends State<PeripheralDetailPage> {
                       ],
                     ),
                   ),
+                  if (canNavigate) ...[
+                    IconButton(
+                      onPressed: _navigateToPreviousCharacteristic,
+                      icon: const Icon(Icons.arrow_back_ios),
+                      iconSize: 16,
+                      tooltip: 'Previous Characteristic',
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(
+                        minWidth: 28,
+                        minHeight: 28,
+                      ),
+                      color: colorScheme.primary,
+                    ),
+                    IconButton(
+                      onPressed: _navigateToNextCharacteristic,
+                      icon: const Icon(Icons.arrow_forward_ios),
+                      iconSize: 16,
+                      tooltip: 'Next Characteristic',
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(
+                        minWidth: 28,
+                        minHeight: 28,
+                      ),
+                      color: colorScheme.primary,
+                    ),
+                    const SizedBox(width: 4),
+                  ],
                   Icon(
                     Icons.arrow_drop_down,
                     size: 18,
                     color: colorScheme.onSurface.withValues(alpha: 0.6),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 8),
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Icon(
-                    Icons.apps,
-                    size: 16,
-                    color: colorScheme.onSurface.withValues(alpha: 0.6),
-                  ),
-                  const SizedBox(width: 6),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          'Service',
-                          style: TextStyle(
-                            fontSize: 11,
-                            color: colorScheme.onSurface.withValues(alpha: 0.6),
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                        const SizedBox(height: 2),
-                        InkWell(
-                          onTap: () {
-                            Clipboard.setData(ClipboardData(
-                              text: selectedService?.uuid ?? "",
-                            ));
-                            _showSnackBar('Copied to clipboard');
-                          },
-                          child: Text(
-                            selectedService?.uuid ?? "Unknown",
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontFamily: 'monospace',
-                              color: colorScheme.onSurface,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
                   ),
                 ],
               ),
@@ -1700,6 +1927,14 @@ class _PeripheralDetailPageState extends State<PeripheralDetailPage> {
       results: _logs,
       scrollController: _logsScrollController,
       scrollable: scrollable,
+      onCopyTap: () async {
+        if (_logs.isEmpty) return;
+        final logsText = _logs.join('\n');
+        await Clipboard.setData(ClipboardData(text: logsText));
+        if (context.mounted) {
+          _showSnackBar('All logs copied to clipboard');
+        }
+      },
       onClearTap: (int? index) {
         setState(() {
           if (index != null) {

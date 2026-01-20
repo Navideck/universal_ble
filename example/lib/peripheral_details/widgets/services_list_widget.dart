@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:universal_ble/universal_ble.dart';
 import 'package:universal_ble_example/data/utils.dart';
 
-class ServicesListWidget extends StatelessWidget {
+class ServicesListWidget extends StatefulWidget {
   final List<BleService> discoveredServices;
   final bool scrollable;
   final void Function(BleService service, BleCharacteristic characteristic)?
@@ -13,6 +13,7 @@ class ServicesListWidget extends StatelessWidget {
   final Set<String>? favoriteServices;
   final Map<String, bool>? subscribedCharacteristics;
   final void Function(String serviceUuid)? onFavoriteToggle;
+  final Set<CharacteristicProperty>? propertyFilters;
 
   const ServicesListWidget({
     super.key,
@@ -24,7 +25,149 @@ class ServicesListWidget extends StatelessWidget {
     this.favoriteServices,
     this.subscribedCharacteristics,
     this.onFavoriteToggle,
+    this.propertyFilters,
   });
+
+  @override
+  State<ServicesListWidget> createState() => ServicesListWidgetState();
+}
+
+class ServicesListWidgetState extends State<ServicesListWidget> {
+  final Map<String, ExpandableController> _expandableControllers = {};
+  ScrollController? _scrollController;
+  final Map<String, GlobalKey> _characteristicKeys = {};
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.scrollable) {
+      _scrollController = ScrollController();
+    }
+    _initializeControllers();
+    // Scroll to selected characteristic after the first frame
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _scrollToSelectedCharacteristic();
+    });
+  }
+
+  @override
+  void didUpdateWidget(ServicesListWidget oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Create or dispose scroll controller if scrollable state changed
+    if (oldWidget.scrollable != widget.scrollable) {
+      if (widget.scrollable && _scrollController == null) {
+        _scrollController = ScrollController();
+      } else if (!widget.scrollable && _scrollController != null) {
+        _scrollController!.dispose();
+        _scrollController = null;
+      }
+    }
+    // Update controllers if services or selection changed
+    if (oldWidget.discoveredServices != widget.discoveredServices ||
+        oldWidget.selectedCharacteristic != widget.selectedCharacteristic) {
+      _initializeControllers();
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _scrollToSelectedCharacteristic();
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    for (var controller in _expandableControllers.values) {
+      controller.dispose();
+    }
+    _scrollController?.dispose();
+    super.dispose();
+  }
+
+  void _initializeControllers() {
+    // Dispose old controllers
+    for (var controller in _expandableControllers.values) {
+      controller.dispose();
+    }
+    _expandableControllers.clear();
+    _characteristicKeys.clear();
+
+    // Create controllers for each service
+    final sortedServices = _getSortedServices();
+    for (var service in sortedServices) {
+      final controller = ExpandableController();
+      // Expand if this service contains the selected characteristic
+      if (widget.selectedCharacteristic != null) {
+        final hasSelectedChar = service.characteristics.any(
+          (char) => char.uuid == widget.selectedCharacteristic!.uuid,
+        );
+        if (hasSelectedChar) {
+          controller.expanded = true;
+        }
+      }
+      _expandableControllers[service.uuid] = controller;
+
+      // Create keys for characteristics
+      for (var char in service.characteristics) {
+        _characteristicKeys['${service.uuid}_${char.uuid}'] = GlobalKey();
+      }
+    }
+  }
+
+  void _scrollToSelectedCharacteristic() {
+    if (widget.selectedCharacteristic == null) return;
+
+    // Find the key for the selected characteristic
+    String? selectedKey;
+
+    // Prefer an exact match on both service and characteristic UUIDs
+    if (widget.selectedService != null) {
+      final exactKey =
+          '${widget.selectedService!.uuid}_${widget.selectedCharacteristic!.uuid}';
+      if (_characteristicKeys.containsKey(exactKey)) {
+        selectedKey = exactKey;
+      }
+    }
+
+    // Fallback: match by characteristic UUID only if no exact key was found
+    if (selectedKey == null) {
+      for (var entry in _characteristicKeys.entries) {
+        if (entry.key.endsWith('_${widget.selectedCharacteristic!.uuid}')) {
+          selectedKey = entry.key;
+          break;
+        }
+      }
+    }
+    if (selectedKey != null) {
+      final key = _characteristicKeys[selectedKey];
+      if (key?.currentContext != null) {
+        // Wait a bit for the expansion animation to complete
+        Future.delayed(const Duration(milliseconds: 100), () {
+          if (mounted && key?.currentContext != null) {
+            Scrollable.ensureVisible(
+              key!.currentContext!,
+              duration: const Duration(milliseconds: 300),
+              curve: Curves.easeInOut,
+            );
+          }
+        });
+      }
+    }
+  }
+
+  List<BleService> _getSortedServices() {
+    return sortBleServices(
+      widget.discoveredServices,
+      favoriteServices: widget.favoriteServices,
+    );
+  }
+
+  /// Returns a list of all filtered characteristics with their parent services
+  List<({BleService service, BleCharacteristic characteristic})>
+      getFilteredCharacteristics() {
+    return getFilteredBleCharacteristics(
+      widget.discoveredServices,
+      favoriteServices: widget.favoriteServices,
+      propertyFilters: widget.propertyFilters,
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -35,29 +178,18 @@ class ServicesListWidget extends StatelessWidget {
     final selectedCharacteristicBackgroundColor =
         colorScheme.primaryContainer.withValues(alpha: 0.5);
 
-    // Sort services: favorites first, then system services, then others
-    final sortedServices = List<BleService>.from(discoveredServices);
-    sortedServices.sort((a, b) {
-      final aIsFavorite = favoriteServices?.contains(a.uuid) ?? false;
-      final bIsFavorite = favoriteServices?.contains(b.uuid) ?? false;
-      if (aIsFavorite != bIsFavorite) {
-        return aIsFavorite ? -1 : 1;
-      }
-      final aIsSystem = isSystemService(a.uuid);
-      final bIsSystem = isSystemService(b.uuid);
-      if (aIsSystem != bIsSystem) {
-        return aIsSystem ? 1 : -1;
-      }
-      return 0;
-    });
+    final sortedServices = _getSortedServices();
     return ListView.builder(
-      shrinkWrap: !scrollable,
-      physics: scrollable ? null : const NeverScrollableScrollPhysics(),
+      controller: _scrollController,
+      shrinkWrap: !widget.scrollable,
+      physics: widget.scrollable ? null : const NeverScrollableScrollPhysics(),
       itemCount: sortedServices.length,
       itemBuilder: (BuildContext context, int index) {
         final service = sortedServices[index];
-        final isFavorite = favoriteServices?.contains(service.uuid) ?? false;
-        final isSelected = selectedService?.uuid == service.uuid;
+        final isFavorite = widget.favoriteServices?.contains(service.uuid) ?? false;
+        final isSelected = widget.selectedService?.uuid == service.uuid;
+        final controller = _expandableControllers[service.uuid] ??
+            ExpandableController();
         return Padding(
           padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
           child: Card(
@@ -69,6 +201,7 @@ class ServicesListWidget extends StatelessWidget {
                   : BorderSide.none,
             ),
             child: ExpandablePanel(
+              controller: controller,
               header: Padding(
                 padding: const EdgeInsets.all(12.0),
                 child: Row(
@@ -91,7 +224,7 @@ class ServicesListWidget extends StatelessWidget {
                         ),
                       ),
                     ),
-                    if (onFavoriteToggle != null) ...[
+                    if (widget.onFavoriteToggle != null) ...[
                       const SizedBox(width: 8),
                       IconButton(
                         icon: Icon(
@@ -100,7 +233,7 @@ class ServicesListWidget extends StatelessWidget {
                               ? favoriteStarColor
                               : colorScheme.onSurface.withValues(alpha: 0.4),
                         ),
-                        onPressed: () => onFavoriteToggle!(service.uuid),
+                        onPressed: () => widget.onFavoriteToggle!(service.uuid),
                         iconSize: 20,
                         padding: EdgeInsets.zero,
                         constraints: const BoxConstraints(
@@ -116,12 +249,24 @@ class ServicesListWidget extends StatelessWidget {
               expanded: Padding(
                 padding: const EdgeInsets.only(bottom: 8.0),
                 child: Column(
-                  children: service.characteristics.map((e) {
+                  children: service.characteristics
+                      .where((e) {
+                        // Filter by properties if filters are selected
+                        if (widget.propertyFilters != null &&
+                            widget.propertyFilters!.isNotEmpty) {
+                          return e.properties.any(
+                              (prop) => widget.propertyFilters!.contains(prop));
+                        }
+                        return true;
+                      })
+                      .map((e) {
                     final isCharSelected =
-                        selectedCharacteristic?.uuid == e.uuid;
+                        widget.selectedCharacteristic?.uuid == e.uuid;
                     final isSubscribed =
-                        subscribedCharacteristics?[e.uuid] ?? false;
+                        widget.subscribedCharacteristics?[e.uuid] ?? false;
+                    final charKey = _characteristicKeys['${service.uuid}_${e.uuid}'];
                     return Padding(
+                      key: charKey,
                       padding: const EdgeInsets.symmetric(
                         horizontal: 8.0,
                         vertical: 4.0,
@@ -139,7 +284,7 @@ class ServicesListWidget extends StatelessWidget {
                         ),
                         child: InkWell(
                           onTap: () {
-                            onTap?.call(service, e);
+                            widget.onTap?.call(service, e);
                           },
                           borderRadius: BorderRadius.circular(8),
                           child: Padding(
