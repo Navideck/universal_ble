@@ -141,6 +141,7 @@ enum UniversalBleLogLevel: Int {
   case verbose = 5
 }
 
+/// Scan config
 enum AndroidScanMode: Int {
   case balanced = 0
   case lowLatency = 1
@@ -353,38 +354,6 @@ struct UniversalBleDescriptor: Hashable {
   }
 }
 
-/// Scan config
-///
-/// Generated class from Pigeon that represents data sent in messages.
-struct UniversalScanConfig: Hashable {
-  var android: AndroidOptions? = nil
-
-
-  // swift-format-ignore: AlwaysUseLowerCamelCase
-  static func fromList(_ pigeonVar_list: [Any?]) -> UniversalScanConfig? {
-    let android: AndroidOptions? = nilOrValue(pigeonVar_list[0])
-
-    return UniversalScanConfig(
-      android: android
-    )
-  }
-  func toList() -> [Any?] {
-    return [
-      android
-    ]
-  }
-  static func == (lhs: UniversalScanConfig, rhs: UniversalScanConfig) -> Bool {
-    return deepEqualsUniversalBle(lhs.toList(), rhs.toList())  }
-  func hash(into hasher: inout Hasher) {
-    deepHashUniversalBle(value: toList(), hasher: &hasher)
-  }
-}
-
-/// Android options to scan devices
-/// [requestLocationPermission] is used to request location permission on Android 12+ (API 31+).
-/// [scanMode] is used to set the scan mode for the Android device.
-/// [reportDelayMillis] is used to set the report delay for the Android device.
-///
 /// Generated class from Pigeon that represents data sent in messages.
 struct AndroidOptions: Hashable {
   var requestLocationPermission: Bool? = nil
@@ -412,6 +381,31 @@ struct AndroidOptions: Hashable {
     ]
   }
   static func == (lhs: AndroidOptions, rhs: AndroidOptions) -> Bool {
+    return deepEqualsUniversalBle(lhs.toList(), rhs.toList())  }
+  func hash(into hasher: inout Hasher) {
+    deepHashUniversalBle(value: toList(), hasher: &hasher)
+  }
+}
+
+/// Generated class from Pigeon that represents data sent in messages.
+struct UniversalScanConfig: Hashable {
+  var android: AndroidOptions? = nil
+
+
+  // swift-format-ignore: AlwaysUseLowerCamelCase
+  static func fromList(_ pigeonVar_list: [Any?]) -> UniversalScanConfig? {
+    let android: AndroidOptions? = nilOrValue(pigeonVar_list[0])
+
+    return UniversalScanConfig(
+      android: android
+    )
+  }
+  func toList() -> [Any?] {
+    return [
+      android
+    ]
+  }
+  static func == (lhs: UniversalScanConfig, rhs: UniversalScanConfig) -> Bool {
     return deepEqualsUniversalBle(lhs.toList(), rhs.toList())  }
   func hash(into hasher: inout Hasher) {
     deepHashUniversalBle(value: toList(), hasher: &hasher)
@@ -545,9 +539,9 @@ private class UniversalBlePigeonCodecReader: FlutterStandardReader {
     case 135:
       return UniversalBleDescriptor.fromList(self.readValue() as! [Any?])
     case 136:
-      return UniversalScanConfig.fromList(self.readValue() as! [Any?])
-    case 137:
       return AndroidOptions.fromList(self.readValue() as! [Any?])
+    case 137:
+      return UniversalScanConfig.fromList(self.readValue() as! [Any?])
     case 138:
       return UniversalScanFilter.fromList(self.readValue() as! [Any?])
     case 139:
@@ -583,10 +577,10 @@ private class UniversalBlePigeonCodecWriter: FlutterStandardWriter {
     } else if let value = value as? UniversalBleDescriptor {
       super.writeByte(135)
       super.writeValue(value.toList())
-    } else if let value = value as? UniversalScanConfig {
+    } else if let value = value as? AndroidOptions {
       super.writeByte(136)
       super.writeValue(value.toList())
-    } else if let value = value as? AndroidOptions {
+    } else if let value = value as? UniversalScanConfig {
       super.writeByte(137)
       super.writeValue(value.toList())
     } else if let value = value as? UniversalScanFilter {

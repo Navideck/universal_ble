@@ -50,6 +50,7 @@ enum UniversalBleLogLevel {
   verbose,
 }
 
+/// Scan config
 enum AndroidScanMode {
   balanced,
   lowLatency,
@@ -341,52 +342,6 @@ class UniversalBleDescriptor {
   int get hashCode => Object.hashAll(_toList());
 }
 
-/// Scan config
-class UniversalScanConfig {
-  UniversalScanConfig({
-    this.android,
-  });
-
-  AndroidOptions? android;
-
-  List<Object?> _toList() {
-    return <Object?>[
-      android,
-    ];
-  }
-
-  Object encode() {
-    return _toList();
-  }
-
-  static UniversalScanConfig decode(Object result) {
-    result as List<Object?>;
-    return UniversalScanConfig(
-      android: result[0] as AndroidOptions?,
-    );
-  }
-
-  @override
-  // ignore: avoid_equals_and_hash_code_on_mutable_classes
-  bool operator ==(Object other) {
-    if (other is! UniversalScanConfig || other.runtimeType != runtimeType) {
-      return false;
-    }
-    if (identical(this, other)) {
-      return true;
-    }
-    return _deepEquals(encode(), other.encode());
-  }
-
-  @override
-  // ignore: avoid_equals_and_hash_code_on_mutable_classes
-  int get hashCode => Object.hashAll(_toList());
-}
-
-/// Android options to scan devices
-/// [requestLocationPermission] is used to request location permission on Android 12+ (API 31+).
-/// [scanMode] is used to set the scan mode for the Android device.
-/// [reportDelayMillis] is used to set the report delay for the Android device.
 class AndroidOptions {
   AndroidOptions({
     this.requestLocationPermission,
@@ -425,6 +380,47 @@ class AndroidOptions {
   // ignore: avoid_equals_and_hash_code_on_mutable_classes
   bool operator ==(Object other) {
     if (other is! AndroidOptions || other.runtimeType != runtimeType) {
+      return false;
+    }
+    if (identical(this, other)) {
+      return true;
+    }
+    return _deepEquals(encode(), other.encode());
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  int get hashCode => Object.hashAll(_toList());
+}
+
+class UniversalScanConfig {
+  UniversalScanConfig({
+    this.android,
+  });
+
+  AndroidOptions? android;
+
+  List<Object?> _toList() {
+    return <Object?>[
+      android,
+    ];
+  }
+
+  Object encode() {
+    return _toList();
+  }
+
+  static UniversalScanConfig decode(Object result) {
+    result as List<Object?>;
+    return UniversalScanConfig(
+      android: result[0] as AndroidOptions?,
+    );
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  bool operator ==(Object other) {
+    if (other is! UniversalScanConfig || other.runtimeType != runtimeType) {
       return false;
     }
     if (identical(this, other)) {
@@ -618,10 +614,10 @@ class _PigeonCodec extends StandardMessageCodec {
     } else if (value is UniversalBleDescriptor) {
       buffer.putUint8(135);
       writeValue(buffer, value.encode());
-    } else if (value is UniversalScanConfig) {
+    } else if (value is AndroidOptions) {
       buffer.putUint8(136);
       writeValue(buffer, value.encode());
-    } else if (value is AndroidOptions) {
+    } else if (value is UniversalScanConfig) {
       buffer.putUint8(137);
       writeValue(buffer, value.encode());
     } else if (value is UniversalScanFilter) {
@@ -659,9 +655,9 @@ class _PigeonCodec extends StandardMessageCodec {
       case 135:
         return UniversalBleDescriptor.decode(readValue(buffer)!);
       case 136:
-        return UniversalScanConfig.decode(readValue(buffer)!);
-      case 137:
         return AndroidOptions.decode(readValue(buffer)!);
+      case 137:
+        return UniversalScanConfig.decode(readValue(buffer)!);
       case 138:
         return UniversalScanFilter.decode(readValue(buffer)!);
       case 139:

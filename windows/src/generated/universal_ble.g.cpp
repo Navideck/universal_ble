@@ -331,50 +331,6 @@ UniversalBleDescriptor UniversalBleDescriptor::FromEncodableList(const Encodable
   return decoded;
 }
 
-// UniversalScanConfig
-
-UniversalScanConfig::UniversalScanConfig() {}
-
-UniversalScanConfig::UniversalScanConfig(const AndroidOptions* android)
- : android_(android ? std::make_unique<AndroidOptions>(*android) : nullptr) {}
-
-UniversalScanConfig::UniversalScanConfig(const UniversalScanConfig& other)
- : android_(other.android_ ? std::make_unique<AndroidOptions>(*other.android_) : nullptr) {}
-
-UniversalScanConfig& UniversalScanConfig::operator=(const UniversalScanConfig& other) {
-  android_ = other.android_ ? std::make_unique<AndroidOptions>(*other.android_) : nullptr;
-  return *this;
-}
-
-const AndroidOptions* UniversalScanConfig::android() const {
-  return android_.get();
-}
-
-void UniversalScanConfig::set_android(const AndroidOptions* value_arg) {
-  android_ = value_arg ? std::make_unique<AndroidOptions>(*value_arg) : nullptr;
-}
-
-void UniversalScanConfig::set_android(const AndroidOptions& value_arg) {
-  android_ = std::make_unique<AndroidOptions>(value_arg);
-}
-
-
-EncodableList UniversalScanConfig::ToEncodableList() const {
-  EncodableList list;
-  list.reserve(1);
-  list.push_back(android_ ? CustomEncodableValue(*android_) : EncodableValue());
-  return list;
-}
-
-UniversalScanConfig UniversalScanConfig::FromEncodableList(const EncodableList& list) {
-  UniversalScanConfig decoded;
-  auto& encodable_android = list[0];
-  if (!encodable_android.IsNull()) {
-    decoded.set_android(std::any_cast<const AndroidOptions&>(std::get<CustomEncodableValue>(encodable_android)));
-  }
-  return decoded;
-}
-
 // AndroidOptions
 
 AndroidOptions::AndroidOptions() {}
@@ -448,6 +404,50 @@ AndroidOptions AndroidOptions::FromEncodableList(const EncodableList& list) {
   auto& encodable_report_delay_millis = list[2];
   if (!encodable_report_delay_millis.IsNull()) {
     decoded.set_report_delay_millis(std::get<int64_t>(encodable_report_delay_millis));
+  }
+  return decoded;
+}
+
+// UniversalScanConfig
+
+UniversalScanConfig::UniversalScanConfig() {}
+
+UniversalScanConfig::UniversalScanConfig(const AndroidOptions* android)
+ : android_(android ? std::make_unique<AndroidOptions>(*android) : nullptr) {}
+
+UniversalScanConfig::UniversalScanConfig(const UniversalScanConfig& other)
+ : android_(other.android_ ? std::make_unique<AndroidOptions>(*other.android_) : nullptr) {}
+
+UniversalScanConfig& UniversalScanConfig::operator=(const UniversalScanConfig& other) {
+  android_ = other.android_ ? std::make_unique<AndroidOptions>(*other.android_) : nullptr;
+  return *this;
+}
+
+const AndroidOptions* UniversalScanConfig::android() const {
+  return android_.get();
+}
+
+void UniversalScanConfig::set_android(const AndroidOptions* value_arg) {
+  android_ = value_arg ? std::make_unique<AndroidOptions>(*value_arg) : nullptr;
+}
+
+void UniversalScanConfig::set_android(const AndroidOptions& value_arg) {
+  android_ = std::make_unique<AndroidOptions>(value_arg);
+}
+
+
+EncodableList UniversalScanConfig::ToEncodableList() const {
+  EncodableList list;
+  list.reserve(1);
+  list.push_back(android_ ? CustomEncodableValue(*android_) : EncodableValue());
+  return list;
+}
+
+UniversalScanConfig UniversalScanConfig::FromEncodableList(const EncodableList& list) {
+  UniversalScanConfig decoded;
+  auto& encodable_android = list[0];
+  if (!encodable_android.IsNull()) {
+    decoded.set_android(std::any_cast<const AndroidOptions&>(std::get<CustomEncodableValue>(encodable_android)));
   }
   return decoded;
 }
@@ -653,10 +653,10 @@ EncodableValue PigeonInternalCodecSerializer::ReadValueOfType(
         return CustomEncodableValue(UniversalBleDescriptor::FromEncodableList(std::get<EncodableList>(ReadValue(stream))));
       }
     case 136: {
-        return CustomEncodableValue(UniversalScanConfig::FromEncodableList(std::get<EncodableList>(ReadValue(stream))));
+        return CustomEncodableValue(AndroidOptions::FromEncodableList(std::get<EncodableList>(ReadValue(stream))));
       }
     case 137: {
-        return CustomEncodableValue(AndroidOptions::FromEncodableList(std::get<EncodableList>(ReadValue(stream))));
+        return CustomEncodableValue(UniversalScanConfig::FromEncodableList(std::get<EncodableList>(ReadValue(stream))));
       }
     case 138: {
         return CustomEncodableValue(UniversalScanFilter::FromEncodableList(std::get<EncodableList>(ReadValue(stream))));
@@ -711,14 +711,14 @@ void PigeonInternalCodecSerializer::WriteValue(
       WriteValue(EncodableValue(std::any_cast<UniversalBleDescriptor>(*custom_value).ToEncodableList()), stream);
       return;
     }
-    if (custom_value->type() == typeid(UniversalScanConfig)) {
+    if (custom_value->type() == typeid(AndroidOptions)) {
       stream->WriteByte(136);
-      WriteValue(EncodableValue(std::any_cast<UniversalScanConfig>(*custom_value).ToEncodableList()), stream);
+      WriteValue(EncodableValue(std::any_cast<AndroidOptions>(*custom_value).ToEncodableList()), stream);
       return;
     }
-    if (custom_value->type() == typeid(AndroidOptions)) {
+    if (custom_value->type() == typeid(UniversalScanConfig)) {
       stream->WriteByte(137);
-      WriteValue(EncodableValue(std::any_cast<AndroidOptions>(*custom_value).ToEncodableList()), stream);
+      WriteValue(EncodableValue(std::any_cast<UniversalScanConfig>(*custom_value).ToEncodableList()), stream);
       return;
     }
     if (custom_value->type() == typeid(UniversalScanFilter)) {

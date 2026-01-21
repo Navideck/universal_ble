@@ -96,6 +96,7 @@ enum class UniversalBleLogLevel(val raw: Int) {
   }
 }
 
+/** Scan config */
 enum class AndroidScanMode(val raw: Int) {
   BALANCED(0),
   LOW_LATENCY(1),
@@ -322,46 +323,7 @@ data class UniversalBleDescriptor (
   override fun hashCode(): Int = toList().hashCode()
 }
 
-/**
- * Scan config
- *
- * Generated class from Pigeon that represents data sent in messages.
- */
-data class UniversalScanConfig (
-  val android: AndroidOptions? = null
-)
- {
-  companion object {
-    fun fromList(pigeonVar_list: List<Any?>): UniversalScanConfig {
-      val android = pigeonVar_list[0] as AndroidOptions?
-      return UniversalScanConfig(android)
-    }
-  }
-  fun toList(): List<Any?> {
-    return listOf(
-      android,
-    )
-  }
-  override fun equals(other: Any?): Boolean {
-    if (other !is UniversalScanConfig) {
-      return false
-    }
-    if (this === other) {
-      return true
-    }
-    return UniversalBlePigeonUtils.deepEquals(toList(), other.toList())  }
-
-  override fun hashCode(): Int = toList().hashCode()
-}
-
-/**
- * Android options to scan devices
- * [requestLocationPermission] is used to request location permission on Android 12+ (API 31+).
- * [scanMode] is used to set the scan mode for the Android device.
- * [reportDelayMillis] is used to set the report delay for the Android device.
- *
- * Generated class from Pigeon that represents data sent in messages.
- */
+/** Generated class from Pigeon that represents data sent in messages. */
 data class AndroidOptions (
   val requestLocationPermission: Boolean? = null,
   val scanMode: AndroidScanMode? = null,
@@ -385,6 +347,34 @@ data class AndroidOptions (
   }
   override fun equals(other: Any?): Boolean {
     if (other !is AndroidOptions) {
+      return false
+    }
+    if (this === other) {
+      return true
+    }
+    return UniversalBlePigeonUtils.deepEquals(toList(), other.toList())  }
+
+  override fun hashCode(): Int = toList().hashCode()
+}
+
+/** Generated class from Pigeon that represents data sent in messages. */
+data class UniversalScanConfig (
+  val android: AndroidOptions? = null
+)
+ {
+  companion object {
+    fun fromList(pigeonVar_list: List<Any?>): UniversalScanConfig {
+      val android = pigeonVar_list[0] as AndroidOptions?
+      return UniversalScanConfig(android)
+    }
+  }
+  fun toList(): List<Any?> {
+    return listOf(
+      android,
+    )
+  }
+  override fun equals(other: Any?): Boolean {
+    if (other !is UniversalScanConfig) {
       return false
     }
     if (this === other) {
@@ -537,12 +527,12 @@ private open class UniversalBlePigeonCodec : StandardMessageCodec() {
       }
       136.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          UniversalScanConfig.fromList(it)
+          AndroidOptions.fromList(it)
         }
       }
       137.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          AndroidOptions.fromList(it)
+          UniversalScanConfig.fromList(it)
         }
       }
       138.toByte() -> {
@@ -593,11 +583,11 @@ private open class UniversalBlePigeonCodec : StandardMessageCodec() {
         stream.write(135)
         writeValue(stream, value.toList())
       }
-      is UniversalScanConfig -> {
+      is AndroidOptions -> {
         stream.write(136)
         writeValue(stream, value.toList())
       }
-      is AndroidOptions -> {
+      is UniversalScanConfig -> {
         stream.write(137)
         writeValue(stream, value.toList())
       }

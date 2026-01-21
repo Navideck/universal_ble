@@ -172,15 +172,14 @@ class UniversalBleDescriptor {
 }
 
 /// Scan config
-class UniversalScanConfig {
-  AndroidOptions? android;
-  UniversalScanConfig(this.android);
+
+enum AndroidScanMode {
+  balanced,
+  lowLatency,
+  lowPower,
+  opportunistic,
 }
 
-/// Android options to scan devices
-/// [requestLocationPermission] is used to request location permission on Android 12+ (API 31+).
-/// [scanMode] is used to set the scan mode for the Android device.
-/// [reportDelayMillis] is used to set the report delay for the Android device.
 class AndroidOptions {
   bool? requestLocationPermission;
   AndroidScanMode? scanMode;
@@ -192,11 +191,9 @@ class AndroidOptions {
   });
 }
 
-enum AndroidScanMode {
-  balanced,
-  lowLatency,
-  lowPower,
-  opportunistic,
+class UniversalScanConfig {
+  AndroidOptions? android;
+  UniversalScanConfig(this.android);
 }
 
 /// Scan Filters
