@@ -141,6 +141,13 @@ enum UniversalBleLogLevel: Int {
   case verbose = 5
 }
 
+enum AndroidScanMode: Int {
+  case balanced = 0
+  case lowLatency = 1
+  case lowPower = 2
+  case opportunistic = 3
+}
+
 /// Unified error codes for all platforms
 enum UniversalBleErrorCode: Int {
   case unknownError = 0
@@ -346,6 +353,70 @@ struct UniversalBleDescriptor: Hashable {
   }
 }
 
+/// Scan config
+///
+/// Generated class from Pigeon that represents data sent in messages.
+struct UniversalScanConfig: Hashable {
+  var android: AndroidOptions? = nil
+
+
+  // swift-format-ignore: AlwaysUseLowerCamelCase
+  static func fromList(_ pigeonVar_list: [Any?]) -> UniversalScanConfig? {
+    let android: AndroidOptions? = nilOrValue(pigeonVar_list[0])
+
+    return UniversalScanConfig(
+      android: android
+    )
+  }
+  func toList() -> [Any?] {
+    return [
+      android
+    ]
+  }
+  static func == (lhs: UniversalScanConfig, rhs: UniversalScanConfig) -> Bool {
+    return deepEqualsUniversalBle(lhs.toList(), rhs.toList())  }
+  func hash(into hasher: inout Hasher) {
+    deepHashUniversalBle(value: toList(), hasher: &hasher)
+  }
+}
+
+/// Android options to scan devices
+/// [requestLocationPermission] is used to request location permission on Android 12+ (API 31+).
+/// [scanMode] is used to set the scan mode for the Android device.
+///
+/// Generated class from Pigeon that represents data sent in messages.
+struct AndroidOptions: Hashable {
+  var requestLocationPermission: Bool? = nil
+  var scanMode: AndroidScanMode? = nil
+  var reportDelayMillis: Int64? = nil
+
+
+  // swift-format-ignore: AlwaysUseLowerCamelCase
+  static func fromList(_ pigeonVar_list: [Any?]) -> AndroidOptions? {
+    let requestLocationPermission: Bool? = nilOrValue(pigeonVar_list[0])
+    let scanMode: AndroidScanMode? = nilOrValue(pigeonVar_list[1])
+    let reportDelayMillis: Int64? = nilOrValue(pigeonVar_list[2])
+
+    return AndroidOptions(
+      requestLocationPermission: requestLocationPermission,
+      scanMode: scanMode,
+      reportDelayMillis: reportDelayMillis
+    )
+  }
+  func toList() -> [Any?] {
+    return [
+      requestLocationPermission,
+      scanMode,
+      reportDelayMillis,
+    ]
+  }
+  static func == (lhs: AndroidOptions, rhs: AndroidOptions) -> Bool {
+    return deepEqualsUniversalBle(lhs.toList(), rhs.toList())  }
+  func hash(into hasher: inout Hasher) {
+    deepHashUniversalBle(value: toList(), hasher: &hasher)
+  }
+}
+
 /// Scan Filters
 ///
 /// Generated class from Pigeon that represents data sent in messages.
@@ -455,22 +526,32 @@ private class UniversalBlePigeonCodecReader: FlutterStandardReader {
     case 130:
       let enumResultAsInt: Int? = nilOrValue(self.readValue() as! Int?)
       if let enumResultAsInt = enumResultAsInt {
-        return UniversalBleErrorCode(rawValue: enumResultAsInt)
+        return AndroidScanMode(rawValue: enumResultAsInt)
       }
       return nil
     case 131:
-      return UniversalBleScanResult.fromList(self.readValue() as! [Any?])
+      let enumResultAsInt: Int? = nilOrValue(self.readValue() as! Int?)
+      if let enumResultAsInt = enumResultAsInt {
+        return UniversalBleErrorCode(rawValue: enumResultAsInt)
+      }
+      return nil
     case 132:
-      return UniversalBleService.fromList(self.readValue() as! [Any?])
+      return UniversalBleScanResult.fromList(self.readValue() as! [Any?])
     case 133:
-      return UniversalBleCharacteristic.fromList(self.readValue() as! [Any?])
+      return UniversalBleService.fromList(self.readValue() as! [Any?])
     case 134:
-      return UniversalBleDescriptor.fromList(self.readValue() as! [Any?])
+      return UniversalBleCharacteristic.fromList(self.readValue() as! [Any?])
     case 135:
-      return UniversalScanFilter.fromList(self.readValue() as! [Any?])
+      return UniversalBleDescriptor.fromList(self.readValue() as! [Any?])
     case 136:
-      return UniversalManufacturerDataFilter.fromList(self.readValue() as! [Any?])
+      return UniversalScanConfig.fromList(self.readValue() as! [Any?])
     case 137:
+      return AndroidOptions.fromList(self.readValue() as! [Any?])
+    case 138:
+      return UniversalScanFilter.fromList(self.readValue() as! [Any?])
+    case 139:
+      return UniversalManufacturerDataFilter.fromList(self.readValue() as! [Any?])
+    case 140:
       return UniversalManufacturerData.fromList(self.readValue() as! [Any?])
     default:
       return super.readValue(ofType: type)
@@ -483,29 +564,38 @@ private class UniversalBlePigeonCodecWriter: FlutterStandardWriter {
     if let value = value as? UniversalBleLogLevel {
       super.writeByte(129)
       super.writeValue(value.rawValue)
-    } else if let value = value as? UniversalBleErrorCode {
+    } else if let value = value as? AndroidScanMode {
       super.writeByte(130)
       super.writeValue(value.rawValue)
-    } else if let value = value as? UniversalBleScanResult {
+    } else if let value = value as? UniversalBleErrorCode {
       super.writeByte(131)
-      super.writeValue(value.toList())
-    } else if let value = value as? UniversalBleService {
+      super.writeValue(value.rawValue)
+    } else if let value = value as? UniversalBleScanResult {
       super.writeByte(132)
       super.writeValue(value.toList())
-    } else if let value = value as? UniversalBleCharacteristic {
+    } else if let value = value as? UniversalBleService {
       super.writeByte(133)
       super.writeValue(value.toList())
-    } else if let value = value as? UniversalBleDescriptor {
+    } else if let value = value as? UniversalBleCharacteristic {
       super.writeByte(134)
       super.writeValue(value.toList())
-    } else if let value = value as? UniversalScanFilter {
+    } else if let value = value as? UniversalBleDescriptor {
       super.writeByte(135)
       super.writeValue(value.toList())
-    } else if let value = value as? UniversalManufacturerDataFilter {
+    } else if let value = value as? UniversalScanConfig {
       super.writeByte(136)
       super.writeValue(value.toList())
-    } else if let value = value as? UniversalManufacturerData {
+    } else if let value = value as? AndroidOptions {
       super.writeByte(137)
+      super.writeValue(value.toList())
+    } else if let value = value as? UniversalScanFilter {
+      super.writeByte(138)
+      super.writeValue(value.toList())
+    } else if let value = value as? UniversalManufacturerDataFilter {
+      super.writeByte(139)
+      super.writeValue(value.toList())
+    } else if let value = value as? UniversalManufacturerData {
+      super.writeByte(140)
       super.writeValue(value.toList())
     } else {
       super.writeValue(value)
@@ -537,7 +627,7 @@ protocol UniversalBlePlatformChannel {
   func requestPermissions(withAndroidFineLocation: Bool, completion: @escaping (Result<Void, Error>) -> Void)
   func enableBluetooth(completion: @escaping (Result<Bool, Error>) -> Void)
   func disableBluetooth(completion: @escaping (Result<Bool, Error>) -> Void)
-  func startScan(filter: UniversalScanFilter?) throws
+  func startScan(filter: UniversalScanFilter?, config: UniversalScanConfig?) throws
   func stopScan() throws
   func isScanning() throws -> Bool
   func connect(deviceId: String, autoConnect: Bool?) throws
@@ -644,8 +734,9 @@ class UniversalBlePlatformChannelSetup {
       startScanChannel.setMessageHandler { message, reply in
         let args = message as! [Any?]
         let filterArg: UniversalScanFilter? = nilOrValue(args[0])
+        let configArg: UniversalScanConfig? = nilOrValue(args[1])
         do {
-          try api.startScan(filter: filterArg)
+          try api.startScan(filter: filterArg, config: configArg)
           reply(wrapResult(nil))
         } catch {
           reply(wrapError(error))

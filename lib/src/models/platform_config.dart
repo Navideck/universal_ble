@@ -1,3 +1,5 @@
+import 'package:universal_ble/src/universal_ble_pigeon/universal_ble.g.dart';
+
 /// Platform specific config to scan devices
 class PlatformConfig {
   WebOptions? web;
@@ -21,11 +23,4 @@ class WebOptions {
     this.optionalServices = const [],
     this.optionalManufacturerData = const [],
   });
-}
-
-/// Android options to scan devices
-class AndroidOptions {
-  bool requestLocationPermission;
-
-  AndroidOptions({this.requestLocationPermission = true});
 }

@@ -174,7 +174,7 @@ private:
   std::optional<FlutterError>
   SetLogLevel(const UniversalBleLogLevel &log_level) override;
   std::optional<FlutterError>
-  StartScan(const UniversalScanFilter *filter) override;
+  StartScan(const UniversalScanFilter *filter, const UniversalScanConfig *config) override;
   std::optional<FlutterError> StopScan() override;
   ErrorOr<bool> IsScanning() override;
   std::optional<FlutterError> Connect(const std::string &device_id, const bool *auto_connect) override;

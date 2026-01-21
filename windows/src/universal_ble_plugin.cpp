@@ -134,7 +134,7 @@ void UniversalBlePlugin::RequestPermissions(
 }
 
 std::optional<FlutterError>
-UniversalBlePlugin::StartScan(const UniversalScanFilter *filter) {
+UniversalBlePlugin::StartScan(const UniversalScanFilter *filter, const UniversalScanConfig *config) {
 
   if (!bluetooth_radio_ || bluetooth_radio_.State() != RadioState::On) {
     return create_flutter_error(UniversalBleErrorCode::kBluetoothNotAvailable,

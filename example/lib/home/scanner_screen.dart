@@ -84,7 +84,11 @@ class _ScannerScreenState extends State<ScannerScreen> {
       _isScanning = true;
     });
     try {
-      PlatformConfig? platformConfig;
+      PlatformConfig platformConfig = PlatformConfig(
+        android: AndroidOptions(
+          scanMode: AndroidScanMode.lowLatency,
+        ),
+      );
       if (kIsWeb && _webServicesController.text.isNotEmpty) {
         List<String> webServices = _webServicesController.text
             .split(',')
@@ -96,10 +100,9 @@ class _ScannerScreenState extends State<ScannerScreen> {
             return s.trim();
           }
         }).toList();
-        platformConfig = PlatformConfig(
-          web: WebOptions(optionalServices: webServices),
-        );
+        platformConfig.web = WebOptions(optionalServices: webServices);
       }
+
       await UniversalBle.startScan(
         scanFilter: scanFilter,
         platformConfig: platformConfig,

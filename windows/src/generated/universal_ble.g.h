@@ -66,6 +66,13 @@ enum class UniversalBleLogLevel {
   kVerbose = 5
 };
 
+enum class AndroidScanMode {
+  kBalanced = 0,
+  kLowLatency = 1,
+  kLowPower = 2,
+  kOpportunistic = 3
+};
+
 // Unified error codes for all platforms
 enum class UniversalBleErrorCode {
   kUnknownError = 0,
@@ -275,6 +282,77 @@ class UniversalBleDescriptor {
 };
 
 
+// Scan config
+//
+// Generated class from Pigeon that represents data sent in messages.
+class UniversalScanConfig {
+ public:
+  // Constructs an object setting all non-nullable fields.
+  UniversalScanConfig();
+
+  // Constructs an object setting all fields.
+  explicit UniversalScanConfig(const AndroidOptions* android);
+
+  ~UniversalScanConfig() = default;
+  UniversalScanConfig(const UniversalScanConfig& other);
+  UniversalScanConfig& operator=(const UniversalScanConfig& other);
+  UniversalScanConfig(UniversalScanConfig&& other) = default;
+  UniversalScanConfig& operator=(UniversalScanConfig&& other) noexcept = default;
+  const AndroidOptions* android() const;
+  void set_android(const AndroidOptions* value_arg);
+  void set_android(const AndroidOptions& value_arg);
+
+ private:
+  static UniversalScanConfig FromEncodableList(const flutter::EncodableList& list);
+  flutter::EncodableList ToEncodableList() const;
+  friend class UniversalBlePlatformChannel;
+  friend class UniversalBleCallbackChannel;
+  friend class PigeonInternalCodecSerializer;
+  std::unique_ptr<AndroidOptions> android_;
+};
+
+
+// Android options to scan devices
+// [requestLocationPermission] is used to request location permission on Android 12+ (API 31+).
+// [scanMode] is used to set the scan mode for the Android device.
+//
+// Generated class from Pigeon that represents data sent in messages.
+class AndroidOptions {
+ public:
+  // Constructs an object setting all non-nullable fields.
+  AndroidOptions();
+
+  // Constructs an object setting all fields.
+  explicit AndroidOptions(
+    const bool* request_location_permission,
+    const AndroidScanMode* scan_mode,
+    const int64_t* report_delay_millis);
+
+  const bool* request_location_permission() const;
+  void set_request_location_permission(const bool* value_arg);
+  void set_request_location_permission(bool value_arg);
+
+  const AndroidScanMode* scan_mode() const;
+  void set_scan_mode(const AndroidScanMode* value_arg);
+  void set_scan_mode(const AndroidScanMode& value_arg);
+
+  const int64_t* report_delay_millis() const;
+  void set_report_delay_millis(const int64_t* value_arg);
+  void set_report_delay_millis(int64_t value_arg);
+
+ private:
+  static AndroidOptions FromEncodableList(const flutter::EncodableList& list);
+  flutter::EncodableList ToEncodableList() const;
+  friend class UniversalScanConfig;
+  friend class UniversalBlePlatformChannel;
+  friend class UniversalBleCallbackChannel;
+  friend class PigeonInternalCodecSerializer;
+  std::optional<bool> request_location_permission_;
+  std::optional<AndroidScanMode> scan_mode_;
+  std::optional<int64_t> report_delay_millis_;
+};
+
+
 // Scan Filters
 //
 // Generated class from Pigeon that represents data sent in messages.
@@ -399,7 +477,9 @@ class UniversalBlePlatformChannel {
     std::function<void(std::optional<FlutterError> reply)> result) = 0;
   virtual void EnableBluetooth(std::function<void(ErrorOr<bool> reply)> result) = 0;
   virtual void DisableBluetooth(std::function<void(ErrorOr<bool> reply)> result) = 0;
-  virtual std::optional<FlutterError> StartScan(const UniversalScanFilter* filter) = 0;
+  virtual std::optional<FlutterError> StartScan(
+    const UniversalScanFilter* filter,
+    const UniversalScanConfig* config) = 0;
   virtual std::optional<FlutterError> StopScan() = 0;
   virtual ErrorOr<bool> IsScanning() = 0;
   virtual std::optional<FlutterError> Connect(

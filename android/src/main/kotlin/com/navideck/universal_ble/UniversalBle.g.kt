@@ -96,6 +96,19 @@ enum class UniversalBleLogLevel(val raw: Int) {
   }
 }
 
+enum class AndroidScanMode(val raw: Int) {
+  BALANCED(0),
+  LOW_LATENCY(1),
+  LOW_POWER(2),
+  OPPORTUNISTIC(3);
+
+  companion object {
+    fun ofRaw(raw: Int): AndroidScanMode? {
+      return values().firstOrNull { it.raw == raw }
+    }
+  }
+}
+
 /** Unified error codes for all platforms */
 enum class UniversalBleErrorCode(val raw: Int) {
   UNKNOWN_ERROR(0),
@@ -310,6 +323,78 @@ data class UniversalBleDescriptor (
 }
 
 /**
+ * Scan config
+ *
+ * Generated class from Pigeon that represents data sent in messages.
+ */
+data class UniversalScanConfig (
+  val android: AndroidOptions? = null
+)
+ {
+  companion object {
+    fun fromList(pigeonVar_list: List<Any?>): UniversalScanConfig {
+      val android = pigeonVar_list[0] as AndroidOptions?
+      return UniversalScanConfig(android)
+    }
+  }
+  fun toList(): List<Any?> {
+    return listOf(
+      android,
+    )
+  }
+  override fun equals(other: Any?): Boolean {
+    if (other !is UniversalScanConfig) {
+      return false
+    }
+    if (this === other) {
+      return true
+    }
+    return UniversalBlePigeonUtils.deepEquals(toList(), other.toList())  }
+
+  override fun hashCode(): Int = toList().hashCode()
+}
+
+/**
+ * Android options to scan devices
+ * [requestLocationPermission] is used to request location permission on Android 12+ (API 31+).
+ * [scanMode] is used to set the scan mode for the Android device.
+ *
+ * Generated class from Pigeon that represents data sent in messages.
+ */
+data class AndroidOptions (
+  val requestLocationPermission: Boolean? = null,
+  val scanMode: AndroidScanMode? = null,
+  val reportDelayMillis: Long? = null
+)
+ {
+  companion object {
+    fun fromList(pigeonVar_list: List<Any?>): AndroidOptions {
+      val requestLocationPermission = pigeonVar_list[0] as Boolean?
+      val scanMode = pigeonVar_list[1] as AndroidScanMode?
+      val reportDelayMillis = pigeonVar_list[2] as Long?
+      return AndroidOptions(requestLocationPermission, scanMode, reportDelayMillis)
+    }
+  }
+  fun toList(): List<Any?> {
+    return listOf(
+      requestLocationPermission,
+      scanMode,
+      reportDelayMillis,
+    )
+  }
+  override fun equals(other: Any?): Boolean {
+    if (other !is AndroidOptions) {
+      return false
+    }
+    if (this === other) {
+      return true
+    }
+    return UniversalBlePigeonUtils.deepEquals(toList(), other.toList())  }
+
+  override fun hashCode(): Int = toList().hashCode()
+}
+
+/**
  * Scan Filters
  *
  * Generated class from Pigeon that represents data sent in messages.
@@ -421,40 +506,55 @@ private open class UniversalBlePigeonCodec : StandardMessageCodec() {
       }
       130.toByte() -> {
         return (readValue(buffer) as Long?)?.let {
-          UniversalBleErrorCode.ofRaw(it.toInt())
+          AndroidScanMode.ofRaw(it.toInt())
         }
       }
       131.toByte() -> {
-        return (readValue(buffer) as? List<Any?>)?.let {
-          UniversalBleScanResult.fromList(it)
+        return (readValue(buffer) as Long?)?.let {
+          UniversalBleErrorCode.ofRaw(it.toInt())
         }
       }
       132.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          UniversalBleService.fromList(it)
+          UniversalBleScanResult.fromList(it)
         }
       }
       133.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          UniversalBleCharacteristic.fromList(it)
+          UniversalBleService.fromList(it)
         }
       }
       134.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          UniversalBleDescriptor.fromList(it)
+          UniversalBleCharacteristic.fromList(it)
         }
       }
       135.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          UniversalScanFilter.fromList(it)
+          UniversalBleDescriptor.fromList(it)
         }
       }
       136.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          UniversalManufacturerDataFilter.fromList(it)
+          UniversalScanConfig.fromList(it)
         }
       }
       137.toByte() -> {
+        return (readValue(buffer) as? List<Any?>)?.let {
+          AndroidOptions.fromList(it)
+        }
+      }
+      138.toByte() -> {
+        return (readValue(buffer) as? List<Any?>)?.let {
+          UniversalScanFilter.fromList(it)
+        }
+      }
+      139.toByte() -> {
+        return (readValue(buffer) as? List<Any?>)?.let {
+          UniversalManufacturerDataFilter.fromList(it)
+        }
+      }
+      140.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
           UniversalManufacturerData.fromList(it)
         }
@@ -468,36 +568,48 @@ private open class UniversalBlePigeonCodec : StandardMessageCodec() {
         stream.write(129)
         writeValue(stream, value.raw.toLong())
       }
-      is UniversalBleErrorCode -> {
+      is AndroidScanMode -> {
         stream.write(130)
         writeValue(stream, value.raw.toLong())
       }
-      is UniversalBleScanResult -> {
+      is UniversalBleErrorCode -> {
         stream.write(131)
-        writeValue(stream, value.toList())
+        writeValue(stream, value.raw.toLong())
       }
-      is UniversalBleService -> {
+      is UniversalBleScanResult -> {
         stream.write(132)
         writeValue(stream, value.toList())
       }
-      is UniversalBleCharacteristic -> {
+      is UniversalBleService -> {
         stream.write(133)
         writeValue(stream, value.toList())
       }
-      is UniversalBleDescriptor -> {
+      is UniversalBleCharacteristic -> {
         stream.write(134)
         writeValue(stream, value.toList())
       }
-      is UniversalScanFilter -> {
+      is UniversalBleDescriptor -> {
         stream.write(135)
         writeValue(stream, value.toList())
       }
-      is UniversalManufacturerDataFilter -> {
+      is UniversalScanConfig -> {
         stream.write(136)
         writeValue(stream, value.toList())
       }
-      is UniversalManufacturerData -> {
+      is AndroidOptions -> {
         stream.write(137)
+        writeValue(stream, value.toList())
+      }
+      is UniversalScanFilter -> {
+        stream.write(138)
+        writeValue(stream, value.toList())
+      }
+      is UniversalManufacturerDataFilter -> {
+        stream.write(139)
+        writeValue(stream, value.toList())
+      }
+      is UniversalManufacturerData -> {
+        stream.write(140)
         writeValue(stream, value.toList())
       }
       else -> super.writeValue(stream, value)
@@ -517,7 +629,7 @@ interface UniversalBlePlatformChannel {
   fun requestPermissions(withAndroidFineLocation: Boolean, callback: (Result<Unit>) -> Unit)
   fun enableBluetooth(callback: (Result<Boolean>) -> Unit)
   fun disableBluetooth(callback: (Result<Boolean>) -> Unit)
-  fun startScan(filter: UniversalScanFilter?)
+  fun startScan(filter: UniversalScanFilter?, config: UniversalScanConfig?)
   fun stopScan()
   fun isScanning(): Boolean
   fun connect(deviceId: String, autoConnect: Boolean?)
@@ -640,8 +752,9 @@ interface UniversalBlePlatformChannel {
           channel.setMessageHandler { message, reply ->
             val args = message as List<Any?>
             val filterArg = args[0] as UniversalScanFilter?
+            val configArg = args[1] as UniversalScanConfig?
             val wrapped: List<Any?> = try {
-              api.startScan(filterArg)
+              api.startScan(filterArg, configArg)
               listOf(null)
             } catch (exception: Throwable) {
               UniversalBlePigeonUtils.wrapError(exception)
