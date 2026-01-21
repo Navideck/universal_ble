@@ -1,4 +1,3 @@
-import 'package:expandable/expandable.dart';
 import 'package:flutter/material.dart';
 import 'package:universal_ble/universal_ble.dart';
 import 'package:universal_ble_example/data/utils.dart';
@@ -33,7 +32,7 @@ class ServicesListWidget extends StatefulWidget {
 }
 
 class ServicesListWidgetState extends State<ServicesListWidget> {
-  final Map<String, ExpandableController> _expandableControllers = {};
+  final Map<String, ExpansibleController> _expandableControllers = {};
   ScrollController? _scrollController;
   final Map<String, GlobalKey> _characteristicKeys = {};
 
@@ -92,14 +91,14 @@ class ServicesListWidgetState extends State<ServicesListWidget> {
     // Create controllers for each service
     final sortedServices = _getSortedServices();
     for (var service in sortedServices) {
-      final controller = ExpandableController();
+      final controller = ExpansibleController();
       // Expand if this service contains the selected characteristic
       if (widget.selectedCharacteristic != null) {
         final hasSelectedChar = service.characteristics.any(
           (char) => char.uuid == widget.selectedCharacteristic!.uuid,
         );
         if (hasSelectedChar) {
-          controller.expanded = true;
+          controller.expand();
         }
       }
       _expandableControllers[service.uuid] = controller;
@@ -186,10 +185,11 @@ class ServicesListWidgetState extends State<ServicesListWidget> {
       itemCount: sortedServices.length,
       itemBuilder: (BuildContext context, int index) {
         final service = sortedServices[index];
-        final isFavorite = widget.favoriteServices?.contains(service.uuid) ?? false;
+        final isFavorite =
+            widget.favoriteServices?.contains(service.uuid) ?? false;
         final isSelected = widget.selectedService?.uuid == service.uuid;
-        final controller = _expandableControllers[service.uuid] ??
-            ExpandableController();
+        final controller =
+            _expandableControllers[service.uuid] ?? ExpansibleController();
         return Padding(
           padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
           child: Card(
@@ -200,18 +200,21 @@ class ServicesListWidgetState extends State<ServicesListWidget> {
                   ? BorderSide(color: selectedColor, width: 2)
                   : BorderSide.none,
             ),
-            child: ExpandablePanel(
-              controller: controller,
-              header: Padding(
-                padding: const EdgeInsets.all(12.0),
-                child: Row(
+            child: Theme(
+              data: Theme.of(context).copyWith(
+                splashFactory: NoSplash.splashFactory,
+                highlightColor: Colors.transparent,
+                hoverColor: Colors.transparent,
+                dividerColor: Colors.transparent,
+              ),
+              child: ExpansionTile(
+                controller: controller,
+                tilePadding:
+                    const EdgeInsets.symmetric(horizontal: 12.0, vertical: 0),
+                shape: const Border(),
+                collapsedShape: const Border(),
+                title: Row(
                   children: [
-                    Icon(
-                      Icons.arrow_forward_ios,
-                      size: 14,
-                      color: colorScheme.onSurface.withValues(alpha: 0.6),
-                    ),
-                    const SizedBox(width: 8),
                     Expanded(
                       child: Text(
                         service.uuid,
@@ -240,37 +243,40 @@ class ServicesListWidgetState extends State<ServicesListWidget> {
                           minWidth: 32,
                           minHeight: 32,
                         ),
+                        splashColor: Colors.transparent,
+                        highlightColor: Colors.transparent,
+                        hoverColor: Colors.transparent,
                       ),
                     ],
                   ],
                 ),
-              ),
-              collapsed: const SizedBox(),
-              expanded: Padding(
-                padding: const EdgeInsets.only(bottom: 8.0),
-                child: Column(
-                  children: service.characteristics
-                      .where((e) {
-                        // Filter by properties if filters are selected
-                        if (widget.propertyFilters != null &&
-                            widget.propertyFilters!.isNotEmpty) {
-                          return e.properties.any(
-                              (prop) => widget.propertyFilters!.contains(prop));
-                        }
-                        return true;
-                      })
-                      .map((e) {
-                    final isCharSelected =
-                        widget.selectedCharacteristic?.uuid == e.uuid;
-                    final isSubscribed =
-                        widget.subscribedCharacteristics?[e.uuid] ?? false;
-                    final charKey = _characteristicKeys['${service.uuid}_${e.uuid}'];
-                    return Padding(
-                      key: charKey,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8.0,
-                        vertical: 4.0,
-                      ),
+                childrenPadding: const EdgeInsets.only(bottom: 8.0),
+                children: service.characteristics.where((e) {
+                  // Filter by properties if filters are selected
+                  if (widget.propertyFilters != null &&
+                      widget.propertyFilters!.isNotEmpty) {
+                    return e.properties
+                        .any((prop) => widget.propertyFilters!.contains(prop));
+                  }
+                  return true;
+                }).map((e) {
+                  final isCharSelected =
+                      widget.selectedCharacteristic?.uuid == e.uuid;
+                  final isSubscribed =
+                      widget.subscribedCharacteristics?[e.uuid] ?? false;
+                  final charKey =
+                      _characteristicKeys['${service.uuid}_${e.uuid}'];
+                  return Padding(
+                    key: charKey,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8.0,
+                      vertical: 4.0,
+                    ),
+                    child: GestureDetector(
+                      onTap: () {
+                        widget.onTap?.call(service, e);
+                      },
+                      behavior: HitTestBehavior.opaque,
                       child: Container(
                         decoration: BoxDecoration(
                           color: isCharSelected
@@ -282,86 +288,79 @@ class ServicesListWidgetState extends State<ServicesListWidget> {
                               ? Border.all(color: selectedColor, width: 1.5)
                               : null,
                         ),
-                        child: InkWell(
-                          onTap: () {
-                            widget.onTap?.call(service, e);
-                          },
-                          borderRadius: BorderRadius.circular(8),
-                          child: Padding(
-                            padding: const EdgeInsets.all(12.0),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Row(
-                                  children: [
+                        child: Padding(
+                          padding: const EdgeInsets.all(12.0),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Icon(
+                                    Icons.arrow_right_outlined,
+                                    size: 16,
+                                    color: isCharSelected
+                                        ? selectedColor
+                                        : colorScheme.onSurface
+                                            .withValues(alpha: 0.6),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  if (isSubscribed) ...[
                                     Icon(
-                                      Icons.arrow_right_outlined,
+                                      Icons.notifications_active,
+                                      color: subscribedNotificationIconColor,
                                       size: 16,
-                                      color: isCharSelected
-                                          ? selectedColor
-                                          : colorScheme.onSurface
-                                              .withValues(alpha: 0.6),
                                     ),
-                                    const SizedBox(width: 8),
-                                    if (isSubscribed) ...[
-                                      Icon(
-                                        Icons.notifications_active,
-                                        color: subscribedNotificationIconColor,
-                                        size: 16,
-                                      ),
-                                      const SizedBox(width: 4),
-                                    ],
-                                    Expanded(
-                                      child: Text(
-                                        e.uuid,
-                                        style: TextStyle(
-                                          fontSize: 12,
-                                          fontFamily: 'monospace',
-                                          fontWeight: isCharSelected
-                                              ? FontWeight.bold
-                                              : FontWeight.w500,
-                                          color: isCharSelected
-                                              ? selectedColor
-                                              : colorScheme.onSurface,
-                                        ),
-                                      ),
-                                    ),
+                                    const SizedBox(width: 4),
                                   ],
-                                ),
-                                const SizedBox(height: 8),
-                                Wrap(
-                                  spacing: 6,
-                                  runSpacing: 6,
-                                  children: e.properties.map((prop) {
-                                    return Container(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 6,
-                                        vertical: 2,
+                                  Expanded(
+                                    child: Text(
+                                      e.uuid,
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        fontFamily: 'monospace',
+                                        fontWeight: isCharSelected
+                                            ? FontWeight.bold
+                                            : FontWeight.w500,
+                                        color: isCharSelected
+                                            ? selectedColor
+                                            : colorScheme.onSurface,
                                       ),
-                                      decoration: BoxDecoration(
-                                        color: colorScheme.secondaryContainer,
-                                        borderRadius: BorderRadius.circular(4),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 8),
+                              Wrap(
+                                spacing: 6,
+                                runSpacing: 6,
+                                children: e.properties.map((prop) {
+                                  return Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 6,
+                                      vertical: 2,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: colorScheme.secondaryContainer,
+                                      borderRadius: BorderRadius.circular(4),
+                                    ),
+                                    child: Text(
+                                      prop.name,
+                                      style: TextStyle(
+                                        fontSize: 10,
+                                        color: colorScheme.onSecondaryContainer,
+                                        fontWeight: FontWeight.w600,
                                       ),
-                                      child: Text(
-                                        prop.name,
-                                        style: TextStyle(
-                                          fontSize: 10,
-                                          color:
-                                              colorScheme.onSecondaryContainer,
-                                          fontWeight: FontWeight.w600,
-                                        ),
-                                      ),
-                                    );
-                                  }).toList(),
-                                ),
-                              ],
-                            ),
+                                    ),
+                                  );
+                                }).toList(),
+                              ),
+                            ],
                           ),
                         ),
                       ),
-                    );
-                  }).toList(),
-                ),
+                    ),
+                  );
+                }).toList(),
               ),
             ),
           ),
