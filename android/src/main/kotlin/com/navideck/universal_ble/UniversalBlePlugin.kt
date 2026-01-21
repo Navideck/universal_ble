@@ -171,6 +171,9 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
             builder.setPhy(ScanSettings.PHY_LE_ALL_SUPPORTED)
             builder.setLegacy(false)
         }
+        // Use low latency for scanning
+        builder.setScanMode(ScanSettings.SCAN_MODE_LOW_LATENCY)
+
         val settings = builder.build()
 
         val usesCustomFilters = filter?.usesCustomFilters() ?: false
@@ -846,7 +849,7 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
                         manufacturerDataList = null,
                         serviceData = null,
                         rssi = null,
-                        timestamp = System.currentTimeMillis()
+                        timestamp = null
                     )
                 }
             )
@@ -1121,7 +1124,7 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
                         serviceData = serviceData,
                         rssi = result.rssi.toLong(),
                         services = serviceUuids.map { it.toString() }.toList(),
-                        timestamp = System.currentTimeMillis()
+                        timestamp = result.timestampNanos
                     )
                 ) {}
             }
@@ -1186,7 +1189,7 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
                 deviceIdArg = gatt.device.address,
                 characteristicIdArg = characteristic.uuid.toString(),
                 valueArg = value,
-                timestampArg = System.currentTimeMillis()
+                timestampArg = null
             ) {}
         }
     }
