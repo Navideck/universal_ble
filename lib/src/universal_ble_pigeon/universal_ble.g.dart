@@ -342,6 +342,12 @@ class UniversalBleDescriptor {
   int get hashCode => Object.hashAll(_toList());
 }
 
+/// Android options to scan devices
+/// [requestLocationPermission] is used to request location permission on Android 12+ (API 31+).
+/// [scanMode] is used to set the scan mode for the Android device.
+/// [reportDelayMillis] is used to set the report delay for the Android device. in milliseconds
+/// Set to 0 to be notified of results immediately. Values > 0 causes the scan results to be queued up
+/// and delivered after the requested delay or when the internal buffers fill up
 class AndroidOptions {
   AndroidOptions({
     this.requestLocationPermission,
