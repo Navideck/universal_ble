@@ -49,6 +49,7 @@ class UniversalBlePigeonChannel extends UniversalBlePlatform {
     await _executeWithErrorHandling(
       () => _channel.startScan(
         scanFilter.toUniversalScanFilter(),
+        platformConfig?.toUniversalScanConfig(),
       ),
     );
   }
@@ -69,8 +70,10 @@ class UniversalBlePigeonChannel extends UniversalBlePlatform {
   }
 
   @override
-  Future<void> connect(String deviceId, {Duration? connectionTimeout, bool autoConnect = false}) =>
-      _executeWithErrorHandling(() => _channel.connect(deviceId, autoConnect: autoConnect));
+  Future<void> connect(String deviceId,
+          {Duration? connectionTimeout, bool autoConnect = false}) =>
+      _executeWithErrorHandling(
+          () => _channel.connect(deviceId, autoConnect: autoConnect));
 
   @override
   Future<void> disconnect(String deviceId) =>
@@ -328,4 +331,12 @@ extension _BleLogLevelExtension on BleLogLevel {
         BleLogLevel.debug => UniversalBleLogLevel.debug,
         BleLogLevel.verbose => UniversalBleLogLevel.verbose,
       };
+}
+
+extension _PlatformConfigExtension on PlatformConfig? {
+  UniversalScanConfig? toUniversalScanConfig() {
+    return UniversalScanConfig(
+      android: this?.android,
+    );
+  }
 }

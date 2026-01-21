@@ -1,4 +1,8 @@
+import 'package:universal_ble/src/universal_ble_pigeon/universal_ble.g.dart';
+
 /// Platform specific config to scan devices
+/// 
+/// If more than 1 platform supports a certain parameter then it should be in the high level APIs instead of platform specific options.
 class PlatformConfig {
   WebOptions? web;
   AndroidOptions? android;
@@ -21,11 +25,4 @@ class WebOptions {
     this.optionalServices = const [],
     this.optionalManufacturerData = const [],
   });
-}
-
-/// Android options to scan devices
-class AndroidOptions {
-  bool requestLocationPermission;
-
-  AndroidOptions({this.requestLocationPermission = true});
 }

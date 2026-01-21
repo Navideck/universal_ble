@@ -12,6 +12,8 @@ import android.bluetooth.le.ScanCallback.SCAN_FAILED_INTERNAL_ERROR
 import android.bluetooth.le.ScanCallback.SCAN_FAILED_OUT_OF_HARDWARE_RESOURCES
 import android.bluetooth.le.ScanCallback.SCAN_FAILED_SCANNING_TOO_FREQUENTLY
 import android.bluetooth.le.ScanResult
+import android.bluetooth.le.ScanSettings
+import android.os.Build
 import android.util.Log
 import android.util.SparseArray
 import java.nio.ByteBuffer
@@ -221,6 +223,20 @@ fun gattStatusToUniversalBleErrorCode(code: Int): UniversalBleErrorCode {
         0x10 -> UniversalBleErrorCode.OPERATION_NOT_SUPPORTED
         0x11 -> UniversalBleErrorCode.FAILED
         else -> UniversalBleErrorCode.UNKNOWN_ERROR
+    }
+}
+
+fun AndroidScanMode.parse(): Int? {
+    return when (this) {
+        AndroidScanMode.BALANCED -> ScanSettings.SCAN_MODE_BALANCED
+        AndroidScanMode.LOW_LATENCY -> ScanSettings.SCAN_MODE_LOW_LATENCY
+        AndroidScanMode.LOW_POWER -> ScanSettings.SCAN_MODE_LOW_POWER
+        AndroidScanMode.OPPORTUNISTIC -> if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            ScanSettings.SCAN_MODE_OPPORTUNISTIC
+        } else {
+            UniversalBleLogger.logError("Scan mode OPPORTUNISTIC is not supported on this Android version.")
+            null
+        }
     }
 }
 

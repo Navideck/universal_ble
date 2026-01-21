@@ -35,7 +35,7 @@ abstract class UniversalBlePlatformChannel {
   @async
   bool disableBluetooth();
 
-  void startScan(UniversalScanFilter? filter);
+  void startScan(UniversalScanFilter? filter, UniversalScanConfig? config);
 
   void stopScan();
 
@@ -169,6 +169,37 @@ class UniversalBleCharacteristic {
 class UniversalBleDescriptor {
   String uuid;
   UniversalBleDescriptor(this.uuid);
+}
+
+/// Scan config
+
+enum AndroidScanMode {
+  balanced,
+  lowLatency,
+  lowPower,
+  opportunistic,
+}
+
+/// Android options to scan devices
+/// [requestLocationPermission] is used to request location permission on Android 12+ (API 31+).
+/// [scanMode] is used to set the scan mode for for Bluetooth LE scan.
+/// Set [reportDelayMillis] timestamp for Bluetooth LE scan. If set to 0, you will be notified of scan results immediately.
+/// If > 0, scan results are queued up and delivered after the requested delay or 5000 milliseconds (whichever is higher).
+/// Note scan results may be delivered sooner if the internal buffers fill up.
+class AndroidOptions {
+  bool? requestLocationPermission;
+  AndroidScanMode? scanMode;
+  int? reportDelayMillis;
+  AndroidOptions({
+    this.requestLocationPermission,
+    this.scanMode,
+    this.reportDelayMillis,
+  });
+}
+
+class UniversalScanConfig {
+  AndroidOptions? android;
+  UniversalScanConfig(this.android);
 }
 
 /// Scan Filters

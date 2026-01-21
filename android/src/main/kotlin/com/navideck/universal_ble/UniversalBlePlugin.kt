@@ -160,7 +160,7 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
         bluetoothDisableRequestFuture = callback
     }
 
-    override fun startScan(filter: UniversalScanFilter?) {
+    override fun startScan(filter: UniversalScanFilter?, config: UniversalScanConfig?) {
         if (!isBluetoothAvailable()) throw createFlutterError(
             UniversalBleErrorCode.BLUETOOTH_NOT_ENABLED,
             "Bluetooth not enabled"
@@ -170,6 +170,14 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
         if (Build.VERSION.SDK_INT >= 26) {
             builder.setPhy(ScanSettings.PHY_LE_ALL_SUPPORTED)
             builder.setLegacy(false)
+        }
+        config?.android?.let { androidConfig ->
+            androidConfig.scanMode?.parse()?.let { scanMode ->
+                builder.setScanMode(scanMode)
+            }
+            androidConfig.reportDelayMillis?.let { reportDelay ->
+                builder.setReportDelay(reportDelay)
+            }
         }
         val settings = builder.build()
 
@@ -1151,7 +1159,7 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
         } else if (newState == BluetoothGatt.STATE_DISCONNECTED) {
             val deviceId = gatt.device.address
             val shouldAutoConnect = autoConnectDevices.contains(deviceId)
-            
+
             // Always clean up internal state (futures, etc.)
             cleanUpConnection(deviceId)
             
@@ -1161,7 +1169,7 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
                     deviceId, false, status.parseHciErrorCode()
                 ) {}
             }
-            
+
             if (!shouldAutoConnect) {
                 // Only close GATT resources when autoConnect is disabled
                 gatt.removeCache()

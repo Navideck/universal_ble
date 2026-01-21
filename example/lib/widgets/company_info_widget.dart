@@ -2,23 +2,23 @@ import 'package:flutter/material.dart';
 import 'package:universal_ble_example/data/company_identifier_service.dart';
 
 /// A reusable widget that displays company information for a given company ID.
-/// 
+///
 /// This widget fetches the company name from the CompanyIdentifierService
 /// and displays it in a consistent format. If no company name is found,
 /// the widget returns an empty SizedBox.
 class CompanyInfoWidget extends StatelessWidget {
   /// The company ID to look up
   final int companyId;
-  
+
   /// Optional text style for the "Company:" label
   final TextStyle? labelStyle;
-  
+
   /// Optional text style for the company name
   final TextStyle? nameStyle;
-  
+
   /// Optional padding around the widget
   final EdgeInsets? padding;
-  
+
   /// Optional color scheme. If not provided, will be obtained from Theme
   final ColorScheme? colorScheme;
 
@@ -33,8 +33,9 @@ class CompanyInfoWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final companyName = CompanyIdentifierService.instance.getCompanyName(companyId);
-    
+    final companyName =
+        CompanyIdentifierService.instance.getCompanyName(companyId);
+
     if (companyName == null) {
       return const SizedBox.shrink();
     }

@@ -91,7 +91,7 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
     completion(Result.failure(createFlutterError(code: .notSupported)))
   }
 
-  func startScan(filter: UniversalScanFilter?) throws {
+  func startScan(filter: UniversalScanFilter?, config _: UniversalScanConfig?) throws {
     // If filter has any other filter other than official one
     let usesCustomFilters = filter?.usesCustomFilters ?? false
 

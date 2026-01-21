@@ -1,6 +1,7 @@
 ## 1.2.0
 * Add `autoConnect` parameter to `connect()` method for automatic reconnection support on Android and iOS/macOS
 * Add `serviceData` in `BleDevice`
+* Add `AndroidScanMode` and `reportDelayMillis` to `AndroidOptions` for scanning
 
 ## 1.1.0
 * Add readRssi method

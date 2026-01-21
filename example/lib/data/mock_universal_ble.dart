@@ -52,7 +52,8 @@ class MockUniversalBle extends UniversalBlePlatform {
   }
 
   @override
-  Future<void> connect(String deviceId, {bool autoConnect = false, Duration? connectionTimeout}) async {
+  Future<void> connect(String deviceId,
+      {bool autoConnect = false, Duration? connectionTimeout}) async {
     updateConnection(deviceId, true);
     _connectionStateMap[deviceId] = BleConnectionState.connected;
   }

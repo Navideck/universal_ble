@@ -50,6 +50,14 @@ enum UniversalBleLogLevel {
   verbose,
 }
 
+/// Scan config
+enum AndroidScanMode {
+  balanced,
+  lowLatency,
+  lowPower,
+  opportunistic,
+}
+
 /// Unified error codes for all platforms
 enum UniversalBleErrorCode {
   unknownError,
@@ -334,6 +342,104 @@ class UniversalBleDescriptor {
   int get hashCode => Object.hashAll(_toList());
 }
 
+/// Android options to scan devices
+/// [requestLocationPermission] is used to request location permission on Android 12+ (API 31+).
+/// [scanMode] is used to set the scan mode for for Bluetooth LE scan.
+/// Set [reportDelayMillis] timestamp for Bluetooth LE scan. If set to 0, you will be notified of scan results immediately.
+/// If > 0, scan results are queued up and delivered after the requested delay or 5000 milliseconds (whichever is higher).
+/// Note scan results may be delivered sooner if the internal buffers fill up.
+class AndroidOptions {
+  AndroidOptions({
+    this.requestLocationPermission,
+    this.scanMode,
+    this.reportDelayMillis,
+  });
+
+  bool? requestLocationPermission;
+
+  AndroidScanMode? scanMode;
+
+  int? reportDelayMillis;
+
+  List<Object?> _toList() {
+    return <Object?>[
+      requestLocationPermission,
+      scanMode,
+      reportDelayMillis,
+    ];
+  }
+
+  Object encode() {
+    return _toList();
+  }
+
+  static AndroidOptions decode(Object result) {
+    result as List<Object?>;
+    return AndroidOptions(
+      requestLocationPermission: result[0] as bool?,
+      scanMode: result[1] as AndroidScanMode?,
+      reportDelayMillis: result[2] as int?,
+    );
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  bool operator ==(Object other) {
+    if (other is! AndroidOptions || other.runtimeType != runtimeType) {
+      return false;
+    }
+    if (identical(this, other)) {
+      return true;
+    }
+    return _deepEquals(encode(), other.encode());
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  int get hashCode => Object.hashAll(_toList());
+}
+
+class UniversalScanConfig {
+  UniversalScanConfig({
+    this.android,
+  });
+
+  AndroidOptions? android;
+
+  List<Object?> _toList() {
+    return <Object?>[
+      android,
+    ];
+  }
+
+  Object encode() {
+    return _toList();
+  }
+
+  static UniversalScanConfig decode(Object result) {
+    result as List<Object?>;
+    return UniversalScanConfig(
+      android: result[0] as AndroidOptions?,
+    );
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  bool operator ==(Object other) {
+    if (other is! UniversalScanConfig || other.runtimeType != runtimeType) {
+      return false;
+    }
+    if (identical(this, other)) {
+      return true;
+    }
+    return _deepEquals(encode(), other.encode());
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  int get hashCode => Object.hashAll(_toList());
+}
+
 /// Scan Filters
 class UniversalScanFilter {
   UniversalScanFilter({
@@ -496,29 +602,38 @@ class _PigeonCodec extends StandardMessageCodec {
     } else if (value is UniversalBleLogLevel) {
       buffer.putUint8(129);
       writeValue(buffer, value.index);
-    } else if (value is UniversalBleErrorCode) {
+    } else if (value is AndroidScanMode) {
       buffer.putUint8(130);
       writeValue(buffer, value.index);
-    } else if (value is UniversalBleScanResult) {
+    } else if (value is UniversalBleErrorCode) {
       buffer.putUint8(131);
-      writeValue(buffer, value.encode());
-    } else if (value is UniversalBleService) {
+      writeValue(buffer, value.index);
+    } else if (value is UniversalBleScanResult) {
       buffer.putUint8(132);
       writeValue(buffer, value.encode());
-    } else if (value is UniversalBleCharacteristic) {
+    } else if (value is UniversalBleService) {
       buffer.putUint8(133);
       writeValue(buffer, value.encode());
-    } else if (value is UniversalBleDescriptor) {
+    } else if (value is UniversalBleCharacteristic) {
       buffer.putUint8(134);
       writeValue(buffer, value.encode());
-    } else if (value is UniversalScanFilter) {
+    } else if (value is UniversalBleDescriptor) {
       buffer.putUint8(135);
       writeValue(buffer, value.encode());
-    } else if (value is UniversalManufacturerDataFilter) {
+    } else if (value is AndroidOptions) {
       buffer.putUint8(136);
       writeValue(buffer, value.encode());
-    } else if (value is UniversalManufacturerData) {
+    } else if (value is UniversalScanConfig) {
       buffer.putUint8(137);
+      writeValue(buffer, value.encode());
+    } else if (value is UniversalScanFilter) {
+      buffer.putUint8(138);
+      writeValue(buffer, value.encode());
+    } else if (value is UniversalManufacturerDataFilter) {
+      buffer.putUint8(139);
+      writeValue(buffer, value.encode());
+    } else if (value is UniversalManufacturerData) {
+      buffer.putUint8(140);
       writeValue(buffer, value.encode());
     } else {
       super.writeValue(buffer, value);
@@ -533,20 +648,27 @@ class _PigeonCodec extends StandardMessageCodec {
         return value == null ? null : UniversalBleLogLevel.values[value];
       case 130:
         final value = readValue(buffer) as int?;
-        return value == null ? null : UniversalBleErrorCode.values[value];
+        return value == null ? null : AndroidScanMode.values[value];
       case 131:
-        return UniversalBleScanResult.decode(readValue(buffer)!);
+        final value = readValue(buffer) as int?;
+        return value == null ? null : UniversalBleErrorCode.values[value];
       case 132:
-        return UniversalBleService.decode(readValue(buffer)!);
+        return UniversalBleScanResult.decode(readValue(buffer)!);
       case 133:
-        return UniversalBleCharacteristic.decode(readValue(buffer)!);
+        return UniversalBleService.decode(readValue(buffer)!);
       case 134:
-        return UniversalBleDescriptor.decode(readValue(buffer)!);
+        return UniversalBleCharacteristic.decode(readValue(buffer)!);
       case 135:
-        return UniversalScanFilter.decode(readValue(buffer)!);
+        return UniversalBleDescriptor.decode(readValue(buffer)!);
       case 136:
-        return UniversalManufacturerDataFilter.decode(readValue(buffer)!);
+        return AndroidOptions.decode(readValue(buffer)!);
       case 137:
+        return UniversalScanConfig.decode(readValue(buffer)!);
+      case 138:
+        return UniversalScanFilter.decode(readValue(buffer)!);
+      case 139:
+        return UniversalManufacturerDataFilter.decode(readValue(buffer)!);
+      case 140:
         return UniversalManufacturerData.decode(readValue(buffer)!);
       default:
         return super.readValueOfType(type, buffer);
@@ -707,7 +829,8 @@ class UniversalBlePlatformChannel {
     }
   }
 
-  Future<void> startScan(UniversalScanFilter? filter) async {
+  Future<void> startScan(
+      UniversalScanFilter? filter, UniversalScanConfig? config) async {
     final pigeonVar_channelName =
         'dev.flutter.pigeon.universal_ble.UniversalBlePlatformChannel.startScan$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
@@ -716,7 +839,7 @@ class UniversalBlePlatformChannel {
       binaryMessenger: pigeonVar_binaryMessenger,
     );
     final Future<Object?> pigeonVar_sendFuture =
-        pigeonVar_channel.send(<Object?>[filter]);
+        pigeonVar_channel.send(<Object?>[filter, config]);
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
     if (pigeonVar_replyList == null) {
       throw _createConnectionError(pigeonVar_channelName);
