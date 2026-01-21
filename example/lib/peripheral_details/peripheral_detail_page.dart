@@ -31,6 +31,7 @@ class _PeripheralDetailPageState extends State<PeripheralDetailPage> {
   final List<String> _logs = [];
   final binaryCode = TextEditingController();
   bool _isLoading = false;
+  bool _isDiscoveringServices = false;
   bool _isDeviceInfoExpanded = false;
   bool _isDeviceActionsExpanded = true;
   final Map<String, bool> _subscribedCharacteristics = {};
@@ -128,6 +129,10 @@ class _PeripheralDetailPageState extends State<PeripheralDetailPage> {
     const webWarning =
         "Note: Only services added in ScanFilter or WebOptions will be discovered";
 
+    setState(() {
+      _isDiscoveringServices = true;
+    });
+
     await _executeWithLoading(
       () async {
         var services = await bleDevice.discoverServices(withDescriptors: false);
@@ -156,6 +161,10 @@ class _PeripheralDetailPageState extends State<PeripheralDetailPage> {
         _addLog("DiscoverServicesError", errorMessage.toString());
       },
     );
+
+    setState(() {
+      _isDiscoveringServices = false;
+    });
   }
 
   String _formatReadValue(Uint8List value) {
@@ -175,9 +184,9 @@ class _PeripheralDetailPageState extends State<PeripheralDetailPage> {
         if (stringValue.isNotEmpty &&
             !stringValue.codeUnits.every((code) =>
                 (code >= 32 && code <= 126) ||
-                    code == 9 ||
-                    code == 10 ||
-                    code == 13)) {
+                code == 9 ||
+                code == 10 ||
+                code == 13)) {
           stringValue = '';
         }
       }
@@ -398,8 +407,10 @@ class _PeripheralDetailPageState extends State<PeripheralDetailPage> {
             selectedService: selectedService,
             selectedCharacteristic: selectedCharacteristic,
             initialPropertyFilters: _currentPropertyFilters,
-            serviceListBuilder: (propertyFilters, listKey) =>
-                _buildServicesList(
+            isDiscoveringServices: _isDiscoveringServices,
+            serviceListBuilder:
+                (propertyFilters, listKey, isDiscoveringServices) =>
+                    _buildServicesList(
               onSelect: (service, characteristic) {
                 setState(() {
                   selectedService = service;
@@ -409,6 +420,7 @@ class _PeripheralDetailPageState extends State<PeripheralDetailPage> {
               },
               propertyFilters: propertyFilters,
               listKey: listKey,
+              isDiscoveringServices: isDiscoveringServices,
             ),
             onCharacteristicSelected: (service, characteristic) {
               setState(() {
@@ -573,10 +585,13 @@ class _PeripheralDetailPageState extends State<PeripheralDetailPage> {
                     selectedService: selectedService,
                     selectedCharacteristic: selectedCharacteristic,
                     initialPropertyFilters: _currentPropertyFilters,
-                    serviceListBuilder: (propertyFilters, listKey) =>
-                        _buildServicesList(
+                    isDiscoveringServices: _isDiscoveringServices,
+                    serviceListBuilder:
+                        (propertyFilters, listKey, isDiscoveringServices) =>
+                            _buildServicesList(
                       propertyFilters: propertyFilters,
                       listKey: listKey,
+                      isDiscoveringServices: isDiscoveringServices,
                     ),
                     onCharacteristicSelected: (service, characteristic) {
                       setState(() {
@@ -1628,6 +1643,7 @@ class _PeripheralDetailPageState extends State<PeripheralDetailPage> {
     Function(BleService, BleCharacteristic?)? onSelect,
     Set<CharacteristicProperty>? propertyFilters,
     GlobalKey<ServicesListWidgetState>? listKey,
+    bool isDiscoveringServices = false,
   }) {
     return ServicesListWidget(
       key: listKey,
@@ -1638,6 +1654,7 @@ class _PeripheralDetailPageState extends State<PeripheralDetailPage> {
       subscribedCharacteristics: _subscribedCharacteristics,
       scrollable: true,
       propertyFilters: propertyFilters,
+      isDiscoveringServices: isDiscoveringServices,
       onTap: (service, characteristic) {
         setState(() {
           selectedService = service;

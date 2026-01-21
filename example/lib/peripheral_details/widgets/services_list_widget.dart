@@ -13,6 +13,7 @@ class ServicesListWidget extends StatefulWidget {
   final Map<String, bool>? subscribedCharacteristics;
   final void Function(String serviceUuid)? onFavoriteToggle;
   final Set<CharacteristicProperty>? propertyFilters;
+  final bool isDiscoveringServices;
 
   const ServicesListWidget({
     super.key,
@@ -25,6 +26,7 @@ class ServicesListWidget extends StatefulWidget {
     this.subscribedCharacteristics,
     this.onFavoriteToggle,
     this.propertyFilters,
+    this.isDiscoveringServices = false,
   });
 
   @override
@@ -178,6 +180,86 @@ class ServicesListWidgetState extends State<ServicesListWidget> {
         colorScheme.primaryContainer.withValues(alpha: 0.5);
 
     final sortedServices = _getSortedServices();
+
+    // Show loading indicator when discovering services and list is empty
+    if (widget.isDiscoveringServices && sortedServices.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            CircularProgressIndicator(
+              color: colorScheme.primary,
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'Discovering services...',
+              style: TextStyle(
+                color: colorScheme.onSurface.withValues(alpha: 0.6),
+                fontSize: 14,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    // Show loading overlay when re-discovering services (list has items)
+    if (widget.isDiscoveringServices && sortedServices.isNotEmpty) {
+      return Stack(
+        children: [
+          _buildServicesListView(
+              sortedServices,
+              colorScheme,
+              favoriteStarColor,
+              subscribedNotificationIconColor,
+              selectedColor,
+              selectedCharacteristicBackgroundColor),
+          Positioned.fill(
+            child: Container(
+              color: colorScheme.surface.withValues(alpha: 0.7),
+              child: Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    CircularProgressIndicator(
+                      color: colorScheme.primary,
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      'Discovering services...',
+                      style: TextStyle(
+                        color: colorScheme.onSurface.withValues(alpha: 0.8),
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
+      );
+    }
+
+    // Normal list view when not loading
+    return _buildServicesListView(
+        sortedServices,
+        colorScheme,
+        favoriteStarColor,
+        subscribedNotificationIconColor,
+        selectedColor,
+        selectedCharacteristicBackgroundColor);
+  }
+
+  Widget _buildServicesListView(
+    List<BleService> sortedServices,
+    ColorScheme colorScheme,
+    Color favoriteStarColor,
+    Color subscribedNotificationIconColor,
+    Color selectedColor,
+    Color selectedCharacteristicBackgroundColor,
+  ) {
     return ListView.builder(
       controller: _scrollController,
       shrinkWrap: !widget.scrollable,

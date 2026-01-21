@@ -6,7 +6,8 @@ import 'services_list_widget.dart';
 class ServicesSideWidget extends StatefulWidget {
   final List<BleService> discoveredServices;
   final Function(Set<CharacteristicProperty>? selectedProperties,
-      GlobalKey<ServicesListWidgetState>? listKey) serviceListBuilder;
+      GlobalKey<ServicesListWidgetState>? listKey, bool isDiscoveringServices)
+      serviceListBuilder;
   final VoidCallback? onCopyServices;
   final BleService? selectedService;
   final BleCharacteristic? selectedCharacteristic;
@@ -15,6 +16,7 @@ class ServicesSideWidget extends StatefulWidget {
   final Function(Set<CharacteristicProperty>? propertyFilters)?
       onPropertyFiltersChanged;
   final Set<CharacteristicProperty>? initialPropertyFilters;
+  final bool isDiscoveringServices;
   const ServicesSideWidget({
     super.key,
     required this.discoveredServices,
@@ -25,6 +27,7 @@ class ServicesSideWidget extends StatefulWidget {
     this.onCharacteristicSelected,
     this.onPropertyFiltersChanged,
     this.initialPropertyFilters,
+    this.isDiscoveringServices = false,
   });
 
   @override
@@ -343,26 +346,46 @@ class _ServicesSideWidgetState extends State<ServicesSideWidget> {
           Expanded(
             child: widget.discoveredServices.isEmpty
                 ? Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          Icons.apps_outlined,
-                          size: 48,
-                          color: colorScheme.onSurface.withValues(alpha: 0.3),
-                        ),
-                        const SizedBox(height: 16),
-                        Text(
-                          'No Services Discovered',
-                          style: TextStyle(
-                            color: colorScheme.onSurface.withValues(alpha: 0.6),
+                    child: widget.isDiscoveringServices
+                        ? Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              CircularProgressIndicator(
+                                color: colorScheme.primary,
+                              ),
+                              const SizedBox(height: 16),
+                              Text(
+                                'Discovering services...',
+                                style: TextStyle(
+                                  color: colorScheme.onSurface
+                                      .withValues(alpha: 0.6),
+                                  fontSize: 14,
+                                ),
+                              ),
+                            ],
+                          )
+                        : Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                Icons.apps_outlined,
+                                size: 48,
+                                color: colorScheme.onSurface
+                                    .withValues(alpha: 0.3),
+                              ),
+                              const SizedBox(height: 16),
+                              Text(
+                                'No Services Discovered',
+                                style: TextStyle(
+                                  color: colorScheme.onSurface
+                                      .withValues(alpha: 0.6),
+                                ),
+                              ),
+                            ],
                           ),
-                        ),
-                      ],
-                    ),
                   )
                 : widget.serviceListBuilder(
-                    _selectedProperties, _servicesListKey),
+                    _selectedProperties, _servicesListKey, widget.isDiscoveringServices),
           ),
         ],
       ),
