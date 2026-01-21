@@ -9,7 +9,7 @@ import 'package:url_launcher/url_launcher.dart';
 class AppDrawer extends StatefulWidget {
   final QueueType? queueType;
   final Function(QueueType)? onQueueTypeChanged;
-  
+
   const AppDrawer({
     super.key,
     this.queueType,
@@ -87,7 +87,8 @@ class _AppDrawerState extends State<AppDrawer> {
               ),
               children: [
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                   child: Column(
                     children: [
                       _buildQueueOption(

@@ -66,7 +66,8 @@ class _ScanFilterWidgetState extends State<ScanFilterWidget> {
             .where((s) => s.isNotEmpty)
             .toList();
         for (String manufacturer in manufacturerData) {
-          final companyIdentifier = companyService.parseCompanyIdentifier(manufacturer);
+          final companyIdentifier =
+              companyService.parseCompanyIdentifier(manufacturer);
 
           if (companyIdentifier == null) {
             throw Exception(

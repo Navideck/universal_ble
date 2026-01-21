@@ -19,7 +19,8 @@ extension BleDeviceExtension on BleDevice {
   /// Connects to the device.
   /// [autoConnect] enables automatic reconnection when the device becomes available.
   Future<void> connect({bool autoConnect = false, Duration? timeout}) =>
-      UniversalBle.connect(deviceId, autoConnect: autoConnect, timeout: timeout);
+      UniversalBle.connect(deviceId,
+          autoConnect: autoConnect, timeout: timeout);
 
   /// Disconnects from the device.
   Future<void> disconnect() => UniversalBle.disconnect(deviceId);
