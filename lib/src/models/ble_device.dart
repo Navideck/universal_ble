@@ -14,6 +14,7 @@ class BleDevice {
   List<String> services;
   bool? isSystemDevice;
   List<ManufacturerData> manufacturerDataList;
+  Map<String, Uint8List> serviceData;
 
   @Deprecated("Use `manufacturerDataList` instead")
   Uint8List? get manufacturerData => manufacturerDataList.isEmpty
@@ -52,15 +53,27 @@ class BleDevice {
     this.services = const [],
     this.isSystemDevice,
     this.manufacturerDataList = const [],
+    Map<String, Uint8List> serviceData = const {},
     this.timestamp,
-  }) {
-    rawName = name;
-    this.name = name?.replaceAll(RegExp(r'[^ -~]'), '').trim();
-  }
+  })  : serviceData = _validateServiceData(serviceData),
+        rawName = name,
+        name = name?.replaceAll(RegExp(r'[^ -~]'), '').trim();
 
   DateTime? get timestampDateTime => timestamp != null
       ? DateTime.fromMillisecondsSinceEpoch(timestamp!)
       : null;
+
+  static Map<String, Uint8List> _validateServiceData(
+    Map<String, Uint8List> data,
+  ) {
+    if (data.isEmpty) return const {};
+    return data.map(
+      (key, value) => MapEntry(
+        BleUuidParser.stringOrNull(key) ?? key,
+        Uint8List.fromList(value),
+      ),
+    );
+  }
 
   @override
   String toString() {
@@ -72,6 +85,7 @@ class BleDevice {
         'services: $services, '
         'isSystemDevice: $isSystemDevice, '
         'timestamp: $timestamp, '
-        'manufacturerDataList: $manufacturerDataList';
+        'manufacturerDataList: $manufacturerDataList, '
+        'serviceData: $serviceData';
   }
 }

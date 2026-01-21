@@ -213,6 +213,7 @@ struct UniversalBleScanResult: Hashable {
   var isPaired: Bool? = nil
   var rssi: Int64? = nil
   var manufacturerDataList: [UniversalManufacturerData]? = nil
+  var serviceData: [String: FlutterStandardTypedData]? = nil
   var services: [String]? = nil
   var timestamp: Int64? = nil
 
@@ -224,8 +225,9 @@ struct UniversalBleScanResult: Hashable {
     let isPaired: Bool? = nilOrValue(pigeonVar_list[2])
     let rssi: Int64? = nilOrValue(pigeonVar_list[3])
     let manufacturerDataList: [UniversalManufacturerData]? = nilOrValue(pigeonVar_list[4])
-    let services: [String]? = nilOrValue(pigeonVar_list[5])
-    let timestamp: Int64? = nilOrValue(pigeonVar_list[6])
+    let serviceData: [String: FlutterStandardTypedData]? = nilOrValue(pigeonVar_list[5])
+    let services: [String]? = nilOrValue(pigeonVar_list[6])
+    let timestamp: Int64? = nilOrValue(pigeonVar_list[7])
 
     return UniversalBleScanResult(
       deviceId: deviceId,
@@ -233,6 +235,7 @@ struct UniversalBleScanResult: Hashable {
       isPaired: isPaired,
       rssi: rssi,
       manufacturerDataList: manufacturerDataList,
+      serviceData: serviceData,
       services: services,
       timestamp: timestamp
     )
@@ -244,6 +247,7 @@ struct UniversalBleScanResult: Hashable {
       isPaired,
       rssi,
       manufacturerDataList,
+      serviceData,
       services,
       timestamp,
     ]

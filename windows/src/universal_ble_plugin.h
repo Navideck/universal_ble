@@ -148,6 +148,8 @@ private:
   void DisposeDeviceWatcher();
   void PushUniversalScanResult(UniversalBleScanResult scan_result,
                                bool is_connectable);
+  static std::string ExpandServiceUuid(const std::vector<uint8_t>& uuid_bytes, 
+                                        uint8_t uuid_type);
   void BluetoothLeWatcherReceived(
       const BluetoothLEAdvertisementWatcher &sender,
       const BluetoothLEAdvertisementReceivedEventArgs &args);

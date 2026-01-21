@@ -133,6 +133,11 @@ val ScanResult.manufacturerDataList: List<UniversalManufacturerData>
         } ?: emptyList()
     }
 
+val ScanResult.serviceData: Map<String, ByteArray>
+    get() {
+        return scanRecord?.serviceData?.mapKeys { it.key.uuid.toString() } ?: emptyMap()
+    }
+
 fun <T> SparseArray<T>.toList(): List<Pair<Int, T>> {
     return (0 until size).map { index ->
         keyAt(index) to valueAt(index)

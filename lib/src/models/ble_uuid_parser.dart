@@ -48,6 +48,15 @@ class BleUuidParser {
     return uuid.toLowerCase();
   }
 
+  /// Parse a string to a valid 128-bit UUID or return null if the string is null or invalid.
+  static String? stringOrNull(String uuid) {
+    try {
+      return string(uuid);
+    } catch (e) {
+      return null;
+    }
+  }
+
   /// Parse an int number into a 128-bit UUID string.
   /// e.g. `0x1800` to `00001800-0000-1000-8000-00805f9b34fb`.
   static String number(int short) {

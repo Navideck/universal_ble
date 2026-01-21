@@ -134,7 +134,7 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
     let peripheral = try deviceId.getPeripheral(manager: manager)
     peripheral.delegate = self
     let shouldAutoConnect = autoConnect ?? false
-    
+
     if shouldAutoConnect {
       autoConnectDevices.insert(deviceId)
       if #available(iOS 17.0, macOS 14.0, watchOS 10.0, tvOS 17.0, *) {
@@ -148,9 +148,9 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
         // (e.g., in central manager delegate callbacks).
         UniversalBleLogger.shared.logInfo(
           "autoConnect requested for device \(deviceId), " +
-          "but automatic reconnection via CBConnectPeripheralOptionEnableAutoReconnect " +
-          "is only available on iOS 17+/macOS 14+/watchOS 10+/tvOS 17+. " +
-          "On this OS version, reconnections must be handled manually."
+            "but automatic reconnection via CBConnectPeripheralOptionEnableAutoReconnect " +
+            "is only available on iOS 17+/macOS 14+/watchOS 10+/tvOS 17+. " +
+            "On this OS version, reconnections must be handled manually."
         )
         manager.connect(peripheral)
       }
@@ -410,6 +410,7 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
       return UniversalBleScanResult(
         deviceId: id,
         name: name,
+        serviceData: nil,
         timestamp: Int64(Date().timeIntervalSince1970 * 1000)
       )
     }))
@@ -437,6 +438,7 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
     // Extract manufacturer data and service UUIDs from the advertisement data
     let manufacturerData = advertisementData[CBAdvertisementDataManufacturerDataKey] as? Data
     let services = (advertisementData[CBAdvertisementDataServiceUUIDsKey] as? [CBUUID])
+    let serviceDataDict = advertisementData[CBAdvertisementDataServiceDataKey] as? [CBUUID: Data]
 
     var manufacturerDataList: [UniversalManufacturerData] = []
     var universalManufacturerData: UniversalManufacturerData? = nil
@@ -446,6 +448,13 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
       let data = FlutterStandardTypedData(bytes: msd.suffix(from: 2))
       universalManufacturerData = UniversalManufacturerData(companyIdentifier: Int64(companyIdentifier), data: data)
       manufacturerDataList.append(universalManufacturerData!)
+    }
+
+    var serviceData: [String: FlutterStandardTypedData]? = nil
+    if let serviceDataDict = serviceDataDict {
+      serviceData = Dictionary(uniqueKeysWithValues: serviceDataDict.map { uuid, data in
+        (uuid.uuidStr, FlutterStandardTypedData(bytes: data))
+      })
     }
 
     let advertisedName = advertisementData[CBAdvertisementDataLocalNameKey] as? String
@@ -463,6 +472,7 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
       isPaired: nil,
       rssi: RSSI as? Int64,
       manufacturerDataList: manufacturerDataList,
+      serviceData: serviceData,
       services: services?.map { $0.uuidStr },
       timestamp: Int64(Date().timeIntervalSince1970 * 1000)
     )) { _ in }
@@ -481,18 +491,18 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
   public func centralManager(
     _: CBCentralManager,
     didDisconnectPeripheral peripheral: CBPeripheral,
-    timestamp: CFAbsoluteTime,
+    timestamp _: CFAbsoluteTime,
     isReconnecting: Bool,
     error: Error?
   ) {
     let deviceId = peripheral.uuid.uuidString
-    
+
     if #available(iOS 17.0, macOS 14.0, watchOS 10.0, tvOS 17.0, *) {
       if isReconnecting {
         return
       }
     }
-    
+
     handlePeripheralDisconnection(deviceId: deviceId, error: error)
   }
 
