@@ -775,6 +775,11 @@ class _PeripheralDetailPageState extends State<PeripheralDetailPage> {
                               ),
                               filled: true,
                               fillColor: colorScheme.surfaceContainerHighest,
+                              isDense: true,
+                              contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 12,
+                              ),
                               prefixIcon: Icon(
                                 Icons.code,
                                 color: colorScheme.primary,
