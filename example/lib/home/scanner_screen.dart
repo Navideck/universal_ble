@@ -51,7 +51,17 @@ class _ScannerScreenState extends State<ScannerScreen> {
       (isScanning) => setState(() => _isScanning = isScanning),
     );
 
-    _loadScanFilters();
+    // Get initial Bluetooth availability state
+    UniversalBle.getBluetoothAvailabilityState().then((state) {
+      if (mounted) {
+        setState(() => bleAvailabilityState = state);
+      }
+    });
+
+    _loadScanFilters().then((_) {
+      // Auto-start scanning after filters are loaded
+      _tryAutoStartScan();
+    });
 
     // Load company identifiers in the background
     CompanyIdentifierService.instance.load();
@@ -305,6 +315,17 @@ class _ScannerScreenState extends State<ScannerScreen> {
   bool get _isBluetoothAvailable =>
       bleAvailabilityState == AvailabilityState.poweredOn;
 
+  Future<void> _tryAutoStartScan() async {
+    // Only auto-start if Bluetooth is available and not already scanning
+    if (_isBluetoothAvailable && !_isScanning) {
+      // Check again to make sure we're not already scanning
+      final isScanning = await UniversalBle.isScanning();
+      if (!isScanning && mounted) {
+        await _startScan();
+      }
+    }
+  }
+
   String _getBluetoothAvailabilityTooltip() {
     switch (bleAvailabilityState) {
       case AvailabilityState.poweredOn:
@@ -410,6 +431,10 @@ class _ScannerScreenState extends State<ScannerScreen> {
               triggerMode: TooltipTriggerMode.tap,
               child: BleAvailabilityIcon(onAvailabilityStateChanged: (state) {
                 setState(() => bleAvailabilityState = state);
+                // Auto-start scanning when Bluetooth becomes available
+                if (state == AvailabilityState.poweredOn) {
+                  _tryAutoStartScan();
+                }
               }),
             ),
           ],
