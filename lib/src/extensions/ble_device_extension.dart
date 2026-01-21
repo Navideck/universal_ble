@@ -1,4 +1,3 @@
-import 'package:universal_ble/src/universal_ble_pigeon/universal_ble.g.dart';
 import 'package:universal_ble/src/utils/cache_handler.dart';
 import 'package:universal_ble/universal_ble.dart';
 

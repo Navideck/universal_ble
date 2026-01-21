@@ -4,7 +4,6 @@ import 'dart:collection';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_web_bluetooth/flutter_web_bluetooth.dart';
 import 'package:universal_ble/src/utils/universal_logger.dart';
-import 'package:universal_ble/src/universal_ble_pigeon/universal_ble.g.dart';
 import 'package:universal_ble/universal_ble.dart';
 
 class UniversalBleWeb extends UniversalBlePlatform {
