@@ -383,6 +383,7 @@ struct UniversalScanConfig: Hashable {
 /// Android options to scan devices
 /// [requestLocationPermission] is used to request location permission on Android 12+ (API 31+).
 /// [scanMode] is used to set the scan mode for the Android device.
+/// [reportDelayMillis] is used to set the report delay for the Android device.
 ///
 /// Generated class from Pigeon that represents data sent in messages.
 struct AndroidOptions: Hashable {
