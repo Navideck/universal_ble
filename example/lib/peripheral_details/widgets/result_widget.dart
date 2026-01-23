@@ -5,9 +5,11 @@ class ResultWidget extends StatelessWidget {
   final bool scrollable;
   final ScrollController scrollController;
   final void Function(int? index) onClearTap;
+  final void Function()? onCopyTap;
   const ResultWidget({
     required this.results,
     required this.onClearTap,
+    this.onCopyTap,
     this.scrollable = false,
     required this.scrollController,
     super.key,
@@ -64,6 +66,23 @@ class ResultWidget extends StatelessWidget {
               color: colorScheme.onSurface,
             ),
           ),
+          if (results.isNotEmpty) ...[
+            const SizedBox(width: 8),
+            IconButton(
+              icon: Icon(
+                Icons.copy,
+                color: colorScheme.primary,
+                size: 20,
+              ),
+              onPressed: onCopyTap,
+              tooltip: 'Copy all logs',
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(
+                minWidth: 32,
+                minHeight: 32,
+              ),
+            ),
+          ],
           const Spacer(),
           if (results.isNotEmpty)
             Container(
@@ -88,7 +107,7 @@ class ResultWidget extends StatelessWidget {
             const SizedBox(width: 8),
             IconButton(
               icon: Icon(
-                Icons.clear_all,
+                Icons.close,
                 color: colorScheme.error,
                 size: 20,
               ),
