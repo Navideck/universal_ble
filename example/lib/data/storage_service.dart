@@ -19,4 +19,31 @@ class StorageService {
 
   List<String> getFavoriteServices() =>
       _preferences.getStringList('favorite_services') ?? [];
+
+  // Monitored devices for background scanning
+  static const String _monitoredDevicesKey = 'monitored_devices';
+
+  Future<void> setMonitoredDevices(List<String> deviceIds) async {
+    await _preferences.setStringList(_monitoredDevicesKey, deviceIds);
+  }
+
+  List<String> getMonitoredDevices() =>
+      _preferences.getStringList(_monitoredDevicesKey) ?? [];
+
+  Future<void> addMonitoredDevice(String deviceId) async {
+    final devices = getMonitoredDevices();
+    if (!devices.contains(deviceId)) {
+      devices.add(deviceId);
+      await setMonitoredDevices(devices);
+    }
+  }
+
+  Future<void> removeMonitoredDevice(String deviceId) async {
+    final devices = getMonitoredDevices();
+    devices.remove(deviceId);
+    await setMonitoredDevices(devices);
+  }
+
+  bool isDeviceMonitored(String deviceId) =>
+      getMonitoredDevices().contains(deviceId);
 }

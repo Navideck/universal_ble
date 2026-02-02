@@ -1,30 +1,93 @@
+import 'dart:io';
+
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:universal_ble/universal_ble.dart';
 import 'package:universal_ble_example/data/company_identifier_service.dart';
+import 'package:universal_ble_example/data/storage_service.dart';
 import 'package:universal_ble_example/home/widgets/rssi_signal_indicator.dart';
 import 'package:universal_ble_example/widgets/company_info_widget.dart';
 
-class ScannedItemWidget extends StatelessWidget {
+class ScannedItemWidget extends StatefulWidget {
   final BleDevice bleDevice;
   final VoidCallback? onTap;
   final bool isExpanded;
   final Function(bool) onExpand;
+  final VoidCallback? onMonitorChanged;
+
   const ScannedItemWidget({
     super.key,
     required this.bleDevice,
     this.onTap,
     required this.isExpanded,
     required this.onExpand,
+    this.onMonitorChanged,
   });
+
+  @override
+  State<ScannedItemWidget> createState() => _ScannedItemWidgetState();
+}
+
+class _ScannedItemWidgetState extends State<ScannedItemWidget> {
+  bool get _supportsBackgroundMonitor => !kIsWeb && Platform.isAndroid;
+  bool _isMonitored = false;
+
+  @override
+  void initState() {
+    super.initState();
+    if (_supportsBackgroundMonitor) {
+      _isMonitored =
+          StorageService.instance.isDeviceMonitored(widget.bleDevice.deviceId);
+    }
+  }
+
+  @override
+  void didUpdateWidget(ScannedItemWidget oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (_supportsBackgroundMonitor &&
+        oldWidget.bleDevice.deviceId != widget.bleDevice.deviceId) {
+      _isMonitored =
+          StorageService.instance.isDeviceMonitored(widget.bleDevice.deviceId);
+    }
+  }
+
+  Future<void> _toggleMonitor() async {
+    final deviceId = widget.bleDevice.deviceId;
+    if (_isMonitored) {
+      await StorageService.instance.removeMonitoredDevice(deviceId);
+      setState(() => _isMonitored = false);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Device removed from background monitor'),
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+    } else {
+      await StorageService.instance.addMonitoredDevice(deviceId);
+      setState(() => _isMonitored = true);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Device added to background monitor'),
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+    }
+    widget.onMonitorChanged?.call();
+  }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
 
-    String? name = bleDevice.name;
-    List<ManufacturerData> rawManufacturerData = bleDevice.manufacturerDataList;
+    String? name = widget.bleDevice.name;
+    List<ManufacturerData> rawManufacturerData =
+        widget.bleDevice.manufacturerDataList;
     if (name == null || name.isEmpty) name = 'Unknown Device';
 
     return Card(
@@ -32,9 +95,13 @@ class ScannedItemWidget extends StatelessWidget {
       margin: EdgeInsets.zero,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
+        side: _isMonitored
+            ? BorderSide(color: colorScheme.primary, width: 2)
+            : BorderSide.none,
       ),
       child: InkWell(
-        onTap: onTap,
+        onTap: widget.onTap,
+        onLongPress: _supportsBackgroundMonitor ? _toggleMonitor : null,
         borderRadius: BorderRadius.circular(16),
         child: Padding(
           padding: const EdgeInsets.all(16),
@@ -52,7 +119,8 @@ class ScannedItemWidget extends StatelessWidget {
                           colorScheme.primaryContainer.withValues(alpha: 0.5),
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    child: RssiSignalIndicator(rssi: bleDevice.rssi ?? 0),
+                    child:
+                        RssiSignalIndicator(rssi: widget.bleDevice.rssi ?? 0),
                   ),
                   const SizedBox(width: 16),
                   // Device info
@@ -75,9 +143,32 @@ class ScannedItemWidget extends StatelessWidget {
                               ),
                             ),
                             const SizedBox(width: 8),
+                            // Monitor button (Android only)
+                            if (_supportsBackgroundMonitor)
+                              IconButton(
+                                icon: Icon(
+                                  _isMonitored
+                                      ? Icons.monitor_heart
+                                      : Icons.monitor_heart_outlined,
+                                  color: _isMonitored
+                                      ? colorScheme.primary
+                                      : colorScheme.onSurface
+                                          .withValues(alpha: 0.5),
+                                  size: 20,
+                                ),
+                                onPressed: _toggleMonitor,
+                                tooltip: _isMonitored
+                                    ? 'Remove from monitor'
+                                    : 'Add to monitor',
+                                padding: EdgeInsets.zero,
+                                constraints: const BoxConstraints(
+                                  minWidth: 28,
+                                  minHeight: 28,
+                                ),
+                              ),
                             // Expand/Collapse button
                             if (rawManufacturerData.isNotEmpty ||
-                                bleDevice.services.isNotEmpty)
+                                widget.bleDevice.services.isNotEmpty)
                               Container(
                                 padding: const EdgeInsets.symmetric(
                                   horizontal: 4,
@@ -90,16 +181,17 @@ class ScannedItemWidget extends StatelessWidget {
                                 ),
                                 child: IconButton(
                                   icon: Icon(
-                                    isExpanded
+                                    widget.isExpanded
                                         ? Icons.expand_less
                                         : Icons.expand_more,
                                     color: colorScheme.primary,
                                     size: 18,
                                   ),
                                   onPressed: () {
-                                    onExpand(!isExpanded);
+                                    widget.onExpand(!widget.isExpanded);
                                   },
-                                  tooltip: isExpanded ? 'Collapse' : 'Expand',
+                                  tooltip:
+                                      widget.isExpanded ? 'Collapse' : 'Expand',
                                   padding: EdgeInsets.zero,
                                   constraints: const BoxConstraints(
                                     minWidth: 20,
@@ -121,7 +213,7 @@ class ScannedItemWidget extends StatelessWidget {
                             const SizedBox(width: 4),
                             Expanded(
                               child: Text(
-                                bleDevice.deviceId,
+                                widget.bleDevice.deviceId,
                                 style: TextStyle(
                                   fontSize: 12,
                                   color: colorScheme.onSurface
@@ -145,26 +237,26 @@ class ScannedItemWidget extends StatelessWidget {
                                 vertical: 4,
                               ),
                               decoration: BoxDecoration(
-                                color: bleDevice.paired == true
+                                color: widget.bleDevice.paired == true
                                     ? Colors.green.withValues(alpha: 0.2)
                                     : Colors.orange.withValues(alpha: 0.2),
                                 borderRadius: BorderRadius.circular(8),
                               ),
                               child: Text(
-                                bleDevice.paired == true
+                                widget.bleDevice.paired == true
                                     ? 'Paired'
                                     : 'Unpaired',
                                 style: TextStyle(
                                   fontSize: 10,
                                   fontWeight: FontWeight.w600,
-                                  color: bleDevice.paired == true
+                                  color: widget.bleDevice.paired == true
                                       ? Colors.green.shade700
                                       : Colors.orange.shade700,
                                 ),
                               ),
                             ),
                             // Manufacturer data (only in collapsed mode)
-                            if (!isExpanded) ...[
+                            if (!widget.isExpanded) ...[
                               ...rawManufacturerData.take(2).map((data) {
                                 final companyName = CompanyIdentifierService
                                     .instance
@@ -214,8 +306,10 @@ class ScannedItemWidget extends StatelessWidget {
                               }),
                             ],
                             // Services (only in collapsed mode)
-                            if (!isExpanded) ...[
-                              ...bleDevice.services.take(3).map((service) {
+                            if (!widget.isExpanded) ...[
+                              ...widget.bleDevice.services
+                                  .take(3)
+                                  .map((service) {
                                 return Container(
                                   padding: const EdgeInsets.symmetric(
                                     horizontal: 8,
@@ -237,9 +331,9 @@ class ScannedItemWidget extends StatelessWidget {
                                   ),
                                 );
                               }),
-                              if (bleDevice.services.length > 3)
+                              if (widget.bleDevice.services.length > 3)
                                 Text(
-                                  '+${bleDevice.services.length - 3} more',
+                                  '+${widget.bleDevice.services.length - 3} more',
                                   style: TextStyle(
                                     fontSize: 10,
                                     color: colorScheme.onSurface
@@ -255,7 +349,7 @@ class ScannedItemWidget extends StatelessWidget {
                 ],
               ),
               // Expanded details
-              if (isExpanded) ...[
+              if (widget.isExpanded) ...[
                 const SizedBox(height: 16),
                 const Divider(),
                 const SizedBox(height: 12),
@@ -395,7 +489,7 @@ class ScannedItemWidget extends StatelessWidget {
                   }),
                   const SizedBox(height: 12),
                 ],
-                if (bleDevice.services.isNotEmpty) ...[
+                if (widget.bleDevice.services.isNotEmpty) ...[
                   Text(
                     'Advertised Services',
                     style: TextStyle(
@@ -408,7 +502,7 @@ class ScannedItemWidget extends StatelessWidget {
                   Wrap(
                     spacing: 4,
                     runSpacing: 4,
-                    children: bleDevice.services.map((service) {
+                    children: widget.bleDevice.services.map((service) {
                       return Container(
                         padding: const EdgeInsets.symmetric(
                           horizontal: 8,

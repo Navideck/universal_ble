@@ -1,11 +1,14 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:universal_ble/universal_ble.dart';
+import 'package:universal_ble_example/background/ble_monitor_service.dart';
 import 'package:universal_ble_example/data/company_identifier_service.dart';
 import 'package:universal_ble_example/data/mock_universal_ble.dart';
+import 'package:universal_ble_example/data/storage_service.dart';
 import 'package:universal_ble_example/home/widgets/ble_availability_icon.dart';
 import 'package:universal_ble_example/home/widgets/drawer.dart';
 import 'package:universal_ble_example/home/widgets/scan_filter_widget.dart';
@@ -24,6 +27,7 @@ class _ScannerScreenState extends State<ScannerScreen> {
   final _bleDevices = <BleDevice>[];
   final _hiddenDevices = <BleDevice>[];
   bool _isScanning = false;
+  bool _isMonitorRunning = false;
   QueueType _queueType = QueueType.global;
   TextEditingController servicesFilterController = TextEditingController();
   TextEditingController namePrefixController = TextEditingController();
@@ -35,6 +39,9 @@ class _ScannerScreenState extends State<ScannerScreen> {
   AvailabilityState? bleAvailabilityState;
   ScanFilter? scanFilter;
   final Map<String, bool> _isExpanded = {};
+
+  // Background monitor support (Android only)
+  bool get _supportsBackgroundMonitor => !kIsWeb && Platform.isAndroid;
 
   @override
   void initState() {
@@ -70,6 +77,54 @@ class _ScannerScreenState extends State<ScannerScreen> {
     _searchFilterController.addListener(() {
       _saveScanFilters();
     });
+
+    // Initialize background monitor (Android only)
+    if (_supportsBackgroundMonitor) {
+      _initBackgroundMonitor();
+    }
+  }
+
+  Future<void> _initBackgroundMonitor() async {
+    BleMonitorManager.instance.init();
+    final isRunning = await BleMonitorManager.instance.isRunning();
+    if (mounted) {
+      setState(() => _isMonitorRunning = isRunning);
+    }
+    // Listen for data from background service
+    BleMonitorManager.instance.addDataCallback(_onBackgroundMonitorData);
+  }
+
+  void _onBackgroundMonitorData(Object data) {
+    if (data is Map<String, dynamic>) {
+      final foundDevices = data['foundDevices'] as List<dynamic>?;
+      if (foundDevices != null && mounted) {
+        debugPrint('Background monitor found: ${foundDevices.length} devices');
+      }
+    }
+  }
+
+  Future<void> _toggleBackgroundMonitor() async {
+    final monitoredDevices = StorageService.instance.getMonitoredDevices();
+    if (monitoredDevices.isEmpty) {
+      showSnackbar('No devices to monitor. Long-press a device to add it.');
+      return;
+    }
+
+    if (_isMonitorRunning) {
+      await BleMonitorManager.instance.stop();
+      setState(() => _isMonitorRunning = false);
+      showSnackbar('Background monitor stopped');
+    } else {
+      await BleMonitorManager.instance.start();
+      // Check if service started successfully
+      final isRunning = await BleMonitorManager.instance.isRunning();
+      if (isRunning) {
+        setState(() => _isMonitorRunning = true);
+        showSnackbar('Background monitor started');
+      } else {
+        showSnackbar('Failed to start background monitor');
+      }
+    }
   }
 
   void _handleScanResult(BleDevice result) {
@@ -359,6 +414,11 @@ class _ScannerScreenState extends State<ScannerScreen> {
     _webServicesController.dispose();
 
     _scanSubscription?.cancel();
+
+    // Remove background monitor callback
+    if (_supportsBackgroundMonitor) {
+      BleMonitorManager.instance.removeDataCallback(_onBackgroundMonitorData);
+    }
     super.dispose();
   }
 
@@ -448,6 +508,24 @@ class _ScannerScreenState extends State<ScannerScreen> {
           ),
         ),
         actions: [
+          // Background monitor toggle (Android only)
+          if (_supportsBackgroundMonitor)
+            Tooltip(
+              message: _isMonitorRunning
+                  ? 'Stop background monitor'
+                  : 'Start background monitor',
+              child: IconButton(
+                onPressed: _toggleBackgroundMonitor,
+                icon: Icon(
+                  _isMonitorRunning
+                      ? Icons.monitor_heart
+                      : Icons.monitor_heart_outlined,
+                  color: _isMonitorRunning
+                      ? colorScheme.primary
+                      : colorScheme.onSurface,
+                ),
+              ),
+            ),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
             child: FilledButton.icon(
