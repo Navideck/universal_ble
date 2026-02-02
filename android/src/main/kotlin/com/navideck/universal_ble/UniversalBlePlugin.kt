@@ -1308,21 +1308,21 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
         activity = binding.activity
         binding.addActivityResultListener(this)
         binding.addRequestPermissionsResultListener(this)
-        permissionHandler?.onAttachedToActivity(binding)
+        permissionHandler?.attachActivity(binding.activity)
     }
 
     override fun onDetachedFromActivity() {
         activity = null
-        permissionHandler?.onDetachedFromActivity()
+        permissionHandler?.attachActivity(null)
     }
 
     override fun onDetachedFromActivityForConfigChanges() {
-        permissionHandler?.onDetachedFromActivityForConfigChanges()
+        // Activity will be reattached, keep the reference
     }
 
     override fun onReattachedToActivityForConfigChanges(binding: ActivityPluginBinding) {
         activity = binding.activity
-        permissionHandler?.onReattachedToActivityForConfigChanges(binding)
+        permissionHandler?.attachActivity(binding.activity)
     }
 
     override fun onRequestPermissionsResult(

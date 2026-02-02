@@ -8,8 +8,6 @@ import android.util.Log
 import androidx.core.app.ActivityCompat
 import android.Manifest
 import android.annotation.SuppressLint
-import io.flutter.embedding.engine.plugins.activity.ActivityAware
-import io.flutter.embedding.engine.plugins.activity.ActivityPluginBinding
 
 private const val TAG = "PermissionHandler"
 
@@ -22,8 +20,16 @@ private const val TAG = "PermissionHandler"
 class PermissionHandler(
     private val context: Context,
     private val requestCode: Int,
-) : ActivityAware {
+) {
     private var activity: Activity? = null
+
+    /**
+     * Attaches or detaches an activity to the permission handler.
+     * Call with an Activity when attached, or null when detached.
+     */
+    fun attachActivity(activity: Activity?) {
+        this.activity = activity
+    }
     private var permissionRequestCallback: ((Result<Unit>) -> Unit)? = null
 
     /**
@@ -279,22 +285,5 @@ class PermissionHandler(
             )
         }
         return null
-    }
-
-    // ActivityAware interface implementation
-    override fun onAttachedToActivity(binding: ActivityPluginBinding) {
-        activity = binding.activity
-    }
-
-    override fun onDetachedFromActivity() {
-        activity = null
-    }
-
-    override fun onDetachedFromActivityForConfigChanges() {
-        // Activity will be reattached, so we don't need to clear it here
-    }
-
-    override fun onReattachedToActivityForConfigChanges(binding: ActivityPluginBinding) {
-        activity = binding.activity
     }
 }
