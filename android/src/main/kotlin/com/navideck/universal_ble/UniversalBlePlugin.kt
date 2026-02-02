@@ -68,6 +68,7 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
         callbackChannel = UniversalBleCallbackChannel(flutterPluginBinding.binaryMessenger)
         context = flutterPluginBinding.applicationContext
         mainThreadHandler = Handler(Looper.getMainLooper())
+        permissionHandler = PermissionHandler(context, permissionRequestCode)
         bluetoothManager = context.getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager
         safeScanner = SafeScanner(bluetoothManager)
 
@@ -86,6 +87,7 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
         context.unregisterReceiver(broadcastReceiver)
         callbackChannel = null
         mainThreadHandler = null
+        permissionHandler = null
     }
 
     override fun getBluetoothAvailabilityState(callback: (Result<Long>) -> Unit) {
@@ -1304,20 +1306,23 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
 
     override fun onAttachedToActivity(binding: ActivityPluginBinding) {
         activity = binding.activity
-        permissionHandler = PermissionHandler(context, binding.activity, permissionRequestCode)
         binding.addActivityResultListener(this)
         binding.addRequestPermissionsResultListener(this)
+        permissionHandler?.onAttachedToActivity(binding)
     }
 
     override fun onDetachedFromActivity() {
         activity = null
-        permissionHandler = null
+        permissionHandler?.onDetachedFromActivity()
     }
 
-    override fun onDetachedFromActivityForConfigChanges() {}
+    override fun onDetachedFromActivityForConfigChanges() {
+        permissionHandler?.onDetachedFromActivityForConfigChanges()
+    }
+
     override fun onReattachedToActivityForConfigChanges(binding: ActivityPluginBinding) {
         activity = binding.activity
-        permissionHandler = PermissionHandler(context, binding.activity, permissionRequestCode)
+        permissionHandler?.onReattachedToActivityForConfigChanges(binding)
     }
 
     override fun onRequestPermissionsResult(

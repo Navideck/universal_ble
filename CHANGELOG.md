@@ -2,6 +2,7 @@
 * Add `autoConnect` parameter to `connect()` method for automatic reconnection support on Android and iOS/macOS
 * Add `serviceData` in `BleDevice`
 * Add `AndroidScanMode` and `reportDelayMillis` to `AndroidOptions` for scanning
+* Add support for BLE scanning from background services (ForegroundTask) on Android. `PermissionHandler` is now activity-aware and succeeds silently if permissions are already granted when no activity is available
 
 ## 1.1.0
 * Add readRssi method

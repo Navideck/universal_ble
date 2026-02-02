@@ -209,7 +209,10 @@ class UniversalBlePigeonChannel extends UniversalBlePlatform {
   }
 
   Future<void> _ensureInitialized(PlatformConfig? platformConfig) async {
-    // Check bluetooth availability on Apple and Android
+    // Request permissions on Apple and Android
+    // On Android: If activity is available, requests permissions if needed.
+    //             If activity is not available (e.g., ForegroundTask), succeeds
+    //             if permissions are already granted, fails otherwise.
     if (defaultTargetPlatform == TargetPlatform.android ||
         defaultTargetPlatform == TargetPlatform.iOS ||
         defaultTargetPlatform == TargetPlatform.macOS) {

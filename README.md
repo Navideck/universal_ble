@@ -657,6 +657,23 @@ The `withAndroidFineLocation` parameter in `requestPermissions()` controls locat
   - Location permission is always requested if declared in your manifest (required for BLE scanning)
   - The `withAndroidFineLocation` parameter is ignored
 
+#### Background Scanning (ForegroundTask)
+
+Universal BLE supports BLE scanning from background services (e.g., using `flutter_foreground_task` or similar packages) on Android. When running in a background context without an Activity:
+
+- **If permissions are already granted**: Scanning works normally
+- **If permissions are not granted**: An error is thrown with the message "Permissions not granted and activity is not available to request them"
+
+**Best Practice**: Request permissions while your app is in the foreground before starting any background BLE operations:
+
+```dart
+// Request permissions in foreground (e.g., during app setup)
+await UniversalBle.requestPermissions();
+
+// Later, in your ForegroundTask, scanning will work if permissions were granted
+await UniversalBle.startScan();
+```
+
 ### iOS / macOS
 
 Add `NSBluetoothPeripheralUsageDescription` and `NSBluetoothAlwaysUsageDescription` to Info.plist of your iOS and macOS app.

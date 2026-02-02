@@ -8,6 +8,8 @@ import android.util.Log
 import androidx.core.app.ActivityCompat
 import android.Manifest
 import android.annotation.SuppressLint
+import io.flutter.embedding.engine.plugins.activity.ActivityAware
+import io.flutter.embedding.engine.plugins.activity.ActivityPluginBinding
 
 private const val TAG = "PermissionHandler"
 
@@ -19,9 +21,9 @@ private const val TAG = "PermissionHandler"
  */
 class PermissionHandler(
     private val context: Context,
-    private val activity: Activity,
     private val requestCode: Int,
-) {
+) : ActivityAware {
+    private var activity: Activity? = null
     private var permissionRequestCallback: ((Result<Unit>) -> Unit)? = null
 
     /**
@@ -39,6 +41,10 @@ class PermissionHandler(
     /**
      * Requests the required Bluetooth permissions based on the manifest and Android version.
      *
+     * If activity is not available (e.g., running in a ForegroundTask), this method will
+     * check if all required permissions are already granted and succeed silently if so.
+     * It will only fail if permissions are needed but cannot be requested due to missing activity.
+     *
      * @param callback Called with the result of the permission request
      */
     fun requestPermissions(
@@ -52,12 +58,28 @@ class PermissionHandler(
             return
         }
 
-        // Check which permissions are declared in manifest
+        // Check which permissions need to be requested
         val permissionsToRequest = getRequiredPermissions(withFineLocation)
 
         if (permissionsToRequest.isEmpty()) {
             // All required permissions are already granted
             callback(Result.success(Unit))
+            return
+        }
+
+        // Permissions need to be requested - check if activity is available
+        val currentActivity = activity
+        if (currentActivity == null) {
+            // No activity available and permissions not granted
+            callback(
+                Result.failure(
+                    createFlutterError(
+                        UniversalBleErrorCode.FAILED,
+                        "Permissions not granted and activity is not available to request them. " +
+                        "Please request permissions while the app is in foreground."
+                    )
+                )
+            )
             return
         }
 
@@ -76,7 +98,7 @@ class PermissionHandler(
 
         permissionRequestCallback = callback
         ActivityCompat.requestPermissions(
-            activity,
+            currentActivity,
             permissionsToRequest.toTypedArray(),
             requestCode
         )
@@ -257,5 +279,22 @@ class PermissionHandler(
             )
         }
         return null
+    }
+
+    // ActivityAware interface implementation
+    override fun onAttachedToActivity(binding: ActivityPluginBinding) {
+        activity = binding.activity
+    }
+
+    override fun onDetachedFromActivity() {
+        activity = null
+    }
+
+    override fun onDetachedFromActivityForConfigChanges() {
+        // Activity will be reattached, so we don't need to clear it here
+    }
+
+    override fun onReattachedToActivityForConfigChanges(binding: ActivityPluginBinding) {
+        activity = binding.activity
     }
 }
