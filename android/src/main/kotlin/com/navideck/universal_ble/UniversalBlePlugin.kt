@@ -116,6 +116,7 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
                     )
                 )
             )
+            return
         }
         permissionHandler?.requestPermissions(withAndroidFineLocation, callback)
     }
