@@ -7,6 +7,7 @@ import 'package:flutter/services.dart';
 import 'package:universal_ble/universal_ble.dart';
 import 'package:universal_ble_example/data/storage_service.dart';
 import 'package:universal_ble_example/data/utils.dart';
+import 'package:universal_ble_example/peripheral_details/widgets/result_header_bar.dart';
 import 'package:universal_ble_example/peripheral_details/widgets/result_widget.dart';
 import 'package:universal_ble_example/peripheral_details/widgets/services_list_widget.dart';
 import 'package:universal_ble_example/peripheral_details/widgets/services_side_widget.dart';
@@ -34,11 +35,14 @@ class _PeripheralDetailPageState extends State<PeripheralDetailPage> {
   bool _isDiscoveringServices = false;
   bool _isDeviceInfoExpanded = false;
   bool _isDeviceActionsExpanded = true;
+  bool _isReceivedAdvertisementsExpanded = true;
   final Map<String, bool> _subscribedCharacteristics = {};
   bool _autoConnect = false;
 
   StreamSubscription? connectionStreamSubscription;
   StreamSubscription? pairingStateSubscription;
+  StreamSubscription<BleDevice>? _advertisementSubscription;
+  List<BleDevice> _receivedAdvertisements = [];
   BleService? selectedService;
   BleCharacteristic? selectedCharacteristic;
   final ScrollController _logsScrollController = ScrollController();
@@ -62,6 +66,17 @@ class _PeripheralDetailPageState extends State<PeripheralDetailPage> {
   void initState() {
     super.initState();
 
+    _receivedAdvertisements = [bleDevice];
+    _advertisementSubscription = UniversalBle.scanStream
+        .where((d) => d.deviceId == bleDevice.deviceId)
+        .listen((d) {
+      if (mounted) {
+        setState(() {
+          _receivedAdvertisements.add(d);
+        });
+      }
+    });
+
     connectionStreamSubscription = bleDevice.connectionStream.listen(
       _handleConnectionChange,
     );
@@ -78,10 +93,11 @@ class _PeripheralDetailPageState extends State<PeripheralDetailPage> {
 
   @override
   void dispose() {
-    super.dispose();
+    _advertisementSubscription?.cancel();
     connectionStreamSubscription?.cancel();
     pairingStateSubscription?.cancel();
     UniversalBle.onValueChange = null;
+    super.dispose();
   }
 
   void _addLog(String type, dynamic data) {
@@ -617,6 +633,9 @@ class _PeripheralDetailPageState extends State<PeripheralDetailPage> {
                     children: [
                       // Device info with manufacturer data and advertised services
                       _buildDeviceInfo(),
+
+                      // Received advertisements list
+                      _buildReceivedAdvertisements(),
 
                       // Connect/Disconnect button
                       _buildConnectDisconnectButton(),
@@ -1297,6 +1316,181 @@ class _PeripheralDetailPageState extends State<PeripheralDetailPage> {
           ),
         ),
       ),
+    );
+  }
+
+  String _formatAdTime(DateTime dt) {
+    return '${dt.hour.toString().padLeft(2, '0')}:'
+        '${dt.minute.toString().padLeft(2, '0')}:'
+        '${dt.second.toString().padLeft(2, '0')}';
+  }
+
+  static String _advertisementPayload(BleDevice device) {
+    if (device.manufacturerDataList.isNotEmpty) {
+      return device.manufacturerDataList.first.payloadRadix16;
+    }
+    if (device.serviceData.isNotEmpty) {
+      final entry = device.serviceData.entries.first;
+      return '0x${entry.value.map((b) => b.toRadixString(16).padLeft(2, '0')).join('').toUpperCase()}';
+    }
+    return '—';
+  }
+
+  Future<void> _copyReceivedAdvertisements() async {
+    if (_receivedAdvertisements.isEmpty) return;
+    final lines = _receivedAdvertisements.reversed.map((ad) {
+      final ts = ad.timestampDateTime;
+      final timeStr = ts != null ? _formatAdTime(ts) : '—';
+      final payload = _advertisementPayload(ad);
+      return '$timeStr  RSSI: ${ad.rssi ?? "—"}  $payload';
+    }).toList();
+    await Clipboard.setData(ClipboardData(text: lines.join('\n')));
+    if (mounted) {
+      _showSnackBar('All advertisements copied to clipboard');
+    }
+  }
+
+  Widget _buildReceivedAdvertisements() {
+    final colorScheme = Theme.of(context).colorScheme;
+    return Padding(
+      padding: const EdgeInsets.symmetric(
+        horizontal: 16.0,
+        vertical: 2.0,
+      ),
+      child: Card(
+          elevation: 2,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Theme(
+            data: Theme.of(context).copyWith(
+              dividerColor: Colors.transparent,
+            ),
+            child: ExpansionTile(
+              initiallyExpanded: _isReceivedAdvertisementsExpanded,
+              onExpansionChanged: (expanded) {
+                setState(() {
+                  _isReceivedAdvertisementsExpanded = expanded;
+                });
+              },
+              tilePadding: const EdgeInsets.symmetric(
+                horizontal: 16,
+                vertical: 8,
+              ),
+              childrenPadding: const EdgeInsets.only(
+                left: 16,
+                right: 16,
+                bottom: 16,
+              ),
+              title: ResultHeaderBar(
+                icon: Icons.ad_units_outlined,
+                title: 'Received advertisements',
+                count: _receivedAdvertisements.length,
+                onCopy: _receivedAdvertisements.isEmpty
+                    ? null
+                    : _copyReceivedAdvertisements,
+                copyTooltip: 'Copy all advertisements',
+                onClear: _receivedAdvertisements.isEmpty
+                    ? null
+                    : () {
+                        setState(() {
+                          _receivedAdvertisements.clear();
+                        });
+                      },
+                clearTooltip: 'Clear all advertisements',
+                titleFontSize: 18,
+              ),
+              trailing: Icon(
+                _isReceivedAdvertisementsExpanded
+                    ? Icons.expand_less
+                    : Icons.expand_more,
+              ),
+              children: [
+                _receivedAdvertisements.isEmpty
+                    ? Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        child: Text(
+                          'No advertisements yet',
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: colorScheme.onSurface.withValues(alpha: 0.6),
+                          ),
+                        ),
+                      )
+                    : ConstrainedBox(
+                        constraints: const BoxConstraints(maxHeight: 200),
+                        child: ListView.separated(
+                          shrinkWrap: true,
+                          itemCount: _receivedAdvertisements.length,
+                          separatorBuilder: (_, __) => const SizedBox(height: 6),
+                          itemBuilder: (context, index) {
+                            final ad = _receivedAdvertisements[
+                                _receivedAdvertisements.length - 1 - index];
+                            final ts = ad.timestampDateTime;
+                            final timeStr = ts != null
+                                ? _formatAdTime(ts)
+                                : '—';
+                            final payload = _advertisementPayload(ad);
+                            return Padding(
+                              padding: const EdgeInsets.symmetric(
+                                vertical: 4,
+                                horizontal: 8,
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Row(
+                                    children: [
+                                      Icon(
+                                        Icons.schedule,
+                                        size: 14,
+                                        color: colorScheme.onSurface
+                                            .withValues(alpha: 0.6),
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Text(
+                                        timeStr,
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          fontFamily: 'monospace',
+                                          color: colorScheme.onSurface
+                                              .withValues(alpha: 0.8),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 12),
+                                      Text(
+                                        'RSSI: ${ad.rssi ?? "—"}',
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          color: colorScheme.onSurface
+                                              .withValues(alpha: 0.8),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    payload,
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      fontFamily: 'monospace',
+                                      color: colorScheme.onSurface
+                                          .withValues(alpha: 0.7),
+                                    ),
+                                    overflow: TextOverflow.ellipsis,
+                                    maxLines: 2,
+                                  ),
+                                ],
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+              ],
+            ),
+          ),
+        ),
     );
   }
 

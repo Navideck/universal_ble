@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import 'package:universal_ble_example/peripheral_details/widgets/result_header_bar.dart';
+
 class ResultWidget extends StatelessWidget {
   final List<String> results;
   final bool scrollable;
@@ -50,77 +52,14 @@ class ResultWidget extends StatelessWidget {
           topRight: Radius.circular(12),
         ),
       ),
-      child: Row(
-        children: [
-          Icon(
-            Icons.history,
-            color: colorScheme.primary,
-            size: 20,
-          ),
-          const SizedBox(width: 8),
-          Text(
-            'Logs',
-            style: TextStyle(
-              fontWeight: FontWeight.bold,
-              fontSize: 16,
-              color: colorScheme.onSurface,
-            ),
-          ),
-          if (results.isNotEmpty) ...[
-            const SizedBox(width: 8),
-            IconButton(
-              icon: Icon(
-                Icons.copy,
-                color: colorScheme.primary,
-                size: 20,
-              ),
-              onPressed: onCopyTap,
-              tooltip: 'Copy all logs',
-              padding: EdgeInsets.zero,
-              constraints: const BoxConstraints(
-                minWidth: 32,
-                minHeight: 32,
-              ),
-            ),
-          ],
-          const Spacer(),
-          if (results.isNotEmpty)
-            Container(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 8,
-                vertical: 4,
-              ),
-              decoration: BoxDecoration(
-                color: colorScheme.primaryContainer,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Text(
-                '${results.length}',
-                style: TextStyle(
-                  color: colorScheme.onPrimaryContainer,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
-          if (results.isNotEmpty) ...[
-            const SizedBox(width: 8),
-            IconButton(
-              icon: Icon(
-                Icons.close,
-                color: colorScheme.error,
-                size: 20,
-              ),
-              onPressed: () => onClearTap(null),
-              tooltip: 'Clear all logs',
-              padding: EdgeInsets.zero,
-              constraints: const BoxConstraints(
-                minWidth: 32,
-                minHeight: 32,
-              ),
-            ),
-          ],
-        ],
+      child: ResultHeaderBar(
+        icon: Icons.history,
+        title: 'Logs',
+        count: results.length,
+        onCopy: onCopyTap,
+        copyTooltip: 'Copy all logs',
+        onClear: () => onClearTap(null),
+        clearTooltip: 'Clear all logs',
       ),
     );
   }

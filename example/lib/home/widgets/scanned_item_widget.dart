@@ -4,19 +4,41 @@ import 'package:universal_ble/universal_ble.dart';
 import 'package:universal_ble_example/data/company_identifier_service.dart';
 import 'package:universal_ble_example/home/widgets/rssi_signal_indicator.dart';
 import 'package:universal_ble_example/widgets/company_info_widget.dart';
+import 'package:universal_ble_example/widgets/flash_on_update_widget.dart';
 
 class ScannedItemWidget extends StatelessWidget {
   final BleDevice bleDevice;
+  final int adFlashTrigger;
   final VoidCallback? onTap;
   final bool isExpanded;
   final Function(bool) onExpand;
   const ScannedItemWidget({
     super.key,
     required this.bleDevice,
+    this.adFlashTrigger = 0,
     this.onTap,
     required this.isExpanded,
     required this.onExpand,
   });
+
+  static String _formatAdTime(DateTime dt) {
+    return '${dt.hour.toString().padLeft(2, '0')}:'
+        '${dt.minute.toString().padLeft(2, '0')}:'
+        '${dt.second.toString().padLeft(2, '0')}';
+  }
+
+  static String _advertisementPayload(BleDevice device) {
+    if (device.manufacturerDataList.isNotEmpty) {
+      final hex = device.manufacturerDataList.first.payloadRadix16;
+      return hex.length > 24 ? '${hex.substring(0, 24)}…' : hex;
+    }
+    if (device.serviceData.isNotEmpty) {
+      final entry = device.serviceData.entries.first;
+      final hex = '0x${entry.value.map((b) => b.toRadixString(16).padLeft(2, '0')).join('').toUpperCase()}';
+      return hex.length > 24 ? '${hex.substring(0, 24)}…' : hex;
+    }
+    return '—';
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -27,33 +49,40 @@ class ScannedItemWidget extends StatelessWidget {
     List<ManufacturerData> rawManufacturerData = bleDevice.manufacturerDataList;
     if (name == null || name.isEmpty) name = 'Unknown Device';
 
-    return Card(
-      elevation: 2,
-      margin: EdgeInsets.zero,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(16),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Signal indicator
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color:
-                          colorScheme.primaryContainer.withValues(alpha: 0.5),
-                      borderRadius: BorderRadius.circular(12),
+    final adTimeStr = bleDevice.timestampDateTime != null
+        ? _formatAdTime(bleDevice.timestampDateTime!)
+        : '—';
+    final payloadStr = _advertisementPayload(bleDevice);
+
+    return FlashOnUpdateWidget(
+      trigger: adFlashTrigger,
+      child: Card(
+        elevation: 2,
+        margin: EdgeInsets.zero,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(16),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Signal indicator
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color:
+                            colorScheme.primaryContainer.withValues(alpha: 0.5),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: RssiSignalIndicator(rssi: bleDevice.rssi ?? 0),
                     ),
-                    child: RssiSignalIndicator(rssi: bleDevice.rssi ?? 0),
-                  ),
                   const SizedBox(width: 16),
                   // Device info
                   Expanded(
@@ -127,6 +156,31 @@ class ScannedItemWidget extends StatelessWidget {
                                   color: colorScheme.onSurface
                                       .withValues(alpha: 0.7),
                                   fontFamily: 'monospace',
+                                ),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 6),
+                        // Last advertisement (timestamp + payload only)
+                        Row(
+                          children: [
+                            Icon(
+                              Icons.ad_units_outlined,
+                              size: 12,
+                              color: colorScheme.primary
+                                  .withValues(alpha: 0.8),
+                            ),
+                            const SizedBox(width: 6),
+                            Expanded(
+                              child: Text(
+                                'Last ad: $adTimeStr · $payloadStr',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontFamily: 'monospace',
+                                  color: colorScheme.onSurface
+                                      .withValues(alpha: 0.7),
                                 ),
                                 overflow: TextOverflow.ellipsis,
                               ),
@@ -460,6 +514,7 @@ class ScannedItemWidget extends StatelessWidget {
           ),
         ),
       ),
+    ),
     );
   }
 }

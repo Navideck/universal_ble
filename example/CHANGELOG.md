@@ -16,6 +16,7 @@
   * Improved scan button visibility - converted to prominent filled button with text label
   * Enhanced "no devices found" state with explicit "Start Scan" call-to-action button
   * Display RSSI values in device details
+  * Show last advertisement (name, RSSI, timestamp) on scan screen and list of received ads on detail screen; both flash on new advertisement. Scanning continues when opening a device.
 
 * **UI & Navigation:**
   * Moved search field to app bar header for better accessibility

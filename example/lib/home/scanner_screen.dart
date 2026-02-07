@@ -35,6 +35,7 @@ class _ScannerScreenState extends State<ScannerScreen> {
   AvailabilityState? bleAvailabilityState;
   ScanFilter? scanFilter;
   final Map<String, bool> _isExpanded = {};
+  final Map<String, int> _deviceAdFlashTrigger = {};
 
   @override
   void initState() {
@@ -85,6 +86,8 @@ class _ScannerScreenState extends State<ScannerScreen> {
       }
       _bleDevices[index] = result;
     }
+    _deviceAdFlashTrigger[result.deviceId] =
+        (_deviceAdFlashTrigger[result.deviceId] ?? 0) + 1;
     setState(() {});
   }
 
@@ -823,6 +826,9 @@ class _ScannerScreenState extends State<ScannerScreen> {
                                       _filteredDevices.length - index - 1];
                                   return ScannedItemWidget(
                                     bleDevice: device,
+                                    adFlashTrigger:
+                                        _deviceAdFlashTrigger[device.deviceId] ??
+                                            0,
                                     isExpanded:
                                         _isExpanded[device.deviceId] ?? false,
                                     onExpand: (isExpanded) {
@@ -839,11 +845,6 @@ class _ScannerScreenState extends State<ScannerScreen> {
                                               PeripheralDetailPage(device),
                                         ),
                                       );
-                                      // Stop scan but keep results visible
-                                      UniversalBle.stopScan();
-                                      setState(() {
-                                        _isScanning = false;
-                                      });
                                     },
                                   );
                                 },
