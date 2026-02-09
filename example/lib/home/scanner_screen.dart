@@ -239,6 +239,22 @@ class _ScannerScreenState extends State<ScannerScreen> {
     }
   }
 
+  Future<void> _onScanFilterApplied(ScanFilter? filter) async {
+    setState(() {
+      scanFilter = filter;
+      _bleDevices.clear();
+      _hiddenDevices.clear();
+      _deviceAdFlashTrigger.clear();
+    });
+    await _saveScanFilters();
+    if (_isScanning) {
+      await UniversalBle.stopScan();
+      if (!mounted) return;
+      setState(() => _isScanning = false);
+    }
+    if (mounted) await _startScan();
+  }
+
   void _showScanFilterBottomSheet() {
     showModalBottomSheet(
       isScrollControlled: true,
@@ -249,10 +265,7 @@ class _ScannerScreenState extends State<ScannerScreen> {
           namePrefixController: namePrefixController,
           manufacturerDataController: manufacturerDataController,
           onScanFilter: (ScanFilter? filter) {
-            setState(() {
-              scanFilter = filter;
-            });
-            _saveScanFilters();
+            _onScanFilterApplied(filter);
           },
         );
       },
@@ -660,6 +673,8 @@ class _ScannerScreenState extends State<ScannerScreen> {
                   onPressed: () {
                     setState(() {
                       _bleDevices.clear();
+                      _hiddenDevices.clear();
+                      _deviceAdFlashTrigger.clear();
                     });
                   },
                   icon: Icon(
