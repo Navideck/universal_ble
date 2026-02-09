@@ -6,12 +6,14 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:universal_ble/universal_ble.dart';
 import 'package:universal_ble_example/data/company_identifier_service.dart';
 import 'package:universal_ble_example/data/mock_universal_ble.dart';
+import 'package:universal_ble_example/data/scan_controller.dart';
 import 'package:universal_ble_example/home/widgets/ble_availability_icon.dart';
 import 'package:universal_ble_example/home/widgets/drawer.dart';
 import 'package:universal_ble_example/home/widgets/scan_filter_widget.dart';
 import 'package:universal_ble_example/home/widgets/scanned_devices_placeholder_widget.dart';
 import 'package:universal_ble_example/home/widgets/scanned_item_widget.dart';
 import 'package:universal_ble_example/peripheral_details/peripheral_detail_page.dart';
+import 'package:universal_ble_example/widgets/scan_controller_scope.dart';
 
 class ScannerScreen extends StatefulWidget {
   const ScannerScreen({super.key});
@@ -23,7 +25,8 @@ class ScannerScreen extends StatefulWidget {
 class _ScannerScreenState extends State<ScannerScreen> {
   final _bleDevices = <BleDevice>[];
   final _hiddenDevices = <BleDevice>[];
-  bool _isScanning = false;
+  ScanController? _scanController;
+  void _onScanStateChanged() => setState(() {});
   QueueType _queueType = QueueType.global;
   TextEditingController servicesFilterController = TextEditingController();
   TextEditingController namePrefixController = TextEditingController();
@@ -47,10 +50,6 @@ class _ScannerScreenState extends State<ScannerScreen> {
     UniversalBle.timeout = const Duration(seconds: 10);
 
     _scanSubscription = UniversalBle.scanStream.listen(_handleScanResult);
-
-    UniversalBle.isScanning().then(
-      (isScanning) => setState(() => _isScanning = isScanning),
-    );
 
     // Get initial Bluetooth availability state
     UniversalBle.getBluetoothAvailabilityState().then((state) {
@@ -92,38 +91,10 @@ class _ScannerScreenState extends State<ScannerScreen> {
   }
 
   Future<void> _startScan() async {
-    setState(() {
-      _bleDevices.clear();
-      _isScanning = true;
-    });
+    setState(() => _bleDevices.clear());
     try {
-      PlatformConfig platformConfig = PlatformConfig(
-        android: AndroidOptions(
-          scanMode: AndroidScanMode.lowLatency,
-        ),
-      );
-      if (kIsWeb && _webServicesController.text.isNotEmpty) {
-        List<String> webServices = _webServicesController.text
-            .split(',')
-            .where((s) => s.trim().isNotEmpty)
-            .map((s) {
-          try {
-            return BleUuidParser.string(s.trim());
-          } catch (_) {
-            return s.trim();
-          }
-        }).toList();
-        platformConfig.web = WebOptions(optionalServices: webServices);
-      }
-
-      await UniversalBle.startScan(
-        scanFilter: scanFilter,
-        platformConfig: platformConfig,
-      );
+      await _scanController?.startScan();
     } catch (e) {
-      setState(() {
-        _isScanning = false;
-      });
       showSnackbar(e.toString());
     }
   }
@@ -136,11 +107,13 @@ class _ScannerScreenState extends State<ScannerScreen> {
       final manufacturerData =
           prefs.getString('scan_filter_manufacturer_data') ?? '';
       final searchFilter = prefs.getString('scan_filter_search') ?? '';
+      final webServices = prefs.getString('scan_filter_web_services') ?? '';
 
       servicesFilterController.text = services;
       namePrefixController.text = namePrefix;
       manufacturerDataController.text = manufacturerData;
       _searchFilterController.text = searchFilter;
+      _webServicesController.text = webServices;
 
       // Reconstruct the scan filter if any values exist
       if (services.isNotEmpty ||
@@ -164,6 +137,8 @@ class _ScannerScreenState extends State<ScannerScreen> {
       await prefs.setString(
           'scan_filter_manufacturer_data', manufacturerDataController.text);
       await prefs.setString('scan_filter_search', _searchFilterController.text);
+      await prefs.setString(
+          'scan_filter_web_services', _webServicesController.text);
     } catch (e) {
       debugPrint('Failed to save scan filters: $e');
     }
@@ -247,10 +222,9 @@ class _ScannerScreenState extends State<ScannerScreen> {
       _deviceAdFlashTrigger.clear();
     });
     await _saveScanFilters();
-    if (_isScanning) {
-      await UniversalBle.stopScan();
+    if (_scanController?.isScanning == true) {
+      await _scanController?.stopScan();
       if (!mounted) return;
-      setState(() => _isScanning = false);
     }
     if (mounted) await _startScan();
   }
@@ -333,8 +307,7 @@ class _ScannerScreenState extends State<ScannerScreen> {
 
   Future<void> _tryAutoStartScan() async {
     // Only auto-start if Bluetooth is available and not already scanning
-    if (_isBluetoothAvailable && !_isScanning) {
-      // Check again to make sure we're not already scanning
+    if (_isBluetoothAvailable && _scanController?.isScanning != true) {
       final isScanning = await UniversalBle.isScanning();
       if (!isScanning && mounted) {
         await _startScan();
@@ -367,7 +340,15 @@ class _ScannerScreenState extends State<ScannerScreen> {
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _scanController ??= ScanControllerScope.of(context)
+      ..addListener(_onScanStateChanged);
+  }
+
+  @override
   void dispose() {
+    _scanController?.removeListener(_onScanStateChanged);
     servicesFilterController.dispose();
     namePrefixController.dispose();
     manufacturerDataController.dispose();
@@ -467,24 +448,23 @@ class _ScannerScreenState extends State<ScannerScreen> {
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
             child: FilledButton.icon(
-              onPressed: _isBluetoothAvailable
+              onPressed: _isBluetoothAvailable && _scanController != null
                   ? () async {
-                      if (_isScanning) {
-                        await UniversalBle.stopScan();
-                        setState(() {
-                          _isScanning = false;
-                        });
+                      if (_scanController!.isScanning) {
+                        await _scanController!.stopScan();
                       } else {
                         await _startScan();
                       }
                     }
                   : null,
               icon: Icon(
-                _isScanning ? Icons.stop_circle : Icons.play_arrow,
+                _scanController?.isScanning == true
+                    ? Icons.stop_circle
+                    : Icons.play_arrow,
                 size: 20,
               ),
               label: Text(
-                _isScanning ? 'Stop Scan' : 'Start Scan',
+                _scanController?.isScanning == true ? 'Stop Scan' : 'Start Scan',
                 style: const TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w600,
@@ -492,9 +472,13 @@ class _ScannerScreenState extends State<ScannerScreen> {
               ),
               style: FilledButton.styleFrom(
                 backgroundColor:
-                    _isScanning ? colorScheme.error : colorScheme.primary,
+                    _scanController?.isScanning == true
+                        ? colorScheme.error
+                        : colorScheme.primary,
                 foregroundColor:
-                    _isScanning ? colorScheme.onError : colorScheme.onPrimary,
+                    _scanController?.isScanning == true
+                        ? colorScheme.onError
+                        : colorScheme.onPrimary,
                 padding: const EdgeInsets.symmetric(
                   horizontal: 16,
                   vertical: 12,
@@ -502,7 +486,7 @@ class _ScannerScreenState extends State<ScannerScreen> {
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(8),
                 ),
-                elevation: _isScanning ? 0 : 2,
+                elevation: _scanController?.isScanning == true ? 0 : 2,
               ),
             ),
           ),
@@ -781,7 +765,7 @@ class _ScannerScreenState extends State<ScannerScreen> {
                       ),
                     ),
                   )
-                : _isScanning && _bleDevices.isEmpty
+                : _scanController?.isScanning == true && _bleDevices.isEmpty
                     ? Center(
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
@@ -803,7 +787,7 @@ class _ScannerScreenState extends State<ScannerScreen> {
                           ],
                         ),
                       )
-                    : !_isScanning && _bleDevices.isEmpty
+                    : _scanController?.isScanning != true && _bleDevices.isEmpty
                         ? ScannedDevicesPlaceholderWidget(onTap: _startScan)
                         : _filteredDevices.isEmpty
                             ? Center(

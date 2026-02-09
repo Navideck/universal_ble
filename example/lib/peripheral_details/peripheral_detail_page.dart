@@ -11,8 +11,10 @@ import 'package:universal_ble_example/peripheral_details/widgets/result_header_b
 import 'package:universal_ble_example/peripheral_details/widgets/result_widget.dart';
 import 'package:universal_ble_example/peripheral_details/widgets/services_list_widget.dart';
 import 'package:universal_ble_example/peripheral_details/widgets/services_side_widget.dart';
+import 'package:universal_ble_example/data/scan_controller.dart';
 import 'package:universal_ble_example/widgets/company_info_widget.dart';
 import 'package:universal_ble_example/widgets/responsive_view.dart';
+import 'package:universal_ble_example/widgets/scan_controller_scope.dart';
 
 class PeripheralDetailPage extends StatefulWidget {
   final BleDevice bleDevice;
@@ -26,6 +28,9 @@ class PeripheralDetailPage extends StatefulWidget {
 
 class _PeripheralDetailPageState extends State<PeripheralDetailPage> {
   late final bleDevice = widget.bleDevice;
+  ScanController? _scanController;
+  void _onScanStateChanged() => setState(() {});
+
   bool isConnected = false;
   GlobalKey<FormState> valueFormKey = GlobalKey<FormState>();
   List<BleService> discoveredServices = [];
@@ -92,7 +97,15 @@ class _PeripheralDetailPageState extends State<PeripheralDetailPage> {
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _scanController ??= ScanControllerScope.of(context)
+      ..addListener(_onScanStateChanged);
+  }
+
+  @override
   void dispose() {
+    _scanController?.removeListener(_onScanStateChanged);
     _advertisementSubscription?.cancel();
     connectionStreamSubscription?.cancel();
     pairingStateSubscription?.cancel();
@@ -521,6 +534,56 @@ class _PeripheralDetailPageState extends State<PeripheralDetailPage> {
             centerTitle: false,
             elevation: 0,
             actions: [
+              // Persistent scan button
+              if (_scanController != null)
+                Padding(
+                  padding: const EdgeInsets.only(right: 8.0),
+                  child: FilledButton.icon(
+                    onPressed: () async {
+                      if (_scanController!.isScanning) {
+                        await _scanController!.stopScan();
+                      } else {
+                        try {
+                          await _scanController!.startScan();
+                        } catch (e) {
+                          if (!context.mounted) return;
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text(e.toString())),
+                          );
+                        }
+                      }
+                    },
+                    icon: Icon(
+                      _scanController!.isScanning
+                          ? Icons.stop_circle
+                          : Icons.play_arrow,
+                      size: 20,
+                    ),
+                    label: Text(
+                      _scanController!.isScanning ? 'Stop Scan' : 'Start Scan',
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: _scanController!.isScanning
+                          ? colorScheme.error
+                          : colorScheme.primary,
+                      foregroundColor: _scanController!.isScanning
+                          ? colorScheme.onError
+                          : colorScheme.onPrimary,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 12,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      elevation: _scanController!.isScanning ? 0 : 2,
+                    ),
+                  ),
+                ),
               Visibility.maintain(
                 visible: _isLoading,
                 child: Padding(

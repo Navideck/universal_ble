@@ -3,10 +3,13 @@ import 'dart:io';
 import 'package:device_preview_screenshot/device_preview_screenshot.dart';
 import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:universal_ble_example/data/scan_controller.dart';
 import 'package:universal_ble_example/universal_ble_app.dart';
 
 void main() async {
   bool hasPermission = await initializeApp();
+  final scanController = ScanController();
+  await scanController.syncState();
 
   // On macOS: ~/Library/Containers/com.navideck.universalble/Data/Documents/screenshots
   final screenshotsDir = await getScreenshotsDirectory();
@@ -17,6 +20,7 @@ void main() async {
       enabled: true,
       builder: (context) => UniversalBleApp(
         hasPermission: hasPermission,
+        scanController: scanController,
         locale: DevicePreview.locale(context),
         builder: DevicePreview.appBuilder,
       ),
