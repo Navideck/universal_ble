@@ -2,6 +2,7 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:universal_ble/universal_ble.dart';
+import 'package:universal_ble_example/home/widgets/ble_availability_icon.dart';
 import 'package:universal_ble_example/home/scanner_screen.dart';
 import 'package:universal_ble_example/home/system_devices_screen.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -9,11 +10,15 @@ import 'package:url_launcher/url_launcher.dart';
 class AppDrawer extends StatefulWidget {
   final QueueType? queueType;
   final Function(QueueType)? onQueueTypeChanged;
+  final AvailabilityState? availabilityState;
+  final void Function(AvailabilityState)? onAvailabilityStateChanged;
 
   const AppDrawer({
     super.key,
     this.queueType,
     this.onQueueTypeChanged,
+    this.availabilityState,
+    this.onAvailabilityStateChanged,
   });
 
   @override
@@ -62,6 +67,14 @@ class _AppDrawerState extends State<AppDrawer> {
               ),
             ),
           ),
+          if (widget.availabilityState != null &&
+              widget.onAvailabilityStateChanged != null)
+            ListTile(
+              leading: BleAvailabilityIcon(
+                onAvailabilityStateChanged: widget.onAvailabilityStateChanged!,
+              ),
+              title: Text(_getBluetoothAvailabilityLabel(widget.availabilityState!)),
+            ),
           ListTile(
             leading: const Icon(Icons.search),
             title: const Text('Scanner'),
@@ -178,6 +191,23 @@ class _AppDrawerState extends State<AppDrawer> {
         ],
       ),
     );
+  }
+
+  String _getBluetoothAvailabilityLabel(AvailabilityState state) {
+    switch (state) {
+      case AvailabilityState.poweredOn:
+        return 'Bluetooth is on';
+      case AvailabilityState.poweredOff:
+        return 'Bluetooth is off';
+      case AvailabilityState.resetting:
+        return 'Bluetooth is resetting';
+      case AvailabilityState.unauthorized:
+        return 'Bluetooth permission denied';
+      case AvailabilityState.unsupported:
+        return 'Bluetooth not supported';
+      case AvailabilityState.unknown:
+        return 'Bluetooth state unknown';
+    }
   }
 
   String _getQueueTypeLabel(QueueType queueType) {

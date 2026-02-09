@@ -52,7 +52,7 @@ class ScannedDevicesPlaceholderWidget extends StatelessWidget {
               onPressed: onTap,
               icon: const Icon(Icons.play_arrow, size: 24),
               label: const Text(
-                'Start Scan',
+                'Scan',
                 style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.w600,
@@ -62,7 +62,7 @@ class ScannedDevicesPlaceholderWidget extends StatelessWidget {
                 backgroundColor: colorScheme.primary,
                 foregroundColor: colorScheme.onPrimary,
                 padding: const EdgeInsets.symmetric(
-                  horizontal: 32,
+                  horizontal: 12,
                   vertical: 16,
                 ),
                 shape: RoundedRectangleBorder(

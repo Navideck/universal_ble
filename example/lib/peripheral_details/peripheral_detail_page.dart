@@ -36,7 +36,6 @@ class _PeripheralDetailPageState extends State<PeripheralDetailPage> {
   List<BleService> discoveredServices = [];
   final List<String> _logs = [];
   final binaryCode = TextEditingController();
-  bool _isLoading = false;
   bool _isDiscoveringServices = false;
   bool _isDeviceInfoExpanded = false;
   bool _isDeviceActionsExpanded = true;
@@ -407,18 +406,11 @@ class _PeripheralDetailPageState extends State<PeripheralDetailPage> {
     Future<T> Function() action, {
     Function(dynamic error)? onError,
   }) async {
-    setState(() {
-      _isLoading = true;
-    });
     try {
       return await action();
     } catch (e) {
       onError?.call(e);
       rethrow;
-    } finally {
-      setState(() {
-        _isLoading = false;
-      });
     }
   }
 
@@ -560,7 +552,7 @@ class _PeripheralDetailPageState extends State<PeripheralDetailPage> {
                       size: 20,
                     ),
                     label: Text(
-                      _scanController!.isScanning ? 'Stop Scan' : 'Start Scan',
+                      _scanController!.isScanning ? 'Stop' : 'Scan',
                       style: const TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.w600,
@@ -574,7 +566,7 @@ class _PeripheralDetailPageState extends State<PeripheralDetailPage> {
                           ? colorScheme.onError
                           : colorScheme.onPrimary,
                       padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
+                        horizontal: 12,
                         vertical: 12,
                       ),
                       shape: RoundedRectangleBorder(
@@ -582,72 +574,6 @@ class _PeripheralDetailPageState extends State<PeripheralDetailPage> {
                       ),
                       elevation: _scanController!.isScanning ? 0 : 2,
                     ),
-                  ),
-                ),
-              Visibility.maintain(
-                visible: _isLoading,
-                child: Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      valueColor: AlwaysStoppedAnimation<Color>(
-                        colorScheme.primary,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-              if (deviceType != DeviceType.desktop)
-                Padding(
-                  padding: const EdgeInsets.all(8.0),
-                  child: Icon(
-                    isConnected
-                        ? Icons.bluetooth_connected
-                        : Icons.bluetooth_disabled,
-                    color: isConnected
-                        ? Colors.green
-                        : colorScheme.onSurface.withValues(alpha: 0.6),
-                    size: 20,
-                  ),
-                )
-              else
-                Container(
-                  margin: const EdgeInsets.only(right: 16),
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: isConnected
-                        ? Colors.green.withValues(alpha: 0.2)
-                        : Colors.orange.withValues(alpha: 0.2),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        isConnected
-                            ? Icons.check_circle
-                            : Icons.bluetooth_disabled,
-                        size: 16,
-                        color: isConnected
-                            ? Colors.green.shade700
-                            : Colors.orange.shade700,
-                      ),
-                      const SizedBox(width: 6),
-                      Text(
-                        isConnected ? 'Connected' : 'Disconnected',
-                        style: TextStyle(
-                          color: isConnected
-                              ? Colors.green.shade700
-                              : Colors.orange.shade700,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ],
                   ),
                 ),
             ],

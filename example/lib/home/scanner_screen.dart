@@ -7,7 +7,6 @@ import 'package:universal_ble/universal_ble.dart';
 import 'package:universal_ble_example/data/company_identifier_service.dart';
 import 'package:universal_ble_example/data/mock_universal_ble.dart';
 import 'package:universal_ble_example/data/scan_controller.dart';
-import 'package:universal_ble_example/home/widgets/ble_availability_icon.dart';
 import 'package:universal_ble_example/home/widgets/drawer.dart';
 import 'package:universal_ble_example/home/widgets/scan_filter_widget.dart';
 import 'package:universal_ble_example/home/widgets/scanned_devices_placeholder_widget.dart';
@@ -370,25 +369,6 @@ class _ScannerScreenState extends State<ScannerScreen> {
     }
   }
 
-  String _getBluetoothAvailabilityTooltip() {
-    switch (bleAvailabilityState) {
-      case AvailabilityState.poweredOn:
-        return 'Bluetooth is on';
-      case AvailabilityState.poweredOff:
-        return 'Bluetooth is off';
-      case AvailabilityState.resetting:
-        return 'Bluetooth is resetting';
-      case AvailabilityState.unauthorized:
-        return 'Bluetooth permission denied';
-      case AvailabilityState.unsupported:
-        return 'Bluetooth not supported';
-      case AvailabilityState.unknown:
-        return 'Bluetooth status unknown';
-      case null:
-        return 'Checking Bluetooth status...';
-    }
-  }
-
   @override
   void setState(VoidCallback fn) {
     if (mounted) super.setState(fn);
@@ -428,6 +408,13 @@ class _ScannerScreenState extends State<ScannerScreen> {
             _queueType = queueType;
             UniversalBle.queueType = _queueType;
           });
+        },
+        availabilityState: bleAvailabilityState,
+        onAvailabilityStateChanged: (state) {
+          setState(() => bleAvailabilityState = state);
+          if (state == AvailabilityState.poweredOn) {
+            _tryAutoStartScan();
+          }
         },
       ),
       appBar: AppBar(
@@ -477,18 +464,6 @@ class _ScannerScreenState extends State<ScannerScreen> {
                 ),
               ),
             ),
-            const SizedBox(width: 12),
-            Tooltip(
-              message: _getBluetoothAvailabilityTooltip(),
-              triggerMode: TooltipTriggerMode.tap,
-              child: BleAvailabilityIcon(onAvailabilityStateChanged: (state) {
-                setState(() => bleAvailabilityState = state);
-                // Auto-start scanning when Bluetooth becomes available
-                if (state == AvailabilityState.poweredOn) {
-                  _tryAutoStartScan();
-                }
-              }),
-            ),
           ],
         ),
         elevation: 0,
@@ -519,7 +494,7 @@ class _ScannerScreenState extends State<ScannerScreen> {
                 size: 20,
               ),
               label: Text(
-                _scanController?.isScanning == true ? 'Stop Scan' : 'Start Scan',
+                _scanController?.isScanning == true ? 'Stop' : 'Scan',
                 style: const TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w600,
@@ -535,7 +510,7 @@ class _ScannerScreenState extends State<ScannerScreen> {
                         ? colorScheme.onError
                         : colorScheme.onPrimary,
                 padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
+                  horizontal: 12,
                   vertical: 12,
                 ),
                 shape: RoundedRectangleBorder(
