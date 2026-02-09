@@ -2,8 +2,8 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:universal_ble/universal_ble.dart';
+import 'package:universal_ble_example/data/prefs_async.dart';
 import 'package:universal_ble_example/data/company_identifier_service.dart';
 import 'package:universal_ble_example/data/mock_universal_ble.dart';
 import 'package:universal_ble_example/data/scan_controller.dart';
@@ -42,7 +42,7 @@ class _ScannerScreenState extends State<ScannerScreen> {
 
   AvailabilityState? bleAvailabilityState;
   ScanFilter? scanFilter;
-  ScanOrder _scanOrder = ScanOrder.lastSeen;
+  ScanOrder _scanOrder = ScanOrder.rssi;
   final Map<String, bool> _isExpanded = {};
   final Map<String, int> _deviceAdFlashTrigger = {};
 
@@ -107,14 +107,17 @@ class _ScannerScreenState extends State<ScannerScreen> {
 
   Future<void> _loadScanFilters() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final services = prefs.getString('scan_filter_services') ?? '';
-      final namePrefix = prefs.getString('scan_filter_name_prefix') ?? '';
+      final services =
+          (await prefsAsync.getString('scan_filter_services')) ?? '';
+      final namePrefix =
+          (await prefsAsync.getString('scan_filter_name_prefix')) ?? '';
       final manufacturerData =
-          prefs.getString('scan_filter_manufacturer_data') ?? '';
-      final searchFilter = prefs.getString('scan_filter_search') ?? '';
-      final webServices = prefs.getString('scan_filter_web_services') ?? '';
-      final scanOrderStr = prefs.getString('scan_order');
+          (await prefsAsync.getString('scan_filter_manufacturer_data')) ?? '';
+      final searchFilter =
+          (await prefsAsync.getString('scan_filter_search')) ?? '';
+      final webServices =
+          (await prefsAsync.getString('scan_filter_web_services')) ?? '';
+      final scanOrderStr = await prefsAsync.getString('scan_order');
 
       servicesFilterController.text = services;
       namePrefixController.text = namePrefix;
@@ -151,17 +154,17 @@ class _ScannerScreenState extends State<ScannerScreen> {
 
   Future<void> _saveScanFilters() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString(
+      await prefsAsync.setString(
           'scan_filter_services', servicesFilterController.text);
-      await prefs.setString(
+      await prefsAsync.setString(
           'scan_filter_name_prefix', namePrefixController.text);
-      await prefs.setString(
+      await prefsAsync.setString(
           'scan_filter_manufacturer_data', manufacturerDataController.text);
-      await prefs.setString('scan_filter_search', _searchFilterController.text);
-      await prefs.setString(
+      await prefsAsync.setString(
+          'scan_filter_search', _searchFilterController.text);
+      await prefsAsync.setString(
           'scan_filter_web_services', _webServicesController.text);
-      await prefs.setString('scan_order', _scanOrder.name);
+      await prefsAsync.setString('scan_order', _scanOrder.name);
     } catch (e) {
       debugPrint('Failed to save scan filters: $e');
     }
@@ -694,16 +697,16 @@ class _ScannerScreenState extends State<ScannerScreen> {
                   },
                   itemBuilder: (context) => [
                     const PopupMenuItem(
+                      value: ScanOrder.rssi,
+                      child: Text('RSSI'),
+                    ),
+                    const PopupMenuItem(
                       value: ScanOrder.lastSeen,
                       child: Text('Last seen'),
                     ),
                     const PopupMenuItem(
                       value: ScanOrder.name,
                       child: Text('Name'),
-                    ),
-                    const PopupMenuItem(
-                      value: ScanOrder.rssi,
-                      child: Text('RSSI'),
                     ),
                   ],
                   child: Padding(

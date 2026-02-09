@@ -1,49 +1,124 @@
 import 'package:flutter/material.dart';
 
-/// Wraps [child] and briefly highlights it when [trigger] changes.
-/// Uses a semi-opaque overlay that fades to transparent over ~300ms.
-class FlashOnUpdateWidget extends StatelessWidget {
+/// Wraps [child] and briefly shows an outline when [trigger] changes.
+/// Draws only a stroked border that fades out smoothly; does not block interaction.
+class FlashOnUpdateWidget extends StatefulWidget {
   const FlashOnUpdateWidget({
     super.key,
     required this.trigger,
     required this.child,
     this.highlightColor,
+    this.borderRadius = 16,
   });
 
-  /// When this value changes, the flash animation runs once.
+  /// When this value changes, the outline animation runs (or restarts).
   final Object trigger;
 
   final Widget child;
 
-  /// If null, [Theme.colorScheme.primaryContainer] is used with opacity.
+  /// If null, [Theme.colorScheme.primaryContainer] is used for the outline.
   final Color? highlightColor;
+
+  /// Border radius of the outline to match the child (e.g. Card) corners.
+  final double borderRadius;
+
+  @override
+  State<FlashOnUpdateWidget> createState() => _FlashOnUpdateWidgetState();
+}
+
+class _FlashOnUpdateWidgetState extends State<FlashOnUpdateWidget>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+  late final Animation<double> _animation;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      duration: const Duration(milliseconds: 450),
+      vsync: this,
+    );
+    _animation = CurvedAnimation(
+      parent: _controller,
+      curve: Curves.easeOut,
+    );
+  }
+
+  @override
+  void didUpdateWidget(FlashOnUpdateWidget oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.trigger != oldWidget.trigger) {
+      _controller.forward(from: 0);
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    final color = highlightColor ??
-        colorScheme.primaryContainer.withValues(alpha: 0.6);
+    final color = widget.highlightColor ?? colorScheme.primaryContainer;
 
-    return TweenAnimationBuilder<double>(
-      key: ValueKey(trigger),
-      tween: Tween<double>(begin: 1, end: 0),
-      duration: const Duration(milliseconds: 300),
-      builder: (context, value, childWidget) {
-        return Stack(
-          children: [
-            childWidget!,
-            if (value > 0)
-              Positioned.fill(
-                child: IgnorePointer(
-                  child: Container(
-                    color: color.withValues(alpha: value * 0.6),
+    return Stack(
+      children: [
+        widget.child,
+        AnimatedBuilder(
+          animation: _animation,
+          builder: (context, _) {
+            final opacity = 1 - _animation.value;
+            if (opacity <= 0) return const SizedBox.shrink();
+            return Positioned.fill(
+              child: IgnorePointer(
+                child: CustomPaint(
+                  painter: _OutlinePainter(
+                    color: color,
+                    opacity: opacity,
+                    borderRadius: widget.borderRadius,
                   ),
                 ),
               ),
-          ],
-        );
-      },
-      child: child,
+            );
+          },
+        ),
+      ],
     );
+  }
+}
+
+class _OutlinePainter extends CustomPainter {
+  _OutlinePainter({
+    required this.color,
+    required this.opacity,
+    required this.borderRadius,
+  });
+
+  static const double _strokeWidth = 2;
+
+  final Color color;
+  final double opacity;
+  final double borderRadius;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (opacity <= 0) return;
+    final paint = Paint()
+      ..color = color.withValues(alpha: opacity)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = _strokeWidth;
+    final half = _strokeWidth / 2;
+    final rect = Rect.fromLTWH(half, half, size.width - _strokeWidth, size.height - _strokeWidth);
+    final rrect = RRect.fromRectAndRadius(rect, Radius.circular(borderRadius - half));
+    canvas.drawRRect(rrect, paint);
+  }
+
+  @override
+  bool shouldRepaint(_OutlinePainter oldDelegate) {
+    return oldDelegate.opacity != opacity ||
+        oldDelegate.color != color ||
+        oldDelegate.borderRadius != borderRadius;
   }
 }

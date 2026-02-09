@@ -1,22 +1,18 @@
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:universal_ble_example/data/prefs_async.dart';
 
 class StorageService {
   StorageService._();
   static StorageService? _instance;
   static StorageService get instance => _instance ??= StorageService._();
 
-  late SharedPreferencesWithCache _preferences;
-
   Future<void> init() async {
-    _preferences = await SharedPreferencesWithCache.create(
-      cacheOptions: const SharedPreferencesWithCacheOptions(),
-    );
+    // SharedPreferencesAsync is used via prefsAsync; no async init needed.
   }
 
   Future<void> setFavoriteServices(List<String> services) async {
-    await _preferences.setStringList('favorite_services', services);
+    await prefsAsync.setStringList('favorite_services', services);
   }
 
-  List<String> getFavoriteServices() =>
-      _preferences.getStringList('favorite_services') ?? [];
+  Future<List<String>> getFavoriteServices() async =>
+      (await prefsAsync.getStringList('favorite_services')) ?? [];
 }

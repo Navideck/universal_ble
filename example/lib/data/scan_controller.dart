@@ -1,7 +1,7 @@
 import 'package:flutter/foundation.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:universal_ble/universal_ble.dart';
 import 'package:universal_ble_example/data/company_identifier_service.dart';
+import 'package:universal_ble_example/data/prefs_async.dart';
 
 /// Shared controller for BLE scan state so the scan button can be shown
 /// on both the scanner screen and the peripheral detail screen.
@@ -21,9 +21,8 @@ class ScanController extends ChangeNotifier {
   Future<void> startScan() async {
     if (_isScanning) return;
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final filter = await _loadFilterFromPrefs(prefs);
-      final platformConfig = _loadPlatformConfigFromPrefs(prefs);
+      final filter = await _loadFilterFromPrefs();
+      final platformConfig = await _loadPlatformConfigFromPrefs();
 
       await UniversalBle.startScan(
         scanFilter: filter,
@@ -49,11 +48,13 @@ class ScanController extends ChangeNotifier {
     }
   }
 
-  Future<ScanFilter?> _loadFilterFromPrefs(SharedPreferences prefs) async {
-    final services = prefs.getString('scan_filter_services') ?? '';
-    final namePrefix = prefs.getString('scan_filter_name_prefix') ?? '';
+  Future<ScanFilter?> _loadFilterFromPrefs() async {
+    final services =
+        (await prefsAsync.getString('scan_filter_services')) ?? '';
+    final namePrefix =
+        (await prefsAsync.getString('scan_filter_name_prefix')) ?? '';
     final manufacturerData =
-        prefs.getString('scan_filter_manufacturer_data') ?? '';
+        (await prefsAsync.getString('scan_filter_manufacturer_data')) ?? '';
 
     if (services.isEmpty &&
         namePrefix.isEmpty &&
@@ -108,10 +109,11 @@ class ScanController extends ChangeNotifier {
     );
   }
 
-  PlatformConfig _loadPlatformConfigFromPrefs(SharedPreferences prefs) {
+  Future<PlatformConfig> _loadPlatformConfigFromPrefs() async {
     WebOptions? web;
     if (kIsWeb) {
-      final webServices = prefs.getString('scan_filter_web_services') ?? '';
+      final webServices =
+          (await prefsAsync.getString('scan_filter_web_services')) ?? '';
       if (webServices.isNotEmpty) {
         final list = webServices
             .split(',')

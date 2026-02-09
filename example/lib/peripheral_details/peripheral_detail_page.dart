@@ -53,11 +53,13 @@ class _PeripheralDetailPageState extends State<PeripheralDetailPage> {
   final Set<String> _favoriteServices = {};
   Set<CharacteristicProperty>? _currentPropertyFilters;
 
-  void _loadFavoriteServices() {
-    final favorites = StorageService.instance.getFavoriteServices();
-    setState(() {
-      _favoriteServices.addAll(favorites);
-    });
+  Future<void> _loadFavoriteServices() async {
+    final favorites = await StorageService.instance.getFavoriteServices();
+    if (mounted) {
+      setState(() {
+        _favoriteServices.addAll(favorites);
+      });
+    }
   }
 
   Future<void> _saveFavoriteServices() async {

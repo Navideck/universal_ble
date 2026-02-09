@@ -72,6 +72,7 @@ class _ScannedItemWidgetState extends State<ScannedItemWidget> {
 
     return FlashOnUpdateWidget(
       trigger: widget.adFlashTrigger,
+      borderRadius: 16,
       child: Card(
         elevation: 2,
         margin: EdgeInsets.zero,
