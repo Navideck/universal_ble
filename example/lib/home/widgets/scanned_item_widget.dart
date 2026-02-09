@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:universal_ble/universal_ble.dart';
@@ -6,7 +8,7 @@ import 'package:universal_ble_example/home/widgets/rssi_signal_indicator.dart';
 import 'package:universal_ble_example/widgets/company_info_widget.dart';
 import 'package:universal_ble_example/widgets/flash_on_update_widget.dart';
 
-class ScannedItemWidget extends StatelessWidget {
+class ScannedItemWidget extends StatefulWidget {
   final BleDevice bleDevice;
   final int adFlashTrigger;
   final VoidCallback? onTap;
@@ -21,23 +23,38 @@ class ScannedItemWidget extends StatelessWidget {
     required this.onExpand,
   });
 
-  static String _formatAdTime(DateTime dt) {
-    return '${dt.hour.toString().padLeft(2, '0')}:'
-        '${dt.minute.toString().padLeft(2, '0')}:'
-        '${dt.second.toString().padLeft(2, '0')}';
+  @override
+  State<ScannedItemWidget> createState() => _ScannedItemWidgetState();
+}
+
+class _ScannedItemWidgetState extends State<ScannedItemWidget> {
+  Timer? _timer;
+
+  static String _formatLastAppeared(DateTime? timestamp) {
+    if (timestamp == null) return '—';
+    final elapsed = DateTime.now().difference(timestamp);
+    if (elapsed.inSeconds < 2) return 'Actively advertising';
+    if (elapsed.inSeconds < 60) {
+      return '${elapsed.inSeconds} second${elapsed.inSeconds == 1 ? '' : 's'} ago';
+    }
+    if (elapsed.inMinutes < 60) {
+      return '${elapsed.inMinutes} minute${elapsed.inMinutes == 1 ? '' : 's'} ago';
+    }
+    return '${elapsed.inHours} hour${elapsed.inHours == 1 ? '' : 's'} ago';
   }
 
-  static String _advertisementPayload(BleDevice device) {
-    if (device.manufacturerDataList.isNotEmpty) {
-      final hex = device.manufacturerDataList.first.payloadRadix16;
-      return hex.length > 24 ? '${hex.substring(0, 24)}…' : hex;
-    }
-    if (device.serviceData.isNotEmpty) {
-      final entry = device.serviceData.entries.first;
-      final hex = '0x${entry.value.map((b) => b.toRadixString(16).padLeft(2, '0')).join('').toUpperCase()}';
-      return hex.length > 24 ? '${hex.substring(0, 24)}…' : hex;
-    }
-    return '—';
+  @override
+  void initState() {
+    super.initState();
+    _timer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (mounted) setState(() {});
+    });
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
   }
 
   @override
@@ -45,25 +62,24 @@ class ScannedItemWidget extends StatelessWidget {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
 
-    String? name = bleDevice.name;
-    List<ManufacturerData> rawManufacturerData = bleDevice.manufacturerDataList;
+    String? name = widget.bleDevice.name;
+    List<ManufacturerData> rawManufacturerData =
+        widget.bleDevice.manufacturerDataList;
     if (name == null || name.isEmpty) name = 'Unknown Device';
 
-    final adTimeStr = bleDevice.timestampDateTime != null
-        ? _formatAdTime(bleDevice.timestampDateTime!)
-        : '—';
-    final payloadStr = _advertisementPayload(bleDevice);
+    final lastAppearedStr =
+        _formatLastAppeared(widget.bleDevice.timestampDateTime);
 
     return FlashOnUpdateWidget(
-      trigger: adFlashTrigger,
+      trigger: widget.adFlashTrigger,
       child: Card(
         elevation: 2,
         margin: EdgeInsets.zero,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(16),
         ),
-        child: InkWell(
-          onTap: onTap,
+          child: InkWell(
+          onTap: widget.onTap,
           borderRadius: BorderRadius.circular(16),
           child: Padding(
             padding: const EdgeInsets.all(16),
@@ -81,7 +97,8 @@ class ScannedItemWidget extends StatelessWidget {
                             colorScheme.primaryContainer.withValues(alpha: 0.5),
                         borderRadius: BorderRadius.circular(12),
                       ),
-                      child: RssiSignalIndicator(rssi: bleDevice.rssi ?? 0),
+                      child: RssiSignalIndicator(
+                          rssi: widget.bleDevice.rssi ?? 0),
                     ),
                   const SizedBox(width: 16),
                   // Device info
@@ -106,7 +123,8 @@ class ScannedItemWidget extends StatelessWidget {
                             const SizedBox(width: 8),
                             // Expand/Collapse button
                             if (rawManufacturerData.isNotEmpty ||
-                                bleDevice.services.isNotEmpty)
+                                widget.bleDevice.services.isNotEmpty ||
+                                widget.bleDevice.serviceData.isNotEmpty)
                               Container(
                                 padding: const EdgeInsets.symmetric(
                                   horizontal: 4,
@@ -119,16 +137,18 @@ class ScannedItemWidget extends StatelessWidget {
                                 ),
                                 child: IconButton(
                                   icon: Icon(
-                                    isExpanded
+                                    widget.isExpanded
                                         ? Icons.expand_less
                                         : Icons.expand_more,
                                     color: colorScheme.primary,
                                     size: 18,
                                   ),
                                   onPressed: () {
-                                    onExpand(!isExpanded);
+                                    widget.onExpand(!widget.isExpanded);
                                   },
-                                  tooltip: isExpanded ? 'Collapse' : 'Expand',
+                                  tooltip: widget.isExpanded
+                                      ? 'Collapse'
+                                      : 'Expand',
                                   padding: EdgeInsets.zero,
                                   constraints: const BoxConstraints(
                                     minWidth: 20,
@@ -150,7 +170,7 @@ class ScannedItemWidget extends StatelessWidget {
                             const SizedBox(width: 4),
                             Expanded(
                               child: Text(
-                                bleDevice.deviceId,
+                                widget.bleDevice.deviceId,
                                 style: TextStyle(
                                   fontSize: 12,
                                   color: colorScheme.onSurface
@@ -163,7 +183,7 @@ class ScannedItemWidget extends StatelessWidget {
                           ],
                         ),
                         const SizedBox(height: 6),
-                        // Last advertisement (timestamp + payload only)
+                        // Last seen
                         Row(
                           children: [
                             Icon(
@@ -175,7 +195,9 @@ class ScannedItemWidget extends StatelessWidget {
                             const SizedBox(width: 6),
                             Expanded(
                               child: Text(
-                                'Last ad: $adTimeStr · $payloadStr',
+                                lastAppearedStr == 'Actively advertising'
+                                    ? lastAppearedStr
+                                    : 'Last seen: $lastAppearedStr',
                                 style: TextStyle(
                                   fontSize: 11,
                                   fontFamily: 'monospace',
@@ -199,26 +221,26 @@ class ScannedItemWidget extends StatelessWidget {
                                 vertical: 4,
                               ),
                               decoration: BoxDecoration(
-                                color: bleDevice.paired == true
+                                color: widget.bleDevice.paired == true
                                     ? Colors.green.withValues(alpha: 0.2)
                                     : Colors.orange.withValues(alpha: 0.2),
                                 borderRadius: BorderRadius.circular(8),
                               ),
                               child: Text(
-                                bleDevice.paired == true
+                                widget.bleDevice.paired == true
                                     ? 'Paired'
                                     : 'Unpaired',
                                 style: TextStyle(
                                   fontSize: 10,
                                   fontWeight: FontWeight.w600,
-                                  color: bleDevice.paired == true
+                                  color: widget.bleDevice.paired == true
                                       ? Colors.green.shade700
                                       : Colors.orange.shade700,
                                 ),
                               ),
                             ),
                             // Manufacturer data (only in collapsed mode)
-                            if (!isExpanded) ...[
+                            if (!widget.isExpanded) ...[
                               ...rawManufacturerData.take(2).map((data) {
                                 final companyName = CompanyIdentifierService
                                     .instance
@@ -268,8 +290,8 @@ class ScannedItemWidget extends StatelessWidget {
                               }),
                             ],
                             // Services (only in collapsed mode)
-                            if (!isExpanded) ...[
-                              ...bleDevice.services.take(3).map((service) {
+                            if (!widget.isExpanded) ...[
+                              ...widget.bleDevice.services.take(3).map((service) {
                                 return Container(
                                   padding: const EdgeInsets.symmetric(
                                     horizontal: 8,
@@ -291,9 +313,9 @@ class ScannedItemWidget extends StatelessWidget {
                                   ),
                                 );
                               }),
-                              if (bleDevice.services.length > 3)
+                              if (widget.bleDevice.services.length > 3)
                                 Text(
-                                  '+${bleDevice.services.length - 3} more',
+                                  '+${widget.bleDevice.services.length - 3} more',
                                   style: TextStyle(
                                     fontSize: 10,
                                     color: colorScheme.onSurface
@@ -309,20 +331,38 @@ class ScannedItemWidget extends StatelessWidget {
                 ],
               ),
               // Expanded details
-              if (isExpanded) ...[
+              if (widget.isExpanded) ...[
                 const SizedBox(height: 16),
                 const Divider(),
                 const SizedBox(height: 12),
-                if (rawManufacturerData.isNotEmpty) ...[
-                  Text(
-                    'Manufacturer Data',
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
-                      color: colorScheme.onSurface,
-                    ),
+                // Manufacturer Data (always shown)
+                Text(
+                  'Manufacturer Data',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                    color: colorScheme.onSurface,
                   ),
-                  const SizedBox(height: 8),
+                ),
+                const SizedBox(height: 8),
+                if (rawManufacturerData.isEmpty)
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: colorScheme.secondaryContainer,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      'No manufacturer data',
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: colorScheme.onSecondaryContainer
+                            .withValues(alpha: 0.7),
+                        fontStyle: FontStyle.italic,
+                      ),
+                    ),
+                  )
+                else
                   ...rawManufacturerData.map((data) {
                     return Padding(
                       padding: const EdgeInsets.only(bottom: 8),
@@ -447,9 +487,8 @@ class ScannedItemWidget extends StatelessWidget {
                       ),
                     );
                   }),
-                  const SizedBox(height: 12),
-                ],
-                if (bleDevice.services.isNotEmpty) ...[
+                const SizedBox(height: 12),
+                if (widget.bleDevice.services.isNotEmpty) ...[
                   Text(
                     'Advertised Services',
                     style: TextStyle(
@@ -462,7 +501,7 @@ class ScannedItemWidget extends StatelessWidget {
                   Wrap(
                     spacing: 4,
                     runSpacing: 4,
-                    children: bleDevice.services.map((service) {
+                    children: widget.bleDevice.services.map((service) {
                       return Container(
                         padding: const EdgeInsets.symmetric(
                           horizontal: 8,
@@ -509,6 +548,138 @@ class ScannedItemWidget extends StatelessWidget {
                     }).toList(),
                   ),
                 ],
+                // Service Data (always shown, last)
+                Text(
+                  'Service Data',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                    color: colorScheme.onSurface,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                if (widget.bleDevice.serviceData.isEmpty)
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: colorScheme.tertiaryContainer,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      'No service data',
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: colorScheme.onTertiaryContainer
+                            .withValues(alpha: 0.7),
+                        fontStyle: FontStyle.italic,
+                      ),
+                    ),
+                  )
+                else
+                  ...widget.bleDevice.serviceData.entries.map((entry) {
+                    final uuid = entry.key;
+                    final bytes = entry.value;
+                    final hex = bytes.isEmpty
+                        ? ''
+                        : '0x${bytes.map((b) => b.toRadixString(16).padLeft(2, '0')).join('').toUpperCase()}';
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 8),
+                      child: Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: colorScheme.tertiaryContainer,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Row(
+                                        children: [
+                                          Text(
+                                            'Service UUID: ',
+                                            style: TextStyle(
+                                              fontSize: 11,
+                                              fontWeight: FontWeight.w600,
+                                              color: colorScheme
+                                                  .onTertiaryContainer,
+                                            ),
+                                          ),
+                                          Expanded(
+                                            child: SelectableText(
+                                              uuid,
+                                              style: TextStyle(
+                                                fontSize: 11,
+                                                fontWeight: FontWeight.w600,
+                                                color: colorScheme
+                                                    .onTertiaryContainer,
+                                                fontFamily: 'monospace',
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      if (hex.isNotEmpty) ...[
+                                        const SizedBox(height: 4),
+                                        SelectableText(
+                                          hex,
+                                          style: TextStyle(
+                                            fontSize: 10,
+                                            color: colorScheme
+                                                .onTertiaryContainer
+                                                .withValues(alpha: 0.8),
+                                            fontFamily: 'monospace',
+                                          ),
+                                        ),
+                                      ],
+                                    ],
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                IconButton(
+                                  icon: Icon(
+                                    Icons.copy,
+                                    size: 16,
+                                    color: colorScheme.onTertiaryContainer,
+                                  ),
+                                  onPressed: () {
+                                    final textToCopy = hex.isNotEmpty
+                                        ? 'Service UUID: $uuid\nData: $hex'
+                                        : 'Service UUID: $uuid';
+                                    Clipboard.setData(
+                                      ClipboardData(text: textToCopy),
+                                    );
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content:
+                                            const Text('Copied to clipboard'),
+                                        duration: const Duration(seconds: 1),
+                                        behavior: SnackBarBehavior.floating,
+                                      ),
+                                    );
+                                  },
+                                  tooltip: 'Copy',
+                                  padding: EdgeInsets.zero,
+                                  constraints: const BoxConstraints(
+                                    minWidth: 24,
+                                    minHeight: 24,
+                                  ),
+                                  visualDensity: VisualDensity.compact,
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  }),
               ],
             ],
           ),
