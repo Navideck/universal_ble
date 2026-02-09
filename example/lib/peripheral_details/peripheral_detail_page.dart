@@ -11,8 +11,8 @@ import 'package:universal_ble_example/peripheral_details/widgets/result_header_b
 import 'package:universal_ble_example/peripheral_details/widgets/result_widget.dart';
 import 'package:universal_ble_example/peripheral_details/widgets/services_list_widget.dart';
 import 'package:universal_ble_example/peripheral_details/widgets/services_side_widget.dart';
+import 'package:universal_ble_example/data/company_identifier_service.dart';
 import 'package:universal_ble_example/data/scan_controller.dart';
-import 'package:universal_ble_example/widgets/company_info_widget.dart';
 import 'package:universal_ble_example/widgets/responsive_view.dart';
 import 'package:universal_ble_example/widgets/scan_controller_scope.dart';
 
@@ -622,7 +622,6 @@ class _PeripheralDetailPageState extends State<PeripheralDetailPage> {
                 child: SingleChildScrollView(
                   child: Column(
                     children: [
-                      // Device info with manufacturer data and advertised services
                       _buildDeviceInfo(),
 
                       // Received advertisements list
@@ -1148,161 +1147,6 @@ class _PeripheralDetailPageState extends State<PeripheralDetailPage> {
                 bleDevice.name ?? "Unknown",
                 Icons.label,
               ),
-              // Manufacturer data
-              if (bleDevice.manufacturerDataList.isNotEmpty) ...[
-                const SizedBox(height: 16),
-                Row(
-                  children: [
-                    Icon(
-                      Icons.memory,
-                      size: 18,
-                      color: colorScheme.secondary,
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      'Manufacturer Data',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 14,
-                        color: colorScheme.onSurface,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                ...bleDevice.manufacturerDataList.map(
-                  (data) => Padding(
-                    padding: const EdgeInsets.only(
-                      bottom: 8.0,
-                    ),
-                    child: Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: colorScheme.secondaryContainer,
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              Text(
-                                'Company ID: ',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w600,
-                                  color: colorScheme.onSecondaryContainer,
-                                ),
-                              ),
-                              Expanded(
-                                child: SelectableText(
-                                  data.companyIdRadix16,
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    fontFamily: 'monospace',
-                                    color: colorScheme.onSecondaryContainer,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                          CompanyInfoWidget(
-                            companyId: data.companyId,
-                            colorScheme: colorScheme,
-                            labelStyle: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                              color: colorScheme.onSecondaryContainer,
-                            ),
-                            nameStyle: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w500,
-                              color: colorScheme.onSecondaryContainer,
-                            ),
-                          ),
-                          if (data.payloadRadix16.isNotEmpty) ...[
-                            const SizedBox(height: 4),
-                            Row(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  'Payload: ',
-                                  style: TextStyle(
-                                    fontSize: 11,
-                                    color: colorScheme.onSecondaryContainer
-                                        .withValues(alpha: 0.8),
-                                  ),
-                                ),
-                                Expanded(
-                                  child: SelectableText(
-                                    data.payloadRadix16,
-                                    style: TextStyle(
-                                      fontSize: 11,
-                                      fontFamily: 'monospace',
-                                      color: colorScheme.onSecondaryContainer
-                                          .withValues(alpha: 0.8),
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-              // Advertised services
-              if (bleDevice.services.isNotEmpty) ...[
-                const SizedBox(height: 16),
-                Row(
-                  children: [
-                    Icon(
-                      Icons.list,
-                      size: 18,
-                      color: colorScheme.tertiary,
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      'Advertised Services',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 14,
-                        color: colorScheme.onSurface,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                Wrap(
-                  spacing: 6,
-                  runSpacing: 6,
-                  children: bleDevice.services
-                      .map(
-                        (service) => Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 10,
-                            vertical: 6,
-                          ),
-                          decoration: BoxDecoration(
-                            color: colorScheme.tertiaryContainer,
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: SelectableText(
-                            service,
-                            style: TextStyle(
-                              fontSize: 11,
-                              fontFamily: 'monospace',
-                              color: colorScheme.onTertiaryContainer,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        ),
-                      )
-                      .toList(),
-                ),
-              ],
             ],
           ),
         ),
@@ -1316,15 +1160,63 @@ class _PeripheralDetailPageState extends State<PeripheralDetailPage> {
         '${dt.second.toString().padLeft(2, '0')}';
   }
 
-  static String _advertisementPayload(BleDevice device) {
-    if (device.manufacturerDataList.isNotEmpty) {
-      return device.manufacturerDataList.first.payloadRadix16;
-    }
-    if (device.serviceData.isNotEmpty) {
-      final entry = device.serviceData.entries.first;
-      return '0x${entry.value.map((b) => b.toRadixString(16).padLeft(2, '0')).join('').toUpperCase()}';
-    }
-    return '—';
+  static String _formatCompanyIdentifiers(BleDevice device) {
+    if (device.manufacturerDataList.isEmpty) return '—';
+    final companyService = CompanyIdentifierService.instance;
+    return device.manufacturerDataList
+        .map((d) {
+          final name = companyService.getCompanyName(d.companyId);
+          return name != null ? '${d.companyIdRadix16} ($name)' : d.companyIdRadix16;
+        })
+        .join(', ');
+  }
+
+  static String _formatManufacturerData(BleDevice device) {
+    if (device.manufacturerDataList.isEmpty) return '—';
+    return device.manufacturerDataList
+        .map((d) => '${d.companyIdRadix16}: ${d.payloadRadix16}')
+        .join('; ');
+  }
+
+  static String _formatServiceData(BleDevice device) {
+    if (device.serviceData.isEmpty) return '—';
+    return device.serviceData.entries
+        .map((e) =>
+            '${e.key}: 0x${e.value.map((b) => b.toRadixString(16).padLeft(2, '0')).join('').toUpperCase()}')
+        .join('; ');
+  }
+
+  static String _formatAdvertisedServices(BleDevice device) {
+    if (device.services.isEmpty) return '—';
+    return device.services.join(', ');
+  }
+
+  Widget _buildAdRow(
+    String label,
+    String value,
+    IconData icon,
+    TextStyle labelStyle,
+    TextStyle valueStyle,
+    ColorScheme colorScheme,
+  ) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(icon, size: 12, color: colorScheme.onSurface.withValues(alpha: 0.6)),
+        const SizedBox(width: 4),
+        SizedBox(
+          width: 98,
+          child: Text(label, style: labelStyle),
+        ),
+        Expanded(
+          child: SelectableText(
+            value,
+            style: valueStyle,
+            maxLines: 2,
+          ),
+        ),
+      ],
+    );
   }
 
   Future<void> _copyReceivedAdvertisements() async {
@@ -1332,12 +1224,32 @@ class _PeripheralDetailPageState extends State<PeripheralDetailPage> {
     final lines = _receivedAdvertisements.reversed.map((ad) {
       final ts = ad.timestampDateTime;
       final timeStr = ts != null ? _formatAdTime(ts) : '—';
-      final payload = _advertisementPayload(ad);
-      return '$timeStr  RSSI: ${ad.rssi ?? "—"}  $payload';
+      final rssiStr = ad.rssi?.toString() ?? '—';
+      final companyIdStr = _formatCompanyIdentifiers(ad);
+      final mfrStr = _formatManufacturerData(ad);
+      final svcStr = _formatServiceData(ad);
+      final advSvcStr = _formatAdvertisedServices(ad);
+      return 'Time: $timeStr  RSSI: $rssiStr  Company ID: $companyIdStr  Manufacturer Data: $mfrStr  Service Data: $svcStr  Advertised Services: $advSvcStr';
     }).toList();
     await Clipboard.setData(ClipboardData(text: lines.join('\n')));
     if (mounted) {
       _showSnackBar('All advertisements copied to clipboard');
+    }
+  }
+
+  Future<void> _copyAdvertisement(BleDevice ad) async {
+    final ts = ad.timestampDateTime;
+    final timeStr = ts != null ? _formatAdTime(ts) : '—';
+    final rssiStr = ad.rssi?.toString() ?? '—';
+    final companyIdStr = _formatCompanyIdentifiers(ad);
+    final mfrStr = _formatManufacturerData(ad);
+    final svcStr = _formatServiceData(ad);
+    final advSvcStr = _formatAdvertisedServices(ad);
+    final line =
+        'Time: $timeStr  RSSI: $rssiStr  Company ID: $companyIdStr  Manufacturer Data: $mfrStr  Service Data: $svcStr  Advertised Services: $advSvcStr';
+    await Clipboard.setData(ClipboardData(text: line));
+    if (mounted) {
+      _showSnackBar('Advertisement copied to clipboard');
     }
   }
 
@@ -1365,13 +1277,13 @@ class _PeripheralDetailPageState extends State<PeripheralDetailPage> {
                 });
               },
               tilePadding: const EdgeInsets.symmetric(
-                horizontal: 16,
-                vertical: 8,
+                horizontal: 12,
+                vertical: 6,
               ),
               childrenPadding: const EdgeInsets.only(
-                left: 16,
-                right: 16,
-                bottom: 16,
+                left: 12,
+                right: 12,
+                bottom: 10,
               ),
               title: ResultHeaderBar(
                 icon: Icons.ad_units_outlined,
@@ -1399,21 +1311,30 @@ class _PeripheralDetailPageState extends State<PeripheralDetailPage> {
               children: [
                 _receivedAdvertisements.isEmpty
                     ? Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        padding: const EdgeInsets.symmetric(vertical: 10),
                         child: Text(
                           'No advertisements yet',
                           style: TextStyle(
-                            fontSize: 13,
+                            fontSize: 12,
                             color: colorScheme.onSurface.withValues(alpha: 0.6),
                           ),
                         ),
                       )
                     : ConstrainedBox(
-                        constraints: const BoxConstraints(maxHeight: 200),
+                        constraints: const BoxConstraints(maxHeight: 240),
                         child: ListView.separated(
                           shrinkWrap: true,
                           itemCount: _receivedAdvertisements.length,
-                          separatorBuilder: (_, __) => const SizedBox(height: 6),
+                          separatorBuilder: (context, _) => Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 6),
+                            child: Divider(
+                              height: 1,
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .onSurface
+                                  .withValues(alpha: 0.2),
+                            ),
+                          ),
                           itemBuilder: (context, index) {
                             final ad = _receivedAdvertisements[
                                 _receivedAdvertisements.length - 1 - index];
@@ -1421,56 +1342,107 @@ class _PeripheralDetailPageState extends State<PeripheralDetailPage> {
                             final timeStr = ts != null
                                 ? _formatAdTime(ts)
                                 : '—';
-                            final payload = _advertisementPayload(ad);
+                            final companyIdStr =
+                                _formatCompanyIdentifiers(ad);
+                            final mfrStr = _formatManufacturerData(ad);
+                            final svcStr = _formatServiceData(ad);
+                            final advSvcStr = _formatAdvertisedServices(ad);
+                            final labelStyle = TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w600,
+                              color: colorScheme.onSurface
+                                  .withValues(alpha: 0.7),
+                            );
+                            final valueStyle = TextStyle(
+                              fontSize: 10,
+                              fontFamily: 'monospace',
+                              color: colorScheme.onSurface
+                                  .withValues(alpha: 0.85),
+                            );
                             return Padding(
                               padding: const EdgeInsets.symmetric(
-                                vertical: 4,
-                                horizontal: 8,
+                                vertical: 3,
+                                horizontal: 4,
                               ),
-                              child: Column(
+                              child: Row(
                                 crossAxisAlignment: CrossAxisAlignment.start,
-                                mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  Row(
-                                    children: [
-                                      Icon(
-                                        Icons.schedule,
-                                        size: 14,
-                                        color: colorScheme.onSurface
-                                            .withValues(alpha: 0.6),
-                                      ),
-                                      const SizedBox(width: 8),
-                                      Text(
-                                        timeStr,
-                                        style: TextStyle(
-                                          fontSize: 12,
-                                          fontFamily: 'monospace',
-                                          color: colorScheme.onSurface
-                                              .withValues(alpha: 0.8),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        _buildAdRow(
+                                          'Time',
+                                          timeStr,
+                                          Icons.schedule,
+                                          labelStyle,
+                                          valueStyle,
+                                          colorScheme,
                                         ),
-                                      ),
-                                      const SizedBox(width: 12),
-                                      Text(
-                                        'RSSI: ${ad.rssi ?? "—"}',
-                                        style: TextStyle(
-                                          fontSize: 12,
-                                          color: colorScheme.onSurface
-                                              .withValues(alpha: 0.8),
+                                        const SizedBox(height: 2),
+                                        _buildAdRow(
+                                          'RSSI',
+                                          ad.rssi?.toString() ?? '—',
+                                          Icons.signal_cellular_alt,
+                                          labelStyle,
+                                          valueStyle,
+                                          colorScheme,
                                         ),
-                                      ),
-                                    ],
-                                  ),
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    payload,
-                                    style: TextStyle(
-                                      fontSize: 11,
-                                      fontFamily: 'monospace',
-                                      color: colorScheme.onSurface
-                                          .withValues(alpha: 0.7),
+                                        const SizedBox(height: 2),
+                                        _buildAdRow(
+                                          'Company ID',
+                                          companyIdStr,
+                                          Icons.business,
+                                          labelStyle,
+                                          valueStyle,
+                                          colorScheme,
+                                        ),
+                                        const SizedBox(height: 2),
+                                        _buildAdRow(
+                                          'Adv. Services',
+                                          advSvcStr,
+                                          Icons.apps,
+                                          labelStyle,
+                                          valueStyle,
+                                          colorScheme,
+                                        ),
+                                        const SizedBox(height: 2),
+                                        _buildAdRow(
+                                          'Mfr Data',
+                                          mfrStr,
+                                          Icons.memory,
+                                          labelStyle,
+                                          valueStyle,
+                                          colorScheme,
+                                        ),
+                                        const SizedBox(height: 2),
+                                        _buildAdRow(
+                                          'Service Data',
+                                          svcStr,
+                                          Icons.list,
+                                          labelStyle,
+                                          valueStyle,
+                                          colorScheme,
+                                        ),
+                                      ],
                                     ),
-                                    overflow: TextOverflow.ellipsis,
-                                    maxLines: 2,
+                                  ),
+                                  IconButton(
+                                    icon: const Icon(Icons.copy),
+                                    iconSize: 18,
+                                    padding: const EdgeInsets.all(4),
+                                    constraints: const BoxConstraints(
+                                      minWidth: 32,
+                                      minHeight: 32,
+                                    ),
+                                    tooltip: 'Copy advertisement',
+                                    onPressed: () => _copyAdvertisement(ad),
+                                    style: IconButton.styleFrom(
+                                      foregroundColor: colorScheme.onSurface
+                                          .withValues(alpha: 0.6),
+                                    ),
                                   ),
                                 ],
                               ),
