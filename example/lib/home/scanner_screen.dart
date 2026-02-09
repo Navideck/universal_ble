@@ -15,6 +15,12 @@ import 'package:universal_ble_example/home/widgets/scanned_item_widget.dart';
 import 'package:universal_ble_example/peripheral_details/peripheral_detail_page.dart';
 import 'package:universal_ble_example/widgets/scan_controller_scope.dart';
 
+enum ScanOrder {
+  lastSeen,
+  name,
+  rssi,
+}
+
 class ScannerScreen extends StatefulWidget {
   const ScannerScreen({super.key});
 
@@ -37,6 +43,7 @@ class _ScannerScreenState extends State<ScannerScreen> {
 
   AvailabilityState? bleAvailabilityState;
   ScanFilter? scanFilter;
+  ScanOrder _scanOrder = ScanOrder.lastSeen;
   final Map<String, bool> _isExpanded = {};
   final Map<String, int> _deviceAdFlashTrigger = {};
 
@@ -108,12 +115,28 @@ class _ScannerScreenState extends State<ScannerScreen> {
           prefs.getString('scan_filter_manufacturer_data') ?? '';
       final searchFilter = prefs.getString('scan_filter_search') ?? '';
       final webServices = prefs.getString('scan_filter_web_services') ?? '';
+      final scanOrderStr = prefs.getString('scan_order');
 
       servicesFilterController.text = services;
       namePrefixController.text = namePrefix;
       manufacturerDataController.text = manufacturerData;
       _searchFilterController.text = searchFilter;
       _webServicesController.text = webServices;
+
+      if (scanOrderStr != null) {
+        switch (scanOrderStr) {
+          case 'lastSeen':
+            _scanOrder = ScanOrder.lastSeen;
+            break;
+          case 'name':
+            _scanOrder = ScanOrder.name;
+            break;
+          case 'rssi':
+            _scanOrder = ScanOrder.rssi;
+            break;
+        }
+        if (mounted) setState(() {});
+      }
 
       // Reconstruct the scan filter if any values exist
       if (services.isNotEmpty ||
@@ -139,6 +162,7 @@ class _ScannerScreenState extends State<ScannerScreen> {
       await prefs.setString('scan_filter_search', _searchFilterController.text);
       await prefs.setString(
           'scan_filter_web_services', _webServicesController.text);
+      await prefs.setString('scan_order', _scanOrder.name);
     } catch (e) {
       debugPrint('Failed to save scan filters: $e');
     }
@@ -300,6 +324,37 @@ class _ScannerScreenState extends State<ScannerScreen> {
 
       return false;
     }).toList();
+  }
+
+  List<BleDevice> get _sortedDevices {
+    final list = List<BleDevice>.from(_filteredDevices);
+    switch (_scanOrder) {
+      case ScanOrder.lastSeen:
+        list.sort((a, b) {
+          final ta = a.timestamp ?? 0;
+          final tb = b.timestamp ?? 0;
+          return tb.compareTo(ta); // newest first
+        });
+        break;
+      case ScanOrder.name:
+        list.sort((a, b) {
+          final na = (a.name ?? '').toLowerCase();
+          final nb = (b.name ?? '').toLowerCase();
+          if (na.isEmpty && nb.isEmpty) return 0;
+          if (na.isEmpty) return 1;
+          if (nb.isEmpty) return -1;
+          return na.compareTo(nb);
+        });
+        break;
+      case ScanOrder.rssi:
+        list.sort((a, b) {
+          final ra = a.rssi ?? -999;
+          final rb = b.rssi ?? -999;
+          return rb.compareTo(ra); // strongest first
+        });
+        break;
+    }
+    return list;
   }
 
   bool get _isBluetoothAvailable =>
@@ -623,7 +678,7 @@ class _ScannerScreenState extends State<ScannerScreen> {
                     ),
                   ),
                 ),
-                const Spacer(),
+                const SizedBox(width: 4),
                 TextButton.icon(
                   onPressed: _showScanFilterBottomSheet,
                   icon: Icon(
@@ -652,30 +707,54 @@ class _ScannerScreenState extends State<ScannerScreen> {
                         : null,
                   ),
                 ),
-                const SizedBox(width: 4),
-                TextButton.icon(
-                  onPressed: () {
+                const Spacer(),
+                PopupMenuButton<ScanOrder>(
+                  tooltip: 'Sort by',
+                  padding: EdgeInsets.zero,
+                  onSelected: (ScanOrder order) {
                     setState(() {
-                      _bleDevices.clear();
-                      _hiddenDevices.clear();
-                      _deviceAdFlashTrigger.clear();
+                      _scanOrder = order;
                     });
+                    _saveScanFilters();
                   },
-                  icon: Icon(
-                    Icons.clear_all,
-                    size: 18,
-                    color: colorScheme.error,
-                  ),
-                  label: Text(
-                    'Clear',
-                    style: TextStyle(
-                      color: colorScheme.error,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
+                  itemBuilder: (context) => [
+                    const PopupMenuItem(
+                      value: ScanOrder.lastSeen,
+                      child: Text('Last seen'),
                     ),
-                  ),
-                  style: TextButton.styleFrom(
-                    padding: EdgeInsets.symmetric(horizontal: 8),
+                    const PopupMenuItem(
+                      value: ScanOrder.name,
+                      child: Text('Name'),
+                    ),
+                    const PopupMenuItem(
+                      value: ScanOrder.rssi,
+                      child: Text('RSSI'),
+                    ),
+                  ],
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          _scanOrder == ScanOrder.lastSeen
+                              ? 'Last seen'
+                              : _scanOrder == ScanOrder.name
+                                  ? 'Name'
+                                  : 'RSSI',
+                          style: TextStyle(
+                            color: colorScheme.onSurface,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        Icon(
+                          Icons.arrow_drop_down,
+                          size: 18,
+                          color: colorScheme.onSurface,
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ],
@@ -789,7 +868,7 @@ class _ScannerScreenState extends State<ScannerScreen> {
                       )
                     : _scanController?.isScanning != true && _bleDevices.isEmpty
                         ? ScannedDevicesPlaceholderWidget(onTap: _startScan)
-                        : _filteredDevices.isEmpty
+                        : _sortedDevices.isEmpty
                             ? Center(
                                 child: Column(
                                   mainAxisAlignment: MainAxisAlignment.center,
@@ -817,12 +896,11 @@ class _ScannerScreenState extends State<ScannerScreen> {
                                   horizontal: 16,
                                   vertical: 8,
                                 ),
-                                itemCount: _filteredDevices.length,
+                                itemCount: _sortedDevices.length,
                                 separatorBuilder: (context, index) =>
                                     const SizedBox(height: 8),
                                 itemBuilder: (context, index) {
-                                  BleDevice device = _filteredDevices[
-                                      _filteredDevices.length - index - 1];
+                                  BleDevice device = _sortedDevices[index];
                                   return ScannedItemWidget(
                                     bleDevice: device,
                                     adFlashTrigger:
