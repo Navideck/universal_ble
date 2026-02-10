@@ -165,26 +165,8 @@ UniversalBlePlugin::StartScan(const UniversalScanFilter *filter, const Universal
       resetScanFilter();
 
       if (filter != nullptr) {
-        // Native filter supports only 1 service
-        const bool uses_custom_filters =
-            filter->with_services().size() > 1 ||
-            filter->with_manufacturer_data().size() > 0 ||
-            filter->with_name_prefix().size() > 0;
-
-        if (uses_custom_filters) {
-          UniversalBleLogger::LogInfo("Using Custom Scan Filter");
-          setScanFilter(*filter);
-        } else {
-          // Apply Services filter
-          if (!filter->with_services().empty()) {
-            for (const auto &uuid : filter->with_services()) {
-              bluetooth_le_watcher_.AdvertisementFilter()
-                  .Advertisement()
-                  .ServiceUuids()
-                  .Append(uuid_to_guid(std::get<std::string>(uuid)));
-            }
-          }
-        }
+        UniversalBleLogger::LogInfo("Using Custom Scan Filter");
+        setScanFilter(*filter);
       }
 
       bluetooth_le_watcher_received_token_ = bluetooth_le_watcher_.Received(
