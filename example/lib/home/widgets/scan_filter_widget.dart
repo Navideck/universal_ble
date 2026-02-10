@@ -239,7 +239,7 @@ class _ScanFilterWidgetState extends State<ScanFilterWidget> {
                       flex: 2,
                       child: OutlinedButton.icon(
                         onPressed: clearFilter,
-                        icon: const Icon(Icons.clear_all),
+                        icon: const Icon(Icons.clear),
                         label: const Text('Clear All'),
                         style: OutlinedButton.styleFrom(
                           foregroundColor: colorScheme.onSurface,
@@ -328,6 +328,9 @@ class _ScanFilterWidgetState extends State<ScanFilterWidget> {
               style: const TextStyle(fontFamily: 'monospace'),
               decoration: InputDecoration(
                 hintText: hintText,
+                hintStyle: TextStyle(
+                  color: colorScheme.onSurface.withValues(alpha: 0.15),
+                ),
                 helperText: helperText,
                 helperMaxLines: 2,
                 helperStyle: TextStyle(

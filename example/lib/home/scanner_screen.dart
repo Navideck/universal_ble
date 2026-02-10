@@ -255,6 +255,15 @@ class _ScannerScreenState extends State<ScannerScreen> {
     if (mounted) await _startScan();
   }
 
+  int _getActiveFilterCount(ScanFilter? filter) {
+    if (filter == null) return 0;
+    int n = 0;
+    if (filter.withServices.isNotEmpty) n++;
+    if (filter.withNamePrefix.isNotEmpty) n++;
+    if (filter.withManufacturerData.isNotEmpty) n++;
+    return n;
+  }
+
   void _showScanFilterBottomSheet() {
     showModalBottomSheet(
       isScrollControlled: true,
@@ -657,32 +666,42 @@ class _ScannerScreenState extends State<ScannerScreen> {
                   ),
                 ),
                 const SizedBox(width: 4),
-                TextButton.icon(
-                  onPressed: _showScanFilterBottomSheet,
-                  icon: Icon(
-                    scanFilter != null
-                        ? Icons.filter_list
-                        : Icons.filter_list_outlined,
-                    size: 18,
-                    color: scanFilter != null
-                        ? colorScheme.primary
-                        : colorScheme.onSurface,
-                  ),
+                Badge(
+                  isLabelVisible: _getActiveFilterCount(scanFilter) > 0,
                   label: Text(
-                    'Filter',
-                    style: TextStyle(
-                      color: scanFilter != null
-                          ? colorScheme.primary
-                          : colorScheme.onSurface,
-                      fontSize: 12,
+                    '${_getActiveFilterCount(scanFilter)}',
+                    style: const TextStyle(
+                      fontSize: 10,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
-                  style: TextButton.styleFrom(
-                    padding: EdgeInsets.symmetric(horizontal: 8),
-                    backgroundColor: scanFilter != null
-                        ? colorScheme.primaryContainer
-                        : null,
+                  child: TextButton.icon(
+                    onPressed: _showScanFilterBottomSheet,
+                    icon: Icon(
+                      scanFilter != null
+                          ? Icons.filter_list
+                          : Icons.filter_list_outlined,
+                      size: 18,
+                      color: scanFilter != null
+                          ? colorScheme.primary
+                          : colorScheme.onSurface,
+                    ),
+                    label: Text(
+                      'Filter',
+                      style: TextStyle(
+                        color: scanFilter != null
+                            ? colorScheme.primary
+                            : colorScheme.onSurface,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    style: TextButton.styleFrom(
+                      padding: EdgeInsets.symmetric(horizontal: 8),
+                      backgroundColor: scanFilter != null
+                          ? colorScheme.primaryContainer
+                          : null,
+                    ),
                   ),
                 ),
                 const Spacer(),
