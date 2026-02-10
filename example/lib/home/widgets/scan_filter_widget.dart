@@ -1,12 +1,18 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:universal_ble/universal_ble.dart';
 import 'package:universal_ble_example/data/company_identifier_service.dart';
+import 'package:universal_ble_example/data/saved_scan_filter.dart';
 
 class ScanFilterWidget extends StatefulWidget {
   final void Function(ScanFilter? filter) onScanFilter;
   final TextEditingController servicesFilterController;
   final TextEditingController namePrefixController;
   final TextEditingController manufacturerDataController;
+  final ValueListenable<List<SavedScanFilter>> savedFiltersListenable;
+  final void Function(SavedScanFilter preset) onSelectSavedFilter;
+  final void Function(SavedScanFilter preset, String newName) onRenameFilter;
+  final void Function(SavedScanFilter preset) onDeleteFilter;
 
   const ScanFilterWidget({
     super.key,
@@ -14,6 +20,10 @@ class ScanFilterWidget extends StatefulWidget {
     required this.servicesFilterController,
     required this.namePrefixController,
     required this.manufacturerDataController,
+    required this.savedFiltersListenable,
+    required this.onSelectSavedFilter,
+    required this.onRenameFilter,
+    required this.onDeleteFilter,
   });
 
   @override
@@ -22,6 +32,54 @@ class ScanFilterWidget extends StatefulWidget {
 
 class _ScanFilterWidgetState extends State<ScanFilterWidget> {
   String? error;
+
+  int? _selectedSavedFilterIndex(List<SavedScanFilter> savedFilters) {
+    final s = widget.servicesFilterController.text;
+    final n = widget.namePrefixController.text;
+    final m = widget.manufacturerDataController.text;
+    for (var i = 0; i < savedFilters.length; i++) {
+      final f = savedFilters[i];
+      if (f.services == s && f.namePrefix == n && f.manufacturerData == m) {
+        return i;
+      }
+    }
+    return null;
+  }
+
+  Future<void> _showRenameDialog(
+      BuildContext context, SavedScanFilter preset) async {
+    final controller = TextEditingController(text: preset.name);
+    final newName = await showDialog<String>(
+      context: context,
+      builder: (ctx) {
+        return AlertDialog(
+          title: const Text('Rename filter'),
+          content: TextField(
+            controller: controller,
+            decoration: const InputDecoration(
+              labelText: 'Name',
+              border: OutlineInputBorder(),
+            ),
+            autofocus: true,
+            onSubmitted: (v) => Navigator.pop(ctx, v),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(ctx, controller.text.trim()),
+              child: const Text('Save'),
+            ),
+          ],
+        );
+      },
+    );
+    if (newName != null && newName.isNotEmpty && mounted) {
+      widget.onRenameFilter(preset, newName);
+    }
+  }
 
   void applyFilter() async {
     setState(() {
@@ -199,6 +257,104 @@ class _ScanFilterWidgetState extends State<ScanFilterWidget> {
                       ],
                     ),
                   ),
+
+                // Saved filters dropdown (rebuilds when list changes)
+                ValueListenableBuilder<List<SavedScanFilter>>(
+                  valueListenable: widget.savedFiltersListenable,
+                  builder: (context, savedFilters, child) {
+                    if (savedFilters.isEmpty) {
+                      return const SizedBox.shrink();
+                    }
+                    final selectedIndex =
+                        _selectedSavedFilterIndex(savedFilters);
+                    final selectedPreset = selectedIndex != null &&
+                            selectedIndex < savedFilters.length
+                        ? savedFilters[selectedIndex]
+                        : null;
+                    // With a single filter, always allow edit/delete even if not selected in dropdown
+                    final presetForActions = selectedPreset ??
+                        (savedFilters.length == 1 ? savedFilters[0] : null);
+                    return Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Text(
+                          'Saved filters',
+                          style: theme.textTheme.titleSmall?.copyWith(
+                            fontWeight: FontWeight.w600,
+                            color: colorScheme.primary,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: DropdownButtonFormField<int>(
+                                initialValue: selectedIndex,
+                                decoration: InputDecoration(
+                                  isDense: true,
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  contentPadding: const EdgeInsets.symmetric(
+                                    horizontal: 12,
+                                    vertical: 10,
+                                  ),
+                                ),
+                                hint: const Text('—'),
+                                items: [
+                                  const DropdownMenuItem<int>(
+                                    value: null,
+                                    child: Text('—'),
+                                  ),
+                                  ...List.generate(
+                                    savedFilters.length,
+                                    (i) => DropdownMenuItem<int>(
+                                      value: i,
+                                      child: Text(
+                                        savedFilters[i].name,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                                onChanged: (int? index) {
+                                  if (index != null &&
+                                      index < savedFilters.length) {
+                                    widget.onSelectSavedFilter(
+                                        savedFilters[index]);
+                                  }
+                                },
+                              ),
+                            ),
+                            if (presetForActions != null) ...[
+                              const SizedBox(width: 8),
+                              IconButton(
+                                icon: const Icon(Icons.edit_outlined),
+                                onPressed: () => _showRenameDialog(
+                                    context, presetForActions),
+                                tooltip: 'Rename',
+                                style: IconButton.styleFrom(
+                                  minimumSize: const Size(36, 36),
+                                ),
+                              ),
+                              IconButton(
+                                icon: const Icon(Icons.delete_outline),
+                                onPressed: () =>
+                                    widget.onDeleteFilter(presetForActions),
+                                tooltip: 'Delete',
+                                style: IconButton.styleFrom(
+                                  minimumSize: const Size(36, 36),
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                        const SizedBox(height: 16),
+                      ],
+                    );
+                  },
+                ),
 
                 // Name Prefix Filter
                 _buildFilterCard(

@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:universal_ble/universal_ble.dart';
 import 'package:universal_ble_example/data/prefs_async.dart';
+import 'package:universal_ble_example/data/saved_scan_filter.dart';
 import 'package:universal_ble_example/data/company_identifier_service.dart';
 import 'package:universal_ble_example/data/mock_universal_ble.dart';
 import 'package:universal_ble_example/data/scan_controller.dart';
@@ -42,6 +43,9 @@ class _ScannerScreenState extends State<ScannerScreen> {
 
   AvailabilityState? bleAvailabilityState;
   ScanFilter? scanFilter;
+  List<SavedScanFilter> _savedFilters = [];
+  final ValueNotifier<List<SavedScanFilter>> _savedFiltersNotifier =
+      ValueNotifier([]);
   ScanOrder _scanOrder = ScanOrder.rssi;
   final Map<String, bool> _isExpanded = {};
   final Map<String, int> _deviceAdFlashTrigger = {};
@@ -118,6 +122,10 @@ class _ScannerScreenState extends State<ScannerScreen> {
       final webServices =
           (await prefsAsync.getString('scan_filter_web_services')) ?? '';
       final scanOrderStr = await prefsAsync.getString('scan_order');
+      final savedFiltersJson =
+          await prefsAsync.getString('saved_scan_filters');
+      _savedFilters = SavedScanFilter.fromJsonList(savedFiltersJson);
+      _savedFiltersNotifier.value = List.from(_savedFilters);
 
       servicesFilterController.text = services;
       namePrefixController.text = namePrefix;
@@ -152,6 +160,17 @@ class _ScannerScreenState extends State<ScannerScreen> {
     }
   }
 
+  Future<void> _saveSavedFilters() async {
+    try {
+      await prefsAsync.setString(
+        'saved_scan_filters',
+        SavedScanFilter.toJsonList(_savedFilters),
+      );
+    } catch (e) {
+      debugPrint('Failed to save saved filters: $e');
+    }
+  }
+
   Future<void> _saveScanFilters() async {
     try {
       await prefsAsync.setString(
@@ -170,7 +189,7 @@ class _ScannerScreenState extends State<ScannerScreen> {
     }
   }
 
-  void _applyFilterFromControllers() async {
+  Future<void> _applyFilterFromControllers() async {
     try {
       // Ensure company identifier service is loaded
       await CompanyIdentifierService.instance.load();
@@ -248,6 +267,38 @@ class _ScannerScreenState extends State<ScannerScreen> {
       _deviceAdFlashTrigger.clear();
     });
     await _saveScanFilters();
+
+    // Store applied filter as a saved preset (keep last 10), unless it already matches one
+    final servicesText = servicesFilterController.text;
+    final namePrefixText = namePrefixController.text;
+    final manufacturerDataText = manufacturerDataController.text;
+    final hasValues = servicesText.trim().isNotEmpty ||
+        namePrefixText.trim().isNotEmpty ||
+        manufacturerDataText.trim().isNotEmpty;
+    if (hasValues) {
+      final alreadyStored = _savedFilters.any((f) =>
+          f.services == servicesText &&
+          f.namePrefix == namePrefixText &&
+          f.manufacturerData == manufacturerDataText);
+      if (!alreadyStored) {
+        final name = 'Filter ${_savedFilters.length + 1}';
+        _savedFilters.add(SavedScanFilter(
+          name: name,
+          services: servicesText,
+          namePrefix: namePrefixText,
+          manufacturerData: manufacturerDataText,
+        ));
+        if (_savedFilters.length > 10) {
+          _savedFilters = _savedFilters.sublist(_savedFilters.length - 10);
+        }
+        await _saveSavedFilters();
+        if (mounted) {
+          setState(() {});
+          _savedFiltersNotifier.value = List.from(_savedFilters);
+        }
+      }
+    }
+
     if (_scanController?.isScanning == true) {
       await _scanController?.stopScan();
       if (!mounted) return;
@@ -264,6 +315,54 @@ class _ScannerScreenState extends State<ScannerScreen> {
     return n;
   }
 
+  Future<void> _onSelectSavedFilter(SavedScanFilter preset) async {
+    servicesFilterController.text = preset.services;
+    namePrefixController.text = preset.namePrefix;
+    manufacturerDataController.text = preset.manufacturerData;
+    await _applyFilterFromControllers();
+    await _saveScanFilters();
+    if (_scanController?.isScanning == true) {
+      await _scanController?.stopScan();
+      if (!mounted) return;
+    }
+    if (mounted) {
+      await _startScan();
+      setState(() {});
+    }
+  }
+
+  Future<void> _onRenameFilter(SavedScanFilter preset, String newName) async {
+    final i = _savedFilters.indexWhere(
+      (f) =>
+          f.services == preset.services &&
+          f.namePrefix == preset.namePrefix &&
+          f.manufacturerData == preset.manufacturerData,
+    );
+    if (i >= 0) {
+      _savedFilters[i] = _savedFilters[i].copyWith(name: newName);
+      await _saveSavedFilters();
+      if (mounted) {
+        setState(() {});
+        _savedFiltersNotifier.value = List.from(_savedFilters);
+      }
+    }
+  }
+
+  Future<void> _onDeleteFilter(SavedScanFilter preset) async {
+    _savedFilters.removeWhere(
+      (f) =>
+          f.name == preset.name &&
+          f.services == preset.services &&
+          f.namePrefix == preset.namePrefix &&
+          f.manufacturerData == preset.manufacturerData,
+    );
+    await _saveSavedFilters();
+    if (mounted) {
+      setState(() {});
+      _savedFiltersNotifier.value = List.from(_savedFilters);
+    }
+  }
+
   void _showScanFilterBottomSheet() {
     showModalBottomSheet(
       isScrollControlled: true,
@@ -273,9 +372,13 @@ class _ScannerScreenState extends State<ScannerScreen> {
           servicesFilterController: servicesFilterController,
           namePrefixController: namePrefixController,
           manufacturerDataController: manufacturerDataController,
+          savedFiltersListenable: _savedFiltersNotifier,
           onScanFilter: (ScanFilter? filter) {
             _onScanFilterApplied(filter);
           },
+          onSelectSavedFilter: _onSelectSavedFilter,
+          onRenameFilter: _onRenameFilter,
+          onDeleteFilter: _onDeleteFilter,
         );
       },
     );
@@ -401,6 +504,7 @@ class _ScannerScreenState extends State<ScannerScreen> {
     manufacturerDataController.dispose();
     _searchFilterController.dispose();
     _webServicesController.dispose();
+    _savedFiltersNotifier.dispose();
 
     _scanSubscription?.cancel();
     super.dispose();
