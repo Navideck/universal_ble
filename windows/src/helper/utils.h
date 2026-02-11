@@ -65,13 +65,13 @@ namespace universal_ble
         return create_flutter_error(UniversalBleErrorCode::kUnknownError, message);
     }
 
-    inline void log_and_swallow(const char* where, const std::exception& ex) { 
-        UniversalBleLogger::LogError(std::string(where) + ": " + ex.what()); 
-    } 
+    inline void log_and_swallow(const char* where, const std::exception& ex) {
+        UniversalBleLogger::LogError(std::string(where) + ": " + ex.what());
+    }
 
-    inline void log_and_swallow_unknown(const char* where) { 
-        UniversalBleLogger::LogError(std::string(where) + ": unknown native exception"); 
-    } 
+    inline void log_and_swallow_unknown(const char* where) {
+        UniversalBleLogger::LogError(std::string(where) + ": unknown native exception");
+    }
 
     /// To call async functions synchronously
     template <typename AsyncT>
