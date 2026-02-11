@@ -1083,103 +1083,164 @@ void UniversalBlePlugin::RadioStateChanged(const Radio &sender,
   });
 }
 
+void UniversalBlePlugin::NotifyConnectionChanged(
+    const uint64_t bluetooth_address, const bool connected,
+    std::optional<std::string> error) {
+  ui_thread_handler_.Post(
+      [bluetooth_address, connected, error = std::move(error)] {
+        const std::string *error_ptr =
+            error.has_value() ? &error.value() : nullptr;
+        callback_channel->OnConnectionChanged(
+            mac_address_to_str(bluetooth_address), connected, error_ptr,
+            SuccessCallback, ErrorCallback);
+      });
+}
+
+void UniversalBlePlugin::NotifyConnectionException(
+    const uint64_t bluetooth_address, const std::string &error_message) {
+  UniversalBleLogger::LogError(error_message);
+  if (bluetooth_address != 0) {
+    CleanConnection(bluetooth_address);
+    NotifyConnectionChanged(bluetooth_address, false, error_message);
+  }
+}
+
 fire_and_forget UniversalBlePlugin::ConnectAsync(uint64_t bluetooth_address) {
-  BluetoothLEDevice device =
-      co_await BluetoothLEDevice::FromBluetoothAddressAsync(bluetooth_address);
-  if (!device) {
-    UniversalBleLogger::LogError(
-        "ConnectionLog: ConnectionFailed: Failed to get device");
-    ui_thread_handler_.Post([bluetooth_address] {
-      callback_channel->OnConnectionChanged(
-          mac_address_to_str(bluetooth_address), false,
-          new std::string("Failed to get device"), SuccessCallback,
-          ErrorCallback);
-    });
-
-    co_return;
-  }
-  UniversalBleLogger::LogInfo("ConnectionLog: Device found");
-  auto services_result =
-      co_await device.GetGattServicesAsync((BluetoothCacheMode::Uncached));
-  auto services_result_error =
-      gatt_communication_status_to_error(services_result.Status());
-  if (services_result_error.has_value()) {
-    UniversalBleLogger::LogError("ConnectionFailed: Failed to get services: " +
-                                 services_result_error.value());
-    ui_thread_handler_.Post([bluetooth_address, services_result_error] {
-      callback_channel->OnConnectionChanged(
-          mac_address_to_str(bluetooth_address), false,
-          &services_result_error.value(), SuccessCallback, ErrorCallback);
-    });
-    co_return;
-  }
-
-  UniversalBleLogger::LogInfo("ConnectionLog: Services discovered");
-  std::unordered_map<std::string, GattServiceObject> gatt_map;
-  auto gatt_services = services_result.Services();
-  for (GattDeviceService &&service : gatt_services) {
-    GattServiceObject gatt_service;
-    gatt_service.obj = service;
-    std::string service_uuid = guid_to_uuid(service.Uuid());
-    auto characteristics_result =
-        co_await service.GetCharacteristicsAsync(BluetoothCacheMode::Uncached);
-    auto characteristics_result_error =
-        gatt_communication_status_to_error(characteristics_result.Status());
-
-    if (characteristics_result_error.has_value()) {
+  try {
+    BluetoothLEDevice device =
+        co_await BluetoothLEDevice::FromBluetoothAddressAsync(bluetooth_address);
+    if (!device) {
       UniversalBleLogger::LogError(
-          "Failed to get characteristics for service: " + service_uuid +
-          ", With Status: " + characteristics_result_error.value());
-      continue;
-      // PostConnectionUpdate(bluetoothAddress, ConnectionState::disconnected);
-      // co_return;
+          "ConnectionLog: ConnectionFailed: Failed to get device");
+      NotifyConnectionChanged(bluetooth_address, false,
+                              std::string("Failed to get device"));
+      co_return;
     }
-    auto gatt_characteristics = characteristics_result.Characteristics();
-    for (GattCharacteristic &&characteristic : gatt_characteristics) {
-      GattCharacteristicObject gatt_characteristic;
-      gatt_characteristic.obj = characteristic;
-      gatt_characteristic.subscription_token = std::nullopt;
-      std::string characteristic_uuid = guid_to_uuid(characteristic.Uuid());
-      gatt_service.characteristics.insert_or_assign(
-          characteristic_uuid, std::move(gatt_characteristic));
+    UniversalBleLogger::LogInfo("ConnectionLog: Device found");
+    auto services_result =
+        co_await device.GetGattServicesAsync((BluetoothCacheMode::Uncached));
+    auto services_result_error =
+        gatt_communication_status_to_error(services_result.Status());
+    if (services_result_error.has_value()) {
+      UniversalBleLogger::LogError("ConnectionFailed: Failed to get services: " +
+                                   services_result_error.value());
+      NotifyConnectionChanged(bluetooth_address, false,
+                              services_result_error.value());
+      co_return;
     }
-    gatt_map.insert_or_assign(service_uuid, std::move(gatt_service));
-  }
 
-  event_token connection_status_changed_token = device.ConnectionStatusChanged(
-      {this, &UniversalBlePlugin::BluetoothLeDeviceConnectionStatusChanged});
-  auto device_agent = std::make_unique<BluetoothDeviceAgent>(
-      device, connection_status_changed_token, gatt_map);
-  auto pair = std::make_pair(bluetooth_address, std::move(device_agent));
-  connected_devices_.insert(std::move(pair));
-  UniversalBleLogger::LogInfo("ConnectionLog: Connected");
-  ui_thread_handler_.Post([bluetooth_address] {
-    callback_channel->OnConnectionChanged(mac_address_to_str(bluetooth_address),
-                                          true, nullptr, SuccessCallback,
-                                          ErrorCallback);
-  });
+    UniversalBleLogger::LogInfo("ConnectionLog: Services discovered");
+    std::unordered_map<std::string, GattServiceObject> gatt_map;
+    auto gatt_services = services_result.Services();
+    for (GattDeviceService &&service : gatt_services) {
+      try {
+        GattServiceObject gatt_service;
+        gatt_service.obj = service;
+        std::string service_uuid = guid_to_uuid(service.Uuid());
+        auto characteristics_result = co_await service.GetCharacteristicsAsync(
+            BluetoothCacheMode::Uncached);
+        auto characteristics_result_error =
+            gatt_communication_status_to_error(characteristics_result.Status());
+
+        if (characteristics_result_error.has_value()) {
+          UniversalBleLogger::LogError(
+              "Failed to get characteristics for service: " + service_uuid +
+              ", With Status: " + characteristics_result_error.value());
+          continue;
+        }
+        auto gatt_characteristics = characteristics_result.Characteristics();
+        for (GattCharacteristic &&characteristic : gatt_characteristics) {
+          GattCharacteristicObject gatt_characteristic;
+          gatt_characteristic.obj = characteristic;
+          gatt_characteristic.subscription_token = std::nullopt;
+          std::string characteristic_uuid = guid_to_uuid(characteristic.Uuid());
+          gatt_service.characteristics.insert_or_assign(
+              characteristic_uuid, std::move(gatt_characteristic));
+        }
+        gatt_map.insert_or_assign(service_uuid, std::move(gatt_service));
+      } catch (const hresult_error &err) {
+        UniversalBleLogger::LogError(
+            "ConnectAsync service loop hresult_error hr=" +
+            std::to_string(err.code()) + " msg=" + to_string(err.message()));
+      } catch (const std::exception &ex) {
+        UniversalBleLogger::LogError(
+            std::string("ConnectAsync service loop exception: ") + ex.what());
+      } catch (...) {
+        UniversalBleLogger::LogError("ConnectAsync service loop unknown error");
+      }
+    }
+
+    event_token connection_status_changed_token =
+        device.ConnectionStatusChanged(
+            {this, &UniversalBlePlugin::BluetoothLeDeviceConnectionStatusChanged});
+    auto device_agent = std::make_unique<BluetoothDeviceAgent>(
+        device, connection_status_changed_token, gatt_map);
+    auto pair = std::make_pair(bluetooth_address, std::move(device_agent));
+    connected_devices_.insert(std::move(pair));
+    UniversalBleLogger::LogInfo("ConnectionLog: Connected");
+    NotifyConnectionChanged(bluetooth_address, true, std::nullopt);
+  } catch (const hresult_error &err) {
+    NotifyConnectionException(
+        bluetooth_address,
+        "ConnectAsync hresult_error hr=" + std::to_string(err.code()) +
+            " msg=" + to_string(err.message()));
+  } catch (const std::exception &ex) {
+    NotifyConnectionException(
+        bluetooth_address,
+        std::string("ConnectAsync std::exception: ") + ex.what());
+  } catch (...) {
+    NotifyConnectionException(bluetooth_address,
+                              "ConnectAsync unknown exception");
+  }
 }
 
 void UniversalBlePlugin::BluetoothLeDeviceConnectionStatusChanged(
     const BluetoothLEDevice &sender, const IInspectable &) {
-  if (sender.ConnectionStatus() == BluetoothConnectionStatus::Disconnected) {
-    CleanConnection(sender.BluetoothAddress());
-    auto bluetooth_address = sender.BluetoothAddress();
-    ui_thread_handler_.Post([bluetooth_address] {
-      callback_channel->OnConnectionChanged(
-          mac_address_to_str(bluetooth_address), false, nullptr,
-          SuccessCallback, ErrorCallback);
-    });
+  uint64_t bluetooth_address = 0;
+  try {
+    bluetooth_address = sender.BluetoothAddress();
+    if (sender.ConnectionStatus() == BluetoothConnectionStatus::Disconnected) {
+      CleanConnection(bluetooth_address);
+      NotifyConnectionChanged(bluetooth_address, false, std::nullopt);
+    }
+  } catch (const hresult_error &err) {
+    NotifyConnectionException(
+        bluetooth_address,
+        "ConnectionStatusChanged hresult_error hr=" +
+            std::to_string(err.code()) + " msg=" + to_string(err.message()));
+  } catch (const std::exception &ex) {
+    NotifyConnectionException(
+        bluetooth_address,
+        std::string("ConnectionStatusChanged std::exception: ") + ex.what());
+  } catch (...) {
+    NotifyConnectionException(bluetooth_address,
+                              "ConnectionStatusChanged unknown exception");
   }
 }
 
 void UniversalBlePlugin::CleanConnection(const uint64_t bluetooth_address) {
-  const auto node = connected_devices_.extract(bluetooth_address);
-  if (!node.empty()) {
-    const auto device_agent = std::move(node.mapped());
-    device_agent->device.ConnectionStatusChanged(
-        device_agent->connection_status_changed_token);
-    DisposeServices(device_agent);
+  try {
+    const auto node = connected_devices_.extract(bluetooth_address);
+    if (!node.empty()) {
+      const auto device_agent = std::move(node.mapped());
+      try {
+        device_agent->device.ConnectionStatusChanged(
+            device_agent->connection_status_changed_token);
+      } catch (const hresult_error &err) {
+        UniversalBleLogger::LogError("CleanConnection hresult_error: " +
+                                     to_string(err.message()));
+      } catch (...) {
+        UniversalBleLogger::LogError("CleanConnection: failed to remove connection status handler");
+      }
+      DisposeServices(device_agent);
+    }
+  } catch (const hresult_error &err) {
+    UniversalBleLogger::LogError("CleanConnection outer hresult_error: " +
+                                 to_string(err.message()));
+  } catch (const std::exception &ex) {
+    log_and_swallow("CleanConnection std::exception", ex);
+  } catch (...) {
+    log_and_swallow_unknown("CleanConnection");
   }
 }
 
@@ -1188,13 +1249,71 @@ void UniversalBlePlugin::DisposeServices(
   for (auto &[service_id, service] : device_agent->gatt_map) {
     for (auto &[char_id, characteristic] : service.characteristics) {
       if (characteristic.subscription_token.has_value()) {
-        characteristic.obj.ValueChanged(
-            characteristic.subscription_token.value());
+        try {
+          characteristic.obj.ValueChanged(
+              characteristic.subscription_token.value());
+        } catch (const hresult_error &err) {
+          UniversalBleLogger::LogError("DisposeServices hresult_error unsub " +
+                                       to_string(err.message()));
+        } catch (const std::exception &ex) {
+          log_and_swallow("DisposeServices unsub std::exception", ex);
+        } catch (...) {
+          log_and_swallow_unknown("DisposeServices unsub");
+        }
         characteristic.subscription_token = std::nullopt;
       }
     }
   }
   device_agent->gatt_map.clear();
+}
+
+/**
+ * @brief In some cases, it helps to reset the whole Bluetooth state to get
+ * rid of any dangling connections, before scanning or connecting.
+ */
+void UniversalBlePlugin::ResetState() {
+  try {
+    // Stop and detach advertisement watcher
+    if (bluetooth_le_watcher_ != nullptr) {
+      try {
+        bluetooth_le_watcher_.Stop();
+      } catch (...) {
+        UniversalBleLogger::LogWarning("ResetState: failed to stop LE watcher");
+      }
+      try {
+        bluetooth_le_watcher_.Received(bluetooth_le_watcher_received_token_);
+      } catch (...) {
+        log_and_swallow_unknown("ResetState: failed to unregister LE watcher received handler");
+      }
+      bluetooth_le_watcher_ = nullptr;
+    }
+
+    // Dispose device watcher and caches
+    DisposeDeviceWatcher();
+    scan_results_.clear();
+    device_watcher_devices_.clear();
+    device_watcher_id_to_mac_.clear();
+
+    // Close all connected devices and clear map
+    std::vector<uint64_t> addrs;
+    addrs.reserve(connected_devices_.size());
+    for (const auto &p : connected_devices_) {
+      addrs.push_back(p.first);
+    }
+    for (const auto addr : addrs) {
+      CleanConnection(addr);
+    }
+    connected_devices_.clear();
+
+    UniversalBleLogger::LogInfo("ResetState: completed clean slate");
+  } catch (const hresult_error &err) {
+    UniversalBleLogger::LogError("ResetState hresult_error: " +
+                                 to_string(err.message()));
+  } catch (const std::exception &ex) {
+    log_and_swallow("ResetState std::exception", ex);
+  } catch (...) {
+    log_and_swallow_unknown("ResetState");
+  }
 }
 
 fire_and_forget UniversalBlePlugin::GetSystemDevicesAsync(
@@ -1385,10 +1504,23 @@ fire_and_forget UniversalBlePlugin::SetNotifiableAsync(
     const auto uuid = to_uuidstr(gatt_characteristic.Uuid());
 
     // Write to the descriptor.
-    const auto status =
-        co_await gatt_characteristic
-            .WriteClientCharacteristicConfigurationDescriptorAsync(
-                descriptor_value);
+    GattCommunicationStatus status{};
+    try {
+      status =
+          co_await gatt_characteristic
+              .WriteClientCharacteristicConfigurationDescriptorAsync(
+                  descriptor_value);
+    } catch (const hresult_error &err) {
+      UniversalBleLogger::LogError(
+          "SET_NOTIFY exception hr=" + std::to_string(err.code()) +
+          " msg=" + to_string(err.message()) + " device=" + device_id +
+          " service=" + service + " char=" + characteristic);
+      result(create_flutter_error(
+          UniversalBleErrorCode::kFailed,
+          "SetNotifiable exception: " + to_string(err.message()),
+          "hr=" + std::to_string(err.code())));
+      co_return;
+    }
     if (status != GattCommunicationStatus::Success) {
       UniversalBleLogger::LogError("SET_NOTIFY_FAILED <- " + device_id + " " +
                                    service + " " + characteristic + " status=" +
@@ -1425,6 +1557,14 @@ fire_and_forget UniversalBlePlugin::SetNotifiableAsync(
     result(std::nullopt);
   } catch (const FlutterError &err) {
     result(err);
+  } catch (const hresult_error &err) {
+    UniversalBleLogger::LogError(
+        "SetNotifiableLog hresult_error: hr=" + std::to_string(err.code()) +
+        " msg=" + to_string(err.message()) + " device=" + device_id +
+        " service=" + service + " char=" + characteristic);
+    result(create_flutter_error(UniversalBleErrorCode::kFailed,
+                                to_string(err.message()),
+                                std::to_string(err.code())));
   } catch (...) {
     UniversalBleLogger::LogError("SetNotifiableLog: Unknown error");
     result(create_flutter_unknown_error());
@@ -1433,22 +1573,36 @@ fire_and_forget UniversalBlePlugin::SetNotifiableAsync(
 
 void UniversalBlePlugin::GattCharacteristicValueChanged(
     const GattCharacteristic &sender, const GattValueChangedEventArgs &args) {
-  auto uuid = to_uuidstr(sender.Uuid());
-  auto bytes = to_bytevc(args.CharacteristicValue());
-  auto device_id =
-      mac_address_to_str(sender.Service().Device().BluetoothAddress());
+  uint64_t bluetooth_address = 0;
+  try {
+    bluetooth_address = sender.Service().Device().BluetoothAddress();
+    const auto uuid = to_uuidstr(sender.Uuid());
+    const auto bytes = to_bytevc(args.CharacteristicValue());
+    const auto device_id = mac_address_to_str(bluetooth_address);
 
-  UniversalBleLogger::LogVerboseWithTimestamp(
-      "NOTIFY <- " + device_id + " " + uuid +
-      " len=" + std::to_string(bytes.size()));
+    UniversalBleLogger::LogVerboseWithTimestamp(
+        "NOTIFY <- " + device_id + " " + uuid +
+        " len=" + std::to_string(bytes.size()));
 
-  auto timestamp = GetCurrentTimestampMillis();
-  ui_thread_handler_.Post([sender, bytes, timestamp] {
-    auto uuid = to_uuidstr(sender.Uuid());
-    callback_channel->OnValueChanged(
-        mac_address_to_str(sender.Service().Device().BluetoothAddress()), uuid,
-        bytes, &timestamp, SuccessCallback, ErrorCallback);
-  });
+    const auto timestamp = GetCurrentTimestampMillis();
+    ui_thread_handler_.Post([device_id, uuid, bytes, timestamp] {
+      callback_channel->OnValueChanged(
+          device_id, uuid, bytes, &timestamp, SuccessCallback, ErrorCallback);
+    });
+  } catch (const hresult_error &err) {
+    NotifyConnectionException(
+        bluetooth_address,
+        "GattCharacteristicValueChanged hresult_error hr=" +
+            std::to_string(err.code()) + " msg=" + to_string(err.message()));
+  } catch (const std::exception &ex) {
+    NotifyConnectionException(
+        bluetooth_address,
+        std::string("GattCharacteristicValueChanged std::exception: ") +
+            ex.what());
+  } catch (...) {
+    NotifyConnectionException(bluetooth_address,
+                              "GattCharacteristicValueChanged unknown exception");
+  }
 }
 
 } // namespace universal_ble

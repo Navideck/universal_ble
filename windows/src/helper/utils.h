@@ -10,6 +10,7 @@
 #include "winrt/base.h"
 #include "universal_ble_base.h"
 #include "../generated/universal_ble.g.h"
+#include "universal_ble_logger.h"
 
 constexpr uint32_t TEN_SECONDS_IN_MSECS = 10000;
 
@@ -62,6 +63,14 @@ namespace universal_ble
         const std::string& message = "Unknown error"
     ) {
         return create_flutter_error(UniversalBleErrorCode::kUnknownError, message);
+    }
+
+    inline void log_and_swallow(const char* where, const std::exception& ex) {
+        UniversalBleLogger::LogError(std::string(where) + ": " + ex.what());
+    }
+
+    inline void log_and_swallow_unknown(const char* where) {
+        UniversalBleLogger::LogError(std::string(where) + ": unknown native exception");
     }
 
     /// To call async functions synchronously
