@@ -1575,9 +1575,9 @@ void UniversalBlePlugin::GattCharacteristicValueChanged(
     const GattCharacteristic &sender, const GattValueChangedEventArgs &args) {
   uint64_t bluetooth_address = 0;
   try {
+    bluetooth_address = sender.Service().Device().BluetoothAddress();
     const auto uuid = to_uuidstr(sender.Uuid());
     const auto bytes = to_bytevc(args.CharacteristicValue());
-    bluetooth_address = sender.Service().Device().BluetoothAddress();
     const auto device_id = mac_address_to_str(bluetooth_address);
 
     UniversalBleLogger::LogVerboseWithTimestamp(
