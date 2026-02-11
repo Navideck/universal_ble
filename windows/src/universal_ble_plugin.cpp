@@ -1515,9 +1515,10 @@ fire_and_forget UniversalBlePlugin::SetNotifiableAsync(
           "SET_NOTIFY exception hr=" + std::to_string(err.code()) +
           " msg=" + to_string(err.message()) + " device=" + device_id +
           " service=" + service + " char=" + characteristic);
-      result(create_flutter_error(UniversalBleErrorCode::kFailed,
-                                  "SetNotifiable exception",
-                                  std::to_string(err.code())));
+      result(create_flutter_error(
+          UniversalBleErrorCode::kFailed,
+          "SetNotifiable exception: " + to_string(err.message()),
+          "hr=" + std::to_string(err.code())));
       co_return;
     }
     if (status != GattCommunicationStatus::Success) {
