@@ -10,7 +10,7 @@
 #include "winrt/base.h"
 #include "universal_ble_base.h"
 #include "../generated/universal_ble.g.h"
-#include "universal_ble_logger.h" 
+#include "universal_ble_logger.h"
 
 constexpr uint32_t TEN_SECONDS_IN_MSECS = 10000;
 
