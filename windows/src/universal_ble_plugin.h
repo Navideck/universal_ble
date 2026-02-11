@@ -157,6 +157,7 @@ private:
   void BluetoothLeDeviceConnectionStatusChanged(const BluetoothLEDevice &sender,
                                                 const IInspectable &args);
   void CleanConnection(uint64_t bluetooth_address);
+  void ResetState();
   void
   DisposeServices(const std::unique_ptr<BluetoothDeviceAgent> &device_agent);
 
