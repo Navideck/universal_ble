@@ -134,59 +134,65 @@ class _AppDrawerState extends State<AppDrawer> {
             ),
           FutureBuilder(
             future: PackageInfo.fromPlatform(),
-            builder: (_, snapshot) => AboutListTile(
-              icon: const Icon(Icons.info_outline),
-              applicationIcon:
-                  Image.asset('assets/icon.png', width: 40, height: 40),
-              applicationName: 'Universal BLE',
-              applicationVersion:
-                  "${snapshot.data?.version} (${snapshot.data?.buildNumber})",
-              applicationLegalese: '\u{a9} 2023 Navideck',
-              aboutBoxChildren: [
-                const SizedBox(height: 24),
-                RichText(
-                  textAlign: TextAlign.justify,
-                  text: TextSpan(
-                    children: [
-                      TextSpan(text: "Universal BLE is "),
-                      TextSpan(
-                        text: 'open source',
-                        style: const TextStyle(
-                          color: Colors.blue,
-                          decoration: TextDecoration.underline,
+            builder: (_, snapshot) {
+              final theme = Theme.of(context);
+              final bodyStyle = theme.textTheme.bodyMedium?.copyWith(
+                color: theme.colorScheme.onSurface,
+              ) ?? TextStyle(color: theme.colorScheme.onSurface);
+              final linkStyle = bodyStyle.copyWith(
+                color: theme.colorScheme.primary,
+                decoration: TextDecoration.underline,
+              );
+              return AboutListTile(
+                icon: const Icon(Icons.info_outline),
+                applicationIcon:
+                    Image.asset('assets/icon.png', width: 40, height: 40),
+                applicationName: 'Universal BLE',
+                applicationVersion:
+                    "${snapshot.data?.version} (${snapshot.data?.buildNumber})",
+                applicationLegalese: '\u{a9} 2023 Navideck',
+                aboutBoxChildren: [
+                  const SizedBox(height: 24),
+                  RichText(
+                    textAlign: TextAlign.justify,
+                    text: TextSpan(
+                      style: bodyStyle,
+                      children: [
+                        const TextSpan(text: "Universal BLE is "),
+                        TextSpan(
+                          text: 'open source',
+                          style: linkStyle,
+                          recognizer: TapGestureRecognizer()
+                            ..onTap = () {
+                              launchUrl(Uri.parse(
+                                  "https://github.com/Navideck/Universal-BLE"));
+                            },
                         ),
-                        recognizer: TapGestureRecognizer()
-                          ..onTap = () {
-                            launchUrl(Uri.parse(
-                                "https://github.com/Navideck/universal_ble"));
-                          },
-                      ),
-                      TextSpan(text: "."),
-                    ],
+                        const TextSpan(text: "."),
+                      ],
+                    ),
                   ),
-                ),
-                const SizedBox(height: 24),
-                RichText(
-                  textAlign: TextAlign.justify,
-                  text: TextSpan(
-                    children: [
-                      TextSpan(text: "Need help with your project? "),
-                      TextSpan(
-                        text: 'Hire us',
-                        style: const TextStyle(
-                          color: Colors.blue,
-                          decoration: TextDecoration.underline,
+                  const SizedBox(height: 24),
+                  RichText(
+                    textAlign: TextAlign.justify,
+                    text: TextSpan(
+                      style: bodyStyle,
+                      children: [
+                        const TextSpan(text: "Need help with your project? "),
+                        TextSpan(
+                          text: 'Hire us',
+                          style: linkStyle,
+                          recognizer: TapGestureRecognizer()
+                            ..onTap = () {
+                              launchUrl(Uri.parse('https://navideck.com/contact'));
+                            },
                         ),
-                        recognizer: TapGestureRecognizer()
-                          ..onTap = () {
-                            launchUrl(Uri.parse('mailto:info@navideck.com'));
-                          },
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
-                ),
-              ],
-            ),
+                ],
+              );
+            },
           ),
         ],
       ),
