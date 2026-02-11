@@ -1268,6 +1268,7 @@ void UniversalBlePlugin::ResetState() {
       try {
         bluetooth_le_watcher_.Received(bluetooth_le_watcher_received_token_);
       } catch (...) {
+        log_and_swallow_unknown("ResetState: failed to unregister LE watcher received handler");
       }
       bluetooth_le_watcher_ = nullptr;
     }
