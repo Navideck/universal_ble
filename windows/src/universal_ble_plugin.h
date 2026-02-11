@@ -156,6 +156,10 @@ private:
   void OnDeviceInfoReceived(const DeviceInformation &device_info);
   void BluetoothLeDeviceConnectionStatusChanged(const BluetoothLEDevice &sender,
                                                 const IInspectable &args);
+  void NotifyConnectionChanged(uint64_t bluetooth_address, bool connected,
+                               std::optional<std::string> error = std::nullopt);
+  void NotifyConnectionException(uint64_t bluetooth_address,
+                                 const std::string &error_message);
   void CleanConnection(uint64_t bluetooth_address);
   void ResetState();
   void
