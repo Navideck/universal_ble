@@ -554,13 +554,13 @@ class UniversalBleLinux extends UniversalBlePlatform {
     _devices[device.address] = device;
 
     // Setup advertisements Listener
-    _deviceAdvertisementSubscriptions[device.address] ??= device
-        .propertiesChanged
-        .where((e) =>
-            e.contains(BluezProperty.rssi) ||
-            e.contains(BluezProperty.manufacturerData) ||
-            e.contains(BluezProperty.uuids))
-        .listen((_) {
+    _deviceAdvertisementSubscriptions[device.address] ??=
+        device.propertiesChanged.where((e) {
+      return e.contains(BluezProperty.rssi) ||
+          e.contains(BluezProperty.manufacturerData) ||
+          e.contains(BluezProperty.uuids) ||
+          e.contains(BluezProperty.serviceData);
+    }).listen((_) {
       if (_bleFilter.shouldAcceptDevice(bleDevice)) {
         updateScanResult(device.toBleDevice());
       }
@@ -588,6 +588,7 @@ class UniversalBleLinux extends UniversalBlePlatform {
           case BluezProperty.addressType:
           case BluezProperty.rssi:
           case BluezProperty.manufacturerData:
+          case BluezProperty.serviceData:
             break;
           default:
             UniversalLogger.logInfo(
@@ -626,6 +627,7 @@ class BluezProperty {
   static const String txPower = 'TxPower';
   static const String bonded = 'Bonded';
   static const String manufacturerData = 'ManufacturerData';
+  static const String serviceData = 'ServiceData';
   static const String legacyPairing = 'LegacyPairing';
   static const String servicesResolved = 'ServicesResolved';
   static const String paired = 'Paired';
