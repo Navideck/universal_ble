@@ -847,6 +847,10 @@ Future<void> resetBleState() async {
 
 </details>
 
+## Example app
+
+This repo includes an [example app](example/) you can run to try the API. For a full-blown app, check [Universal-BLE](https://github.com/Navideck/Universal-BLE).
+
 ## Low level API
 
 For more granular control, you can use the [Low-Level API](README.low_level.md). This API is "Device ID"-based, offering greater flexibility by enabling direct calls without the need for object instances.
@@ -855,7 +859,7 @@ For more granular control, you can use the [Low-Level API](README.low_level.md).
 
 Here are some of the apps leveraging the power of `universal_ble`:
 
-- [**Universal BLE**](https://apps.apple.com/app/id6756538573) ([App Store](https://apps.apple.com/app/id6756538573) | [Play Store](https://play.google.com/store/apps/details?id=com.navideck.universalble) | [Web](https://navideck.github.io/universal_ble)) - A comprehensive developer tool for exploring and testing Bluetooth Low Energy (BLE) devices. It enables scanning for nearby BLE devices, connecting to peripherals, discovering and exploring services, characteristics, and descriptors. Supports reading and writing characteristic values, enabling notifications and indications, viewing device information and signal strength, and provides detailed logging of BLE operations. Perfect for developers, engineers, and hobbyist tinkerers working with BLE-enabled devices across iOS, Android, macOS, Windows, Linux & Web.
+- [**Universal BLE**](https://github.com/Navideck/Universal-BLE) - A comprehensive developer tool for exploring and testing Bluetooth Low Energy (BLE) devices. It enables scanning for nearby BLE devices, connecting to peripherals, discovering and exploring services, characteristics, and descriptors. Supports reading and writing characteristic values, enabling notifications and indications, viewing device information and signal strength, and provides detailed logging of BLE operations. Perfect for developers, engineers, and hobbyist tinkerers working with BLE-enabled devices across iOS, Android, macOS, Windows, Linux & Web.
 - [**BT Cam**](https://btcam.app) - A Bluetooth remote app for DSLR and mirrorless cameras. Compatible with Canon, Nikon, Sony, Fujifilm, GoPro, Olympus, Panasonic, Pentax, and Blackmagic. Built using Universal BLE to connect and control cameras across iOS, Android, macOS, Windows, Linux & Web.
 - [**TukToro**](https://tuktoro.com/en/pages/download-math-learning-app) - Interactive math learning app for kids. Available on iPad and Android tablets, featuring hand-drawn levels, didactic learning games, and ad-free child-safe environment.
 - [**BikeControl**](https://github.com/jonasbark/swiftcontrol) - Control your favorite trainer app using Zwift Click, Zwift Ride, Zwift Play, Shimano Di2, or other similar devices. Enables virtual gear shifting, steering, workout intensity adjustment, and more across iOS, Android, macOS, Windows, and Linux.

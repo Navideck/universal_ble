@@ -5,7 +5,6 @@ import 'package:universal_ble/universal_ble.dart';
 
 /// Mock implementation of [UniversalBlePlatform] for testing
 class MockUniversalBle extends UniversalBlePlatform {
-  final Map<String, BleConnectionState> _connectionStateMap = {};
   final _mockBleDevice = BleDevice(
     name: 'MockDevice',
     deviceId: 'MockDeviceId',
@@ -16,20 +15,12 @@ class MockUniversalBle extends UniversalBlePlatform {
   Uint8List _serviceValue = utf8.encode('Result');
   bool _isScanning = false;
 
-  final BleService _mockService = BleService('180a', [
-    BleCharacteristic.withMetaData(
-      deviceId: 'MockDeviceId',
-      serviceId: '180a',
-      uuid: '220a',
-      properties: [
-        CharacteristicProperty.read,
-        CharacteristicProperty.write,
-        CharacteristicProperty.notify,
-      ],
-      descriptors: [
-        BleDescriptor('220b'),
-      ],
-    ),
+  final BleService _mockService = BleService('180', [
+    BleCharacteristic('180A', [
+      CharacteristicProperty.read,
+      CharacteristicProperty.write,
+      CharacteristicProperty.notify,
+    ], []),
   ]);
 
   @override
@@ -53,15 +44,13 @@ class MockUniversalBle extends UniversalBlePlatform {
 
   @override
   Future<void> connect(String deviceId,
-      {bool autoConnect = false, Duration? connectionTimeout}) async {
+      {Duration? connectionTimeout, bool autoConnect = false}) async {
     updateConnection(deviceId, true);
-    _connectionStateMap[deviceId] = BleConnectionState.connected;
   }
 
   @override
   Future<void> disconnect(String deviceId) async {
     updateConnection(deviceId, false);
-    _connectionStateMap[deviceId] = BleConnectionState.disconnected;
   }
 
   @override
@@ -83,7 +72,7 @@ class MockUniversalBle extends UniversalBlePlatform {
 
   @override
   Future<List<BleDevice>> getSystemDevices(List<String>? withServices) async {
-    return [_mockBleDevice];
+    return [];
   }
 
   @override
@@ -115,12 +104,6 @@ class MockUniversalBle extends UniversalBlePlatform {
   }
 
   @override
-  Future<int> readRssi(String deviceId) async {
-    await Future.delayed(const Duration(milliseconds: 500));
-    return -50; // Mock RSSI value in dBm
-  }
-
-  @override
   Future<void> setNotifiable(String deviceId, String service,
       String characteristic, BleInputProperty bleInputProperty) async {}
 
@@ -142,18 +125,22 @@ class MockUniversalBle extends UniversalBlePlatform {
   }
 
   @override
-  Future<BleConnectionState> getConnectionState(String deviceId) async {
-    return _connectionStateMap[deviceId] ?? BleConnectionState.disconnected;
+  Future<BleConnectionState> getConnectionState(String deviceId) {
+    throw UnimplementedError();
   }
 
   @override
-  Future<bool> disableBluetooth() async {
-    return true;
+  Future<bool> disableBluetooth() {
+    throw UnimplementedError();
   }
 
   @override
-  Future<void> requestPermissions(
-      {bool withAndroidFineLocation = false}) async {
-    return;
+  Future<void> requestPermissions({bool withAndroidFineLocation = false}) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<int> readRssi(String deviceId) {
+    throw UnimplementedError();
   }
 }

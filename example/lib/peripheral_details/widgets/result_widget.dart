@@ -1,155 +1,50 @@
 import 'package:flutter/material.dart';
 
-import 'package:universal_ble_example/peripheral_details/widgets/result_header_bar.dart';
-
 class ResultWidget extends StatelessWidget {
   final List<String> results;
   final bool scrollable;
-  final ScrollController scrollController;
   final void Function(int? index) onClearTap;
-  final void Function()? onCopyTap;
   const ResultWidget({
     required this.results,
     required this.onClearTap,
-    this.onCopyTap,
     this.scrollable = false,
-    required this.scrollController,
     super.key,
   });
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    return Padding(
-      padding: const EdgeInsets.all(16.0),
-      child: Card(
-        elevation: 2,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: scrollable ? MainAxisSize.max : MainAxisSize.min,
-          children: [
-            _buildHeader(colorScheme),
-            if (results.isEmpty)
-              _buildEmptyState(colorScheme)
-            else
-              _buildLogsList(colorScheme),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildHeader(ColorScheme colorScheme) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: colorScheme.surfaceContainerHighest,
-        borderRadius: const BorderRadius.only(
-          topLeft: Radius.circular(12),
-          topRight: Radius.circular(12),
-        ),
-      ),
-      child: ResultHeaderBar(
-        icon: Icons.history,
-        title: 'Logs',
-        count: results.length,
-        onCopy: onCopyTap,
-        copyTooltip: 'Copy all logs',
-        onClear: () => onClearTap(null),
-        clearTooltip: 'Clear all logs',
-      ),
-    );
-  }
-
-  Widget _buildEmptyState(ColorScheme colorScheme) {
-    final emptyStateContent = Padding(
-      padding: const EdgeInsets.all(32.0),
-      child: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.history_outlined,
-              size: 48,
-              color: colorScheme.onSurface.withValues(alpha: 0.3),
-            ),
-            const SizedBox(height: 16),
-            Text(
-              'No logs yet',
-              style: TextStyle(
-                color: colorScheme.onSurface.withValues(alpha: 0.6),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-
-    return scrollable ? Expanded(child: emptyStateContent) : emptyStateContent;
-  }
-
-  Widget _buildLogsList(ColorScheme colorScheme) {
-    final listView = ListView.separated(
-      physics: const AlwaysScrollableScrollPhysics(),
-      controller: scrollController,
-      itemCount: results.length,
-      itemBuilder: (context, index) => _buildLogItem(colorScheme, index),
-      separatorBuilder: (_, __) => Divider(
-        height: 1,
-        color: colorScheme.outline.withValues(alpha: 0.2),
-      ),
-    );
-
-    if (scrollable) {
-      return Expanded(child: listView);
-    } else {
-      return Container(
-        constraints: const BoxConstraints(maxHeight: 300),
-        child: listView,
-      );
-    }
-  }
-
-  Widget _buildLogItem(ColorScheme colorScheme, int index) {
-    var reversedIndex = results.length - index - 1;
-    final log = results[reversedIndex];
-    return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: 16,
-        vertical: 12,
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Expanded(
-            child: SelectableText(
-              log,
-              style: TextStyle(
-                fontSize: 12,
-                fontFamily: 'monospace',
-                color: colorScheme.onSurface,
-              ),
+    return Column(
+      children: [
+        if (results.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: ListTile(
+              tileColor: Theme.of(context).secondaryHeaderColor,
+              title: const Text("Logs"),
+              onTap: () {
+                onClearTap(null);
+              },
+              trailing: const Icon(Icons.clear),
             ),
           ),
-          const SizedBox(width: 8),
-          IconButton(
-            icon: Icon(
-              Icons.close,
-              size: 16,
-              color: colorScheme.onSurface.withValues(alpha: 0.4),
-            ),
-            onPressed: () => onClearTap(reversedIndex),
-            padding: EdgeInsets.zero,
-            constraints: const BoxConstraints(
-              minWidth: 24,
-              minHeight: 24,
-            ),
-          ),
-        ],
-      ),
+        ListView.separated(
+          shrinkWrap: !scrollable,
+          physics: scrollable ? null : const NeverScrollableScrollPhysics(),
+          itemCount: results.length,
+          reverse: true,
+          itemBuilder: (BuildContext context, int index) {
+            return InkWell(
+              onTap: () => onClearTap(index),
+              child: Padding(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 11, vertical: 2),
+                child: Text(results[index]),
+              ),
+            );
+          },
+          separatorBuilder: (_, __) => const Divider(),
+        ),
+      ],
     );
   }
 }
