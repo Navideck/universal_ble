@@ -5,6 +5,7 @@
 * Add support for BLE scanning from background services (ForegroundTask) on Android. `PermissionHandler` is now activity-aware and succeeds silently if permissions are already granted when no activity is available
 * Always use custom scan filter on Windows
 * Fix Windows crash by handling WinRT exceptions in BLE callback paths
+* Add serviceData tracking in Linux advertisements
 
 ## 1.1.0
 * Add readRssi method
