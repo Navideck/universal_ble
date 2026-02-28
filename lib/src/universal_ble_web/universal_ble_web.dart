@@ -64,7 +64,9 @@ class UniversalBleWeb extends UniversalBlePlatform {
 
   @override
   Future<List<BleService>> discoverServices(
-      String deviceId, bool withDescriptors) async {
+    String deviceId,
+    bool withDescriptors,
+  ) async {
     List<BleService> services = [];
     for (var service in await _getServices(deviceId)) {
       services.add(await service._toBleService(deviceId, withDescriptors));
@@ -131,8 +133,9 @@ class UniversalBleWeb extends UniversalBlePlatform {
         await device.unwatchAdvertisements();
       }
 
-      _deviceAdvertisementStreamList[device.id] =
-          device.advertisements.listen((event) {
+      _deviceAdvertisementStreamList[device.id] = device.advertisements.listen((
+        event,
+      ) {
         final serviceDataMap = event.serviceData.map(
           (key, value) => MapEntry(key, value.buffer.asUint8List()),
         );
@@ -192,24 +195,24 @@ class UniversalBleWeb extends UniversalBlePlatform {
         _characteristicStreamList[characteristicKey]?.cancel();
       }
       await bleCharacteristic.startNotifications();
-      _characteristicStreamList[characteristicKey] =
-          bleCharacteristic.value.listen((ByteData event) {
-        final preview = event.buffer
-            .asUint8List()
-            .take(8)
-            .map((e) => e.toRadixString(16).padLeft(2, '0'))
-            .join();
-        UniversalLogger.logVerbose(
-          "NOTIFY <- $deviceId $characteristic len=${event.lengthInBytes} data=$preview",
-          withTimestamp: true,
-        );
-        updateCharacteristicValue(
-          deviceId,
-          characteristic,
-          event.buffer.asUint8List(),
-          DateTime.now().millisecondsSinceEpoch,
-        );
-      });
+      _characteristicStreamList[characteristicKey] = bleCharacteristic.value
+          .listen((ByteData event) {
+            final preview = event.buffer
+                .asUint8List()
+                .take(8)
+                .map((e) => e.toRadixString(16).padLeft(2, '0'))
+                .join();
+            UniversalLogger.logVerbose(
+              "NOTIFY <- $deviceId $characteristic len=${event.lengthInBytes} data=$preview",
+              withTimestamp: true,
+            );
+            updateCharacteristicValue(
+              deviceId,
+              characteristic,
+              event.buffer.asUint8List(),
+              DateTime.now().millisecondsSinceEpoch,
+            );
+          });
     } else {
       await bleCharacteristic.stopNotifications();
       _characteristicStreamList.remove(characteristicKey)?.cancel();
@@ -245,8 +248,9 @@ class UniversalBleWeb extends UniversalBlePlatform {
     if (bleOutputProperty == BleOutputProperty.withResponse) {
       await bleCharacteristic.writeValueWithResponse(Uint8List.fromList(value));
     } else {
-      await bleCharacteristic
-          .writeValueWithoutResponse(Uint8List.fromList(value));
+      await bleCharacteristic.writeValueWithoutResponse(
+        Uint8List.fromList(value),
+      );
     }
   }
 
@@ -322,9 +326,7 @@ class UniversalBleWeb extends UniversalBlePlatform {
   }
 
   @override
-  Future<List<BleDevice>> getSystemDevices(
-    List<String>? withServices,
-  ) {
+  Future<List<BleDevice>> getSystemDevices(List<String>? withServices) {
     throw UniversalBleException(
       code: UniversalBleErrorCode.notImplemented,
       message: "getSystemDevices is not implemented on Web platform",
@@ -333,20 +335,18 @@ class UniversalBleWeb extends UniversalBlePlatform {
 
   /// Helpers
   void _setupListeners() {
-    FlutterWebBluetooth.instance.isAvailable.listen(
-      (bool isAvailable) {
-        AvailabilityState newState = AvailabilityState.unknown;
-        if (!FlutterWebBluetooth.instance.isBluetoothApiSupported) {
-          newState = AvailabilityState.unsupported;
-        } else if (FlutterWebBluetooth.instance.isBluetoothApiSupported &&
-            !isAvailable) {
-          newState = AvailabilityState.poweredOff;
-        } else if (isAvailable) {
-          newState = AvailabilityState.poweredOn;
-        }
-        updateAvailability(newState);
-      },
-    );
+    FlutterWebBluetooth.instance.isAvailable.listen((bool isAvailable) {
+      AvailabilityState newState = AvailabilityState.unknown;
+      if (!FlutterWebBluetooth.instance.isBluetoothApiSupported) {
+        newState = AvailabilityState.unsupported;
+      } else if (FlutterWebBluetooth.instance.isBluetoothApiSupported &&
+          !isAvailable) {
+        newState = AvailabilityState.poweredOff;
+      } else if (isAvailable) {
+        newState = AvailabilityState.poweredOn;
+      }
+      updateAvailability(newState);
+    });
   }
 
   void _cleanConnection(String deviceId) {
@@ -399,9 +399,9 @@ class UniversalBleWeb extends UniversalBlePlatform {
     _deviceAdvertisementStreamList.removeWhere((key, value) {
       if (deviceId != null && key != deviceId) return false;
       value.cancel();
-      _getDeviceById(deviceId ?? key)
-          ?.unwatchAdvertisements()
-          .onError((_, __) {});
+      _getDeviceById(
+        deviceId ?? key,
+      )?.unwatchAdvertisements().onError((_, __) {});
       return true;
     });
   }
@@ -472,21 +472,23 @@ class UniversalBleWeb extends UniversalBlePlatform {
 
       // Add exclusion filters
       for (var exclusionFilter in scanFilter.exclusionFilters) {
-        exclusionFilters.add(RequestFilterBuilder(
-          services: exclusionFilter.services.isEmpty
-              ? null
-              : exclusionFilter.services.toValidUUIDList(),
-          namePrefix: exclusionFilter.namePrefix,
-          manufacturerData: exclusionFilter.manufacturerDataFilter.isEmpty
-              ? null
-              : exclusionFilter.manufacturerDataFilter.map((e) {
-                  return ManufacturerDataFilterBuilder(
-                    companyIdentifier: e.companyIdentifier,
-                    dataPrefix: e.payloadPrefix,
-                    mask: e.payloadMask,
-                  );
-                }).toList(),
-        ));
+        exclusionFilters.add(
+          RequestFilterBuilder(
+            services: exclusionFilter.services.isEmpty
+                ? null
+                : exclusionFilter.services.toValidUUIDList(),
+            namePrefix: exclusionFilter.namePrefix,
+            manufacturerData: exclusionFilter.manufacturerDataFilter.isEmpty
+                ? null
+                : exclusionFilter.manufacturerDataFilter.map((e) {
+                    return ManufacturerDataFilterBuilder(
+                      companyIdentifier: e.companyIdentifier,
+                      dataPrefix: e.payloadPrefix,
+                      mask: e.payloadMask,
+                    );
+                  }).toList(),
+          ),
+        );
       }
     }
 
@@ -538,8 +540,10 @@ extension _BluetoothDeviceExtension on BluetoothDevice {
 
 extension _UnmodifiableMapViewExtension on UnmodifiableMapView<int, ByteData> {
   List<ManufacturerData>? toManufacturerDataList() => entries
-      .map((MapEntry<int, ByteData> data) =>
-          ManufacturerData(data.key, data.value.buffer.asUint8List()))
+      .map(
+        (MapEntry<int, ByteData> data) =>
+            ManufacturerData(data.key, data.value.buffer.asUint8List()),
+      )
       .toList();
 }
 
@@ -583,29 +587,32 @@ class _UniversalWebBluetoothService {
       if (withDescriptors) {
         try {
           var bluetoothDescriptors = await characteristic.getDescriptors();
-          descriptors =
-              bluetoothDescriptors.map((e) => BleDescriptor(e.uuid)).toList();
+          descriptors = bluetoothDescriptors
+              .map((e) => BleDescriptor(e.uuid))
+              .toList();
         } catch (_) {}
       }
-      bleCharacteristics.add(BleCharacteristic.withMetaData(
-        deviceId: deviceId,
-        serviceId: service.uuid,
-        uuid: characteristic.uuid,
-        properties: [
-          if (characteristic.properties.broadcast)
-            CharacteristicProperty.broadcast,
-          if (characteristic.properties.read) CharacteristicProperty.read,
-          if (characteristic.properties.write) CharacteristicProperty.write,
-          if (characteristic.properties.writeWithoutResponse)
-            CharacteristicProperty.writeWithoutResponse,
-          if (characteristic.properties.notify) CharacteristicProperty.notify,
-          if (characteristic.properties.indicate)
-            CharacteristicProperty.indicate,
-          if (characteristic.properties.authenticatedSignedWrites)
-            CharacteristicProperty.authenticatedSignedWrites,
-        ],
-        descriptors: descriptors,
-      ));
+      bleCharacteristics.add(
+        BleCharacteristic.withMetaData(
+          deviceId: deviceId,
+          serviceId: service.uuid,
+          uuid: characteristic.uuid,
+          properties: [
+            if (characteristic.properties.broadcast)
+              CharacteristicProperty.broadcast,
+            if (characteristic.properties.read) CharacteristicProperty.read,
+            if (characteristic.properties.write) CharacteristicProperty.write,
+            if (characteristic.properties.writeWithoutResponse)
+              CharacteristicProperty.writeWithoutResponse,
+            if (characteristic.properties.notify) CharacteristicProperty.notify,
+            if (characteristic.properties.indicate)
+              CharacteristicProperty.indicate,
+            if (characteristic.properties.authenticatedSignedWrites)
+              CharacteristicProperty.authenticatedSignedWrites,
+          ],
+          descriptors: descriptors,
+        ),
+      );
     }
     return BleService(service.uuid, bleCharacteristics);
   }

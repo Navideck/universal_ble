@@ -1,8 +1,1 @@
-enum BleLogLevel {
-  none,
-  error,
-  warning,
-  info,
-  debug,
-  verbose;
-}
+enum BleLogLevel { none, error, warning, info, debug, verbose }

@@ -42,11 +42,11 @@ class ConnectionException extends UniversalBleException {
   });
 
   ConnectionException([dynamic error])
-      : this._(
-          code: UniversalBleErrorParser.getCode(error),
-          message: _errorParser(error),
-          details: error,
-        );
+    : this._(
+        code: UniversalBleErrorParser.getCode(error),
+        message: _errorParser(error),
+        details: error,
+      );
 }
 
 /// Exception thrown when pairing-related errors occur
@@ -59,11 +59,11 @@ class PairingException extends UniversalBleException {
 
   /// Legacy constructor for backward compatibility
   PairingException([dynamic error])
-      : this._(
-          code: UniversalBleErrorParser.getCode(error),
-          message: _errorParser(error),
-          details: error,
-        );
+    : this._(
+        code: UniversalBleErrorParser.getCode(error),
+        message: _errorParser(error),
+        details: error,
+      );
 }
 
 /// Exception thrown when Web Bluetooth API is globally disabled

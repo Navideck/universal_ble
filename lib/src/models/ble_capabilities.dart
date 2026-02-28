@@ -22,10 +22,11 @@ class BleCapabilities {
   /// but it very unreliable, therefore we return false.
   static final triggersConfirmOnlyPairing =
       defaultTargetPlatform != TargetPlatform.windows &&
-          defaultTargetPlatform != TargetPlatform.linux;
+      defaultTargetPlatform != TargetPlatform.linux;
 
   /// Returns true if pair()/unpair() are supported on the platform.
-  static bool hasSystemPairingApi = !kIsWeb &&
+  static bool hasSystemPairingApi =
+      !kIsWeb &&
       (defaultTargetPlatform == TargetPlatform.android ||
           defaultTargetPlatform == TargetPlatform.windows ||
           defaultTargetPlatform == TargetPlatform.linux);

@@ -20,7 +20,8 @@ class BleUuidParser {
     if (!uuid.contains("-")) {
       if (uuid.length != 32) throw const FormatException("Invalid UUID");
 
-      uuid = "${uuid.substring(0, 8)}-${uuid.substring(8, 12)}"
+      uuid =
+          "${uuid.substring(0, 8)}-${uuid.substring(8, 12)}"
           "-${uuid.substring(12, 16)}-${uuid.substring(16, 20)}-${uuid.substring(20, 32)}";
     }
 

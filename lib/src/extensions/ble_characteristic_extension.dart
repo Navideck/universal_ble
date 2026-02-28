@@ -21,26 +21,12 @@ extension BleCharacteristicExtension on BleCharacteristic {
       CharacteristicSubscription(this, CharacteristicProperty.indicate);
 
   /// Unsubscribes notifications/indications from this characteristic.
-  Future<void> unsubscribe({
-    Duration? timeout,
-  }) =>
-      UniversalBle.unsubscribe(
-        _deviceId,
-        _serviceId,
-        uuid,
-        timeout: timeout,
-      );
+  Future<void> unsubscribe({Duration? timeout}) =>
+      UniversalBle.unsubscribe(_deviceId, _serviceId, uuid, timeout: timeout);
 
   /// Reads the current value of the characteristic.
-  Future<Uint8List> read({
-    Duration? timeout,
-  }) =>
-      UniversalBle.read(
-        _deviceId,
-        _serviceId,
-        uuid,
-        timeout: timeout,
-      );
+  Future<Uint8List> read({Duration? timeout}) =>
+      UniversalBle.read(_deviceId, _serviceId, uuid, timeout: timeout);
 
   /// Writes a value to the characteristic.
   ///
@@ -98,10 +84,8 @@ class CharacteristicSubscription {
   /// (notifications or indications).
   final bool isSupported;
 
-  CharacteristicSubscription(
-    this._characteristic,
-    this._property,
-  ) : isSupported = _characteristic.properties.contains(_property);
+  CharacteristicSubscription(this._characteristic, this._property)
+    : isSupported = _characteristic.properties.contains(_property);
 
   /// Registers a listener for incoming data from the characteristic.
   StreamSubscription listen(
@@ -119,9 +103,7 @@ class CharacteristicSubscription {
   }
 
   /// Subscribes to this characteristic.
-  Future<void> subscribe({
-    Duration? timeout,
-  }) {
+  Future<void> subscribe({Duration? timeout}) {
     if (!isSupported) throw Exception('Operation not supported');
 
     if (_property == CharacteristicProperty.indicate) {
@@ -142,9 +124,7 @@ class CharacteristicSubscription {
   }
 
   /// Unsubscribes from this characteristic.
-  Future<void> unsubscribe({
-    Duration? timeout,
-  }) {
+  Future<void> unsubscribe({Duration? timeout}) {
     if (!isSupported) throw Exception('Operation not supported');
     return UniversalBle.unsubscribe(
       _characteristic._deviceId,

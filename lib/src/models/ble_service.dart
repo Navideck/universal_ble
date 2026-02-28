@@ -4,10 +4,8 @@ class BleService {
   String uuid;
   List<BleCharacteristic> characteristics;
 
-  BleService(
-    String uuid,
-    this.characteristics,
-  ) : uuid = BleUuidParser.string(uuid);
+  BleService(String uuid, this.characteristics)
+    : uuid = BleUuidParser.string(uuid);
 
   @override
   String toString() {
@@ -21,11 +19,8 @@ class BleCharacteristic {
   List<BleDescriptor> descriptors;
   ({String deviceId, String serviceId})? metaData;
 
-  BleCharacteristic(
-    String uuid,
-    this.properties,
-    this.descriptors,
-  ) : uuid = BleUuidParser.string(uuid);
+  BleCharacteristic(String uuid, this.properties, this.descriptors)
+    : uuid = BleUuidParser.string(uuid);
 
   BleCharacteristic.withMetaData({
     required String deviceId,
@@ -33,11 +28,11 @@ class BleCharacteristic {
     required String uuid,
     required this.properties,
     required this.descriptors,
-  })  : uuid = BleUuidParser.string(uuid),
-        metaData = (
-          deviceId: deviceId,
-          serviceId: BleUuidParser.string(serviceId),
-        );
+  }) : uuid = BleUuidParser.string(uuid),
+       metaData = (
+         deviceId: deviceId,
+         serviceId: BleUuidParser.string(serviceId),
+       );
 
   @override
   String toString() {

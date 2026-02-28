@@ -15,18 +15,13 @@ class ManufacturerData {
     if (data.length < 2) {
       throw const FormatException("Invalid Manufacturer Data");
     }
-    return ManufacturerData(
-      (data[0] + (data[1] << 8)),
-      data.sublist(2),
-    );
+    return ManufacturerData((data[0] + (data[1] << 8)), data.sublist(2));
   }
 
   Uint8List toUint8List() {
     final byteData = ByteData(2);
     byteData.setInt16(0, companyId, Endian.host);
-    return Uint8List.fromList(
-      byteData.buffer.asUint8List() + payload.toList(),
-    );
+    return Uint8List.fromList(byteData.buffer.asUint8List() + payload.toList());
   }
 
   @override

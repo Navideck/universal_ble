@@ -1,10 +1,3 @@
-enum BleInputProperty {
-  disabled,
-  notification,
-  indication;
-}
+enum BleInputProperty { disabled, notification, indication }
 
-enum BleOutputProperty {
-  withResponse,
-  withoutResponse;
-}
+enum BleOutputProperty { withResponse, withoutResponse }

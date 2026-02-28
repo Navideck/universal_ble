@@ -56,8 +56,9 @@ class UniversalBle {
 
   /// Characteristic value stream
   static Stream<Uint8List> characteristicValueStream(
-          String deviceId, String characteristicId) =>
-      _platform.characteristicValueStream(deviceId, characteristicId);
+    String deviceId,
+    String characteristicId,
+  ) => _platform.characteristicValueStream(deviceId, characteristicId);
 
   /// Pairing state stream
   static Stream<bool> pairingStateStream(String deviceId) =>
@@ -125,9 +126,7 @@ class UniversalBle {
   /// Check if currently scanning for devices.
   /// Returns `true` if scanning is active, `false` otherwise.
   static Future<bool> isScanning() async {
-    return await _bleCommandQueue.queueCommand(
-      () => _platform.isScanning(),
-    );
+    return await _bleCommandQueue.queueCommand(() => _platform.isScanning());
   }
 
   /// Connect to a device.
@@ -148,17 +147,17 @@ class UniversalBle {
     bool autoConnect = false,
   }) async {
     timeout ??= const Duration(seconds: 60);
-    Completer<bool> completer =
-        _connectionEventCompleter(deviceId, timeout: timeout);
+    Completer<bool> completer = _connectionEventCompleter(
+      deviceId,
+      timeout: timeout,
+    );
 
     _platform
         .connect(deviceId, connectionTimeout: timeout, autoConnect: autoConnect)
-        .catchError(
-      (error) {
-        if (completer.isCompleted) return;
-        completer.completeError(ConnectionException(error));
-      },
-    );
+        .catchError((error) {
+          if (completer.isCompleted) return;
+          completer.completeError(ConnectionException(error));
+        });
 
     if (!await completer.future.timeout(timeout)) {
       throw ConnectionException("Failed to connect");
@@ -167,10 +166,7 @@ class UniversalBle {
 
   /// Disconnect from a device.
   /// Get notified of connection state changes in [onConnectionChange] listener.
-  static Future<void> disconnect(
-    String deviceId, {
-    Duration? timeout,
-  }) async {
+  static Future<void> disconnect(String deviceId, {Duration? timeout}) async {
     timeout ??= const Duration(seconds: 60);
     BleConnectionState? connectionState;
     try {
@@ -180,18 +176,21 @@ class UniversalBle {
     }
 
     try {
-      Completer<bool> completer =
-          _connectionEventCompleter(deviceId, timeout: timeout);
+      Completer<bool> completer = _connectionEventCompleter(
+        deviceId,
+        timeout: timeout,
+      );
 
       await _bleCommandQueue
-          .queueCommand(() => _platform.disconnect(deviceId),
-              timeout: timeout, deviceId: deviceId)
-          .catchError(
-        (error) {
-          if (completer.isCompleted) return;
-          completer.completeError(ConnectionException(error));
-        },
-      );
+          .queueCommand(
+            () => _platform.disconnect(deviceId),
+            timeout: timeout,
+            deviceId: deviceId,
+          )
+          .catchError((error) {
+            if (completer.isCompleted) return;
+            completer.completeError(ConnectionException(error));
+          });
 
       if (connectionState == BleConnectionState.disconnected ||
           connectionState == BleConnectionState.disconnecting) {
@@ -363,10 +362,7 @@ class UniversalBle {
   /// Throws [UniversalBleException] if:
   /// - The device is not connected
   /// - Reading RSSI fails
-  static Future<int> readRssi(
-    String deviceId, {
-    Duration? timeout,
-  }) async {
+  static Future<int> readRssi(String deviceId, {Duration? timeout}) async {
     return await _bleCommandQueue.queueCommand(
       () => _platform.readRssi(deviceId),
       timeout: timeout,
@@ -451,10 +447,7 @@ class UniversalBle {
 
   /// Unpair a device.
   /// It might throw an error if device is not paired.
-  static Future<void> unpair(
-    String deviceId, {
-    Duration? timeout,
-  }) async {
+  static Future<void> unpair(String deviceId, {Duration? timeout}) async {
     return await _bleCommandQueue.queueCommand(
       () => _platform.unpair(deviceId),
       deviceId: deviceId,
@@ -493,9 +486,7 @@ class UniversalBle {
   /// Enable Bluetooth.
   /// It might throw errors if Bluetooth is not available.
   /// Not supported on `Web` and `Apple`.
-  static Future<bool> enableBluetooth({
-    Duration? timeout,
-  }) async {
+  static Future<bool> enableBluetooth({Duration? timeout}) async {
     return await _bleCommandQueue.queueCommand(
       () => _platform.enableBluetooth(),
       timeout: timeout,
@@ -505,9 +496,7 @@ class UniversalBle {
   /// Disable Bluetooth.
   /// It might throw errors if Bluetooth is not available.
   /// Not supported on `Web` and `Apple`.
-  static Future<bool> disableBluetooth({
-    Duration? timeout,
-  }) async {
+  static Future<bool> disableBluetooth({Duration? timeout}) async {
     return await _bleCommandQueue.queueCommand(
       () => _platform.disableBluetooth(),
       timeout: timeout,
@@ -534,14 +523,17 @@ class UniversalBle {
   static set onAvailabilityChange(OnAvailabilityChange? onAvailabilityChange) {
     _platform.onAvailabilityChange = onAvailabilityChange;
     if (onAvailabilityChange != null) {
-      getBluetoothAvailabilityState().then((value) {
-        onAvailabilityChange(value);
-      }).onError((error, stackTrace) => null);
+      getBluetoothAvailabilityState()
+          .then((value) {
+            onAvailabilityChange(value);
+          })
+          .onError((error, stackTrace) => null);
     }
   }
 
   @Deprecated(
-      "Use [subscribeNotifications] or [subscribeIndications] or [unsubscribe] instead")
+    "Use [subscribeNotifications] or [subscribeIndications] or [unsubscribe] instead",
+  )
   static Future<void> setNotifiable(
     String deviceId,
     String service,
@@ -603,28 +595,32 @@ class UniversalBle {
     }
 
     connectionSubscription = _platform
-        .bleConnectionUpdateStreamController.stream
+        .bleConnectionUpdateStreamController
+        .stream
         .where((e) => e.deviceId == deviceId)
         .listen(
-      (e) {
-        cancelSubscription();
-        if (e.error != null) {
-          handleError(e.error);
-        } else {
-          if (!completer.isCompleted) {
-            completer.complete(e.isConnected);
-          }
-        }
-      },
-      onError: handleError,
-      cancelOnError: true,
-    );
+          (e) {
+            cancelSubscription();
+            if (e.error != null) {
+              handleError(e.error);
+            } else {
+              if (!completer.isCompleted) {
+                completer.complete(e.isConnected);
+              }
+            }
+          },
+          onError: handleError,
+          cancelOnError: true,
+        );
 
-    completer.future.timeout(timeout).then((_) {
-      cancelSubscription();
-    }).catchError((_) {
-      cancelSubscription();
-    });
+    completer.future
+        .timeout(timeout)
+        .then((_) {
+          cancelSubscription();
+        })
+        .catchError((_) {
+          cancelSubscription();
+        });
 
     return completer;
   }
@@ -658,10 +654,7 @@ class UniversalBle {
     // Try to connect first
     if (connectionState != BleConnectionState.connected) {
       UniversalLogger.logInfo("Connecting to $deviceId");
-      await connect(
-        deviceId,
-        timeout: timeout,
-      );
+      await connect(deviceId, timeout: timeout);
     }
 
     List<BleService> services = await discoverServices(
@@ -721,7 +714,9 @@ class UniversalBle {
       if (BleUuidParser.compareStrings(service.uuid, bleCommand.service)) {
         for (BleCharacteristic char in service.characteristics) {
           if (BleUuidParser.compareStrings(
-              char.uuid, bleCommand.characteristic)) {
+            char.uuid,
+            bleCommand.characteristic,
+          )) {
             characteristic = char;
             break;
           }
@@ -737,11 +732,13 @@ class UniversalBle {
     bool? withoutResponse;
     if (characteristic.properties.contains(CharacteristicProperty.write)) {
       withoutResponse = false;
-    } else if (characteristic.properties
-        .contains(CharacteristicProperty.writeWithoutResponse)) {
+    } else if (characteristic.properties.contains(
+      CharacteristicProperty.writeWithoutResponse,
+    )) {
       withoutResponse = true;
-    } else if (!characteristic.properties
-        .contains(CharacteristicProperty.read)) {
+    } else if (!characteristic.properties.contains(
+      CharacteristicProperty.read,
+    )) {
       throw PairingException(
         "BleCommand does not support read or write operation",
       );

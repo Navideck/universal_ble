@@ -10,19 +10,13 @@ class UniversalLogger {
     _currentLogLevel = logLevel;
   }
 
-  static void logError(
-    String message, {
-    bool withTimestamp = false,
-  }) {
+  static void logError(String message, {bool withTimestamp = false}) {
     if (!_allows(BleLogLevel.error)) return;
     if (withTimestamp) {
       final ts = DateTime.now().toIso8601String();
       message = "[$ts] $message";
     }
-    log(
-      '\x1B[31m$message\x1B[0m',
-      name: 'UniversalBle:ERROR',
-    );
+    log('\x1B[31m$message\x1B[0m', name: 'UniversalBle:ERROR');
   }
 
   static void logWarning(String message, {bool withTimestamp = false}) {
@@ -31,10 +25,7 @@ class UniversalLogger {
       final ts = DateTime.now().toIso8601String();
       message = "[$ts] $message";
     }
-    log(
-      '\x1B[33m$message\x1B[0m',
-      name: 'UniversalBle:WARN',
-    );
+    log('\x1B[33m$message\x1B[0m', name: 'UniversalBle:WARN');
   }
 
   static void logInfo(String message, {bool withTimestamp = false}) {
@@ -43,10 +34,7 @@ class UniversalLogger {
       final ts = DateTime.now().toIso8601String();
       message = "[$ts] $message";
     }
-    log(
-      message.toString(),
-      name: 'UniversalBle:INFO',
-    );
+    log(message.toString(), name: 'UniversalBle:INFO');
   }
 
   static void logDebug(String message, {bool withTimestamp = false}) {
@@ -55,10 +43,7 @@ class UniversalLogger {
       final ts = DateTime.now().toIso8601String();
       message = "[$ts] $message";
     }
-    log(
-      message.toString(),
-      name: 'UniversalBle:DEBUG',
-    );
+    log(message.toString(), name: 'UniversalBle:DEBUG');
   }
 
   static void logVerbose(String message, {bool withTimestamp = false}) {
@@ -67,10 +52,7 @@ class UniversalLogger {
       final ts = DateTime.now().toIso8601String();
       message = "[$ts] $message";
     }
-    log(
-      message.toString(),
-      name: 'UniversalBle:VERBOSE',
-    );
+    log(message.toString(), name: 'UniversalBle:VERBOSE');
   }
 
   static bool _allows(BleLogLevel level) {

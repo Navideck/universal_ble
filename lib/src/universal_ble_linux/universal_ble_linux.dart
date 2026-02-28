@@ -171,22 +171,25 @@ class UniversalBleLinux extends UniversalBlePlatform {
   ) async {
     final device = _findDeviceById(deviceId);
     if (device.gattServices.isEmpty && !device.servicesResolved) {
-      await device.propertiesChanged.firstWhere((element) {
-        if (element.contains(BluezProperty.connected)) {
-          if (!device.connected) {
-            UniversalLogger.logInfo(
-              "DiscoverServicesFailed: Device disconnected",
-            );
-            return true;
-          }
-        }
-        return element.contains(BluezProperty.servicesResolved);
-      }).timeout(const Duration(seconds: 10), onTimeout: () {
-        UniversalLogger.logInfo(
-          "DiscoverServicesFailed: Timeout",
-        );
-        return [];
-      });
+      await device.propertiesChanged
+          .firstWhere((element) {
+            if (element.contains(BluezProperty.connected)) {
+              if (!device.connected) {
+                UniversalLogger.logInfo(
+                  "DiscoverServicesFailed: Device disconnected",
+                );
+                return true;
+              }
+            }
+            return element.contains(BluezProperty.servicesResolved);
+          })
+          .timeout(
+            const Duration(seconds: 10),
+            onTimeout: () {
+              UniversalLogger.logInfo("DiscoverServicesFailed: Timeout");
+              return [];
+            },
+          );
     }
 
     // Few ble devices requires delay to perform operations after discovering services
@@ -204,10 +207,12 @@ class UniversalBleLinux extends UniversalBlePlatform {
       String serviceId = service.uuid.toString();
 
       final characteristics = service.characteristics.map((e) {
-        final properties = List<CharacteristicProperty>.from(e.flags
-            .map((e) => e.toCharacteristicProperty())
-            .where((element) => element != null)
-            .toList());
+        final properties = List<CharacteristicProperty>.from(
+          e.flags
+              .map((e) => e.toCharacteristicProperty())
+              .where((element) => element != null)
+              .toList(),
+        );
         return BleCharacteristic.withMetaData(
           deviceId: deviceId,
           serviceId: serviceId,
@@ -215,27 +220,30 @@ class UniversalBleLinux extends UniversalBlePlatform {
           properties: properties,
           descriptors: withDescriptors
               ? e.descriptors
-                  .map((e) => BleDescriptor(e.uuid.toString()))
-                  .toList()
+                    .map((e) => BleDescriptor(e.uuid.toString()))
+                    .toList()
               : [],
         );
       }).toList();
-      services.add(
-        BleService(serviceId, characteristics),
-      );
+      services.add(BleService(serviceId, characteristics));
     }
     return services;
   }
 
   BlueZGattCharacteristic _getCharacteristic(
-      String deviceId, String service, String characteristic) {
+    String deviceId,
+    String service,
+    String characteristic,
+  ) {
     final device = _findDeviceById(deviceId);
-    final s = device.gattServices
-        .cast<BlueZGattService?>()
-        .firstWhere((s) => s?.uuid.toString() == service, orElse: () => null);
+    final s = device.gattServices.cast<BlueZGattService?>().firstWhere(
+      (s) => s?.uuid.toString() == service,
+      orElse: () => null,
+    );
     final c = s?.characteristics.cast<BlueZGattCharacteristic?>().firstWhere(
-        (c) => c?.uuid.toString() == characteristic,
-        orElse: () => null);
+      (c) => c?.uuid.toString() == characteristic,
+      orElse: () => null,
+    );
 
     if (c == null) {
       throw UniversalBleException(
@@ -247,8 +255,12 @@ class UniversalBleLinux extends UniversalBlePlatform {
   }
 
   @override
-  Future<void> setNotifiable(String deviceId, String service,
-      String characteristic, BleInputProperty bleInputProperty) async {
+  Future<void> setNotifiable(
+    String deviceId,
+    String service,
+    String characteristic,
+    BleInputProperty bleInputProperty,
+  ) async {
     UniversalLogger.logDebug(
       "SET_NOTIFY -> $deviceId $service $characteristic input=${bleInputProperty.name}",
       withTimestamp: true,
@@ -269,29 +281,30 @@ class UniversalBleLinux extends UniversalBlePlatform {
         _characteristicPropertiesSubscriptions[characteristicKey]?.cancel();
       }
 
-      _characteristicPropertiesSubscriptions[characteristicKey] =
-          char.propertiesChanged.listen((List<String> properties) {
-        for (String property in properties) {
-          switch (property) {
-            case BluezProperty.value:
-              UniversalLogger.logVerbose(
-                "NOTIFY <- $deviceId $service $characteristic len=${char.value.length} data=${char.value}",
-                withTimestamp: true,
-              );
-              updateCharacteristicValue(
-                deviceId,
-                characteristic,
-                Uint8List.fromList(char.value),
-                DateTime.now().millisecondsSinceEpoch,
-              );
-              break;
-            default:
-              UniversalLogger.logInfo(
-                "UnhandledCharValuePropertyChange: $property",
-              );
-          }
-        }
-      });
+      _characteristicPropertiesSubscriptions[characteristicKey] = char
+          .propertiesChanged
+          .listen((List<String> properties) {
+            for (String property in properties) {
+              switch (property) {
+                case BluezProperty.value:
+                  UniversalLogger.logVerbose(
+                    "NOTIFY <- $deviceId $service $characteristic len=${char.value.length} data=${char.value}",
+                    withTimestamp: true,
+                  );
+                  updateCharacteristicValue(
+                    deviceId,
+                    characteristic,
+                    Uint8List.fromList(char.value),
+                    DateTime.now().millisecondsSinceEpoch,
+                  );
+                  break;
+                default:
+                  UniversalLogger.logInfo(
+                    "UnhandledCharValuePropertyChange: $property",
+                  );
+              }
+            }
+          });
     } else {
       if (char.notifying) await char.stopNotify();
       _characteristicPropertiesSubscriptions
@@ -328,11 +341,12 @@ class UniversalBleLinux extends UniversalBlePlatform {
 
   @override
   Future<void> writeValue(
-      String deviceId,
-      String service,
-      String characteristic,
-      Uint8List value,
-      BleOutputProperty bleOutputProperty) async {
+    String deviceId,
+    String service,
+    String characteristic,
+    Uint8List value,
+    BleOutputProperty bleOutputProperty,
+  ) async {
     UniversalLogger.logDebug(
       "WRITE -> $deviceId $service $characteristic len=${value.length} property=${bleOutputProperty.name}",
       withTimestamp: true,
@@ -419,12 +433,11 @@ class UniversalBleLinux extends UniversalBlePlatform {
   }
 
   @override
-  Future<List<BleDevice>> getSystemDevices(
-    List<String>? withServices,
-  ) async {
+  Future<List<BleDevice>> getSystemDevices(List<String>? withServices) async {
     await _ensureInitialized();
-    List<BlueZDevice> devices =
-        _client.devices.where((device) => device.connected).toList();
+    List<BlueZDevice> devices = _client.devices
+        .where((device) => device.connected)
+        .toList();
     if (withServices != null && withServices.isNotEmpty) {
       devices = devices.where((device) {
         if (device.servicesResolved) {
@@ -467,8 +480,9 @@ class UniversalBleLinux extends UniversalBlePlatform {
   BlueZDevice? _getDeviceById(String deviceId) {
     return _devices[deviceId] ??
         _client.devices.cast<BlueZDevice?>().firstWhere(
-            (device) => device?.address == deviceId,
-            orElse: () => null);
+          (device) => device?.address == deviceId,
+          orElse: () => null,
+        );
   }
 
   Future<void> _ensureInitialized() async {
@@ -503,9 +517,7 @@ class UniversalBleLinux extends UniversalBlePlatform {
               break;
             case BluezProperty.propertyClass:
             default:
-              UniversalLogger.logInfo(
-                "UnhandledPropertyChanged: $property",
-              );
+              UniversalLogger.logInfo("UnhandledPropertyChanged: $property");
           }
         }
       });
@@ -554,21 +566,23 @@ class UniversalBleLinux extends UniversalBlePlatform {
     _devices[device.address] = device;
 
     // Setup advertisements Listener
-    _deviceAdvertisementSubscriptions[device.address] ??=
-        device.propertiesChanged.where((e) {
-      return e.contains(BluezProperty.rssi) ||
-          e.contains(BluezProperty.manufacturerData) ||
-          e.contains(BluezProperty.uuids) ||
-          e.contains(BluezProperty.serviceData);
-    }).listen((_) {
-      if (_bleFilter.shouldAcceptDevice(bleDevice)) {
-        updateScanResult(device.toBleDevice());
-      }
-    });
+    _deviceAdvertisementSubscriptions[device.address] ??= device
+        .propertiesChanged
+        .where((e) {
+          return e.contains(BluezProperty.rssi) ||
+              e.contains(BluezProperty.manufacturerData) ||
+              e.contains(BluezProperty.uuids) ||
+              e.contains(BluezProperty.serviceData);
+        })
+        .listen((_) {
+          if (_bleFilter.shouldAcceptDevice(bleDevice)) {
+            updateScanResult(device.toBleDevice());
+          }
+        });
 
     // Setup update listener
-    _deviceUpdateStreamSubscriptions[device.address] ??=
-        device.propertiesChanged.listen((properties) {
+    _deviceUpdateStreamSubscriptions[device
+        .address] ??= device.propertiesChanged.listen((properties) {
       for (final property in properties) {
         switch (property) {
           // Connection/Pair updates
@@ -685,10 +699,7 @@ extension on BlueZFailedException {
       Match? match = regExp.firstMatch(message);
       String? code = match?.group(0);
       if (code == null) return null;
-      int? decimalValue = int.tryParse(
-        code.replaceFirst('0x', ''),
-        radix: 16,
-      );
+      int? decimalValue = int.tryParse(code.replaceFirst('0x', ''), radix: 16);
       return decimalValue?.toString() ?? code;
     } catch (e) {
       return null;
@@ -698,8 +709,10 @@ extension on BlueZFailedException {
 
 extension BlueZDeviceExtension on BlueZDevice {
   List<ManufacturerData> get manufacturerDataList => manufacturerData.entries
-      .map((MapEntry<BlueZManufacturerId, List<int>> data) =>
-          ManufacturerData(data.key.id, Uint8List.fromList(data.value)))
+      .map(
+        (MapEntry<BlueZManufacturerId, List<int>> data) =>
+            ManufacturerData(data.key.id, Uint8List.fromList(data.value)),
+      )
       .toList();
 
   Map<String, Uint8List> get serviceDataMap {

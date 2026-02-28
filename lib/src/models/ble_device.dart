@@ -55,9 +55,9 @@ class BleDevice {
     this.manufacturerDataList = const [],
     Map<String, Uint8List> serviceData = const {},
     this.timestamp,
-  })  : serviceData = _validateServiceData(serviceData),
-        rawName = name,
-        name = name?.replaceAll(RegExp(r'[^ -~]'), '').trim();
+  }) : serviceData = _validateServiceData(serviceData),
+       rawName = name,
+       name = name?.replaceAll(RegExp(r'[^ -~]'), '').trim();
 
   DateTime? get timestampDateTime => timestamp != null
       ? DateTime.fromMillisecondsSinceEpoch(timestamp!)

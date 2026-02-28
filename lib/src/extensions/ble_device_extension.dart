@@ -18,8 +18,11 @@ extension BleDeviceExtension on BleDevice {
   /// Connects to the device.
   /// [autoConnect] enables automatic reconnection when the device becomes available.
   Future<void> connect({bool autoConnect = false, Duration? timeout}) =>
-      UniversalBle.connect(deviceId,
-          autoConnect: autoConnect, timeout: timeout);
+      UniversalBle.connect(
+        deviceId,
+        autoConnect: autoConnect,
+        timeout: timeout,
+      );
 
   /// Disconnects from the device.
   Future<void> disconnect() => UniversalBle.disconnect(deviceId);
@@ -40,10 +43,7 @@ extension BleDeviceExtension on BleDevice {
   /// Returns true/false if it manages to execute the command.
   /// Returns null when no `pairingCommand` is passed.
   /// Note that it will trigger pairing if the device is not already paired.
-  Future<bool?> isPaired({
-    BleCommand? pairingCommand,
-    Duration? timeout,
-  }) {
+  Future<bool?> isPaired({BleCommand? pairingCommand, Duration? timeout}) {
     return UniversalBle.isPaired(
       deviceId,
       pairingCommand: pairingCommand,
@@ -62,10 +62,7 @@ extension BleDeviceExtension on BleDevice {
   ///
   /// On `Web/Windows` and `Web/Linux`, it does not work for devices that use `ConfirmOnly` pairing.
   /// Can throw `PairingException`, `ConnectionException` or `PlatformException`.
-  Future<void> pair({
-    BleCommand? pairingCommand,
-    Duration? timeout,
-  }) {
+  Future<void> pair({BleCommand? pairingCommand, Duration? timeout}) {
     return UniversalBle.pair(
       deviceId,
       pairingCommand: pairingCommand,
@@ -76,9 +73,7 @@ extension BleDeviceExtension on BleDevice {
   /// Unpair a device.
   ///
   /// It might throw an error if device is not paired.
-  Future<void> unpair({
-    Duration? timeout,
-  }) =>
+  Future<void> unpair({Duration? timeout}) =>
       UniversalBle.unpair(deviceId, timeout: timeout);
 
   /// Discovers the services offered by the device.
