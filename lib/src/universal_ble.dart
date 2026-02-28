@@ -360,7 +360,7 @@ class UniversalBle {
   ///
   /// **Note**: The device must be connected before reading RSSI.
   ///
-  /// Throws [BleException] if:
+  /// Throws [UniversalBleException] if:
   /// - The device is not connected
   /// - Reading RSSI fails
   static Future<int> readRssi(
