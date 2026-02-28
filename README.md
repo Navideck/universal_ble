@@ -16,7 +16,7 @@ A cross-platform (Android/iOS/macOS/Windows/Linux/Web) Bluetooth Low Energy (BLE
 
 > **Free**: This package is free for commercial or personal use as long as you adhere to the [BSD 3-Clause License](LICENSE).
 
-[Try it online](https://navideck.github.io/universal_ble), provided your browser supports [Web Bluetooth](https://caniuse.com/web-bluetooth).
+[Try it online](https://navideck.github.io/universal-ble), provided your browser supports [Web Bluetooth](https://caniuse.com/web-bluetooth).
 
 ## Features
 
