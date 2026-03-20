@@ -294,6 +294,18 @@ class UniversalBleWeb extends UniversalBlePlatform {
 
   /// `Unimplemented`
   @override
+  Future<void> requestConnectionPriority(
+    String deviceId,
+    BleConnectionPriority priority,
+  ) {
+    throw UniversalBleException(
+      code: UniversalBleErrorCode.notSupported,
+      message: "requestConnectionPriority is not supported on Web platform",
+    );
+  }
+
+  /// `Unimplemented`
+  @override
   Future<int> readRssi(String deviceId) {
     throw UniversalBleException(
       code: UniversalBleErrorCode.notImplemented,

@@ -371,6 +371,14 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
     completion(Result.success(mtuResult))
   }
 
+  func requestConnectionPriority(
+    deviceId _: String,
+    priority _: Int64,
+    completion: @escaping (Result<Void, Error>) -> Void
+  ) {
+    completion(.failure(createFlutterError(code: .notSupported, message: "requestConnectionPriority is not supported on Apple platforms")))
+  }
+
   func readRssi(deviceId: String, completion: @escaping (Result<Int64, Error>) -> Void) {
     UniversalBleLogger.shared.logDebug("READ_RSSI -> \(deviceId)")
     guard let peripheral = deviceId.findPeripheral(manager: manager) else {

@@ -528,6 +528,10 @@ class UniversalBlePlatformChannel {
   virtual void ReadRssi(
     const std::string& device_id,
     std::function<void(ErrorOr<int64_t> reply)> result) = 0;
+  virtual void RequestConnectionPriority(
+    const std::string& device_id,
+    int64_t priority,
+    std::function<void(std::optional<FlutterError> reply)> result) = 0;
   virtual std::optional<FlutterError> SetLogLevel(const UniversalBleLogLevel& log_level) = 0;
 
   // The codec used by UniversalBlePlatformChannel.

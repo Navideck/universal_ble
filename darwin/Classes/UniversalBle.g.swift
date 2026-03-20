@@ -645,6 +645,7 @@ protocol UniversalBlePlatformChannel {
   func getSystemDevices(withServices: [String], completion: @escaping (Result<[UniversalBleScanResult], Error>) -> Void)
   func getConnectionState(deviceId: String) throws -> Int64
   func readRssi(deviceId: String, completion: @escaping (Result<Int64, Error>) -> Void)
+  func requestConnectionPriority(deviceId: String, priority: Int64, completion: @escaping (Result<Void, Error>) -> Void)
   func setLogLevel(logLevel: UniversalBleLogLevel) throws
 }
 
@@ -997,6 +998,24 @@ class UniversalBlePlatformChannelSetup {
       }
     } else {
       readRssiChannel.setMessageHandler(nil)
+    }
+    let requestConnectionPriorityChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.universal_ble.UniversalBlePlatformChannel.requestConnectionPriority\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    if let api = api {
+      requestConnectionPriorityChannel.setMessageHandler { message, reply in
+        let args = message as! [Any?]
+        let deviceIdArg = args[0] as! String
+        let priorityArg = args[1] as! Int64
+        api.requestConnectionPriority(deviceId: deviceIdArg, priority: priorityArg) { result in
+          switch result {
+          case .success:
+            reply(wrapResult(nil))
+          case .failure(let error):
+            reply(wrapError(error))
+          }
+        }
+      }
+    } else {
+      requestConnectionPriorityChannel.setMessageHandler(nil)
     }
     let setLogLevelChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.universal_ble.UniversalBlePlatformChannel.setLogLevel\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
     if let api = api {

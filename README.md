@@ -54,6 +54,7 @@ A cross-platform (Android/iOS/macOS/Windows/Linux/Web) Bluetooth Low Energy (BLE
 | enable/disable Bluetooth      |   ✔️    | ❌  |  ❌   |   ✔️    |  ✔️   | ❌  |
 | onAvailabilityChange          |   ✔️    | ✔️  |  ✔️   |   ✔️    |  ✔️   | ✔️  |
 | requestMtu                    |   ✔️    | ✔️  |  ✔️   |   ✔️    |  ✔️   | ❌  |
+| requestConnectionPriority     |   ✔️    | ❌  |  ❌   |   ❌    |  ❌   | ❌  |
 | readRssi                      |   ✔️    | ✔️  |  ✔️   |   ❌    |  🚧   | ❌  |
 | requestPermissions            |   ✔️    | ✔️  |  ✔️   |   ✔️    |  ✔️   | ✔️  |
 
@@ -469,6 +470,22 @@ When developing cross-platform BLE applications and devices:
 * Implement application-level fragmentation for larger payloads
 * Take advantage of higher MTUs when available, without depending on them
 
+
+### Requesting Connection Priority
+
+On Android, you can request a connection parameter update to tune the BLE connection interval. This can yield a 3–7× throughput improvement for data-intensive transfers.
+
+```dart
+// Before starting high-throughput data transfer:
+await UniversalBle.requestConnectionPriority(
+  deviceId,
+  BleConnectionPriority.highPerformance,
+);
+```
+
+> **Note:** Only supported on Android. On all other platforms this throws `UniversalBleException` with code `notSupported`.
+> Check `BleCapabilities.supportsConnectionPriorityApi` before calling.
+> Call this after connecting and after `requestMtu()`, before beginning data transfer.
 
 ### Reading RSSI
 

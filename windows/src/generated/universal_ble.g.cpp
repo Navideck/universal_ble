@@ -1390,6 +1390,41 @@ void UniversalBlePlatformChannel::SetUp(
     }
   }
   {
+    BasicMessageChannel<> channel(binary_messenger, "dev.flutter.pigeon.universal_ble.UniversalBlePlatformChannel.requestConnectionPriority" + prepended_suffix, &GetCodec());
+    if (api != nullptr) {
+      channel.SetMessageHandler([api](const EncodableValue& message, const flutter::MessageReply<EncodableValue>& reply) {
+        try {
+          const auto& args = std::get<EncodableList>(message);
+          const auto& encodable_device_id_arg = args.at(0);
+          if (encodable_device_id_arg.IsNull()) {
+            reply(WrapError("device_id_arg unexpectedly null."));
+            return;
+          }
+          const auto& device_id_arg = std::get<std::string>(encodable_device_id_arg);
+          const auto& encodable_priority_arg = args.at(1);
+          if (encodable_priority_arg.IsNull()) {
+            reply(WrapError("priority_arg unexpectedly null."));
+            return;
+          }
+          const int64_t priority_arg = encodable_priority_arg.LongValue();
+          api->RequestConnectionPriority(device_id_arg, priority_arg, [reply](std::optional<FlutterError>&& output) {
+            if (output.has_value()) {
+              reply(WrapError(output.value()));
+              return;
+            }
+            EncodableList wrapped;
+            wrapped.push_back(EncodableValue());
+            reply(EncodableValue(std::move(wrapped)));
+          });
+        } catch (const std::exception& exception) {
+          reply(WrapError(exception.what()));
+        }
+      });
+    } else {
+      channel.SetMessageHandler(nullptr);
+    }
+  }
+  {
     BasicMessageChannel<> channel(binary_messenger, "dev.flutter.pigeon.universal_ble.UniversalBlePlatformChannel.setLogLevel" + prepended_suffix, &GetCodec());
     if (api != nullptr) {
       channel.SetMessageHandler([api](const EncodableValue& message, const flutter::MessageReply<EncodableValue>& reply) {

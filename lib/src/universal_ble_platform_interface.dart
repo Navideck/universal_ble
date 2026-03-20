@@ -97,6 +97,11 @@ abstract class UniversalBlePlatform {
 
   Future<int> readRssi(String deviceId);
 
+  Future<void> requestConnectionPriority(
+    String deviceId,
+    BleConnectionPriority priority,
+  );
+
   Future<bool> isPaired(String deviceId);
 
   Future<bool> pair(String deviceId);
