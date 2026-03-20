@@ -159,6 +159,22 @@ class UniversalBlePigeonChannel extends UniversalBlePlatform {
       _executeWithErrorHandling(() => _channel.readRssi(deviceId));
 
   @override
+  Future<void> requestConnectionPriority(
+    String deviceId,
+    BleConnectionPriority priority,
+  ) {
+    if (!BleCapabilities.supportsConnectionPriorityApi) {
+      throw UniversalBleException(
+        code: UniversalBleErrorCode.notSupported,
+        message: "requestConnectionPriority is not supported on this platform",
+      );
+    }
+    return _executeWithErrorHandling(
+      () => _channel.requestConnectionPriority(deviceId, priority.index),
+    );
+  }
+
+  @override
   Future<bool> isPaired(String deviceId) =>
       _executeWithErrorHandling(() => _channel.isPaired(deviceId));
 

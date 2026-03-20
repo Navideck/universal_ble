@@ -12,3 +12,4 @@ export 'package:universal_ble/src/models/ble_connection_state.dart';
 export 'package:universal_ble/src/models/ble_device.dart';
 export 'package:universal_ble/src/models/ble_command.dart';
 export 'package:universal_ble/src/models/ble_capabilities.dart';
+export 'package:universal_ble/src/models/ble_connection_priority.dart';

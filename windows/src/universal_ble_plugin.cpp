@@ -436,6 +436,14 @@ void UniversalBlePlugin::RequestMtu(
   }
 }
 
+void UniversalBlePlugin::RequestConnectionPriority(
+    const std::string &device_id, int64_t priority,
+    std::function<void(std::optional<FlutterError> reply)> result) {
+  result(create_flutter_error(
+      UniversalBleErrorCode::kNotSupported,
+      "requestConnectionPriority is not supported on Windows platform"));
+}
+
 void UniversalBlePlugin::ReadRssi(
     const std::string &device_id,
     std::function<void(ErrorOr<int64_t> reply)> result) {
