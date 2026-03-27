@@ -1,0 +1,143 @@
+package com.navideck.universal_ble
+
+import android.app.Activity
+import android.bluetooth.BluetoothDevice
+import android.bluetooth.BluetoothGattCharacteristic
+import android.bluetooth.BluetoothGattDescriptor
+import android.bluetooth.BluetoothGattService
+import android.content.pm.PackageManager
+import android.util.Log
+import java.util.Collections
+import java.util.UUID
+
+private val bluetoothGattCharacteristics:
+    MutableMap<String, BluetoothGattCharacteristic> = HashMap()
+private val descriptorValueReadMap: MutableMap<String, ByteArray> = HashMap()
+val subscribedCharDevicesMap: MutableMap<String, MutableList<String>> = HashMap()
+const val peripheralDescriptorCCUUID = "00002902-0000-1000-8000-00805f9b34fb"
+
+fun Activity.havePermission(permissions: Array<String>): Boolean {
+    for (perm in permissions) {
+        if (checkCallingOrSelfPermission(perm) != PackageManager.PERMISSION_GRANTED) {
+            return false
+        }
+    }
+    return true
+}
+
+fun PeripheralService.toGattService(): BluetoothGattService {
+    val service = BluetoothGattService(
+        UUID.fromString(uuid),
+        if (primary) BluetoothGattService.SERVICE_TYPE_PRIMARY else BluetoothGattService.SERVICE_TYPE_SECONDARY,
+    )
+    characteristics.forEach {
+        service.addCharacteristic(it.toGattCharacteristic())
+    }
+    return service
+}
+
+fun PeripheralCharacteristic.toGattCharacteristic(): BluetoothGattCharacteristic {
+    val characteristic = BluetoothGattCharacteristic(
+        UUID.fromString(uuid),
+        properties.toPropertiesList(),
+        permissions.toPermissionsList(),
+    )
+    value?.let { characteristic.value = it }
+    descriptors?.forEach {
+        characteristic.addDescriptor(it.toGattDescriptor())
+    }
+
+    addCCDescriptorIfRequired(this, characteristic)
+    if (bluetoothGattCharacteristics[uuid] == null) {
+        bluetoothGattCharacteristics[uuid] = characteristic
+    }
+    return characteristic
+}
+
+private fun addCCDescriptorIfRequired(
+    peripheralCharacteristic: PeripheralCharacteristic,
+    characteristic: BluetoothGattCharacteristic,
+) {
+    val hasNotifyOrIndicate =
+        characteristic.properties and BluetoothGattCharacteristic.PROPERTY_NOTIFY != 0 ||
+            characteristic.properties and BluetoothGattCharacteristic.PROPERTY_INDICATE != 0
+    if (!hasNotifyOrIndicate) return
+
+    var hasCccd = false
+    for (descriptor in peripheralCharacteristic.descriptors ?: Collections.emptyList()) {
+        if (descriptor.uuid.equals(peripheralDescriptorCCUUID, ignoreCase = true)) {
+            hasCccd = true
+            break
+        }
+    }
+    if (hasCccd) return
+
+    val cccd = BluetoothGattDescriptor(
+        UUID.fromString(peripheralDescriptorCCUUID),
+        BluetoothGattDescriptor.PERMISSION_READ or BluetoothGattDescriptor.PERMISSION_WRITE,
+    )
+    cccd.value = BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE
+    characteristic.addDescriptor(cccd)
+    Log.d("UniversalBlePeripheral", "Added CCCD for ${characteristic.uuid}")
+}
+
+fun PeripheralDescriptor.toGattDescriptor(): BluetoothGattDescriptor {
+    val permission = permissions?.toPermissionsList()
+        ?: BluetoothGattDescriptor.PERMISSION_READ or BluetoothGattDescriptor.PERMISSION_WRITE
+    val descriptor = BluetoothGattDescriptor(UUID.fromString(uuid), permission)
+    value?.let {
+        descriptor.value = it
+        descriptorValueReadMap[uuid.lowercase()] = it
+    }
+    return descriptor
+}
+
+fun BluetoothGattDescriptor.getCacheValue(): ByteArray? =
+    descriptorValueReadMap[uuid.toString().lowercase()]
+
+fun String.findCharacteristic(): BluetoothGattCharacteristic? =
+    bluetoothGattCharacteristics[this]
+
+fun String.findService(): BluetoothGattService? {
+    for (characteristic in bluetoothGattCharacteristics.values) {
+        if (characteristic.service?.uuid.toString() == this) {
+            return characteristic.service
+        }
+    }
+    return null
+}
+
+private fun List<Long>.toPropertiesList(): Int =
+    map { it.toInt() }.fold(0) { acc, i -> acc or i.toPropertyBits() }
+
+private fun List<Long>.toPermissionsList(): Int =
+    map { it.toInt() }.fold(0) { acc, i -> acc or i.toPermissionBits() }
+
+private fun Int.toPropertyBits(): Int = when (this) {
+    0 -> BluetoothGattCharacteristic.PROPERTY_BROADCAST
+    1 -> BluetoothGattCharacteristic.PROPERTY_READ
+    2 -> BluetoothGattCharacteristic.PROPERTY_WRITE_NO_RESPONSE
+    3 -> BluetoothGattCharacteristic.PROPERTY_WRITE
+    4 -> BluetoothGattCharacteristic.PROPERTY_NOTIFY
+    5 -> BluetoothGattCharacteristic.PROPERTY_INDICATE
+    6 -> BluetoothGattCharacteristic.PROPERTY_SIGNED_WRITE
+    7 -> BluetoothGattCharacteristic.PROPERTY_EXTENDED_PROPS
+    8 -> BluetoothGattCharacteristic.PROPERTY_NOTIFY
+    9 -> BluetoothGattCharacteristic.PROPERTY_INDICATE
+    else -> 0
+}
+
+private fun Int.toPermissionBits(): Int = when (this) {
+    0 -> BluetoothGattCharacteristic.PERMISSION_READ
+    1 -> BluetoothGattCharacteristic.PERMISSION_WRITE
+    2 -> BluetoothGattCharacteristic.PERMISSION_READ_ENCRYPTED
+    3 -> BluetoothGattCharacteristic.PERMISSION_WRITE_ENCRYPTED
+    else -> 0
+}
+
+fun Int.toPeripheralBondState(): PeripheralBondState = when (this) {
+    BluetoothDevice.BOND_BONDING -> PeripheralBondState.BONDING
+    BluetoothDevice.BOND_BONDED -> PeripheralBondState.BONDED
+    BluetoothDevice.BOND_NONE -> PeripheralBondState.NONE
+    else -> PeripheralBondState.NONE
+}

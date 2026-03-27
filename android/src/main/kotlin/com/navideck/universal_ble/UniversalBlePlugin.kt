@@ -50,6 +50,7 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
     private lateinit var safeScanner: SafeScanner
     private val cachedServicesMap = mutableMapOf<String, List<String>>()
     private val universalBleFilterUtil = UniversalBleFilterUtil()
+    private lateinit var peripheralPlugin: UniversalBlePeripheralPlugin
 
     // Flutter Futures
     private var bluetoothEnableRequestFuture: ((Result<Boolean>) -> Unit)? = null
@@ -65,6 +66,11 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
 
     override fun onAttachedToEngine(flutterPluginBinding: FlutterPlugin.FlutterPluginBinding) {
         UniversalBlePlatformChannel.setUp(flutterPluginBinding.binaryMessenger, this)
+        peripheralPlugin = UniversalBlePeripheralPlugin(
+            flutterPluginBinding.applicationContext,
+            flutterPluginBinding.binaryMessenger
+        )
+        UniversalBlePeripheralChannel.setUp(flutterPluginBinding.binaryMessenger, peripheralPlugin)
         callbackChannel = UniversalBleCallbackChannel(flutterPluginBinding.binaryMessenger)
         context = flutterPluginBinding.applicationContext
         mainThreadHandler = Handler(Looper.getMainLooper())
@@ -85,6 +91,8 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
     override fun onDetachedFromEngine(binding: FlutterPlugin.FlutterPluginBinding) {
         bluetoothManager.adapter.bluetoothLeScanner?.stopScan(scanCallback)
         context.unregisterReceiver(broadcastReceiver)
+        peripheralPlugin.dispose()
+        UniversalBlePeripheralChannel.setUp(binding.binaryMessenger, null)
         callbackChannel = null
         mainThreadHandler = null
         permissionHandler = null
@@ -1355,6 +1363,7 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
 
     override fun onAttachedToActivity(binding: ActivityPluginBinding) {
         activity = binding.activity
+        peripheralPlugin.attachActivity(binding.activity)
         binding.addActivityResultListener(this)
         binding.addRequestPermissionsResultListener(this)
         permissionHandler?.attachActivity(binding.activity)
@@ -1362,6 +1371,7 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
 
     override fun onDetachedFromActivity() {
         activity = null
+        peripheralPlugin.attachActivity(null)
         permissionHandler?.attachActivity(null)
     }
 
@@ -1371,6 +1381,7 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
 
     override fun onReattachedToActivityForConfigChanges(binding: ActivityPluginBinding) {
         activity = binding.activity
+        peripheralPlugin.attachActivity(binding.activity)
         permissionHandler?.attachActivity(binding.activity)
     }
 

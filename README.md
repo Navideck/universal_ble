@@ -33,8 +33,11 @@ A cross-platform (Android/iOS/macOS/Windows/Linux/Web) Bluetooth Low Energy (BLE
 - [Error Handling](#error-handling)
 - [UUID Format Agnostic](#uuid-format-agnostic)
 - [Permissions](#permissions)
+- [Peripheral Mode](#peripheral-mode)
 
 ## API Support
+
+### Client Mode (`UniversalBle`)
 
 |                               | Android | iOS | macOS | Windows | Linux | Web |
 | :---------------------------- | :-----: | :-: | :---: | :-----: | :---: | :-: |
@@ -57,6 +60,24 @@ A cross-platform (Android/iOS/macOS/Windows/Linux/Web) Bluetooth Low Energy (BLE
 | requestConnectionPriority     |   ✔️    | ❌  |  ❌   |   ❌    |  ❌   | ❌  |
 | readRssi                      |   ✔️    | ✔️  |  ✔️   |   ❌    |  🚧   | ❌  |
 | requestPermissions            |   ✔️    | ✔️  |  ✔️   |   ✔️    |  ✔️   | ✔️  |
+
+### Peripheral Mode (`UniversalBlePeripheral`)
+
+| API                    | Android | iOS | macOS | Windows | Linux | Web |
+| :--------------------- | :-----: | :-: | :---: | :-----: | :---: | :-: |
+| initialize             |   ✔️    | ✔️  |  ✔️   |   ✔️    |  ❌   | ❌  |
+| isSupported            |   ✔️    | ✔️  |  ✔️   |   ✔️    |  ❌   | ❌  |
+| isAdvertising          |   ✔️    | ✔️  |  ✔️   |   ✔️    |  ❌   | ❌  |
+| addService             |   ✔️    | ✔️  |  ✔️   |   ✔️    |  ❌   | ❌  |
+| removeService          |   ✔️    | ✔️  |  ✔️   |   ✔️    |  ❌   | ❌  |
+| clearServices          |   ✔️    | ✔️  |  ✔️   |   ✔️    |  ❌   | ❌  |
+| getServices            |   ✔️    | ✔️  |  ✔️   |   ✔️    |  ❌   | ❌  |
+| startAdvertising       |   ✔️    | ✔️  |  ✔️   |   ✔️    |  ❌   | ❌  |
+| stopAdvertising        |   ✔️    | ✔️  |  ✔️   |   ✔️    |  ❌   | ❌  |
+| updateCharacteristic   |   ✔️    | ✔️  |  ✔️   |   ✔️    |  ❌   | ❌  |
+| peripheral callbacks\* |   ✔️    | ✔️  |  ✔️   |   ✔️    |  ❌   | ❌  |
+
+\* callbacks include advertising state, read/write requests, subscription changes, and related peripheral events.
 
 ## Getting Started
 
@@ -440,7 +461,7 @@ explicitly controlled by applications:
 
   * **Android ≤ 13**: Apps may request MTU once per connection (up to 517).
     If never requested, the default MTU is 23.
-  * **Android 14+**: The first GATT client effectively drives MTU negotiation
+  * **Android 14+**: The first Bluetooth client effectively drives MTU negotiation
     to 517 (or the link’s maximum); subsequent MTU requests are ignored.
 
 * **Windows**
@@ -451,7 +472,7 @@ explicitly controlled by applications:
 * **Linux (BlueZ)**
 
   * MTU is negotiated automatically by default.
-  * The standard D-Bus GATT API does not expose MTU control.
+  * The standard D-Bus Bluetooth API does not expose MTU control.
   * MTU can be requested via BlueZ tools or lower-level APIs, but most apps
     treat it as stack-defined.
 
@@ -606,6 +627,39 @@ try {
 
 The error parser automatically converts platform-specific error formats (strings, numeric codes, PlatformExceptions) into the unified `UniversalBleErrorCode` enum, ensuring consistent error handling across all platforms.
 
+## Peripheral Mode
+
+`universal_ble` provides peripheral mode through `UniversalBlePeripheral`, so your app can advertise as a peripheral "server" in addition to client mode.
+
+### Basic setup
+
+```dart
+import 'package:universal_ble/universal_ble.dart';
+
+await UniversalBlePeripheral.initialize();
+await UniversalBlePeripheral.addService(
+  BleService("0000180F-0000-1000-8000-00805F9B34FB", [
+    BleCharacteristic(
+      "00002A19-0000-1000-8000-00805F9B34FB",
+      [CharacteristicProperty.read, CharacteristicProperty.notify],
+      [],
+    ),
+  ]),
+  primary: true,
+);
+
+await UniversalBlePeripheral.startAdvertising(
+  services: ["0000180F-0000-1000-8000-00805F9B34FB"],
+  localName: "UniversalBlePeripheral",
+);
+```
+
+### Platform notes
+
+- Linux/Web currently return unsupported for peripheral mode.
+- Windows peripheral advertising does not expose all advertising payload customization options from Android/Apple stacks.
+- iOS/macOS setup (including required `Info.plist` keys for peripheral usage) is documented in [Permissions → iOS / macOS](#ios--macos).
+
 ## UUID Format Agnostic
 
 Universal BLE is agnostic to the UUID format of services and characteristics regardless of the platform the app runs on. When passing a UUID, you can pass it in any format (long/short) or character case (upper/lower case) you want. Universal BLE will take care of necessary conversions, across all platforms, so that you don't need to worry about underlying platform differences.
@@ -692,7 +746,21 @@ await UniversalBle.startScan();
 
 ### iOS / macOS
 
-Add `NSBluetoothPeripheralUsageDescription` and `NSBluetoothAlwaysUsageDescription` to Info.plist of your iOS and macOS app.
+For Bluetooth usage (including peripheral mode), add both keys to your app's `Info.plist`:
+
+- `NSBluetoothAlwaysUsageDescription`: message shown when the app requests Bluetooth access.
+- `NSBluetoothPeripheralUsageDescription`: message used for peripheral role access on Apple platforms.
+
+Example:
+
+```xml
+<key>NSBluetoothAlwaysUsageDescription</key>
+<string>This app uses Bluetooth to scan, connect, and advertise to nearby devices.</string>
+<key>NSBluetoothPeripheralUsageDescription</key>
+<string>This app uses Bluetooth to advertise services to nearby devices.</string>
+```
+
+Use clear, user-facing text that explains why Bluetooth is needed in your app.
 
 Add the `Bluetooth` capability to the macOS app from Xcode.
 
@@ -865,7 +933,12 @@ Future<void> resetBleState() async {
 
 ## Example app
 
-This repo includes an [example app](example/) you can run to try the API. For a full-blown app, check [Universal-BLE](https://github.com/Navideck/Universal-BLE).
+This repo includes an [example app](example/) with two tabs:
+
+- `Client`: scanning and device communication workflows.
+- `Peripheral`: peripheral server and advertising workflows.
+
+For a full-blown app, check [Universal-BLE](https://github.com/Navideck/Universal-BLE).
 
 ## Low level API
 

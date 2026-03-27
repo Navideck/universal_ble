@@ -11,14 +11,15 @@ import 'package:universal_ble_example/peripheral_details/peripheral_detail_page.
 import 'package:universal_ble_example/widgets/platform_button.dart';
 import 'package:universal_ble_example/widgets/responsive_buttons_grid.dart';
 
-class MyApp extends StatefulWidget {
-  const MyApp({super.key});
+class CentralHome extends StatefulWidget {
+  final bool showAppBar;
+  const CentralHome({super.key, this.showAppBar = true});
 
   @override
-  State createState() => _MyAppState();
+  State createState() => _CentralHomeState();
 }
 
-class _MyAppState extends State<MyApp> {
+class _CentralHomeState extends State<CentralHome> {
   final _bleDevices = <BleDevice>[];
   final _hiddenDevices = <BleDevice>[];
   bool _isScanning = false;
@@ -150,22 +151,24 @@ class _MyAppState extends State<MyApp> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Universal BLE'),
-        elevation: 4,
-        actions: [
-          if (_isScanning)
-            const Padding(
-              padding: EdgeInsets.all(8.0),
-              child: SizedBox(
-                  width: 20,
-                  height: 20,
-                  child: CircularProgressIndicator.adaptive(
-                    strokeWidth: 2,
-                  )),
-            ),
-        ],
-      ),
+      appBar: widget.showAppBar
+          ? AppBar(
+              title: const Text('Universal BLE - Central'),
+              elevation: 4,
+              actions: [
+                if (_isScanning)
+                  const Padding(
+                    padding: EdgeInsets.all(8.0),
+                    child: SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator.adaptive(
+                          strokeWidth: 2,
+                        )),
+                  ),
+              ],
+            )
+          : null,
       body: Column(
         children: [
           Padding(
