@@ -130,8 +130,9 @@ private fun Int.toPropertyBits(): Int = when (this) {
     5 -> BluetoothGattCharacteristic.PROPERTY_INDICATE
     6 -> BluetoothGattCharacteristic.PROPERTY_SIGNED_WRITE
     7 -> BluetoothGattCharacteristic.PROPERTY_EXTENDED_PROPS
-    8 -> BluetoothGattCharacteristic.PROPERTY_NOTIFY
-    9 -> BluetoothGattCharacteristic.PROPERTY_INDICATE
+    // Android uses dedicated encrypted notify/indicate property bits.
+    8 -> 0x100 // PROPERTY_NOTIFY_ENCRYPTED
+    9 -> 0x200 // PROPERTY_INDICATE_ENCRYPTED
     else -> 0
 }
 

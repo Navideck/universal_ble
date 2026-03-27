@@ -15,6 +15,7 @@ final class UniversalBlePeripheralPlugin: NSObject, UniversalBlePeripheralChanne
     .init(delegate: self, queue: nil, options: nil)
   private let centralsLock = NSLock()
   private var centralsById = [String: CBCentral]()
+  private var centralCharacteristicSubscriptions = [String: Set<String>]()
 
   init(callbackChannel: UniversalBlePeripheralCallback) {
     self.callbackChannel = callbackChannel
@@ -134,7 +135,10 @@ final class UniversalBlePeripheralPlugin: NSObject, UniversalBlePeripheralChanne
     central: CBCentral,
     didSubscribeTo characteristic: CBCharacteristic
   ) {
-    upsertCentral(central)
+    upsertCentralSubscription(
+      central: central,
+      characteristicId: characteristic.uuid.uuidString
+    )
     callbackChannel.onCharacteristicSubscriptionChange(
       deviceId: central.identifier.uuidString,
       characteristicId: characteristic.uuid.uuidString,
@@ -152,7 +156,10 @@ final class UniversalBlePeripheralPlugin: NSObject, UniversalBlePeripheralChanne
     central: CBCentral,
     didUnsubscribeFrom characteristic: CBCharacteristic
   ) {
-    removeCentral(id: central.identifier.uuidString)
+    removeCentralSubscription(
+      centralId: central.identifier.uuidString,
+      characteristicId: characteristic.uuid.uuidString
+    )
     callbackChannel.onCharacteristicSubscriptionChange(
       deviceId: central.identifier.uuidString,
       characteristicId: characteristic.uuid.uuidString,
@@ -207,16 +214,29 @@ final class UniversalBlePeripheralPlugin: NSObject, UniversalBlePeripheralChanne
     }
   }
 
-  private func upsertCentral(_ central: CBCentral) {
+  private func upsertCentralSubscription(
+    central: CBCentral,
+    characteristicId: String
+  ) {
     let centralId = central.identifier.uuidString
     centralsLock.lock()
     centralsById[centralId] = central
+    var subscriptions = centralCharacteristicSubscriptions[centralId] ?? Set<String>()
+    subscriptions.insert(characteristicId)
+    centralCharacteristicSubscriptions[centralId] = subscriptions
     centralsLock.unlock()
   }
 
-  private func removeCentral(id: String) {
+  private func removeCentralSubscription(centralId: String, characteristicId: String) {
     centralsLock.lock()
-    centralsById.removeValue(forKey: id)
+    var subscriptions = centralCharacteristicSubscriptions[centralId] ?? Set<String>()
+    subscriptions.remove(characteristicId)
+    if subscriptions.isEmpty {
+      centralCharacteristicSubscriptions.removeValue(forKey: centralId)
+      centralsById.removeValue(forKey: centralId)
+    } else {
+      centralCharacteristicSubscriptions[centralId] = subscriptions
+    }
     centralsLock.unlock()
   }
 
@@ -230,6 +250,7 @@ final class UniversalBlePeripheralPlugin: NSObject, UniversalBlePeripheralChanne
   private func clearCentrals() {
     centralsLock.lock()
     centralsById.removeAll()
+    centralCharacteristicSubscriptions.removeAll()
     centralsLock.unlock()
   }
 }

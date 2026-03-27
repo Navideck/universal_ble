@@ -254,14 +254,14 @@ class UniversalBlePeripheralPlugin(
             super.onConnectionStateChange(device, status, newState)
             when (newState) {
                 BluetoothProfile.STATE_CONNECTED -> {
+                    synchronized(bluetoothDevicesMap) {
+                        bluetoothDevicesMap[device.address] = device
+                    }
                     if (device.bondState == BluetoothDevice.BOND_NONE) {
                         listOfDevicesWaitingForBond.add(device.address)
                         device.createBond()
                     } else if (device.bondState == BluetoothDevice.BOND_BONDED) {
                         handler.post { gattServer?.connect(device, true) }
-                        synchronized(bluetoothDevicesMap) {
-                            bluetoothDevicesMap[device.address] = device
-                        }
                     }
                     onConnectionUpdate(device, status, newState)
                 }
@@ -444,6 +444,9 @@ class UniversalBlePeripheralPlugin(
                     val waitingForConnection = listOfDevicesWaitingForBond.contains(device?.address)
                     if (state == BluetoothDevice.BOND_BONDED && device != null && waitingForConnection) {
                         listOfDevicesWaitingForBond.remove(device.address)
+                        synchronized(bluetoothDevicesMap) {
+                            bluetoothDevicesMap[device.address] = device
+                        }
                         handler.post { gattServer?.connect(device, true) }
                     }
                 }
