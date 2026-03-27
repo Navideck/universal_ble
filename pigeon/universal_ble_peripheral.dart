@@ -10,6 +10,8 @@ import 'package:pigeon/pigeon.dart';
         'android/src/main/kotlin/com/navideck/universal_ble/UniversalBlePeripheral.g.kt',
     swiftOut: 'darwin/Classes/UniversalBlePeripheral.g.swift',
     kotlinOptions: KotlinOptions(package: 'com.navideck.universal_ble'),
+    // Same CocoaPod target as UniversalBle.g.swift; omit duplicate PigeonError.
+    swiftOptions: SwiftOptions(includeErrorClass: false),
     cppOptions: CppOptions(namespace: 'universal_ble'),
     cppHeaderOut: 'windows/src/generated/universal_ble_peripheral.g.h',
     cppSourceOut: 'windows/src/generated/universal_ble_peripheral.g.cpp',
