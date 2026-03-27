@@ -360,7 +360,6 @@ class UniversalBle {
   ///
   /// Only supported on Android. On all other platforms this throws
   /// [UniversalBleException] with code [UniversalBleErrorCode.notSupported].
-  /// Check [BleCapabilities.supportsConnectionPriorityApi] before calling.
   ///
   /// Should be called after a successful connection and MTU negotiation, before
   /// beginning high-throughput data transfer.

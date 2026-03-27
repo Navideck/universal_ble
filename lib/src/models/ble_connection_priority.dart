@@ -1,8 +1,6 @@
 /// Connection priority hint passed to [UniversalBle.requestConnectionPriority].
 ///
 /// Maps to Android `BluetoothGatt.CONNECTION_PRIORITY_*` constants.
-/// Throws [UniversalBleException] with code [UniversalBleErrorCode.notSupported]
-/// on non-Android platforms.
 enum BleConnectionPriority {
   /// Default OS-managed interval (~30-50 ms). Android constant: 0.
   balanced,

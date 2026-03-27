@@ -484,7 +484,6 @@ await UniversalBle.requestConnectionPriority(
 ```
 
 > **Note:** Only supported on Android. On all other platforms this throws `UniversalBleException` with code `notSupported`.
-> Check `BleCapabilities.supportsConnectionPriorityApi` before calling.
 > Call this after connecting and after `requestMtu()`, before beginning data transfer.
 
 ### Reading RSSI

@@ -53,6 +53,11 @@ enum class BleOutputProperty(val value: Long) {
     WithoutResponse(1);
 }
 
+enum class BleConnectionPriority(val value: Long) {
+    Balanced(0),
+    HighPerformance(1),
+    LowPower(2);
+}
 
 enum class CharacteristicProperty(val value: Long) {
     Broadcast(0),
