@@ -222,7 +222,7 @@
 			name = Runner;
 			packageProductDependencies = (
 				78A3181F2AECB46A00862997 /* FlutterGeneratedPluginSwiftPackage */,
-				BABEFACEBABEFACEBABEFACE /* universal-ble */,
+				D1E2F3A4B5C60718293A4B5C /* universal-ble */,
 			);
 			productName = Runner;
 			productReference = 33CC10ED2044A3C60003C045 /* universal_ble_example.app */;
@@ -269,7 +269,7 @@
 			mainGroup = 33CC10E42044A3C60003C045;
 			packageReferences = (
 				781AD8BC2B33823900A9FFBB /* XCLocalSwiftPackageReference "FlutterGeneratedPluginSwiftPackage" */,
-				CAFEBABECAFEBABECAFEBABE /* XCLocalSwiftPackageReference "universal_ble" */,
+				A1B2C3D4E5F60718293A4B5C /* XCLocalSwiftPackageReference "universal_ble" */,
 			);
 			productRefGroup = 33CC10EE2044A3C60003C045 /* Products */;
 			projectDirPath = "";
@@ -711,7 +711,7 @@
 			isa = XCLocalSwiftPackageReference;
 			relativePath = Flutter/ephemeral/Packages/FlutterGeneratedPluginSwiftPackage;
 		};
-		CAFEBABECAFEBABECAFEBABE /* XCLocalSwiftPackageReference "universal_ble" */ = {
+		A1B2C3D4E5F60718293A4B5C /* XCLocalSwiftPackageReference "universal_ble" */ = {
 			isa = XCLocalSwiftPackageReference;
 			relativePath = Flutter/ephemeral/Packages/.packages/universal_ble;
 		};
@@ -722,7 +722,7 @@
 			isa = XCSwiftPackageProductDependency;
 			productName = FlutterGeneratedPluginSwiftPackage;
 		};
-		BABEFACEBABEFACEBABEFACE /* universal-ble */ = {
+		D1E2F3A4B5C60718293A4B5C /* universal-ble */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = "universal-ble";
 		};
