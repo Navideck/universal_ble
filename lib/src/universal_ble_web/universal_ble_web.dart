@@ -195,24 +195,24 @@ class UniversalBleWeb extends UniversalBlePlatform {
         _characteristicStreamList[characteristicKey]?.cancel();
       }
       await bleCharacteristic.startNotifications();
-      _characteristicStreamList[characteristicKey] = bleCharacteristic.value
-          .listen((ByteData event) {
-            final preview = event.buffer
-                .asUint8List()
-                .take(8)
-                .map((e) => e.toRadixString(16).padLeft(2, '0'))
-                .join();
-            UniversalLogger.logVerbose(
-              "NOTIFY <- $deviceId $characteristic len=${event.lengthInBytes} data=$preview",
-              withTimestamp: true,
-            );
-            updateCharacteristicValue(
-              deviceId,
-              characteristic,
-              event.buffer.asUint8List(),
-              DateTime.now().millisecondsSinceEpoch,
-            );
-          });
+      _characteristicStreamList[characteristicKey] =
+          bleCharacteristic.value.listen((ByteData event) {
+        final preview = event.buffer
+            .asUint8List()
+            .take(8)
+            .map((e) => e.toRadixString(16).padLeft(2, '0'))
+            .join();
+        UniversalLogger.logVerbose(
+          "NOTIFY <- $deviceId $characteristic len=${event.lengthInBytes} data=$preview",
+          withTimestamp: true,
+        );
+        updateCharacteristicValue(
+          deviceId,
+          characteristic,
+          event.buffer.asUint8List(),
+          DateTime.now().millisecondsSinceEpoch,
+        );
+      });
     } else {
       await bleCharacteristic.stopNotifications();
       _characteristicStreamList.remove(characteristicKey)?.cancel();
@@ -413,7 +413,7 @@ class UniversalBleWeb extends UniversalBlePlatform {
       value.cancel();
       _getDeviceById(
         deviceId ?? key,
-      )?.unwatchAdvertisements().onError((_, __) {});
+      )?.unwatchAdvertisements().onError((_, stackTrace) {});
       return true;
     });
   }
@@ -599,9 +599,8 @@ class _UniversalWebBluetoothService {
       if (withDescriptors) {
         try {
           var bluetoothDescriptors = await characteristic.getDescriptors();
-          descriptors = bluetoothDescriptors
-              .map((e) => BleDescriptor(e.uuid))
-              .toList();
+          descriptors =
+              bluetoothDescriptors.map((e) => BleDescriptor(e.uuid)).toList();
         } catch (_) {}
       }
       bleCharacteristics.add(
