@@ -17,8 +17,12 @@ val subscribedCharDevicesMap: MutableMap<String, MutableList<String>> = HashMap(
 const val peripheralDescriptorCCUUID = "00002902-0000-1000-8000-00805f9b34fb"
 
 fun clearPeripheralCaches() {
-    bluetoothGattCharacteristics.clear()
-    descriptorValueReadMap.clear()
+    synchronized(bluetoothGattCharacteristics) {
+        bluetoothGattCharacteristics.clear()
+    }
+    synchronized(descriptorValueReadMap) {
+        descriptorValueReadMap.clear()
+    }
     synchronized(subscribedCharDevicesMap) {
         subscribedCharDevicesMap.clear()
     }
@@ -56,8 +60,10 @@ fun PeripheralCharacteristic.toGattCharacteristic(): BluetoothGattCharacteristic
     }
 
     addCCDescriptorIfRequired(this, characteristic)
-    if (bluetoothGattCharacteristics[uuid] == null) {
-        bluetoothGattCharacteristics[uuid] = characteristic
+    synchronized(bluetoothGattCharacteristics) {
+        if (bluetoothGattCharacteristics[uuid] == null) {
+            bluetoothGattCharacteristics[uuid] = characteristic
+        }
     }
     return characteristic
 }
@@ -95,21 +101,29 @@ fun PeripheralDescriptor.toGattDescriptor(): BluetoothGattDescriptor {
     val descriptor = BluetoothGattDescriptor(UUID.fromString(uuid), permission)
     value?.let {
         descriptor.value = it
-        descriptorValueReadMap[uuid.lowercase()] = it
+        synchronized(descriptorValueReadMap) {
+            descriptorValueReadMap[uuid.lowercase()] = it
+        }
     }
     return descriptor
 }
 
 fun BluetoothGattDescriptor.getCacheValue(): ByteArray? =
-    descriptorValueReadMap[uuid.toString().lowercase()]
+    synchronized(descriptorValueReadMap) {
+        descriptorValueReadMap[uuid.toString().lowercase()]
+    }
 
 fun String.findCharacteristic(): BluetoothGattCharacteristic? =
-    bluetoothGattCharacteristics[this]
+    synchronized(bluetoothGattCharacteristics) {
+        bluetoothGattCharacteristics[this]
+    }
 
 fun String.findService(): BluetoothGattService? {
-    for (characteristic in bluetoothGattCharacteristics.values) {
-        if (characteristic.service?.uuid.toString() == this) {
-            return characteristic.service
+    synchronized(bluetoothGattCharacteristics) {
+        for (characteristic in bluetoothGattCharacteristics.values) {
+            if (characteristic.service?.uuid.toString() == this) {
+                return characteristic.service
+            }
         }
     }
     return null
