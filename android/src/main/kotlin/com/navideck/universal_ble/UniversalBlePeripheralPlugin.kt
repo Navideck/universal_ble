@@ -18,7 +18,7 @@ import android.bluetooth.le.AdvertiseSettings
 import android.bluetooth.le.BluetoothLeAdvertiser
 import android.content.BroadcastReceiver
 import android.content.Context
-import android.content.Context.RECEIVER_EXPORTED
+import android.content.Context.RECEIVER_NOT_EXPORTED
 import android.content.Intent
 import android.content.IntentFilter
 import android.os.Build
@@ -46,6 +46,8 @@ class UniversalBlePeripheralPlugin(
     private val emptyBytes = byteArrayOf()
     private var advertising: Boolean? = null
     private var receiverRegistered = false
+    private var originalAdapterName: String? = null
+    private var adapterNameOverridden = false
 
     fun attachActivity(activity: Activity?) {
         this.activity = activity
@@ -57,6 +59,7 @@ class UniversalBlePeripheralPlugin(
             receiverRegistered = false
         }
         kotlin.runCatching { bluetoothLeAdvertiser?.stopAdvertising(advertiseCallback) }
+        restoreAdapterNameIfNeeded()
         gattServer?.close()
         gattServer = null
         bluetoothDevicesMap.clear()
@@ -80,7 +83,11 @@ class UniversalBlePeripheralPlugin(
             val intentFilter = IntentFilter(BluetoothAdapter.ACTION_STATE_CHANGED)
             intentFilter.addAction(BluetoothDevice.ACTION_BOND_STATE_CHANGED)
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                applicationContext.registerReceiver(broadcastReceiver, intentFilter, RECEIVER_EXPORTED)
+                applicationContext.registerReceiver(
+                    broadcastReceiver,
+                    intentFilter,
+                    RECEIVER_NOT_EXPORTED,
+                )
             } else {
                 @Suppress("DEPRECATION")
                 applicationContext.registerReceiver(broadcastReceiver, intentFilter)
@@ -96,9 +103,7 @@ class UniversalBlePeripheralPlugin(
     override fun isSupported(): Boolean {
         val adapter = bluetoothManager.adapter ?: return false
         if (!adapter.isMultipleAdvertisementSupported) {
-            throw UnsupportedOperationException(
-                "Bluetooth LE Advertising not supported on this device.",
-            )
+            return false
         }
         return true
     }
@@ -134,7 +139,14 @@ class UniversalBlePeripheralPlugin(
         }
 
         handler.post {
-            localName?.let { bluetoothManager.adapter?.name = it }
+            val adapter = bluetoothManager.adapter
+            if (localName != null && adapter != null && adapter.name != localName) {
+                if (!adapterNameOverridden) {
+                    originalAdapterName = adapter.name
+                }
+                adapter.name = localName
+                adapterNameOverridden = true
+            }
             val advertiseSettings = AdvertiseSettings.Builder()
                 .setTxPowerLevel(AdvertiseSettings.ADVERTISE_TX_POWER_HIGH)
                 .setConnectable(true)
@@ -176,6 +188,7 @@ class UniversalBlePeripheralPlugin(
     override fun stopAdvertising() {
         handler.post {
             bluetoothLeAdvertiser?.stopAdvertising(advertiseCallback)
+            restoreAdapterNameIfNeeded()
             advertising = false
             callback.onAdvertisingStatusUpdate(false, null) {}
         }
@@ -192,8 +205,12 @@ class UniversalBlePeripheralPlugin(
                 bluetoothDevicesMap.values.toList()
             }
         }
+        val indicate =
+            (characteristic.properties and BluetoothGattCharacteristic.PROPERTY_INDICATE) != 0
         targetDevices.forEach { device ->
-            handler.post { gattServer?.notifyCharacteristicChanged(device, characteristic, true) }
+            handler.post {
+                gattServer?.notifyCharacteristicChanged(device, characteristic, indicate)
+            }
         }
     }
 
@@ -340,13 +357,15 @@ class UniversalBlePeripheralPlugin(
                     valueArg = value,
                 ) { writeResponse ->
                     val writeResult = writeResponse.getOrNull()
-                    gattServer?.sendResponse(
-                        device,
-                        requestId,
-                        writeResult?.status?.toInt() ?: BluetoothGatt.GATT_SUCCESS,
-                        writeResult?.offset?.toInt() ?: 0,
-                        writeResult?.value ?: emptyBytes,
-                    )
+                    if (responseNeeded) {
+                        gattServer?.sendResponse(
+                            device,
+                            requestId,
+                            writeResult?.status?.toInt() ?: BluetoothGatt.GATT_SUCCESS,
+                            writeResult?.offset?.toInt() ?: 0,
+                            writeResult?.value ?: emptyBytes,
+                        )
+                    }
                 }
             }
         }
@@ -462,5 +481,15 @@ class UniversalBlePeripheralPlugin(
                 }
             }
         }
+    }
+
+    private fun restoreAdapterNameIfNeeded() {
+        if (!adapterNameOverridden) return
+        val adapter = bluetoothManager.adapter ?: return
+        kotlin.runCatching {
+            adapter.name = originalAdapterName
+        }
+        adapterNameOverridden = false
+        originalAdapterName = null
     }
 }

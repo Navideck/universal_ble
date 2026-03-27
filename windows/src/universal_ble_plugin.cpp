@@ -1699,11 +1699,51 @@ std::optional<FlutterError> UniversalBlePlugin::StartAdvertising(
   if (peripheral_service_provider_map_.empty()) {
     return FlutterError("failed", "No services added to advertise", nullptr);
   }
+  if (local_name != nullptr) {
+    return FlutterError(
+        "not-supported",
+        "Windows GattServiceProvider advertising does not support overriding local name",
+        nullptr);
+  }
+  if (manufacturer_data != nullptr || add_manufacturer_data_in_scan_response) {
+    return FlutterError(
+        "not-supported",
+        "Windows GattServiceProvider advertising does not support manufacturer data",
+        nullptr);
+  }
+  if (timeout != nullptr && *timeout > 0) {
+    return FlutterError(
+        "not-supported",
+        "Windows GattServiceProvider advertising timeout is not supported",
+        nullptr);
+  }
   try {
+    std::vector<std::string> selected_services_lc;
+    selected_services_lc.reserve(services.size());
+    for (const auto &service_encoded : services) {
+      const auto &service_id = std::get<std::string>(service_encoded);
+      const auto service_id_lc = to_lower_case(service_id);
+      selected_services_lc.push_back(service_id_lc);
+      if (peripheral_service_provider_map_.count(service_id_lc) == 0) {
+        return FlutterError("not-found", "Service not found for advertising",
+                            service_id);
+      }
+    }
+
     auto params = GattServiceProviderAdvertisingParameters();
     params.IsDiscoverable(true);
     params.IsConnectable(true);
+    // TODO: migrate to BluetoothLEAdvertisementPublisher to support richer
+    // payload customization (local name, manufacturer data, scan response).
     for (auto const &[key, provider] : peripheral_service_provider_map_) {
+      const bool should_start = selected_services_lc.empty() ||
+                                std::find(selected_services_lc.begin(),
+                                          selected_services_lc.end(),
+                                          to_lower_case(key)) !=
+                                    selected_services_lc.end();
+      if (!should_start) {
+        continue;
+      }
       if (provider->obj.AdvertisementStatus() !=
           GattServiceProviderAdvertisementStatus::Started) {
         provider->obj.StartAdvertising(params);
@@ -1719,6 +1759,12 @@ std::optional<FlutterError> UniversalBlePlugin::UpdateCharacteristic(
     const std::string &characteristic_id, const std::vector<uint8_t> &value,
     const std::string *device_id) {
   std::lock_guard<std::mutex> lock(peripheral_mutex_);
+  if (device_id != nullptr) {
+    return FlutterError(
+        "not-supported",
+        "Windows does not support targeting a specific device for notifications",
+        nullptr);
+  }
   bool ambiguous_match = false;
   auto *characteristic_object =
       FindPeripheralGattCharacteristicObject(characteristic_id, &ambiguous_match);
@@ -1735,7 +1781,14 @@ std::optional<FlutterError> UniversalBlePlugin::UpdateCharacteristic(
   DataWriter writer;
   writer.ByteOrder(ByteOrder::LittleEndian);
   writer.WriteBuffer(bytes);
-  characteristic_object->obj.NotifyValueAsync(writer.DetachBuffer());
+  auto notify_result =
+      characteristic_object->obj.NotifyValueAsync(writer.DetachBuffer()).get();
+  if (!notify_result) {
+    return FlutterError(
+        "failed",
+        "Failed to notify subscribed clients for characteristic update",
+        nullptr);
+  }
   return std::nullopt;
 }
 
@@ -1901,14 +1954,19 @@ UniversalBlePlugin::PeripheralAddServiceAsync(const PeripheralService &service) 
 fire_and_forget UniversalBlePlugin::PeripheralSubscribedClientsChanged(
     GattLocalCharacteristic const &local_char, IInspectable const &) {
   const auto characteristic_id = guid_to_uuid(local_char.Uuid());
-  auto *characteristic_object =
-      FindPeripheralGattCharacteristicObject(characteristic_id);
-  if (characteristic_object == nullptr) {
-    co_return;
+  IVectorView<GattSubscribedClient> current_clients = nullptr;
+  IVectorView<GattSubscribedClient> old_clients = nullptr;
+  {
+    std::lock_guard<std::mutex> lock(peripheral_mutex_);
+    auto *characteristic_object =
+        FindPeripheralGattCharacteristicObject(characteristic_id);
+    if (characteristic_object == nullptr) {
+      co_return;
+    }
+    current_clients = local_char.SubscribedClients();
+    old_clients = characteristic_object->stored_clients;
+    characteristic_object->stored_clients = current_clients;
   }
-
-  auto current_clients = local_char.SubscribedClients();
-  auto old_clients = characteristic_object->stored_clients;
 
   for (uint32_t i = 0; i < current_clients.Size(); ++i) {
     auto client = current_clients.GetAt(i);
@@ -1964,88 +2022,95 @@ fire_and_forget UniversalBlePlugin::PeripheralSubscribedClientsChanged(
     }
   }
 
-  characteristic_object->stored_clients = current_clients;
 }
 
 fire_and_forget UniversalBlePlugin::PeripheralReadRequestedAsync(
     GattLocalCharacteristic const &local_char, GattReadRequestedEventArgs args) {
   auto deferral = args.GetDeferral();
-  auto request = co_await args.GetRequestAsync();
-  if (request == nullptr) {
-    deferral.Complete();
-    co_return;
-  }
+  try {
+    auto request = co_await args.GetRequestAsync();
+    if (request == nullptr) {
+      deferral.Complete();
+      co_return;
+    }
 
-  const auto characteristic_id = guid_to_uuid(local_char.Uuid());
-  const auto device_id =
-      ParsePeripheralBluetoothClientId(args.Session().DeviceId().Id());
-  const int64_t offset = request.Offset();
-  auto value_holder = std::make_shared<std::vector<uint8_t>>();
-  std::vector<uint8_t> *value_ptr = nullptr;
-  if (local_char.StaticValue() != nullptr) {
-    *value_holder = to_bytevc(local_char.StaticValue());
-    value_ptr = value_holder.get();
-  }
-  ui_thread_handler_.Post([this, device_id, characteristic_id, offset, value_ptr,
-                           value_holder, request, deferral] {
-    peripheral_callback_channel_->OnReadRequest(
-        device_id, characteristic_id, offset, value_ptr,
-        [request, deferral](const PeripheralReadRequestResult *result) {
-          if (result != nullptr) {
-            if (result->status() != nullptr) {
-              request.RespondWithProtocolError(
-                  ToGattProtocolError(*result->status()));
-              deferral.Complete();
-              return;
+    const auto characteristic_id = guid_to_uuid(local_char.Uuid());
+    const auto device_id =
+        ParsePeripheralBluetoothClientId(args.Session().DeviceId().Id());
+    const int64_t offset = request.Offset();
+    auto value_holder = std::make_shared<std::vector<uint8_t>>();
+    std::vector<uint8_t> *value_ptr = nullptr;
+    if (local_char.StaticValue() != nullptr) {
+      *value_holder = to_bytevc(local_char.StaticValue());
+      value_ptr = value_holder.get();
+    }
+    ui_thread_handler_.Post([this, device_id, characteristic_id, offset, value_ptr,
+                             value_holder, request, deferral] {
+      peripheral_callback_channel_->OnReadRequest(
+          device_id, characteristic_id, offset, value_ptr,
+          [request, deferral](const PeripheralReadRequestResult *result) {
+            if (result != nullptr) {
+              if (result->status() != nullptr) {
+                request.RespondWithProtocolError(
+                    ToGattProtocolError(*result->status()));
+                deferral.Complete();
+                return;
+              }
+              DataWriter writer;
+              writer.ByteOrder(ByteOrder::LittleEndian);
+              writer.WriteBuffer(from_bytevc(result->value()));
+              request.RespondWithValue(writer.DetachBuffer());
+            } else {
+              request.RespondWithProtocolError(0x01);
             }
-            DataWriter writer;
-            writer.ByteOrder(ByteOrder::LittleEndian);
-            writer.WriteBuffer(from_bytevc(result->value()));
-            request.RespondWithValue(writer.DetachBuffer());
-          } else {
-            request.RespondWithProtocolError(0x01);
-          }
-          deferral.Complete();
-        },
-        [request, deferral](const FlutterError &error) {
-          request.RespondWithProtocolError(0x0E);
-          deferral.Complete();
-        });
-  });
+            deferral.Complete();
+          },
+          [request, deferral](const FlutterError &error) {
+            request.RespondWithProtocolError(0x0E);
+            deferral.Complete();
+          });
+    });
+  } catch (...) {
+    deferral.Complete();
+  }
 }
 
 fire_and_forget UniversalBlePlugin::PeripheralWriteRequestedAsync(
     GattLocalCharacteristic const &local_char,
     GattWriteRequestedEventArgs args) {
   auto deferral = args.GetDeferral();
-  auto request = co_await args.GetRequestAsync();
-  if (request == nullptr) {
+  try {
+    auto request = co_await args.GetRequestAsync();
+    if (request == nullptr) {
+      deferral.Complete();
+      co_return;
+    }
+    const auto characteristic_id = guid_to_uuid(local_char.Uuid());
+    const auto device_id =
+        ParsePeripheralBluetoothClientId(args.Session().DeviceId().Id());
+    const int64_t offset = request.Offset();
+    auto value_holder = std::make_shared<std::vector<uint8_t>>(to_bytevc(request.Value()));
+    ui_thread_handler_.Post([this, device_id, characteristic_id, offset,
+                             value_holder, request, deferral] {
+      peripheral_callback_channel_->OnWriteRequest(
+          device_id, characteristic_id, offset, value_holder.get(),
+          [request, deferral](const PeripheralWriteRequestResult *result) {
+            if (result != nullptr && result->status() != nullptr) {
+              request.RespondWithProtocolError(
+                  ToGattProtocolError(*result->status()));
+            } else {
+              request.Respond();
+            }
+            deferral.Complete();
+          },
+          [request, deferral](const FlutterError &error) {
+            request.RespondWithProtocolError(0x0E);
+            deferral.Complete();
+          });
+    });
+  } catch (...) {
     deferral.Complete();
-    co_return;
   }
-  const auto characteristic_id = guid_to_uuid(local_char.Uuid());
-  const auto device_id =
-      ParsePeripheralBluetoothClientId(args.Session().DeviceId().Id());
-  const int64_t offset = request.Offset();
-  auto value_holder = std::make_shared<std::vector<uint8_t>>(to_bytevc(request.Value()));
-  ui_thread_handler_.Post([this, device_id, characteristic_id, offset,
-                           value_holder, request, deferral] {
-    peripheral_callback_channel_->OnWriteRequest(
-        device_id, characteristic_id, offset, value_holder.get(),
-        [request, deferral](const PeripheralWriteRequestResult *result) {
-          if (result != nullptr && result->status() != nullptr) {
-            request.RespondWithProtocolError(
-                ToGattProtocolError(*result->status()));
-          } else {
-            request.Respond();
-          }
-          deferral.Complete();
-        },
-        [request, deferral](const FlutterError &error) {
-          request.RespondWithProtocolError(0x0E);
-          deferral.Complete();
-        });
-  });
 }
 
 void UniversalBlePlugin::PeripheralAdvertisementStatusChanged(

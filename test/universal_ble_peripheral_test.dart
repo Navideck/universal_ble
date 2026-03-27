@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:universal_ble/src/universal_ble_peripheral/universal_ble_peripheral_mapper.dart';
 import 'package:universal_ble/universal_ble.dart';
 
 void main() {
@@ -36,5 +37,51 @@ void main() {
       ),
       true,
     );
+  });
+
+  test('mapper converts service/characteristic/descriptor to pigeon types', () {
+    final service = BleService('180f', [
+      BleCharacteristic(
+        '2a19',
+        [CharacteristicProperty.read, CharacteristicProperty.indicate],
+        [BleDescriptor('2902')],
+      ),
+    ]);
+
+    final mapped = UniversalBlePeripheralMapper.toPigeonService(
+      service,
+      primary: true,
+    );
+
+    expect(mapped.uuid, BleUuidParser.string('180f'));
+    expect(mapped.primary, isTrue);
+    expect(mapped.characteristics, hasLength(1));
+
+    final characteristic = mapped.characteristics.single;
+    expect(characteristic.uuid, BleUuidParser.string('2a19'));
+    expect(
+      characteristic.properties,
+      equals([
+        CharacteristicProperty.read.index,
+        CharacteristicProperty.indicate.index,
+      ]),
+    );
+    expect(characteristic.descriptors, hasLength(1));
+    final descriptors = characteristic.descriptors;
+    expect(descriptors, isNotNull);
+    expect(
+      descriptors!.single.uuid,
+      BleUuidParser.string('2902'),
+    );
+  });
+
+  test('mapper converts manufacturer data to pigeon type', () {
+    final data = ManufacturerData(0x004C, Uint8List.fromList([0x01, 0x02]));
+
+    final mapped = UniversalBlePeripheralMapper.toPigeonManufacturerData(data);
+
+    expect(mapped, isNotNull);
+    expect(mapped!.manufacturerId, 0x004C);
+    expect(mapped.data, Uint8List.fromList([0x01, 0x02]));
   });
 }
