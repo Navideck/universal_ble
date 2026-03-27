@@ -1,29 +1,16 @@
 PODS:
   - Flutter (1.0.0)
-  - integration_test (0.0.1):
-    - Flutter
-  - universal_ble (0.0.1):
-    - Flutter
-    - FlutterMacOS
 
 DEPENDENCIES:
   - Flutter (from `Flutter`)
-  - integration_test (from `.symlinks/plugins/integration_test/ios`)
-  - universal_ble (from `.symlinks/plugins/universal_ble/darwin`)
 
 EXTERNAL SOURCES:
   Flutter:
     :path: Flutter
-  integration_test:
-    :path: ".symlinks/plugins/integration_test/ios"
-  universal_ble:
-    :path: ".symlinks/plugins/universal_ble/darwin"
 
 SPEC CHECKSUMS:
   Flutter: cabc95a1d2626b1b06e7179b784ebcf0c0cde467
-  integration_test: 252f60fa39af5e17c3aa9899d35d908a0721b573
-  universal_ble: 65e1257dffc557cc7991a93d253beeddc7c1dc92
 
-PODFILE CHECKSUM: 4f1c12611da7338d21589c0b2ecd6bd20b109694
+PODFILE CHECKSUM: 43459185578327a372d82437519d601e814744fe
 
 COCOAPODS: 1.16.2
