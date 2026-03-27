@@ -75,9 +75,10 @@ class UniversalBlePigeonChannel extends UniversalBlePlatform {
     String deviceId, {
     Duration? connectionTimeout,
     bool autoConnect = false,
-  }) => _executeWithErrorHandling(
-    () => _channel.connect(deviceId, autoConnect: autoConnect),
-  );
+  }) =>
+      _executeWithErrorHandling(
+        () => _channel.connect(deviceId, autoConnect: autoConnect),
+      );
 
   @override
   Future<void> disconnect(String deviceId) =>
@@ -90,8 +91,8 @@ class UniversalBlePigeonChannel extends UniversalBlePlatform {
   ) async {
     List<UniversalBleService?> universalBleServices =
         await _executeWithErrorHandling(
-          () => _channel.discoverServices(deviceId, withDescriptors),
-        );
+      () => _channel.discoverServices(deviceId, withDescriptors),
+    );
     return List<BleService>.from(
       universalBleServices
           .where((e) => e != null)
@@ -206,8 +207,8 @@ class UniversalBlePigeonChannel extends UniversalBlePlatform {
 
   @override
   Future<void> setLogLevel(BleLogLevel logLevel) => _executeWithErrorHandling(
-    () => _channel.setLogLevel(logLevel.toUniversalBleLogLevel()),
-  );
+        () => _channel.setLogLevel(logLevel.toUniversalBleLogLevel()),
+      );
 
   /// To set listeners
   void _setupListeners() {
@@ -310,7 +311,8 @@ class _UniversalBleCallbackHandler extends UniversalBleCallbackChannel {
     String characteristicId,
     Uint8List value,
     int? timestamp,
-  ) => valueChanged(deviceId, characteristicId, value, timestamp);
+  ) =>
+      valueChanged(deviceId, characteristicId, value, timestamp);
 
   @override
   void onPairStateChange(String deviceId, bool isPaired, String? error) =>
@@ -327,8 +329,7 @@ extension _UniversalBleScanResultExtension on UniversalBleScanResult {
       isSystemDevice: isSystemDevice,
       services: services?.map(BleUuidParser.string).toList() ?? [],
       timestamp: timestamp,
-      manufacturerDataList:
-          manufacturerDataList
+      manufacturerDataList: manufacturerDataList
               ?.map((e) => ManufacturerData(e.companyIdentifier, e.data))
               .toList() ??
           [],
@@ -361,13 +362,13 @@ extension _ScanFilterExtension on ScanFilter? {
 
 extension _BleLogLevelExtension on BleLogLevel {
   UniversalBleLogLevel toUniversalBleLogLevel() => switch (this) {
-    BleLogLevel.none => UniversalBleLogLevel.none,
-    BleLogLevel.error => UniversalBleLogLevel.error,
-    BleLogLevel.warning => UniversalBleLogLevel.warning,
-    BleLogLevel.info => UniversalBleLogLevel.info,
-    BleLogLevel.debug => UniversalBleLogLevel.debug,
-    BleLogLevel.verbose => UniversalBleLogLevel.verbose,
-  };
+        BleLogLevel.none => UniversalBleLogLevel.none,
+        BleLogLevel.error => UniversalBleLogLevel.error,
+        BleLogLevel.warning => UniversalBleLogLevel.warning,
+        BleLogLevel.info => UniversalBleLogLevel.info,
+        BleLogLevel.debug => UniversalBleLogLevel.debug,
+        BleLogLevel.verbose => UniversalBleLogLevel.verbose,
+      };
 }
 
 extension _PlatformConfigExtension on PlatformConfig? {

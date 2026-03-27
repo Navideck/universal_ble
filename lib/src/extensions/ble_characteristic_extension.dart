@@ -85,7 +85,7 @@ class CharacteristicSubscription {
   final bool isSupported;
 
   CharacteristicSubscription(this._characteristic, this._property)
-    : isSupported = _characteristic.properties.contains(_property);
+      : isSupported = _characteristic.properties.contains(_property);
 
   /// Registers a listener for incoming data from the characteristic.
   StreamSubscription listen(

@@ -169,10 +169,10 @@ class UniversalBleScanResult {
       name: result[1] as String?,
       isPaired: result[2] as bool?,
       rssi: result[3] as int?,
-      manufacturerDataList: (result[4] as List<Object?>?)
-          ?.cast<UniversalManufacturerData>(),
-      serviceData: (result[5] as Map<Object?, Object?>?)
-          ?.cast<String, Uint8List>(),
+      manufacturerDataList:
+          (result[4] as List<Object?>?)?.cast<UniversalManufacturerData>(),
+      serviceData:
+          (result[5] as Map<Object?, Object?>?)?.cast<String, Uint8List>(),
       services: (result[6] as List<Object?>?)?.cast<String>(),
       timestamp: result[7] as int?,
     );
@@ -214,8 +214,8 @@ class UniversalBleService {
     result as List<Object?>;
     return UniversalBleService(
       uuid: result[0]! as String,
-      characteristics: (result[1] as List<Object?>?)
-          ?.cast<UniversalBleCharacteristic>(),
+      characteristics:
+          (result[1] as List<Object?>?)?.cast<UniversalBleCharacteristic>(),
     );
   }
 
@@ -262,8 +262,8 @@ class UniversalBleCharacteristic {
     return UniversalBleCharacteristic(
       uuid: result[0]! as String,
       properties: (result[1] as List<Object?>?)!.cast<int>(),
-      descriptors: (result[2] as List<Object?>?)!
-          .cast<UniversalBleDescriptor>(),
+      descriptors:
+          (result[2] as List<Object?>?)!.cast<UniversalBleDescriptor>(),
     );
   }
 
@@ -641,10 +641,9 @@ class UniversalBlePlatformChannel {
   UniversalBlePlatformChannel({
     BinaryMessenger? binaryMessenger,
     String messageChannelSuffix = '',
-  }) : pigeonVar_binaryMessenger = binaryMessenger,
-       pigeonVar_messageChannelSuffix = messageChannelSuffix.isNotEmpty
-           ? '.$messageChannelSuffix'
-           : '';
+  })  : pigeonVar_binaryMessenger = binaryMessenger,
+        pigeonVar_messageChannelSuffix =
+            messageChannelSuffix.isNotEmpty ? '.$messageChannelSuffix' : '';
   final BinaryMessenger? pigeonVar_binaryMessenger;
 
   static const MessageCodec<Object?> pigeonChannelCodec = _PigeonCodec();
@@ -1330,9 +1329,8 @@ abstract class UniversalBleCallbackChannel {
     BinaryMessenger? binaryMessenger,
     String messageChannelSuffix = '',
   }) {
-    messageChannelSuffix = messageChannelSuffix.isNotEmpty
-        ? '.$messageChannelSuffix'
-        : '';
+    messageChannelSuffix =
+        messageChannelSuffix.isNotEmpty ? '.$messageChannelSuffix' : '';
     {
       final pigeonVar_channel = BasicMessageChannel<Object?>(
         'dev.flutter.pigeon.universal_ble.UniversalBleCallbackChannel.onAvailabilityChanged$messageChannelSuffix',
