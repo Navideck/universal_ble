@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:universal_ble/universal_ble.dart';
 
 class BleService {
@@ -55,19 +57,22 @@ class BleCharacteristic {
 
 class BleDescriptor {
   String uuid;
-  BleDescriptor(String uuid) : uuid = BleUuidParser.string(uuid);
+  /// Initial attribute value for this descriptor (e.g. HID Report Reference 0x2908).
+  Uint8List? value;
+
+  BleDescriptor(String uuid, {this.value}) : uuid = BleUuidParser.string(uuid);
 
   @override
-  String toString() => 'BleDescriptor{uuid: $uuid}';
+  String toString() => 'BleDescriptor{uuid: $uuid, value: $value}';
 
   @override
   bool operator ==(Object other) {
     if (other is! BleDescriptor) return false;
-    return other.uuid == uuid;
+    return other.uuid == uuid && other.value == value;
   }
 
   @override
-  int get hashCode => uuid.hashCode;
+  int get hashCode => Object.hash(uuid, value);
 }
 
 enum CharacteristicProperty {

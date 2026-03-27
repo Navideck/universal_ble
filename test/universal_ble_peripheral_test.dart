@@ -73,6 +73,32 @@ void main() {
       descriptors!.single.uuid,
       BleUuidParser.string('2902'),
     );
+    expect(descriptors.single.value, isNull);
+  });
+
+  test('mapper forwards descriptor initial value to pigeon', () {
+    final service = BleService('1812', [
+      BleCharacteristic(
+        '2a4d',
+        [CharacteristicProperty.notify],
+        [
+          BleDescriptor(
+            '2908',
+            value: Uint8List.fromList([0x00, 0x01]),
+          ),
+        ],
+      ),
+    ]);
+
+    final mapped = UniversalBlePeripheralMapper.toPigeonService(
+      service,
+      primary: true,
+    );
+
+    expect(
+      mapped.characteristics.single.descriptors!.single.value,
+      Uint8List.fromList([0x00, 0x01]),
+    );
   });
 
   test('mapper converts manufacturer data to pigeon type', () {

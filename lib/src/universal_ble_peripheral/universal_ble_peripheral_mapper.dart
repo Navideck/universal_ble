@@ -21,7 +21,7 @@ class UniversalBlePeripheralMapper {
                   .map(
                     (d) => pigeon.PeripheralDescriptor(
                       uuid: BleUuidParser.string(d.uuid),
-                      value: null,
+                      value: d.value,
                       permissions: const <int>[],
                     ),
                   )
