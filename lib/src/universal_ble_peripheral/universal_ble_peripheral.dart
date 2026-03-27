@@ -61,6 +61,11 @@ class UniversalBlePeripheral {
         deviceId: deviceId,
       );
 
+  /// Returns central device ids currently subscribed to [characteristicId]
+  /// (e.g. HID report characteristic). Used to restore in-app state after restart.
+  static Future<List<String>> getSubscribedCentrals(String characteristicId) =>
+      _platform.getSubscribedCentrals(BleUuidParser.string(characteristicId));
+
   static set onAdvertisingStatusUpdate(
     OnPeripheralAdvertisingStatusUpdate? callback,
   ) {

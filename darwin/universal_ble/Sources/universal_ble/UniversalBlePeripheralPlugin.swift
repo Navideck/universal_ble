@@ -280,4 +280,13 @@ final class UniversalBlePeripheralPlugin: NSObject, UniversalBlePeripheralChanne
     centralCharacteristicSubscriptions.removeAll()
     centralsLock.unlock()
   }
+
+  func getSubscribedCentrals(characteristicId: String) throws -> [String] {
+    let target = characteristicId.uppercased()
+    centralsLock.lock()
+    defer { centralsLock.unlock() }
+    return centralCharacteristicSubscriptions.compactMap { centralId, chars in
+      chars.contains(where: { $0.uppercased() == target }) ? centralId : nil
+    }
+  }
 }

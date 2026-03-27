@@ -1690,6 +1690,26 @@ ErrorOr<flutter::EncodableList> UniversalBlePlugin::GetServices() {
   return services;
 }
 
+ErrorOr<flutter::EncodableList> UniversalBlePlugin::GetSubscribedCentrals(
+    const std::string &characteristic_id) {
+  std::lock_guard<std::mutex> lock(peripheral_mutex_);
+  flutter::EncodableList out;
+  auto *char_obj = FindPeripheralGattCharacteristicObject(characteristic_id);
+  if (char_obj == nullptr || char_obj->obj == nullptr) {
+    return out;
+  }
+  try {
+    auto clients = char_obj->obj.SubscribedClients();
+    for (uint32_t i = 0; i < clients.Size(); ++i) {
+      auto client = clients.GetAt(i);
+      out.push_back(flutter::EncodableValue(ParsePeripheralBluetoothClientId(
+          client.Session().DeviceId().Id())));
+    }
+  } catch (...) {
+  }
+  return out;
+}
+
 std::optional<FlutterError> UniversalBlePlugin::StartAdvertising(
     const flutter::EncodableList &services, const std::string *local_name,
     const int64_t *timeout,

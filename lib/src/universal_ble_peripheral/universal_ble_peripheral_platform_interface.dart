@@ -75,6 +75,9 @@ abstract class UniversalBlePeripheralPlatform {
     String? deviceId,
   });
 
+  /// Returns GATT central device ids currently subscribed to [characteristicId].
+  Future<List<String>> getSubscribedCentrals(String characteristicId);
+
   /// Called when this platform implementation is being replaced.
   ///
   /// Default is no-op so existing custom implementations remain compatible.
@@ -144,6 +147,11 @@ class UniversalBlePeripheralUnsupported extends UniversalBlePeripheralPlatform {
     required Uint8List value,
     String? deviceId,
   }) async {
+    throw _notSupported();
+  }
+
+  @override
+  Future<List<String>> getSubscribedCentrals(String characteristicId) async {
     throw _notSupported();
   }
 }

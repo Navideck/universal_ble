@@ -214,6 +214,16 @@ class UniversalBlePeripheralPlugin(
         }
     }
 
+    override fun getSubscribedCentrals(characteristicId: String): List<String> {
+        synchronized(subscribedCharDevicesMap) {
+            return subscribedCharDevicesMap.entries
+                .filter { (_, chars) ->
+                    chars.any { it.equals(characteristicId, ignoreCase = true) }
+                }
+                .map { it.key }
+        }
+    }
+
     private fun isBluetoothEnabled(): Boolean =
         bluetoothManager.adapter?.isEnabled ?: false
 

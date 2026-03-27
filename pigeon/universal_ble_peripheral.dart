@@ -90,6 +90,10 @@ abstract class UniversalBlePeripheralChannel {
     Uint8List value,
     String? deviceId,
   );
+
+  /// Returns peripheral-central device ids currently subscribed to [characteristicId]
+  /// (e.g. HID report characteristic). Used to restore app state after restart.
+  List<String> getSubscribedCentrals(String characteristicId);
 }
 
 @FlutterApi()

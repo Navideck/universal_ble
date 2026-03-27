@@ -298,6 +298,8 @@ private:
   std::optional<FlutterError> UpdateCharacteristic(
       const std::string &characteristic_id, const std::vector<uint8_t> &value,
       const std::string *device_id) override;
+  ErrorOr<flutter::EncodableList> GetSubscribedCentrals(
+      const std::string &characteristic_id) override;
 };
 
 } // namespace universal_ble

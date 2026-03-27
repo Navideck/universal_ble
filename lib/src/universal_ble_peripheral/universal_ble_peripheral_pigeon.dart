@@ -109,6 +109,10 @@ class UniversalBlePeripheralPigeon extends UniversalBlePeripheralPlatform
   }
 
   @override
+  Future<List<String>> getSubscribedCentrals(String characteristicId) =>
+      _channel.getSubscribedCentrals(characteristicId);
+
+  @override
   void onAdvertisingStatusUpdate(bool advertising, String? error) {
     super.advertisingStatusUpdateCallback?.call(advertising, error);
   }
