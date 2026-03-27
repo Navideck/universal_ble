@@ -98,7 +98,14 @@ final class UniversalBlePeripheralPlugin: NSObject, UniversalBlePeripheralChanne
       advertisementData[CBAdvertisementDataLocalNameKey] = localName
     }
     if let manufacturerData {
-      advertisementData[CBAdvertisementDataManufacturerDataKey] = manufacturerData.data.data
+      // CoreBluetooth expects the full AD manufacturer field: company ID (LE uint16)
+      // followed by payload. Dart's `ManufacturerData` keeps id and payload separate.
+      let companyId = UInt16(truncatingIfNeeded: manufacturerData.manufacturerId)
+      var manufacturerField = Data()
+      manufacturerField.append(UInt8(companyId & 0x00ff))
+      manufacturerField.append(UInt8((companyId >> 8) & 0x00ff))
+      manufacturerField.append(manufacturerData.data.data)
+      advertisementData[CBAdvertisementDataManufacturerDataKey] = manufacturerField
     }
     peripheralManager.startAdvertising(advertisementData)
   }
