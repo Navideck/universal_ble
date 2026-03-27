@@ -13,11 +13,19 @@ final class UniversalBlePeripheralPlugin: NSObject, UniversalBlePeripheralChanne
   private let callbackChannel: UniversalBlePeripheralCallback
   private lazy var peripheralManager: CBPeripheralManager =
     .init(delegate: self, queue: nil, options: nil)
-  private var centrals = [CBCentral]()
+  private let centralsLock = NSLock()
+  private var centralsById = [String: CBCentral]()
 
   init(callbackChannel: UniversalBlePeripheralCallback) {
     self.callbackChannel = callbackChannel
     super.init()
+  }
+
+  deinit {
+    peripheralManager.stopAdvertising()
+    peripheralManager.removeAllServices()
+    clearPeripheralCaches()
+    clearCentrals()
   }
 
   func initialize() throws {
@@ -83,7 +91,7 @@ final class UniversalBlePeripheralPlugin: NSObject, UniversalBlePeripheralChanne
       throw UniversalBlePeripheralError.notFound("\(characteristicId) characteristic not found")
     }
     if let deviceId {
-      guard let central = centrals.first(where: { $0.identifier.uuidString == deviceId }) else {
+      guard let central = central(for: deviceId) else {
         throw UniversalBlePeripheralError.notFound("\(deviceId) device not found")
       }
       peripheralManager.updateValue(
@@ -126,9 +134,7 @@ final class UniversalBlePeripheralPlugin: NSObject, UniversalBlePeripheralChanne
     central: CBCentral,
     didSubscribeTo characteristic: CBCharacteristic
   ) {
-    if !centrals.contains(where: { $0.identifier == central.identifier }) {
-      centrals.append(central)
-    }
+    upsertCentral(central)
     callbackChannel.onCharacteristicSubscriptionChange(
       deviceId: central.identifier.uuidString,
       characteristicId: characteristic.uuid.uuidString,
@@ -146,7 +152,7 @@ final class UniversalBlePeripheralPlugin: NSObject, UniversalBlePeripheralChanne
     central: CBCentral,
     didUnsubscribeFrom characteristic: CBCharacteristic
   ) {
-    centrals.removeAll { $0.identifier == central.identifier }
+    removeCentral(id: central.identifier.uuidString)
     callbackChannel.onCharacteristicSubscriptionChange(
       deviceId: central.identifier.uuidString,
       characteristicId: characteristic.uuid.uuidString,
@@ -199,5 +205,31 @@ final class UniversalBlePeripheralPlugin: NSObject, UniversalBlePeripheralChanne
         }
       }
     }
+  }
+
+  private func upsertCentral(_ central: CBCentral) {
+    let centralId = central.identifier.uuidString
+    centralsLock.lock()
+    centralsById[centralId] = central
+    centralsLock.unlock()
+  }
+
+  private func removeCentral(id: String) {
+    centralsLock.lock()
+    centralsById.removeValue(forKey: id)
+    centralsLock.unlock()
+  }
+
+  private func central(for id: String) -> CBCentral? {
+    centralsLock.lock()
+    let central = centralsById[id]
+    centralsLock.unlock()
+    return central
+  }
+
+  private func clearCentrals() {
+    centralsLock.lock()
+    centralsById.removeAll()
+    centralsLock.unlock()
   }
 }

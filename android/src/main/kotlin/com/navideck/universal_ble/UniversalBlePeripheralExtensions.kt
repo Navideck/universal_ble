@@ -16,6 +16,14 @@ private val descriptorValueReadMap: MutableMap<String, ByteArray> = HashMap()
 val subscribedCharDevicesMap: MutableMap<String, MutableList<String>> = HashMap()
 const val peripheralDescriptorCCUUID = "00002902-0000-1000-8000-00805f9b34fb"
 
+fun clearPeripheralCaches() {
+    bluetoothGattCharacteristics.clear()
+    descriptorValueReadMap.clear()
+    synchronized(subscribedCharDevicesMap) {
+        subscribedCharDevicesMap.clear()
+    }
+}
+
 fun Activity.havePermission(permissions: Array<String>): Boolean {
     for (perm in permissions) {
         if (checkCallingOrSelfPermission(perm) != PackageManager.PERMISSION_GRANTED) {

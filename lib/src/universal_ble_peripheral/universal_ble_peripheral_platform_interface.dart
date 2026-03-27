@@ -74,6 +74,11 @@ abstract class UniversalBlePeripheralPlatform {
     required Uint8List value,
     String? deviceId,
   });
+
+  /// Called when this platform implementation is being replaced.
+  ///
+  /// Default is no-op so existing custom implementations remain compatible.
+  void dispose() {}
 }
 
 class UniversalBlePeripheralUnsupported extends UniversalBlePeripheralPlatform {

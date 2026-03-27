@@ -13,6 +13,7 @@ class UniversalBlePeripheral {
   }
 
   static void setInstance(UniversalBlePeripheralPlatform instance) {
+    _platform.dispose();
     _platform = instance;
   }
 

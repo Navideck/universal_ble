@@ -20,6 +20,7 @@ class UniversalBlePeripheralPigeon extends UniversalBlePeripheralPlatform
   final StreamController<({String serviceId, String? error})>
       _serviceResultController =
       StreamController<({String serviceId, String? error})>.broadcast();
+  bool _disposed = false;
 
   @override
   Future<void> initialize() => _channel.initialize();
@@ -172,7 +173,9 @@ class UniversalBlePeripheralPigeon extends UniversalBlePeripheralPlatform
   @override
   void onServiceAdded(String serviceId, String? error) {
     super.serviceAddedCallback?.call(serviceId, error);
-    _serviceResultController.add((serviceId: serviceId, error: error));
+    if (!_serviceResultController.isClosed) {
+      _serviceResultController.add((serviceId: serviceId, error: error));
+    }
   }
 
   @override
@@ -194,5 +197,18 @@ class UniversalBlePeripheralPigeon extends UniversalBlePeripheralPlatform
       offset: result.offset,
       status: result.status,
     );
+  }
+
+  @override
+  void dispose() {
+    if (_disposed) return;
+    _disposed = true;
+    pigeon.UniversalBlePeripheralCallback.setUp(null);
+    if (!_serviceResultController.isClosed) {
+      _serviceResultController.close();
+    }
+    if (identical(_instance, this)) {
+      _instance = null;
+    }
   }
 }

@@ -15,6 +15,11 @@ enum UniversalBlePeripheralError: Error {
 var peripheralCharacteristicsList = [CBMutableCharacteristic]()
 var peripheralServicesList = [CBMutableService]()
 
+func clearPeripheralCaches() {
+  peripheralCharacteristicsList.removeAll()
+  peripheralServicesList.removeAll()
+}
+
 extension PeripheralService {
   func toCBService() -> CBMutableService {
     let service = CBMutableService(type: CBUUID(string: uuid), primary: primary)

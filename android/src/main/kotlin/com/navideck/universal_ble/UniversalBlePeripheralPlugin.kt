@@ -60,6 +60,8 @@ class UniversalBlePeripheralPlugin(
         gattServer?.close()
         gattServer = null
         bluetoothDevicesMap.clear()
+        listOfDevicesWaitingForBond.clear()
+        clearPeripheralCaches()
     }
 
     override fun initialize() {
@@ -207,7 +209,11 @@ class UniversalBlePeripheralPlugin(
 
     private fun cleanConnection(device: BluetoothDevice) {
         val deviceAddress = device.address
-        val subscribedCharUUID = subscribedCharDevicesMap[deviceAddress] ?: mutableListOf()
+        val subscribedCharUUID = synchronized(subscribedCharDevicesMap) {
+            val current = subscribedCharDevicesMap[deviceAddress]?.toList() ?: emptyList()
+            subscribedCharDevicesMap.remove(deviceAddress)
+            current
+        }
         subscribedCharUUID.forEach { charUUID ->
             handler.post {
                 callback.onCharacteristicSubscriptionChange(
@@ -218,7 +224,6 @@ class UniversalBlePeripheralPlugin(
                 ) {}
             }
         }
-        subscribedCharDevicesMap.remove(deviceAddress)
     }
 
     private val advertiseCallback = object : AdvertiseCallback() {
@@ -387,13 +392,15 @@ class UniversalBlePeripheralPlugin(
                             address, characteristicId, isSubscribed, device.name,
                         ) {}
                     }
-                    val charList = subscribedCharDevicesMap[address] ?: mutableListOf()
-                    if (isSubscribed) {
-                        charList.add(characteristicId)
-                    } else {
-                        charList.remove(characteristicId)
+                    synchronized(subscribedCharDevicesMap) {
+                        val charList = subscribedCharDevicesMap[address] ?: mutableListOf()
+                        if (isSubscribed) {
+                            charList.add(characteristicId)
+                        } else {
+                            charList.remove(characteristicId)
+                        }
+                        subscribedCharDevicesMap[address] = charList
                     }
-                    subscribedCharDevicesMap[address] = charList
                 }
             }
             if (responseNeeded) {
