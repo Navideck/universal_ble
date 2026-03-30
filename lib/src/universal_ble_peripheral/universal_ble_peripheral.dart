@@ -25,13 +25,14 @@ class UniversalBlePeripheralClient {
     );
   }
 
-  Future<bool> isFeatureSupported() => _platform.isFeatureSupported();
-
   Future<UniversalBlePeripheralReadinessState> getReadinessState() =>
       _platform.getReadinessState();
 
   Future<UniversalBlePeripheralAdvertisingState> getAdvertisingState() =>
       _platform.getAdvertisingState();
+
+  Future<UniversalBlePeripheralCapabilities> getCapabilities() =>
+      _platform.getCapabilities();
 
   Future<void> addService(
     BleService service, {
@@ -79,8 +80,8 @@ class UniversalBlePeripheralClient {
         target: target,
       );
 
-  Future<List<String>> getSubscribedCentrals(String characteristicId) =>
-      _platform.getSubscribedCentrals(BleUuidParser.string(characteristicId));
+  Future<List<String>> getSubscribedClients(String characteristicId) =>
+      _platform.getSubscribedClients(BleUuidParser.string(characteristicId));
 }
 
 class UniversalBlePeripheral {
@@ -116,13 +117,14 @@ class UniversalBlePeripheral {
     );
   }
 
-  static Future<bool> isFeatureSupported() => _client.isFeatureSupported();
-
   static Future<UniversalBlePeripheralReadinessState> getReadinessState() =>
       _client.getReadinessState();
 
   static Future<UniversalBlePeripheralAdvertisingState> getAdvertisingState() =>
       _client.getAdvertisingState();
+
+  static Future<UniversalBlePeripheralCapabilities> getCapabilities() =>
+      _client.getCapabilities();
 
   static Future<void> addService(
     BleService service, {
@@ -161,8 +163,8 @@ class UniversalBlePeripheral {
       _client.updateCharacteristicValue(
           characteristicId: characteristicId, value: value, target: target);
 
-  /// Returns central device ids currently subscribed to [characteristicId]
+  /// Returns client device ids currently subscribed to [characteristicId]
   /// (e.g. HID report characteristic). Used to restore in-app state after restart.
-  static Future<List<String>> getSubscribedCentrals(String characteristicId) =>
-      _client.getSubscribedCentrals(characteristicId);
+  static Future<List<String>> getSubscribedClients(String characteristicId) =>
+      _client.getSubscribedClients(characteristicId);
 }

@@ -73,6 +73,26 @@ class UniversalBlePeripheralMtuChanged extends UniversalBlePeripheralEvent {
   UniversalBlePeripheralMtuChanged(this.deviceId, this.mtu);
 }
 
+class UniversalBlePeripheralCapabilities {
+  final bool supportsPeripheralMode;
+  final bool supportsManufacturerDataInAdvertisement;
+  final bool supportsManufacturerDataInScanResponse;
+  final bool supportsServiceDataInAdvertisement;
+  final bool supportsServiceDataInScanResponse;
+  final bool supportsTargetedCharacteristicUpdate;
+  final bool supportsAdvertisingTimeout;
+
+  const UniversalBlePeripheralCapabilities({
+    required this.supportsPeripheralMode,
+    required this.supportsManufacturerDataInAdvertisement,
+    required this.supportsManufacturerDataInScanResponse,
+    required this.supportsServiceDataInAdvertisement,
+    required this.supportsServiceDataInScanResponse,
+    required this.supportsTargetedCharacteristicUpdate,
+    required this.supportsAdvertisingTimeout,
+  });
+}
+
 class PeripheralServiceId {
   final String value;
   const PeripheralServiceId(this.value);
@@ -99,9 +119,9 @@ abstract class UniversalBlePeripheralPlatform {
     OnPeripheralWriteRequest? onWriteRequest,
   });
 
-  Future<bool> isFeatureSupported();
   Future<UniversalBlePeripheralReadinessState> getReadinessState();
   Future<UniversalBlePeripheralAdvertisingState> getAdvertisingState();
+  Future<UniversalBlePeripheralCapabilities> getCapabilities();
 
   Future<void> addService(
     BleService service, {
@@ -126,8 +146,8 @@ abstract class UniversalBlePeripheralPlatform {
     PeripheralUpdateTarget target = const PeripheralUpdateAllSubscribed(),
   });
 
-  /// Returns GATT central device ids currently subscribed to [characteristicId].
-  Future<List<String>> getSubscribedCentrals(String characteristicId);
+  /// Returns GATT client device ids currently subscribed to [characteristicId].
+  Future<List<String>> getSubscribedClients(String characteristicId);
 
   /// Called when this platform implementation is being replaced.
   ///
@@ -174,7 +194,17 @@ class UniversalBlePeripheralUnsupported extends UniversalBlePeripheralPlatform {
   }
 
   @override
-  Future<bool> isFeatureSupported() async => false;
+  Future<UniversalBlePeripheralCapabilities> getCapabilities() async {
+    return const UniversalBlePeripheralCapabilities(
+      supportsPeripheralMode: false,
+      supportsManufacturerDataInAdvertisement: false,
+      supportsManufacturerDataInScanResponse: false,
+      supportsServiceDataInAdvertisement: false,
+      supportsServiceDataInScanResponse: false,
+      supportsTargetedCharacteristicUpdate: false,
+      supportsAdvertisingTimeout: false,
+    );
+  }
 
   @override
   Future<UniversalBlePeripheralReadinessState> getReadinessState() async {
@@ -212,7 +242,7 @@ class UniversalBlePeripheralUnsupported extends UniversalBlePeripheralPlatform {
   }
 
   @override
-  Future<List<String>> getSubscribedCentrals(String characteristicId) async {
+  Future<List<String>> getSubscribedClients(String characteristicId) async {
     throw _notSupported();
   }
 }

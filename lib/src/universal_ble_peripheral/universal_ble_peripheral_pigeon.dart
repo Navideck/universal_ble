@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:universal_ble/src/universal_ble_pigeon/universal_ble.g.dart'
     as pigeon;
@@ -40,9 +41,6 @@ class UniversalBlePeripheralPigeon extends UniversalBlePeripheralPlatform
   }
 
   @override
-  Future<bool> isFeatureSupported() => _channel.isFeatureSupported();
-
-  @override
   Future<UniversalBlePeripheralReadinessState> getReadinessState() async {
     final state = await _channel.getReadinessState();
     return switch (state) {
@@ -74,6 +72,28 @@ class UniversalBlePeripheralPigeon extends UniversalBlePeripheralPlatform
       pigeon.PeripheralAdvertisingState.error =>
         UniversalBlePeripheralAdvertisingState.error,
     };
+  }
+
+  @override
+  Future<UniversalBlePeripheralCapabilities> getCapabilities() async {
+    final readiness = await getReadinessState();
+    final platform = defaultTargetPlatform;
+    final supported = readiness != UniversalBlePeripheralReadinessState.unsupported;
+
+    final supportsManufacturerDataInScanResponse =
+        platform == TargetPlatform.android;
+    final supportsAdvertisingTimeout = platform == TargetPlatform.android;
+
+    return UniversalBlePeripheralCapabilities(
+      supportsPeripheralMode: supported,
+      supportsManufacturerDataInAdvertisement: supported,
+      supportsManufacturerDataInScanResponse:
+          supported && supportsManufacturerDataInScanResponse,
+      supportsServiceDataInAdvertisement: false,
+      supportsServiceDataInScanResponse: false,
+      supportsTargetedCharacteristicUpdate: supported,
+      supportsAdvertisingTimeout: supported && supportsAdvertisingTimeout,
+    );
   }
 
   @override
@@ -158,8 +178,8 @@ class UniversalBlePeripheralPigeon extends UniversalBlePeripheralPlatform
   }
 
   @override
-  Future<List<String>> getSubscribedCentrals(String characteristicId) =>
-      _channel.getSubscribedCentrals(characteristicId);
+  Future<List<String>> getSubscribedClients(String characteristicId) =>
+      _channel.getSubscribedClients(characteristicId);
 
   @override
   void onAdvertisingStateChange(

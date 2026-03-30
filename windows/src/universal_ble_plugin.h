@@ -282,7 +282,6 @@ private:
 
   // UniversalBlePeripheralChannel implementation.
   ErrorOr<PeripheralAdvertisingState> GetAdvertisingState() override;
-  ErrorOr<bool> IsFeatureSupported() override;
   ErrorOr<PeripheralReadinessState> GetReadinessState() override;
   std::optional<FlutterError> StopAdvertising() override;
   std::optional<FlutterError> AddService(const PeripheralService &service) override;
@@ -297,7 +296,7 @@ private:
   std::optional<FlutterError> UpdateCharacteristic(
       const std::string &characteristic_id, const std::vector<uint8_t> &value,
       const std::string *device_id) override;
-  ErrorOr<flutter::EncodableList> GetSubscribedCentrals(
+  ErrorOr<flutter::EncodableList> GetSubscribedClients(
       const std::string &characteristic_id) override;
 };
 

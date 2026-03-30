@@ -1628,10 +1628,6 @@ ErrorOr<PeripheralAdvertisingState> UniversalBlePlugin::GetAdvertisingState() {
                                            : PeripheralAdvertisingState::kIdle;
 }
 
-ErrorOr<bool> UniversalBlePlugin::IsFeatureSupported() {
-  return bluetooth_radio_ != nullptr;
-}
-
 ErrorOr<PeripheralReadinessState> UniversalBlePlugin::GetReadinessState() {
   if (!bluetooth_radio_) {
     return PeripheralReadinessState::kUnsupported;
@@ -1692,7 +1688,7 @@ ErrorOr<flutter::EncodableList> UniversalBlePlugin::GetServices() {
   return services;
 }
 
-ErrorOr<flutter::EncodableList> UniversalBlePlugin::GetSubscribedCentrals(
+ErrorOr<flutter::EncodableList> UniversalBlePlugin::GetSubscribedClients(
     const std::string &characteristic_id) {
   std::lock_guard<std::mutex> lock(peripheral_mutex_);
   flutter::EncodableList out;

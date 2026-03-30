@@ -104,16 +104,9 @@ class UniversalBlePeripheralPlugin(
 
     override fun getAdvertisingState(): PeripheralAdvertisingState = advertisingState
 
-    override fun isFeatureSupported(): Boolean {
-        val adapter = bluetoothManager.adapter ?: return false
-        if (!adapter.isMultipleAdvertisementSupported) {
-            return false
-        }
-        return true
-    }
-
     override fun getReadinessState(): PeripheralReadinessState {
         val adapter = bluetoothManager.adapter ?: return PeripheralReadinessState.UNSUPPORTED
+        if (!adapter.isMultipleAdvertisementSupported) return PeripheralReadinessState.UNSUPPORTED
         if (!adapter.isEnabled) return PeripheralReadinessState.BLUETOOTH_OFF
         return PeripheralReadinessState.READY
     }
@@ -236,7 +229,7 @@ class UniversalBlePeripheralPlugin(
         }
     }
 
-    override fun getSubscribedCentrals(characteristicId: String): List<String> {
+    override fun getSubscribedClients(characteristicId: String): List<String> {
         synchronized(subscribedCharDevicesMap) {
             return subscribedCharDevicesMap.entries
                 .filter { (_, chars) ->

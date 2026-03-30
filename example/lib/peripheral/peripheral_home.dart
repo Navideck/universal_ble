@@ -69,7 +69,7 @@ class _PeripheralHomeState extends State<PeripheralHome> {
   }
 
   Future<void> _initialize() async {
-    final supported = await _peripheral.isFeatureSupported();
+    final supported = (await _peripheral.getCapabilities()).supportsPeripheralMode;
     setState(() {
       _initialized = supported;
     });

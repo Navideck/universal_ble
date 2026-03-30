@@ -35,10 +35,6 @@ final class UniversalBlePeripheralPlugin: NSObject, UniversalBlePeripheralChanne
     advertisingState
   }
 
-  func isFeatureSupported() throws -> Bool {
-    true
-  }
-
   func getReadinessState() throws -> PeripheralReadinessState {
     switch peripheralManager.state {
     case .poweredOn:
@@ -305,7 +301,7 @@ final class UniversalBlePeripheralPlugin: NSObject, UniversalBlePeripheralChanne
     centralsLock.unlock()
   }
 
-  func getSubscribedCentrals(characteristicId: String) throws -> [String] {
+  func getSubscribedClients(characteristicId: String) throws -> [String] {
     let target = characteristicId.uppercased()
     centralsLock.lock()
     defer { centralsLock.unlock() }

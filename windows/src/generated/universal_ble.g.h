@@ -917,7 +917,6 @@ class UniversalBlePeripheralChannel {
   UniversalBlePeripheralChannel& operator=(const UniversalBlePeripheralChannel&) = delete;
   virtual ~UniversalBlePeripheralChannel() {}
   virtual ErrorOr<PeripheralAdvertisingState> GetAdvertisingState() = 0;
-  virtual ErrorOr<bool> IsFeatureSupported() = 0;
   virtual ErrorOr<PeripheralReadinessState> GetReadinessState() = 0;
   virtual std::optional<FlutterError> StopAdvertising() = 0;
   virtual std::optional<FlutterError> AddService(const PeripheralService& service) = 0;
@@ -934,9 +933,9 @@ class UniversalBlePeripheralChannel {
     const std::string& characteristic_id,
     const std::vector<uint8_t>& value,
     const std::string* device_id) = 0;
-  // Returns peripheral-central device ids currently subscribed to [characteristicId]
+  // Returns peripheral-client device ids currently subscribed to [characteristicId]
   // (e.g. HID report characteristic). Used to restore app state after restart.
-  virtual ErrorOr<::flutter::EncodableList> GetSubscribedCentrals(const std::string& characteristic_id) = 0;
+  virtual ErrorOr<::flutter::EncodableList> GetSubscribedClients(const std::string& characteristic_id) = 0;
 
   // The codec used by UniversalBlePeripheralChannel.
   static const ::flutter::StandardMessageCodec& GetCodec();

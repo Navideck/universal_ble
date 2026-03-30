@@ -39,6 +39,18 @@ class _FakePeripheralPlatform extends UniversalBlePeripheralPlatform {
       UniversalBlePeripheralAdvertisingState.idle;
 
   @override
+  Future<UniversalBlePeripheralCapabilities> getCapabilities() async =>
+      const UniversalBlePeripheralCapabilities(
+        supportsPeripheralMode: true,
+        supportsManufacturerDataInAdvertisement: true,
+        supportsManufacturerDataInScanResponse: true,
+        supportsServiceDataInAdvertisement: false,
+        supportsServiceDataInScanResponse: false,
+        supportsTargetedCharacteristicUpdate: true,
+        supportsAdvertisingTimeout: true,
+      );
+
+  @override
   Future<UniversalBlePeripheralReadinessState> getReadinessState() async =>
       UniversalBlePeripheralReadinessState.ready;
 
@@ -46,11 +58,8 @@ class _FakePeripheralPlatform extends UniversalBlePeripheralPlatform {
   Future<List<PeripheralServiceId>> getServices() async => const [];
 
   @override
-  Future<List<String>> getSubscribedCentrals(String characteristicId) async =>
+  Future<List<String>> getSubscribedClients(String characteristicId) async =>
       [characteristicId];
-
-  @override
-  Future<bool> isFeatureSupported() async => true;
 
   @override
   Future<void> removeService(PeripheralServiceId serviceId) async {
@@ -212,5 +221,15 @@ void main() {
     UniversalBlePeripheral.setInstance(second);
 
     expect(first.disposeCount, 1);
+  });
+
+  test('instance client exposes platform capabilities', () async {
+    final fake = _FakePeripheralPlatform();
+    final client = UniversalBlePeripheralClient(platform: fake);
+    final caps = await client.getCapabilities();
+
+    expect(caps.supportsPeripheralMode, isTrue);
+    expect(caps.supportsManufacturerDataInAdvertisement, isTrue);
+    expect(caps.supportsTargetedCharacteristicUpdate, isTrue);
   });
 }

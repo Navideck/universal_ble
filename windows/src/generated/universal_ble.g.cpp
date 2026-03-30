@@ -2644,27 +2644,6 @@ void UniversalBlePeripheralChannel::SetUp(
     }
   }
   {
-    BasicMessageChannel<> channel(binary_messenger, "dev.flutter.pigeon.universal_ble.UniversalBlePeripheralChannel.isFeatureSupported" + prepended_suffix, &GetCodec());
-    if (api != nullptr) {
-      channel.SetMessageHandler([api](const EncodableValue& message, const ::flutter::MessageReply<EncodableValue>& reply) {
-        try {
-          ErrorOr<bool> output = api->IsFeatureSupported();
-          if (output.has_error()) {
-            reply(WrapError(output.error()));
-            return;
-          }
-          EncodableList wrapped;
-          wrapped.push_back(EncodableValue(std::move(output).TakeValue()));
-          reply(EncodableValue(std::move(wrapped)));
-        } catch (const std::exception& exception) {
-          reply(WrapError(exception.what()));
-        }
-      });
-    } else {
-      channel.SetMessageHandler(nullptr);
-    }
-  }
-  {
     BasicMessageChannel<> channel(binary_messenger, "dev.flutter.pigeon.universal_ble.UniversalBlePeripheralChannel.getReadinessState" + prepended_suffix, &GetCodec());
     if (api != nullptr) {
       channel.SetMessageHandler([api](const EncodableValue& message, const ::flutter::MessageReply<EncodableValue>& reply) {
@@ -2881,7 +2860,7 @@ void UniversalBlePeripheralChannel::SetUp(
     }
   }
   {
-    BasicMessageChannel<> channel(binary_messenger, "dev.flutter.pigeon.universal_ble.UniversalBlePeripheralChannel.getSubscribedCentrals" + prepended_suffix, &GetCodec());
+    BasicMessageChannel<> channel(binary_messenger, "dev.flutter.pigeon.universal_ble.UniversalBlePeripheralChannel.getSubscribedClients" + prepended_suffix, &GetCodec());
     if (api != nullptr) {
       channel.SetMessageHandler([api](const EncodableValue& message, const ::flutter::MessageReply<EncodableValue>& reply) {
         try {
@@ -2892,7 +2871,7 @@ void UniversalBlePeripheralChannel::SetUp(
             return;
           }
           const auto& characteristic_id_arg = std::get<std::string>(encodable_characteristic_id_arg);
-          ErrorOr<EncodableList> output = api->GetSubscribedCentrals(characteristic_id_arg);
+          ErrorOr<EncodableList> output = api->GetSubscribedClients(characteristic_id_arg);
           if (output.has_error()) {
             reply(WrapError(output.error()));
             return;

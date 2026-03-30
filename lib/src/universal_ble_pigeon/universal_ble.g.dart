@@ -1701,25 +1701,6 @@ class UniversalBlePeripheralChannel {
     return pigeonVar_replyValue! as PeripheralAdvertisingState;
   }
 
-  Future<bool> isFeatureSupported() async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.universal_ble.UniversalBlePeripheralChannel.isFeatureSupported$pigeonVar_messageChannelSuffix';
-    final pigeonVar_channel = BasicMessageChannel<Object?>(
-      pigeonVar_channelName,
-      pigeonChannelCodec,
-      binaryMessenger: pigeonVar_binaryMessenger,
-    );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(null);
-    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
-
-    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: false,
-    )
-    ;
-    return pigeonVar_replyValue! as bool;
-  }
-
   Future<PeripheralReadinessState> getReadinessState() async {
     final pigeonVar_channelName = 'dev.flutter.pigeon.universal_ble.UniversalBlePeripheralChannel.getReadinessState$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
@@ -1866,10 +1847,10 @@ class UniversalBlePeripheralChannel {
     ;
   }
 
-  /// Returns peripheral-central device ids currently subscribed to [characteristicId]
+  /// Returns peripheral-client device ids currently subscribed to [characteristicId]
   /// (e.g. HID report characteristic). Used to restore app state after restart.
-  Future<List<String>> getSubscribedCentrals(String characteristicId) async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.universal_ble.UniversalBlePeripheralChannel.getSubscribedCentrals$pigeonVar_messageChannelSuffix';
+  Future<List<String>> getSubscribedClients(String characteristicId) async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.universal_ble.UniversalBlePeripheralChannel.getSubscribedClients$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,

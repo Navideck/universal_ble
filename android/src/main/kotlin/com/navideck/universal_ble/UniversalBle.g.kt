@@ -1745,7 +1745,6 @@ class UniversalBleCallbackChannel(private val binaryMessenger: BinaryMessenger, 
  */
 interface UniversalBlePeripheralChannel {
   fun getAdvertisingState(): PeripheralAdvertisingState
-  fun isFeatureSupported(): Boolean
   fun getReadinessState(): PeripheralReadinessState
   fun stopAdvertising()
   fun addService(service: PeripheralService)
@@ -1755,10 +1754,10 @@ interface UniversalBlePeripheralChannel {
   fun startAdvertising(services: List<String>, localName: String?, timeout: Long?, manufacturerData: PeripheralManufacturerData?, addManufacturerDataInScanResponse: Boolean)
   fun updateCharacteristic(characteristicId: String, value: ByteArray, deviceId: String?)
   /**
-   * Returns peripheral-central device ids currently subscribed to [characteristicId]
+   * Returns peripheral-client device ids currently subscribed to [characteristicId]
    * (e.g. HID report characteristic). Used to restore app state after restart.
    */
-  fun getSubscribedCentrals(characteristicId: String): List<String>
+  fun getSubscribedClients(characteristicId: String): List<String>
 
   companion object {
     /** The codec used by UniversalBlePeripheralChannel. */
@@ -1775,21 +1774,6 @@ interface UniversalBlePeripheralChannel {
           channel.setMessageHandler { _, reply ->
             val wrapped: List<Any?> = try {
               listOf(api.getAdvertisingState())
-            } catch (exception: Throwable) {
-              UniversalBlePigeonUtils.wrapError(exception)
-            }
-            reply.reply(wrapped)
-          }
-        } else {
-          channel.setMessageHandler(null)
-        }
-      }
-      run {
-        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.universal_ble.UniversalBlePeripheralChannel.isFeatureSupported$separatedMessageChannelSuffix", codec)
-        if (api != null) {
-          channel.setMessageHandler { _, reply ->
-            val wrapped: List<Any?> = try {
-              listOf(api.isFeatureSupported())
             } catch (exception: Throwable) {
               UniversalBlePigeonUtils.wrapError(exception)
             }
@@ -1940,13 +1924,13 @@ interface UniversalBlePeripheralChannel {
         }
       }
       run {
-        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.universal_ble.UniversalBlePeripheralChannel.getSubscribedCentrals$separatedMessageChannelSuffix", codec)
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.universal_ble.UniversalBlePeripheralChannel.getSubscribedClients$separatedMessageChannelSuffix", codec)
         if (api != null) {
           channel.setMessageHandler { message, reply ->
             val args = message as List<Any?>
             val characteristicIdArg = args[0] as String
             val wrapped: List<Any?> = try {
-              listOf(api.getSubscribedCentrals(characteristicIdArg))
+              listOf(api.getSubscribedClients(characteristicIdArg))
             } catch (exception: Throwable) {
               UniversalBlePigeonUtils.wrapError(exception)
             }

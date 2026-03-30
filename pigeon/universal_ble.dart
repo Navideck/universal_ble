@@ -310,7 +310,6 @@ enum PeripheralAdvertisingState {
 @HostApi()
 abstract class UniversalBlePeripheralChannel {
   PeripheralAdvertisingState getAdvertisingState();
-  bool isFeatureSupported();
   PeripheralReadinessState getReadinessState();
   void stopAdvertising();
   void addService(PeripheralService service);
@@ -330,9 +329,9 @@ abstract class UniversalBlePeripheralChannel {
     String? deviceId,
   );
 
-  /// Returns peripheral-central device ids currently subscribed to [characteristicId]
+  /// Returns peripheral-client device ids currently subscribed to [characteristicId]
   /// (e.g. HID report characteristic). Used to restore app state after restart.
-  List<String> getSubscribedCentrals(String characteristicId);
+  List<String> getSubscribedClients(String characteristicId);
 }
 
 /// Native -> Flutter (peripheral)

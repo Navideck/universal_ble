@@ -1582,7 +1582,6 @@ class UniversalBleCallbackChannel: UniversalBleCallbackChannelProtocol {
 /// Generated protocol from Pigeon that represents a handler of messages from Flutter.
 protocol UniversalBlePeripheralChannel {
   func getAdvertisingState() throws -> PeripheralAdvertisingState
-  func isFeatureSupported() throws -> Bool
   func getReadinessState() throws -> PeripheralReadinessState
   func stopAdvertising() throws
   func addService(service: PeripheralService) throws
@@ -1591,9 +1590,9 @@ protocol UniversalBlePeripheralChannel {
   func getServices() throws -> [String]
   func startAdvertising(services: [String], localName: String?, timeout: Int64?, manufacturerData: PeripheralManufacturerData?, addManufacturerDataInScanResponse: Bool) throws
   func updateCharacteristic(characteristicId: String, value: FlutterStandardTypedData, deviceId: String?) throws
-  /// Returns peripheral-central device ids currently subscribed to [characteristicId]
+  /// Returns peripheral-client device ids currently subscribed to [characteristicId]
   /// (e.g. HID report characteristic). Used to restore app state after restart.
-  func getSubscribedCentrals(characteristicId: String) throws -> [String]
+  func getSubscribedClients(characteristicId: String) throws -> [String]
 }
 
 /// Generated setup class from Pigeon to handle messages through the `binaryMessenger`.
@@ -1614,19 +1613,6 @@ class UniversalBlePeripheralChannelSetup {
       }
     } else {
       getAdvertisingStateChannel.setMessageHandler(nil)
-    }
-    let isFeatureSupportedChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.universal_ble.UniversalBlePeripheralChannel.isFeatureSupported\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
-    if let api = api {
-      isFeatureSupportedChannel.setMessageHandler { _, reply in
-        do {
-          let result = try api.isFeatureSupported()
-          reply(wrapResult(result))
-        } catch {
-          reply(wrapError(error))
-        }
-      }
-    } else {
-      isFeatureSupportedChannel.setMessageHandler(nil)
     }
     let getReadinessStateChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.universal_ble.UniversalBlePeripheralChannel.getReadinessState\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
     if let api = api {
@@ -1746,22 +1732,22 @@ class UniversalBlePeripheralChannelSetup {
     } else {
       updateCharacteristicChannel.setMessageHandler(nil)
     }
-    /// Returns peripheral-central device ids currently subscribed to [characteristicId]
+    /// Returns peripheral-client device ids currently subscribed to [characteristicId]
     /// (e.g. HID report characteristic). Used to restore app state after restart.
-    let getSubscribedCentralsChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.universal_ble.UniversalBlePeripheralChannel.getSubscribedCentrals\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    let getSubscribedClientsChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.universal_ble.UniversalBlePeripheralChannel.getSubscribedClients\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
     if let api = api {
-      getSubscribedCentralsChannel.setMessageHandler { message, reply in
+      getSubscribedClientsChannel.setMessageHandler { message, reply in
         let args = message as! [Any?]
         let characteristicIdArg = args[0] as! String
         do {
-          let result = try api.getSubscribedCentrals(characteristicId: characteristicIdArg)
+          let result = try api.getSubscribedClients(characteristicId: characteristicIdArg)
           reply(wrapResult(result))
         } catch {
           reply(wrapError(error))
         }
       }
     } else {
-      getSubscribedCentralsChannel.setMessageHandler(nil)
+      getSubscribedClientsChannel.setMessageHandler(nil)
     }
   }
 }
