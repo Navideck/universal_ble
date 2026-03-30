@@ -1708,6 +1708,30 @@ ErrorOr<flutter::EncodableList> UniversalBlePlugin::GetSubscribedClients(
   return out;
 }
 
+ErrorOr<std::optional<int64_t>> UniversalBlePlugin::GetMaximumNotifyLength(
+    const std::string &device_id) {
+  std::lock_guard<std::mutex> lock(peripheral_mutex_);
+  for (auto const &[_, service_provider] : peripheral_service_provider_map_) {
+    for (auto const &[_, characteristic_object] :
+         service_provider->characteristics) {
+      try {
+        auto clients = characteristic_object->obj.SubscribedClients();
+        for (uint32_t i = 0; i < clients.Size(); ++i) {
+          auto client = clients.GetAt(i);
+          auto id = ParsePeripheralBluetoothClientId(client.Session().DeviceId().Id());
+          if (to_lower_case(id) != to_lower_case(device_id)) {
+            continue;
+          }
+          const int64_t pdu_size = static_cast<int64_t>(client.Session().MaxPduSize());
+          return std::max<int64_t>(0, pdu_size - 3);
+        }
+      } catch (...) {
+      }
+    }
+  }
+  return std::optional<int64_t>{};
+}
+
 std::optional<FlutterError> UniversalBlePlugin::StartAdvertising(
     const flutter::EncodableList &services, const std::string *local_name,
     const int64_t *timeout,

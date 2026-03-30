@@ -309,4 +309,11 @@ final class UniversalBlePeripheralPlugin: NSObject, UniversalBlePeripheralChanne
       chars.contains(where: { $0.uppercased() == target }) ? centralId : nil
     }
   }
+
+  func getMaximumNotifyLength(deviceId: String) throws -> Int64? {
+    guard let central = central(for: deviceId) else {
+      return nil
+    }
+    return Int64(central.maximumUpdateValueLength)
+  }
 }

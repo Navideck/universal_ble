@@ -51,14 +51,16 @@ class _PeripheralHomeState extends State<PeripheralHome> {
       }
     });
     _peripheral.setRequestHandlers(
-      onReadRequest: (deviceId, characteristicId, _, __) {
-      _log('Read request: $deviceId $characteristicId');
-      return BleReadRequestResult(value: utf8.encode('Hello World'));
-      },
-      onWriteRequest: (deviceId, characteristicId, _, value) {
-        _log('Write request: $deviceId $characteristicId $value');
-        return const BleWriteRequestResult();
-      },
+      PeripheralRequestHandlers(
+        onReadRequest: (deviceId, characteristicId, _, __) {
+          _log('Read request: $deviceId ${characteristicId.value}');
+          return BleReadRequestResult(value: utf8.encode('Hello World'));
+        },
+        onWriteRequest: (deviceId, characteristicId, _, value) {
+          _log('Write request: $deviceId ${characteristicId.value} $value');
+          return const BleWriteRequestResult();
+        },
+      ),
     );
   }
 
@@ -69,7 +71,8 @@ class _PeripheralHomeState extends State<PeripheralHome> {
   }
 
   Future<void> _initialize() async {
-    final supported = (await _peripheral.getCapabilities()).supportsPeripheralMode;
+    final supported =
+        (await _peripheral.getStaticCapabilities()).supportsPeripheralMode;
     setState(() {
       _initialized = supported;
     });
@@ -158,7 +161,9 @@ class _PeripheralHomeState extends State<PeripheralHome> {
                 onPressed: _initialized
                     ? () async {
                         await _peripheral.updateCharacteristicValue(
-                          characteristicId: _charTest,
+                          characteristicId: const PeripheralCharacteristicId(
+                            _charTest,
+                          ),
                           value: utf8.encode('Test Data'),
                         );
                         _log('Characteristic updated');

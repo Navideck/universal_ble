@@ -65,7 +65,7 @@ A cross-platform (Android/iOS/macOS/Windows/Linux/Web) Bluetooth Low Energy (BLE
 
 | API                      | Android | iOS | macOS | Windows | Linux | Web |
 | :----------------------- | :-----: | :-: | :---: | :-----: | :---: | :-: |
-| getCapabilities          |   ✔️    | ✔️  |  ✔️   |   ✔️    |  🚧   | ❌  |
+| getStaticCapabilities    |   ✔️    | ✔️  |  ✔️   |   ✔️    |  🚧   | ❌  |
 | getReadinessState\*      |   ✔️    | ✔️  |  ✔️   |   ✔️    |  🚧   | ❌  |
 | getAdvertisingState      |   ✔️    | ✔️  |  ✔️   |   ✔️    |  🚧   | ❌  |
 | addService               |   ✔️    | ✔️  |  ✔️   |   ✔️    |  🚧   | ❌  |
@@ -76,11 +76,12 @@ A cross-platform (Android/iOS/macOS/Windows/Linux/Web) Bluetooth Low Energy (BLE
 | stopAdvertising          |   ✔️    | ✔️  |  ✔️   |   ✔️    |  🚧   | ❌  |
 | updateCharacteristicValue\*\* |   ✔️    | ✔️  |  ✔️   |   ✔️    |  🚧   | ❌  |
 | getSubscribedClients     |   ✔️    | ✔️  |  ✔️   |   ✔️    |  🚧   | ❌  |
+| getMaximumNotifyLength   |   ✔️    | ✔️  |  ✔️   |   ✔️    |  🚧   | ❌  |
 | events stream\*\*\*      |   ✔️    | ✔️  |  ✔️   |   ✔️    |  🚧   | ❌  |
 
 \* `getReadinessState` returns a snapshot state. Use `eventStream` for ongoing runtime changes.
 \*\* `updateCharacteristicValue` supports broadcast to all subscribed devices or a specific device via `PeripheralUpdateTarget`.
-\*\*\* events include advertising state changes, read/write requests, subscription changes, and related peripheral events.
+\*\*\* events include advertising state changes, MTU changes, subscription changes, and related peripheral events.
 
 ## Getting Started
 
@@ -641,7 +642,7 @@ The error parser automatically converts platform-specific error formats (strings
 import 'package:universal_ble/universal_ble.dart';
 
 final peripheral = UniversalBlePeripheralClient();
-final caps = await peripheral.getCapabilities();
+final caps = await peripheral.getStaticCapabilities();
 if (!caps.supportsPeripheralMode) return;
 
 await peripheral.addService(
@@ -667,16 +668,24 @@ final sub = peripheral.eventStream.listen((event) {
 });
 
 peripheral.setRequestHandlers(
-  onReadRequest: (deviceId, characteristicId, offset, value) =>
-      BleReadRequestResult(value: value ?? Uint8List(0)),
-  onWriteRequest: (deviceId, characteristicId, offset, value) =>
-      const BleWriteRequestResult(),
+  PeripheralRequestHandlers(
+    onReadRequest: (deviceId, characteristicId, offset, value) =>
+        BleReadRequestResult(value: value ?? Uint8List(0)),
+    onWriteRequest: (deviceId, characteristicId, offset, value) =>
+        const BleWriteRequestResult(),
+    onDescriptorReadRequest:
+        (deviceId, characteristicId, descriptorId, offset, value) =>
+            BleReadRequestResult(value: value ?? Uint8List(0)),
+    onDescriptorWriteRequest:
+        (deviceId, characteristicId, descriptorId, offset, value) =>
+            const BleWriteRequestResult(),
+  ),
 );
 ```
 
 ### Breaking changes
 
-- `isSupported()` was replaced by `getCapabilities().supportsPeripheralMode`.
+- `isSupported()` was replaced by `getStaticCapabilities().supportsPeripheralMode`.
 - `isAdvertising()` was replaced by `getAdvertisingState()`.
 - Static callback setters were replaced by `eventStream` + `setRequestHandlers(...)`.
 - `UniversalBlePeripheralClient` is the recommended API; `UniversalBlePeripheral` remains as a singleton facade.

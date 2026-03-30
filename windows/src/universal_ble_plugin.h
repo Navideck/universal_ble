@@ -298,6 +298,8 @@ private:
       const std::string *device_id) override;
   ErrorOr<flutter::EncodableList> GetSubscribedClients(
       const std::string &characteristic_id) override;
+  ErrorOr<std::optional<int64_t>> GetMaximumNotifyLength(
+      const std::string &device_id) override;
 };
 
 } // namespace universal_ble

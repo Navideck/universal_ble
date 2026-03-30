@@ -7,6 +7,9 @@ import 'package:universal_ble/universal_ble.dart';
 class _FakePeripheralPlatform extends UniversalBlePeripheralPlatform {
   int disposeCount = 0;
   PeripheralServiceId? removedServiceId;
+  PeripheralCharacteristicId? updatedCharacteristicId;
+  PeripheralCharacteristicId? subscribedCharacteristicId;
+  String? maxNotifyLengthDeviceId;
   List<PeripheralServiceId>? advertisedServices;
 
   @override
@@ -14,10 +17,7 @@ class _FakePeripheralPlatform extends UniversalBlePeripheralPlatform {
       const Stream<UniversalBlePeripheralEvent>.empty();
 
   @override
-  void setRequestHandlers({
-    OnPeripheralReadRequest? onReadRequest,
-    OnPeripheralWriteRequest? onWriteRequest,
-  }) {}
+  void setRequestHandlers(PeripheralRequestHandlers handlers) {}
 
   @override
   Future<void> addService(
@@ -39,7 +39,7 @@ class _FakePeripheralPlatform extends UniversalBlePeripheralPlatform {
       UniversalBlePeripheralAdvertisingState.idle;
 
   @override
-  Future<UniversalBlePeripheralCapabilities> getCapabilities() async =>
+  Future<UniversalBlePeripheralCapabilities> getStaticCapabilities() async =>
       const UniversalBlePeripheralCapabilities(
         supportsPeripheralMode: true,
         supportsManufacturerDataInAdvertisement: true,
@@ -58,8 +58,18 @@ class _FakePeripheralPlatform extends UniversalBlePeripheralPlatform {
   Future<List<PeripheralServiceId>> getServices() async => const [];
 
   @override
-  Future<List<String>> getSubscribedClients(String characteristicId) async =>
-      [characteristicId];
+  Future<List<String>> getSubscribedClients(
+    PeripheralCharacteristicId characteristicId,
+  ) async {
+    subscribedCharacteristicId = characteristicId;
+    return [characteristicId.value];
+  }
+
+  @override
+  Future<int?> getMaximumNotifyLength(String deviceId) async {
+    maxNotifyLengthDeviceId = deviceId;
+    return 20;
+  }
 
   @override
   Future<void> removeService(PeripheralServiceId serviceId) async {
@@ -82,10 +92,12 @@ class _FakePeripheralPlatform extends UniversalBlePeripheralPlatform {
 
   @override
   Future<void> updateCharacteristicValue({
-    required String characteristicId,
+    required PeripheralCharacteristicId characteristicId,
     required Uint8List value,
     PeripheralUpdateTarget target = const PeripheralUpdateAllSubscribed(),
-  }) async {}
+  }) async {
+    updatedCharacteristicId = characteristicId;
+  }
 }
 
 void main() {
@@ -226,10 +238,34 @@ void main() {
   test('instance client exposes platform capabilities', () async {
     final fake = _FakePeripheralPlatform();
     final client = UniversalBlePeripheralClient(platform: fake);
-    final caps = await client.getCapabilities();
+    final caps = await client.getStaticCapabilities();
 
     expect(caps.supportsPeripheralMode, isTrue);
     expect(caps.supportsManufacturerDataInAdvertisement, isTrue);
     expect(caps.supportsTargetedCharacteristicUpdate, isTrue);
+  });
+
+  test('instance client normalizes characteristic IDs in APIs', () async {
+    final fake = _FakePeripheralPlatform();
+    final client = UniversalBlePeripheralClient(platform: fake);
+
+    await client.updateCharacteristicValue(
+      characteristicId: const PeripheralCharacteristicId('2a19'),
+      value: Uint8List.fromList([1]),
+    );
+    await client.getSubscribedClients(const PeripheralCharacteristicId('2a19'));
+
+    expect(fake.updatedCharacteristicId?.value, BleUuidParser.string('2a19'));
+    expect(fake.subscribedCharacteristicId?.value, BleUuidParser.string('2a19'));
+  });
+
+  test('instance client forwards max notify length deviceId', () async {
+    final fake = _FakePeripheralPlatform();
+    final client = UniversalBlePeripheralClient(platform: fake);
+
+    final maxLen = await client.getMaximumNotifyLength('aa:bb:cc');
+
+    expect(maxLen, 20);
+    expect(fake.maxNotifyLengthDeviceId, 'aa:bb:cc');
   });
 }

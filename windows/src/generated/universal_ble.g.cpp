@@ -2887,6 +2887,39 @@ void UniversalBlePeripheralChannel::SetUp(
       channel.SetMessageHandler(nullptr);
     }
   }
+  {
+    BasicMessageChannel<> channel(binary_messenger, "dev.flutter.pigeon.universal_ble.UniversalBlePeripheralChannel.getMaximumNotifyLength" + prepended_suffix, &GetCodec());
+    if (api != nullptr) {
+      channel.SetMessageHandler([api](const EncodableValue& message, const ::flutter::MessageReply<EncodableValue>& reply) {
+        try {
+          const auto& args = std::get<EncodableList>(message);
+          const auto& encodable_device_id_arg = args.at(0);
+          if (encodable_device_id_arg.IsNull()) {
+            reply(WrapError("device_id_arg unexpectedly null."));
+            return;
+          }
+          const auto& device_id_arg = std::get<std::string>(encodable_device_id_arg);
+          ErrorOr<std::optional<int64_t>> output = api->GetMaximumNotifyLength(device_id_arg);
+          if (output.has_error()) {
+            reply(WrapError(output.error()));
+            return;
+          }
+          EncodableList wrapped;
+          auto output_optional = std::move(output).TakeValue();
+          if (output_optional) {
+            wrapped.push_back(EncodableValue(std::move(output_optional).value()));
+          } else {
+            wrapped.push_back(EncodableValue());
+          }
+          reply(EncodableValue(std::move(wrapped)));
+        } catch (const std::exception& exception) {
+          reply(WrapError(exception.what()));
+        }
+      });
+    } else {
+      channel.SetMessageHandler(nullptr);
+    }
+  }
 }
 
 EncodableValue UniversalBlePeripheralChannel::WrapError(std::string_view error_message) {
@@ -2964,6 +2997,74 @@ void UniversalBlePeripheralCallback::OnWriteRequest(
   EncodableValue encoded_api_arguments = EncodableValue(EncodableList{
     EncodableValue(device_id_arg),
     EncodableValue(characteristic_id_arg),
+    EncodableValue(offset_arg),
+    value_arg ? EncodableValue(*value_arg) : EncodableValue(),
+  });
+  channel.Send(encoded_api_arguments, [channel_name, on_success = std::move(on_success), on_error = std::move(on_error)](const uint8_t* reply, size_t reply_size) {
+    std::unique_ptr<EncodableValue> response = GetCodec().DecodeMessage(reply, reply_size);
+    const auto& encodable_return_value = *response;
+    const auto* list_return_value = std::get_if<EncodableList>(&encodable_return_value);
+    if (list_return_value) {
+      if (list_return_value->size() > 1) {
+        on_error(FlutterError(std::get<std::string>(list_return_value->at(0)), std::get<std::string>(list_return_value->at(1)), list_return_value->at(2)));
+      } else {
+        const auto* return_value = list_return_value->at(0).IsNull() ? nullptr : &(std::any_cast<const PeripheralWriteRequestResult&>(std::get<CustomEncodableValue>(list_return_value->at(0))));
+        on_success(return_value);
+      }
+    } else {
+      on_error(CreateConnectionError(channel_name));
+    } 
+  });
+}
+
+void UniversalBlePeripheralCallback::OnDescriptorReadRequest(
+  const std::string& device_id_arg,
+  const std::string& characteristic_id_arg,
+  const std::string& descriptor_id_arg,
+  int64_t offset_arg,
+  const std::vector<uint8_t>* value_arg,
+  std::function<void(const PeripheralReadRequestResult*)>&& on_success,
+  std::function<void(const FlutterError&)>&& on_error) {
+  const std::string channel_name = "dev.flutter.pigeon.universal_ble.UniversalBlePeripheralCallback.onDescriptorReadRequest" + message_channel_suffix_;
+  BasicMessageChannel<> channel(binary_messenger_, channel_name, &GetCodec());
+  EncodableValue encoded_api_arguments = EncodableValue(EncodableList{
+    EncodableValue(device_id_arg),
+    EncodableValue(characteristic_id_arg),
+    EncodableValue(descriptor_id_arg),
+    EncodableValue(offset_arg),
+    value_arg ? EncodableValue(*value_arg) : EncodableValue(),
+  });
+  channel.Send(encoded_api_arguments, [channel_name, on_success = std::move(on_success), on_error = std::move(on_error)](const uint8_t* reply, size_t reply_size) {
+    std::unique_ptr<EncodableValue> response = GetCodec().DecodeMessage(reply, reply_size);
+    const auto& encodable_return_value = *response;
+    const auto* list_return_value = std::get_if<EncodableList>(&encodable_return_value);
+    if (list_return_value) {
+      if (list_return_value->size() > 1) {
+        on_error(FlutterError(std::get<std::string>(list_return_value->at(0)), std::get<std::string>(list_return_value->at(1)), list_return_value->at(2)));
+      } else {
+        const auto* return_value = list_return_value->at(0).IsNull() ? nullptr : &(std::any_cast<const PeripheralReadRequestResult&>(std::get<CustomEncodableValue>(list_return_value->at(0))));
+        on_success(return_value);
+      }
+    } else {
+      on_error(CreateConnectionError(channel_name));
+    } 
+  });
+}
+
+void UniversalBlePeripheralCallback::OnDescriptorWriteRequest(
+  const std::string& device_id_arg,
+  const std::string& characteristic_id_arg,
+  const std::string& descriptor_id_arg,
+  int64_t offset_arg,
+  const std::vector<uint8_t>* value_arg,
+  std::function<void(const PeripheralWriteRequestResult*)>&& on_success,
+  std::function<void(const FlutterError&)>&& on_error) {
+  const std::string channel_name = "dev.flutter.pigeon.universal_ble.UniversalBlePeripheralCallback.onDescriptorWriteRequest" + message_channel_suffix_;
+  BasicMessageChannel<> channel(binary_messenger_, channel_name, &GetCodec());
+  EncodableValue encoded_api_arguments = EncodableValue(EncodableList{
+    EncodableValue(device_id_arg),
+    EncodableValue(characteristic_id_arg),
+    EncodableValue(descriptor_id_arg),
     EncodableValue(offset_arg),
     value_arg ? EncodableValue(*value_arg) : EncodableValue(),
   });

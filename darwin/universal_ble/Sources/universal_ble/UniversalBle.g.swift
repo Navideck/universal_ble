@@ -1593,6 +1593,8 @@ protocol UniversalBlePeripheralChannel {
   /// Returns peripheral-client device ids currently subscribed to [characteristicId]
   /// (e.g. HID report characteristic). Used to restore app state after restart.
   func getSubscribedClients(characteristicId: String) throws -> [String]
+  /// Returns max characteristic notify payload length for a connected client.
+  func getMaximumNotifyLength(deviceId: String) throws -> Int64?
 }
 
 /// Generated setup class from Pigeon to handle messages through the `binaryMessenger`.
@@ -1749,6 +1751,22 @@ class UniversalBlePeripheralChannelSetup {
     } else {
       getSubscribedClientsChannel.setMessageHandler(nil)
     }
+    /// Returns max characteristic notify payload length for a connected client.
+    let getMaximumNotifyLengthChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.universal_ble.UniversalBlePeripheralChannel.getMaximumNotifyLength\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    if let api = api {
+      getMaximumNotifyLengthChannel.setMessageHandler { message, reply in
+        let args = message as! [Any?]
+        let deviceIdArg = args[0] as! String
+        do {
+          let result = try api.getMaximumNotifyLength(deviceId: deviceIdArg)
+          reply(wrapResult(result))
+        } catch {
+          reply(wrapError(error))
+        }
+      }
+    } else {
+      getMaximumNotifyLengthChannel.setMessageHandler(nil)
+    }
   }
 }
 /// Native -> Flutter (peripheral)
@@ -1757,6 +1775,8 @@ class UniversalBlePeripheralChannelSetup {
 protocol UniversalBlePeripheralCallbackProtocol {
   func onReadRequest(deviceId deviceIdArg: String, characteristicId characteristicIdArg: String, offset offsetArg: Int64, value valueArg: FlutterStandardTypedData?, completion: @escaping (Result<PeripheralReadRequestResult?, PigeonError>) -> Void)
   func onWriteRequest(deviceId deviceIdArg: String, characteristicId characteristicIdArg: String, offset offsetArg: Int64, value valueArg: FlutterStandardTypedData?, completion: @escaping (Result<PeripheralWriteRequestResult?, PigeonError>) -> Void)
+  func onDescriptorReadRequest(deviceId deviceIdArg: String, characteristicId characteristicIdArg: String, descriptorId descriptorIdArg: String, offset offsetArg: Int64, value valueArg: FlutterStandardTypedData?, completion: @escaping (Result<PeripheralReadRequestResult?, PigeonError>) -> Void)
+  func onDescriptorWriteRequest(deviceId deviceIdArg: String, characteristicId characteristicIdArg: String, descriptorId descriptorIdArg: String, offset offsetArg: Int64, value valueArg: FlutterStandardTypedData?, completion: @escaping (Result<PeripheralWriteRequestResult?, PigeonError>) -> Void)
   func onCharacteristicSubscriptionChange(deviceId deviceIdArg: String, characteristicId characteristicIdArg: String, isSubscribed isSubscribedArg: Bool, name nameArg: String?, completion: @escaping (Result<Void, PigeonError>) -> Void)
   func onAdvertisingStateChange(state stateArg: PeripheralAdvertisingState, error errorArg: String?, completion: @escaping (Result<Void, PigeonError>) -> Void)
   func onServiceAdded(serviceId serviceIdArg: String, error errorArg: String?, completion: @escaping (Result<Void, PigeonError>) -> Void)
@@ -1796,6 +1816,44 @@ class UniversalBlePeripheralCallback: UniversalBlePeripheralCallbackProtocol {
     let channelName: String = "dev.flutter.pigeon.universal_ble.UniversalBlePeripheralCallback.onWriteRequest\(messageChannelSuffix)"
     let channel = FlutterBasicMessageChannel(name: channelName, binaryMessenger: binaryMessenger, codec: codec)
     channel.sendMessage([deviceIdArg, characteristicIdArg, offsetArg, valueArg] as [Any?]) { response in
+      guard let listResponse = response as? [Any?] else {
+        completion(.failure(createConnectionError(withChannelName: channelName)))
+        return
+      }
+      if listResponse.count > 1 {
+        let code: String = listResponse[0] as! String
+        let message: String? = nilOrValue(listResponse[1])
+        let details: String? = nilOrValue(listResponse[2])
+        completion(.failure(PigeonError(code: code, message: message, details: details)))
+      } else {
+        let result: PeripheralWriteRequestResult? = nilOrValue(listResponse[0])
+        completion(.success(result))
+      }
+    }
+  }
+  func onDescriptorReadRequest(deviceId deviceIdArg: String, characteristicId characteristicIdArg: String, descriptorId descriptorIdArg: String, offset offsetArg: Int64, value valueArg: FlutterStandardTypedData?, completion: @escaping (Result<PeripheralReadRequestResult?, PigeonError>) -> Void) {
+    let channelName: String = "dev.flutter.pigeon.universal_ble.UniversalBlePeripheralCallback.onDescriptorReadRequest\(messageChannelSuffix)"
+    let channel = FlutterBasicMessageChannel(name: channelName, binaryMessenger: binaryMessenger, codec: codec)
+    channel.sendMessage([deviceIdArg, characteristicIdArg, descriptorIdArg, offsetArg, valueArg] as [Any?]) { response in
+      guard let listResponse = response as? [Any?] else {
+        completion(.failure(createConnectionError(withChannelName: channelName)))
+        return
+      }
+      if listResponse.count > 1 {
+        let code: String = listResponse[0] as! String
+        let message: String? = nilOrValue(listResponse[1])
+        let details: String? = nilOrValue(listResponse[2])
+        completion(.failure(PigeonError(code: code, message: message, details: details)))
+      } else {
+        let result: PeripheralReadRequestResult? = nilOrValue(listResponse[0])
+        completion(.success(result))
+      }
+    }
+  }
+  func onDescriptorWriteRequest(deviceId deviceIdArg: String, characteristicId characteristicIdArg: String, descriptorId descriptorIdArg: String, offset offsetArg: Int64, value valueArg: FlutterStandardTypedData?, completion: @escaping (Result<PeripheralWriteRequestResult?, PigeonError>) -> Void) {
+    let channelName: String = "dev.flutter.pigeon.universal_ble.UniversalBlePeripheralCallback.onDescriptorWriteRequest\(messageChannelSuffix)"
+    let channel = FlutterBasicMessageChannel(name: channelName, binaryMessenger: binaryMessenger, codec: codec)
+    channel.sendMessage([deviceIdArg, characteristicIdArg, descriptorIdArg, offsetArg, valueArg] as [Any?]) { response in
       guard let listResponse = response as? [Any?] else {
         completion(.failure(createConnectionError(withChannelName: channelName)))
         return

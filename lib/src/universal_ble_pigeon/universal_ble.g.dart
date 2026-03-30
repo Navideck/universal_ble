@@ -1867,6 +1867,26 @@ class UniversalBlePeripheralChannel {
     ;
     return (pigeonVar_replyValue! as List<Object?>).cast<String>();
   }
+
+  /// Returns max characteristic notify payload length for a connected client.
+  Future<int?> getMaximumNotifyLength(String deviceId) async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.universal_ble.UniversalBlePeripheralChannel.getMaximumNotifyLength$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[deviceId]);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: true,
+    )
+    ;
+    return pigeonVar_replyValue as int?;
+  }
 }
 
 /// Native -> Flutter (peripheral)
@@ -1876,6 +1896,10 @@ abstract class UniversalBlePeripheralCallback {
   PeripheralReadRequestResult? onReadRequest(String deviceId, String characteristicId, int offset, Uint8List? value);
 
   PeripheralWriteRequestResult? onWriteRequest(String deviceId, String characteristicId, int offset, Uint8List? value);
+
+  PeripheralReadRequestResult? onDescriptorReadRequest(String deviceId, String characteristicId, String descriptorId, int offset, Uint8List? value);
+
+  PeripheralWriteRequestResult? onDescriptorWriteRequest(String deviceId, String characteristicId, String descriptorId, int offset, Uint8List? value);
 
   void onCharacteristicSubscriptionChange(String deviceId, String characteristicId, bool isSubscribed, String? name);
 
@@ -1928,6 +1952,56 @@ abstract class UniversalBlePeripheralCallback {
           final Uint8List? arg_value = args[3] as Uint8List?;
           try {
             final PeripheralWriteRequestResult? output = api.onWriteRequest(arg_deviceId, arg_characteristicId, arg_offset, arg_value);
+            return wrapResponse(result: output);
+          } on PlatformException catch (e) {
+            return wrapResponse(error: e);
+          }          catch (e) {
+            return wrapResponse(error: PlatformException(code: 'error', message: e.toString()));
+          }
+        });
+      }
+    }
+    {
+      final pigeonVar_channel = BasicMessageChannel<Object?>(
+          'dev.flutter.pigeon.universal_ble.UniversalBlePeripheralCallback.onDescriptorReadRequest$messageChannelSuffix', pigeonChannelCodec,
+          binaryMessenger: binaryMessenger);
+      if (api == null) {
+        pigeonVar_channel.setMessageHandler(null);
+      } else {
+        pigeonVar_channel.setMessageHandler((Object? message) async {
+          final List<Object?> args = message! as List<Object?>;
+          final String arg_deviceId = args[0]! as String;
+          final String arg_characteristicId = args[1]! as String;
+          final String arg_descriptorId = args[2]! as String;
+          final int arg_offset = args[3]! as int;
+          final Uint8List? arg_value = args[4] as Uint8List?;
+          try {
+            final PeripheralReadRequestResult? output = api.onDescriptorReadRequest(arg_deviceId, arg_characteristicId, arg_descriptorId, arg_offset, arg_value);
+            return wrapResponse(result: output);
+          } on PlatformException catch (e) {
+            return wrapResponse(error: e);
+          }          catch (e) {
+            return wrapResponse(error: PlatformException(code: 'error', message: e.toString()));
+          }
+        });
+      }
+    }
+    {
+      final pigeonVar_channel = BasicMessageChannel<Object?>(
+          'dev.flutter.pigeon.universal_ble.UniversalBlePeripheralCallback.onDescriptorWriteRequest$messageChannelSuffix', pigeonChannelCodec,
+          binaryMessenger: binaryMessenger);
+      if (api == null) {
+        pigeonVar_channel.setMessageHandler(null);
+      } else {
+        pigeonVar_channel.setMessageHandler((Object? message) async {
+          final List<Object?> args = message! as List<Object?>;
+          final String arg_deviceId = args[0]! as String;
+          final String arg_characteristicId = args[1]! as String;
+          final String arg_descriptorId = args[2]! as String;
+          final int arg_offset = args[3]! as int;
+          final Uint8List? arg_value = args[4] as Uint8List?;
+          try {
+            final PeripheralWriteRequestResult? output = api.onDescriptorWriteRequest(arg_deviceId, arg_characteristicId, arg_descriptorId, arg_offset, arg_value);
             return wrapResponse(result: output);
           } on PlatformException catch (e) {
             return wrapResponse(error: e);

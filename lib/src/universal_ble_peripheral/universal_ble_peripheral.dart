@@ -15,15 +15,8 @@ class UniversalBlePeripheralClient {
 
   Stream<UniversalBlePeripheralEvent> get eventStream => _platform.eventStream;
 
-  void setRequestHandlers({
-    OnPeripheralReadRequest? onReadRequest,
-    OnPeripheralWriteRequest? onWriteRequest,
-  }) {
-    _platform.setRequestHandlers(
-      onReadRequest: onReadRequest,
-      onWriteRequest: onWriteRequest,
-    );
-  }
+  void setRequestHandlers(PeripheralRequestHandlers handlers) =>
+      _platform.setRequestHandlers(handlers);
 
   Future<UniversalBlePeripheralReadinessState> getReadinessState() =>
       _platform.getReadinessState();
@@ -31,8 +24,8 @@ class UniversalBlePeripheralClient {
   Future<UniversalBlePeripheralAdvertisingState> getAdvertisingState() =>
       _platform.getAdvertisingState();
 
-  Future<UniversalBlePeripheralCapabilities> getCapabilities() =>
-      _platform.getCapabilities();
+  Future<UniversalBlePeripheralCapabilities> getStaticCapabilities() =>
+      _platform.getStaticCapabilities();
 
   Future<void> addService(
     BleService service, {
@@ -70,18 +63,25 @@ class UniversalBlePeripheralClient {
   Future<void> stopAdvertising() => _platform.stopAdvertising();
 
   Future<void> updateCharacteristicValue({
-    required String characteristicId,
+    required PeripheralCharacteristicId characteristicId,
     required Uint8List value,
     PeripheralUpdateTarget target = const PeripheralUpdateAllSubscribed(),
   }) =>
       _platform.updateCharacteristicValue(
-        characteristicId: characteristicId,
+        characteristicId: PeripheralCharacteristicId(
+          BleUuidParser.string(characteristicId.value),
+        ),
         value: value,
         target: target,
       );
 
-  Future<List<String>> getSubscribedClients(String characteristicId) =>
-      _platform.getSubscribedClients(BleUuidParser.string(characteristicId));
+  Future<List<String>> getSubscribedClients(PeripheralCharacteristicId characteristicId) =>
+      _platform.getSubscribedClients(
+        PeripheralCharacteristicId(BleUuidParser.string(characteristicId.value)),
+      );
+
+  Future<int?> getMaximumNotifyLength(String deviceId) =>
+      _platform.getMaximumNotifyLength(deviceId);
 }
 
 class UniversalBlePeripheral {
@@ -107,15 +107,8 @@ class UniversalBlePeripheral {
   static Stream<UniversalBlePeripheralEvent> get eventStream =>
       _client.eventStream;
 
-  static void setRequestHandlers({
-    OnPeripheralReadRequest? onReadRequest,
-    OnPeripheralWriteRequest? onWriteRequest,
-  }) {
-    _client.setRequestHandlers(
-      onReadRequest: onReadRequest,
-      onWriteRequest: onWriteRequest,
-    );
-  }
+  static void setRequestHandlers(PeripheralRequestHandlers handlers) =>
+      _client.setRequestHandlers(handlers);
 
   static Future<UniversalBlePeripheralReadinessState> getReadinessState() =>
       _client.getReadinessState();
@@ -123,8 +116,8 @@ class UniversalBlePeripheral {
   static Future<UniversalBlePeripheralAdvertisingState> getAdvertisingState() =>
       _client.getAdvertisingState();
 
-  static Future<UniversalBlePeripheralCapabilities> getCapabilities() =>
-      _client.getCapabilities();
+  static Future<UniversalBlePeripheralCapabilities> getStaticCapabilities() =>
+      _client.getStaticCapabilities();
 
   static Future<void> addService(
     BleService service, {
@@ -156,7 +149,7 @@ class UniversalBlePeripheral {
   static Future<void> stopAdvertising() => _client.stopAdvertising();
 
   static Future<void> updateCharacteristicValue({
-    required String characteristicId,
+    required PeripheralCharacteristicId characteristicId,
     required Uint8List value,
     PeripheralUpdateTarget target = const PeripheralUpdateAllSubscribed(),
   }) =>
@@ -165,6 +158,9 @@ class UniversalBlePeripheral {
 
   /// Returns client device ids currently subscribed to [characteristicId]
   /// (e.g. HID report characteristic). Used to restore in-app state after restart.
-  static Future<List<String>> getSubscribedClients(String characteristicId) =>
+  static Future<List<String>> getSubscribedClients(PeripheralCharacteristicId characteristicId) =>
       _client.getSubscribedClients(characteristicId);
+
+  static Future<int?> getMaximumNotifyLength(String deviceId) =>
+      _client.getMaximumNotifyLength(deviceId);
 }

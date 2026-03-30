@@ -936,6 +936,8 @@ class UniversalBlePeripheralChannel {
   // Returns peripheral-client device ids currently subscribed to [characteristicId]
   // (e.g. HID report characteristic). Used to restore app state after restart.
   virtual ErrorOr<::flutter::EncodableList> GetSubscribedClients(const std::string& characteristic_id) = 0;
+  // Returns max characteristic notify payload length for a connected client.
+  virtual ErrorOr<std::optional<int64_t>> GetMaximumNotifyLength(const std::string& device_id) = 0;
 
   // The codec used by UniversalBlePeripheralChannel.
   static const ::flutter::StandardMessageCodec& GetCodec();
@@ -972,6 +974,22 @@ class UniversalBlePeripheralCallback {
   void OnWriteRequest(
     const std::string& device_id,
     const std::string& characteristic_id,
+    int64_t offset,
+    const std::vector<uint8_t>* value,
+    std::function<void(const PeripheralWriteRequestResult*)>&& on_success,
+    std::function<void(const FlutterError&)>&& on_error);
+  void OnDescriptorReadRequest(
+    const std::string& device_id,
+    const std::string& characteristic_id,
+    const std::string& descriptor_id,
+    int64_t offset,
+    const std::vector<uint8_t>* value,
+    std::function<void(const PeripheralReadRequestResult*)>&& on_success,
+    std::function<void(const FlutterError&)>&& on_error);
+  void OnDescriptorWriteRequest(
+    const std::string& device_id,
+    const std::string& characteristic_id,
+    const std::string& descriptor_id,
     int64_t offset,
     const std::vector<uint8_t>* value,
     std::function<void(const PeripheralWriteRequestResult*)>&& on_success,

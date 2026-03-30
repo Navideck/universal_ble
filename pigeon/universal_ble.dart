@@ -332,6 +332,9 @@ abstract class UniversalBlePeripheralChannel {
   /// Returns peripheral-client device ids currently subscribed to [characteristicId]
   /// (e.g. HID report characteristic). Used to restore app state after restart.
   List<String> getSubscribedClients(String characteristicId);
+
+  /// Returns max characteristic notify payload length for a connected client.
+  int? getMaximumNotifyLength(String deviceId);
 }
 
 /// Native -> Flutter (peripheral)
@@ -347,6 +350,22 @@ abstract class UniversalBlePeripheralCallback {
   PeripheralWriteRequestResult? onWriteRequest(
     String deviceId,
     String characteristicId,
+    int offset,
+    Uint8List? value,
+  );
+
+  PeripheralReadRequestResult? onDescriptorReadRequest(
+    String deviceId,
+    String characteristicId,
+    String descriptorId,
+    int offset,
+    Uint8List? value,
+  );
+
+  PeripheralWriteRequestResult? onDescriptorWriteRequest(
+    String deviceId,
+    String characteristicId,
+    String descriptorId,
     int offset,
     Uint8List? value,
   );

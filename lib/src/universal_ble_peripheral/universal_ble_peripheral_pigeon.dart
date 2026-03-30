@@ -26,18 +26,19 @@ class UniversalBlePeripheralPigeon extends UniversalBlePeripheralPlatform
   bool _disposed = false;
   OnPeripheralReadRequest? _readRequestHandler;
   OnPeripheralWriteRequest? _writeRequestHandler;
+  OnPeripheralDescriptorReadRequest? _descriptorReadRequestHandler;
+  OnPeripheralDescriptorWriteRequest? _descriptorWriteRequestHandler;
 
   @override
   Stream<UniversalBlePeripheralEvent> get eventStream =>
       _eventController.stream;
 
   @override
-  void setRequestHandlers({
-    OnPeripheralReadRequest? onReadRequest,
-    OnPeripheralWriteRequest? onWriteRequest,
-  }) {
-    _readRequestHandler = onReadRequest;
-    _writeRequestHandler = onWriteRequest;
+  void setRequestHandlers(PeripheralRequestHandlers handlers) {
+    _readRequestHandler = handlers.onReadRequest;
+    _writeRequestHandler = handlers.onWriteRequest;
+    _descriptorReadRequestHandler = handlers.onDescriptorReadRequest;
+    _descriptorWriteRequestHandler = handlers.onDescriptorWriteRequest;
   }
 
   @override
@@ -75,7 +76,7 @@ class UniversalBlePeripheralPigeon extends UniversalBlePeripheralPlatform
   }
 
   @override
-  Future<UniversalBlePeripheralCapabilities> getCapabilities() async {
+  Future<UniversalBlePeripheralCapabilities> getStaticCapabilities() async {
     final readiness = await getReadinessState();
     final platform = defaultTargetPlatform;
     final supported = readiness != UniversalBlePeripheralReadinessState.unsupported;
@@ -162,7 +163,7 @@ class UniversalBlePeripheralPigeon extends UniversalBlePeripheralPlatform
 
   @override
   Future<void> updateCharacteristicValue({
-    required String characteristicId,
+    required PeripheralCharacteristicId characteristicId,
     required Uint8List value,
     PeripheralUpdateTarget target = const PeripheralUpdateAllSubscribed(),
   }) {
@@ -171,15 +172,19 @@ class UniversalBlePeripheralPigeon extends UniversalBlePeripheralPlatform
       PeripheralUpdateSingleDevice(deviceId: final id) => id,
     };
     return _channel.updateCharacteristic(
-      BleUuidParser.string(characteristicId),
+      BleUuidParser.string(characteristicId.value),
       value,
       deviceId,
     );
   }
 
   @override
-  Future<List<String>> getSubscribedClients(String characteristicId) =>
-      _channel.getSubscribedClients(characteristicId);
+  Future<List<String>> getSubscribedClients(PeripheralCharacteristicId characteristicId) =>
+      _channel.getSubscribedClients(characteristicId.value);
+
+  @override
+  Future<int?> getMaximumNotifyLength(String deviceId) =>
+      _channel.getMaximumNotifyLength(deviceId);
 
   @override
   void onAdvertisingStateChange(
@@ -249,7 +254,7 @@ class UniversalBlePeripheralPigeon extends UniversalBlePeripheralPlatform
   ) {
     final result = _readRequestHandler?.call(
       deviceId,
-      characteristicId,
+      PeripheralCharacteristicId(characteristicId),
       offset,
       value,
     );
@@ -280,10 +285,56 @@ class UniversalBlePeripheralPigeon extends UniversalBlePeripheralPlatform
   ) {
     final result = _writeRequestHandler?.call(
           deviceId,
-          characteristicId,
+          PeripheralCharacteristicId(characteristicId),
           offset,
           value,
         );
+    if (result == null) return null;
+    return pigeon.PeripheralWriteRequestResult(
+      value: result.value,
+      offset: result.offset,
+      status: result.status,
+    );
+  }
+
+  @override
+  pigeon.PeripheralReadRequestResult? onDescriptorReadRequest(
+    String deviceId,
+    String characteristicId,
+    String descriptorId,
+    int offset,
+    Uint8List? value,
+  ) {
+    final result = _descriptorReadRequestHandler?.call(
+      deviceId,
+      PeripheralCharacteristicId(characteristicId),
+      PeripheralDescriptorId(descriptorId),
+      offset,
+      value,
+    );
+    if (result == null) return null;
+    return pigeon.PeripheralReadRequestResult(
+      value: result.value,
+      offset: result.offset,
+      status: result.status,
+    );
+  }
+
+  @override
+  pigeon.PeripheralWriteRequestResult? onDescriptorWriteRequest(
+    String deviceId,
+    String characteristicId,
+    String descriptorId,
+    int offset,
+    Uint8List? value,
+  ) {
+    final result = _descriptorWriteRequestHandler?.call(
+      deviceId,
+      PeripheralCharacteristicId(characteristicId),
+      PeripheralDescriptorId(descriptorId),
+      offset,
+      value,
+    );
     if (result == null) return null;
     return pigeon.PeripheralWriteRequestResult(
       value: result.value,

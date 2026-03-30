@@ -42,6 +42,7 @@ class UniversalBlePeripheralPlugin(
     private var bluetoothLeAdvertiser: BluetoothLeAdvertiser? = null
     private var gattServer: BluetoothGattServer? = null
     private val bluetoothDevicesMap: MutableMap<String, BluetoothDevice> = HashMap()
+    private val mtuByDeviceId: MutableMap<String, Int> = HashMap()
     private val listOfDevicesWaitingForBond = mutableListOf<String>()
     private val emptyBytes = byteArrayOf()
     private var advertisingState: PeripheralAdvertisingState = PeripheralAdvertisingState.IDLE
@@ -72,6 +73,7 @@ class UniversalBlePeripheralPlugin(
         synchronized(listOfDevicesWaitingForBond) {
             listOfDevicesWaitingForBond.clear()
         }
+        synchronized(mtuByDeviceId) { mtuByDeviceId.clear() }
         clearPeripheralCaches()
     }
 
@@ -239,6 +241,11 @@ class UniversalBlePeripheralPlugin(
         }
     }
 
+    override fun getMaximumNotifyLength(deviceId: String): Long? {
+        val mtu = synchronized(mtuByDeviceId) { mtuByDeviceId[deviceId] } ?: return null
+        return (mtu - 3).coerceAtLeast(0).toLong()
+    }
+
     private fun isBluetoothEnabled(): Boolean =
         bluetoothManager.adapter?.isEnabled ?: false
 
@@ -328,6 +335,7 @@ class UniversalBlePeripheralPlugin(
         override fun onMtuChanged(device: BluetoothDevice?, mtu: Int) {
             super.onMtuChanged(device, mtu)
             device?.address?.let { address ->
+                synchronized(mtuByDeviceId) { mtuByDeviceId[address] = mtu }
                 handler.post { callback.onMtuChange(address, mtu.toLong()) {} }
             }
         }
@@ -412,11 +420,31 @@ class UniversalBlePeripheralPlugin(
         ) {
             super.onDescriptorReadRequest(device, requestId, offset, descriptor)
             handler.post {
-                val value = descriptor.getCacheValue()
-                if (value != null) {
-                    gattServer?.sendResponse(device, requestId, BluetoothGatt.GATT_SUCCESS, 0, value)
-                } else {
-                    gattServer?.sendResponse(device, requestId, BluetoothGatt.GATT_FAILURE, 0, emptyBytes)
+                callback.onDescriptorReadRequest(
+                    deviceIdArg = device.address,
+                    characteristicIdArg = descriptor.characteristic.uuid.toString(),
+                    descriptorIdArg = descriptor.uuid.toString(),
+                    offsetArg = offset.toLong(),
+                    valueArg = descriptor.getCacheValue(),
+                ) { result ->
+                    val readResult = result.getOrNull()
+                    if (readResult == null) {
+                        gattServer?.sendResponse(
+                            device,
+                            requestId,
+                            BluetoothGatt.GATT_FAILURE,
+                            offset,
+                            emptyBytes,
+                        )
+                    } else {
+                        gattServer?.sendResponse(
+                            device,
+                            requestId,
+                            readResult.status?.toInt() ?: BluetoothGatt.GATT_SUCCESS,
+                            readResult.offset?.toInt() ?: offset,
+                            readResult.value,
+                        )
+                    }
                 }
             }
         }
@@ -457,9 +485,24 @@ class UniversalBlePeripheralPlugin(
                 }
             }
             if (responseNeeded) {
-                gattServer?.sendResponse(
-                    device, requestId, BluetoothGatt.GATT_SUCCESS, offset, value ?: emptyBytes,
-                )
+                handler.post {
+                    callback.onDescriptorWriteRequest(
+                        deviceIdArg = device?.address ?: "",
+                        characteristicIdArg = descriptor.characteristic.uuid.toString(),
+                        descriptorIdArg = descriptor.uuid.toString(),
+                        offsetArg = offset.toLong(),
+                        valueArg = value,
+                    ) { writeResponse ->
+                        val writeResult = writeResponse.getOrNull()
+                        gattServer?.sendResponse(
+                            device,
+                            requestId,
+                            writeResult?.status?.toInt() ?: BluetoothGatt.GATT_SUCCESS,
+                            writeResult?.offset?.toInt() ?: offset,
+                            writeResult?.value ?: value ?: emptyBytes,
+                        )
+                    }
+                }
             }
         }
     }

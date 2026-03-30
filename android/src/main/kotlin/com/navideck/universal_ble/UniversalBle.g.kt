@@ -1758,6 +1758,8 @@ interface UniversalBlePeripheralChannel {
    * (e.g. HID report characteristic). Used to restore app state after restart.
    */
   fun getSubscribedClients(characteristicId: String): List<String>
+  /** Returns max characteristic notify payload length for a connected client. */
+  fun getMaximumNotifyLength(deviceId: String): Long?
 
   companion object {
     /** The codec used by UniversalBlePeripheralChannel. */
@@ -1940,6 +1942,23 @@ interface UniversalBlePeripheralChannel {
           channel.setMessageHandler(null)
         }
       }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.universal_ble.UniversalBlePeripheralChannel.getMaximumNotifyLength$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { message, reply ->
+            val args = message as List<Any?>
+            val deviceIdArg = args[0] as String
+            val wrapped: List<Any?> = try {
+              listOf(api.getMaximumNotifyLength(deviceIdArg))
+            } catch (exception: Throwable) {
+              UniversalBlePigeonUtils.wrapError(exception)
+            }
+            reply.reply(wrapped)
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
     }
   }
 }
@@ -1979,6 +1998,42 @@ class UniversalBlePeripheralCallback(private val binaryMessenger: BinaryMessenge
     val channelName = "dev.flutter.pigeon.universal_ble.UniversalBlePeripheralCallback.onWriteRequest$separatedMessageChannelSuffix"
     val channel = BasicMessageChannel<Any?>(binaryMessenger, channelName, codec)
     channel.send(listOf(deviceIdArg, characteristicIdArg, offsetArg, valueArg)) {
+      if (it is List<*>) {
+        if (it.size > 1) {
+          callback(Result.failure(FlutterError(it[0] as String, it[1] as String, it[2] as String?)))
+        } else {
+          val output = it[0] as PeripheralWriteRequestResult?
+          callback(Result.success(output))
+        }
+      } else {
+        callback(Result.failure(UniversalBlePigeonUtils.createConnectionError(channelName)))
+      } 
+    }
+  }
+  fun onDescriptorReadRequest(deviceIdArg: String, characteristicIdArg: String, descriptorIdArg: String, offsetArg: Long, valueArg: ByteArray?, callback: (Result<PeripheralReadRequestResult?>) -> Unit)
+{
+    val separatedMessageChannelSuffix = if (messageChannelSuffix.isNotEmpty()) ".$messageChannelSuffix" else ""
+    val channelName = "dev.flutter.pigeon.universal_ble.UniversalBlePeripheralCallback.onDescriptorReadRequest$separatedMessageChannelSuffix"
+    val channel = BasicMessageChannel<Any?>(binaryMessenger, channelName, codec)
+    channel.send(listOf(deviceIdArg, characteristicIdArg, descriptorIdArg, offsetArg, valueArg)) {
+      if (it is List<*>) {
+        if (it.size > 1) {
+          callback(Result.failure(FlutterError(it[0] as String, it[1] as String, it[2] as String?)))
+        } else {
+          val output = it[0] as PeripheralReadRequestResult?
+          callback(Result.success(output))
+        }
+      } else {
+        callback(Result.failure(UniversalBlePigeonUtils.createConnectionError(channelName)))
+      } 
+    }
+  }
+  fun onDescriptorWriteRequest(deviceIdArg: String, characteristicIdArg: String, descriptorIdArg: String, offsetArg: Long, valueArg: ByteArray?, callback: (Result<PeripheralWriteRequestResult?>) -> Unit)
+{
+    val separatedMessageChannelSuffix = if (messageChannelSuffix.isNotEmpty()) ".$messageChannelSuffix" else ""
+    val channelName = "dev.flutter.pigeon.universal_ble.UniversalBlePeripheralCallback.onDescriptorWriteRequest$separatedMessageChannelSuffix"
+    val channel = BasicMessageChannel<Any?>(binaryMessenger, channelName, codec)
+    channel.send(listOf(deviceIdArg, characteristicIdArg, descriptorIdArg, offsetArg, valueArg)) {
       if (it is List<*>) {
         if (it.size > 1) {
           callback(Result.failure(FlutterError(it[0] as String, it[1] as String, it[2] as String?)))
