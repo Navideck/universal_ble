@@ -65,7 +65,6 @@ A cross-platform (Android/iOS/macOS/Windows/Linux/Web) Bluetooth Low Energy (BLE
 
 | API                    | Android | iOS | macOS | Windows | Linux | Web |
 | :--------------------- | :-----: | :-: | :---: | :-----: | :---: | :-: |
-| initialize             |   ✔️    | ✔️  |  ✔️   |   ✔️    |  🚧   | ❌  |
 | isSupported            |   ✔️    | ✔️  |  ✔️   |   ✔️    |  🚧   | ❌  |
 | isAdvertising          |   ✔️    | ✔️  |  ✔️   |   ✔️    |  🚧   | ❌  |
 | addService             |   ✔️    | ✔️  |  ✔️   |   ✔️    |  🚧   | ❌  |
