@@ -1,4 +1,4 @@
-import 'package:universal_ble/src/universal_ble_peripheral/generated/universal_ble_peripheral.g.dart'
+import 'package:universal_ble/src/universal_ble_pigeon/universal_ble.g.dart'
     as pigeon;
 import 'package:universal_ble/universal_ble.dart';
 

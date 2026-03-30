@@ -239,6 +239,115 @@ class UniversalManufacturerData {
   });
 }
 
+class PeripheralService {
+  String uuid;
+  bool primary;
+  List<PeripheralCharacteristic> characteristics;
+  PeripheralService(this.uuid, this.primary, this.characteristics);
+}
+
+class PeripheralCharacteristic {
+  String uuid;
+  List<int> properties;
+  List<int> permissions;
+  List<PeripheralDescriptor>? descriptors;
+  Uint8List? value;
+
+  PeripheralCharacteristic(
+    this.uuid,
+    this.properties,
+    this.permissions,
+    this.descriptors,
+    this.value,
+  );
+}
+
+class PeripheralDescriptor {
+  String uuid;
+  Uint8List? value;
+  List<int>? permissions;
+  PeripheralDescriptor(this.uuid, this.value, this.permissions);
+}
+
+class PeripheralReadRequestResult {
+  Uint8List value;
+  int? offset;
+  int? status;
+  PeripheralReadRequestResult({required this.value, this.offset, this.status});
+}
+
+class PeripheralWriteRequestResult {
+  Uint8List? value;
+  int? offset;
+  int? status;
+  PeripheralWriteRequestResult({this.value, this.offset, this.status});
+}
+
+class PeripheralManufacturerData {
+  int manufacturerId;
+  Uint8List data;
+  PeripheralManufacturerData(
+      {required this.manufacturerId, required this.data});
+}
+
+/// Flutter -> Native (peripheral)
+@HostApi()
+abstract class UniversalBlePeripheralChannel {
+  void initialize();
+  bool? isAdvertising();
+  bool isSupported();
+  void stopAdvertising();
+  void addService(PeripheralService service);
+  void removeService(String serviceId);
+  void clearServices();
+  List<String> getServices();
+  void startAdvertising(
+    List<String> services,
+    String? localName,
+    int? timeout,
+    PeripheralManufacturerData? manufacturerData,
+    bool addManufacturerDataInScanResponse,
+  );
+  void updateCharacteristic(
+    String characteristicId,
+    Uint8List value,
+    String? deviceId,
+  );
+
+  /// Returns peripheral-central device ids currently subscribed to [characteristicId]
+  /// (e.g. HID report characteristic). Used to restore app state after restart.
+  List<String> getSubscribedCentrals(String characteristicId);
+}
+
+/// Native -> Flutter (peripheral)
+@FlutterApi()
+abstract class UniversalBlePeripheralCallback {
+  PeripheralReadRequestResult? onReadRequest(
+    String deviceId,
+    String characteristicId,
+    int offset,
+    Uint8List? value,
+  );
+
+  PeripheralWriteRequestResult? onWriteRequest(
+    String deviceId,
+    String characteristicId,
+    int offset,
+    Uint8List? value,
+  );
+
+  void onCharacteristicSubscriptionChange(
+    String deviceId,
+    String characteristicId,
+    bool isSubscribed,
+    String? name,
+  );
+  void onAdvertisingStatusUpdate(bool advertising, String? error);
+  void onServiceAdded(String serviceId, String? error);
+  void onMtuChange(String deviceId, int mtu);
+  void onConnectionStateChange(String deviceId, bool connected);
+}
+
 /// Unified error codes for all platforms
 enum UniversalBleErrorCode {
   // General errors

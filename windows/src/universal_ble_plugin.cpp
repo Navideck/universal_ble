@@ -14,7 +14,6 @@
 
 #include "enum_parser.h"
 #include "generated/universal_ble.g.h"
-#include "generated/universal_ble_peripheral.g.h"
 #include "helper/universal_ble_logger.h"
 #include "helper/universal_enum.h"
 #include "helper/utils.h"

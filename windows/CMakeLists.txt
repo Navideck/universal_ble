@@ -41,8 +41,6 @@ list(APPEND PLUGIN_SOURCES
   "src/ui_thread_handler.hpp"
   "src/generated/universal_ble.g.cpp"
   "src/generated/universal_ble.g.h"
-  "src/generated/universal_ble_peripheral.g.cpp"
-  "src/generated/universal_ble_peripheral.g.h"
   "src/pin_entry.h"
   "src/universal_ble_filter_util.cpp"
   "src/universal_ble_filter_util.h"
