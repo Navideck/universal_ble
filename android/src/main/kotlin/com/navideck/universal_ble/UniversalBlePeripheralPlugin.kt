@@ -44,7 +44,7 @@ class UniversalBlePeripheralPlugin(
     private val bluetoothDevicesMap: MutableMap<String, BluetoothDevice> = HashMap()
     private val listOfDevicesWaitingForBond = mutableListOf<String>()
     private val emptyBytes = byteArrayOf()
-    private var advertising: Boolean? = null
+    private var advertisingState: PeripheralAdvertisingState = PeripheralAdvertisingState.IDLE
     private var receiverRegistered = false
     private var originalAdapterName: String? = null
     private var adapterNameOverridden = false
@@ -102,14 +102,20 @@ class UniversalBlePeripheralPlugin(
         }
     }
 
-    override fun isAdvertising(): Boolean? = advertising
+    override fun getAdvertisingState(): PeripheralAdvertisingState = advertisingState
 
-    override fun isSupported(): Boolean {
+    override fun isFeatureSupported(): Boolean {
         val adapter = bluetoothManager.adapter ?: return false
         if (!adapter.isMultipleAdvertisementSupported) {
             return false
         }
         return true
+    }
+
+    override fun getReadinessState(): PeripheralReadinessState {
+        val adapter = bluetoothManager.adapter ?: return PeripheralReadinessState.UNSUPPORTED
+        if (!adapter.isEnabled) return PeripheralReadinessState.BLUETOOTH_OFF
+        return PeripheralReadinessState.READY
     }
 
     override fun addService(service: PeripheralService) {
@@ -140,6 +146,8 @@ class UniversalBlePeripheralPlugin(
         addManufacturerDataInScanResponse: Boolean,
     ) {
         initializePeripheral()
+        advertisingState = PeripheralAdvertisingState.STARTING
+        callback.onAdvertisingStateChange(PeripheralAdvertisingState.STARTING, null) {}
         if (!isBluetoothEnabled()) {
             activity?.startActivityForResult(
                 Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE),
@@ -197,11 +205,13 @@ class UniversalBlePeripheralPlugin(
 
     override fun stopAdvertising() {
         initializePeripheral()
+        advertisingState = PeripheralAdvertisingState.STOPPING
+        callback.onAdvertisingStateChange(PeripheralAdvertisingState.STOPPING, null) {}
         handler.post {
             bluetoothLeAdvertiser?.stopAdvertising(advertiseCallback)
             restoreAdapterNameIfNeeded()
-            advertising = false
-            callback.onAdvertisingStatusUpdate(false, null) {}
+            advertisingState = PeripheralAdvertisingState.IDLE
+            callback.onAdvertisingStateChange(PeripheralAdvertisingState.IDLE, null) {}
         }
     }
 
@@ -281,14 +291,17 @@ class UniversalBlePeripheralPlugin(
                     ADVERTISE_FAILED_TOO_MANY_ADVERTISERS -> "Too many advertisers"
                     else -> "Failed to start advertising: $errorCode"
                 }
-                callback.onAdvertisingStatusUpdate(false, errorMessage) {}
+                advertisingState = PeripheralAdvertisingState.ERROR
+                callback.onAdvertisingStateChange(PeripheralAdvertisingState.ERROR, errorMessage) {}
             }
         }
 
         override fun onStartSuccess(settingsInEffect: AdvertiseSettings?) {
             super.onStartSuccess(settingsInEffect)
-            advertising = true
-            handler.post { callback.onAdvertisingStatusUpdate(true, null) {} }
+            advertisingState = PeripheralAdvertisingState.ADVERTISING
+            handler.post {
+                callback.onAdvertisingStateChange(PeripheralAdvertisingState.ADVERTISING, null) {}
+            }
         }
     }
 

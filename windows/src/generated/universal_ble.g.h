@@ -76,6 +76,22 @@ enum class AndroidScanMode {
   kOpportunistic = 3
 };
 
+enum class PeripheralReadinessState {
+  kUnknown = 0,
+  kReady = 1,
+  kBluetoothOff = 2,
+  kUnauthorized = 3,
+  kUnsupported = 4
+};
+
+enum class PeripheralAdvertisingState {
+  kIdle = 0,
+  kStarting = 1,
+  kAdvertising = 2,
+  kStopping = 3,
+  kError = 4
+};
+
 // Unified error codes for all platforms
 enum class UniversalBleErrorCode {
   kUnknownError = 0,
@@ -900,8 +916,9 @@ class UniversalBlePeripheralChannel {
   UniversalBlePeripheralChannel(const UniversalBlePeripheralChannel&) = delete;
   UniversalBlePeripheralChannel& operator=(const UniversalBlePeripheralChannel&) = delete;
   virtual ~UniversalBlePeripheralChannel() {}
-  virtual ErrorOr<std::optional<bool>> IsAdvertising() = 0;
-  virtual ErrorOr<bool> IsSupported() = 0;
+  virtual ErrorOr<PeripheralAdvertisingState> GetAdvertisingState() = 0;
+  virtual ErrorOr<bool> IsFeatureSupported() = 0;
+  virtual ErrorOr<PeripheralReadinessState> GetReadinessState() = 0;
   virtual std::optional<FlutterError> StopAdvertising() = 0;
   virtual std::optional<FlutterError> AddService(const PeripheralService& service) = 0;
   virtual std::optional<FlutterError> RemoveService(const std::string& service_id) = 0;
@@ -967,8 +984,8 @@ class UniversalBlePeripheralCallback {
     const std::string* name,
     std::function<void(void)>&& on_success,
     std::function<void(const FlutterError&)>&& on_error);
-  void OnAdvertisingStatusUpdate(
-    bool advertising,
+  void OnAdvertisingStateChange(
+    const PeripheralAdvertisingState& state,
     const std::string* error,
     std::function<void(void)>&& on_success,
     std::function<void(const FlutterError&)>&& on_error);

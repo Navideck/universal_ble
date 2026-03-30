@@ -195,6 +195,22 @@ enum AndroidScanMode: Int {
   case opportunistic = 3
 }
 
+enum PeripheralReadinessState: Int {
+  case unknown = 0
+  case ready = 1
+  case bluetoothOff = 2
+  case unauthorized = 3
+  case unsupported = 4
+}
+
+enum PeripheralAdvertisingState: Int {
+  case idle = 0
+  case starting = 1
+  case advertising = 2
+  case stopping = 3
+  case error = 4
+}
+
 /// Unified error codes for all platforms
 enum UniversalBleErrorCode: Int {
   case unknownError = 0
@@ -902,38 +918,50 @@ private class UniversalBlePigeonCodecReader: FlutterStandardReader {
     case 131:
       let enumResultAsInt: Int? = nilOrValue(self.readValue() as! Int?)
       if let enumResultAsInt = enumResultAsInt {
-        return UniversalBleErrorCode(rawValue: enumResultAsInt)
+        return PeripheralReadinessState(rawValue: enumResultAsInt)
       }
       return nil
     case 132:
-      return UniversalBleScanResult.fromList(self.readValue() as! [Any?])
+      let enumResultAsInt: Int? = nilOrValue(self.readValue() as! Int?)
+      if let enumResultAsInt = enumResultAsInt {
+        return PeripheralAdvertisingState(rawValue: enumResultAsInt)
+      }
+      return nil
     case 133:
-      return UniversalBleService.fromList(self.readValue() as! [Any?])
+      let enumResultAsInt: Int? = nilOrValue(self.readValue() as! Int?)
+      if let enumResultAsInt = enumResultAsInt {
+        return UniversalBleErrorCode(rawValue: enumResultAsInt)
+      }
+      return nil
     case 134:
-      return UniversalBleCharacteristic.fromList(self.readValue() as! [Any?])
+      return UniversalBleScanResult.fromList(self.readValue() as! [Any?])
     case 135:
-      return UniversalBleDescriptor.fromList(self.readValue() as! [Any?])
+      return UniversalBleService.fromList(self.readValue() as! [Any?])
     case 136:
-      return AndroidOptions.fromList(self.readValue() as! [Any?])
+      return UniversalBleCharacteristic.fromList(self.readValue() as! [Any?])
     case 137:
-      return UniversalScanConfig.fromList(self.readValue() as! [Any?])
+      return UniversalBleDescriptor.fromList(self.readValue() as! [Any?])
     case 138:
-      return UniversalScanFilter.fromList(self.readValue() as! [Any?])
+      return AndroidOptions.fromList(self.readValue() as! [Any?])
     case 139:
-      return UniversalManufacturerDataFilter.fromList(self.readValue() as! [Any?])
+      return UniversalScanConfig.fromList(self.readValue() as! [Any?])
     case 140:
-      return UniversalManufacturerData.fromList(self.readValue() as! [Any?])
+      return UniversalScanFilter.fromList(self.readValue() as! [Any?])
     case 141:
-      return PeripheralService.fromList(self.readValue() as! [Any?])
+      return UniversalManufacturerDataFilter.fromList(self.readValue() as! [Any?])
     case 142:
-      return PeripheralCharacteristic.fromList(self.readValue() as! [Any?])
+      return UniversalManufacturerData.fromList(self.readValue() as! [Any?])
     case 143:
-      return PeripheralDescriptor.fromList(self.readValue() as! [Any?])
+      return PeripheralService.fromList(self.readValue() as! [Any?])
     case 144:
-      return PeripheralReadRequestResult.fromList(self.readValue() as! [Any?])
+      return PeripheralCharacteristic.fromList(self.readValue() as! [Any?])
     case 145:
-      return PeripheralWriteRequestResult.fromList(self.readValue() as! [Any?])
+      return PeripheralDescriptor.fromList(self.readValue() as! [Any?])
     case 146:
+      return PeripheralReadRequestResult.fromList(self.readValue() as! [Any?])
+    case 147:
+      return PeripheralWriteRequestResult.fromList(self.readValue() as! [Any?])
+    case 148:
       return PeripheralManufacturerData.fromList(self.readValue() as! [Any?])
     default:
       return super.readValue(ofType: type)
@@ -949,53 +977,59 @@ private class UniversalBlePigeonCodecWriter: FlutterStandardWriter {
     } else if let value = value as? AndroidScanMode {
       super.writeByte(130)
       super.writeValue(value.rawValue)
-    } else if let value = value as? UniversalBleErrorCode {
+    } else if let value = value as? PeripheralReadinessState {
       super.writeByte(131)
       super.writeValue(value.rawValue)
-    } else if let value = value as? UniversalBleScanResult {
+    } else if let value = value as? PeripheralAdvertisingState {
       super.writeByte(132)
-      super.writeValue(value.toList())
-    } else if let value = value as? UniversalBleService {
+      super.writeValue(value.rawValue)
+    } else if let value = value as? UniversalBleErrorCode {
       super.writeByte(133)
-      super.writeValue(value.toList())
-    } else if let value = value as? UniversalBleCharacteristic {
+      super.writeValue(value.rawValue)
+    } else if let value = value as? UniversalBleScanResult {
       super.writeByte(134)
       super.writeValue(value.toList())
-    } else if let value = value as? UniversalBleDescriptor {
+    } else if let value = value as? UniversalBleService {
       super.writeByte(135)
       super.writeValue(value.toList())
-    } else if let value = value as? AndroidOptions {
+    } else if let value = value as? UniversalBleCharacteristic {
       super.writeByte(136)
       super.writeValue(value.toList())
-    } else if let value = value as? UniversalScanConfig {
+    } else if let value = value as? UniversalBleDescriptor {
       super.writeByte(137)
       super.writeValue(value.toList())
-    } else if let value = value as? UniversalScanFilter {
+    } else if let value = value as? AndroidOptions {
       super.writeByte(138)
       super.writeValue(value.toList())
-    } else if let value = value as? UniversalManufacturerDataFilter {
+    } else if let value = value as? UniversalScanConfig {
       super.writeByte(139)
       super.writeValue(value.toList())
-    } else if let value = value as? UniversalManufacturerData {
+    } else if let value = value as? UniversalScanFilter {
       super.writeByte(140)
       super.writeValue(value.toList())
-    } else if let value = value as? PeripheralService {
+    } else if let value = value as? UniversalManufacturerDataFilter {
       super.writeByte(141)
       super.writeValue(value.toList())
-    } else if let value = value as? PeripheralCharacteristic {
+    } else if let value = value as? UniversalManufacturerData {
       super.writeByte(142)
       super.writeValue(value.toList())
-    } else if let value = value as? PeripheralDescriptor {
+    } else if let value = value as? PeripheralService {
       super.writeByte(143)
       super.writeValue(value.toList())
-    } else if let value = value as? PeripheralReadRequestResult {
+    } else if let value = value as? PeripheralCharacteristic {
       super.writeByte(144)
       super.writeValue(value.toList())
-    } else if let value = value as? PeripheralWriteRequestResult {
+    } else if let value = value as? PeripheralDescriptor {
       super.writeByte(145)
       super.writeValue(value.toList())
-    } else if let value = value as? PeripheralManufacturerData {
+    } else if let value = value as? PeripheralReadRequestResult {
       super.writeByte(146)
+      super.writeValue(value.toList())
+    } else if let value = value as? PeripheralWriteRequestResult {
+      super.writeByte(147)
+      super.writeValue(value.toList())
+    } else if let value = value as? PeripheralManufacturerData {
+      super.writeByte(148)
       super.writeValue(value.toList())
     } else {
       super.writeValue(value)
@@ -1547,8 +1581,9 @@ class UniversalBleCallbackChannel: UniversalBleCallbackChannelProtocol {
 ///
 /// Generated protocol from Pigeon that represents a handler of messages from Flutter.
 protocol UniversalBlePeripheralChannel {
-  func isAdvertising() throws -> Bool?
-  func isSupported() throws -> Bool
+  func getAdvertisingState() throws -> PeripheralAdvertisingState
+  func isFeatureSupported() throws -> Bool
+  func getReadinessState() throws -> PeripheralReadinessState
   func stopAdvertising() throws
   func addService(service: PeripheralService) throws
   func removeService(serviceId: String) throws
@@ -1567,31 +1602,44 @@ class UniversalBlePeripheralChannelSetup {
   /// Sets up an instance of `UniversalBlePeripheralChannel` to handle messages through the `binaryMessenger`.
   static func setUp(binaryMessenger: FlutterBinaryMessenger, api: UniversalBlePeripheralChannel?, messageChannelSuffix: String = "") {
     let channelSuffix = messageChannelSuffix.count > 0 ? ".\(messageChannelSuffix)" : ""
-    let isAdvertisingChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.universal_ble.UniversalBlePeripheralChannel.isAdvertising\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    let getAdvertisingStateChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.universal_ble.UniversalBlePeripheralChannel.getAdvertisingState\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
     if let api = api {
-      isAdvertisingChannel.setMessageHandler { _, reply in
+      getAdvertisingStateChannel.setMessageHandler { _, reply in
         do {
-          let result = try api.isAdvertising()
+          let result = try api.getAdvertisingState()
           reply(wrapResult(result))
         } catch {
           reply(wrapError(error))
         }
       }
     } else {
-      isAdvertisingChannel.setMessageHandler(nil)
+      getAdvertisingStateChannel.setMessageHandler(nil)
     }
-    let isSupportedChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.universal_ble.UniversalBlePeripheralChannel.isSupported\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    let isFeatureSupportedChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.universal_ble.UniversalBlePeripheralChannel.isFeatureSupported\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
     if let api = api {
-      isSupportedChannel.setMessageHandler { _, reply in
+      isFeatureSupportedChannel.setMessageHandler { _, reply in
         do {
-          let result = try api.isSupported()
+          let result = try api.isFeatureSupported()
           reply(wrapResult(result))
         } catch {
           reply(wrapError(error))
         }
       }
     } else {
-      isSupportedChannel.setMessageHandler(nil)
+      isFeatureSupportedChannel.setMessageHandler(nil)
+    }
+    let getReadinessStateChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.universal_ble.UniversalBlePeripheralChannel.getReadinessState\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    if let api = api {
+      getReadinessStateChannel.setMessageHandler { _, reply in
+        do {
+          let result = try api.getReadinessState()
+          reply(wrapResult(result))
+        } catch {
+          reply(wrapError(error))
+        }
+      }
+    } else {
+      getReadinessStateChannel.setMessageHandler(nil)
     }
     let stopAdvertisingChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.universal_ble.UniversalBlePeripheralChannel.stopAdvertising\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
     if let api = api {
@@ -1724,7 +1772,7 @@ protocol UniversalBlePeripheralCallbackProtocol {
   func onReadRequest(deviceId deviceIdArg: String, characteristicId characteristicIdArg: String, offset offsetArg: Int64, value valueArg: FlutterStandardTypedData?, completion: @escaping (Result<PeripheralReadRequestResult?, PigeonError>) -> Void)
   func onWriteRequest(deviceId deviceIdArg: String, characteristicId characteristicIdArg: String, offset offsetArg: Int64, value valueArg: FlutterStandardTypedData?, completion: @escaping (Result<PeripheralWriteRequestResult?, PigeonError>) -> Void)
   func onCharacteristicSubscriptionChange(deviceId deviceIdArg: String, characteristicId characteristicIdArg: String, isSubscribed isSubscribedArg: Bool, name nameArg: String?, completion: @escaping (Result<Void, PigeonError>) -> Void)
-  func onAdvertisingStatusUpdate(advertising advertisingArg: Bool, error errorArg: String?, completion: @escaping (Result<Void, PigeonError>) -> Void)
+  func onAdvertisingStateChange(state stateArg: PeripheralAdvertisingState, error errorArg: String?, completion: @escaping (Result<Void, PigeonError>) -> Void)
   func onServiceAdded(serviceId serviceIdArg: String, error errorArg: String?, completion: @escaping (Result<Void, PigeonError>) -> Void)
   func onMtuChange(deviceId deviceIdArg: String, mtu mtuArg: Int64, completion: @escaping (Result<Void, PigeonError>) -> Void)
   func onConnectionStateChange(deviceId deviceIdArg: String, connected connectedArg: Bool, completion: @escaping (Result<Void, PigeonError>) -> Void)
@@ -1795,10 +1843,10 @@ class UniversalBlePeripheralCallback: UniversalBlePeripheralCallbackProtocol {
       }
     }
   }
-  func onAdvertisingStatusUpdate(advertising advertisingArg: Bool, error errorArg: String?, completion: @escaping (Result<Void, PigeonError>) -> Void) {
-    let channelName: String = "dev.flutter.pigeon.universal_ble.UniversalBlePeripheralCallback.onAdvertisingStatusUpdate\(messageChannelSuffix)"
+  func onAdvertisingStateChange(state stateArg: PeripheralAdvertisingState, error errorArg: String?, completion: @escaping (Result<Void, PigeonError>) -> Void) {
+    let channelName: String = "dev.flutter.pigeon.universal_ble.UniversalBlePeripheralCallback.onAdvertisingStateChange\(messageChannelSuffix)"
     let channel = FlutterBasicMessageChannel(name: channelName, binaryMessenger: binaryMessenger, codec: codec)
-    channel.sendMessage([advertisingArg, errorArg] as [Any?]) { response in
+    channel.sendMessage([stateArg, errorArg] as [Any?]) { response in
       guard let listResponse = response as? [Any?] else {
         completion(.failure(createConnectionError(withChannelName: channelName)))
         return

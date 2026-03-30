@@ -124,6 +124,22 @@ enum AndroidScanMode {
   opportunistic,
 }
 
+enum PeripheralReadinessState {
+  unknown,
+  ready,
+  bluetoothOff,
+  unauthorized,
+  unsupported,
+}
+
+enum PeripheralAdvertisingState {
+  idle,
+  starting,
+  advertising,
+  stopping,
+  error,
+}
+
 /// Unified error codes for all platforms
 enum UniversalBleErrorCode {
   unknownError,
@@ -960,53 +976,59 @@ class _PigeonCodec extends StandardMessageCodec {
     }    else if (value is AndroidScanMode) {
       buffer.putUint8(130);
       writeValue(buffer, value.index);
-    }    else if (value is UniversalBleErrorCode) {
+    }    else if (value is PeripheralReadinessState) {
       buffer.putUint8(131);
       writeValue(buffer, value.index);
-    }    else if (value is UniversalBleScanResult) {
+    }    else if (value is PeripheralAdvertisingState) {
       buffer.putUint8(132);
-      writeValue(buffer, value.encode());
-    }    else if (value is UniversalBleService) {
+      writeValue(buffer, value.index);
+    }    else if (value is UniversalBleErrorCode) {
       buffer.putUint8(133);
-      writeValue(buffer, value.encode());
-    }    else if (value is UniversalBleCharacteristic) {
+      writeValue(buffer, value.index);
+    }    else if (value is UniversalBleScanResult) {
       buffer.putUint8(134);
       writeValue(buffer, value.encode());
-    }    else if (value is UniversalBleDescriptor) {
+    }    else if (value is UniversalBleService) {
       buffer.putUint8(135);
       writeValue(buffer, value.encode());
-    }    else if (value is AndroidOptions) {
+    }    else if (value is UniversalBleCharacteristic) {
       buffer.putUint8(136);
       writeValue(buffer, value.encode());
-    }    else if (value is UniversalScanConfig) {
+    }    else if (value is UniversalBleDescriptor) {
       buffer.putUint8(137);
       writeValue(buffer, value.encode());
-    }    else if (value is UniversalScanFilter) {
+    }    else if (value is AndroidOptions) {
       buffer.putUint8(138);
       writeValue(buffer, value.encode());
-    }    else if (value is UniversalManufacturerDataFilter) {
+    }    else if (value is UniversalScanConfig) {
       buffer.putUint8(139);
       writeValue(buffer, value.encode());
-    }    else if (value is UniversalManufacturerData) {
+    }    else if (value is UniversalScanFilter) {
       buffer.putUint8(140);
       writeValue(buffer, value.encode());
-    }    else if (value is PeripheralService) {
+    }    else if (value is UniversalManufacturerDataFilter) {
       buffer.putUint8(141);
       writeValue(buffer, value.encode());
-    }    else if (value is PeripheralCharacteristic) {
+    }    else if (value is UniversalManufacturerData) {
       buffer.putUint8(142);
       writeValue(buffer, value.encode());
-    }    else if (value is PeripheralDescriptor) {
+    }    else if (value is PeripheralService) {
       buffer.putUint8(143);
       writeValue(buffer, value.encode());
-    }    else if (value is PeripheralReadRequestResult) {
+    }    else if (value is PeripheralCharacteristic) {
       buffer.putUint8(144);
       writeValue(buffer, value.encode());
-    }    else if (value is PeripheralWriteRequestResult) {
+    }    else if (value is PeripheralDescriptor) {
       buffer.putUint8(145);
       writeValue(buffer, value.encode());
-    }    else if (value is PeripheralManufacturerData) {
+    }    else if (value is PeripheralReadRequestResult) {
       buffer.putUint8(146);
+      writeValue(buffer, value.encode());
+    }    else if (value is PeripheralWriteRequestResult) {
+      buffer.putUint8(147);
+      writeValue(buffer, value.encode());
+    }    else if (value is PeripheralManufacturerData) {
+      buffer.putUint8(148);
       writeValue(buffer, value.encode());
     } else {
       super.writeValue(buffer, value);
@@ -1024,36 +1046,42 @@ class _PigeonCodec extends StandardMessageCodec {
         return value == null ? null : AndroidScanMode.values[value];
       case 131:
         final value = readValue(buffer) as int?;
-        return value == null ? null : UniversalBleErrorCode.values[value];
+        return value == null ? null : PeripheralReadinessState.values[value];
       case 132:
-        return UniversalBleScanResult.decode(readValue(buffer)!);
+        final value = readValue(buffer) as int?;
+        return value == null ? null : PeripheralAdvertisingState.values[value];
       case 133:
-        return UniversalBleService.decode(readValue(buffer)!);
+        final value = readValue(buffer) as int?;
+        return value == null ? null : UniversalBleErrorCode.values[value];
       case 134:
-        return UniversalBleCharacteristic.decode(readValue(buffer)!);
+        return UniversalBleScanResult.decode(readValue(buffer)!);
       case 135:
-        return UniversalBleDescriptor.decode(readValue(buffer)!);
+        return UniversalBleService.decode(readValue(buffer)!);
       case 136:
-        return AndroidOptions.decode(readValue(buffer)!);
+        return UniversalBleCharacteristic.decode(readValue(buffer)!);
       case 137:
-        return UniversalScanConfig.decode(readValue(buffer)!);
+        return UniversalBleDescriptor.decode(readValue(buffer)!);
       case 138:
-        return UniversalScanFilter.decode(readValue(buffer)!);
+        return AndroidOptions.decode(readValue(buffer)!);
       case 139:
-        return UniversalManufacturerDataFilter.decode(readValue(buffer)!);
+        return UniversalScanConfig.decode(readValue(buffer)!);
       case 140:
-        return UniversalManufacturerData.decode(readValue(buffer)!);
+        return UniversalScanFilter.decode(readValue(buffer)!);
       case 141:
-        return PeripheralService.decode(readValue(buffer)!);
+        return UniversalManufacturerDataFilter.decode(readValue(buffer)!);
       case 142:
-        return PeripheralCharacteristic.decode(readValue(buffer)!);
+        return UniversalManufacturerData.decode(readValue(buffer)!);
       case 143:
-        return PeripheralDescriptor.decode(readValue(buffer)!);
+        return PeripheralService.decode(readValue(buffer)!);
       case 144:
-        return PeripheralReadRequestResult.decode(readValue(buffer)!);
+        return PeripheralCharacteristic.decode(readValue(buffer)!);
       case 145:
-        return PeripheralWriteRequestResult.decode(readValue(buffer)!);
+        return PeripheralDescriptor.decode(readValue(buffer)!);
       case 146:
+        return PeripheralReadRequestResult.decode(readValue(buffer)!);
+      case 147:
+        return PeripheralWriteRequestResult.decode(readValue(buffer)!);
+      case 148:
         return PeripheralManufacturerData.decode(readValue(buffer)!);
       default:
         return super.readValueOfType(type, buffer);
@@ -1654,8 +1682,8 @@ class UniversalBlePeripheralChannel {
 
   final String pigeonVar_messageChannelSuffix;
 
-  Future<bool?> isAdvertising() async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.universal_ble.UniversalBlePeripheralChannel.isAdvertising$pigeonVar_messageChannelSuffix';
+  Future<PeripheralAdvertisingState> getAdvertisingState() async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.universal_ble.UniversalBlePeripheralChannel.getAdvertisingState$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
@@ -1667,14 +1695,14 @@ class UniversalBlePeripheralChannel {
     final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
         pigeonVar_replyList,
         pigeonVar_channelName,
-        isNullValid: true,
+        isNullValid: false,
     )
     ;
-    return pigeonVar_replyValue as bool?;
+    return pigeonVar_replyValue! as PeripheralAdvertisingState;
   }
 
-  Future<bool> isSupported() async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.universal_ble.UniversalBlePeripheralChannel.isSupported$pigeonVar_messageChannelSuffix';
+  Future<bool> isFeatureSupported() async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.universal_ble.UniversalBlePeripheralChannel.isFeatureSupported$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
@@ -1690,6 +1718,25 @@ class UniversalBlePeripheralChannel {
     )
     ;
     return pigeonVar_replyValue! as bool;
+  }
+
+  Future<PeripheralReadinessState> getReadinessState() async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.universal_ble.UniversalBlePeripheralChannel.getReadinessState$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(null);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: false,
+    )
+    ;
+    return pigeonVar_replyValue! as PeripheralReadinessState;
   }
 
   Future<void> stopAdvertising() async {
@@ -1851,7 +1898,7 @@ abstract class UniversalBlePeripheralCallback {
 
   void onCharacteristicSubscriptionChange(String deviceId, String characteristicId, bool isSubscribed, String? name);
 
-  void onAdvertisingStatusUpdate(bool advertising, String? error);
+  void onAdvertisingStateChange(PeripheralAdvertisingState state, String? error);
 
   void onServiceAdded(String serviceId, String? error);
 
@@ -1935,17 +1982,17 @@ abstract class UniversalBlePeripheralCallback {
     }
     {
       final pigeonVar_channel = BasicMessageChannel<Object?>(
-          'dev.flutter.pigeon.universal_ble.UniversalBlePeripheralCallback.onAdvertisingStatusUpdate$messageChannelSuffix', pigeonChannelCodec,
+          'dev.flutter.pigeon.universal_ble.UniversalBlePeripheralCallback.onAdvertisingStateChange$messageChannelSuffix', pigeonChannelCodec,
           binaryMessenger: binaryMessenger);
       if (api == null) {
         pigeonVar_channel.setMessageHandler(null);
       } else {
         pigeonVar_channel.setMessageHandler((Object? message) async {
           final List<Object?> args = message! as List<Object?>;
-          final bool arg_advertising = args[0]! as bool;
+          final PeripheralAdvertisingState arg_state = args[0]! as PeripheralAdvertisingState;
           final String? arg_error = args[1] as String?;
           try {
-            api.onAdvertisingStatusUpdate(arg_advertising, arg_error);
+            api.onAdvertisingStateChange(arg_state, arg_error);
             return wrapResponse(empty: true);
           } on PlatformException catch (e) {
             return wrapResponse(error: e);

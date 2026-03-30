@@ -1619,23 +1619,25 @@ void UniversalBlePlugin::GattCharacteristicValueChanged(
   }
 }
 
-std::optional<FlutterError> UniversalBlePlugin::Initialize() {
-  if (!bluetooth_radio_) {
-    return create_flutter_error(UniversalBleErrorCode::kBluetoothNotAvailable,
-                                "Bluetooth is not available");
-  }
-  return std::nullopt;
-}
-
-ErrorOr<std::optional<bool>> UniversalBlePlugin::IsAdvertising() {
+ErrorOr<PeripheralAdvertisingState> UniversalBlePlugin::GetAdvertisingState() {
   std::lock_guard<std::mutex> lock(peripheral_mutex_);
   if (peripheral_service_provider_map_.empty()) {
-    return std::optional<bool>(false);
+    return PeripheralAdvertisingState::kIdle;
   }
-  return std::optional<bool>(AreAllPeripheralServicesStarted());
+  return AreAllPeripheralServicesStarted() ? PeripheralAdvertisingState::kAdvertising
+                                           : PeripheralAdvertisingState::kIdle;
 }
 
-ErrorOr<bool> UniversalBlePlugin::IsSupported() { return bluetooth_radio_ != nullptr; }
+ErrorOr<bool> UniversalBlePlugin::IsFeatureSupported() {
+  return bluetooth_radio_ != nullptr;
+}
+
+ErrorOr<PeripheralReadinessState> UniversalBlePlugin::GetReadinessState() {
+  if (!bluetooth_radio_) {
+    return PeripheralReadinessState::kUnsupported;
+  }
+  return PeripheralReadinessState::kReady;
+}
 
 std::optional<FlutterError> UniversalBlePlugin::StopAdvertising() {
   std::lock_guard<std::mutex> lock(peripheral_mutex_);
@@ -1646,8 +1648,9 @@ std::optional<FlutterError> UniversalBlePlugin::StopAdvertising() {
     }
   }
   ui_thread_handler_.Post([this] {
-    peripheral_callback_channel_->OnAdvertisingStatusUpdate(
-        false, nullptr, SuccessCallback, ErrorCallback);
+    peripheral_callback_channel_->OnAdvertisingStateChange(
+        PeripheralAdvertisingState::kIdle, nullptr, SuccessCallback,
+        ErrorCallback);
   });
   return std::nullopt;
 }
@@ -2138,15 +2141,17 @@ void UniversalBlePlugin::PeripheralAdvertisementStatusChanged(
   if (args.Error() != BluetoothError::Success) {
     auto error_str = ParsePeripheralBluetoothError(args.Error());
     ui_thread_handler_.Post([this, error_str] {
-      peripheral_callback_channel_->OnAdvertisingStatusUpdate(
-          false, &error_str, SuccessCallback, ErrorCallback);
+      peripheral_callback_channel_->OnAdvertisingStateChange(
+          PeripheralAdvertisingState::kError, &error_str, SuccessCallback,
+          ErrorCallback);
     });
     return;
   }
   if (AreAllPeripheralServicesStarted()) {
     ui_thread_handler_.Post([this] {
-      peripheral_callback_channel_->OnAdvertisingStatusUpdate(
-          true, nullptr, SuccessCallback, ErrorCallback);
+      peripheral_callback_channel_->OnAdvertisingStateChange(
+          PeripheralAdvertisingState::kAdvertising, nullptr, SuccessCallback,
+          ErrorCallback);
     });
   }
 }

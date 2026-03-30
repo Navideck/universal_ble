@@ -63,20 +63,24 @@ A cross-platform (Android/iOS/macOS/Windows/Linux/Web) Bluetooth Low Energy (BLE
 
 ### Peripheral Mode (`UniversalBlePeripheral`)
 
-| API                    | Android | iOS | macOS | Windows | Linux | Web |
-| :--------------------- | :-----: | :-: | :---: | :-----: | :---: | :-: |
-| isSupported            |   ✔️    | ✔️  |  ✔️   |   ✔️    |  🚧   | ❌  |
-| isAdvertising          |   ✔️    | ✔️  |  ✔️   |   ✔️    |  🚧   | ❌  |
-| addService             |   ✔️    | ✔️  |  ✔️   |   ✔️    |  🚧   | ❌  |
-| removeService          |   ✔️    | ✔️  |  ✔️   |   ✔️    |  🚧   | ❌  |
-| clearServices          |   ✔️    | ✔️  |  ✔️   |   ✔️    |  🚧   | ❌  |
-| getServices            |   ✔️    | ✔️  |  ✔️   |   ✔️    |  🚧   | ❌  |
-| startAdvertising       |   ✔️    | ✔️  |  ✔️   |   ✔️    |  🚧   | ❌  |
-| stopAdvertising        |   ✔️    | ✔️  |  ✔️   |   ✔️    |  🚧   | ❌  |
-| updateCharacteristic   |   ✔️    | ✔️  |  ✔️   |   ✔️    |  🚧   | ❌  |
-| peripheral callbacks\* |   ✔️    | ✔️  |  ✔️   |   ✔️    |  🚧   | ❌  |
+| API                      | Android | iOS | macOS | Windows | Linux | Web |
+| :----------------------- | :-----: | :-: | :---: | :-----: | :---: | :-: |
+| isFeatureSupported       |   ✔️    | ✔️  |  ✔️   |   ✔️    |  🚧   | ❌  |
+| getReadinessState\*      |   ✔️    | ✔️  |  ✔️   |   ✔️    |  🚧   | ❌  |
+| getAdvertisingState      |   ✔️    | ✔️  |  ✔️   |   ✔️    |  🚧   | ❌  |
+| addService               |   ✔️    | ✔️  |  ✔️   |   ✔️    |  🚧   | ❌  |
+| removeService            |   ✔️    | ✔️  |  ✔️   |   ✔️    |  🚧   | ❌  |
+| clearServices            |   ✔️    | ✔️  |  ✔️   |   ✔️    |  🚧   | ❌  |
+| getServices              |   ✔️    | ✔️  |  ✔️   |   ✔️    |  🚧   | ❌  |
+| startAdvertising         |   ✔️    | ✔️  |  ✔️   |   ✔️    |  🚧   | ❌  |
+| stopAdvertising          |   ✔️    | ✔️  |  ✔️   |   ✔️    |  🚧   | ❌  |
+| updateCharacteristicValue\*\* |   ✔️    | ✔️  |  ✔️   |   ✔️    |  🚧   | ❌  |
+| getSubscribedCentrals    |   ✔️    | ✔️  |  ✔️   |   ✔️    |  🚧   | ❌  |
+| events stream\*\*\*      |   ✔️    | ✔️  |  ✔️   |   ✔️    |  🚧   | ❌  |
 
-\* callbacks include advertising state, read/write requests, subscription changes, and related peripheral events.
+\* `getReadinessState` returns a snapshot state. Use `eventStream` for ongoing runtime changes.
+\*\* `updateCharacteristicValue` supports broadcast to all subscribed centrals or a specific central via `PeripheralUpdateTarget`.
+\*\*\* events include advertising state changes, read/write requests, subscription changes, and related peripheral events.
 
 ## Getting Started
 
@@ -90,6 +94,7 @@ dependencies:
 and import it wherever you want to use it:
 
 ```dart
+import 'dart:typed_data';
 import 'package:universal_ble/universal_ble.dart';
 ```
 
@@ -628,14 +633,18 @@ The error parser automatically converts platform-specific error formats (strings
 
 ## Peripheral Mode
 
-`universal_ble` provides peripheral mode through `UniversalBlePeripheral`, so your app can advertise as a peripheral "server" in addition to client mode.
+`universal_ble` provides peripheral mode through `UniversalBlePeripheralClient`, so your app can advertise as a peripheral "server" in addition to client mode.
 
 ### Basic setup
 
 ```dart
 import 'package:universal_ble/universal_ble.dart';
 
-await UniversalBlePeripheral.addService(
+final peripheral = UniversalBlePeripheralClient();
+final ready = await peripheral.isFeatureSupported();
+if (!ready) return;
+
+await peripheral.addService(
   BleService("0000180F-0000-1000-8000-00805F9B34FB", [
     BleCharacteristic(
       "00002A19-0000-1000-8000-00805F9B34FB",
@@ -646,11 +655,29 @@ await UniversalBlePeripheral.addService(
   primary: true,
 );
 
-await UniversalBlePeripheral.startAdvertising(
-  services: ["0000180F-0000-1000-8000-00805F9B34FB"],
+await peripheral.startAdvertising(
+  services: [PeripheralServiceId("0000180F-0000-1000-8000-00805F9B34FB")],
   localName: "UniversalBlePeripheral",
 );
+
+final sub = peripheral.eventStream.listen((event) {
+  // Handle UniversalBlePeripheralEvent subtypes.
+});
+
+peripheral.setRequestHandlers(
+  onReadRequest: (deviceId, characteristicId, offset, value) =>
+      BleReadRequestResult(value: value ?? Uint8List(0)),
+  onWriteRequest: (deviceId, characteristicId, offset, value) =>
+      const BleWriteRequestResult(),
+);
 ```
+
+### Breaking changes
+
+- `isSupported()` was replaced by `isFeatureSupported()`.
+- `isAdvertising()` was replaced by `getAdvertisingState()`.
+- Static callback setters were replaced by `eventStream` + `setRequestHandlers(...)`.
+- `UniversalBlePeripheralClient` is the recommended API; `UniversalBlePeripheral` remains as a singleton facade.
 
 ### Platform notes
 

@@ -11,6 +11,7 @@ final class UniversalBlePeripheralPlugin: NSObject, UniversalBlePeripheralChanne
   CBPeripheralManagerDelegate
 {
   private let callbackChannel: UniversalBlePeripheralCallback
+  private var advertisingState: PeripheralAdvertisingState = .idle
   private lazy var peripheralManager: CBPeripheralManager =
     .init(delegate: self, queue: nil, options: nil)
   private let centralsLock = NSLock()
@@ -30,17 +31,37 @@ final class UniversalBlePeripheralPlugin: NSObject, UniversalBlePeripheralChanne
     clearCentrals()
   }
 
-  func isSupported() throws -> Bool {
+  func getAdvertisingState() throws -> PeripheralAdvertisingState {
+    advertisingState
+  }
+
+  func isFeatureSupported() throws -> Bool {
     true
   }
 
-  func isAdvertising() throws -> Bool? {
-    peripheralManager.isAdvertising
+  func getReadinessState() throws -> PeripheralReadinessState {
+    switch peripheralManager.state {
+    case .poweredOn:
+      return .ready
+    case .poweredOff:
+      return .bluetoothOff
+    case .unauthorized:
+      return .unauthorized
+    case .unsupported:
+      return .unsupported
+    case .unknown, .resetting:
+      return .unknown
+    @unknown default:
+      return .unknown
+    }
   }
 
   func stopAdvertising() throws {
+    advertisingState = .stopping
+    callbackChannel.onAdvertisingStateChange(state: .stopping, error: nil) { _ in }
     peripheralManager.stopAdvertising()
-    callbackChannel.onAdvertisingStatusUpdate(advertising: false, error: nil) { _ in }
+    advertisingState = .idle
+    callbackChannel.onAdvertisingStateChange(state: .idle, error: nil) { _ in }
   }
 
   func addService(service: PeripheralService) throws {
@@ -104,6 +125,8 @@ final class UniversalBlePeripheralPlugin: NSObject, UniversalBlePeripheralChanne
       manufacturerField.append(manufacturerData.data.data)
       advertisementData[CBAdvertisementDataManufacturerDataKey] = manufacturerField
     }
+    advertisingState = .starting
+    callbackChannel.onAdvertisingStateChange(state: .starting, error: nil) { _ in }
     peripheralManager.startAdvertising(advertisementData)
   }
 
@@ -133,15 +156,17 @@ final class UniversalBlePeripheralPlugin: NSObject, UniversalBlePeripheralChanne
     _: CBPeripheralManager,
     error: Error?
   ) {
-    callbackChannel.onAdvertisingStatusUpdate(
-      advertising: error == nil,
+    advertisingState = error == nil ? .advertising : .error
+    callbackChannel.onAdvertisingStateChange(
+      state: advertisingState,
       error: error?.localizedDescription
     ) { _ in }
   }
 
   nonisolated func peripheralManagerDidUpdateState(_ peripheral: CBPeripheralManager) {
     if peripheral.state != .poweredOn {
-      callbackChannel.onAdvertisingStatusUpdate(advertising: false, error: nil) { _ in }
+      advertisingState = .idle
+      callbackChannel.onAdvertisingStateChange(state: .idle, error: nil) { _ in }
     }
   }
 

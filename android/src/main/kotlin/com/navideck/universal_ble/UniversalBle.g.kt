@@ -224,6 +224,34 @@ enum class AndroidScanMode(val raw: Int) {
   }
 }
 
+enum class PeripheralReadinessState(val raw: Int) {
+  UNKNOWN(0),
+  READY(1),
+  BLUETOOTH_OFF(2),
+  UNAUTHORIZED(3),
+  UNSUPPORTED(4);
+
+  companion object {
+    fun ofRaw(raw: Int): PeripheralReadinessState? {
+      return values().firstOrNull { it.raw == raw }
+    }
+  }
+}
+
+enum class PeripheralAdvertisingState(val raw: Int) {
+  IDLE(0),
+  STARTING(1),
+  ADVERTISING(2),
+  STOPPING(3),
+  ERROR(4);
+
+  companion object {
+    fun ofRaw(raw: Int): PeripheralAdvertisingState? {
+      return values().firstOrNull { it.raw == raw }
+    }
+  }
+}
+
 /** Unified error codes for all platforms */
 enum class UniversalBleErrorCode(val raw: Int) {
   UNKNOWN_ERROR(0),
@@ -952,80 +980,90 @@ private open class UniversalBlePigeonCodec : StandardMessageCodec() {
       }
       131.toByte() -> {
         return (readValue(buffer) as Long?)?.let {
-          UniversalBleErrorCode.ofRaw(it.toInt())
+          PeripheralReadinessState.ofRaw(it.toInt())
         }
       }
       132.toByte() -> {
-        return (readValue(buffer) as? List<Any?>)?.let {
-          UniversalBleScanResult.fromList(it)
+        return (readValue(buffer) as Long?)?.let {
+          PeripheralAdvertisingState.ofRaw(it.toInt())
         }
       }
       133.toByte() -> {
-        return (readValue(buffer) as? List<Any?>)?.let {
-          UniversalBleService.fromList(it)
+        return (readValue(buffer) as Long?)?.let {
+          UniversalBleErrorCode.ofRaw(it.toInt())
         }
       }
       134.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          UniversalBleCharacteristic.fromList(it)
+          UniversalBleScanResult.fromList(it)
         }
       }
       135.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          UniversalBleDescriptor.fromList(it)
+          UniversalBleService.fromList(it)
         }
       }
       136.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          AndroidOptions.fromList(it)
+          UniversalBleCharacteristic.fromList(it)
         }
       }
       137.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          UniversalScanConfig.fromList(it)
+          UniversalBleDescriptor.fromList(it)
         }
       }
       138.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          UniversalScanFilter.fromList(it)
+          AndroidOptions.fromList(it)
         }
       }
       139.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          UniversalManufacturerDataFilter.fromList(it)
+          UniversalScanConfig.fromList(it)
         }
       }
       140.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          UniversalManufacturerData.fromList(it)
+          UniversalScanFilter.fromList(it)
         }
       }
       141.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          PeripheralService.fromList(it)
+          UniversalManufacturerDataFilter.fromList(it)
         }
       }
       142.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          PeripheralCharacteristic.fromList(it)
+          UniversalManufacturerData.fromList(it)
         }
       }
       143.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          PeripheralDescriptor.fromList(it)
+          PeripheralService.fromList(it)
         }
       }
       144.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          PeripheralReadRequestResult.fromList(it)
+          PeripheralCharacteristic.fromList(it)
         }
       }
       145.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          PeripheralWriteRequestResult.fromList(it)
+          PeripheralDescriptor.fromList(it)
         }
       }
       146.toByte() -> {
+        return (readValue(buffer) as? List<Any?>)?.let {
+          PeripheralReadRequestResult.fromList(it)
+        }
+      }
+      147.toByte() -> {
+        return (readValue(buffer) as? List<Any?>)?.let {
+          PeripheralWriteRequestResult.fromList(it)
+        }
+      }
+      148.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
           PeripheralManufacturerData.fromList(it)
         }
@@ -1043,68 +1081,76 @@ private open class UniversalBlePigeonCodec : StandardMessageCodec() {
         stream.write(130)
         writeValue(stream, value.raw.toLong())
       }
-      is UniversalBleErrorCode -> {
+      is PeripheralReadinessState -> {
         stream.write(131)
         writeValue(stream, value.raw.toLong())
       }
-      is UniversalBleScanResult -> {
+      is PeripheralAdvertisingState -> {
         stream.write(132)
-        writeValue(stream, value.toList())
+        writeValue(stream, value.raw.toLong())
       }
-      is UniversalBleService -> {
+      is UniversalBleErrorCode -> {
         stream.write(133)
-        writeValue(stream, value.toList())
+        writeValue(stream, value.raw.toLong())
       }
-      is UniversalBleCharacteristic -> {
+      is UniversalBleScanResult -> {
         stream.write(134)
         writeValue(stream, value.toList())
       }
-      is UniversalBleDescriptor -> {
+      is UniversalBleService -> {
         stream.write(135)
         writeValue(stream, value.toList())
       }
-      is AndroidOptions -> {
+      is UniversalBleCharacteristic -> {
         stream.write(136)
         writeValue(stream, value.toList())
       }
-      is UniversalScanConfig -> {
+      is UniversalBleDescriptor -> {
         stream.write(137)
         writeValue(stream, value.toList())
       }
-      is UniversalScanFilter -> {
+      is AndroidOptions -> {
         stream.write(138)
         writeValue(stream, value.toList())
       }
-      is UniversalManufacturerDataFilter -> {
+      is UniversalScanConfig -> {
         stream.write(139)
         writeValue(stream, value.toList())
       }
-      is UniversalManufacturerData -> {
+      is UniversalScanFilter -> {
         stream.write(140)
         writeValue(stream, value.toList())
       }
-      is PeripheralService -> {
+      is UniversalManufacturerDataFilter -> {
         stream.write(141)
         writeValue(stream, value.toList())
       }
-      is PeripheralCharacteristic -> {
+      is UniversalManufacturerData -> {
         stream.write(142)
         writeValue(stream, value.toList())
       }
-      is PeripheralDescriptor -> {
+      is PeripheralService -> {
         stream.write(143)
         writeValue(stream, value.toList())
       }
-      is PeripheralReadRequestResult -> {
+      is PeripheralCharacteristic -> {
         stream.write(144)
         writeValue(stream, value.toList())
       }
-      is PeripheralWriteRequestResult -> {
+      is PeripheralDescriptor -> {
         stream.write(145)
         writeValue(stream, value.toList())
       }
-      is PeripheralManufacturerData -> {
+      is PeripheralReadRequestResult -> {
         stream.write(146)
+        writeValue(stream, value.toList())
+      }
+      is PeripheralWriteRequestResult -> {
+        stream.write(147)
+        writeValue(stream, value.toList())
+      }
+      is PeripheralManufacturerData -> {
+        stream.write(148)
         writeValue(stream, value.toList())
       }
       else -> super.writeValue(stream, value)
@@ -1698,8 +1744,9 @@ class UniversalBleCallbackChannel(private val binaryMessenger: BinaryMessenger, 
  * Generated interface from Pigeon that represents a handler of messages from Flutter.
  */
 interface UniversalBlePeripheralChannel {
-  fun isAdvertising(): Boolean?
-  fun isSupported(): Boolean
+  fun getAdvertisingState(): PeripheralAdvertisingState
+  fun isFeatureSupported(): Boolean
+  fun getReadinessState(): PeripheralReadinessState
   fun stopAdvertising()
   fun addService(service: PeripheralService)
   fun removeService(serviceId: String)
@@ -1723,11 +1770,11 @@ interface UniversalBlePeripheralChannel {
     fun setUp(binaryMessenger: BinaryMessenger, api: UniversalBlePeripheralChannel?, messageChannelSuffix: String = "") {
       val separatedMessageChannelSuffix = if (messageChannelSuffix.isNotEmpty()) ".$messageChannelSuffix" else ""
       run {
-        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.universal_ble.UniversalBlePeripheralChannel.isAdvertising$separatedMessageChannelSuffix", codec)
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.universal_ble.UniversalBlePeripheralChannel.getAdvertisingState$separatedMessageChannelSuffix", codec)
         if (api != null) {
           channel.setMessageHandler { _, reply ->
             val wrapped: List<Any?> = try {
-              listOf(api.isAdvertising())
+              listOf(api.getAdvertisingState())
             } catch (exception: Throwable) {
               UniversalBlePigeonUtils.wrapError(exception)
             }
@@ -1738,11 +1785,26 @@ interface UniversalBlePeripheralChannel {
         }
       }
       run {
-        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.universal_ble.UniversalBlePeripheralChannel.isSupported$separatedMessageChannelSuffix", codec)
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.universal_ble.UniversalBlePeripheralChannel.isFeatureSupported$separatedMessageChannelSuffix", codec)
         if (api != null) {
           channel.setMessageHandler { _, reply ->
             val wrapped: List<Any?> = try {
-              listOf(api.isSupported())
+              listOf(api.isFeatureSupported())
+            } catch (exception: Throwable) {
+              UniversalBlePigeonUtils.wrapError(exception)
+            }
+            reply.reply(wrapped)
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.universal_ble.UniversalBlePeripheralChannel.getReadinessState$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { _, reply ->
+            val wrapped: List<Any?> = try {
+              listOf(api.getReadinessState())
             } catch (exception: Throwable) {
               UniversalBlePigeonUtils.wrapError(exception)
             }
@@ -1962,12 +2024,12 @@ class UniversalBlePeripheralCallback(private val binaryMessenger: BinaryMessenge
       } 
     }
   }
-  fun onAdvertisingStatusUpdate(advertisingArg: Boolean, errorArg: String?, callback: (Result<Unit>) -> Unit)
+  fun onAdvertisingStateChange(stateArg: PeripheralAdvertisingState, errorArg: String?, callback: (Result<Unit>) -> Unit)
 {
     val separatedMessageChannelSuffix = if (messageChannelSuffix.isNotEmpty()) ".$messageChannelSuffix" else ""
-    val channelName = "dev.flutter.pigeon.universal_ble.UniversalBlePeripheralCallback.onAdvertisingStatusUpdate$separatedMessageChannelSuffix"
+    val channelName = "dev.flutter.pigeon.universal_ble.UniversalBlePeripheralCallback.onAdvertisingStateChange$separatedMessageChannelSuffix"
     val channel = BasicMessageChannel<Any?>(binaryMessenger, channelName, codec)
-    channel.send(listOf(advertisingArg, errorArg)) {
+    channel.send(listOf(stateArg, errorArg)) {
       if (it is List<*>) {
         if (it.size > 1) {
           callback(Result.failure(FlutterError(it[0] as String, it[1] as String, it[2] as String?)))

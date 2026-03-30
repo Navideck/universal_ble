@@ -4,6 +4,81 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:universal_ble/src/universal_ble_peripheral/universal_ble_peripheral_mapper.dart';
 import 'package:universal_ble/universal_ble.dart';
 
+class _FakePeripheralPlatform extends UniversalBlePeripheralPlatform {
+  int disposeCount = 0;
+  PeripheralServiceId? removedServiceId;
+  List<PeripheralServiceId>? advertisedServices;
+
+  @override
+  Stream<UniversalBlePeripheralEvent> get eventStream =>
+      const Stream<UniversalBlePeripheralEvent>.empty();
+
+  @override
+  void setRequestHandlers({
+    OnPeripheralReadRequest? onReadRequest,
+    OnPeripheralWriteRequest? onWriteRequest,
+  }) {}
+
+  @override
+  Future<void> addService(
+    BleService service, {
+    bool primary = true,
+    Duration? timeout,
+  }) async {}
+
+  @override
+  Future<void> clearServices() async {}
+
+  @override
+  void dispose() {
+    disposeCount += 1;
+  }
+
+  @override
+  Future<UniversalBlePeripheralAdvertisingState> getAdvertisingState() async =>
+      UniversalBlePeripheralAdvertisingState.idle;
+
+  @override
+  Future<UniversalBlePeripheralReadinessState> getReadinessState() async =>
+      UniversalBlePeripheralReadinessState.ready;
+
+  @override
+  Future<List<PeripheralServiceId>> getServices() async => const [];
+
+  @override
+  Future<List<String>> getSubscribedCentrals(String characteristicId) async =>
+      [characteristicId];
+
+  @override
+  Future<bool> isFeatureSupported() async => true;
+
+  @override
+  Future<void> removeService(PeripheralServiceId serviceId) async {
+    removedServiceId = serviceId;
+  }
+
+  @override
+  Future<void> startAdvertising({
+    required List<PeripheralServiceId> services,
+    String? localName,
+    int? timeout,
+    ManufacturerData? manufacturerData,
+    bool addManufacturerDataInScanResponse = false,
+  }) async {
+    advertisedServices = services;
+  }
+
+  @override
+  Future<void> stopAdvertising() async {}
+
+  @override
+  Future<void> updateCharacteristicValue({
+    required String characteristicId,
+    required Uint8List value,
+    PeripheralUpdateTarget target = const PeripheralUpdateAllSubscribed(),
+  }) async {}
+}
+
 void main() {
   test('peripheral request result models store values', () {
     final read = BleReadRequestResult(
@@ -109,5 +184,33 @@ void main() {
     expect(mapped, isNotNull);
     expect(mapped!.manufacturerId, 0x004C);
     expect(mapped.data, Uint8List.fromList([0x01, 0x02]));
+  });
+
+  test('instance client normalizes service IDs for remove/start', () async {
+    final fake = _FakePeripheralPlatform();
+    final client = UniversalBlePeripheralClient(platform: fake);
+
+    await client.removeService(const PeripheralServiceId('180f'));
+    await client.startAdvertising(
+      services: const [PeripheralServiceId('180f')],
+    );
+
+    expect(
+      fake.removedServiceId?.value,
+      BleUuidParser.string('180f'),
+    );
+    expect(
+      fake.advertisedServices?.single.value,
+      BleUuidParser.string('180f'),
+    );
+  });
+
+  test('static setInstance disposes previous platform', () async {
+    final first = _FakePeripheralPlatform();
+    final second = _FakePeripheralPlatform();
+    UniversalBlePeripheral.setInstance(first);
+    UniversalBlePeripheral.setInstance(second);
+
+    expect(first.disposeCount, 1);
   });
 }

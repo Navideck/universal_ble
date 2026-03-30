@@ -290,11 +290,28 @@ class PeripheralManufacturerData {
       {required this.manufacturerId, required this.data});
 }
 
+enum PeripheralReadinessState {
+  unknown,
+  ready,
+  bluetoothOff,
+  unauthorized,
+  unsupported,
+}
+
+enum PeripheralAdvertisingState {
+  idle,
+  starting,
+  advertising,
+  stopping,
+  error,
+}
+
 /// Flutter -> Native (peripheral)
 @HostApi()
 abstract class UniversalBlePeripheralChannel {
-  bool? isAdvertising();
-  bool isSupported();
+  PeripheralAdvertisingState getAdvertisingState();
+  bool isFeatureSupported();
+  PeripheralReadinessState getReadinessState();
   void stopAdvertising();
   void addService(PeripheralService service);
   void removeService(String serviceId);
@@ -341,7 +358,7 @@ abstract class UniversalBlePeripheralCallback {
     bool isSubscribed,
     String? name,
   );
-  void onAdvertisingStatusUpdate(bool advertising, String? error);
+  void onAdvertisingStateChange(PeripheralAdvertisingState state, String? error);
   void onServiceAdded(String serviceId, String? error);
   void onMtuChange(String deviceId, int mtu);
   void onConnectionStateChange(String deviceId, bool connected);

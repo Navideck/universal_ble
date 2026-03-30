@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
 
@@ -12,9 +13,12 @@ class PeripheralHome extends StatefulWidget {
 }
 
 class _PeripheralHomeState extends State<PeripheralHome> {
+  final UniversalBlePeripheralClient _peripheral = UniversalBlePeripheralClient();
   final List<String> _logs = <String>[];
+  StreamSubscription<UniversalBlePeripheralEvent>? _eventSub;
   bool _initialized = false;
-  bool _advertising = false;
+  UniversalBlePeripheralAdvertisingState _advertisingState =
+      UniversalBlePeripheralAdvertisingState.idle;
 
   static const String _serviceBattery = '0000180F-0000-1000-8000-00805F9B34FB';
   static const String _charBattery = '00002A19-0000-1000-8000-00805F9B34FB';
@@ -24,39 +28,38 @@ class _PeripheralHomeState extends State<PeripheralHome> {
   @override
   void initState() {
     super.initState();
-    UniversalBlePeripheral.onAdvertisingStatusUpdate = (advertising, error) {
-      setState(() {
-        _advertising = advertising;
-      });
-      _log('Advertising: $advertising ${error ?? ''}'.trim());
-    };
-    UniversalBlePeripheral.onServiceAdded = (serviceId, error) {
-      _log('Service added: $serviceId ${error ?? ''}'.trim());
-    };
-    UniversalBlePeripheral.onSubscriptionChange = (
-      deviceId,
-      characteristicId,
-      isSubscribed,
-      name,
-    ) {
-      _log(
-        'Subscription ${isSubscribed ? 'on' : 'off'}: '
-        '${name ?? deviceId} -> $characteristicId',
-      );
-    };
-    UniversalBlePeripheral.onReadRequest = (deviceId, characteristicId, _, __) {
+    _eventSub = _peripheral.eventStream.listen((event) {
+      switch (event) {
+        case UniversalBlePeripheralAdvertisingStateChanged():
+          setState(() {
+            _advertisingState = event.state;
+          });
+          _log('Advertising state: ${event.state.name} ${event.error ?? ''}'.trim());
+        case UniversalBlePeripheralServiceAdded():
+          _log('Service added: ${event.serviceId} ${event.error ?? ''}'.trim());
+        case UniversalBlePeripheralCharacteristicSubscriptionChanged():
+          _log(
+            'Subscription ${event.isSubscribed ? 'on' : 'off'}: '
+            '${event.name ?? event.deviceId} -> ${event.characteristicId}',
+          );
+        case UniversalBlePeripheralConnectionStateChanged():
+          _log(
+            'Connection: ${event.deviceId} connected=${event.connected}',
+          );
+        case UniversalBlePeripheralMtuChanged():
+          _log('MTU: ${event.deviceId} mtu=${event.mtu}');
+      }
+    });
+    _peripheral.setRequestHandlers(
+      onReadRequest: (deviceId, characteristicId, _, __) {
       _log('Read request: $deviceId $characteristicId');
       return BleReadRequestResult(value: utf8.encode('Hello World'));
-    };
-    UniversalBlePeripheral.onWriteRequest = (
-      deviceId,
-      characteristicId,
-      _,
-      value,
-    ) {
-      _log('Write request: $deviceId $characteristicId $value');
-      return const BleWriteRequestResult();
-    };
+      },
+      onWriteRequest: (deviceId, characteristicId, _, value) {
+        _log('Write request: $deviceId $characteristicId $value');
+        return const BleWriteRequestResult();
+      },
+    );
   }
 
   void _log(String text) {
@@ -66,15 +69,16 @@ class _PeripheralHomeState extends State<PeripheralHome> {
   }
 
   Future<void> _initialize() async {
-    final supported = await UniversalBlePeripheral.isSupported();
+    final supported = await _peripheral.isFeatureSupported();
     setState(() {
       _initialized = supported;
     });
-    _log('Peripheral ready check. supported=$supported');
+    final readiness = await _peripheral.getReadinessState();
+    _log('Peripheral ready check. supported=$supported readiness=${readiness.name}');
   }
 
   Future<void> _addServices() async {
-    await UniversalBlePeripheral.addService(
+    await _peripheral.addService(
       BleService(_serviceBattery, [
         BleCharacteristic(
           _charBattery,
@@ -83,7 +87,7 @@ class _PeripheralHomeState extends State<PeripheralHome> {
         ),
       ]),
     );
-    await UniversalBlePeripheral.addService(
+    await _peripheral.addService(
       BleService(_serviceTest, [
         BleCharacteristic(
           _charTest,
@@ -100,8 +104,11 @@ class _PeripheralHomeState extends State<PeripheralHome> {
   }
 
   Future<void> _startAdvertising() async {
-    await UniversalBlePeripheral.startAdvertising(
-      services: [_serviceBattery, _serviceTest],
+    await _peripheral.startAdvertising(
+      services: [
+        const PeripheralServiceId(_serviceBattery),
+        const PeripheralServiceId(_serviceTest),
+      ],
       localName: 'UniversalBlePeripheral',
       manufacturerData: ManufacturerData(
         0x012D,
@@ -137,9 +144,10 @@ class _PeripheralHomeState extends State<PeripheralHome> {
               ElevatedButton(
                 onPressed: _initialized
                     ? () async {
-                        await UniversalBlePeripheral.stopAdvertising();
+                        await _peripheral.stopAdvertising();
                         setState(() {
-                          _advertising = false;
+                          _advertisingState =
+                              UniversalBlePeripheralAdvertisingState.idle;
                         });
                         _log('Stop advertising requested');
                       }
@@ -149,7 +157,7 @@ class _PeripheralHomeState extends State<PeripheralHome> {
               ElevatedButton(
                 onPressed: _initialized
                     ? () async {
-                        await UniversalBlePeripheral.updateCharacteristic(
+                        await _peripheral.updateCharacteristicValue(
                           characteristicId: _charTest,
                           value: utf8.encode('Test Data'),
                         );
@@ -167,7 +175,7 @@ class _PeripheralHomeState extends State<PeripheralHome> {
             children: [
               Text('Initialized: $_initialized'),
               const SizedBox(width: 16),
-              Text('Advertising: $_advertising'),
+              Text('Advertising: ${_advertisingState.name}'),
             ],
           ),
         ),
@@ -183,5 +191,11 @@ class _PeripheralHomeState extends State<PeripheralHome> {
         ),
       ],
     );
+  }
+
+  @override
+  void dispose() {
+    _eventSub?.cancel();
+    super.dispose();
   }
 }

@@ -281,9 +281,9 @@ private:
                        result) override;
 
   // UniversalBlePeripheralChannel implementation.
-  std::optional<FlutterError> Initialize() override;
-  ErrorOr<std::optional<bool>> IsAdvertising() override;
-  ErrorOr<bool> IsSupported() override;
+  ErrorOr<PeripheralAdvertisingState> GetAdvertisingState() override;
+  ErrorOr<bool> IsFeatureSupported() override;
+  ErrorOr<PeripheralReadinessState> GetReadinessState() override;
   std::optional<FlutterError> StopAdvertising() override;
   std::optional<FlutterError> AddService(const PeripheralService &service) override;
   std::optional<FlutterError> RemoveService(const std::string &service_id) override;
