@@ -142,6 +142,12 @@ final class UniversalBlePeripheralPlugin: NSObject, UniversalBlePeripheralChanne
     ) { _ in }
   }
 
+  nonisolated func peripheralManagerDidUpdateState(_ peripheral: CBPeripheralManager) {
+    if peripheral.state != .poweredOn {
+      callbackChannel.onAdvertisingStatusUpdate(advertising: false, error: nil) { _ in }
+    }
+  }
+
   nonisolated func peripheralManager(
     _: CBPeripheralManager,
     didAdd service: CBService,
