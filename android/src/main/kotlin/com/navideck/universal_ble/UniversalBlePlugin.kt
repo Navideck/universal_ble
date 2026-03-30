@@ -759,7 +759,21 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
     ) {
         try {
             val gatt = deviceId.toBluetoothGatt()
-            val success = gatt.requestConnectionPriority(priority.toInt())
+            val priorityEnum = BleConnectionPriority.entries.firstOrNull { it.value == priority }
+                ?: return callback(
+                    Result.failure(
+                        createFlutterError(
+                            UniversalBleErrorCode.ILLEGAL_ARGUMENT,
+                            "Unknown priority: $priority"
+                        )
+                    )
+                )
+            val androidPriority = when (priorityEnum) {
+                BleConnectionPriority.Balanced -> BluetoothGatt.CONNECTION_PRIORITY_BALANCED
+                BleConnectionPriority.HighPerformance -> BluetoothGatt.CONNECTION_PRIORITY_HIGH
+                BleConnectionPriority.LowPower -> BluetoothGatt.CONNECTION_PRIORITY_LOW_POWER
+            }
+            val success = gatt.requestConnectionPriority(androidPriority)
             if (success) {
                 callback(Result.success(Unit))
             } else {
@@ -774,6 +788,16 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
             }
         } catch (e: FlutterError) {
             callback(Result.failure(e))
+        } catch (e: Exception) {
+            callback(
+                Result.failure(
+                    createFlutterError(
+                        UniversalBleErrorCode.FAILED,
+                        "requestConnectionPriority failed",
+                        e.toString()
+                    )
+                )
+            )
         }
     }
 
