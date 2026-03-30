@@ -17,7 +17,6 @@ class UniversalBlePeripheral {
     _platform = instance;
   }
 
-  static Future<void> initialize() => _platform.initialize();
   static Future<bool> isSupported() => _platform.isSupported();
   static Future<bool> isAdvertising() => _platform.isAdvertising();
 

@@ -20,6 +20,7 @@ final class UniversalBlePeripheralPlugin: NSObject, UniversalBlePeripheralChanne
   init(callbackChannel: UniversalBlePeripheralCallback) {
     self.callbackChannel = callbackChannel
     super.init()
+    _ = peripheralManager.isAdvertising
   }
 
   deinit {
@@ -27,10 +28,6 @@ final class UniversalBlePeripheralPlugin: NSObject, UniversalBlePeripheralChanne
     peripheralManager.removeAllServices()
     clearPeripheralCaches()
     clearCentrals()
-  }
-
-  func initialize() throws {
-    _ = peripheralManager.isAdvertising
   }
 
   func isSupported() throws -> Bool {

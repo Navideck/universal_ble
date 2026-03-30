@@ -23,9 +23,6 @@ class UniversalBlePeripheralPigeon extends UniversalBlePeripheralPlatform
   bool _disposed = false;
 
   @override
-  Future<void> initialize() => _channel.initialize();
-
-  @override
   Future<bool> isSupported() => _channel.isSupported();
 
   @override

@@ -1547,7 +1547,6 @@ class UniversalBleCallbackChannel: UniversalBleCallbackChannelProtocol {
 ///
 /// Generated protocol from Pigeon that represents a handler of messages from Flutter.
 protocol UniversalBlePeripheralChannel {
-  func initialize() throws
   func isAdvertising() throws -> Bool?
   func isSupported() throws -> Bool
   func stopAdvertising() throws
@@ -1568,19 +1567,6 @@ class UniversalBlePeripheralChannelSetup {
   /// Sets up an instance of `UniversalBlePeripheralChannel` to handle messages through the `binaryMessenger`.
   static func setUp(binaryMessenger: FlutterBinaryMessenger, api: UniversalBlePeripheralChannel?, messageChannelSuffix: String = "") {
     let channelSuffix = messageChannelSuffix.count > 0 ? ".\(messageChannelSuffix)" : ""
-    let initializeChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.universal_ble.UniversalBlePeripheralChannel.initialize\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
-    if let api = api {
-      initializeChannel.setMessageHandler { _, reply in
-        do {
-          try api.initialize()
-          reply(wrapResult(nil))
-        } catch {
-          reply(wrapError(error))
-        }
-      }
-    } else {
-      initializeChannel.setMessageHandler(nil)
-    }
     let isAdvertisingChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.universal_ble.UniversalBlePeripheralChannel.isAdvertising\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
     if let api = api {
       isAdvertisingChannel.setMessageHandler { _, reply in

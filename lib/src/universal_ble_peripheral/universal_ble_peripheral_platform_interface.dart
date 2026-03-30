@@ -39,7 +39,6 @@ abstract class UniversalBlePeripheralPlatform {
   OnPeripheralWriteRequest? writeRequestCallback;
   OnPeripheralMtuChange? mtuChangeCallback;
 
-  Future<void> initialize();
   Future<bool> isSupported();
   Future<bool> isAdvertising();
 
@@ -95,11 +94,6 @@ class UniversalBlePeripheralUnsupported extends UniversalBlePeripheralPlatform {
 
   @override
   Future<List<String>> getServices() async {
-    throw _notSupported();
-  }
-
-  @override
-  Future<void> initialize() async {
     throw _notSupported();
   }
 

@@ -636,7 +636,6 @@ The error parser automatically converts platform-specific error formats (strings
 ```dart
 import 'package:universal_ble/universal_ble.dart';
 
-await UniversalBlePeripheral.initialize();
 await UniversalBlePeripheral.addService(
   BleService("0000180F-0000-1000-8000-00805F9B34FB", [
     BleCharacteristic(

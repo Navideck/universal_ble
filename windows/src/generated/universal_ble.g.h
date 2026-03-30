@@ -900,7 +900,6 @@ class UniversalBlePeripheralChannel {
   UniversalBlePeripheralChannel(const UniversalBlePeripheralChannel&) = delete;
   UniversalBlePeripheralChannel& operator=(const UniversalBlePeripheralChannel&) = delete;
   virtual ~UniversalBlePeripheralChannel() {}
-  virtual std::optional<FlutterError> Initialize() = 0;
   virtual ErrorOr<std::optional<bool>> IsAdvertising() = 0;
   virtual ErrorOr<bool> IsSupported() = 0;
   virtual std::optional<FlutterError> StopAdvertising() = 0;

@@ -49,6 +49,12 @@ class UniversalBlePeripheralPlugin(
     private var originalAdapterName: String? = null
     private var adapterNameOverridden = false
 
+    init {
+        kotlin.runCatching { initializePeripheral() }.onFailure {
+            Log.w(TAG, "Deferred peripheral init: ${it.message}")
+        }
+    }
+
     fun attachActivity(activity: Activity?) {
         this.activity = activity
     }
@@ -69,9 +75,10 @@ class UniversalBlePeripheralPlugin(
         clearPeripheralCaches()
     }
 
-    override fun initialize() {
+    private fun initializePeripheral() {
         val adapter = bluetoothManager.adapter
             ?: throw UnsupportedOperationException("Bluetooth is not available.")
+        if (bluetoothLeAdvertiser != null && gattServer != null && receiverRegistered) return
         bluetoothLeAdvertiser = adapter.bluetoothLeAdvertiser
             ?: throw UnsupportedOperationException(
                 "Bluetooth LE Advertising not supported on this device.",
@@ -106,6 +113,7 @@ class UniversalBlePeripheralPlugin(
     }
 
     override fun addService(service: PeripheralService) {
+        initializePeripheral()
         gattServer?.addService(service.toGattService())
     }
 
@@ -114,11 +122,15 @@ class UniversalBlePeripheralPlugin(
     }
 
     override fun clearServices() {
+        initializePeripheral()
         gattServer?.clearServices()
     }
 
     override fun getServices(): List<String> =
-        gattServer?.services?.map { it.uuid.toString() } ?: emptyList()
+        runCatching {
+            initializePeripheral()
+            gattServer?.services?.map { it.uuid.toString() } ?: emptyList()
+        }.getOrDefault(emptyList())
 
     override fun startAdvertising(
         services: List<String>,
@@ -127,6 +139,7 @@ class UniversalBlePeripheralPlugin(
         manufacturerData: PeripheralManufacturerData?,
         addManufacturerDataInScanResponse: Boolean,
     ) {
+        initializePeripheral()
         if (!isBluetoothEnabled()) {
             activity?.startActivityForResult(
                 Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE),
@@ -183,6 +196,7 @@ class UniversalBlePeripheralPlugin(
     }
 
     override fun stopAdvertising() {
+        initializePeripheral()
         handler.post {
             bluetoothLeAdvertiser?.stopAdvertising(advertiseCallback)
             restoreAdapterNameIfNeeded()
@@ -192,6 +206,7 @@ class UniversalBlePeripheralPlugin(
     }
 
     override fun updateCharacteristic(characteristicId: String, value: ByteArray, deviceId: String?) {
+        initializePeripheral()
         val characteristic =
             characteristicId.findCharacteristic() ?: throw Exception("Characteristic not found")
         characteristic.value = value

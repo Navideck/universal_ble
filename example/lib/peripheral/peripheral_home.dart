@@ -66,12 +66,11 @@ class _PeripheralHomeState extends State<PeripheralHome> {
   }
 
   Future<void> _initialize() async {
-    await UniversalBlePeripheral.initialize();
     final supported = await UniversalBlePeripheral.isSupported();
     setState(() {
-      _initialized = true;
+      _initialized = supported;
     });
-    _log('Peripheral initialized. supported=$supported');
+    _log('Peripheral ready check. supported=$supported');
   }
 
   Future<void> _addServices() async {

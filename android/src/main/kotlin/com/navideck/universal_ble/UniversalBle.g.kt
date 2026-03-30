@@ -1698,7 +1698,6 @@ class UniversalBleCallbackChannel(private val binaryMessenger: BinaryMessenger, 
  * Generated interface from Pigeon that represents a handler of messages from Flutter.
  */
 interface UniversalBlePeripheralChannel {
-  fun initialize()
   fun isAdvertising(): Boolean?
   fun isSupported(): Boolean
   fun stopAdvertising()
@@ -1723,22 +1722,6 @@ interface UniversalBlePeripheralChannel {
     @JvmOverloads
     fun setUp(binaryMessenger: BinaryMessenger, api: UniversalBlePeripheralChannel?, messageChannelSuffix: String = "") {
       val separatedMessageChannelSuffix = if (messageChannelSuffix.isNotEmpty()) ".$messageChannelSuffix" else ""
-      run {
-        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.universal_ble.UniversalBlePeripheralChannel.initialize$separatedMessageChannelSuffix", codec)
-        if (api != null) {
-          channel.setMessageHandler { _, reply ->
-            val wrapped: List<Any?> = try {
-              api.initialize()
-              listOf(null)
-            } catch (exception: Throwable) {
-              UniversalBlePigeonUtils.wrapError(exception)
-            }
-            reply.reply(wrapped)
-          }
-        } else {
-          channel.setMessageHandler(null)
-        }
-      }
       run {
         val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.universal_ble.UniversalBlePeripheralChannel.isAdvertising$separatedMessageChannelSuffix", codec)
         if (api != null) {

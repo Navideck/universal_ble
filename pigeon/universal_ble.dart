@@ -293,7 +293,6 @@ class PeripheralManufacturerData {
 /// Flutter -> Native (peripheral)
 @HostApi()
 abstract class UniversalBlePeripheralChannel {
-  void initialize();
   bool? isAdvertising();
   bool isSupported();
   void stopAdvertising();
