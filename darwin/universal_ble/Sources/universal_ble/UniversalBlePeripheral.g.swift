@@ -679,11 +679,9 @@ protocol UniversalBlePeripheralCallbackProtocol {
   func onWriteRequest(deviceId deviceIdArg: String, characteristicId characteristicIdArg: String, offset offsetArg: Int64, value valueArg: FlutterStandardTypedData?, completion: @escaping (Result<PeripheralWriteRequestResult?, PigeonError>) -> Void)
   func onCharacteristicSubscriptionChange(deviceId deviceIdArg: String, characteristicId characteristicIdArg: String, isSubscribed isSubscribedArg: Bool, name nameArg: String?, completion: @escaping (Result<Void, PigeonError>) -> Void)
   func onAdvertisingStatusUpdate(advertising advertisingArg: Bool, error errorArg: String?, completion: @escaping (Result<Void, PigeonError>) -> Void)
-  func onBleStateChange(state stateArg: Bool, completion: @escaping (Result<Void, PigeonError>) -> Void)
   func onServiceAdded(serviceId serviceIdArg: String, error errorArg: String?, completion: @escaping (Result<Void, PigeonError>) -> Void)
   func onMtuChange(deviceId deviceIdArg: String, mtu mtuArg: Int64, completion: @escaping (Result<Void, PigeonError>) -> Void)
   func onConnectionStateChange(deviceId deviceIdArg: String, connected connectedArg: Bool, completion: @escaping (Result<Void, PigeonError>) -> Void)
-  func onBondStateChange(deviceId deviceIdArg: String, bondState bondStateArg: PeripheralBondState, completion: @escaping (Result<Void, PigeonError>) -> Void)
 }
 class UniversalBlePeripheralCallback: UniversalBlePeripheralCallbackProtocol {
   private let binaryMessenger: FlutterBinaryMessenger
@@ -769,24 +767,6 @@ class UniversalBlePeripheralCallback: UniversalBlePeripheralCallbackProtocol {
       }
     }
   }
-  func onBleStateChange(state stateArg: Bool, completion: @escaping (Result<Void, PigeonError>) -> Void) {
-    let channelName: String = "dev.flutter.pigeon.universal_ble.UniversalBlePeripheralCallback.onBleStateChange\(messageChannelSuffix)"
-    let channel = FlutterBasicMessageChannel(name: channelName, binaryMessenger: binaryMessenger, codec: codec)
-    channel.sendMessage([stateArg] as [Any?]) { response in
-      guard let listResponse = response as? [Any?] else {
-        completion(.failure(createConnectionError(withChannelName: channelName)))
-        return
-      }
-      if listResponse.count > 1 {
-        let code: String = listResponse[0] as! String
-        let message: String? = nilOrValue(listResponse[1])
-        let details: String? = nilOrValue(listResponse[2])
-        completion(.failure(PigeonError(code: code, message: message, details: details)))
-      } else {
-        completion(.success(()))
-      }
-    }
-  }
   func onServiceAdded(serviceId serviceIdArg: String, error errorArg: String?, completion: @escaping (Result<Void, PigeonError>) -> Void) {
     let channelName: String = "dev.flutter.pigeon.universal_ble.UniversalBlePeripheralCallback.onServiceAdded\(messageChannelSuffix)"
     let channel = FlutterBasicMessageChannel(name: channelName, binaryMessenger: binaryMessenger, codec: codec)
@@ -827,24 +807,6 @@ class UniversalBlePeripheralCallback: UniversalBlePeripheralCallbackProtocol {
     let channelName: String = "dev.flutter.pigeon.universal_ble.UniversalBlePeripheralCallback.onConnectionStateChange\(messageChannelSuffix)"
     let channel = FlutterBasicMessageChannel(name: channelName, binaryMessenger: binaryMessenger, codec: codec)
     channel.sendMessage([deviceIdArg, connectedArg] as [Any?]) { response in
-      guard let listResponse = response as? [Any?] else {
-        completion(.failure(createConnectionError(withChannelName: channelName)))
-        return
-      }
-      if listResponse.count > 1 {
-        let code: String = listResponse[0] as! String
-        let message: String? = nilOrValue(listResponse[1])
-        let details: String? = nilOrValue(listResponse[2])
-        completion(.failure(PigeonError(code: code, message: message, details: details)))
-      } else {
-        completion(.success(()))
-      }
-    }
-  }
-  func onBondStateChange(deviceId deviceIdArg: String, bondState bondStateArg: PeripheralBondState, completion: @escaping (Result<Void, PigeonError>) -> Void) {
-    let channelName: String = "dev.flutter.pigeon.universal_ble.UniversalBlePeripheralCallback.onBondStateChange\(messageChannelSuffix)"
-    let channel = FlutterBasicMessageChannel(name: channelName, binaryMessenger: binaryMessenger, codec: codec)
-    channel.sendMessage([deviceIdArg, bondStateArg] as [Any?]) { response in
       guard let listResponse = response as? [Any?] else {
         completion(.failure(createConnectionError(withChannelName: channelName)))
         return

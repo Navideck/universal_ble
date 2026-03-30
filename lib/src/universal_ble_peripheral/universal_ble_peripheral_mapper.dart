@@ -42,12 +42,4 @@ class UniversalBlePeripheralMapper {
       data: manufacturerData.payload,
     );
   }
-
-  static PeripheralBondState fromPigeonBondState(pigeon.PeripheralBondState s) {
-    return switch (s) {
-      pigeon.PeripheralBondState.bonding => PeripheralBondState.bonding,
-      pigeon.PeripheralBondState.bonded => PeripheralBondState.bonded,
-      pigeon.PeripheralBondState.none => PeripheralBondState.none,
-    };
-  }
 }

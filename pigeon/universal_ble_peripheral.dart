@@ -121,9 +121,7 @@ abstract class UniversalBlePeripheralCallback {
     String? name,
   );
   void onAdvertisingStatusUpdate(bool advertising, String? error);
-  void onBleStateChange(bool state);
   void onServiceAdded(String serviceId, String? error);
   void onMtuChange(String deviceId, int mtu);
   void onConnectionStateChange(String deviceId, bool connected);
-  void onBondStateChange(String deviceId, PeripheralBondState bondState);
 }

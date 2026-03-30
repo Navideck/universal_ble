@@ -705,15 +705,11 @@ abstract class UniversalBlePeripheralCallback {
 
   void onAdvertisingStatusUpdate(bool advertising, String? error);
 
-  void onBleStateChange(bool state);
-
   void onServiceAdded(String serviceId, String? error);
 
   void onMtuChange(String deviceId, int mtu);
 
   void onConnectionStateChange(String deviceId, bool connected);
-
-  void onBondStateChange(String deviceId, PeripheralBondState bondState);
 
   static void setUp(UniversalBlePeripheralCallback? api, {BinaryMessenger? binaryMessenger, String messageChannelSuffix = '',}) {
     messageChannelSuffix = messageChannelSuffix.isNotEmpty ? '.$messageChannelSuffix' : '';
@@ -813,27 +809,6 @@ abstract class UniversalBlePeripheralCallback {
     }
     {
       final pigeonVar_channel = BasicMessageChannel<Object?>(
-          'dev.flutter.pigeon.universal_ble.UniversalBlePeripheralCallback.onBleStateChange$messageChannelSuffix', pigeonChannelCodec,
-          binaryMessenger: binaryMessenger);
-      if (api == null) {
-        pigeonVar_channel.setMessageHandler(null);
-      } else {
-        pigeonVar_channel.setMessageHandler((Object? message) async {
-          final List<Object?> args = message! as List<Object?>;
-          final bool arg_state = args[0]! as bool;
-          try {
-            api.onBleStateChange(arg_state);
-            return wrapResponse(empty: true);
-          } on PlatformException catch (e) {
-            return wrapResponse(error: e);
-          }          catch (e) {
-            return wrapResponse(error: PlatformException(code: 'error', message: e.toString()));
-          }
-        });
-      }
-    }
-    {
-      final pigeonVar_channel = BasicMessageChannel<Object?>(
           'dev.flutter.pigeon.universal_ble.UniversalBlePeripheralCallback.onServiceAdded$messageChannelSuffix', pigeonChannelCodec,
           binaryMessenger: binaryMessenger);
       if (api == null) {
@@ -889,28 +864,6 @@ abstract class UniversalBlePeripheralCallback {
           final bool arg_connected = args[1]! as bool;
           try {
             api.onConnectionStateChange(arg_deviceId, arg_connected);
-            return wrapResponse(empty: true);
-          } on PlatformException catch (e) {
-            return wrapResponse(error: e);
-          }          catch (e) {
-            return wrapResponse(error: PlatformException(code: 'error', message: e.toString()));
-          }
-        });
-      }
-    }
-    {
-      final pigeonVar_channel = BasicMessageChannel<Object?>(
-          'dev.flutter.pigeon.universal_ble.UniversalBlePeripheralCallback.onBondStateChange$messageChannelSuffix', pigeonChannelCodec,
-          binaryMessenger: binaryMessenger);
-      if (api == null) {
-        pigeonVar_channel.setMessageHandler(null);
-      } else {
-        pigeonVar_channel.setMessageHandler((Object? message) async {
-          final List<Object?> args = message! as List<Object?>;
-          final String arg_deviceId = args[0]! as String;
-          final PeripheralBondState arg_bondState = args[1]! as PeripheralBondState;
-          try {
-            api.onBondStateChange(arg_deviceId, arg_bondState);
             return wrapResponse(empty: true);
           } on PlatformException catch (e) {
             return wrapResponse(error: e);

@@ -1303,31 +1303,6 @@ void UniversalBlePeripheralCallback::OnAdvertisingStatusUpdate(
   });
 }
 
-void UniversalBlePeripheralCallback::OnBleStateChange(
-  bool state_arg,
-  std::function<void(void)>&& on_success,
-  std::function<void(const FlutterError&)>&& on_error) {
-  const std::string channel_name = "dev.flutter.pigeon.universal_ble.UniversalBlePeripheralCallback.onBleStateChange" + message_channel_suffix_;
-  BasicMessageChannel<> channel(binary_messenger_, channel_name, &GetCodec());
-  EncodableValue encoded_api_arguments = EncodableValue(EncodableList{
-    EncodableValue(state_arg),
-  });
-  channel.Send(encoded_api_arguments, [channel_name, on_success = std::move(on_success), on_error = std::move(on_error)](const uint8_t* reply, size_t reply_size) {
-    std::unique_ptr<EncodableValue> response = GetCodec().DecodeMessage(reply, reply_size);
-    const auto& encodable_return_value = *response;
-    const auto* list_return_value = std::get_if<EncodableList>(&encodable_return_value);
-    if (list_return_value) {
-      if (list_return_value->size() > 1) {
-        on_error(FlutterError(std::get<std::string>(list_return_value->at(0)), std::get<std::string>(list_return_value->at(1)), list_return_value->at(2)));
-      } else {
-        on_success();
-      }
-    } else {
-      on_error(CreateConnectionError(channel_name));
-    } 
-  });
-}
-
 void UniversalBlePeripheralCallback::OnServiceAdded(
   const std::string& service_id_arg,
   const std::string* error_arg,
@@ -1392,33 +1367,6 @@ void UniversalBlePeripheralCallback::OnConnectionStateChange(
   EncodableValue encoded_api_arguments = EncodableValue(EncodableList{
     EncodableValue(device_id_arg),
     EncodableValue(connected_arg),
-  });
-  channel.Send(encoded_api_arguments, [channel_name, on_success = std::move(on_success), on_error = std::move(on_error)](const uint8_t* reply, size_t reply_size) {
-    std::unique_ptr<EncodableValue> response = GetCodec().DecodeMessage(reply, reply_size);
-    const auto& encodable_return_value = *response;
-    const auto* list_return_value = std::get_if<EncodableList>(&encodable_return_value);
-    if (list_return_value) {
-      if (list_return_value->size() > 1) {
-        on_error(FlutterError(std::get<std::string>(list_return_value->at(0)), std::get<std::string>(list_return_value->at(1)), list_return_value->at(2)));
-      } else {
-        on_success();
-      }
-    } else {
-      on_error(CreateConnectionError(channel_name));
-    } 
-  });
-}
-
-void UniversalBlePeripheralCallback::OnBondStateChange(
-  const std::string& device_id_arg,
-  const PeripheralBondState& bond_state_arg,
-  std::function<void(void)>&& on_success,
-  std::function<void(const FlutterError&)>&& on_error) {
-  const std::string channel_name = "dev.flutter.pigeon.universal_ble.UniversalBlePeripheralCallback.onBondStateChange" + message_channel_suffix_;
-  BasicMessageChannel<> channel(binary_messenger_, channel_name, &GetCodec());
-  EncodableValue encoded_api_arguments = EncodableValue(EncodableList{
-    EncodableValue(device_id_arg),
-    CustomEncodableValue(bond_state_arg),
   });
   channel.Send(encoded_api_arguments, [channel_name, on_success = std::move(on_success), on_error = std::move(on_error)](const uint8_t* reply, size_t reply_size) {
     std::unique_ptr<EncodableValue> response = GetCodec().DecodeMessage(reply, reply_size);

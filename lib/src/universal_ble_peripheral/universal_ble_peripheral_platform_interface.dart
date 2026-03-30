@@ -4,11 +4,6 @@ import 'package:universal_ble/universal_ble.dart';
 
 typedef OnPeripheralAdvertisingStatusUpdate = void Function(
     bool advertising, String? error);
-typedef OnPeripheralBleStateChange = void Function(bool enabled);
-typedef OnPeripheralBondStateChange = void Function(
-  String deviceId,
-  PeripheralBondState state,
-);
 typedef OnPeripheralCharacteristicSubscriptionChange = void Function(
   String deviceId,
   String characteristicId,
@@ -35,12 +30,8 @@ typedef OnPeripheralWriteRequest = BleWriteRequestResult? Function(
 );
 typedef OnPeripheralMtuChange = void Function(String deviceId, int mtu);
 
-enum PeripheralBondState { bonding, bonded, none }
-
 abstract class UniversalBlePeripheralPlatform {
   OnPeripheralAdvertisingStatusUpdate? advertisingStatusUpdateCallback;
-  OnPeripheralBleStateChange? bleStateChangeCallback;
-  OnPeripheralBondStateChange? bondStateChangeCallback;
   OnPeripheralCharacteristicSubscriptionChange? subscriptionChangeCallback;
   OnPeripheralConnectionStateChange? connectionStateChangeCallback;
   OnPeripheralReadRequest? readRequestCallback;

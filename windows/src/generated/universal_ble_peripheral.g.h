@@ -391,10 +391,6 @@ class UniversalBlePeripheralCallback {
     const std::string* error,
     std::function<void(void)>&& on_success,
     std::function<void(const FlutterError&)>&& on_error);
-  void OnBleStateChange(
-    bool state,
-    std::function<void(void)>&& on_success,
-    std::function<void(const FlutterError&)>&& on_error);
   void OnServiceAdded(
     const std::string& service_id,
     const std::string* error,
@@ -408,11 +404,6 @@ class UniversalBlePeripheralCallback {
   void OnConnectionStateChange(
     const std::string& device_id,
     bool connected,
-    std::function<void(void)>&& on_success,
-    std::function<void(const FlutterError&)>&& on_error);
-  void OnBondStateChange(
-    const std::string& device_id,
-    const PeripheralBondState& bond_state,
     std::function<void(void)>&& on_success,
     std::function<void(const FlutterError&)>&& on_error);
  private:

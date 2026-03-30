@@ -142,10 +142,6 @@ final class UniversalBlePeripheralPlugin: NSObject, UniversalBlePeripheralChanne
     ) { _ in }
   }
 
-  nonisolated func peripheralManagerDidUpdateState(_ peripheral: CBPeripheralManager) {
-    callbackChannel.onBleStateChange(state: peripheral.state == .poweredOn) { _ in }
-  }
-
   nonisolated func peripheralManager(
     _: CBPeripheralManager,
     didAdd service: CBService,

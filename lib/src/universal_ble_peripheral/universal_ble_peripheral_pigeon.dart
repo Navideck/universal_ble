@@ -118,20 +118,6 @@ class UniversalBlePeripheralPigeon extends UniversalBlePeripheralPlatform
   }
 
   @override
-  void onBleStateChange(bool state) {
-    super.bleStateChangeCallback?.call(state);
-  }
-
-  @override
-  void onBondStateChange(
-      String deviceId, pigeon.PeripheralBondState bondState) {
-    super.bondStateChangeCallback?.call(
-          deviceId,
-          UniversalBlePeripheralMapper.fromPigeonBondState(bondState),
-        );
-  }
-
-  @override
   void onCharacteristicSubscriptionChange(
     String deviceId,
     String characteristicId,

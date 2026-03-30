@@ -834,23 +834,6 @@ class UniversalBlePeripheralCallback(private val binaryMessenger: BinaryMessenge
       } 
     }
   }
-  fun onBleStateChange(stateArg: Boolean, callback: (Result<Unit>) -> Unit)
-{
-    val separatedMessageChannelSuffix = if (messageChannelSuffix.isNotEmpty()) ".$messageChannelSuffix" else ""
-    val channelName = "dev.flutter.pigeon.universal_ble.UniversalBlePeripheralCallback.onBleStateChange$separatedMessageChannelSuffix"
-    val channel = BasicMessageChannel<Any?>(binaryMessenger, channelName, codec)
-    channel.send(listOf(stateArg)) {
-      if (it is List<*>) {
-        if (it.size > 1) {
-          callback(Result.failure(FlutterError(it[0] as String, it[1] as String, it[2] as String?)))
-        } else {
-          callback(Result.success(Unit))
-        }
-      } else {
-        callback(Result.failure(UniversalBlePeripheralPigeonUtils.createConnectionError(channelName)))
-      } 
-    }
-  }
   fun onServiceAdded(serviceIdArg: String, errorArg: String?, callback: (Result<Unit>) -> Unit)
 {
     val separatedMessageChannelSuffix = if (messageChannelSuffix.isNotEmpty()) ".$messageChannelSuffix" else ""
@@ -891,23 +874,6 @@ class UniversalBlePeripheralCallback(private val binaryMessenger: BinaryMessenge
     val channelName = "dev.flutter.pigeon.universal_ble.UniversalBlePeripheralCallback.onConnectionStateChange$separatedMessageChannelSuffix"
     val channel = BasicMessageChannel<Any?>(binaryMessenger, channelName, codec)
     channel.send(listOf(deviceIdArg, connectedArg)) {
-      if (it is List<*>) {
-        if (it.size > 1) {
-          callback(Result.failure(FlutterError(it[0] as String, it[1] as String, it[2] as String?)))
-        } else {
-          callback(Result.success(Unit))
-        }
-      } else {
-        callback(Result.failure(UniversalBlePeripheralPigeonUtils.createConnectionError(channelName)))
-      } 
-    }
-  }
-  fun onBondStateChange(deviceIdArg: String, bondStateArg: PeripheralBondState, callback: (Result<Unit>) -> Unit)
-{
-    val separatedMessageChannelSuffix = if (messageChannelSuffix.isNotEmpty()) ".$messageChannelSuffix" else ""
-    val channelName = "dev.flutter.pigeon.universal_ble.UniversalBlePeripheralCallback.onBondStateChange$separatedMessageChannelSuffix"
-    val channel = BasicMessageChannel<Any?>(binaryMessenger, channelName, codec)
-    channel.send(listOf(deviceIdArg, bondStateArg)) {
       if (it is List<*>) {
         if (it.size > 1) {
           callback(Result.failure(FlutterError(it[0] as String, it[1] as String, it[2] as String?)))

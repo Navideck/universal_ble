@@ -1,7 +1,6 @@
 package com.navideck.universal_ble
 
 import android.app.Activity
-import android.bluetooth.BluetoothDevice
 import android.bluetooth.BluetoothGattCharacteristic
 import android.bluetooth.BluetoothGattDescriptor
 import android.bluetooth.BluetoothGattService
@@ -156,11 +155,4 @@ private fun Int.toPermissionBits(): Int = when (this) {
     2 -> BluetoothGattCharacteristic.PERMISSION_READ_ENCRYPTED
     3 -> BluetoothGattCharacteristic.PERMISSION_WRITE_ENCRYPTED
     else -> 0
-}
-
-fun Int.toPeripheralBondState(): PeripheralBondState = when (this) {
-    BluetoothDevice.BOND_BONDING -> PeripheralBondState.BONDING
-    BluetoothDevice.BOND_BONDED -> PeripheralBondState.BONDED
-    BluetoothDevice.BOND_NONE -> PeripheralBondState.NONE
-    else -> PeripheralBondState.NONE
 }

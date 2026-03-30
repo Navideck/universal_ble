@@ -80,8 +80,7 @@ class UniversalBlePeripheralPlugin(
             ?: throw UnsupportedOperationException("gattServer is null, check Bluetooth is ON.")
 
         if (!receiverRegistered) {
-            val intentFilter = IntentFilter(BluetoothAdapter.ACTION_STATE_CHANGED)
-            intentFilter.addAction(BluetoothDevice.ACTION_BOND_STATE_CHANGED)
+            val intentFilter = IntentFilter(BluetoothDevice.ACTION_BOND_STATE_CHANGED)
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                 applicationContext.registerReceiver(
                     broadcastReceiver,
@@ -94,8 +93,6 @@ class UniversalBlePeripheralPlugin(
             }
             receiverRegistered = true
         }
-
-        callback.onBleStateChange(isBluetoothEnabled()) {}
     }
 
     override fun isAdvertising(): Boolean? = advertising
@@ -449,16 +446,6 @@ class UniversalBlePeripheralPlugin(
     private val broadcastReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
             when (intent.action) {
-                BluetoothAdapter.ACTION_STATE_CHANGED -> {
-                    val state = intent.getIntExtra(
-                        BluetoothAdapter.EXTRA_STATE, BluetoothAdapter.ERROR,
-                    )
-                    if (state == BluetoothAdapter.STATE_OFF) {
-                        handler.post { callback.onBleStateChange(false) {} }
-                    } else if (state == BluetoothAdapter.STATE_ON) {
-                        handler.post { callback.onBleStateChange(true) {} }
-                    }
-                }
                 BluetoothDevice.ACTION_BOND_STATE_CHANGED -> {
                     val state = intent.getIntExtra(
                         BluetoothDevice.EXTRA_BOND_STATE, BluetoothDevice.ERROR,
@@ -469,13 +456,6 @@ class UniversalBlePeripheralPlugin(
                         @Suppress("DEPRECATION")
                         intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE)
                     }
-                    handler.post {
-                        callback.onBondStateChange(
-                            device?.address ?: "",
-                            state.toPeripheralBondState(),
-                        ) {}
-                    }
-
                     val waitingForConnection = synchronized(listOfDevicesWaitingForBond) {
                         listOfDevicesWaitingForBond.contains(device?.address)
                     }

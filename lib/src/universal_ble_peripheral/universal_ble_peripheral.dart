@@ -72,14 +72,6 @@ class UniversalBlePeripheral {
     _platform.advertisingStatusUpdateCallback = callback;
   }
 
-  static set onBleStateChange(OnPeripheralBleStateChange? callback) {
-    _platform.bleStateChangeCallback = callback;
-  }
-
-  static set onBondStateChange(OnPeripheralBondStateChange? callback) {
-    _platform.bondStateChangeCallback = callback;
-  }
-
   static set onSubscriptionChange(
     OnPeripheralCharacteristicSubscriptionChange? callback,
   ) {
