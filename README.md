@@ -636,51 +636,146 @@ The error parser automatically converts platform-specific error formats (strings
 
 `universal_ble` provides peripheral mode through `UniversalBlePeripheralClient`, so your app can advertise as a peripheral "server" in addition to client mode.
 
-### Basic setup
+### Setup
 
 ```dart
+import 'dart:typed_data';
 import 'package:universal_ble/universal_ble.dart';
 
 final peripheral = UniversalBlePeripheralClient();
+
 final caps = await peripheral.getStaticCapabilities();
 if (!caps.supportsPeripheralMode) return;
 
+final readiness = await peripheral.getReadinessState();
+if (readiness != UniversalBlePeripheralReadinessState.ready) return;
+```
+
+### Service Management
+
+```dart
 await peripheral.addService(
   BleService("0000180F-0000-1000-8000-00805F9B34FB", [
     BleCharacteristic(
       "00002A19-0000-1000-8000-00805F9B34FB",
       [CharacteristicProperty.read, CharacteristicProperty.notify],
-      [],
+      [BleDescriptor("00002902-0000-1000-8000-00805F9B34FB")],
     ),
   ]),
   primary: true,
 );
 
+await peripheral.addService(
+  BleService("0000180D-0000-1000-8000-00805F9B34FB", [
+    BleCharacteristic(
+      "00002A37-0000-1000-8000-00805F9B34FB",
+      [
+        CharacteristicProperty.read,
+        CharacteristicProperty.notify,
+        CharacteristicProperty.write,
+      ],
+      [],
+    ),
+  ]),
+);
+
+final services = await peripheral.getServices();
+await peripheral.removeService(const PeripheralServiceId("0000180D-0000-1000-8000-00805F9B34FB"));
+```
+
+### Advertising
+
+```dart
 await peripheral.startAdvertising(
-  services: [PeripheralServiceId("0000180F-0000-1000-8000-00805F9B34FB")],
+  services: const [
+    PeripheralServiceId("0000180F-0000-1000-8000-00805F9B34FB"),
+  ],
   localName: "UniversalBlePeripheral",
+  manufacturerData: ManufacturerData(
+    0x012D,
+    Uint8List.fromList([0x03, 0x00, 0x64, 0x00]),
+  ),
   addManufacturerDataInScanResponse:
       caps.supportsManufacturerDataInScanResponse,
 );
 
-final sub = peripheral.eventStream.listen((event) {
-  // Handle UniversalBlePeripheralEvent subtypes.
-});
+final advertisingState = await peripheral.getAdvertisingState();
+if (advertisingState == UniversalBlePeripheralAdvertisingState.advertising) {
+  // Peripheral is advertising.
+}
 
+await peripheral.stopAdvertising();
+```
+
+### Request Handlers
+
+```dart
 peripheral.setRequestHandlers(
   PeripheralRequestHandlers(
-    onReadRequest: (deviceId, characteristicId, offset, value) =>
-        BleReadRequestResult(value: value ?? Uint8List(0)),
-    onWriteRequest: (deviceId, characteristicId, offset, value) =>
-        const BleWriteRequestResult(),
+    onReadRequest: (deviceId, characteristicId, offset, value) {
+      return BleReadRequestResult(value: value ?? Uint8List(0));
+    },
+    onWriteRequest: (deviceId, characteristicId, offset, value) {
+      return const BleWriteRequestResult();
+    },
     onDescriptorReadRequest:
-        (deviceId, characteristicId, descriptorId, offset, value) =>
-            BleReadRequestResult(value: value ?? Uint8List(0)),
+        (deviceId, characteristicId, descriptorId, offset, value) {
+          return BleReadRequestResult(value: value ?? Uint8List(0));
+        },
     onDescriptorWriteRequest:
-        (deviceId, characteristicId, descriptorId, offset, value) =>
-            const BleWriteRequestResult(),
+        (deviceId, characteristicId, descriptorId, offset, value) {
+          return const BleWriteRequestResult();
+        },
   ),
 );
+```
+
+### Characteristic Updates
+
+```dart
+await peripheral.updateCharacteristicValue(
+  characteristicId: const PeripheralCharacteristicId(
+    "00002A19-0000-1000-8000-00805F9B34FB",
+  ),
+  value: Uint8List.fromList([92]),
+);
+```
+
+### Subscribed Clients and Notify Length
+
+```dart
+final subscribers = await peripheral.getSubscribedClients(
+  const PeripheralCharacteristicId("00002A19-0000-1000-8000-00805F9B34FB"),
+);
+
+for (final deviceId in subscribers) {
+  final maxNotifyLength = await peripheral.getMaximumNotifyLength(deviceId);
+  // maxNotifyLength can be null when unknown for this device.
+}
+```
+
+### Event Stream
+
+```dart
+final sub = peripheral.eventStream.listen((event) {
+  switch (event) {
+    case UniversalBlePeripheralAdvertisingStateChanged():
+      // event.state / event.error
+      break;
+    case UniversalBlePeripheralCharacteristicSubscriptionChanged():
+      // event.deviceId / event.characteristicId / event.isSubscribed
+      break;
+    case UniversalBlePeripheralConnectionStateChanged():
+      // event.deviceId / event.connected
+      break;
+    case UniversalBlePeripheralMtuChanged():
+      // event.deviceId / event.mtu
+      break;
+    case UniversalBlePeripheralServiceAdded():
+      // event.serviceId / event.error
+      break;
+  }
+});
 ```
 
 ### Breaking changes
