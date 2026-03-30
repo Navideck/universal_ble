@@ -31,7 +31,7 @@ class UniversalBleLinux extends UniversalBlePlatform {
       {};
 
   @override
-  Future<AvailabilityState> getBluetoothAvailabilityState() async {
+  Future<AvailabilityState> getAvailabilityState() async {
     await _ensureInitialized();
 
     BlueZAdapter? adapter = _activeAdapter;

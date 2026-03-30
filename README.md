@@ -53,7 +53,7 @@ A cross-platform (Android/iOS/macOS/Windows/Linux/Web) Bluetooth Low Energy (BLE
 | unpair                        |   ✔️    | ❌  |  ❌   |   ✔️    |  ✔️   | ❌  |
 | isPaired                      |   ✔️    | ✔️  |  ✔️   |   ✔️    |  ✔️   | ✔️  |
 | onPairingStateChange          |   ✔️    |  ⏺  |   ⏺   |   ✔️    |  ✔️   |  ⏺  |
-| getBluetoothAvailabilityState |   ✔️    | ✔️  |  ✔️   |   ✔️    |  ✔️   | ❌  |
+| getAvailabilityState          |   ✔️    | ✔️  |  ✔️   |   ✔️    |  ✔️   | ❌  |
 | enable/disable Bluetooth      |   ✔️    | ❌  |  ❌   |   ✔️    |  ✔️   | ❌  |
 | onAvailabilityChange          |   ✔️    | ✔️  |  ✔️   |   ✔️    |  ✔️   | ✔️  |
 | requestMtu                    |   ✔️    | ✔️  |  ✔️   |   ✔️    |  ✔️   | ❌  |
@@ -135,7 +135,7 @@ UniversalBle.isScanning();
 Before initiating a scan, ensure that Bluetooth is available:
 
 ```dart
-AvailabilityState state = await UniversalBle.getBluetoothAvailabilityState();
+AvailabilityState state = await UniversalBle.getAvailabilityState();
 // Start scan only if Bluetooth is powered on
 if (state == AvailabilityState.poweredOn) {
   UniversalBle.startScan();
@@ -427,7 +427,7 @@ bleDevice.unpair();
 
 ```dart
 // Get current Bluetooth availability state
-AvailabilityState availabilityState = UniversalBle.getBluetoothAvailabilityState(); // e.g. poweredOff or poweredOn,
+AvailabilityState availabilityState = UniversalBle.getAvailabilityState(); // e.g. poweredOff or poweredOn,
 
 // Receive Bluetooth availability changes
 UniversalBle.onAvailabilityChange = (state) {
@@ -918,7 +918,7 @@ Future<void> resetBleState() async {
 
   // Check Bluetooth availability
   AvailabilityState availabilityState =
-      await UniversalBle.getBluetoothAvailabilityState();
+      await UniversalBle.getAvailabilityState();
 
   // Skip if Bluetooth is not powered on
   if (availabilityState != AvailabilityState.poweredOn) {

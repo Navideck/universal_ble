@@ -75,7 +75,7 @@ class UniversalBleWeb extends UniversalBlePlatform {
   }
 
   @override
-  Future<AvailabilityState> getBluetoothAvailabilityState() async {
+  Future<AvailabilityState> getAvailabilityState() async {
     bool isSupported = FlutterWebBluetooth.instance.isBluetoothApiSupported;
     if (!isSupported) return AvailabilityState.unsupported;
     bool isAvailable = await FlutterWebBluetooth.instance.getAvailability();
@@ -114,7 +114,7 @@ class UniversalBleWeb extends UniversalBlePlatform {
   }
 
   @override
-  bool receivesAdvertisements(String deviceId) {
+  bool isReceivingAdvertisements(String deviceId) {
     // Advertisements do not work on Linux/Web even with the "Experimental Web Platform features" flag enabled. Verified with Chrome Version 128.0.6613.138
     if (kIsWeb && defaultTargetPlatform == TargetPlatform.linux) {
       return false;

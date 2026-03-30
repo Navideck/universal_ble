@@ -221,13 +221,14 @@ class _CentralHomeState extends State<CentralHome> {
                         ),
                 if (BleCapabilities.requiresRuntimePermission) ...[
                   PlatformButton(
-                    text: 'Has Permissions',
+                    text: 'Is Permission Granted',
                     onPressed: () async {
                       try {
-                        bool hasPermissions = await UniversalBle.hasPermissions(
+                        bool granted =
+                            await UniversalBle.isPermissionGranted(
                           withAndroidFineLocation: false,
                         );
-                        showSnackbar("Has Permissions: $hasPermissions");
+                        showSnackbar("Is Permission Granted: $granted");
                       } catch (e) {
                         showSnackbar(e.toString());
                       }

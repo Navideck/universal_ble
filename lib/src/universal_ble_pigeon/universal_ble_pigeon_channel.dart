@@ -16,7 +16,7 @@ class UniversalBlePigeonChannel extends UniversalBlePlatform {
   final _channel = UniversalBlePlatformChannel();
 
   @override
-  Future<AvailabilityState> getBluetoothAvailabilityState() async {
+  Future<AvailabilityState> getAvailabilityState() async {
     int state = await _executeWithErrorHandling(
       () => _channel.getBluetoothAvailabilityState(),
     );
@@ -180,7 +180,9 @@ class UniversalBlePigeonChannel extends UniversalBlePlatform {
       _executeWithErrorHandling(() => _channel.unPair(deviceId));
 
   @override
-  Future<bool> hasPermissions({bool withAndroidFineLocation = false}) async {
+  Future<bool> isPermissionGranted({
+    bool withAndroidFineLocation = false,
+  }) async {
     return await _executeWithErrorHandling(
       () => _channel.hasPermissions(withAndroidFineLocation),
     );

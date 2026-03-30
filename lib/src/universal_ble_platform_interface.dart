@@ -28,16 +28,18 @@ abstract class UniversalBlePlatform {
   /// Send latest availability state upon subscribing
   late final _availabilityStreamController =
       UniversalBleStreamController<AvailabilityState>(
-    initialEvent: getBluetoothAvailabilityState,
+    initialEvent: getAvailabilityState,
   );
 
-  Future<AvailabilityState> getBluetoothAvailabilityState();
+  Future<AvailabilityState> getAvailabilityState();
 
   Future<bool> enableBluetooth();
 
   Future<bool> disableBluetooth();
 
-  Future<bool> hasPermissions({bool withAndroidFineLocation = false}) async {
+  Future<bool> isPermissionGranted({
+    bool withAndroidFineLocation = false,
+  }) async {
     return true;
   }
 
@@ -111,7 +113,7 @@ abstract class UniversalBlePlatform {
   Future<void> setLogLevel(BleLogLevel logLevel) async =>
       UniversalLogger.setLogLevel(logLevel);
 
-  bool receivesAdvertisements(String deviceId) => true;
+  bool isReceivingAdvertisements(String deviceId) => true;
 
   /// Streams
   Stream<BleDevice> get scanStream => _scanStreamController.stream;

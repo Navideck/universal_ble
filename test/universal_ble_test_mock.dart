@@ -30,7 +30,7 @@ abstract class UniversalBlePlatformMock extends UniversalBlePlatform {
   }
 
   @override
-  Future<AvailabilityState> getBluetoothAvailabilityState() {
+  Future<AvailabilityState> getAvailabilityState() {
     throw UnimplementedError();
   }
 
