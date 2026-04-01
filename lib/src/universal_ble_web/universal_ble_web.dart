@@ -114,7 +114,7 @@ class UniversalBleWeb extends UniversalBlePlatform {
   }
 
   @override
-  bool isReceivingAdvertisements(String deviceId) {
+  bool receivesAdvertisements(String deviceId) {
     // Advertisements do not work on Linux/Web even with the "Experimental Web Platform features" flag enabled. Verified with Chrome Version 128.0.6613.138
     if (kIsWeb && defaultTargetPlatform == TargetPlatform.linux) {
       return false;

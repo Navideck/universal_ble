@@ -225,7 +225,7 @@ class _CentralHomeState extends State<CentralHome> {
                     onPressed: () async {
                       try {
                         bool granted =
-                            await UniversalBle.isPermissionGranted(
+                            await UniversalBle.hasPermissions(
                           withAndroidFineLocation: false,
                         );
                         showSnackbar("Is Permission Granted: $granted");

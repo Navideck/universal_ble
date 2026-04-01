@@ -37,7 +37,7 @@ abstract class UniversalBlePlatform {
 
   Future<bool> disableBluetooth();
 
-  Future<bool> isPermissionGranted({
+  Future<bool> hasPermissions({
     bool withAndroidFineLocation = false,
   }) async {
     return true;
@@ -113,7 +113,7 @@ abstract class UniversalBlePlatform {
   Future<void> setLogLevel(BleLogLevel logLevel) async =>
       UniversalLogger.setLogLevel(logLevel);
 
-  bool isReceivingAdvertisements(String deviceId) => true;
+  bool receivesAdvertisements(String deviceId) => true;
 
   /// Streams
   Stream<BleDevice> get scanStream => _scanStreamController.stream;

@@ -42,8 +42,8 @@ class BleDevice {
 
   /// On web, it returns true if the web browser supports receiving advertisements from this device.
   /// The rest of the platforms will always return true.
-  bool get isReceivingAdvertisements =>
-      UniversalBle.isReceivingAdvertisements(deviceId);
+  bool get receivesAdvertisements =>
+      UniversalBle.receivesAdvertisements(deviceId);
 
   BleDevice({
     required this.deviceId,

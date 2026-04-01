@@ -77,10 +77,10 @@ class UniversalBle {
   /// [withAndroidFineLocation] is used to check fine location permission on Android 12+ (API 31+).
   /// On Android lower than 12, this method will check location permission regardless of the [withAndroidFineLocation] value.
   /// `Windows`, `Linux` and `Web` will always return true.
-  static Future<bool> isPermissionGranted({
+  static Future<bool> hasPermissions({
     bool withAndroidFineLocation = false,
   }) async {
-    return _platform.isPermissionGranted(
+    return _platform.hasPermissions(
       withAndroidFineLocation: withAndroidFineLocation,
     );
   }
@@ -534,15 +534,15 @@ class UniversalBle {
   /// If no [id] is provided, all queues will be cleared.
   static void clearQueue([String? id]) => _bleCommandQueue.clearQueue(id);
 
-  /// [isReceivingAdvertisements] returns true on web if the browser supports receiving advertisements from a certain `deviceId`.
+  /// [receivesAdvertisements] returns true on web if the browser supports receiving advertisements from a certain `deviceId`.
   /// The rest of the platforms will always return true.
   /// If true, then you will be getting scanResult updates for this device.
   ///
   /// For this feature to work, you need to enable the `chrome://flags/#enable-experimental-web-platform-features` flag.
   /// Not every browser supports this API yet.
   /// Even if the browser supports it, sometimes it won't fire any advertisement events even though the device may be sending them.
-  static bool isReceivingAdvertisements(String deviceId) =>
-      _platform.isReceivingAdvertisements(deviceId);
+  static bool receivesAdvertisements(String deviceId) =>
+      _platform.receivesAdvertisements(deviceId);
 
   /// Get Bluetooth state availability.
   static set onAvailabilityChange(OnAvailabilityChange? onAvailabilityChange) {

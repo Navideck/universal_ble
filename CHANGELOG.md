@@ -1,9 +1,7 @@
 ## 2.0.0
-* Add first-party `UniversalBlePeripheral` API to integrate peripheral mode directly in `universal_ble`
-* Add peripheral pigeon channels and platform hooks for Android/iOS/macOS/Windows
-* Reuse shared `universal_ble` models for peripheral workflows where applicable
-* Merge central and peripheral demos into a single tabbed example app
+* Add peripheral mode on Android, iOS, macOS, and Windows
 * Add `requestConnectionPriority` to allow tuning BLE connection intervals on Android
+* BREAKING CHANGE: `getBluetoothAvailabilityState` renamed to `getAvailabilityState`
 * Add SPM support on Apple
 
 ## 1.2.0
