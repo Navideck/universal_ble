@@ -398,6 +398,17 @@ class UniversalBleLinux extends UniversalBlePlatform {
   }
 
   @override
+  Future<void> requestConnectionPriority(
+    String deviceId,
+    BleConnectionPriority priority,
+  ) {
+    throw UniversalBleException(
+      code: UniversalBleErrorCode.notSupported,
+      message: "requestConnectionPriority is not supported on Linux platform",
+    );
+  }
+
+  @override
   Future<int> readRssi(String deviceId) async {
     throw UniversalBleException(
       code: UniversalBleErrorCode.notImplemented,

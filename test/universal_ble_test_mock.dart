@@ -67,6 +67,14 @@ abstract class UniversalBlePlatformMock extends UniversalBlePlatform {
   }
 
   @override
+  Future<void> requestConnectionPriority(
+    String deviceId,
+    BleConnectionPriority priority,
+  ) {
+    throw UnimplementedError();
+  }
+
+  @override
   Future<void> setNotifiable(String deviceId, String service,
       String characteristic, BleInputProperty bleInputProperty) {
     throw UnimplementedError();

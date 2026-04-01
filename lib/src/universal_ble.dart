@@ -351,6 +351,30 @@ class UniversalBle {
     );
   }
 
+  /// Requests a connection parameter update for [deviceId].
+  ///
+  /// [priority] controls the BLE connection interval:
+  /// - [BleConnectionPriority.balanced] - default OS behaviour (~30-50 ms interval).
+  /// - [BleConnectionPriority.highPerformance] - low latency, higher power (~7.5-15 ms interval).
+  /// - [BleConnectionPriority.lowPower] - power-optimised (~100-125 ms interval).
+  ///
+  /// Only supported on Android. On all other platforms this throws
+  /// [UniversalBleException] with code [UniversalBleErrorCode.notSupported].
+  ///
+  /// Should be called after a successful connection and MTU negotiation, before
+  /// beginning high-throughput data transfer.
+  static Future<void> requestConnectionPriority(
+    String deviceId,
+    BleConnectionPriority priority, {
+    Duration? timeout,
+  }) async {
+    return await _bleCommandQueue.queueCommand(
+      () => _platform.requestConnectionPriority(deviceId, priority),
+      timeout: timeout,
+      deviceId: deviceId,
+    );
+  }
+
   /// Read the RSSI value of a connected device.
   ///
   /// Returns the current RSSI value in dBm. This value indicates the signal strength

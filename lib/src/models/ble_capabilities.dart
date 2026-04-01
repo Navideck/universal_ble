@@ -40,6 +40,9 @@ class BleCapabilities {
   static bool supportsConnectedDevicesApi = !_Platform.isWeb;
 
   static bool supportsRequestMtuApi = !_Platform.isWeb;
+
+  static bool supportsConnectionPriorityApi =
+      !_Platform.isWeb && defaultTargetPlatform == TargetPlatform.android;
 }
 
 class _Platform {

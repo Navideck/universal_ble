@@ -1,3 +1,6 @@
+## 1.3.0
+* Add `requestConnectionPriority` to allow tuning BLE connection intervals on Android
+
 ## 1.2.0
 * Add `autoConnect` parameter to `connect()` method for automatic reconnection support on Android and iOS/macOS
 * Add `serviceData` in `BleDevice`
