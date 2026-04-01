@@ -283,6 +283,7 @@ class UniversalBlePeripheralPlugin(
         override fun onStartFailure(errorCode: Int) {
             super.onStartFailure(errorCode)
             handler.post {
+                restoreAdapterNameIfNeeded()
                 val errorMessage = when (errorCode) {
                     ADVERTISE_FAILED_ALREADY_STARTED -> "Already started"
                     ADVERTISE_FAILED_DATA_TOO_LARGE -> "Data too large"

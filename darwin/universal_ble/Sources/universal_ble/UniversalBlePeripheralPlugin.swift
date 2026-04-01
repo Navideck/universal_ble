@@ -227,11 +227,22 @@ final class UniversalBlePeripheralPlugin: NSObject, UniversalBlePeripheralChanne
     ) { readReq in
       do {
         let result = try readReq.get()
-        guard let data = result?.value.toData() as Data? else {
+        let status = result?.status?.toCBATTErrorCode() ?? .success
+        guard status == .success else {
+          self.peripheralManager.respond(to: request, withResult: status)
+          return
+        }
+        guard let fullData = result?.value.toData() as Data? else {
           self.peripheralManager.respond(to: request, withResult: .requestNotSupported)
           return
         }
-        request.value = data
+        let offset = Int(request.offset)
+        guard offset <= fullData.count else {
+          self.peripheralManager.respond(to: request, withResult: .invalidOffset)
+          return
+        }
+        let sliced = fullData.subdata(in: offset..<fullData.count)
+        request.value = sliced
         self.peripheralManager.respond(to: request, withResult: .success)
       } catch {
         self.peripheralManager.respond(to: request, withResult: .requestNotSupported)

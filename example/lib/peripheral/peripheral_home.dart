@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:typed_data';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:universal_ble/universal_ble.dart';
 
@@ -54,7 +54,9 @@ class _PeripheralHomeState extends State<PeripheralHome> {
       PeripheralRequestHandlers(
         onReadRequest: (deviceId, characteristicId, _, __) {
           _log('Read request: $deviceId ${characteristicId.value}');
-          return BleReadRequestResult(value: utf8.encode('Hello World'));
+          return BleReadRequestResult(
+            value: Uint8List.fromList(utf8.encode('Hello World')),
+          );
         },
         onWriteRequest: (deviceId, characteristicId, _, value) {
           _log('Write request: $deviceId ${characteristicId.value} $value');
@@ -107,17 +109,20 @@ class _PeripheralHomeState extends State<PeripheralHome> {
   }
 
   Future<void> _startAdvertising() async {
+    final isWindows = !kIsWeb && defaultTargetPlatform == TargetPlatform.windows;
     await _peripheral.startAdvertising(
       services: [
         const PeripheralServiceId(_serviceBattery),
         const PeripheralServiceId(_serviceTest),
       ],
-      localName: 'UniversalBlePeripheral',
-      manufacturerData: ManufacturerData(
-        0x012D,
-        Uint8List.fromList([0x03, 0x00, 0x64, 0x00]),
-      ),
-      addManufacturerDataInScanResponse: true,
+      localName: isWindows ? null : 'UniversalBlePeripheral',
+      manufacturerData: isWindows
+          ? null
+          : ManufacturerData(
+              0x012D,
+              Uint8List.fromList([0x03, 0x00, 0x64, 0x00]),
+            ),
+      addManufacturerDataInScanResponse: !isWindows,
     );
     _log('Start advertising requested');
   }
@@ -164,7 +169,7 @@ class _PeripheralHomeState extends State<PeripheralHome> {
                           characteristicId: const PeripheralCharacteristicId(
                             _charTest,
                           ),
-                          value: utf8.encode('Test Data'),
+                          value: Uint8List.fromList(utf8.encode('Test Data')),
                         );
                         _log('Characteristic updated');
                       }

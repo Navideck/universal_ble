@@ -640,6 +640,7 @@ The error parser automatically converts platform-specific error formats (strings
 
 ```dart
 import 'dart:typed_data';
+import 'package:flutter/foundation.dart';
 import 'package:universal_ble/universal_ble.dart';
 
 final peripheral = UniversalBlePeripheralClient();
@@ -685,18 +686,27 @@ await peripheral.removeService(const PeripheralServiceId("0000180D-0000-1000-800
 
 ### Advertising
 
+On **Android**, passing `localName` may temporarily change the system Bluetooth device name (so it can appear in the advertisement). The plugin restores the previous name when advertising stops, if starting advertising fails, or when the plugin is disposed.
+
+On **Windows**, `GattServiceProvider`-based advertising does not support `localName`, manufacturer data, or a scan-response flag; omit them (as below) or the call will return a not-supported error.
+
 ```dart
+final isWindows = !kIsWeb && defaultTargetPlatform == TargetPlatform.windows;
+
 await peripheral.startAdvertising(
   services: const [
     PeripheralServiceId("0000180F-0000-1000-8000-00805F9B34FB"),
   ],
-  localName: "UniversalBlePeripheral",
-  manufacturerData: ManufacturerData(
-    0x012D,
-    Uint8List.fromList([0x03, 0x00, 0x64, 0x00]),
-  ),
-  addManufacturerDataInScanResponse:
-      caps.supportsManufacturerDataInScanResponse,
+  localName: isWindows ? null : "UniversalBlePeripheral",
+  manufacturerData: isWindows
+      ? null
+      : ManufacturerData(
+          0x012D,
+          Uint8List.fromList([0x03, 0x00, 0x64, 0x00]),
+        ),
+  addManufacturerDataInScanResponse: isWindows
+      ? false
+      : caps.supportsManufacturerDataInScanResponse,
 );
 
 final advertisingState = await peripheral.getAdvertisingState();

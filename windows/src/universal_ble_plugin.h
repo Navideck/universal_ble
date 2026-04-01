@@ -22,6 +22,7 @@
 #include "ui_thread_handler.hpp"
 #include "universal_ble_thread_safe.h"
 #include <memory>
+#include <vector>
 
 namespace universal_ble {
 struct GattCharacteristicObject {
@@ -194,6 +195,9 @@ private:
   // Peripheral runtime state
   std::unordered_map<std::string, std::unique_ptr<PeripheralGattServiceProviderObject>>
       peripheral_service_provider_map_{};
+  /// Lowercased service UUIDs from the last successful `StartAdvertising` call.
+  /// Empty means all registered services were selected.
+  std::vector<std::string> peripheral_advertising_targets_lc_{};
   event_revoker<IRadio> peripheral_radio_state_changed_revoker_;
   std::unique_ptr<UniversalBlePeripheralCallback> peripheral_callback_channel_;
   std::mutex peripheral_mutex_;
@@ -216,7 +220,7 @@ private:
   PeripheralGattCharacteristicObject *FindPeripheralGattCharacteristicObject(
       const std::string &characteristic_id,
       bool *ambiguous_match = nullptr);
-  bool AreAllPeripheralServicesStarted() const;
+  bool ArePeripheralAdvertisingTargetsStarted() const;
   static uint8_t ToGattProtocolError(int64_t status_code);
   static GattCharacteristicProperties ToPeripheralGattCharacteristicProperties(
       int property);

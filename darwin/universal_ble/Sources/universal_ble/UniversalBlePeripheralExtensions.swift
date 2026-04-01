@@ -64,11 +64,17 @@ extension PeripheralCharacteristic {
 
 extension String {
   func findPeripheralCharacteristic() -> CBMutableCharacteristic? {
-    peripheralCharacteristicsList.first { $0.uuid.uuidString == self }
+    let target = lowercased()
+    return peripheralCharacteristicsList.first {
+      $0.uuid.uuidString.lowercased() == target
+    }
   }
 
   func findPeripheralService() -> CBMutableService? {
-    peripheralServicesList.first { $0.uuid.uuidString == self }
+    let target = lowercased()
+    return peripheralServicesList.first {
+      $0.uuid.uuidString.lowercased() == target
+    }
   }
 }
 

@@ -1,7 +1,4 @@
 PODS:
-  - ble_peripheral (0.0.1):
-    - Flutter
-    - FlutterMacOS
   - Flutter (1.0.0)
   - integration_test (0.0.1):
     - Flutter
@@ -10,14 +7,11 @@ PODS:
     - FlutterMacOS
 
 DEPENDENCIES:
-  - ble_peripheral (from `.symlinks/plugins/ble_peripheral/darwin`)
   - Flutter (from `Flutter`)
   - integration_test (from `.symlinks/plugins/integration_test/ios`)
   - universal_ble (from `.symlinks/plugins/universal_ble/darwin`)
 
 EXTERNAL SOURCES:
-  ble_peripheral:
-    :path: ".symlinks/plugins/ble_peripheral/darwin"
   Flutter:
     :path: Flutter
   integration_test:
@@ -26,7 +20,6 @@ EXTERNAL SOURCES:
     :path: ".symlinks/plugins/universal_ble/darwin"
 
 SPEC CHECKSUMS:
-  ble_peripheral: 1d6cb378caaef61cd39410652a4de1a68dfba4f2
   Flutter: cabc95a1d2626b1b06e7179b784ebcf0c0cde467
   integration_test: 4a889634ef21a45d28d50d622cf412dc6d9f586e
   universal_ble: 45519b2aeafe62761e2c6309f8927edb5288b914

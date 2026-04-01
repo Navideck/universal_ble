@@ -6,6 +6,7 @@
 #include <flutter/plugin_registrar_windows.h>
 
 #include <algorithm>
+#include <future>
 #include <iomanip>
 #include <memory>
 #include <regex>
@@ -1624,8 +1625,9 @@ ErrorOr<PeripheralAdvertisingState> UniversalBlePlugin::GetAdvertisingState() {
   if (peripheral_service_provider_map_.empty()) {
     return PeripheralAdvertisingState::kIdle;
   }
-  return AreAllPeripheralServicesStarted() ? PeripheralAdvertisingState::kAdvertising
-                                           : PeripheralAdvertisingState::kIdle;
+  return ArePeripheralAdvertisingTargetsStarted()
+             ? PeripheralAdvertisingState::kAdvertising
+             : PeripheralAdvertisingState::kIdle;
 }
 
 ErrorOr<PeripheralReadinessState> UniversalBlePlugin::GetReadinessState() {
@@ -1637,6 +1639,7 @@ ErrorOr<PeripheralReadinessState> UniversalBlePlugin::GetReadinessState() {
 
 std::optional<FlutterError> UniversalBlePlugin::StopAdvertising() {
   std::lock_guard<std::mutex> lock(peripheral_mutex_);
+  peripheral_advertising_targets_lc_.clear();
   for (auto const &[key, provider] : peripheral_service_provider_map_) {
     try {
       provider->obj.StopAdvertising();
@@ -1661,6 +1664,10 @@ std::optional<FlutterError> UniversalBlePlugin::RemoveService(
     const std::string &service_id) {
   std::lock_guard<std::mutex> lock(peripheral_mutex_);
   const std::string service_id_lc = to_lower_case(service_id);
+  peripheral_advertising_targets_lc_.erase(
+      std::remove(peripheral_advertising_targets_lc_.begin(),
+                  peripheral_advertising_targets_lc_.end(), service_id_lc),
+      peripheral_advertising_targets_lc_.end());
   const auto it = peripheral_service_provider_map_.find(service_id_lc);
   if (it == peripheral_service_provider_map_.end()) {
     return FlutterError("not-found", "Service not found", nullptr);
@@ -1672,6 +1679,7 @@ std::optional<FlutterError> UniversalBlePlugin::RemoveService(
 
 std::optional<FlutterError> UniversalBlePlugin::ClearServices() {
   std::lock_guard<std::mutex> lock(peripheral_mutex_);
+  peripheral_advertising_targets_lc_.clear();
   for (auto const &[_, provider] : peripheral_service_provider_map_) {
     DisposePeripheralServiceProvider(provider.get());
   }
@@ -1791,6 +1799,7 @@ std::optional<FlutterError> UniversalBlePlugin::StartAdvertising(
         provider->obj.StartAdvertising(params);
       }
     }
+    peripheral_advertising_targets_lc_ = std::move(selected_services_lc);
     return std::nullopt;
   } catch (...) {
     return FlutterError("failed", "Failed to start advertising", nullptr);
@@ -1800,32 +1809,50 @@ std::optional<FlutterError> UniversalBlePlugin::StartAdvertising(
 std::optional<FlutterError> UniversalBlePlugin::UpdateCharacteristic(
     const std::string &characteristic_id, const std::vector<uint8_t> &value,
     const std::string *device_id) {
-  std::lock_guard<std::mutex> lock(peripheral_mutex_);
-  if (device_id != nullptr) {
-    return FlutterError(
-        "not-supported",
-        "Windows does not support targeting a specific device for notifications",
-        nullptr);
+  GattLocalCharacteristic local_char = nullptr;
+  IBuffer buffer = nullptr;
+  {
+    std::lock_guard<std::mutex> lock(peripheral_mutex_);
+    if (device_id != nullptr) {
+      return FlutterError(
+          "not-supported",
+          "Windows does not support targeting a specific device for notifications",
+          nullptr);
+    }
+    bool ambiguous_match = false;
+    auto *characteristic_object =
+        FindPeripheralGattCharacteristicObject(characteristic_id, &ambiguous_match);
+    if (ambiguous_match) {
+      return FlutterError(
+          "ambiguous-characteristic",
+          "Characteristic UUID exists in multiple services; cannot update uniquely",
+          nullptr);
+    }
+    if (characteristic_object == nullptr) {
+      return FlutterError("not-found", "Characteristic not found", nullptr);
+    }
+    IBuffer bytes = from_bytevc(value);
+    DataWriter writer;
+    writer.ByteOrder(ByteOrder::LittleEndian);
+    writer.WriteBuffer(bytes);
+    local_char = characteristic_object->obj;
+    buffer = writer.DetachBuffer();
   }
-  bool ambiguous_match = false;
-  auto *characteristic_object =
-      FindPeripheralGattCharacteristicObject(characteristic_id, &ambiguous_match);
-  if (ambiguous_match) {
-    return FlutterError(
-        "ambiguous-characteristic",
-        "Characteristic UUID exists in multiple services; cannot update uniquely",
-        nullptr);
-  }
-  if (characteristic_object == nullptr) {
-    return FlutterError("not-found", "Characteristic not found", nullptr);
-  }
-  IBuffer bytes = from_bytevc(value);
-  DataWriter writer;
-  writer.ByteOrder(ByteOrder::LittleEndian);
-  writer.WriteBuffer(bytes);
-  auto notify_result =
-      characteristic_object->obj.NotifyValueAsync(writer.DetachBuffer()).get();
-  if (!notify_result) {
+
+  try {
+    std::future<bool> notify_future = std::async(
+        std::launch::async, [local_char, buffer]() {
+          auto op = local_char.NotifyValueAsync(buffer);
+          return op.get();
+        });
+    const bool notify_result = notify_future.get();
+    if (!notify_result) {
+      return FlutterError(
+          "failed",
+          "Failed to notify subscribed clients for characteristic update",
+          nullptr);
+    }
+  } catch (...) {
     return FlutterError(
         "failed",
         "Failed to notify subscribed clients for characteristic update",
@@ -2167,7 +2194,8 @@ void UniversalBlePlugin::PeripheralAdvertisementStatusChanged(
     });
     return;
   }
-  if (AreAllPeripheralServicesStarted()) {
+  std::lock_guard<std::mutex> lock(peripheral_mutex_);
+  if (ArePeripheralAdvertisingTargetsStarted()) {
     ui_thread_handler_.Post([this] {
       peripheral_callback_channel_->OnAdvertisingStateChange(
           PeripheralAdvertisingState::kAdvertising, nullptr, SuccessCallback,
@@ -2230,14 +2258,30 @@ UniversalBlePlugin::FindPeripheralGattCharacteristicObject(
   return first_match;
 }
 
-bool UniversalBlePlugin::AreAllPeripheralServicesStarted() const {
-  for (auto const &[_, service_provider] : peripheral_service_provider_map_) {
-    if (service_provider->obj.AdvertisementStatus() !=
+bool UniversalBlePlugin::ArePeripheralAdvertisingTargetsStarted() const {
+  if (peripheral_service_provider_map_.empty()) {
+    return false;
+  }
+  if (peripheral_advertising_targets_lc_.empty()) {
+    for (auto const &[_, service_provider] : peripheral_service_provider_map_) {
+      if (service_provider->obj.AdvertisementStatus() !=
+          GattServiceProviderAdvertisementStatus::Started) {
+        return false;
+      }
+    }
+    return true;
+  }
+  for (const auto &target_id : peripheral_advertising_targets_lc_) {
+    const auto it = peripheral_service_provider_map_.find(target_id);
+    if (it == peripheral_service_provider_map_.end()) {
+      return false;
+    }
+    if (it->second->obj.AdvertisementStatus() !=
         GattServiceProviderAdvertisementStatus::Started) {
       return false;
     }
   }
-  return !peripheral_service_provider_map_.empty();
+  return true;
 }
 
 GattCharacteristicProperties

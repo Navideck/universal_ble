@@ -1,5 +1,4 @@
-import 'dart:typed_data';
-
+import 'package:flutter/foundation.dart';
 import 'package:universal_ble/universal_ble.dart';
 
 class BleService {
@@ -68,11 +67,12 @@ class BleDescriptor {
   @override
   bool operator ==(Object other) {
     if (other is! BleDescriptor) return false;
-    return other.uuid == uuid && other.value == value;
+    return other.uuid == uuid && listEquals(other.value, value);
   }
 
   @override
-  int get hashCode => Object.hash(uuid, value);
+  int get hashCode =>
+      Object.hash(uuid, value == null ? null : Object.hashAll(value!));
 }
 
 enum CharacteristicProperty {
