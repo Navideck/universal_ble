@@ -33,8 +33,11 @@ A cross-platform (Android/iOS/macOS/Windows/Linux/Web) Bluetooth Low Energy (BLE
 - [Error Handling](#error-handling)
 - [UUID Format Agnostic](#uuid-format-agnostic)
 - [Permissions](#permissions)
+- [Peripheral Mode](#peripheral-mode)
 
 ## API Support
+
+### Client Mode (`UniversalBle`)
 
 |                               | Android | iOS | macOS | Windows | Linux | Web |
 | :---------------------------- | :-----: | :-: | :---: | :-----: | :---: | :-: |
@@ -50,13 +53,35 @@ A cross-platform (Android/iOS/macOS/Windows/Linux/Web) Bluetooth Low Energy (BLE
 | unpair                        |   ✔️    | ❌  |  ❌   |   ✔️    |  ✔️   | ❌  |
 | isPaired                      |   ✔️    | ✔️  |  ✔️   |   ✔️    |  ✔️   | ✔️  |
 | onPairingStateChange          |   ✔️    |  ⏺  |   ⏺   |   ✔️    |  ✔️   |  ⏺  |
-| getBluetoothAvailabilityState |   ✔️    | ✔️  |  ✔️   |   ✔️    |  ✔️   | ❌  |
+| getAvailabilityState          |   ✔️    | ✔️  |  ✔️   |   ✔️    |  ✔️   | ❌  |
 | enable/disable Bluetooth      |   ✔️    | ❌  |  ❌   |   ✔️    |  ✔️   | ❌  |
 | onAvailabilityChange          |   ✔️    | ✔️  |  ✔️   |   ✔️    |  ✔️   | ✔️  |
 | requestMtu                    |   ✔️    | ✔️  |  ✔️   |   ✔️    |  ✔️   | ❌  |
 | requestConnectionPriority     |   ✔️    | ❌  |  ❌   |   ❌    |  ❌   | ❌  |
 | readRssi                      |   ✔️    | ✔️  |  ✔️   |   ❌    |  🚧   | ❌  |
 | requestPermissions            |   ✔️    | ✔️  |  ✔️   |   ✔️    |  ✔️   | ✔️  |
+
+### Peripheral Mode (`UniversalBlePeripheral`)
+
+| API                      | Android | iOS | macOS | Windows | Linux | Web |
+| :----------------------- | :-----: | :-: | :---: | :-----: | :---: | :-: |
+| getStaticCapabilities    |   ✔️    | ✔️  |  ✔️   |   ✔️    |  🚧   | ❌  |
+| getReadinessState\*      |   ✔️    | ✔️  |  ✔️   |   ✔️    |  🚧   | ❌  |
+| getAdvertisingState      |   ✔️    | ✔️  |  ✔️   |   ✔️    |  🚧   | ❌  |
+| addService               |   ✔️    | ✔️  |  ✔️   |   ✔️    |  🚧   | ❌  |
+| removeService            |   ✔️    | ✔️  |  ✔️   |   ✔️    |  🚧   | ❌  |
+| clearServices            |   ✔️    | ✔️  |  ✔️   |   ✔️    |  🚧   | ❌  |
+| getServices              |   ✔️    | ✔️  |  ✔️   |   ✔️    |  🚧   | ❌  |
+| startAdvertising         |   ✔️    | ✔️  |  ✔️   |   ✔️    |  🚧   | ❌  |
+| stopAdvertising          |   ✔️    | ✔️  |  ✔️   |   ✔️    |  🚧   | ❌  |
+| updateCharacteristicValue\*\* |   ✔️    | ✔️  |  ✔️   |   ✔️    |  🚧   | ❌  |
+| getSubscribedClients     |   ✔️    | ✔️  |  ✔️   |   ✔️    |  🚧   | ❌  |
+| getMaximumNotifyLength   |   ✔️    | ✔️  |  ✔️   |   ✔️    |  🚧   | ❌  |
+| events stream\*\*\*      |   ✔️    | ✔️  |  ✔️   |   ✔️    |  🚧   | ❌  |
+
+\* `getReadinessState` returns a snapshot state. Use `eventStream` for ongoing runtime changes.
+\*\* `updateCharacteristicValue` supports broadcast to all subscribed devices or a specific device via `PeripheralUpdateTarget`.
+\*\*\* events include advertising state changes, MTU changes, subscription changes, and related peripheral events.
 
 ## Getting Started
 
@@ -70,6 +95,7 @@ dependencies:
 and import it wherever you want to use it:
 
 ```dart
+import 'dart:typed_data';
 import 'package:universal_ble/universal_ble.dart';
 ```
 
@@ -110,7 +136,7 @@ UniversalBle.isScanning();
 Before initiating a scan, ensure that Bluetooth is available:
 
 ```dart
-AvailabilityState state = await UniversalBle.getBluetoothAvailabilityState();
+AvailabilityState state = await UniversalBle.getAvailabilityState();
 // Start scan only if Bluetooth is powered on
 if (state == AvailabilityState.poweredOn) {
   UniversalBle.startScan();
@@ -402,7 +428,7 @@ bleDevice.unpair();
 
 ```dart
 // Get current Bluetooth availability state
-AvailabilityState availabilityState = UniversalBle.getBluetoothAvailabilityState(); // e.g. poweredOff or poweredOn,
+AvailabilityState availabilityState = UniversalBle.getAvailabilityState(); // e.g. poweredOff or poweredOn,
 
 // Receive Bluetooth availability changes
 UniversalBle.onAvailabilityChange = (state) {
@@ -440,7 +466,7 @@ explicitly controlled by applications:
 
   * **Android ≤ 13**: Apps may request MTU once per connection (up to 517).
     If never requested, the default MTU is 23.
-  * **Android 14+**: The first GATT client effectively drives MTU negotiation
+  * **Android 14+**: The first Bluetooth client effectively drives MTU negotiation
     to 517 (or the link’s maximum); subsequent MTU requests are ignored.
 
 * **Windows**
@@ -451,7 +477,7 @@ explicitly controlled by applications:
 * **Linux (BlueZ)**
 
   * MTU is negotiated automatically by default.
-  * The standard D-Bus GATT API does not expose MTU control.
+  * The standard D-Bus Bluetooth API does not expose MTU control.
   * MTU can be requested via BlueZ tools or lower-level APIs, but most apps
     treat it as stack-defined.
 
@@ -606,6 +632,175 @@ try {
 
 The error parser automatically converts platform-specific error formats (strings, numeric codes, PlatformExceptions) into the unified `UniversalBleErrorCode` enum, ensuring consistent error handling across all platforms.
 
+## Peripheral Mode
+
+`universal_ble` provides peripheral mode through `UniversalBlePeripheralClient`, so your app can advertise as a peripheral "server" in addition to client mode.
+
+### Setup
+
+```dart
+import 'dart:typed_data';
+import 'package:flutter/foundation.dart';
+import 'package:universal_ble/universal_ble.dart';
+
+final peripheral = UniversalBlePeripheralClient();
+
+final caps = await peripheral.getStaticCapabilities();
+if (!caps.supportsPeripheralMode) return;
+
+final readiness = await peripheral.getReadinessState();
+if (readiness != UniversalBlePeripheralReadinessState.ready) return;
+```
+
+### Service Management
+
+```dart
+await peripheral.addService(
+  BleService("0000180F-0000-1000-8000-00805F9B34FB", [
+    BleCharacteristic(
+      "00002A19-0000-1000-8000-00805F9B34FB",
+      [CharacteristicProperty.read, CharacteristicProperty.notify],
+      [BleDescriptor("00002902-0000-1000-8000-00805F9B34FB")],
+    ),
+  ]),
+  primary: true,
+);
+
+await peripheral.addService(
+  BleService("0000180D-0000-1000-8000-00805F9B34FB", [
+    BleCharacteristic(
+      "00002A37-0000-1000-8000-00805F9B34FB",
+      [
+        CharacteristicProperty.read,
+        CharacteristicProperty.notify,
+        CharacteristicProperty.write,
+      ],
+      [],
+    ),
+  ]),
+);
+
+final services = await peripheral.getServices();
+await peripheral.removeService(const PeripheralServiceId("0000180D-0000-1000-8000-00805F9B34FB"));
+```
+
+### Advertising
+
+On **Android**, passing `localName` may temporarily change the system Bluetooth device name (so it can appear in the advertisement). The plugin restores the previous name when advertising stops, if starting advertising fails, or when the plugin is disposed.
+
+On **Windows**, `GattServiceProvider`-based advertising does not support `localName`, manufacturer data, or a scan-response flag; omit them (as below) or the call will return a not-supported error.
+
+```dart
+final isWindows = !kIsWeb && defaultTargetPlatform == TargetPlatform.windows;
+
+await peripheral.startAdvertising(
+  services: const [
+    PeripheralServiceId("0000180F-0000-1000-8000-00805F9B34FB"),
+  ],
+  localName: isWindows ? null : "UniversalBlePeripheral",
+  manufacturerData: isWindows
+      ? null
+      : ManufacturerData(
+          0x012D,
+          Uint8List.fromList([0x03, 0x00, 0x64, 0x00]),
+        ),
+  addManufacturerDataInScanResponse: isWindows
+      ? false
+      : caps.supportsManufacturerDataInScanResponse,
+);
+
+final advertisingState = await peripheral.getAdvertisingState();
+if (advertisingState == UniversalBlePeripheralAdvertisingState.advertising) {
+  // Peripheral is advertising.
+}
+
+await peripheral.stopAdvertising();
+```
+
+### Request Handlers
+
+```dart
+peripheral.setRequestHandlers(
+  PeripheralRequestHandlers(
+    onReadRequest: (deviceId, characteristicId, offset, value) {
+      return BleReadRequestResult(value: value ?? Uint8List(0));
+    },
+    onWriteRequest: (deviceId, characteristicId, offset, value) {
+      return const BleWriteRequestResult();
+    },
+    onDescriptorReadRequest:
+        (deviceId, characteristicId, descriptorId, offset, value) {
+          return BleReadRequestResult(value: value ?? Uint8List(0));
+        },
+    onDescriptorWriteRequest:
+        (deviceId, characteristicId, descriptorId, offset, value) {
+          return const BleWriteRequestResult();
+        },
+  ),
+);
+```
+
+### Characteristic Updates
+
+```dart
+await peripheral.updateCharacteristicValue(
+  characteristicId: const PeripheralCharacteristicId(
+    "00002A19-0000-1000-8000-00805F9B34FB",
+  ),
+  value: Uint8List.fromList([92]),
+);
+```
+
+### Subscribed Clients and Notify Length
+
+```dart
+final subscribers = await peripheral.getSubscribedClients(
+  const PeripheralCharacteristicId("00002A19-0000-1000-8000-00805F9B34FB"),
+);
+
+for (final deviceId in subscribers) {
+  final maxNotifyLength = await peripheral.getMaximumNotifyLength(deviceId);
+  // maxNotifyLength can be null when unknown for this device.
+}
+```
+
+### Event Stream
+
+```dart
+final sub = peripheral.eventStream.listen((event) {
+  switch (event) {
+    case UniversalBlePeripheralAdvertisingStateChanged():
+      // event.state / event.error
+      break;
+    case UniversalBlePeripheralCharacteristicSubscriptionChanged():
+      // event.deviceId / event.characteristicId / event.isSubscribed
+      break;
+    case UniversalBlePeripheralConnectionStateChanged():
+      // event.deviceId / event.connected
+      break;
+    case UniversalBlePeripheralMtuChanged():
+      // event.deviceId / event.mtu
+      break;
+    case UniversalBlePeripheralServiceAdded():
+      // event.serviceId / event.error
+      break;
+  }
+});
+```
+
+### Breaking changes
+
+- `isSupported()` was replaced by `getStaticCapabilities().supportsPeripheralMode`.
+- `isAdvertising()` was replaced by `getAdvertisingState()`.
+- Static callback setters were replaced by `eventStream` + `setRequestHandlers(...)`.
+- `UniversalBlePeripheralClient` is the recommended API; `UniversalBlePeripheral` remains as a singleton facade.
+
+### Platform notes
+
+- Linux/Web currently return unsupported for peripheral mode.
+- Windows peripheral advertising does not expose all advertising payload customization options from Android/Apple stacks.
+- iOS/macOS setup (including required `Info.plist` keys for peripheral usage) is documented in [Permissions → iOS / macOS](#ios--macos).
+
 ## UUID Format Agnostic
 
 Universal BLE is agnostic to the UUID format of services and characteristics regardless of the platform the app runs on. When passing a UUID, you can pass it in any format (long/short) or character case (upper/lower case) you want. Universal BLE will take care of necessary conversions, across all platforms, so that you don't need to worry about underlying platform differences.
@@ -692,7 +887,21 @@ await UniversalBle.startScan();
 
 ### iOS / macOS
 
-Add `NSBluetoothPeripheralUsageDescription` and `NSBluetoothAlwaysUsageDescription` to Info.plist of your iOS and macOS app.
+For Bluetooth usage (including peripheral mode), add both keys to your app's `Info.plist`:
+
+- `NSBluetoothAlwaysUsageDescription`: message shown when the app requests Bluetooth access.
+- `NSBluetoothPeripheralUsageDescription`: message used for peripheral role access on Apple platforms.
+
+Example:
+
+```xml
+<key>NSBluetoothAlwaysUsageDescription</key>
+<string>This app uses Bluetooth to scan, connect, and advertise to nearby devices.</string>
+<key>NSBluetoothPeripheralUsageDescription</key>
+<string>This app uses Bluetooth to advertise services to nearby devices.</string>
+```
+
+Use clear, user-facing text that explains why Bluetooth is needed in your app.
 
 Add the `Bluetooth` capability to the macOS app from Xcode.
 
@@ -825,7 +1034,7 @@ Future<void> resetBleState() async {
 
   // Check Bluetooth availability
   AvailabilityState availabilityState =
-      await UniversalBle.getBluetoothAvailabilityState();
+      await UniversalBle.getAvailabilityState();
 
   // Skip if Bluetooth is not powered on
   if (availabilityState != AvailabilityState.poweredOn) {
@@ -865,7 +1074,12 @@ Future<void> resetBleState() async {
 
 ## Example app
 
-This repo includes an [example app](example/) you can run to try the API. For a full-blown app, check [Universal-BLE](https://github.com/Navideck/Universal-BLE).
+This repo includes an [example app](example/) with two tabs:
+
+- `Client`: scanning and device communication workflows.
+- `Peripheral`: peripheral server and advertising workflows.
+
+For a full-blown app, check [Universal-BLE](https://github.com/Navideck/Universal-BLE).
 
 ## Low level API
 

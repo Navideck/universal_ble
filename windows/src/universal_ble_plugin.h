@@ -22,6 +22,7 @@
 #include "ui_thread_handler.hpp"
 #include "universal_ble_thread_safe.h"
 #include <memory>
+#include <vector>
 
 namespace universal_ble {
 struct GattCharacteristicObject {
@@ -32,6 +33,29 @@ struct GattCharacteristicObject {
 struct GattServiceObject {
   GattDeviceService obj = nullptr;
   std::unordered_map<std::string, GattCharacteristicObject> characteristics;
+};
+
+struct PeripheralGattCharacteristicObject {
+  GattLocalCharacteristic obj = nullptr;
+  event_token read_requested_token{};
+  event_token write_requested_token{};
+  event_token subscribed_clients_changed_token{};
+  IVectorView<GattSubscribedClient> stored_clients = nullptr;
+};
+
+struct PeripheralGattServiceProviderObject {
+  GattServiceProvider obj = nullptr;
+  event_token advertisement_status_changed_token{};
+  std::unordered_map<std::string, std::unique_ptr<PeripheralGattCharacteristicObject>>
+      characteristics;
+};
+
+enum class PeripheralBlePermission {
+  none,
+  readable,
+  writeable,
+  readEncryptionRequired,
+  writeEncryptionRequired,
 };
 
 struct BluetoothDeviceAgent {
@@ -66,7 +90,8 @@ struct BluetoothDeviceAgent {
 };
 
 class UniversalBlePlugin : public flutter::Plugin,
-                           public UniversalBlePlatformChannel {
+                           public UniversalBlePlatformChannel,
+                           public UniversalBlePeripheralChannel {
 public:
   static void RegisterWithRegistrar(flutter::PluginRegistrarWindows *registrar);
 
@@ -167,6 +192,43 @@ private:
 
   void GattCharacteristicValueChanged(const GattCharacteristic &sender,
                                       const GattValueChangedEventArgs &args);
+  // Peripheral runtime state
+  std::unordered_map<std::string, std::unique_ptr<PeripheralGattServiceProviderObject>>
+      peripheral_service_provider_map_{};
+  /// Lowercased service UUIDs from the last successful `StartAdvertising` call.
+  /// Empty means all registered services were selected.
+  std::vector<std::string> peripheral_advertising_targets_lc_{};
+  event_revoker<IRadio> peripheral_radio_state_changed_revoker_;
+  std::unique_ptr<UniversalBlePeripheralCallback> peripheral_callback_channel_;
+  std::mutex peripheral_mutex_;
+
+  // Peripheral helpers
+  fire_and_forget PeripheralAddServiceAsync(const PeripheralService &service);
+  fire_and_forget PeripheralReadRequestedAsync(
+      GattLocalCharacteristic const &local_char,
+      GattReadRequestedEventArgs args);
+  fire_and_forget PeripheralWriteRequestedAsync(
+      GattLocalCharacteristic const &local_char,
+      GattWriteRequestedEventArgs args);
+  fire_and_forget PeripheralSubscribedClientsChanged(
+      GattLocalCharacteristic const &local_char, IInspectable const &args);
+  void PeripheralAdvertisementStatusChanged(
+      GattServiceProvider const &sender,
+      GattServiceProviderAdvertisementStatusChangedEventArgs const &args);
+  void DisposePeripheralServiceProvider(
+      PeripheralGattServiceProviderObject *service_provider_object);
+  PeripheralGattCharacteristicObject *FindPeripheralGattCharacteristicObject(
+      const std::string &characteristic_id,
+      bool *ambiguous_match = nullptr);
+  bool ArePeripheralAdvertisingTargetsStarted() const;
+  static uint8_t ToGattProtocolError(int64_t status_code);
+  static GattCharacteristicProperties ToPeripheralGattCharacteristicProperties(
+      int property);
+  static PeripheralBlePermission ToPeripheralBlePermission(int permission);
+  static std::string PeripheralAdvertisementStatusToString(
+      GattServiceProviderAdvertisementStatus status);
+  static std::string ParsePeripheralBluetoothClientId(hstring client_id);
+  static std::string ParsePeripheralBluetoothError(BluetoothError error);
 
   // UniversalBlePlatformChannel implementation.
   void GetBluetoothAvailabilityState(
@@ -221,6 +283,27 @@ private:
   GetSystemDevices(const flutter::EncodableList &with_services,
                    std::function<void(ErrorOr<flutter::EncodableList> reply)>
                        result) override;
+
+  // UniversalBlePeripheralChannel implementation.
+  ErrorOr<PeripheralAdvertisingState> GetAdvertisingState() override;
+  ErrorOr<PeripheralReadinessState> GetReadinessState() override;
+  std::optional<FlutterError> StopAdvertising() override;
+  std::optional<FlutterError> AddService(const PeripheralService &service) override;
+  std::optional<FlutterError> RemoveService(const std::string &service_id) override;
+  std::optional<FlutterError> ClearServices() override;
+  ErrorOr<flutter::EncodableList> GetServices() override;
+  std::optional<FlutterError> StartAdvertising(
+      const flutter::EncodableList &services, const std::string *local_name,
+      const int64_t *timeout,
+      const PeripheralManufacturerData *manufacturer_data,
+      bool add_manufacturer_data_in_scan_response) override;
+  std::optional<FlutterError> UpdateCharacteristic(
+      const std::string &characteristic_id, const std::vector<uint8_t> &value,
+      const std::string *device_id) override;
+  ErrorOr<flutter::EncodableList> GetSubscribedClients(
+      const std::string &characteristic_id) override;
+  ErrorOr<std::optional<int64_t>> GetMaximumNotifyLength(
+      const std::string &device_id) override;
 };
 
 } // namespace universal_ble

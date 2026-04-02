@@ -18,7 +18,13 @@ public class UniversalBlePlugin: NSObject, FlutterPlugin {
     #endif
     let callbackChannel = UniversalBleCallbackChannel(binaryMessenger: messenger)
     let api = BleCentralDarwin(callbackChannel: callbackChannel)
+    let peripheralCallbackChannel = UniversalBlePeripheralCallback(binaryMessenger: messenger)
+    let peripheralApi = UniversalBlePeripheralPlugin(callbackChannel: peripheralCallbackChannel)
     UniversalBlePlatformChannelSetup.setUp(binaryMessenger: messenger, api: api)
+    UniversalBlePeripheralChannelSetup.setUp(
+      binaryMessenger: messenger,
+      api: peripheralApi
+    )
   }
 }
 

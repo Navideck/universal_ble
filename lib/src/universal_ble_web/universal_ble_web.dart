@@ -75,7 +75,7 @@ class UniversalBleWeb extends UniversalBlePlatform {
   }
 
   @override
-  Future<AvailabilityState> getBluetoothAvailabilityState() async {
+  Future<AvailabilityState> getAvailabilityState() async {
     bool isSupported = FlutterWebBluetooth.instance.isBluetoothApiSupported;
     if (!isSupported) return AvailabilityState.unsupported;
     bool isAvailable = await FlutterWebBluetooth.instance.getAvailability();

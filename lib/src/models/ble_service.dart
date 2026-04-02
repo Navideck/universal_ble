@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:universal_ble/universal_ble.dart';
 
 class BleService {
@@ -5,7 +6,7 @@ class BleService {
   List<BleCharacteristic> characteristics;
 
   BleService(String uuid, this.characteristics)
-    : uuid = BleUuidParser.string(uuid);
+      : uuid = BleUuidParser.string(uuid);
 
   @override
   String toString() {
@@ -20,7 +21,7 @@ class BleCharacteristic {
   ({String deviceId, String serviceId})? metaData;
 
   BleCharacteristic(String uuid, this.properties, this.descriptors)
-    : uuid = BleUuidParser.string(uuid);
+      : uuid = BleUuidParser.string(uuid);
 
   BleCharacteristic.withMetaData({
     required String deviceId,
@@ -28,11 +29,11 @@ class BleCharacteristic {
     required String uuid,
     required this.properties,
     required this.descriptors,
-  }) : uuid = BleUuidParser.string(uuid),
-       metaData = (
-         deviceId: deviceId,
-         serviceId: BleUuidParser.string(serviceId),
-       );
+  })  : uuid = BleUuidParser.string(uuid),
+        metaData = (
+          deviceId: deviceId,
+          serviceId: BleUuidParser.string(serviceId),
+        );
 
   @override
   String toString() {
@@ -55,19 +56,23 @@ class BleCharacteristic {
 
 class BleDescriptor {
   String uuid;
-  BleDescriptor(String uuid) : uuid = BleUuidParser.string(uuid);
+  /// Initial attribute value for this descriptor (e.g. HID Report Reference 0x2908).
+  Uint8List? value;
+
+  BleDescriptor(String uuid, {this.value}) : uuid = BleUuidParser.string(uuid);
 
   @override
-  String toString() => 'BleDescriptor{uuid: $uuid}';
+  String toString() => 'BleDescriptor{uuid: $uuid, value: $value}';
 
   @override
   bool operator ==(Object other) {
     if (other is! BleDescriptor) return false;
-    return other.uuid == uuid;
+    return other.uuid == uuid && listEquals(other.value, value);
   }
 
   @override
-  int get hashCode => uuid.hashCode;
+  int get hashCode =>
+      Object.hash(uuid, value == null ? null : Object.hashAll(value!));
 }
 
 enum CharacteristicProperty {
