@@ -145,22 +145,23 @@ class _PeripheralHomeState extends State<PeripheralHome> {
     );
     await UniversalBlePeripheral.addService(
       BlePeripheralService(
-          uuid: _serviceTest,
-          primary: false,
-          characteristics: [
-            BlePeripheralCharacteristic(
-              uuid: _charTest,
-              properties: [
-                CharacteristicProperty.read,
-                CharacteristicProperty.notify,
-                CharacteristicProperty.write
-              ],
-              permissions: [
-                PeripheralAttributePermission.readable,
-                PeripheralAttributePermission.writeable,
-              ],
-            ),
-          ]),
+        uuid: _serviceTest,
+        primary: true,
+        characteristics: [
+          BlePeripheralCharacteristic(
+            uuid: _charTest,
+            properties: [
+              CharacteristicProperty.read,
+              CharacteristicProperty.notify,
+              CharacteristicProperty.write
+            ],
+            permissions: [
+              PeripheralAttributePermission.readable,
+              PeripheralAttributePermission.writeable,
+            ],
+          ),
+        ],
+      ),
     );
     _log('Services queued');
   }
@@ -224,7 +225,7 @@ class _PeripheralHomeState extends State<PeripheralHome> {
               ElevatedButton(
                 onPressed: () async {
                   await UniversalBlePeripheral.updateCharacteristicValue(
-                    characteristicId: _charBattery,
+                    characteristicId: _charTest,
                     value: Uint8List.fromList([0x04]),
                   );
                   _log('Characteristic updated');
