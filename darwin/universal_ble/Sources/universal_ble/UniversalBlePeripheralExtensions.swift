@@ -89,7 +89,6 @@ extension CharacteristicProperty {
     case .indicate: return .indicate
     case .authenticatedSignedWrites: return .authenticatedSignedWrites
     case .extendedProperties: return .extendedProperties
-    default: return nil
     }
   }
 }
@@ -101,7 +100,6 @@ extension PeripheralAttributePermission {
     case .writeable: return .writeable
     case .readEncryptionRequired: return .readEncryptionRequired
     case .writeEncryptionRequired: return .writeEncryptionRequired
-    default: return nil
     }
   }
 }

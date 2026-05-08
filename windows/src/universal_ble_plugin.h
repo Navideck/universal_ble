@@ -299,7 +299,7 @@ private:
       const flutter::EncodableList &services, const std::string *local_name,
       const int64_t *timeout,
       const UniversalManufacturerData *manufacturer_data,
-      bool add_manufacturer_data_in_scan_response) override;
+      const PeripheralPlatformConfig *platform_config) override;
   std::optional<FlutterError> UpdateCharacteristic(
       const std::string &characteristic_id, const std::vector<uint8_t> &value,
       const std::string *device_id) override;

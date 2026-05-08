@@ -39,45 +39,45 @@ A cross-platform (Android/iOS/macOS/Windows/Linux/Web) Bluetooth Low Energy (BLE
 
 ### Client Mode (`UniversalBle`)
 
-|                               | Android | iOS | macOS | Windows | Linux | Web |
-| :---------------------------- | :-----: | :-: | :---: | :-----: | :---: | :-: |
-| startScan/stopScan            |   ✔️    | ✔️  |  ✔️   |   ✔️    |  ✔️   | ✔️  |
-| connect/disconnect            |   ✔️    | ✔️  |  ✔️   |   ✔️    |  ✔️   | ✔️  |
-| autoConnect                   |   ✔️    | ✔️  |  ✔️   |   ❌    |  ❌   | ❌  |
-| getSystemDevices              |   ✔️    | ✔️  |  ✔️   |   ✔️    |  ✔️   | ❌  |
-| discoverServices              |   ✔️    | ✔️  |  ✔️   |   ✔️    |  ✔️   | ✔️  |
-| read                          |   ✔️    | ✔️  |  ✔️   |   ✔️    |  ✔️   | ✔️  |
-| write                         |   ✔️    | ✔️  |  ✔️   |   ✔️    |  ✔️   | ✔️  |
-| subscriptions                 |   ✔️    | ✔️  |  ✔️   |   ✔️    |  ✔️   | ✔️  |
-| pair                          |   ✔️    | ✔️  |  ✔️   |   ✔️    |  ✔️   |  ⏺  |
-| unpair                        |   ✔️    | ❌  |  ❌   |   ✔️    |  ✔️   | ❌  |
-| isPaired                      |   ✔️    | ✔️  |  ✔️   |   ✔️    |  ✔️   | ✔️  |
-| onPairingStateChange          |   ✔️    |  ⏺  |   ⏺   |   ✔️    |  ✔️   |  ⏺  |
-| getAvailabilityState          |   ✔️    | ✔️  |  ✔️   |   ✔️    |  ✔️   | ❌  |
-| enable/disable Bluetooth      |   ✔️    | ❌  |  ❌   |   ✔️    |  ✔️   | ❌  |
-| onAvailabilityChange          |   ✔️    | ✔️  |  ✔️   |   ✔️    |  ✔️   | ✔️  |
-| requestMtu                    |   ✔️    | ✔️  |  ✔️   |   ✔️    |  ✔️   | ❌  |
-| requestConnectionPriority     |   ✔️    | ❌  |  ❌   |   ❌    |  ❌   | ❌  |
-| readRssi                      |   ✔️    | ✔️  |  ✔️   |   ❌    |  🚧   | ❌  |
-| requestPermissions            |   ✔️    | ✔️  |  ✔️   |   ✔️    |  ✔️   | ✔️  |
+|                           | Android | iOS | macOS | Windows | Linux | Web |
+| :------------------------ | :-----: | :-: | :---: | :-----: | :---: | :-: |
+| startScan/stopScan        |   ✔️    | ✔️  |  ✔️   |   ✔️    |  ✔️   | ✔️  |
+| connect/disconnect        |   ✔️    | ✔️  |  ✔️   |   ✔️    |  ✔️   | ✔️  |
+| autoConnect               |   ✔️    | ✔️  |  ✔️   |   ❌    |  ❌   | ❌  |
+| getSystemDevices          |   ✔️    | ✔️  |  ✔️   |   ✔️    |  ✔️   | ❌  |
+| discoverServices          |   ✔️    | ✔️  |  ✔️   |   ✔️    |  ✔️   | ✔️  |
+| read                      |   ✔️    | ✔️  |  ✔️   |   ✔️    |  ✔️   | ✔️  |
+| write                     |   ✔️    | ✔️  |  ✔️   |   ✔️    |  ✔️   | ✔️  |
+| subscriptions             |   ✔️    | ✔️  |  ✔️   |   ✔️    |  ✔️   | ✔️  |
+| pair                      |   ✔️    | ✔️  |  ✔️   |   ✔️    |  ✔️   |  ⏺  |
+| unpair                    |   ✔️    | ❌  |  ❌   |   ✔️    |  ✔️   | ❌  |
+| isPaired                  |   ✔️    | ✔️  |  ✔️   |   ✔️    |  ✔️   | ✔️  |
+| onPairingStateChange      |   ✔️    |  ⏺  |   ⏺   |   ✔️    |  ✔️   |  ⏺  |
+| getAvailabilityState      |   ✔️    | ✔️  |  ✔️   |   ✔️    |  ✔️   | ❌  |
+| enable/disable Bluetooth  |   ✔️    | ❌  |  ❌   |   ✔️    |  ✔️   | ❌  |
+| onAvailabilityChange      |   ✔️    | ✔️  |  ✔️   |   ✔️    |  ✔️   | ✔️  |
+| requestMtu                |   ✔️    | ✔️  |  ✔️   |   ✔️    |  ✔️   | ❌  |
+| requestConnectionPriority |   ✔️    | ❌  |  ❌   |   ❌    |  ❌   | ❌  |
+| readRssi                  |   ✔️    | ✔️  |  ✔️   |   ❌    |  🚧   | ❌  |
+| requestPermissions        |   ✔️    | ✔️  |  ✔️   |   ✔️    |  ✔️   | ✔️  |
 
 ### Peripheral Mode (`UniversalBlePeripheral`)
 
-| API                      | Android | iOS | macOS | Windows | Linux | Web |
-| :----------------------- | :-----: | :-: | :---: | :-----: | :---: | :-: |
-| getStaticCapabilities    |   ✔️    | ✔️  |  ✔️   |   ✔️    |  🚧   | ❌  |
-| getReadinessState\*      |   ✔️    | ✔️  |  ✔️   |   ✔️    |  🚧   | ❌  |
-| getAdvertisingState      |   ✔️    | ✔️  |  ✔️   |   ✔️    |  🚧   | ❌  |
-| addService               |   ✔️    | ✔️  |  ✔️   |   ✔️    |  🚧   | ❌  |
-| removeService            |   ✔️    | ✔️  |  ✔️   |   ✔️    |  🚧   | ❌  |
-| clearServices            |   ✔️    | ✔️  |  ✔️   |   ✔️    |  🚧   | ❌  |
-| getServices              |   ✔️    | ✔️  |  ✔️   |   ✔️    |  🚧   | ❌  |
-| startAdvertising         |   ✔️    | ✔️  |  ✔️   |   ✔️    |  🚧   | ❌  |
-| stopAdvertising          |   ✔️    | ✔️  |  ✔️   |   ✔️    |  🚧   | ❌  |
+| API                           | Android | iOS | macOS | Windows | Linux | Web |
+| :---------------------------- | :-----: | :-: | :---: | :-----: | :---: | :-: |
+| getStaticCapabilities         |   ✔️    | ✔️  |  ✔️   |   ✔️    |  🚧   | ❌  |
+| getReadinessState\*           |   ✔️    | ✔️  |  ✔️   |   ✔️    |  🚧   | ❌  |
+| getAdvertisingState           |   ✔️    | ✔️  |  ✔️   |   ✔️    |  🚧   | ❌  |
+| addService                    |   ✔️    | ✔️  |  ✔️   |   ✔️    |  🚧   | ❌  |
+| removeService                 |   ✔️    | ✔️  |  ✔️   |   ✔️    |  🚧   | ❌  |
+| clearServices                 |   ✔️    | ✔️  |  ✔️   |   ✔️    |  🚧   | ❌  |
+| getServices                   |   ✔️    | ✔️  |  ✔️   |   ✔️    |  🚧   | ❌  |
+| startAdvertising              |   ✔️    | ✔️  |  ✔️   |   ✔️    |  🚧   | ❌  |
+| stopAdvertising               |   ✔️    | ✔️  |  ✔️   |   ✔️    |  🚧   | ❌  |
 | updateCharacteristicValue\*\* |   ✔️    | ✔️  |  ✔️   |   ✔️    |  🚧   | ❌  |
-| getSubscribedClients     |   ✔️    | ✔️  |  ✔️   |   ✔️    |  🚧   | ❌  |
-| getMaximumNotifyLength   |   ✔️    | ✔️  |  ✔️   |   ✔️    |  🚧   | ❌  |
-| events stream\*\*\*      |   ✔️    | ✔️  |  ✔️   |   ✔️    |  🚧   | ❌  |
+| getSubscribedClients          |   ✔️    | ✔️  |  ✔️   |   ✔️    |  🚧   | ❌  |
+| getMaximumNotifyLength        |   ✔️    | ✔️  |  ✔️   |   ✔️    |  🚧   | ❌  |
+| events stream\*\*\*           |   ✔️    | ✔️  |  ✔️   |   ✔️    |  🚧   | ❌  |
 
 \* `getReadinessState` returns a snapshot state. Use `eventStream` for ongoing runtime changes.
 \*\* `updateCharacteristicValue` supports broadcast to all subscribed devices or a specific device via `PeripheralUpdateTarget`.
@@ -260,6 +260,7 @@ BleConnectionState connectionState = await bleDevice.connectionState;
 ```
 
 #### Auto-connect
+
 You can enable automatic reconnection by setting the `autoConnect` parameter to `true`. When enabled, the system will automatically attempt to reconnect to the device when it becomes available again.
 
 ```dart
@@ -448,7 +449,7 @@ UniversalBle.disableBluetooth();
 int mtu = await bleDevice.requestMtu(256);
 ```
 
-> ⚠️ Note: Requesting an MTU is a *best-effort* operation.
+> ⚠️ Note: Requesting an MTU is a _best-effort_ operation.
 > On many platforms the final MTU is fully controlled by the OS and remote device.
 
 #### Platform Limitations
@@ -456,46 +457,45 @@ int mtu = await bleDevice.requestMtu(256);
 MTU negotiation is largely platform- and stack-managed, and often cannot be
 explicitly controlled by applications:
 
-* **iOS / macOS**
+- **iOS / macOS**
 
-  * MTU is fully OS-managed; apps cannot request or set it.
-  * Historically ~185 bytes, but modern devices may negotiate larger MTUs
+  - MTU is fully OS-managed; apps cannot request or set it.
+  - Historically ~185 bytes, but modern devices may negotiate larger MTUs
     (≈247–517) automatically.
 
-* **Android**
+- **Android**
 
-  * **Android ≤ 13**: Apps may request MTU once per connection (up to 517).
+  - **Android ≤ 13**: Apps may request MTU once per connection (up to 517).
     If never requested, the default MTU is 23.
-  * **Android 14+**: The first Bluetooth client effectively drives MTU negotiation
+  - **Android 14+**: The first Bluetooth client effectively drives MTU negotiation
     to 517 (or the link’s maximum); subsequent MTU requests are ignored.
 
-* **Windows**
+- **Windows**
 
-  * MTU is automatically negotiated by the OS.
-  * Apps cannot set it; they can only query the effective PDU size.
+  - MTU is automatically negotiated by the OS.
+  - Apps cannot set it; they can only query the effective PDU size.
 
-* **Linux (BlueZ)**
+- **Linux (BlueZ)**
 
-  * MTU is negotiated automatically by default.
-  * The standard D-Bus Bluetooth API does not expose MTU control.
-  * MTU can be requested via BlueZ tools or lower-level APIs, but most apps
+  - MTU is negotiated automatically by default.
+  - The standard D-Bus Bluetooth API does not expose MTU control.
+  - MTU can be requested via BlueZ tools or lower-level APIs, but most apps
     treat it as stack-defined.
 
-* **Web**
+- **Web**
 
-  * MTU is negotiated internally by the browser/OS.
-  * No API exists to query or modify the MTU size.
+  - MTU is negotiated internally by the browser/OS.
+  - No API exists to query or modify the MTU size.
 
 #### Best Practices
 
 When developing cross-platform BLE applications and devices:
 
-* Always design for the default ATT MTU (23 bytes)
-* Treat MTU requests as opportunistic, not guaranteed
-* Dynamically adapt packet sizes based on the negotiated MTU
-* Implement application-level fragmentation for larger payloads
-* Take advantage of higher MTUs when available, without depending on them
-
+- Always design for the default ATT MTU (23 bytes)
+- Treat MTU requests as opportunistic, not guaranteed
+- Dynamically adapt packet sizes based on the negotiated MTU
+- Implement application-level fragmentation for larger payloads
+- Take advantage of higher MTUs when available, without depending on them
 
 ### Requesting Connection Priority
 
@@ -524,10 +524,9 @@ int rssi = await bleDevice.readRssi();
 
 #### Platform Limitations
 
-* **Android / iOS / macOS**: Fully supported.
+- **Android / iOS / macOS**: Fully supported.
 
-* **Windows / Linux / Web**: Not supported.
-
+- **Windows / Linux / Web**: Not supported.
 
 ## Command Queue
 
@@ -697,16 +696,11 @@ await peripheral.startAdvertising(
   services: const [
     PeripheralServiceId("0000180F-0000-1000-8000-00805F9B34FB"),
   ],
-  localName: isWindows ? null : "UniversalBlePeripheral",
-  manufacturerData: isWindows
-      ? null
-      : ManufacturerData(
+  localName: "UniversalBlePeripheral",
+  manufacturerData:  ManufacturerData(
           0x012D,
           Uint8List.fromList([0x03, 0x00, 0x64, 0x00]),
         ),
-  addManufacturerDataInScanResponse: isWindows
-      ? false
-      : caps.supportsManufacturerDataInScanResponse,
 );
 
 final advertisingState = await peripheral.getAdvertisingState();
@@ -1099,7 +1093,6 @@ Here are some of the apps leveraging the power of `universal_ble`:
 - [**Flutter MIDI Command**](https://pub.dev/packages/flutter_midi_command) - Flutter plugin for sending and receiving MIDI messages between Flutter and physical/virtual MIDI devices. Supports USB and BLE transports across iOS, macOS, Android, Linux, and Windows.
 - [**NT Helper**](https://github.com/thorinside/nt_helper) - Cross-platform Flutter application for editing presets on the Expert Sleepers Disting NT module. Provides comprehensive preset management, algorithm editing, parameter mapping, and routing analysis. Available on Windows, macOS, Linux, iOS, and Android.
 - [**MOCs Train Controller**](https://github.com/sonnny/mocs_train_controller) - Model train controller using Raspberry Pi Pico W and Flutter. Control trains via Bluetooth Low Energy with support for Android, iOS, and Linux platforms.
-
 
 > 💡 **Built something cool with Universal BLE?**  
 > We'd love to showcase your app here!  

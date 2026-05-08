@@ -77,7 +77,7 @@ abstract class UniversalBlePeripheralPlatform {
     String? localName,
     Duration? timeout,
     ManufacturerData? manufacturerData,
-    bool addManufacturerDataInScanResponse = false,
+    PeripheralPlatformConfig? platformConfig,
   });
 
   Future<void> stopAdvertising();
@@ -184,7 +184,7 @@ class UniversalBlePeripheralUnsupported extends UniversalBlePeripheralPlatform {
     String? localName,
     Duration? timeout,
     ManufacturerData? manufacturerData,
-    bool addManufacturerDataInScanResponse = false,
+    PeripheralPlatformConfig? platformConfig,
   }) async {
     throw _notSupported();
   }

@@ -714,6 +714,68 @@ struct UniversalManufacturerData: Hashable {
   }
 }
 
+/// Generated class from Pigeon that represents data sent in messages.
+struct PeripheralAndroidOptions: Hashable {
+  var addManufacturerDataInScanResponse: Bool? = nil
+
+
+  // swift-format-ignore: AlwaysUseLowerCamelCase
+  static func fromList(_ pigeonVar_list: [Any?]) -> PeripheralAndroidOptions? {
+    let addManufacturerDataInScanResponse: Bool? = nilOrValue(pigeonVar_list[0])
+
+    return PeripheralAndroidOptions(
+      addManufacturerDataInScanResponse: addManufacturerDataInScanResponse
+    )
+  }
+  func toList() -> [Any?] {
+    return [
+      addManufacturerDataInScanResponse
+    ]
+  }
+  static func == (lhs: PeripheralAndroidOptions, rhs: PeripheralAndroidOptions) -> Bool {
+    if Swift.type(of: lhs) != Swift.type(of: rhs) {
+      return false
+    }
+    return deepEqualsUniversalBle(lhs.addManufacturerDataInScanResponse, rhs.addManufacturerDataInScanResponse)
+  }
+
+  func hash(into hasher: inout Hasher) {
+    hasher.combine("PeripheralAndroidOptions")
+    deepHashUniversalBle(value: addManufacturerDataInScanResponse, hasher: &hasher)
+  }
+}
+
+/// Generated class from Pigeon that represents data sent in messages.
+struct PeripheralPlatformConfig: Hashable {
+  var android: PeripheralAndroidOptions? = nil
+
+
+  // swift-format-ignore: AlwaysUseLowerCamelCase
+  static func fromList(_ pigeonVar_list: [Any?]) -> PeripheralPlatformConfig? {
+    let android: PeripheralAndroidOptions? = nilOrValue(pigeonVar_list[0])
+
+    return PeripheralPlatformConfig(
+      android: android
+    )
+  }
+  func toList() -> [Any?] {
+    return [
+      android
+    ]
+  }
+  static func == (lhs: PeripheralPlatformConfig, rhs: PeripheralPlatformConfig) -> Bool {
+    if Swift.type(of: lhs) != Swift.type(of: rhs) {
+      return false
+    }
+    return deepEqualsUniversalBle(lhs.android, rhs.android)
+  }
+
+  func hash(into hasher: inout Hasher) {
+    hasher.combine("PeripheralPlatformConfig")
+    deepHashUniversalBle(value: android, hasher: &hasher)
+  }
+}
+
 /// Peripheral/GATT server models
 ///
 /// Generated class from Pigeon that represents data sent in messages.
@@ -1025,14 +1087,18 @@ private class UniversalBlePigeonCodecReader: FlutterStandardReader {
     case 149:
       return UniversalManufacturerData.fromList(self.readValue() as! [Any?])
     case 150:
-      return PeripheralService.fromList(self.readValue() as! [Any?])
+      return PeripheralAndroidOptions.fromList(self.readValue() as! [Any?])
     case 151:
-      return PeripheralCharacteristic.fromList(self.readValue() as! [Any?])
+      return PeripheralPlatformConfig.fromList(self.readValue() as! [Any?])
     case 152:
-      return PeripheralDescriptor.fromList(self.readValue() as! [Any?])
+      return PeripheralService.fromList(self.readValue() as! [Any?])
     case 153:
-      return PeripheralReadRequestResult.fromList(self.readValue() as! [Any?])
+      return PeripheralCharacteristic.fromList(self.readValue() as! [Any?])
     case 154:
+      return PeripheralDescriptor.fromList(self.readValue() as! [Any?])
+    case 155:
+      return PeripheralReadRequestResult.fromList(self.readValue() as! [Any?])
+    case 156:
       return PeripheralWriteRequestResult.fromList(self.readValue() as! [Any?])
     default:
       return super.readValue(ofType: type)
@@ -1105,20 +1171,26 @@ private class UniversalBlePigeonCodecWriter: FlutterStandardWriter {
     } else if let value = value as? UniversalManufacturerData {
       super.writeByte(149)
       super.writeValue(value.toList())
-    } else if let value = value as? PeripheralService {
+    } else if let value = value as? PeripheralAndroidOptions {
       super.writeByte(150)
       super.writeValue(value.toList())
-    } else if let value = value as? PeripheralCharacteristic {
+    } else if let value = value as? PeripheralPlatformConfig {
       super.writeByte(151)
       super.writeValue(value.toList())
-    } else if let value = value as? PeripheralDescriptor {
+    } else if let value = value as? PeripheralService {
       super.writeByte(152)
       super.writeValue(value.toList())
-    } else if let value = value as? PeripheralReadRequestResult {
+    } else if let value = value as? PeripheralCharacteristic {
       super.writeByte(153)
       super.writeValue(value.toList())
-    } else if let value = value as? PeripheralWriteRequestResult {
+    } else if let value = value as? PeripheralDescriptor {
       super.writeByte(154)
+      super.writeValue(value.toList())
+    } else if let value = value as? PeripheralReadRequestResult {
+      super.writeByte(155)
+      super.writeValue(value.toList())
+    } else if let value = value as? PeripheralWriteRequestResult {
+      super.writeByte(156)
       super.writeValue(value.toList())
     } else {
       super.writeValue(value)
@@ -1679,7 +1751,7 @@ protocol UniversalBlePeripheralChannel {
   func removeService(serviceId: String) throws
   func clearServices() throws
   func getServices() throws -> [String]
-  func startAdvertising(services: [String], localName: String?, timeout: Int64?, manufacturerData: UniversalManufacturerData?, addManufacturerDataInScanResponse: Bool) throws
+  func startAdvertising(services: [String], localName: String?, timeout: Int64?, manufacturerData: UniversalManufacturerData?, platformConfig: PeripheralPlatformConfig?) throws
   func updateCharacteristic(characteristicId: String, value: FlutterStandardTypedData, deviceId: String?) throws
   /// Returns peripheral-client device ids currently subscribed to [characteristicId]
   /// (e.g. HID report characteristic). Used to restore app state after restart.
@@ -1797,9 +1869,9 @@ class UniversalBlePeripheralChannelSetup {
         let localNameArg: String? = nilOrValue(args[1])
         let timeoutArg: Int64? = nilOrValue(args[2])
         let manufacturerDataArg: UniversalManufacturerData? = nilOrValue(args[3])
-        let addManufacturerDataInScanResponseArg = args[4] as! Bool
+        let platformConfigArg: PeripheralPlatformConfig? = nilOrValue(args[4])
         do {
-          try api.startAdvertising(services: servicesArg, localName: localNameArg, timeout: timeoutArg, manufacturerData: manufacturerDataArg, addManufacturerDataInScanResponse: addManufacturerDataInScanResponseArg)
+          try api.startAdvertising(services: servicesArg, localName: localNameArg, timeout: timeoutArg, manufacturerData: manufacturerDataArg, platformConfig: platformConfigArg)
           reply(wrapResult(nil))
         } catch {
           reply(wrapError(error))

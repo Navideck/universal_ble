@@ -87,23 +87,13 @@ final class UniversalBlePeripheralPlugin: NSObject, UniversalBlePeripheralChanne
     localName: String?,
     timeout: Int64?,
     manufacturerData: UniversalManufacturerData?,
-    addManufacturerDataInScanResponse: Bool
+    platformConfig: PeripheralPlatformConfig?
   ) throws {
     if let timeout, timeout > 0 {
       throw NSError(
         domain: "UniversalBlePeripheral",
         code: -1,
         userInfo: [NSLocalizedDescriptionKey: "Advertising timeout is not supported on Darwin."]
-      )
-    }
-    if addManufacturerDataInScanResponse {
-      throw NSError(
-        domain: "UniversalBlePeripheral",
-        code: -1,
-        userInfo: [
-          NSLocalizedDescriptionKey:
-            "Scan response manufacturer data placement is not supported on Darwin."
-        ]
       )
     }
     let cbServices = services.map { CBUUID(string: $0) }

@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:universal_ble/src/universal_ble.g.dart';
 
 /// Represents the manufacturer data of a BLE device.
 class ManufacturerData {
@@ -32,6 +33,13 @@ class ManufacturerData {
     if (identical(this, other)) return true;
     if (other is! ManufacturerData) return false;
     return companyId == other.companyId && listEquals(payload, other.payload);
+  }
+
+  UniversalManufacturerData toUniversalManufacturerData() {
+    return UniversalManufacturerData(
+      companyIdentifier: companyId,
+      data: payload,
+    );
   }
 
   @override

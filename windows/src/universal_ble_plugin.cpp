@@ -39,10 +39,9 @@ static std::unique_ptr<UniversalBleCallbackChannel> callback_channel;
 
 namespace {
 std::string to_lower_case(std::string value) {
-  std::transform(value.begin(), value.end(), value.begin(),
-                 [](unsigned char c) {
-                   return static_cast<char>(std::tolower(c));
-                 });
+  std::transform(
+      value.begin(), value.end(), value.begin(),
+      [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
   return value;
 }
 } // namespace
@@ -151,7 +150,8 @@ void UniversalBlePlugin::RequestPermissions(
 }
 
 std::optional<FlutterError>
-UniversalBlePlugin::StartScan(const UniversalScanFilter *filter, const UniversalScanConfig *config) {
+UniversalBlePlugin::StartScan(const UniversalScanFilter *filter,
+                              const UniversalScanConfig *config) {
 
   if (!bluetooth_radio_ || bluetooth_radio_.State() != RadioState::On) {
     return create_flutter_error(UniversalBleErrorCode::kBluetoothNotAvailable,
@@ -544,9 +544,8 @@ fire_and_forget UniversalBlePlugin::InitializeAsync() {
   if (!bluetooth_radio_) {
     UniversalBleLogger::LogError("Bluetooth is not available");
     ui_thread_handler_.Post([] {
-      callback_channel->OnAvailabilityChanged(
-          AvailabilityState::kUnsupported, SuccessCallback,
-          ErrorCallback);
+      callback_channel->OnAvailabilityChanged(AvailabilityState::kUnsupported,
+                                              SuccessCallback, ErrorCallback);
     });
   }
   initialized_ = true;
@@ -1111,14 +1110,13 @@ void UniversalBlePlugin::RadioStateChanged(const Radio &sender,
 void UniversalBlePlugin::NotifyConnectionChanged(
     const uint64_t bluetooth_address, const bool connected,
     std::optional<std::string> error) {
-  ui_thread_handler_.Post(
-      [bluetooth_address, connected, error = std::move(error)] {
-        const std::string *error_ptr =
-            error.has_value() ? &error.value() : nullptr;
-        callback_channel->OnConnectionChanged(
-            mac_address_to_str(bluetooth_address), connected, error_ptr,
-            SuccessCallback, ErrorCallback);
-      });
+  ui_thread_handler_.Post([bluetooth_address, connected,
+                           error = std::move(error)] {
+    const std::string *error_ptr = error.has_value() ? &error.value() : nullptr;
+    callback_channel->OnConnectionChanged(mac_address_to_str(bluetooth_address),
+                                          connected, error_ptr, SuccessCallback,
+                                          ErrorCallback);
+  });
 }
 
 void UniversalBlePlugin::NotifyConnectionException(
@@ -1133,7 +1131,8 @@ void UniversalBlePlugin::NotifyConnectionException(
 fire_and_forget UniversalBlePlugin::ConnectAsync(uint64_t bluetooth_address) {
   try {
     BluetoothLEDevice device =
-        co_await BluetoothLEDevice::FromBluetoothAddressAsync(bluetooth_address);
+        co_await BluetoothLEDevice::FromBluetoothAddressAsync(
+            bluetooth_address);
     if (!device) {
       UniversalBleLogger::LogError(
           "ConnectionLog: ConnectionFailed: Failed to get device");
@@ -1147,8 +1146,9 @@ fire_and_forget UniversalBlePlugin::ConnectAsync(uint64_t bluetooth_address) {
     auto services_result_error =
         gatt_communication_status_to_error(services_result.Status());
     if (services_result_error.has_value()) {
-      UniversalBleLogger::LogError("ConnectionFailed: Failed to get services: " +
-                                   services_result_error.value());
+      UniversalBleLogger::LogError(
+          "ConnectionFailed: Failed to get services: " +
+          services_result_error.value());
       NotifyConnectionChanged(bluetooth_address, false,
                               services_result_error.value());
       co_return;
@@ -1197,7 +1197,8 @@ fire_and_forget UniversalBlePlugin::ConnectAsync(uint64_t bluetooth_address) {
 
     event_token connection_status_changed_token =
         device.ConnectionStatusChanged(
-            {this, &UniversalBlePlugin::BluetoothLeDeviceConnectionStatusChanged});
+            {this,
+             &UniversalBlePlugin::BluetoothLeDeviceConnectionStatusChanged});
     auto device_agent = std::make_unique<BluetoothDeviceAgent>(
         device, connection_status_changed_token, gatt_map);
     auto pair = std::make_pair(bluetooth_address, std::move(device_agent));
@@ -1210,9 +1211,9 @@ fire_and_forget UniversalBlePlugin::ConnectAsync(uint64_t bluetooth_address) {
         "ConnectAsync hresult_error hr=" + std::to_string(err.code()) +
             " msg=" + to_string(err.message()));
   } catch (const std::exception &ex) {
-    NotifyConnectionException(
-        bluetooth_address,
-        std::string("ConnectAsync std::exception: ") + ex.what());
+    NotifyConnectionException(bluetooth_address,
+                              std::string("ConnectAsync std::exception: ") +
+                                  ex.what());
   } catch (...) {
     NotifyConnectionException(bluetooth_address,
                               "ConnectAsync unknown exception");
@@ -1229,10 +1230,10 @@ void UniversalBlePlugin::BluetoothLeDeviceConnectionStatusChanged(
       NotifyConnectionChanged(bluetooth_address, false, std::nullopt);
     }
   } catch (const hresult_error &err) {
-    NotifyConnectionException(
-        bluetooth_address,
-        "ConnectionStatusChanged hresult_error hr=" +
-            std::to_string(err.code()) + " msg=" + to_string(err.message()));
+    NotifyConnectionException(bluetooth_address,
+                              "ConnectionStatusChanged hresult_error hr=" +
+                                  std::to_string(err.code()) +
+                                  " msg=" + to_string(err.message()));
   } catch (const std::exception &ex) {
     NotifyConnectionException(
         bluetooth_address,
@@ -1255,7 +1256,8 @@ void UniversalBlePlugin::CleanConnection(const uint64_t bluetooth_address) {
         UniversalBleLogger::LogError("CleanConnection hresult_error: " +
                                      to_string(err.message()));
       } catch (...) {
-        UniversalBleLogger::LogError("CleanConnection: failed to remove connection status handler");
+        UniversalBleLogger::LogError(
+            "CleanConnection: failed to remove connection status handler");
       }
       DisposeServices(device_agent);
     }
@@ -1308,7 +1310,8 @@ void UniversalBlePlugin::ResetState() {
       try {
         bluetooth_le_watcher_.Received(bluetooth_le_watcher_received_token_);
       } catch (...) {
-        log_and_swallow_unknown("ResetState: failed to unregister LE watcher received handler");
+        log_and_swallow_unknown(
+            "ResetState: failed to unregister LE watcher received handler");
       }
       bluetooth_le_watcher_ = nullptr;
     }
@@ -1530,19 +1533,18 @@ fire_and_forget UniversalBlePlugin::SetNotifiableAsync(
     // Write to the descriptor.
     GattCommunicationStatus status{};
     try {
-      status =
-          co_await gatt_characteristic
-              .WriteClientCharacteristicConfigurationDescriptorAsync(
-                  descriptor_value);
+      status = co_await gatt_characteristic
+                   .WriteClientCharacteristicConfigurationDescriptorAsync(
+                       descriptor_value);
     } catch (const hresult_error &err) {
       UniversalBleLogger::LogError(
           "SET_NOTIFY exception hr=" + std::to_string(err.code()) +
           " msg=" + to_string(err.message()) + " device=" + device_id +
           " service=" + service + " char=" + characteristic);
-      result(create_flutter_error(
-          UniversalBleErrorCode::kFailed,
-          "SetNotifiable exception: " + to_string(err.message()),
-          "hr=" + std::to_string(err.code())));
+      result(create_flutter_error(UniversalBleErrorCode::kFailed,
+                                  "SetNotifiable exception: " +
+                                      to_string(err.message()),
+                                  "hr=" + std::to_string(err.code())));
       co_return;
     }
     if (status != GattCommunicationStatus::Success) {
@@ -1610,22 +1612,22 @@ void UniversalBlePlugin::GattCharacteristicValueChanged(
 
     const auto timestamp = GetCurrentTimestampMillis();
     ui_thread_handler_.Post([device_id, uuid, bytes, timestamp] {
-      callback_channel->OnValueChanged(
-          device_id, uuid, bytes, &timestamp, SuccessCallback, ErrorCallback);
+      callback_channel->OnValueChanged(device_id, uuid, bytes, &timestamp,
+                                       SuccessCallback, ErrorCallback);
     });
   } catch (const hresult_error &err) {
     NotifyConnectionException(
-        bluetooth_address,
-        "GattCharacteristicValueChanged hresult_error hr=" +
-            std::to_string(err.code()) + " msg=" + to_string(err.message()));
+        bluetooth_address, "GattCharacteristicValueChanged hresult_error hr=" +
+                               std::to_string(err.code()) +
+                               " msg=" + to_string(err.message()));
   } catch (const std::exception &ex) {
     NotifyConnectionException(
         bluetooth_address,
         std::string("GattCharacteristicValueChanged std::exception: ") +
             ex.what());
   } catch (...) {
-    NotifyConnectionException(bluetooth_address,
-                              "GattCharacteristicValueChanged unknown exception");
+    NotifyConnectionException(
+        bluetooth_address, "GattCharacteristicValueChanged unknown exception");
   }
 }
 
@@ -1663,14 +1665,14 @@ std::optional<FlutterError> UniversalBlePlugin::StopAdvertising() {
   return std::nullopt;
 }
 
-std::optional<FlutterError> UniversalBlePlugin::AddService(
-    const PeripheralService &service) {
+std::optional<FlutterError>
+UniversalBlePlugin::AddService(const PeripheralService &service) {
   PeripheralAddServiceAsync(service);
   return std::nullopt;
 }
 
-std::optional<FlutterError> UniversalBlePlugin::RemoveService(
-    const std::string &service_id) {
+std::optional<FlutterError>
+UniversalBlePlugin::RemoveService(const std::string &service_id) {
   std::lock_guard<std::mutex> lock(peripheral_mutex_);
   const std::string service_id_lc = to_lower_case(service_id);
   peripheral_advertising_targets_lc_.erase(
@@ -1705,8 +1707,8 @@ ErrorOr<flutter::EncodableList> UniversalBlePlugin::GetServices() {
   return services;
 }
 
-ErrorOr<flutter::EncodableList> UniversalBlePlugin::GetSubscribedClients(
-    const std::string &characteristic_id) {
+ErrorOr<flutter::EncodableList>
+UniversalBlePlugin::GetSubscribedClients(const std::string &characteristic_id) {
   std::lock_guard<std::mutex> lock(peripheral_mutex_);
   flutter::EncodableList out;
   auto *char_obj = FindPeripheralGattCharacteristicObject(characteristic_id);
@@ -1717,18 +1719,19 @@ ErrorOr<flutter::EncodableList> UniversalBlePlugin::GetSubscribedClients(
     auto clients = char_obj->obj.SubscribedClients();
     for (uint32_t i = 0; i < clients.Size(); ++i) {
       auto client = clients.GetAt(i);
-      out.push_back(flutter::EncodableValue(ParsePeripheralBluetoothClientId(
-          client.Session().DeviceId().Id())));
+      out.push_back(flutter::EncodableValue(
+          ParsePeripheralBluetoothClientId(client.Session().DeviceId().Id())));
     }
   } catch (...) {
   }
   return out;
 }
 
-ErrorOr<std::optional<int64_t>> UniversalBlePlugin::GetMaximumNotifyLength(
-    const std::string &device_id) {
+ErrorOr<std::optional<int64_t>>
+UniversalBlePlugin::GetMaximumNotifyLength(const std::string &device_id) {
   std::lock_guard<std::mutex> lock(peripheral_mutex_);
-  for (auto const &[service_id, service_provider] : peripheral_service_provider_map_) {
+  for (auto const &[service_id, service_provider] :
+       peripheral_service_provider_map_) {
     (void)service_id;
     for (auto const &[characteristic_id, characteristic_object] :
          service_provider->characteristics) {
@@ -1737,11 +1740,13 @@ ErrorOr<std::optional<int64_t>> UniversalBlePlugin::GetMaximumNotifyLength(
         auto clients = characteristic_object->obj.SubscribedClients();
         for (uint32_t i = 0; i < clients.Size(); ++i) {
           auto client = clients.GetAt(i);
-          auto id = ParsePeripheralBluetoothClientId(client.Session().DeviceId().Id());
+          auto id = ParsePeripheralBluetoothClientId(
+              client.Session().DeviceId().Id());
           if (to_lower_case(id) != to_lower_case(device_id)) {
             continue;
           }
-          const int64_t pdu_size = static_cast<int64_t>(client.Session().MaxPduSize());
+          const int64_t pdu_size =
+              static_cast<int64_t>(client.Session().MaxPduSize());
           return std::optional<int64_t>(std::max<int64_t>(0, pdu_size - 3));
         }
       } catch (...) {
@@ -1753,30 +1758,23 @@ ErrorOr<std::optional<int64_t>> UniversalBlePlugin::GetMaximumNotifyLength(
 
 std::optional<FlutterError> UniversalBlePlugin::StartAdvertising(
     const flutter::EncodableList &services, const std::string *local_name,
-    const int64_t *timeout,
-    const UniversalManufacturerData *manufacturer_data,
-    bool add_manufacturer_data_in_scan_response) {
+    const int64_t *timeout, const UniversalManufacturerData *manufacturer_data,
+    const PeripheralPlatformConfig *platform_config) {
   std::lock_guard<std::mutex> lock(peripheral_mutex_);
   if (peripheral_service_provider_map_.empty()) {
     return FlutterError("failed", "No services added to advertise", nullptr);
   }
   if (local_name != nullptr) {
-    return FlutterError(
-        "not-supported",
-        "Windows GattServiceProvider advertising does not support overriding local name",
-        nullptr);
+    UniversalBleLogger::LogDebug("Windows GattServiceProvider advertising does "
+                                 "not support overriding local name");
   }
-  if (manufacturer_data != nullptr || add_manufacturer_data_in_scan_response) {
-    return FlutterError(
-        "not-supported",
-        "Windows GattServiceProvider advertising does not support manufacturer data",
-        nullptr);
+  if (manufacturer_data != nullptr) {
+    UniversalBleLogger::LogDebug("Windows GattServiceProvider advertising does "
+                                 "not support manufacturer data");
   }
   if (timeout != nullptr && *timeout > 0) {
-    return FlutterError(
-        "not-supported",
-        "Windows GattServiceProvider advertising timeout is not supported",
-        nullptr);
+    UniversalBleLogger::LogDebug(
+        "Windows GattServiceProvider advertising timeout is not supported");
   }
   try {
     std::vector<std::string> selected_services_lc;
@@ -1797,11 +1795,10 @@ std::optional<FlutterError> UniversalBlePlugin::StartAdvertising(
     // TODO: migrate to BluetoothLEAdvertisementPublisher to support richer
     // payload customization (local name, manufacturer data, scan response).
     for (auto const &[key, provider] : peripheral_service_provider_map_) {
-      const bool should_start = selected_services_lc.empty() ||
-                                std::find(selected_services_lc.begin(),
-                                          selected_services_lc.end(),
-                                          key) !=
-                                    selected_services_lc.end();
+      const bool should_start =
+          selected_services_lc.empty() ||
+          std::find(selected_services_lc.begin(), selected_services_lc.end(),
+                    key) != selected_services_lc.end();
       if (!should_start) {
         continue;
       }
@@ -1817,27 +1814,28 @@ std::optional<FlutterError> UniversalBlePlugin::StartAdvertising(
   }
 }
 
-std::optional<FlutterError> UniversalBlePlugin::UpdateCharacteristic(
-    const std::string &characteristic_id, const std::vector<uint8_t> &value,
-    const std::string *device_id) {
+std::optional<FlutterError>
+UniversalBlePlugin::UpdateCharacteristic(const std::string &characteristic_id,
+                                         const std::vector<uint8_t> &value,
+                                         const std::string *device_id) {
   GattLocalCharacteristic local_char = nullptr;
   IBuffer buffer = nullptr;
   {
     std::lock_guard<std::mutex> lock(peripheral_mutex_);
     if (device_id != nullptr) {
-      return FlutterError(
-          "not-supported",
-          "Windows does not support targeting a specific device for notifications",
-          nullptr);
+      return FlutterError("not-supported",
+                          "Windows does not support targeting a specific "
+                          "device for notifications",
+                          nullptr);
     }
     bool ambiguous_match = false;
-    auto *characteristic_object =
-        FindPeripheralGattCharacteristicObject(characteristic_id, &ambiguous_match);
+    auto *characteristic_object = FindPeripheralGattCharacteristicObject(
+        characteristic_id, &ambiguous_match);
     if (ambiguous_match) {
-      return FlutterError(
-          "ambiguous-characteristic",
-          "Characteristic UUID exists in multiple services; cannot update uniquely",
-          nullptr);
+      return FlutterError("ambiguous-characteristic",
+                          "Characteristic UUID exists in multiple services; "
+                          "cannot update uniquely",
+                          nullptr);
     }
     if (characteristic_object == nullptr) {
       return FlutterError("not-found", "Characteristic not found", nullptr);
@@ -1851,8 +1849,8 @@ std::optional<FlutterError> UniversalBlePlugin::UpdateCharacteristic(
   }
 
   try {
-    std::future<bool> notify_future = std::async(
-        std::launch::async, [local_char, buffer]() {
+    std::future<bool> notify_future =
+        std::async(std::launch::async, [local_char, buffer]() {
           auto op = local_char.NotifyValueAsync(buffer);
           op.get();
           return true;
@@ -1873,25 +1871,25 @@ std::optional<FlutterError> UniversalBlePlugin::UpdateCharacteristic(
   return std::nullopt;
 }
 
-fire_and_forget
-UniversalBlePlugin::PeripheralAddServiceAsync(const PeripheralService &service) {
+fire_and_forget UniversalBlePlugin::PeripheralAddServiceAsync(
+    const PeripheralService &service) {
   const auto service_uuid = service.uuid();
   try {
     auto service_provider_result =
         co_await GattServiceProvider::CreateAsync(uuid_to_guid(service_uuid));
     if (service_provider_result.Error() != BluetoothError::Success) {
-      auto err = std::string("Failed to create service provider: ") + service_uuid +
-                 ", error: " +
+      auto err = std::string("Failed to create service provider: ") +
+                 service_uuid + ", error: " +
                  ParsePeripheralBluetoothError(service_provider_result.Error());
       ui_thread_handler_.Post([this, service_uuid, err] {
-        peripheral_callback_channel_->OnServiceAdded(service_uuid, &err,
-                                                     SuccessCallback,
-                                                     ErrorCallback);
+        peripheral_callback_channel_->OnServiceAdded(
+            service_uuid, &err, SuccessCallback, ErrorCallback);
       });
       co_return;
     }
 
-    GattServiceProvider service_provider = service_provider_result.ServiceProvider();
+    GattServiceProvider service_provider =
+        service_provider_result.ServiceProvider();
     auto service_provider_object =
         std::make_unique<PeripheralGattServiceProviderObject>();
     service_provider_object->obj = service_provider;
@@ -1910,7 +1908,8 @@ UniversalBlePlugin::PeripheralAddServiceAsync(const PeripheralService &service) 
             ToPeripheralGattCharacteristicProperties(property));
       }
       for (auto permission_encoded : characteristic.permissions()) {
-        int permission = static_cast<int>(std::get<int64_t>(permission_encoded));
+        int permission =
+            static_cast<int>(std::get<int64_t>(permission_encoded));
         switch (ToPeripheralBlePermission(permission)) {
         case PeripheralBlePermission::readable:
           params.ReadProtectionLevel(GattProtectionLevel::Plain);
@@ -1972,7 +1971,8 @@ UniversalBlePlugin::PeripheralAddServiceAsync(const PeripheralService &service) 
                   static_cast<int>(std::get<int64_t>(permission_encoded));
               switch (ToPeripheralBlePermission(permission)) {
               case PeripheralBlePermission::readable:
-                descriptor_params.ReadProtectionLevel(GattProtectionLevel::Plain);
+                descriptor_params.ReadProtectionLevel(
+                    GattProtectionLevel::Plain);
                 break;
               case PeripheralBlePermission::writeable:
                 descriptor_params.WriteProtectionLevel(
@@ -2011,23 +2011,20 @@ UniversalBlePlugin::PeripheralAddServiceAsync(const PeripheralService &service) 
     }
 
     ui_thread_handler_.Post([this, service_uuid] {
-      peripheral_callback_channel_->OnServiceAdded(service_uuid, nullptr,
-                                                   SuccessCallback,
-                                                   ErrorCallback);
+      peripheral_callback_channel_->OnServiceAdded(
+          service_uuid, nullptr, SuccessCallback, ErrorCallback);
     });
   } catch (const winrt::hresult_error &e) {
     auto err = winrt::to_string(e.message());
     ui_thread_handler_.Post([this, service_uuid, err] {
-      peripheral_callback_channel_->OnServiceAdded(service_uuid, &err,
-                                                   SuccessCallback,
-                                                   ErrorCallback);
+      peripheral_callback_channel_->OnServiceAdded(
+          service_uuid, &err, SuccessCallback, ErrorCallback);
     });
   } catch (...) {
     auto err = std::string("Unknown error");
     ui_thread_handler_.Post([this, service_uuid, err] {
-      peripheral_callback_channel_->OnServiceAdded(service_uuid, &err,
-                                                   SuccessCallback,
-                                                   ErrorCallback);
+      peripheral_callback_channel_->OnServiceAdded(
+          service_uuid, &err, SuccessCallback, ErrorCallback);
     });
   }
 }
@@ -2063,22 +2060,23 @@ fire_and_forget UniversalBlePlugin::PeripheralSubscribedClientsChanged(
           ParsePeripheralBluetoothClientId(client.Session().DeviceId().Id());
       std::string device_name;
       try {
-        auto device_info =
-            co_await DeviceInformation::CreateFromIdAsync(client.Session().DeviceId().Id());
+        auto device_info = co_await DeviceInformation::CreateFromIdAsync(
+            client.Session().DeviceId().Id());
         device_name = winrt::to_string(device_info.Name());
       } catch (...) {
       }
-      ui_thread_handler_.Post([this, device_id, characteristic_id, device_name] {
-        const std::string *name_ptr = device_name.empty() ? nullptr : &device_name;
-        peripheral_callback_channel_->OnCharacteristicSubscriptionChange(
-            device_id, characteristic_id, true, name_ptr, SuccessCallback,
-            ErrorCallback);
-      });
+      ui_thread_handler_.Post(
+          [this, device_id, characteristic_id, device_name] {
+            const std::string *name_ptr =
+                device_name.empty() ? nullptr : &device_name;
+            peripheral_callback_channel_->OnCharacteristicSubscriptionChange(
+                device_id, characteristic_id, true, name_ptr, SuccessCallback,
+                ErrorCallback);
+          });
       const int64_t mtu = client.Session().MaxPduSize();
       ui_thread_handler_.Post([this, device_id, mtu] {
-        peripheral_callback_channel_->OnMtuChange(device_id, mtu,
-                                                  SuccessCallback,
-                                                  ErrorCallback);
+        peripheral_callback_channel_->OnMtuChange(
+            device_id, mtu, SuccessCallback, ErrorCallback);
       });
     }
   }
@@ -2102,11 +2100,11 @@ fire_and_forget UniversalBlePlugin::PeripheralSubscribedClientsChanged(
       });
     }
   }
-
 }
 
 fire_and_forget UniversalBlePlugin::PeripheralReadRequestedAsync(
-    GattLocalCharacteristic const &local_char, GattReadRequestedEventArgs args) {
+    GattLocalCharacteristic const &local_char,
+    GattReadRequestedEventArgs args) {
   auto deferral = args.GetDeferral();
   try {
     auto request = co_await args.GetRequestAsync();
@@ -2125,8 +2123,8 @@ fire_and_forget UniversalBlePlugin::PeripheralReadRequestedAsync(
       *value_holder = to_bytevc(local_char.StaticValue());
       value_ptr = value_holder.get();
     }
-    ui_thread_handler_.Post([this, device_id, characteristic_id, offset, value_ptr,
-                             value_holder, request, deferral] {
+    ui_thread_handler_.Post([this, device_id, characteristic_id, offset,
+                             value_ptr, value_holder, request, deferral] {
       peripheral_callback_channel_->OnReadRequest(
           device_id, characteristic_id, offset, value_ptr,
           [request, deferral](const PeripheralReadRequestResult *result) {
@@ -2170,7 +2168,8 @@ fire_and_forget UniversalBlePlugin::PeripheralWriteRequestedAsync(
     const auto device_id =
         ParsePeripheralBluetoothClientId(args.Session().DeviceId().Id());
     const int64_t offset = request.Offset();
-    auto value_holder = std::make_shared<std::vector<uint8_t>>(to_bytevc(request.Value()));
+    auto value_holder =
+        std::make_shared<std::vector<uint8_t>>(to_bytevc(request.Value()));
     ui_thread_handler_.Post([this, device_id, characteristic_id, offset,
                              value_holder, request, deferral] {
       peripheral_callback_channel_->OnWriteRequest(
@@ -2351,15 +2350,16 @@ std::string UniversalBlePlugin::PeripheralAdvertisementStatusToString(
     return "Stopped";
   case GattServiceProviderAdvertisementStatus::Aborted:
     return "Aborted";
-  case GattServiceProviderAdvertisementStatus::StartedWithoutAllAdvertisementData:
+  case GattServiceProviderAdvertisementStatus::
+      StartedWithoutAllAdvertisementData:
     return "StartedWithoutAllAdvertisementData";
   default:
     return "Unknown";
   }
 }
 
-std::string UniversalBlePlugin::ParsePeripheralBluetoothClientId(
-    hstring client_id) {
+std::string
+UniversalBlePlugin::ParsePeripheralBluetoothClientId(hstring client_id) {
   auto id = winrt::to_string(client_id);
   const auto pos = id.find_last_of('-');
   if (pos != std::string::npos) {

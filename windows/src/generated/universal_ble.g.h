@@ -584,6 +584,70 @@ class UniversalManufacturerData {
 };
 
 
+// Generated class from Pigeon that represents data sent in messages.
+class PeripheralAndroidOptions {
+ public:
+  // Constructs an object setting all non-nullable fields.
+  PeripheralAndroidOptions();
+
+  // Constructs an object setting all fields.
+  explicit PeripheralAndroidOptions(const bool* add_manufacturer_data_in_scan_response);
+
+  const bool* add_manufacturer_data_in_scan_response() const;
+  void set_add_manufacturer_data_in_scan_response(const bool* value_arg);
+  void set_add_manufacturer_data_in_scan_response(bool value_arg);
+
+  bool operator==(const PeripheralAndroidOptions& other) const;
+  bool operator!=(const PeripheralAndroidOptions& other) const;
+  /// Returns a hash code value for the object. This method is supported for the benefit of hash tables.
+  size_t Hash() const;
+ private:
+  static PeripheralAndroidOptions FromEncodableList(const ::flutter::EncodableList& list);
+  ::flutter::EncodableList ToEncodableList() const;
+  friend class PeripheralPlatformConfig;
+  friend class UniversalBlePlatformChannel;
+  friend class UniversalBleCallbackChannel;
+  friend class UniversalBlePeripheralChannel;
+  friend class UniversalBlePeripheralCallback;
+  friend class PigeonInternalCodecSerializer;
+  std::optional<bool> add_manufacturer_data_in_scan_response_;
+};
+
+
+// Generated class from Pigeon that represents data sent in messages.
+class PeripheralPlatformConfig {
+ public:
+  // Constructs an object setting all non-nullable fields.
+  PeripheralPlatformConfig();
+
+  // Constructs an object setting all fields.
+  explicit PeripheralPlatformConfig(const PeripheralAndroidOptions* android);
+
+  ~PeripheralPlatformConfig() = default;
+  PeripheralPlatformConfig(const PeripheralPlatformConfig& other);
+  PeripheralPlatformConfig& operator=(const PeripheralPlatformConfig& other);
+  PeripheralPlatformConfig(PeripheralPlatformConfig&& other) = default;
+  PeripheralPlatformConfig& operator=(PeripheralPlatformConfig&& other) noexcept = default;
+  const PeripheralAndroidOptions* android() const;
+  void set_android(const PeripheralAndroidOptions* value_arg);
+  void set_android(const PeripheralAndroidOptions& value_arg);
+
+  bool operator==(const PeripheralPlatformConfig& other) const;
+  bool operator!=(const PeripheralPlatformConfig& other) const;
+  /// Returns a hash code value for the object. This method is supported for the benefit of hash tables.
+  size_t Hash() const;
+ private:
+  static PeripheralPlatformConfig FromEncodableList(const ::flutter::EncodableList& list);
+  ::flutter::EncodableList ToEncodableList() const;
+  friend class UniversalBlePlatformChannel;
+  friend class UniversalBleCallbackChannel;
+  friend class UniversalBlePeripheralChannel;
+  friend class UniversalBlePeripheralCallback;
+  friend class PigeonInternalCodecSerializer;
+  std::unique_ptr<PeripheralAndroidOptions> android_;
+};
+
+
 // Peripheral/GATT server models
 //
 // Generated class from Pigeon that represents data sent in messages.
@@ -966,7 +1030,7 @@ class UniversalBlePeripheralChannel {
     const std::string* local_name,
     const int64_t* timeout,
     const UniversalManufacturerData* manufacturer_data,
-    bool add_manufacturer_data_in_scan_response) = 0;
+    const PeripheralPlatformConfig* platform_config) = 0;
   virtual std::optional<FlutterError> UpdateCharacteristic(
     const std::string& characteristic_id,
     const std::vector<uint8_t>& value,

@@ -73,13 +73,13 @@ class UniversalBlePeripheral {
     String? localName,
     Duration? timeout,
     ManufacturerData? manufacturerData,
-    bool addManufacturerDataInScanResponse = false,
+    PeripheralPlatformConfig? platformConfig,
   }) => _platform.startAdvertising(
     services: services.map(BleUuidParser.string).toList(),
     localName: localName,
     timeout: timeout,
     manufacturerData: manufacturerData,
-    addManufacturerDataInScanResponse: addManufacturerDataInScanResponse,
+    platformConfig: platformConfig,
   );
 
   static Future<void> stopAdvertising() => _platform.stopAdvertising();

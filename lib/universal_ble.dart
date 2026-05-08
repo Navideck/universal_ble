@@ -20,6 +20,8 @@ export 'package:universal_ble/src/universal_ble.g.dart'
         BleOutputProperty,
         BleConnectionPriority,
         ManufacturerDataFilter,
+        PeripheralPlatformConfig,
+        PeripheralAndroidOptions,
         CharacteristicProperty,
         PeripheralAttributePermission,
         PeripheralAdvertisingState,

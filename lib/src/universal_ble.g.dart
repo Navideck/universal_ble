@@ -721,6 +721,86 @@ class UniversalManufacturerData {
   int get hashCode => _deepHash(<Object?>[runtimeType, ..._toList()]);
 }
 
+class PeripheralAndroidOptions {
+  PeripheralAndroidOptions({
+    this.addManufacturerDataInScanResponse,
+  });
+
+  bool? addManufacturerDataInScanResponse;
+
+  List<Object?> _toList() {
+    return <Object?>[
+      addManufacturerDataInScanResponse,
+    ];
+  }
+
+  Object encode() {
+    return _toList();  }
+
+  static PeripheralAndroidOptions decode(Object result) {
+    result as List<Object?>;
+    return PeripheralAndroidOptions(
+      addManufacturerDataInScanResponse: result[0] as bool?,
+    );
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  bool operator ==(Object other) {
+    if (other is! PeripheralAndroidOptions || other.runtimeType != runtimeType) {
+      return false;
+    }
+    if (identical(this, other)) {
+      return true;
+    }
+    return _deepEquals(addManufacturerDataInScanResponse, other.addManufacturerDataInScanResponse);
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  int get hashCode => _deepHash(<Object?>[runtimeType, ..._toList()]);
+}
+
+class PeripheralPlatformConfig {
+  PeripheralPlatformConfig({
+    this.android,
+  });
+
+  PeripheralAndroidOptions? android;
+
+  List<Object?> _toList() {
+    return <Object?>[
+      android,
+    ];
+  }
+
+  Object encode() {
+    return _toList();  }
+
+  static PeripheralPlatformConfig decode(Object result) {
+    result as List<Object?>;
+    return PeripheralPlatformConfig(
+      android: result[0] as PeripheralAndroidOptions?,
+    );
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  bool operator ==(Object other) {
+    if (other is! PeripheralPlatformConfig || other.runtimeType != runtimeType) {
+      return false;
+    }
+    if (identical(this, other)) {
+      return true;
+    }
+    return _deepEquals(android, other.android);
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  int get hashCode => _deepHash(<Object?>[runtimeType, ..._toList()]);
+}
+
 /// Peripheral/GATT server models
 class PeripheralService {
   PeripheralService({
@@ -1053,20 +1133,26 @@ class _PigeonCodec extends StandardMessageCodec {
     }    else if (value is UniversalManufacturerData) {
       buffer.putUint8(149);
       writeValue(buffer, value.encode());
-    }    else if (value is PeripheralService) {
+    }    else if (value is PeripheralAndroidOptions) {
       buffer.putUint8(150);
       writeValue(buffer, value.encode());
-    }    else if (value is PeripheralCharacteristic) {
+    }    else if (value is PeripheralPlatformConfig) {
       buffer.putUint8(151);
       writeValue(buffer, value.encode());
-    }    else if (value is PeripheralDescriptor) {
+    }    else if (value is PeripheralService) {
       buffer.putUint8(152);
       writeValue(buffer, value.encode());
-    }    else if (value is PeripheralReadRequestResult) {
+    }    else if (value is PeripheralCharacteristic) {
       buffer.putUint8(153);
       writeValue(buffer, value.encode());
-    }    else if (value is PeripheralWriteRequestResult) {
+    }    else if (value is PeripheralDescriptor) {
       buffer.putUint8(154);
+      writeValue(buffer, value.encode());
+    }    else if (value is PeripheralReadRequestResult) {
+      buffer.putUint8(155);
+      writeValue(buffer, value.encode());
+    }    else if (value is PeripheralWriteRequestResult) {
+      buffer.putUint8(156);
       writeValue(buffer, value.encode());
     } else {
       super.writeValue(buffer, value);
@@ -1131,14 +1217,18 @@ class _PigeonCodec extends StandardMessageCodec {
       case 149:
         return UniversalManufacturerData.decode(readValue(buffer)!);
       case 150:
-        return PeripheralService.decode(readValue(buffer)!);
+        return PeripheralAndroidOptions.decode(readValue(buffer)!);
       case 151:
-        return PeripheralCharacteristic.decode(readValue(buffer)!);
+        return PeripheralPlatformConfig.decode(readValue(buffer)!);
       case 152:
-        return PeripheralDescriptor.decode(readValue(buffer)!);
+        return PeripheralService.decode(readValue(buffer)!);
       case 153:
-        return PeripheralReadRequestResult.decode(readValue(buffer)!);
+        return PeripheralCharacteristic.decode(readValue(buffer)!);
       case 154:
+        return PeripheralDescriptor.decode(readValue(buffer)!);
+      case 155:
+        return PeripheralReadRequestResult.decode(readValue(buffer)!);
+      case 156:
         return PeripheralWriteRequestResult.decode(readValue(buffer)!);
       default:
         return super.readValueOfType(type, buffer);
@@ -1864,14 +1954,14 @@ class UniversalBlePeripheralChannel {
     return (pigeonVar_replyValue! as List<Object?>).cast<String>();
   }
 
-  Future<void> startAdvertising(List<String> services, String? localName, int? timeout, UniversalManufacturerData? manufacturerData, bool addManufacturerDataInScanResponse) async {
+  Future<void> startAdvertising(List<String> services, String? localName, int? timeout, UniversalManufacturerData? manufacturerData, PeripheralPlatformConfig? platformConfig) async {
     final pigeonVar_channelName = 'dev.flutter.pigeon.universal_ble.UniversalBlePeripheralChannel.startAdvertising$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[services, localName, timeout, manufacturerData, addManufacturerDataInScanResponse]);
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[services, localName, timeout, manufacturerData, platformConfig]);
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     _extractReplyValueOrThrow(

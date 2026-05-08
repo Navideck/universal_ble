@@ -994,6 +994,122 @@ size_t PigeonInternalDeepHash(const UniversalManufacturerData& v) {
   return v.Hash();
 }
 
+// PeripheralAndroidOptions
+
+PeripheralAndroidOptions::PeripheralAndroidOptions() {}
+
+PeripheralAndroidOptions::PeripheralAndroidOptions(const bool* add_manufacturer_data_in_scan_response)
+ : add_manufacturer_data_in_scan_response_(add_manufacturer_data_in_scan_response ? std::optional<bool>(*add_manufacturer_data_in_scan_response) : std::nullopt) {}
+
+const bool* PeripheralAndroidOptions::add_manufacturer_data_in_scan_response() const {
+  return add_manufacturer_data_in_scan_response_ ? &(*add_manufacturer_data_in_scan_response_) : nullptr;
+}
+
+void PeripheralAndroidOptions::set_add_manufacturer_data_in_scan_response(const bool* value_arg) {
+  add_manufacturer_data_in_scan_response_ = value_arg ? std::optional<bool>(*value_arg) : std::nullopt;
+}
+
+void PeripheralAndroidOptions::set_add_manufacturer_data_in_scan_response(bool value_arg) {
+  add_manufacturer_data_in_scan_response_ = value_arg;
+}
+
+
+EncodableList PeripheralAndroidOptions::ToEncodableList() const {
+  EncodableList list;
+  list.reserve(1);
+  list.push_back(add_manufacturer_data_in_scan_response_ ? EncodableValue(*add_manufacturer_data_in_scan_response_) : EncodableValue());
+  return list;
+}
+
+PeripheralAndroidOptions PeripheralAndroidOptions::FromEncodableList(const EncodableList& list) {
+  PeripheralAndroidOptions decoded;
+  auto& encodable_add_manufacturer_data_in_scan_response = list[0];
+  if (!encodable_add_manufacturer_data_in_scan_response.IsNull()) {
+    decoded.set_add_manufacturer_data_in_scan_response(std::get<bool>(encodable_add_manufacturer_data_in_scan_response));
+  }
+  return decoded;
+}
+
+bool PeripheralAndroidOptions::operator==(const PeripheralAndroidOptions& other) const {
+  return PigeonInternalDeepEquals(add_manufacturer_data_in_scan_response_, other.add_manufacturer_data_in_scan_response_);
+}
+
+bool PeripheralAndroidOptions::operator!=(const PeripheralAndroidOptions& other) const {
+  return !(*this == other);
+}
+
+size_t PeripheralAndroidOptions::Hash() const {
+  size_t result = 1;
+  result = result * 31 + PigeonInternalDeepHash(add_manufacturer_data_in_scan_response_);
+  return result;
+}
+
+size_t PigeonInternalDeepHash(const PeripheralAndroidOptions& v) {
+  return v.Hash();
+}
+
+// PeripheralPlatformConfig
+
+PeripheralPlatformConfig::PeripheralPlatformConfig() {}
+
+PeripheralPlatformConfig::PeripheralPlatformConfig(const PeripheralAndroidOptions* android)
+ : android_(android ? std::make_unique<PeripheralAndroidOptions>(*android) : nullptr) {}
+
+PeripheralPlatformConfig::PeripheralPlatformConfig(const PeripheralPlatformConfig& other)
+ : android_(other.android_ ? std::make_unique<PeripheralAndroidOptions>(*other.android_) : nullptr) {}
+
+PeripheralPlatformConfig& PeripheralPlatformConfig::operator=(const PeripheralPlatformConfig& other) {
+  android_ = other.android_ ? std::make_unique<PeripheralAndroidOptions>(*other.android_) : nullptr;
+  return *this;
+}
+
+const PeripheralAndroidOptions* PeripheralPlatformConfig::android() const {
+  return android_.get();
+}
+
+void PeripheralPlatformConfig::set_android(const PeripheralAndroidOptions* value_arg) {
+  android_ = value_arg ? std::make_unique<PeripheralAndroidOptions>(*value_arg) : nullptr;
+}
+
+void PeripheralPlatformConfig::set_android(const PeripheralAndroidOptions& value_arg) {
+  android_ = std::make_unique<PeripheralAndroidOptions>(value_arg);
+}
+
+
+EncodableList PeripheralPlatformConfig::ToEncodableList() const {
+  EncodableList list;
+  list.reserve(1);
+  list.push_back(android_ ? CustomEncodableValue(*android_) : EncodableValue());
+  return list;
+}
+
+PeripheralPlatformConfig PeripheralPlatformConfig::FromEncodableList(const EncodableList& list) {
+  PeripheralPlatformConfig decoded;
+  auto& encodable_android = list[0];
+  if (!encodable_android.IsNull()) {
+    decoded.set_android(std::any_cast<const PeripheralAndroidOptions&>(std::get<CustomEncodableValue>(encodable_android)));
+  }
+  return decoded;
+}
+
+bool PeripheralPlatformConfig::operator==(const PeripheralPlatformConfig& other) const {
+  return PigeonInternalDeepEquals(android_, other.android_);
+}
+
+bool PeripheralPlatformConfig::operator!=(const PeripheralPlatformConfig& other) const {
+  return !(*this == other);
+}
+
+size_t PeripheralPlatformConfig::Hash() const {
+  size_t result = 1;
+  result = result * 31 + PigeonInternalDeepHash(android_);
+  return result;
+}
+
+size_t PigeonInternalDeepHash(const PeripheralPlatformConfig& v) {
+  return v.Hash();
+}
+
 // PeripheralService
 
 PeripheralService::PeripheralService(
@@ -1566,18 +1682,24 @@ EncodableValue PigeonInternalCodecSerializer::ReadValueOfType(
         return CustomEncodableValue(UniversalManufacturerData::FromEncodableList(std::get<EncodableList>(ReadValue(stream))));
       }
     case 150: {
-        return CustomEncodableValue(PeripheralService::FromEncodableList(std::get<EncodableList>(ReadValue(stream))));
+        return CustomEncodableValue(PeripheralAndroidOptions::FromEncodableList(std::get<EncodableList>(ReadValue(stream))));
       }
     case 151: {
-        return CustomEncodableValue(PeripheralCharacteristic::FromEncodableList(std::get<EncodableList>(ReadValue(stream))));
+        return CustomEncodableValue(PeripheralPlatformConfig::FromEncodableList(std::get<EncodableList>(ReadValue(stream))));
       }
     case 152: {
-        return CustomEncodableValue(PeripheralDescriptor::FromEncodableList(std::get<EncodableList>(ReadValue(stream))));
+        return CustomEncodableValue(PeripheralService::FromEncodableList(std::get<EncodableList>(ReadValue(stream))));
       }
     case 153: {
-        return CustomEncodableValue(PeripheralReadRequestResult::FromEncodableList(std::get<EncodableList>(ReadValue(stream))));
+        return CustomEncodableValue(PeripheralCharacteristic::FromEncodableList(std::get<EncodableList>(ReadValue(stream))));
       }
     case 154: {
+        return CustomEncodableValue(PeripheralDescriptor::FromEncodableList(std::get<EncodableList>(ReadValue(stream))));
+      }
+    case 155: {
+        return CustomEncodableValue(PeripheralReadRequestResult::FromEncodableList(std::get<EncodableList>(ReadValue(stream))));
+      }
+    case 156: {
         return CustomEncodableValue(PeripheralWriteRequestResult::FromEncodableList(std::get<EncodableList>(ReadValue(stream))));
       }
     default:
@@ -1694,28 +1816,38 @@ void PigeonInternalCodecSerializer::WriteValue(
       WriteValue(EncodableValue(std::any_cast<UniversalManufacturerData>(*custom_value).ToEncodableList()), stream);
       return;
     }
-    if (custom_value->type() == typeid(PeripheralService)) {
+    if (custom_value->type() == typeid(PeripheralAndroidOptions)) {
       stream->WriteByte(150);
+      WriteValue(EncodableValue(std::any_cast<PeripheralAndroidOptions>(*custom_value).ToEncodableList()), stream);
+      return;
+    }
+    if (custom_value->type() == typeid(PeripheralPlatformConfig)) {
+      stream->WriteByte(151);
+      WriteValue(EncodableValue(std::any_cast<PeripheralPlatformConfig>(*custom_value).ToEncodableList()), stream);
+      return;
+    }
+    if (custom_value->type() == typeid(PeripheralService)) {
+      stream->WriteByte(152);
       WriteValue(EncodableValue(std::any_cast<PeripheralService>(*custom_value).ToEncodableList()), stream);
       return;
     }
     if (custom_value->type() == typeid(PeripheralCharacteristic)) {
-      stream->WriteByte(151);
+      stream->WriteByte(153);
       WriteValue(EncodableValue(std::any_cast<PeripheralCharacteristic>(*custom_value).ToEncodableList()), stream);
       return;
     }
     if (custom_value->type() == typeid(PeripheralDescriptor)) {
-      stream->WriteByte(152);
+      stream->WriteByte(154);
       WriteValue(EncodableValue(std::any_cast<PeripheralDescriptor>(*custom_value).ToEncodableList()), stream);
       return;
     }
     if (custom_value->type() == typeid(PeripheralReadRequestResult)) {
-      stream->WriteByte(153);
+      stream->WriteByte(155);
       WriteValue(EncodableValue(std::any_cast<PeripheralReadRequestResult>(*custom_value).ToEncodableList()), stream);
       return;
     }
     if (custom_value->type() == typeid(PeripheralWriteRequestResult)) {
-      stream->WriteByte(154);
+      stream->WriteByte(156);
       WriteValue(EncodableValue(std::any_cast<PeripheralWriteRequestResult>(*custom_value).ToEncodableList()), stream);
       return;
     }
@@ -2803,13 +2935,9 @@ void UniversalBlePeripheralChannel::SetUp(
           const auto* timeout_arg = std::get_if<int64_t>(&encodable_timeout_arg);
           const auto& encodable_manufacturer_data_arg = args.at(3);
           const auto* manufacturer_data_arg = encodable_manufacturer_data_arg.IsNull() ? nullptr : &(std::any_cast<const UniversalManufacturerData&>(std::get<CustomEncodableValue>(encodable_manufacturer_data_arg)));
-          const auto& encodable_add_manufacturer_data_in_scan_response_arg = args.at(4);
-          if (encodable_add_manufacturer_data_in_scan_response_arg.IsNull()) {
-            reply(WrapError("add_manufacturer_data_in_scan_response_arg unexpectedly null."));
-            return;
-          }
-          const auto& add_manufacturer_data_in_scan_response_arg = std::get<bool>(encodable_add_manufacturer_data_in_scan_response_arg);
-          std::optional<FlutterError> output = api->StartAdvertising(services_arg, local_name_arg, timeout_arg, manufacturer_data_arg, add_manufacturer_data_in_scan_response_arg);
+          const auto& encodable_platform_config_arg = args.at(4);
+          const auto* platform_config_arg = encodable_platform_config_arg.IsNull() ? nullptr : &(std::any_cast<const PeripheralPlatformConfig&>(std::get<CustomEncodableValue>(encodable_platform_config_arg)));
+          std::optional<FlutterError> output = api->StartAdvertising(services_arg, local_name_arg, timeout_arg, manufacturer_data_arg, platform_config_arg);
           if (output.has_value()) {
             reply(WrapError(output.value()));
             return;

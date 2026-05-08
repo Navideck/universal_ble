@@ -95,19 +95,14 @@ class UniversalBlePeripheralPigeon extends UniversalBlePeripheralPlatform
     String? localName,
     Duration? timeout,
     ManufacturerData? manufacturerData,
-    bool addManufacturerDataInScanResponse = false,
+    PeripheralPlatformConfig? platformConfig,
   }) {
     return _channel.startAdvertising(
       services.map((e) => BleUuidParser.string(e)).toList(),
       localName,
       timeout?.inMilliseconds,
-      manufacturerData != null
-          ? UniversalManufacturerData(
-              companyIdentifier: manufacturerData.companyId,
-              data: manufacturerData.payload,
-            )
-          : null,
-      addManufacturerDataInScanResponse,
+      manufacturerData?.toUniversalManufacturerData(),
+      platformConfig,
     );
   }
 

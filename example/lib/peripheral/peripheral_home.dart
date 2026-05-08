@@ -155,21 +155,21 @@ class _PeripheralHomeState extends State<PeripheralHome> {
   }
 
   Future<void> _startAdvertising() async {
-    final isWindows =
-        !kIsWeb && defaultTargetPlatform == TargetPlatform.windows;
     await UniversalBlePeripheral.startAdvertising(
       services: [
         _serviceBattery,
         _serviceTest,
       ],
-      localName: isWindows ? null : 'UniversalBlePeripheral',
-      manufacturerData: isWindows
-          ? null
-          : ManufacturerData(
-              0x012D,
-              Uint8List.fromList([0x03, 0x00, 0x64, 0x00]),
-            ),
-      addManufacturerDataInScanResponse: !isWindows,
+      localName: 'UniversalBlePeripheral',
+      manufacturerData: ManufacturerData(
+        0x012D,
+        Uint8List.fromList([0x03, 0x00, 0x64, 0x00]),
+      ),
+      platformConfig: PeripheralPlatformConfig(
+        android: PeripheralAndroidOptions(
+          addManufacturerDataInScanResponse: false,
+        ),
+      ),
     );
     _log('Start advertising requested');
   }

@@ -186,6 +186,16 @@ class UniversalManufacturerData {
   });
 }
 
+class PeripheralAndroidOptions {
+  bool? addManufacturerDataInScanResponse;
+  PeripheralAndroidOptions({this.addManufacturerDataInScanResponse});
+}
+
+class PeripheralPlatformConfig {
+  PeripheralAndroidOptions? android;
+  PeripheralPlatformConfig({this.android});
+}
+
 /// Peripheral/GATT server models
 class PeripheralService {
   String uuid;
@@ -356,7 +366,7 @@ abstract class UniversalBlePeripheralChannel {
     String? localName,
     int? timeout,
     UniversalManufacturerData? manufacturerData,
-    bool addManufacturerDataInScanResponse,
+    PeripheralPlatformConfig? platformConfig,
   );
 
   void updateCharacteristic(

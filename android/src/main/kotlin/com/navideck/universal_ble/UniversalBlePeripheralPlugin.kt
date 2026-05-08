@@ -138,7 +138,7 @@ class UniversalBlePeripheralPlugin(
         localName: String?,
         timeout: Long?,
         manufacturerData: UniversalManufacturerData?,
-        addManufacturerDataInScanResponse: Boolean,
+        platformConfig: PeripheralPlatformConfig?,
     ) {
         initializePeripheral()
         advertisingState = PeripheralAdvertisingState.STARTING
@@ -173,6 +173,8 @@ class UniversalBlePeripheralPlugin(
             val scanResponseBuilder = AdvertiseData.Builder()
                 .setIncludeTxPowerLevel(false)
                 .setIncludeDeviceName(localName != null)
+            val addManufacturerDataInScanResponse =
+                platformConfig?.android?.addManufacturerDataInScanResponse == true
 
             manufacturerData?.let {
                 if (addManufacturerDataInScanResponse) {

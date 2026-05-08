@@ -823,6 +823,74 @@ data class UniversalManufacturerData (
   }
 }
 
+/** Generated class from Pigeon that represents data sent in messages. */
+data class PeripheralAndroidOptions (
+  val addManufacturerDataInScanResponse: Boolean? = null
+)
+ {
+  companion object {
+    fun fromList(pigeonVar_list: List<Any?>): PeripheralAndroidOptions {
+      val addManufacturerDataInScanResponse = pigeonVar_list[0] as Boolean?
+      return PeripheralAndroidOptions(addManufacturerDataInScanResponse)
+    }
+  }
+  fun toList(): List<Any?> {
+    return listOf(
+      addManufacturerDataInScanResponse,
+    )
+  }
+  override fun equals(other: Any?): Boolean {
+    if (other == null || other.javaClass != javaClass) {
+      return false
+    }
+    if (this === other) {
+      return true
+    }
+    val other = other as PeripheralAndroidOptions
+    return UniversalBlePigeonUtils.deepEquals(this.addManufacturerDataInScanResponse, other.addManufacturerDataInScanResponse)
+  }
+
+  override fun hashCode(): Int {
+    var result = javaClass.hashCode()
+    result = 31 * result + UniversalBlePigeonUtils.deepHash(this.addManufacturerDataInScanResponse)
+    return result
+  }
+}
+
+/** Generated class from Pigeon that represents data sent in messages. */
+data class PeripheralPlatformConfig (
+  val android: PeripheralAndroidOptions? = null
+)
+ {
+  companion object {
+    fun fromList(pigeonVar_list: List<Any?>): PeripheralPlatformConfig {
+      val android = pigeonVar_list[0] as PeripheralAndroidOptions?
+      return PeripheralPlatformConfig(android)
+    }
+  }
+  fun toList(): List<Any?> {
+    return listOf(
+      android,
+    )
+  }
+  override fun equals(other: Any?): Boolean {
+    if (other == null || other.javaClass != javaClass) {
+      return false
+    }
+    if (this === other) {
+      return true
+    }
+    val other = other as PeripheralPlatformConfig
+    return UniversalBlePigeonUtils.deepEquals(this.android, other.android)
+  }
+
+  override fun hashCode(): Int {
+    var result = javaClass.hashCode()
+    result = 31 * result + UniversalBlePigeonUtils.deepHash(this.android)
+    return result
+  }
+}
+
 /**
  * Peripheral/GATT server models
  *
@@ -1154,25 +1222,35 @@ private open class UniversalBlePigeonCodec : StandardMessageCodec() {
       }
       150.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          PeripheralService.fromList(it)
+          PeripheralAndroidOptions.fromList(it)
         }
       }
       151.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          PeripheralCharacteristic.fromList(it)
+          PeripheralPlatformConfig.fromList(it)
         }
       }
       152.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          PeripheralDescriptor.fromList(it)
+          PeripheralService.fromList(it)
         }
       }
       153.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          PeripheralReadRequestResult.fromList(it)
+          PeripheralCharacteristic.fromList(it)
         }
       }
       154.toByte() -> {
+        return (readValue(buffer) as? List<Any?>)?.let {
+          PeripheralDescriptor.fromList(it)
+        }
+      }
+      155.toByte() -> {
+        return (readValue(buffer) as? List<Any?>)?.let {
+          PeripheralReadRequestResult.fromList(it)
+        }
+      }
+      156.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
           PeripheralWriteRequestResult.fromList(it)
         }
@@ -1266,24 +1344,32 @@ private open class UniversalBlePigeonCodec : StandardMessageCodec() {
         stream.write(149)
         writeValue(stream, value.toList())
       }
-      is PeripheralService -> {
+      is PeripheralAndroidOptions -> {
         stream.write(150)
         writeValue(stream, value.toList())
       }
-      is PeripheralCharacteristic -> {
+      is PeripheralPlatformConfig -> {
         stream.write(151)
         writeValue(stream, value.toList())
       }
-      is PeripheralDescriptor -> {
+      is PeripheralService -> {
         stream.write(152)
         writeValue(stream, value.toList())
       }
-      is PeripheralReadRequestResult -> {
+      is PeripheralCharacteristic -> {
         stream.write(153)
         writeValue(stream, value.toList())
       }
-      is PeripheralWriteRequestResult -> {
+      is PeripheralDescriptor -> {
         stream.write(154)
+        writeValue(stream, value.toList())
+      }
+      is PeripheralReadRequestResult -> {
+        stream.write(155)
+        writeValue(stream, value.toList())
+      }
+      is PeripheralWriteRequestResult -> {
+        stream.write(156)
         writeValue(stream, value.toList())
       }
       else -> super.writeValue(stream, value)
@@ -1886,7 +1972,7 @@ interface UniversalBlePeripheralChannel {
   fun removeService(serviceId: String)
   fun clearServices()
   fun getServices(): List<String>
-  fun startAdvertising(services: List<String>, localName: String?, timeout: Long?, manufacturerData: UniversalManufacturerData?, addManufacturerDataInScanResponse: Boolean)
+  fun startAdvertising(services: List<String>, localName: String?, timeout: Long?, manufacturerData: UniversalManufacturerData?, platformConfig: PeripheralPlatformConfig?)
   fun updateCharacteristic(characteristicId: String, value: ByteArray, deviceId: String?)
   /**
    * Returns peripheral-client device ids currently subscribed to [characteristicId]
@@ -2027,9 +2113,9 @@ interface UniversalBlePeripheralChannel {
             val localNameArg = args[1] as String?
             val timeoutArg = args[2] as Long?
             val manufacturerDataArg = args[3] as UniversalManufacturerData?
-            val addManufacturerDataInScanResponseArg = args[4] as Boolean
+            val platformConfigArg = args[4] as PeripheralPlatformConfig?
             val wrapped: List<Any?> = try {
-              api.startAdvertising(servicesArg, localNameArg, timeoutArg, manufacturerDataArg, addManufacturerDataInScanResponseArg)
+              api.startAdvertising(servicesArg, localNameArg, timeoutArg, manufacturerDataArg, platformConfigArg)
               listOf(null)
             } catch (exception: Throwable) {
               UniversalBlePigeonUtils.wrapError(exception)
