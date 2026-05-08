@@ -22,30 +22,58 @@ public class UniversalBlePlugin: NSObject, FlutterPlugin {
   }
 }
 
+/// Host-app-facing configuration for the fork. Set values BEFORE
+/// `GeneratedPluginRegistrant.register(with:)` is called in
+/// `AppDelegate.application(_:didFinishLaunchingWithOptions:)` so that
+/// the `CBCentralManager` instance created lazily on first plugin call
+/// picks them up.
+///
+/// FIX-2B-A item A6: previously the iOS-only restore identifier was
+/// hardcoded to `"com.wellbeinn.ble"` and `CBCentralManagerOptionRestoreIdentifierKey`
+/// was always passed on iOS — that diverged from upstream behaviour
+/// for any host app using this fork without wanting state restoration.
+/// Expose the identifier as an opt-in instead: nil → upstream behaviour
+/// (no restoration key, no `willRestoreState`); non-nil → opt in.
+///
+/// This is a temporary feature flag pending the upstream PR that will
+/// expose the same option through the Pigeon-generated init API. When
+/// that lands, this class can be removed in favour of the typed init
+/// argument.
+@objc public class UniversalBleSettings: NSObject {
+  /// CoreBluetooth restore identifier. nil = upstream behaviour
+  /// (no `CBCentralManagerOptionRestoreIdentifierKey`). Set to a
+  /// stable reverse-DNS string (e.g. `"com.wellbeinn.ble"`) to opt
+  /// the host app into state restoration so iOS can re-launch the
+  /// terminated app on BLE peripheral events.
+  @objc public static var restoreIdentifier: String?
+}
+
 private var discoveredPeripherals = [String: CBPeripheral]()
 
 // Cache last advertised local name for peripherals
 // since iOS and MacOS don't do that for system devices
 private var advertisementNameCache = [String: String]()
 
-// Restore identifier passed to `CBCentralManager` so iOS can re-launch the
-// terminated app on BLE peripheral events (e.g. notifications from a paired
-// V8 band overnight). Hard-coded for the wellbeinn fork; upstream can expose
-// it via Pigeon as a follow-up.
-private let kBleRestoreIdentifier = "com.wellbeinn.ble"
-
 private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentralManagerDelegate, CBPeripheralDelegate {
   var callbackChannel: UniversalBleCallbackChannel
   private var universalBleFilterUtil = UniversalBleFilterUtil()
-  // iOS-only: pass `CBCentralManagerOptionRestoreIdentifierKey` so the OS
-  // re-launches the terminated app on BLE events. macOS does not support
-  // state restoration — keep `nil` options there.
+  // iOS-only: pass `CBCentralManagerOptionRestoreIdentifierKey` ONLY when
+  // the host app has opted in via `UniversalBleSettings.restoreIdentifier`
+  // (FIX-2B-A item A6). nil identifier = upstream behaviour (no
+  // restoration key, no `willRestoreState` callback). macOS does not
+  // support state restoration — keep `nil` options there unconditionally.
   #if os(iOS)
-    private lazy var manager: CBCentralManager = .init(
-      delegate: self,
-      queue: nil,
-      options: [CBCentralManagerOptionRestoreIdentifierKey: kBleRestoreIdentifier]
-    )
+    private lazy var manager: CBCentralManager = {
+      if let restoreId = UniversalBleSettings.restoreIdentifier {
+        return CBCentralManager(
+          delegate: self,
+          queue: nil,
+          options: [CBCentralManagerOptionRestoreIdentifierKey: restoreId]
+        )
+      } else {
+        return CBCentralManager(delegate: self, queue: nil)
+      }
+    }()
   #else
     private lazy var manager: CBCentralManager = .init(delegate: self, queue: nil)
   #endif
@@ -60,6 +88,17 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
   private var rssiReadFutures = [RssiReadFuture]()
   private var isManageScanning = false
   private var autoConnectDevices = Set<String>()
+
+  /// Peripherals delivered by `centralManager(_:willRestoreState:)`. We
+  /// track them in a set so subsequent `didDiscoverServices` /
+  /// `didDiscoverCharacteristicsFor` callbacks know to re-arm
+  /// notifications on every notify-capable characteristic — restoration
+  /// hands the app a peripheral but iOS does NOT preserve the per-app
+  /// `setNotifyValue` subscriptions across termination, so a wake-up
+  /// without re-subscription would never receive the band's
+  /// notifications. Cleared per peripheral once re-subscription completes.
+  /// FIX-2B-A item A7.
+  private var restoredPeripherals = Set<String>()
 
   init(callbackChannel: UniversalBleCallbackChannel) {
     self.callbackChannel = callbackChannel
@@ -452,13 +491,15 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
   // manager's delegate (this object) when it re-launches a terminated
   // app to deliver pending peripheral events. We re-attach the peripheral
   // delegate so the existing callbacks (didDisconnect, didUpdateValue)
-  // resume working, and post a NotificationCenter event so app-level
-  // code (e.g. the host's BLERestoreBridge) can forward the event to
-  // Dart and trigger a sync.
+  // resume working, kick off discovery so we can re-subscribe to
+  // notifications (FIX-2B-A item A7), and post a NotificationCenter
+  // event so app-level code (e.g. the host's BLERestoreBridge) can
+  // forward the event to a Flutter method channel without depending on
+  // this plugin's internals.
   //
   // Note: this delegate callback only fires when the manager was
   // initialised with `CBCentralManagerOptionRestoreIdentifierKey` —
-  // see `kBleRestoreIdentifier` above.
+  // see `UniversalBleSettings.restoreIdentifier` above.
   func centralManager(_ central: CBCentralManager, willRestoreState dict: [String: Any]) {
     let peripherals = (dict[CBCentralManagerRestoredStatePeripheralsKey] as? [CBPeripheral]) ?? []
     var restoredIds: [String] = []
@@ -466,7 +507,12 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
       // Re-cache + re-attach delegate so subsequent callbacks land here.
       peripheral.delegate = self
       peripheral.saveCache()
-      restoredIds.append(peripheral.uuid.uuidString)
+      let id = peripheral.uuid.uuidString
+      restoredIds.append(id)
+      // FIX-2B-A item A7: track this peripheral as restored so the
+      // didDiscoverServices / didDiscoverCharacteristicsFor callbacks
+      // re-arm notify on every notify-capable characteristic.
+      restoredPeripherals.insert(id)
       // If still connected, kick off service re-discovery so we can
       // re-subscribe to notifications. If disconnected, attempt to
       // reconnect — iOS will deliver the next event when the band
@@ -478,18 +524,27 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
       }
     }
 
-    // Broadcast to host app via NotificationCenter so a non-plugin
-    // class (e.g. AppDelegate / BLERestoreBridge) can forward the
-    // event to a Flutter method channel without taking a hard
-    // dependency on this plugin's internals.
-    NotificationCenter.default.post(
-      name: NSNotification.Name("UniversalBleRestoredState"),
-      object: nil,
-      userInfo: [
-        "peripheralIds": restoredIds,
-        "count": restoredIds.count,
-      ]
-    )
+    // FIX-2B-A item A5: defer the NotificationCenter post to the next
+    // main-queue tick. CoreBluetooth invokes this delegate callback on
+    // the queue passed to `CBCentralManager.init` (we use `nil` →
+    // main queue), so the post would otherwise execute synchronously
+    // inside the plugin's own init path on a cold-restoration launch.
+    // If a host observer is being attached on the same main-thread
+    // tick (typical for `BLERestoreBridge.attach` called right after
+    // `GeneratedPluginRegistrant.register`), the synchronous post
+    // would arrive BEFORE the observer is armed and be lost. Async
+    // dispatch guarantees the observer registration runs first.
+    let userInfo: [String: Any] = [
+      "peripheralIds": restoredIds,
+      "count": restoredIds.count,
+    ]
+    DispatchQueue.main.async {
+      NotificationCenter.default.post(
+        name: NSNotification.Name("UniversalBleRestoredState"),
+        object: nil,
+        userInfo: userInfo
+      )
+    }
   }
 
   public func centralManager(_: CBCentralManager, didDiscover peripheral: CBPeripheral, advertisementData: [String: Any], rssi RSSI: NSNumber) {
@@ -578,11 +633,46 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
   }
 
   public func peripheral(_ peripheral: CBPeripheral, didDiscoverServices error: Error?) {
-    activeServiceDiscoveries[peripheral.identifier.uuidString]?.handleDidDiscoverServices(peripheral, error: error)
+    let deviceId = peripheral.identifier.uuidString
+    activeServiceDiscoveries[deviceId]?.handleDidDiscoverServices(peripheral, error: error)
+
+    // FIX-2B-A item A7: post-restoration, the willRestoreState handler
+    // calls `discoverServices(nil)` directly (no entry in
+    // activeServiceDiscoveries), so we drive characteristic discovery
+    // here too. didDiscoverCharacteristicsFor is where we re-arm the
+    // notify subscriptions iOS dropped during termination.
+    if restoredPeripherals.contains(deviceId), error == nil {
+      for service in peripheral.services ?? [] {
+        peripheral.discoverCharacteristics(nil, for: service)
+      }
+    }
   }
 
   public func peripheral(_ peripheral: CBPeripheral, didDiscoverCharacteristicsFor service: CBService, error: Error?) {
-    activeServiceDiscoveries[peripheral.identifier.uuidString]?.handleDidDiscoverCharacteristicsFor(peripheral, service: service, error: error)
+    let deviceId = peripheral.identifier.uuidString
+    activeServiceDiscoveries[deviceId]?.handleDidDiscoverCharacteristicsFor(peripheral, service: service, error: error)
+
+    // FIX-2B-A item A7: re-arm notifications on every notify-capable
+    // characteristic for restored peripherals. setNotifyValue(true)
+    // is idempotent on already-notifying characteristics, but in the
+    // restoration path none of them are armed (per-app subscriptions
+    // are not preserved across termination). We can't be selective
+    // here — the fork is not domain-aware enough to know which
+    // characteristics the host app cares about — so we re-arm every
+    // notify/indicate-capable one. Apps that explicitly disable a
+    // characteristic later via UniversalBle.setNotify(false) re-take
+    // control on the next write. The restored set is left populated
+    // until the host re-issues an explicit subscription, so a
+    // subsequent service rediscovery (e.g. after an OS-level
+    // reconnect) re-applies the same recovery.
+    if restoredPeripherals.contains(deviceId), error == nil {
+      for char in service.characteristics ?? [] {
+        let supportsNotify = char.properties.contains(.notify) || char.properties.contains(.indicate)
+        if supportsNotify, !char.isNotifying {
+          peripheral.setNotifyValue(true, for: char)
+        }
+      }
+    }
   }
 
   public func peripheral(_ peripheral: CBPeripheral, didDiscoverDescriptorsFor characteristic: CBCharacteristic, error: Error?) {
