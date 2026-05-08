@@ -34,6 +34,8 @@ class _PeripheralHomeState extends State<PeripheralHome> {
   void initState() {
     super.initState();
 
+    _initialize();
+
     _advertisingStateStreamSub = UniversalBlePeripheral.advertisingStateStream
         .listen((BlePeripheralAdvertisingStateChanged event) {
       setState(() {
@@ -118,7 +120,8 @@ class _PeripheralHomeState extends State<PeripheralHome> {
     });
     final readiness = await UniversalBlePeripheral.getAvailabilityState();
     _log(
-        'Peripheral ready check. supported=$supported readiness=${readiness.name}');
+      'Peripheral ready check. supported=$supported readiness=${readiness.name}',
+    );
   }
 
   Future<void> _addServices() async {
@@ -130,9 +133,12 @@ class _PeripheralHomeState extends State<PeripheralHome> {
             CharacteristicProperty.read,
             CharacteristicProperty.notify
           ],
-          permissions: [],
-          descriptors: [],
-          value: null,
+          permissions: [
+            PeripheralAttributePermission.readable,
+            PeripheralAttributePermission.writeable,
+            PeripheralAttributePermission.readEncryptionRequired,
+            PeripheralAttributePermission.writeEncryptionRequired,
+          ],
         ),
       ]),
     );
@@ -145,9 +151,12 @@ class _PeripheralHomeState extends State<PeripheralHome> {
             CharacteristicProperty.notify,
             CharacteristicProperty.write
           ],
-          permissions: [],
-          descriptors: [],
-          value: null,
+          permissions: [
+            PeripheralAttributePermission.readable,
+            PeripheralAttributePermission.writeable,
+            PeripheralAttributePermission.readEncryptionRequired,
+            PeripheralAttributePermission.writeEncryptionRequired,
+          ],
         ),
       ]),
     );
@@ -160,7 +169,7 @@ class _PeripheralHomeState extends State<PeripheralHome> {
         _serviceBattery,
         _serviceTest,
       ],
-      localName: 'UniversalBlePeripheral',
+      localName: 'UniBle',
       manufacturerData: ManufacturerData(
         0x012D,
         Uint8List.fromList([0x03, 0x00, 0x64, 0x00]),
