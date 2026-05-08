@@ -27,7 +27,7 @@ class _PeripheralHomeState extends State<PeripheralHome> {
 
   static const String _serviceBattery = '0000180F-0000-1000-8000-00805F9B34FB';
   static const String _charBattery = '00002A19-0000-1000-8000-00805F9B34FB';
-  static const String _serviceTest = '0000180D-0000-1000-8000-00805F9B34FB';
+  static const String _serviceTest = '00004432-0000-1000-8000-00805F9B34FB';
   static const String _charTest = '00002A18-0000-1000-8000-00805F9B34FB';
 
   @override
@@ -87,23 +87,23 @@ class _PeripheralHomeState extends State<PeripheralHome> {
       },
     );
 
-    UniversalBlePeripheral.setDescriptorReadRequestHandlers(
-      (deviceId, characteristicId, descriptorId, _, __) {
-        _log(
-            'Descriptor read request: $deviceId $characteristicId $descriptorId');
-        return PeripheralReadRequestResult(
-          value: Uint8List.fromList(utf8.encode('Hello World')),
-        );
-      },
-    );
+    // UniversalBlePeripheral.setDescriptorReadRequestHandlers(
+    //   (deviceId, characteristicId, descriptorId, _, __) {
+    //     _log(
+    //         'Descriptor read request: $deviceId $characteristicId $descriptorId');
+    //     return PeripheralReadRequestResult(
+    //       value: Uint8List.fromList(utf8.encode('Hello World')),
+    //     );
+    //   },
+    // );
 
-    UniversalBlePeripheral.setDescriptorWriteRequestHandlers(
-      (deviceId, characteristicId, descriptorId, _, value) {
-        _log(
-            'Descriptor write request: $deviceId $characteristicId $descriptorId $value');
-        return PeripheralWriteRequestResult();
-      },
-    );
+    // UniversalBlePeripheral.setDescriptorWriteRequestHandlers(
+    //   (deviceId, characteristicId, descriptorId, _, value) {
+    //     _log(
+    //         'Descriptor write request: $deviceId $characteristicId $descriptorId $value');
+    //     return PeripheralWriteRequestResult();
+    //   },
+    // );
   }
 
   void _log(String text) {
@@ -223,7 +223,7 @@ class _PeripheralHomeState extends State<PeripheralHome> {
                 onPressed: () async {
                   await UniversalBlePeripheral.updateCharacteristicValue(
                     characteristicId: _charBattery,
-                    value: Uint8List.fromList(utf8.encode('Test Data')),
+                    value: Uint8List.fromList([0x04]),
                   );
                   _log('Characteristic updated');
                 },

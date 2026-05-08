@@ -112,7 +112,7 @@ fun BluetoothGattDescriptor.getCacheValue(): ByteArray? =
         descriptorValueReadMap[uuid.toString().lowercase()]
     }
 
-fun String.findCharacteristic(): BluetoothGattCharacteristic? =
+fun String.findGattCharacteristic(): BluetoothGattCharacteristic? =
     synchronized(bluetoothGattCharacteristics) {
         bluetoothGattCharacteristics[this]
     }

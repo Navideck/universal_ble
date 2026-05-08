@@ -203,10 +203,14 @@ class UniversalBlePeripheralPlugin(
         }
     }
 
-    override fun updateCharacteristic(characteristicId: String, value: ByteArray, deviceId: String?) {
+    override fun updateCharacteristic(
+        characteristicId: String,
+        value: ByteArray,
+        deviceId: String?,
+    ) {
         initializePeripheral()
         val characteristic =
-            characteristicId.findCharacteristic() ?: throw Exception("Characteristic not found")
+            characteristicId.findGattCharacteristic() ?: throw Exception("Characteristic not found")
         characteristic.value = value
         val targetDevices = synchronized(bluetoothDevicesMap) {
             if (deviceId != null) {
@@ -314,6 +318,7 @@ class UniversalBlePeripheralPlugin(
                     }
                     onConnectionUpdate(device, status, newState)
                 }
+
                 BluetoothProfile.STATE_DISCONNECTED -> {
                     synchronized(bluetoothDevicesMap) {
                         bluetoothDevicesMap.remove(device.address)
@@ -456,7 +461,7 @@ class UniversalBlePeripheralPlugin(
             if (descriptor.uuid.toString().lowercase() == peripheralDescriptorCCUUID.lowercase()) {
                 val isSubscribed =
                     BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE.contentEquals(value) ||
-                        BluetoothGattDescriptor.ENABLE_INDICATION_VALUE.contentEquals(value)
+                            BluetoothGattDescriptor.ENABLE_INDICATION_VALUE.contentEquals(value)
                 val characteristicId = descriptor.characteristic.uuid.toString()
                 device?.address?.let { address ->
                     handler.post {
