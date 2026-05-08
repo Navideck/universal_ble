@@ -139,8 +139,6 @@ class _PeripheralHomeState extends State<PeripheralHome> {
               permissions: [
                 PeripheralAttributePermission.readable,
                 PeripheralAttributePermission.writeable,
-                PeripheralAttributePermission.readEncryptionRequired,
-                PeripheralAttributePermission.writeEncryptionRequired,
               ],
             ),
           ]),
@@ -160,8 +158,6 @@ class _PeripheralHomeState extends State<PeripheralHome> {
               permissions: [
                 PeripheralAttributePermission.readable,
                 PeripheralAttributePermission.writeable,
-                PeripheralAttributePermission.readEncryptionRequired,
-                PeripheralAttributePermission.writeEncryptionRequired,
               ],
             ),
           ]),
