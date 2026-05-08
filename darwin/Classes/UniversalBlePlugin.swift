@@ -28,10 +28,27 @@ private var discoveredPeripherals = [String: CBPeripheral]()
 // since iOS and MacOS don't do that for system devices
 private var advertisementNameCache = [String: String]()
 
+// Restore identifier passed to `CBCentralManager` so iOS can re-launch the
+// terminated app on BLE peripheral events (e.g. notifications from a paired
+// V8 band overnight). Hard-coded for the wellbeinn fork; upstream can expose
+// it via Pigeon as a follow-up.
+private let kBleRestoreIdentifier = "com.wellbeinn.ble"
+
 private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentralManagerDelegate, CBPeripheralDelegate {
   var callbackChannel: UniversalBleCallbackChannel
   private var universalBleFilterUtil = UniversalBleFilterUtil()
-  private lazy var manager: CBCentralManager = .init(delegate: self, queue: nil)
+  // iOS-only: pass `CBCentralManagerOptionRestoreIdentifierKey` so the OS
+  // re-launches the terminated app on BLE events. macOS does not support
+  // state restoration — keep `nil` options there.
+  #if os(iOS)
+    private lazy var manager: CBCentralManager = .init(
+      delegate: self,
+      queue: nil,
+      options: [CBCentralManagerOptionRestoreIdentifierKey: kBleRestoreIdentifier]
+    )
+  #else
+    private lazy var manager: CBCentralManager = .init(delegate: self, queue: nil)
+  #endif
   private var availabilityStateUpdateHandlers: [(Result<Int64, Error>) -> Void] = []
   private var requestPermissionStateUpdateHandlers: [(Result<Void, Error>) -> Void] = []
   private var activeServiceDiscoveries: [String: UniversalBleAsyncServiceDiscovery] = [:]
@@ -429,6 +446,50 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
       completePermissionRequest(completion: handler)
       return true
     }
+  }
+
+  // CoreBluetooth state restoration. iOS calls this on the central
+  // manager's delegate (this object) when it re-launches a terminated
+  // app to deliver pending peripheral events. We re-attach the peripheral
+  // delegate so the existing callbacks (didDisconnect, didUpdateValue)
+  // resume working, and post a NotificationCenter event so app-level
+  // code (e.g. the host's BLERestoreBridge) can forward the event to
+  // Dart and trigger a sync.
+  //
+  // Note: this delegate callback only fires when the manager was
+  // initialised with `CBCentralManagerOptionRestoreIdentifierKey` —
+  // see `kBleRestoreIdentifier` above.
+  func centralManager(_ central: CBCentralManager, willRestoreState dict: [String: Any]) {
+    let peripherals = (dict[CBCentralManagerRestoredStatePeripheralsKey] as? [CBPeripheral]) ?? []
+    var restoredIds: [String] = []
+    for peripheral in peripherals {
+      // Re-cache + re-attach delegate so subsequent callbacks land here.
+      peripheral.delegate = self
+      peripheral.saveCache()
+      restoredIds.append(peripheral.uuid.uuidString)
+      // If still connected, kick off service re-discovery so we can
+      // re-subscribe to notifications. If disconnected, attempt to
+      // reconnect — iOS will deliver the next event when the band
+      // sends data.
+      if peripheral.state == .connected {
+        peripheral.discoverServices(nil)
+      } else if peripheral.state != .connecting {
+        central.connect(peripheral, options: nil)
+      }
+    }
+
+    // Broadcast to host app via NotificationCenter so a non-plugin
+    // class (e.g. AppDelegate / BLERestoreBridge) can forward the
+    // event to a Flutter method channel without taking a hard
+    // dependency on this plugin's internals.
+    NotificationCenter.default.post(
+      name: NSNotification.Name("UniversalBleRestoredState"),
+      object: nil,
+      userInfo: [
+        "peripheralIds": restoredIds,
+        "count": restoredIds.count,
+      ]
+    )
   }
 
   public func centralManager(_: CBCentralManager, didDiscover peripheral: CBPeripheral, advertisementData: [String: Any], rssi RSSI: NSNumber) {
