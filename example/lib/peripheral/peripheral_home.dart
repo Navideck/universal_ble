@@ -185,6 +185,13 @@ class _PeripheralHomeState extends State<PeripheralHome> {
 
   @override
   Widget build(BuildContext context) {
+    var initializedButton = ElevatedButton(
+      onPressed: _initialize,
+      child: Text(_initialized ? 'Reinitialize' : 'Initialize'),
+    );
+    if (!_initialized) {
+      return Center(child: initializedButton);
+    }
     return Column(
       children: [
         Padding(
@@ -193,40 +200,33 @@ class _PeripheralHomeState extends State<PeripheralHome> {
             spacing: 8,
             runSpacing: 8,
             children: [
+              initializedButton,
               ElevatedButton(
-                onPressed: _initialize,
-                child: Text(_initialized ? 'Reinitialize' : 'Initialize'),
-              ),
-              ElevatedButton(
-                onPressed: _initialized ? _addServices : null,
+                onPressed: _addServices,
                 child: const Text('Add Services'),
               ),
               ElevatedButton(
-                onPressed: _initialized ? _startAdvertising : null,
+                onPressed: _startAdvertising,
                 child: const Text('Start Advertising'),
               ),
               ElevatedButton(
-                onPressed: _initialized
-                    ? () async {
-                        await UniversalBlePeripheral.stopAdvertising();
-                        setState(() {
-                          _advertisingState = PeripheralAdvertisingState.idle;
-                        });
-                        _log('Stop advertising requested');
-                      }
-                    : null,
+                onPressed: () async {
+                  await UniversalBlePeripheral.stopAdvertising();
+                  setState(() {
+                    _advertisingState = PeripheralAdvertisingState.idle;
+                  });
+                  _log('Stop advertising requested');
+                },
                 child: const Text('Stop Advertising'),
               ),
               ElevatedButton(
-                onPressed: _initialized
-                    ? () async {
-                        await UniversalBlePeripheral.updateCharacteristicValue(
-                          characteristicId: _charTest,
-                          value: Uint8List.fromList(utf8.encode('Test Data')),
-                        );
-                        _log('Characteristic updated');
-                      }
-                    : null,
+                onPressed: () async {
+                  await UniversalBlePeripheral.updateCharacteristicValue(
+                    characteristicId: _charBattery,
+                    value: Uint8List.fromList(utf8.encode('Test Data')),
+                  );
+                  _log('Characteristic updated');
+                },
                 child: const Text('Update Characteristic'),
               ),
             ],

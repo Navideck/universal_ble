@@ -31,10 +31,9 @@ import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import androidx.core.content.edit
 
-
 @SuppressLint("MissingPermission")
 class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(), FlutterPlugin,
-    UniversalBleAndroidPermissionChannel,
+    UniversalBleAndroidChannel,
     ActivityAware, PluginRegistry.ActivityResultListener,
     PluginRegistry.RequestPermissionsResultListener {
     private val bluetoothEnableRequestCode = 2342313
@@ -76,7 +75,7 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
         safeScanner = SafeScanner(bluetoothManager)
 
         UniversalBlePlatformChannel.setUp(flutterPluginBinding.binaryMessenger, this)
-        UniversalBleAndroidPermissionChannel.setUp(flutterPluginBinding.binaryMessenger, this)
+        UniversalBleAndroidChannel.setUp(flutterPluginBinding.binaryMessenger, this)
         peripheralPlugin = UniversalBlePeripheralPlugin(
             flutterPluginBinding.applicationContext,
             bluetoothManager,
@@ -97,7 +96,7 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
         context.unregisterReceiver(broadcastReceiver)
         peripheralPlugin.dispose()
         UniversalBlePeripheralChannel.setUp(binding.binaryMessenger, null)
-        UniversalBleAndroidPermissionChannel.setUp(binding.binaryMessenger, null)
+        UniversalBleAndroidChannel.setUp(binding.binaryMessenger, null)
         callbackChannel = null
         mainThreadHandler = null
         permissionHandler = null
