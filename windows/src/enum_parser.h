@@ -2,7 +2,6 @@
 
 #include <string>
 #include <optional>
-#include "helper/universal_enum.h"
 #include "helper/universal_ble_base.h"
 #include "generated/universal_ble.g.h"
 
@@ -82,12 +81,12 @@ namespace universal_ble
 	{
 		switch (radio_state)
 		{
-		case RadioState::On: return AvailabilityState::poweredOn;
-		case RadioState::Off: return AvailabilityState::poweredOff;
-		case RadioState::Disabled: return AvailabilityState::unsupported;
-		case RadioState::Unknown: return AvailabilityState::unknown;
+		case RadioState::On: return AvailabilityState::kPoweredOn;
+		case RadioState::Off: return AvailabilityState::kPoweredOff;
+		case RadioState::Disabled: return AvailabilityState::kUnsupported;
+		case RadioState::Unknown: return AvailabilityState::kUnknown;
 		}
-		return AvailabilityState::unknown;
+		return AvailabilityState::kUnknown;
 	}
 
 	inline flutter::EncodableList properties_to_flutter_encodable (const GattCharacteristicProperties properties_value)
@@ -95,35 +94,35 @@ namespace universal_ble
 		auto properties = flutter::EncodableList();
 		if ((properties_value & GattCharacteristicProperties::Broadcast) != GattCharacteristicProperties::None)
 		{
-			properties.push_back(static_cast<int>(CharacteristicProperty::broadcast));
+			properties.push_back(static_cast<int>(CharacteristicProperty::kBroadcast));
 		}
 		if ((properties_value & GattCharacteristicProperties::Read) != GattCharacteristicProperties::None)
 		{
-			properties.push_back(static_cast<int>(CharacteristicProperty::read));
+			properties.push_back(static_cast<int>(CharacteristicProperty::kRead));
 		}
 		if ((properties_value & GattCharacteristicProperties::Write) != GattCharacteristicProperties::None)
 		{
-			properties.push_back(static_cast<int>(CharacteristicProperty::write));
+			properties.push_back(static_cast<int>(CharacteristicProperty::kWrite));
 		}
 		if ((properties_value & GattCharacteristicProperties::WriteWithoutResponse) != GattCharacteristicProperties::None)
 		{
-			properties.push_back(static_cast<int>(CharacteristicProperty::writeWithoutResponse));
+			properties.push_back(static_cast<int>(CharacteristicProperty::kWriteWithoutResponse));
 		}
 		if ((properties_value & GattCharacteristicProperties::Notify) != GattCharacteristicProperties::None)
 		{
-			properties.push_back(static_cast<int>(CharacteristicProperty::notify));
+			properties.push_back(static_cast<int>(CharacteristicProperty::kNotify));
 		}
 		if ((properties_value & GattCharacteristicProperties::Indicate) != GattCharacteristicProperties::None)
 		{
-			properties.push_back(static_cast<int>(CharacteristicProperty::indicate));
+			properties.push_back(static_cast<int>(CharacteristicProperty::kIndicate));
 		}
 		if ((properties_value & GattCharacteristicProperties::AuthenticatedSignedWrites) != GattCharacteristicProperties::None)
 		{
-			properties.push_back(static_cast<int>(CharacteristicProperty::authenticatedSignedWrites));
+			properties.push_back(static_cast<int>(CharacteristicProperty::kAuthenticatedSignedWrites));
 		}
 		if ((properties_value & GattCharacteristicProperties::ExtendedProperties) != GattCharacteristicProperties::None)
 		{
-			properties.push_back(static_cast<int>(CharacteristicProperty::extendedProperties));
+			properties.push_back(static_cast<int>(CharacteristicProperty::kExtendedProperties));
 		}
 		return properties;
 	}

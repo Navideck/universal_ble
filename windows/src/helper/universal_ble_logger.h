@@ -9,8 +9,8 @@ namespace universal_ble {
 
 class UniversalBleLogger {
 public:
-  static void SetLogLevel(UniversalBleLogLevel level);
-  static UniversalBleLogLevel current_log_level();
+  static void SetLogLevel(BleLogLevel level);
+  static BleLogLevel current_log_level();
 
   static void LogError(const std::string &message);
   static void LogWarning(const std::string &message);
@@ -21,8 +21,8 @@ public:
   static void LogVerboseWithTimestamp(const std::string &message);
 
 private:
-  static UniversalBleLogLevel current_level_;
-  static bool Allows(UniversalBleLogLevel level);
+  static BleLogLevel current_level_;
+  static bool Allows(BleLogLevel level);
 };
 
 } // namespace universal_ble

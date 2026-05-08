@@ -61,16 +61,15 @@ UniversalBlePlugin::~UniversalBlePlugin() {
 
 // UniversalBlePlatformChannel implementation.
 void UniversalBlePlugin::GetBluetoothAvailabilityState(
-    std::function<void(ErrorOr<int64_t> reply)> result) {
+    std::function<void(ErrorOr<AvailabilityState> reply)> result) {
   if (!bluetooth_radio_) {
     if (!initialized_) {
-      result(static_cast<int>(AvailabilityState::unknown));
+      result(AvailabilityState::kUnknown);
     } else {
-      result(static_cast<int>(AvailabilityState::unsupported));
+      result(AvailabilityState::kUnsupported);
     }
   } else {
-    result(static_cast<int>(
-        get_availability_state_from_radio(bluetooth_radio_.State())));
+    result(get_availability_state_from_radio(bluetooth_radio_.State()));
   }
 };
 
@@ -227,25 +226,25 @@ ErrorOr<bool> UniversalBlePlugin::IsScanning() {
   return false;
 }
 
-ErrorOr<int64_t>
+ErrorOr<BleConnectionState>
 UniversalBlePlugin::GetConnectionState(const std::string &device_id) {
   const auto it = connected_devices_.find(str_to_mac_address(device_id));
   if (it == connected_devices_.end()) {
-    return static_cast<int>(ConnectionState::disconnected);
+    return BleConnectionState::kDisconnected;
   }
 
   const auto device_agent = *it->second;
 
   if (device_agent.device.ConnectionStatus() ==
       BluetoothConnectionStatus::Connected) {
-    return static_cast<int>(ConnectionState::connected);
+    return BleConnectionState::kConnected;
   } else {
-    return static_cast<int>(ConnectionState::disconnected);
+    return BleConnectionState::kDisconnected;
   }
 }
 
 std::optional<FlutterError>
-UniversalBlePlugin::SetLogLevel(const UniversalBleLogLevel &log_level) {
+UniversalBlePlugin::SetLogLevel(const BleLogLevel &log_level) {
   UniversalBleLogger::SetLogLevel(log_level);
   return std::nullopt;
 }
@@ -282,7 +281,8 @@ void UniversalBlePlugin::DiscoverServices(
 
 void UniversalBlePlugin::SetNotifiable(
     const std::string &device_id, const std::string &service,
-    const std::string &characteristic, int64_t ble_input_property,
+    const std::string &characteristic,
+    const BleInputProperty &ble_input_property,
     std::function<void(std::optional<FlutterError> reply)> result) {
   SetNotifiableAsync(device_id, service, characteristic, ble_input_property,
                      result);
@@ -343,12 +343,12 @@ void UniversalBlePlugin::ReadValue(
 void UniversalBlePlugin::WriteValue(
     const std::string &device_id, const std::string &service,
     const std::string &characteristic, const std::vector<uint8_t> &value,
-    int64_t ble_output_property,
+    const BleOutputProperty &ble_output_property,
     std::function<void(std::optional<FlutterError> reply)> result) {
   UniversalBleLogger::LogDebugWithTimestamp(
       "WRITE -> " + device_id + " " + service + " " + characteristic +
       " len=" + std::to_string(value.size()) +
-      " property=" + std::to_string(ble_output_property));
+      " property=" + std::to_string(static_cast<int>(ble_output_property)));
   try {
     const auto it = connected_devices_.find(str_to_mac_address(device_id));
     if (it == connected_devices_.end()) {
@@ -364,8 +364,7 @@ void UniversalBlePlugin::WriteValue(
     const auto properties = gatt_characteristic.CharacteristicProperties();
 
     auto write_option = GattWriteOption::WriteWithResponse;
-    if (ble_output_property ==
-        static_cast<int>(BleOutputProperty::withoutResponse)) {
+    if (ble_output_property == BleOutputProperty::kWithoutResponse) {
       write_option = GattWriteOption::WriteWithoutResponse;
       if ((properties & GattCharacteristicProperties::WriteWithoutResponse) ==
           GattCharacteristicProperties::None) {
@@ -444,7 +443,7 @@ void UniversalBlePlugin::RequestMtu(
 }
 
 void UniversalBlePlugin::RequestConnectionPriority(
-    const std::string &device_id, int64_t priority,
+    const std::string &device_id, const BleConnectionPriority &priority,
     std::function<void(std::optional<FlutterError> reply)> result) {
   result(create_flutter_error(
       UniversalBleErrorCode::kNotSupported,
@@ -535,7 +534,7 @@ fire_and_forget UniversalBlePlugin::InitializeAsync() {
     UniversalBleLogger::LogError("Bluetooth is not available");
     ui_thread_handler_.Post([] {
       callback_channel->OnAvailabilityChanged(
-          static_cast<int>(AvailabilityState::unsupported), SuccessCallback,
+          AvailabilityState::kUnsupported, SuccessCallback,
           ErrorCallback);
     });
   }
@@ -1473,11 +1472,12 @@ fire_and_forget UniversalBlePlugin::IsPairedAsync(
 
 fire_and_forget UniversalBlePlugin::SetNotifiableAsync(
     const std::string &device_id, const std::string &service,
-    const std::string &characteristic, const int64_t ble_input_property,
+    const std::string &characteristic,
+    const BleInputProperty &ble_input_property,
     const std::function<void(std::optional<FlutterError> reply)> result) {
   UniversalBleLogger::LogDebugWithTimestamp(
       "SET_NOTIFY -> " + device_id + " " + service + " " + characteristic +
-      " input=" + std::to_string(ble_input_property));
+      " input=" + std::to_string(static_cast<int>(ble_input_property)));
   try {
     const auto it = connected_devices_.find(str_to_mac_address(device_id));
     if (it == connected_devices_.end()) {
@@ -1491,8 +1491,7 @@ fire_and_forget UniversalBlePlugin::SetNotifiableAsync(
     const auto properties = gatt_char.obj.CharacteristicProperties();
     auto descriptor_value =
         GattClientCharacteristicConfigurationDescriptorValue::None;
-    if (ble_input_property ==
-        static_cast<int>(BleInputProperty::notification)) {
+    if (ble_input_property == BleInputProperty::kNotification) {
       descriptor_value =
           GattClientCharacteristicConfigurationDescriptorValue::Notify;
       if ((properties & GattCharacteristicProperties::Notify) ==
@@ -1502,8 +1501,7 @@ fire_and_forget UniversalBlePlugin::SetNotifiableAsync(
             "Characteristic does not support notify"));
         co_return;
       }
-    } else if (ble_input_property ==
-               static_cast<int>(BleInputProperty::indication)) {
+    } else if (ble_input_property == BleInputProperty::kIndication) {
       descriptor_value =
           GattClientCharacteristicConfigurationDescriptorValue::Indicate;
       if ((properties & GattCharacteristicProperties::Indicate) ==
@@ -1743,7 +1741,7 @@ ErrorOr<std::optional<int64_t>> UniversalBlePlugin::GetMaximumNotifyLength(
 std::optional<FlutterError> UniversalBlePlugin::StartAdvertising(
     const flutter::EncodableList &services, const std::string *local_name,
     const int64_t *timeout,
-    const PeripheralManufacturerData *manufacturer_data,
+    const UniversalManufacturerData *manufacturer_data,
     bool add_manufacturer_data_in_scan_response) {
   std::lock_guard<std::mutex> lock(peripheral_mutex_);
   if (peripheral_service_provider_map_.empty()) {

@@ -147,7 +147,8 @@ private:
   fire_and_forget ConnectAsync(uint64_t bluetooth_address);
   fire_and_forget SetNotifiableAsync(
       const std::string &device_id, const std::string &service,
-      const std::string &characteristic, int64_t ble_input_property,
+      const std::string &characteristic,
+      const BleInputProperty &ble_input_property,
       std::function<void(std::optional<FlutterError> reply)> result);
   fire_and_forget PairAsync(const std::string &device_id,
                             std::function<void(ErrorOr<bool> reply)> result);
@@ -232,14 +233,15 @@ private:
 
   // UniversalBlePlatformChannel implementation.
   void GetBluetoothAvailabilityState(
-      std::function<void(ErrorOr<int64_t> reply)> result) override;
+      std::function<void(ErrorOr<AvailabilityState> reply)> result) override;
   void
   EnableBluetooth(std::function<void(ErrorOr<bool> reply)> result) override;
   void
   DisableBluetooth(std::function<void(ErrorOr<bool> reply)> result) override;
-  ErrorOr<int64_t> GetConnectionState(const std::string &device_id) override;
+  ErrorOr<BleConnectionState> GetConnectionState(
+      const std::string &device_id) override;
   std::optional<FlutterError>
-  SetLogLevel(const UniversalBleLogLevel &log_level) override;
+  SetLogLevel(const BleLogLevel &log_level) override;
   std::optional<FlutterError>
   StartScan(const UniversalScanFilter *filter, const UniversalScanConfig *config) override;
   std::optional<FlutterError> StopScan() override;
@@ -256,7 +258,8 @@ private:
                        result) override;
   void SetNotifiable(
       const std::string &device_id, const std::string &service,
-      const std::string &characteristic, int64_t ble_input_property,
+      const std::string &characteristic,
+      const BleInputProperty &ble_input_property,
       std::function<void(std::optional<FlutterError> reply)> result) override;
   void ReadValue(
       const std::string &device_id, const std::string &service,
@@ -265,12 +268,12 @@ private:
   void WriteValue(
       const std::string &device_id, const std::string &service,
       const std::string &characteristic, const std::vector<uint8_t> &value,
-      int64_t ble_output_property,
+      const BleOutputProperty &ble_output_property,
       std::function<void(std::optional<FlutterError> reply)> result) override;
   void RequestMtu(const std::string &device_id, int64_t expected_mtu,
                   std::function<void(ErrorOr<int64_t> reply)> result) override;
   void RequestConnectionPriority(
-      const std::string &device_id, int64_t priority,
+      const std::string &device_id, const BleConnectionPriority &priority,
       std::function<void(std::optional<FlutterError> reply)> result) override;
   void ReadRssi(const std::string &device_id,
                 std::function<void(ErrorOr<int64_t> reply)> result) override;
@@ -295,7 +298,7 @@ private:
   std::optional<FlutterError> StartAdvertising(
       const flutter::EncodableList &services, const std::string *local_name,
       const int64_t *timeout,
-      const PeripheralManufacturerData *manufacturer_data,
+      const UniversalManufacturerData *manufacturer_data,
       bool add_manufacturer_data_in_scan_response) override;
   std::optional<FlutterError> UpdateCharacteristic(
       const std::string &characteristic_id, const std::vector<uint8_t> &value,

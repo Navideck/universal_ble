@@ -5,7 +5,7 @@
 
 namespace universal_ble
 {
-    std::vector<UniversalManufacturerDataFilter> manufacturerScanFilter = std::vector<UniversalManufacturerDataFilter>();
+    std::vector<ManufacturerDataFilter> manufacturerScanFilter = std::vector<ManufacturerDataFilter>();
     std::vector<winrt::guid> serviceFilterUUIDS = std::vector<winrt::guid>();
     std::vector<std::string> namePrefixFilter = std::vector<std::string>();
 
@@ -15,7 +15,7 @@ namespace universal_ble
         const auto &manufacturerData = filter.with_manufacturer_data();
         for (const flutter::EncodableValue &data : manufacturerData)
         {
-            UniversalManufacturerDataFilter manufacturerDataFilter = std::any_cast<UniversalManufacturerDataFilter>(std::get<flutter::CustomEncodableValue>(data));
+            ManufacturerDataFilter manufacturerDataFilter = std::any_cast<ManufacturerDataFilter>(std::get<flutter::CustomEncodableValue>(data));
             manufacturerScanFilter.push_back(manufacturerDataFilter);
         }
         // Set Services Filter
@@ -50,9 +50,9 @@ namespace universal_ble
         if (name == nullptr || name->empty())
             return false;
         return std::any_of(namePrefixFilter.begin(), namePrefixFilter.end(),
-                           [&name](const flutter::EncodableValue &prefix)
+                           [&name](const std::string &prefix)
                            {
-                               return name->find(std::get<std::string>(prefix)) == 0;
+                               return name->find(prefix) == 0;
                            });
     }
 
@@ -90,8 +90,8 @@ namespace universal_ble
 
         for (const auto &filter : manufacturerScanFilter)
         {
-            const auto *data_filter = filter.data();
-            const auto *mask = filter.mask();
+            const auto *data_filter = filter.payload_prefix();
+            const auto *mask = filter.payload_mask();
 
             for (const auto &value : *manufacturerDataList)
             {
