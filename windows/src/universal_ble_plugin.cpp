@@ -6,6 +6,7 @@
 #include <flutter/plugin_registrar_windows.h>
 
 #include <algorithm>
+#include <cctype>
 #include <future>
 #include <iomanip>
 #include <memory>
@@ -36,10 +37,20 @@ const auto device_address_key = L"System.Devices.Aep.DeviceAddress";
 const auto signal_strength_key = L"System.Devices.Aep.SignalStrength";
 static std::unique_ptr<UniversalBleCallbackChannel> callback_channel;
 
+namespace {
+std::string to_lower_case(std::string value) {
+  std::transform(value.begin(), value.end(), value.begin(),
+                 [](unsigned char c) {
+                   return static_cast<char>(std::tolower(c));
+                 });
+  return value;
+}
+} // namespace
+
 void UniversalBlePlugin::RegisterWithRegistrar(
     flutter::PluginRegistrarWindows *registrar) {
   auto plugin = std::make_unique<UniversalBlePlugin>(registrar);
-  SetUp(registrar->messenger(), plugin.get());
+  UniversalBlePlatformChannel::SetUp(registrar->messenger(), plugin.get());
   UniversalBlePeripheralChannel::SetUp(registrar->messenger(), plugin.get());
   callback_channel =
       std::make_unique<UniversalBleCallbackChannel>(registrar->messenger());
@@ -1092,8 +1103,8 @@ void UniversalBlePlugin::RadioStateChanged(const Radio &sender,
   auto state = get_availability_state_from_radio(radio_state);
 
   ui_thread_handler_.Post([state] {
-    callback_channel->OnAvailabilityChanged(static_cast<int>(state),
-                                            SuccessCallback, ErrorCallback);
+    callback_channel->OnAvailabilityChanged(state, SuccessCallback,
+                                            ErrorCallback);
   });
 }
 
@@ -1717,9 +1728,11 @@ ErrorOr<flutter::EncodableList> UniversalBlePlugin::GetSubscribedClients(
 ErrorOr<std::optional<int64_t>> UniversalBlePlugin::GetMaximumNotifyLength(
     const std::string &device_id) {
   std::lock_guard<std::mutex> lock(peripheral_mutex_);
-  for (auto const &[_, service_provider] : peripheral_service_provider_map_) {
-    for (auto const &[_, characteristic_object] :
+  for (auto const &[service_id, service_provider] : peripheral_service_provider_map_) {
+    (void)service_id;
+    for (auto const &[characteristic_id, characteristic_object] :
          service_provider->characteristics) {
+      (void)characteristic_id;
       try {
         auto clients = characteristic_object->obj.SubscribedClients();
         for (uint32_t i = 0; i < clients.Size(); ++i) {
@@ -1729,7 +1742,7 @@ ErrorOr<std::optional<int64_t>> UniversalBlePlugin::GetMaximumNotifyLength(
             continue;
           }
           const int64_t pdu_size = static_cast<int64_t>(client.Session().MaxPduSize());
-          return std::max<int64_t>(0, pdu_size - 3);
+          return std::optional<int64_t>(std::max<int64_t>(0, pdu_size - 3));
         }
       } catch (...) {
       }
@@ -1787,7 +1800,7 @@ std::optional<FlutterError> UniversalBlePlugin::StartAdvertising(
       const bool should_start = selected_services_lc.empty() ||
                                 std::find(selected_services_lc.begin(),
                                           selected_services_lc.end(),
-                                          to_lower_case(key)) !=
+                                          key) !=
                                     selected_services_lc.end();
       if (!should_start) {
         continue;
@@ -1841,7 +1854,8 @@ std::optional<FlutterError> UniversalBlePlugin::UpdateCharacteristic(
     std::future<bool> notify_future = std::async(
         std::launch::async, [local_char, buffer]() {
           auto op = local_char.NotifyValueAsync(buffer);
-          return op.get();
+          op.get();
+          return true;
         });
     const bool notify_result = notify_future.get();
     if (!notify_result) {
@@ -1886,7 +1900,7 @@ UniversalBlePlugin::PeripheralAddServiceAsync(const PeripheralService &service) 
     for (auto characteristic_encoded : characteristics) {
       PeripheralCharacteristic characteristic =
           std::any_cast<PeripheralCharacteristic>(
-              std::get<CustomEncodableValue>(characteristic_encoded));
+              std::get<flutter::CustomEncodableValue>(characteristic_encoded));
       auto params = GattLocalCharacteristicParameters();
       const auto characteristic_uuid = characteristic.uuid();
       for (auto property_encoded : characteristic.properties()) {
@@ -1949,7 +1963,7 @@ UniversalBlePlugin::PeripheralAddServiceAsync(const PeripheralService &service) 
       if (descriptors_ptr != nullptr) {
         for (auto descriptor_encoded : *descriptors_ptr) {
           PeripheralDescriptor descriptor = std::any_cast<PeripheralDescriptor>(
-              std::get<CustomEncodableValue>(descriptor_encoded));
+              std::get<flutter::CustomEncodableValue>(descriptor_encoded));
           auto descriptor_params = GattLocalDescriptorParameters();
           const auto permissions = descriptor.permissions();
           if (permissions != nullptr) {
