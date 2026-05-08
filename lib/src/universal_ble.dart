@@ -58,8 +58,7 @@ class UniversalBle {
   static Stream<Uint8List> characteristicValueStream(
     String deviceId,
     String characteristicId,
-  ) =>
-      _platform.characteristicValueStream(deviceId, characteristicId);
+  ) => _platform.characteristicValueStream(deviceId, characteristicId);
 
   /// Pairing state stream
   static Stream<bool> pairingStateStream(String deviceId) =>
@@ -156,9 +155,9 @@ class UniversalBle {
     _platform
         .connect(deviceId, connectionTimeout: timeout, autoConnect: autoConnect)
         .catchError((error) {
-      if (completer.isCompleted) return;
-      completer.completeError(ConnectionException(error));
-    });
+          if (completer.isCompleted) return;
+          completer.completeError(ConnectionException(error));
+        });
 
     if (!await completer.future.timeout(timeout)) {
       throw ConnectionException("Failed to connect");
@@ -184,14 +183,14 @@ class UniversalBle {
 
       await _bleCommandQueue
           .queueCommand(
-        () => _platform.disconnect(deviceId),
-        timeout: timeout,
-        deviceId: deviceId,
-      )
+            () => _platform.disconnect(deviceId),
+            timeout: timeout,
+            deviceId: deviceId,
+          )
           .catchError((error) {
-        if (completer.isCompleted) return;
-        completer.completeError(ConnectionException(error));
-      });
+            if (completer.isCompleted) return;
+            completer.completeError(ConnectionException(error));
+          });
 
       if (connectionState == BleConnectionState.disconnected ||
           connectionState == BleConnectionState.disconnecting) {
@@ -548,9 +547,11 @@ class UniversalBle {
   static set onAvailabilityChange(OnAvailabilityChange? onAvailabilityChange) {
     _platform.onAvailabilityChange = onAvailabilityChange;
     if (onAvailabilityChange != null) {
-      getAvailabilityState().then((value) {
-        onAvailabilityChange(value);
-      }).onError((error, stackTrace) => null);
+      getAvailabilityState()
+          .then((value) {
+            onAvailabilityChange(value);
+          })
+          .onError((error, stackTrace) => null);
     }
   }
 
@@ -618,28 +619,32 @@ class UniversalBle {
     }
 
     connectionSubscription = _platform
-        .bleConnectionUpdateStreamController.stream
+        .bleConnectionUpdateStreamController
+        .stream
         .where((e) => e.deviceId == deviceId)
         .listen(
-      (e) {
-        cancelSubscription();
-        if (e.error != null) {
-          handleError(e.error);
-        } else {
-          if (!completer.isCompleted) {
-            completer.complete(e.isConnected);
-          }
-        }
-      },
-      onError: handleError,
-      cancelOnError: true,
-    );
+          (e) {
+            cancelSubscription();
+            if (e.error != null) {
+              handleError(e.error);
+            } else {
+              if (!completer.isCompleted) {
+                completer.complete(e.isConnected);
+              }
+            }
+          },
+          onError: handleError,
+          cancelOnError: true,
+        );
 
-    completer.future.timeout(timeout).then((_) {
-      cancelSubscription();
-    }).catchError((_) {
-      cancelSubscription();
-    });
+    completer.future
+        .timeout(timeout)
+        .then((_) {
+          cancelSubscription();
+        })
+        .catchError((_) {
+          cancelSubscription();
+        });
 
     return completer;
   }
@@ -795,7 +800,7 @@ class UniversalBle {
 
   /// Get scan results.
   static set onScanResult(OnScanResult? onScanResult) =>
-      _platform.onScanResult = onScanResult;
+      _platform.onScanResultUpdate = onScanResult;
 
   /// Get connection state changes.
   static set onConnectionChange(OnConnectionChange? onConnectionChange) =>

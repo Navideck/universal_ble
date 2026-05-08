@@ -7,7 +7,7 @@ import 'package:universal_ble/universal_ble.dart';
 
 abstract class UniversalBlePlatform {
   // Do not use these directly to push updates
-  OnScanResult? onScanResult;
+  OnScanResult? onScanResultUpdate;
   OnConnectionChange? onConnectionChange;
   OnValueChange? onValueChange;
   OnAvailabilityChange? onAvailabilityChange;
@@ -151,7 +151,7 @@ abstract class UniversalBlePlatform {
     _scanStreamController.add(bleDevice);
 
     try {
-      onScanResult?.call(bleDevice);
+      onScanResultUpdate?.call(bleDevice);
     } catch (_) {}
   }
 

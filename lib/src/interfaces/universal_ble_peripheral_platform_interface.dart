@@ -3,31 +3,8 @@ import 'dart:typed_data';
 import 'package:universal_ble/src/utils/universal_ble_stream_controller.dart';
 import 'package:universal_ble/universal_ble.dart';
 
-class BlePeripheralStreamHandler {
-  final advertisingStateStreamController =
-      UniversalBleStreamController<BlePeripheralAdvertisingStateChanged>();
-  final characteristicSubscriptionStreamController =
-      UniversalBleStreamController<
-        BlePeripheralCharacteristicSubscriptionChanged
-      >();
-  final connectionStateStreamController =
-      UniversalBleStreamController<BlePeripheralConnectionStateChanged>();
-  final serviceAddedStreamController =
-      UniversalBleStreamController<BlePeripheralServiceAdded>();
-  final mtuChangedStreamController =
-      UniversalBleStreamController<BlePeripheralMtuChanged>();
-
-  void dispose() {
-    advertisingStateStreamController.close();
-    characteristicSubscriptionStreamController.close();
-    connectionStateStreamController.close();
-    serviceAddedStreamController.close();
-    mtuChangedStreamController.close();
-  }
-}
-
 abstract class UniversalBlePeripheralPlatform {
-  final _blePeripheralStreamHandler = BlePeripheralStreamHandler();
+  final _blePeripheralStreamHandler = _BlePeripheralStreamHandler();
 
   Stream<BlePeripheralAdvertisingStateChanged> get advertisingStateStream =>
       _blePeripheralStreamHandler.advertisingStateStreamController.stream;
@@ -231,4 +208,27 @@ class UniversalBlePeripheralUnsupported extends UniversalBlePeripheralPlatform {
 
   UnsupportedError _notSupported() =>
       UnsupportedError('BLE peripheral mode is not supported on this platform');
+}
+
+class _BlePeripheralStreamHandler {
+  final advertisingStateStreamController =
+      UniversalBleStreamController<BlePeripheralAdvertisingStateChanged>();
+  final characteristicSubscriptionStreamController =
+      UniversalBleStreamController<
+        BlePeripheralCharacteristicSubscriptionChanged
+      >();
+  final connectionStateStreamController =
+      UniversalBleStreamController<BlePeripheralConnectionStateChanged>();
+  final serviceAddedStreamController =
+      UniversalBleStreamController<BlePeripheralServiceAdded>();
+  final mtuChangedStreamController =
+      UniversalBleStreamController<BlePeripheralMtuChanged>();
+
+  void dispose() {
+    advertisingStateStreamController.close();
+    characteristicSubscriptionStreamController.close();
+    connectionStateStreamController.close();
+    serviceAddedStreamController.close();
+    mtuChangedStreamController.close();
+  }
 }

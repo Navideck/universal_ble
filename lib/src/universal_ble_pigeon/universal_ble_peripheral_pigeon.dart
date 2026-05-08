@@ -6,13 +6,13 @@ import 'package:universal_ble/universal_ble.dart';
 
 class UniversalBlePeripheralPigeon extends UniversalBlePeripheralPlatform
     implements UniversalBlePeripheralCallback {
-  UniversalBlePeripheralPigeon._() {
-    UniversalBlePeripheralCallback.setUp(this);
-  }
-
   static UniversalBlePeripheralPigeon? _instance;
   static UniversalBlePeripheralPigeon get instance =>
       _instance ??= UniversalBlePeripheralPigeon._();
+
+  UniversalBlePeripheralPigeon._() {
+    UniversalBlePeripheralCallback.setUp(this);
+  }
 
   final _channel = UniversalBlePeripheralChannel();
 

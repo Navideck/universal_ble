@@ -149,6 +149,11 @@ class _CentralHomeState extends State<CentralHome> {
   }
 
   @override
+  void setState(VoidCallback fn) {
+    if (mounted) super.setState(fn);
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: widget.showAppBar
@@ -224,8 +229,7 @@ class _CentralHomeState extends State<CentralHome> {
                     text: 'Is Permission Granted',
                     onPressed: () async {
                       try {
-                        bool granted =
-                            await UniversalBle.hasPermissions(
+                        bool granted = await UniversalBle.hasPermissions(
                           withAndroidFineLocation: false,
                         );
                         showSnackbar("Is Permission Granted: $granted");

@@ -3,14 +3,15 @@ import 'package:universal_ble/src/universal_ble.g.dart';
 import 'package:universal_ble/src/utils/universal_ble_filter_util.dart';
 import 'package:universal_ble/universal_ble.dart';
 
-class UniversalBlePigeonChannel extends UniversalBlePlatform {
+class UniversalBlePigeonChannel extends UniversalBlePlatform
+    implements UniversalBleCallbackChannel {
   static UniversalBlePigeonChannel? _instance;
   static UniversalBlePigeonChannel get instance =>
       _instance ??= UniversalBlePigeonChannel._();
   late final UniversalBleFilterUtil _bleFilter = UniversalBleFilterUtil();
 
   UniversalBlePigeonChannel._() {
-    _setupListeners();
+    UniversalBleCallbackChannel.setUp(this);
   }
 
   final _channel = UniversalBlePlatformChannel();
@@ -196,24 +197,6 @@ class UniversalBlePigeonChannel extends UniversalBlePlatform {
   Future<void> setLogLevel(BleLogLevel logLevel) =>
       _executeWithErrorHandling(() => _channel.setLogLevel(logLevel));
 
-  /// To set listeners
-  void _setupListeners() {
-    UniversalBleCallbackChannel.setUp(
-      _UniversalBleCallbackHandler(
-        scanResult: (bleDevice) {
-          // Only check for exclusion filter here,
-          // scan filter handled natively on platform side
-          if (_bleFilter.matchesExclusionFilter(bleDevice)) return;
-          updateScanResult(bleDevice);
-        },
-        availabilityChange: updateAvailability,
-        connectionChanged: updateConnection,
-        valueChanged: updateCharacteristicValue,
-        pairStateChange: updatePairingState,
-      ),
-    );
-  }
-
   /// Executes a platform call with error handling
   /// Converts any errors to UniversalBleException
   Future<T> _executeWithErrorHandling<T>(Future<T> Function() future) async {
@@ -238,6 +221,35 @@ class UniversalBlePigeonChannel extends UniversalBlePlatform {
       );
     }
   }
+
+  @override
+  void onAvailabilityChanged(AvailabilityState state) =>
+      updateAvailability(state);
+
+  @override
+  void onConnectionChanged(String deviceId, bool connected, String? error) =>
+      updateConnection(deviceId, connected, error);
+
+  @override
+  void onScanResult(UniversalBleScanResult result) {
+    // Only check for exclusion filter here,
+    // scan filter handled natively on platform side
+    final bleDevice = result.toBleDevice();
+    if (_bleFilter.matchesExclusionFilter(bleDevice)) return;
+    updateScanResult(bleDevice);
+  }
+
+  @override
+  void onValueChanged(
+    String deviceId,
+    String characteristicId,
+    Uint8List value,
+    int? timestamp,
+  ) => updateCharacteristicValue(deviceId, characteristicId, value, timestamp);
+
+  @override
+  void onPairStateChange(String deviceId, bool isPaired, String? error) =>
+      updatePairingState(deviceId, isPaired);
 }
 
 extension _BleServiceExtension on UniversalBleService {
@@ -259,46 +271,6 @@ extension _BleServiceExtension on UniversalBleService {
     }
     return BleService(uuid, bleCharacteristics);
   }
-}
-
-class _UniversalBleCallbackHandler extends UniversalBleCallbackChannel {
-  OnAvailabilityChange availabilityChange;
-  OnScanResult scanResult;
-  OnConnectionChange connectionChanged;
-  OnValueChange valueChanged;
-  OnPairingStateChange pairStateChange;
-
-  _UniversalBleCallbackHandler({
-    required this.availabilityChange,
-    required this.scanResult,
-    required this.connectionChanged,
-    required this.valueChanged,
-    required this.pairStateChange,
-  });
-
-  @override
-  void onAvailabilityChanged(AvailabilityState state) =>
-      availabilityChange(state);
-
-  @override
-  void onConnectionChanged(String deviceId, bool connected, String? error) =>
-      connectionChanged(deviceId, connected, error);
-
-  @override
-  void onScanResult(UniversalBleScanResult result) =>
-      scanResult(result.toBleDevice());
-
-  @override
-  void onValueChanged(
-    String deviceId,
-    String characteristicId,
-    Uint8List value,
-    int? timestamp,
-  ) => valueChanged(deviceId, characteristicId, value, timestamp);
-
-  @override
-  void onPairStateChange(String deviceId, bool isPaired, String? error) =>
-      pairStateChange(deviceId, isPaired);
 }
 
 extension _UniversalBleScanResultExtension on UniversalBleScanResult {
