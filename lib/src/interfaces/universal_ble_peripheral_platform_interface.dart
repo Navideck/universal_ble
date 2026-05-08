@@ -1,107 +1,68 @@
 import 'dart:typed_data';
 
+import 'package:universal_ble/src/utils/universal_ble_stream_controller.dart';
 import 'package:universal_ble/universal_ble.dart';
 
-sealed class UniversalBlePeripheralEvent {}
+class BlePeripheralStreamHandler {
+  final advertisingStateStreamController =
+      UniversalBleStreamController<BlePeripheralAdvertisingStateChanged>();
+  final characteristicSubscriptionStreamController =
+      UniversalBleStreamController<
+        BlePeripheralCharacteristicSubscriptionChanged
+      >();
+  final connectionStateStreamController =
+      UniversalBleStreamController<BlePeripheralConnectionStateChanged>();
+  final serviceAddedStreamController =
+      UniversalBleStreamController<BlePeripheralServiceAdded>();
+  final mtuChangedStreamController =
+      UniversalBleStreamController<BlePeripheralMtuChanged>();
 
-class UniversalBlePeripheralAdvertisingStateChanged
-    extends UniversalBlePeripheralEvent {
-  final PeripheralAdvertisingState state;
-  final String? error;
-  UniversalBlePeripheralAdvertisingStateChanged(this.state, this.error);
-}
-
-class UniversalBlePeripheralCharacteristicSubscriptionChanged
-    extends UniversalBlePeripheralEvent {
-  final String deviceId;
-  final String characteristicId;
-  final bool isSubscribed;
-  final String? name;
-
-  UniversalBlePeripheralCharacteristicSubscriptionChanged({
-    required this.deviceId,
-    required this.characteristicId,
-    required this.isSubscribed,
-    required this.name,
-  });
-}
-
-class UniversalBlePeripheralConnectionStateChanged
-    extends UniversalBlePeripheralEvent {
-  final String deviceId;
-  final bool connected;
-  UniversalBlePeripheralConnectionStateChanged(this.deviceId, this.connected);
-}
-
-class UniversalBlePeripheralServiceAdded extends UniversalBlePeripheralEvent {
-  final String serviceId;
-  final String? error;
-  UniversalBlePeripheralServiceAdded(this.serviceId, this.error);
-}
-
-class UniversalBlePeripheralMtuChanged extends UniversalBlePeripheralEvent {
-  final String deviceId;
-  final int mtu;
-  UniversalBlePeripheralMtuChanged(this.deviceId, this.mtu);
-}
-
-class UniversalBlePeripheralCapabilities {
-  final bool supportsPeripheralMode;
-  final bool supportsManufacturerDataInAdvertisement;
-  final bool supportsManufacturerDataInScanResponse;
-  final bool supportsServiceDataInAdvertisement;
-  final bool supportsServiceDataInScanResponse;
-  final bool supportsTargetedCharacteristicUpdate;
-  final bool supportsAdvertisingTimeout;
-
-  const UniversalBlePeripheralCapabilities({
-    required this.supportsPeripheralMode,
-    required this.supportsManufacturerDataInAdvertisement,
-    required this.supportsManufacturerDataInScanResponse,
-    required this.supportsServiceDataInAdvertisement,
-    required this.supportsServiceDataInScanResponse,
-    required this.supportsTargetedCharacteristicUpdate,
-    required this.supportsAdvertisingTimeout,
-  });
-}
-
-class PeripheralRequestHandlers {
-  final OnPeripheralReadRequest? onReadRequest;
-  final OnPeripheralWriteRequest? onWriteRequest;
-  final OnPeripheralDescriptorReadRequest? onDescriptorReadRequest;
-  final OnPeripheralDescriptorWriteRequest? onDescriptorWriteRequest;
-
-  const PeripheralRequestHandlers({
-    this.onReadRequest,
-    this.onWriteRequest,
-    this.onDescriptorReadRequest,
-    this.onDescriptorWriteRequest,
-  });
-}
-
-sealed class PeripheralUpdateTarget {
-  const PeripheralUpdateTarget();
-}
-
-class PeripheralUpdateAllSubscribed extends PeripheralUpdateTarget {
-  const PeripheralUpdateAllSubscribed();
-}
-
-class PeripheralUpdateSingleDevice extends PeripheralUpdateTarget {
-  final String deviceId;
-  const PeripheralUpdateSingleDevice(this.deviceId);
+  void dispose() {
+    advertisingStateStreamController.close();
+    characteristicSubscriptionStreamController.close();
+    connectionStateStreamController.close();
+    serviceAddedStreamController.close();
+    mtuChangedStreamController.close();
+  }
 }
 
 abstract class UniversalBlePeripheralPlatform {
-  Stream<UniversalBlePeripheralEvent> get eventStream;
+  final _blePeripheralStreamHandler = BlePeripheralStreamHandler();
 
-  void setRequestHandlers(PeripheralRequestHandlers handlers);
+  Stream<BlePeripheralAdvertisingStateChanged> get advertisingStateStream =>
+      _blePeripheralStreamHandler.advertisingStateStreamController.stream;
+
+  Stream<BlePeripheralCharacteristicSubscriptionChanged>
+  get characteristicSubscriptionStream => _blePeripheralStreamHandler
+      .characteristicSubscriptionStreamController
+      .stream;
+
+  Stream<BlePeripheralConnectionStateChanged> get connectionStateStream =>
+      _blePeripheralStreamHandler.connectionStateStreamController.stream;
+
+  Stream<BlePeripheralServiceAdded> get serviceAddedStream =>
+      _blePeripheralStreamHandler.serviceAddedStreamController.stream;
+
+  Stream<BlePeripheralMtuChanged> get mtuChangedStream =>
+      _blePeripheralStreamHandler.mtuChangedStreamController.stream;
+
+  void setReadRequestHandler(OnPeripheralReadRequest handler);
+
+  void setWriteRequestHandler(OnPeripheralWriteRequest handler);
+
+  void setDescriptorReadRequestHandler(
+    OnPeripheralDescriptorReadRequest handler,
+  );
+
+  void setDescriptorWriteRequestHandler(
+    OnPeripheralDescriptorWriteRequest handler,
+  );
 
   Future<PeripheralReadinessState> getAvailabilityState();
 
   Future<PeripheralAdvertisingState> getAdvertisingState();
 
-  Future<UniversalBlePeripheralCapabilities> getCapabilities();
+  Future<BlePeripheralCapabilities> getCapabilities();
 
   Future<void> addService(PeripheralService service, {Duration? timeout});
 
@@ -124,7 +85,7 @@ abstract class UniversalBlePeripheralPlatform {
   Future<void> updateCharacteristicValue({
     required String characteristicId,
     required Uint8List value,
-    PeripheralUpdateTarget target = const PeripheralUpdateAllSubscribed(),
+    String? deviceId,
   });
 
   /// Returns GATT client device ids currently subscribed to [characteristicId].
@@ -132,23 +93,44 @@ abstract class UniversalBlePeripheralPlatform {
 
   Future<int?> getMaximumNotifyLength(String deviceId);
 
+  /// Push advertising state update to stream listeners.
+  void updateAdvertisingState(BlePeripheralAdvertisingStateChanged event) {
+    _blePeripheralStreamHandler.advertisingStateStreamController.add(event);
+  }
+
+  /// Push characteristic subscription update to stream listeners.
+  void updateCharacteristicSubscription(
+    BlePeripheralCharacteristicSubscriptionChanged event,
+  ) {
+    _blePeripheralStreamHandler.characteristicSubscriptionStreamController.add(
+      event,
+    );
+  }
+
+  /// Push connection state update to stream listeners.
+  void updateConnectionState(BlePeripheralConnectionStateChanged event) {
+    _blePeripheralStreamHandler.connectionStateStreamController.add(event);
+  }
+
+  /// Push service added update to stream listeners.
+  void updateServiceAdded(BlePeripheralServiceAdded event) {
+    _blePeripheralStreamHandler.serviceAddedStreamController.add(event);
+  }
+
+  /// Push MTU update to stream listeners.
+  void updateMtu(BlePeripheralMtuChanged event) {
+    _blePeripheralStreamHandler.mtuChangedStreamController.add(event);
+  }
+
   /// Called when this platform implementation is being replaced.
   ///
   /// Default is no-op so existing custom implementations remain compatible.
-  void dispose() {}
+  void dispose() {
+    _blePeripheralStreamHandler.dispose();
+  }
 }
 
 class UniversalBlePeripheralUnsupported extends UniversalBlePeripheralPlatform {
-  UnsupportedError _notSupported() =>
-      UnsupportedError('BLE peripheral mode is not supported on this platform');
-
-  @override
-  Stream<UniversalBlePeripheralEvent> get eventStream =>
-      const Stream<UniversalBlePeripheralEvent>.empty();
-
-  @override
-  void setRequestHandlers(PeripheralRequestHandlers handlers) {}
-
   @override
   Future<void> addService(
     PeripheralService service, {
@@ -174,8 +156,8 @@ class UniversalBlePeripheralUnsupported extends UniversalBlePeripheralPlatform {
   }
 
   @override
-  Future<UniversalBlePeripheralCapabilities> getCapabilities() async {
-    return const UniversalBlePeripheralCapabilities(
+  Future<BlePeripheralCapabilities> getCapabilities() async {
+    return const BlePeripheralCapabilities(
       supportsPeripheralMode: false,
       supportsManufacturerDataInAdvertisement: false,
       supportsManufacturerDataInScanResponse: false,
@@ -216,7 +198,7 @@ class UniversalBlePeripheralUnsupported extends UniversalBlePeripheralPlatform {
   Future<void> updateCharacteristicValue({
     required String characteristicId,
     required Uint8List value,
-    PeripheralUpdateTarget target = const PeripheralUpdateAllSubscribed(),
+    String? deviceId,
   }) async {
     throw _notSupported();
   }
@@ -230,38 +212,23 @@ class UniversalBlePeripheralUnsupported extends UniversalBlePeripheralPlatform {
   Future<int?> getMaximumNotifyLength(String deviceId) async {
     return null;
   }
+
+  @override
+  void setReadRequestHandler(OnPeripheralReadRequest handler) {}
+
+  @override
+  void setWriteRequestHandler(OnPeripheralWriteRequest handler) {}
+
+  @override
+  void setDescriptorReadRequestHandler(
+    OnPeripheralDescriptorReadRequest handler,
+  ) {}
+
+  @override
+  void setDescriptorWriteRequestHandler(
+    OnPeripheralDescriptorWriteRequest handler,
+  ) {}
+
+  UnsupportedError _notSupported() =>
+      UnsupportedError('BLE peripheral mode is not supported on this platform');
 }
-
-typedef OnPeripheralReadRequest =
-    PeripheralReadRequestResult? Function(
-      String deviceId,
-      String characteristicId,
-      int offset,
-      Uint8List? value,
-    );
-
-typedef OnPeripheralWriteRequest =
-    PeripheralWriteRequestResult? Function(
-      String deviceId,
-      String characteristicId,
-      int offset,
-      Uint8List? value,
-    );
-
-typedef OnPeripheralDescriptorReadRequest =
-    PeripheralReadRequestResult? Function(
-      String deviceId,
-      String characteristicId,
-      String descriptorId,
-      int offset,
-      Uint8List? value,
-    );
-
-typedef OnPeripheralDescriptorWriteRequest =
-    PeripheralWriteRequestResult? Function(
-      String deviceId,
-      String characteristicId,
-      String descriptorId,
-      int offset,
-      Uint8List? value,
-    );

@@ -14,7 +14,13 @@ class PeripheralHome extends StatefulWidget {
 
 class _PeripheralHomeState extends State<PeripheralHome> {
   final List<String> _logs = <String>[];
-  StreamSubscription<UniversalBlePeripheralEvent>? _eventSub;
+
+  StreamSubscription<BlePeripheralEvent>? _advertisingStateStreamSub;
+  StreamSubscription<BlePeripheralEvent>? _characteristicSubscriptionStreamSub;
+  StreamSubscription<BlePeripheralEvent>? _connectionStateStreamSub;
+  StreamSubscription<BlePeripheralEvent>? _serviceAddedStreamSub;
+  StreamSubscription<BlePeripheralEvent>? _mtuChangedStreamSub;
+
   bool _initialized = false;
   PeripheralAdvertisingState _advertisingState =
       PeripheralAdvertisingState.idle;
@@ -27,42 +33,74 @@ class _PeripheralHomeState extends State<PeripheralHome> {
   @override
   void initState() {
     super.initState();
-    _eventSub = UniversalBlePeripheral.eventStream.listen((event) {
-      switch (event) {
-        case UniversalBlePeripheralAdvertisingStateChanged():
-          setState(() {
-            _advertisingState = event.state;
-          });
-          _log('Advertising state: ${event.state.name} ${event.error ?? ''}'
-              .trim());
-        case UniversalBlePeripheralServiceAdded():
-          _log('Service added: ${event.serviceId} ${event.error ?? ''}'.trim());
-        case UniversalBlePeripheralCharacteristicSubscriptionChanged():
-          _log(
-            'Subscription ${event.isSubscribed ? 'on' : 'off'}: '
-            '${event.name ?? event.deviceId} -> ${event.characteristicId}',
-          );
-        case UniversalBlePeripheralConnectionStateChanged():
-          _log(
-            'Connection: ${event.deviceId} connected=${event.connected}',
-          );
-        case UniversalBlePeripheralMtuChanged():
-          _log('MTU: ${event.deviceId} mtu=${event.mtu}');
-      }
+
+    _advertisingStateStreamSub = UniversalBlePeripheral.advertisingStateStream
+        .listen((BlePeripheralAdvertisingStateChanged event) {
+      setState(() {
+        _advertisingState = event.state;
+      });
+      _log(
+        'Advertising state: ${event.state.name} ${event.error ?? ''}'.trim(),
+      );
     });
-    UniversalBlePeripheral.setRequestHandlers(
-      PeripheralRequestHandlers(
-        onReadRequest: (deviceId, characteristicId, _, __) {
-          _log('Read request: $deviceId $characteristicId');
-          return PeripheralReadRequestResult(
-            value: Uint8List.fromList(utf8.encode('Hello World')),
-          );
-        },
-        onWriteRequest: (deviceId, characteristicId, _, value) {
-          _log('Write request: $deviceId $characteristicId $value');
-          return PeripheralWriteRequestResult();
-        },
-      ),
+
+    _characteristicSubscriptionStreamSub = UniversalBlePeripheral
+        .characteristicSubscriptionStream
+        .listen((BlePeripheralCharacteristicSubscriptionChanged event) {
+      _log(
+        'Characteristic subscription: ${event.deviceId} ${event.characteristicId} ${event.isSubscribed} ${event.name ?? ''}',
+      );
+    });
+
+    _connectionStateStreamSub = UniversalBlePeripheral.connectionStateStream
+        .listen((BlePeripheralConnectionStateChanged event) {
+      _log(
+        'Connection state: ${event.deviceId} ${event.connected}',
+      );
+    });
+
+    _serviceAddedStreamSub = UniversalBlePeripheral.serviceAddedStream
+        .listen((BlePeripheralServiceAdded event) {
+      _log('Service added: ${event.serviceId} ${event.error ?? ''}'.trim());
+    });
+
+    _mtuChangedStreamSub = UniversalBlePeripheral.mtuChangedStream
+        .listen((BlePeripheralMtuChanged event) {
+      _log('MTU: ${event.deviceId} mtu=${event.mtu}');
+    });
+
+    UniversalBlePeripheral.setReadRequestHandlers(
+      (deviceId, characteristicId, _, __) {
+        _log('Read request: $deviceId $characteristicId');
+        return PeripheralReadRequestResult(
+          value: Uint8List.fromList(utf8.encode('Hello World')),
+        );
+      },
+    );
+
+    UniversalBlePeripheral.setWriteRequestHandlers(
+      (deviceId, characteristicId, _, value) {
+        _log('Write request: $deviceId $characteristicId $value');
+        return PeripheralWriteRequestResult();
+      },
+    );
+
+    UniversalBlePeripheral.setDescriptorReadRequestHandlers(
+      (deviceId, characteristicId, descriptorId, _, __) {
+        _log(
+            'Descriptor read request: $deviceId $characteristicId $descriptorId');
+        return PeripheralReadRequestResult(
+          value: Uint8List.fromList(utf8.encode('Hello World')),
+        );
+      },
+    );
+
+    UniversalBlePeripheral.setDescriptorWriteRequestHandlers(
+      (deviceId, characteristicId, descriptorId, _, value) {
+        _log(
+            'Descriptor write request: $deviceId $characteristicId $descriptorId $value');
+        return PeripheralWriteRequestResult();
+      },
     );
   }
 
@@ -211,7 +249,11 @@ class _PeripheralHomeState extends State<PeripheralHome> {
 
   @override
   void dispose() {
-    _eventSub?.cancel();
+    _advertisingStateStreamSub?.cancel();
+    _characteristicSubscriptionStreamSub?.cancel();
+    _connectionStateStreamSub?.cancel();
+    _serviceAddedStreamSub?.cancel();
+    _mtuChangedStreamSub?.cancel();
     super.dispose();
   }
 }

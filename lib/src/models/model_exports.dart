@@ -7,3 +7,5 @@ export 'package:universal_ble/src/models/ble_service.dart';
 export 'package:universal_ble/src/models/ble_device.dart';
 export 'package:universal_ble/src/models/ble_command.dart';
 export 'package:universal_ble/src/models/ble_capabilities.dart';
+export 'package:universal_ble/src/models/ble_peripheral_event.dart';
+export 'package:universal_ble/src/models/ble_peripheral_capabilities.dart';

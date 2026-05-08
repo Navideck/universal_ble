@@ -12,11 +12,40 @@ class UniversalBlePeripheral {
     _instance = instance;
   }
 
-  static Stream<UniversalBlePeripheralEvent> get eventStream =>
-      _platform.eventStream;
+  /// Advertising state update stream.
+  static Stream<BlePeripheralAdvertisingStateChanged>
+  get advertisingStateStream => _platform.advertisingStateStream;
 
-  static void setRequestHandlers(PeripheralRequestHandlers handlers) =>
-      _platform.setRequestHandlers(handlers);
+  /// Characteristic subscription update stream.
+  static Stream<BlePeripheralCharacteristicSubscriptionChanged>
+  get characteristicSubscriptionStream =>
+      _platform.characteristicSubscriptionStream;
+
+  /// Connection state update stream.
+  static Stream<BlePeripheralConnectionStateChanged>
+  get connectionStateStream => _platform.connectionStateStream;
+
+  /// Service addition update stream.
+  static Stream<BlePeripheralServiceAdded> get serviceAddedStream =>
+      _platform.serviceAddedStream;
+
+  /// MTU update stream.
+  static Stream<BlePeripheralMtuChanged> get mtuChangedStream =>
+      _platform.mtuChangedStream;
+
+  static void setReadRequestHandlers(OnPeripheralReadRequest handlers) =>
+      _platform.setReadRequestHandler(handlers);
+
+  static void setWriteRequestHandlers(OnPeripheralWriteRequest handlers) =>
+      _platform.setWriteRequestHandler(handlers);
+
+  static void setDescriptorReadRequestHandlers(
+    OnPeripheralDescriptorReadRequest handlers,
+  ) => _platform.setDescriptorReadRequestHandler(handlers);
+
+  static void setDescriptorWriteRequestHandlers(
+    OnPeripheralDescriptorWriteRequest handlers,
+  ) => _platform.setDescriptorWriteRequestHandler(handlers);
 
   static Future<PeripheralReadinessState> getAvailabilityState() =>
       _platform.getAvailabilityState();
@@ -24,7 +53,7 @@ class UniversalBlePeripheral {
   static Future<PeripheralAdvertisingState> getAdvertisingState() =>
       _platform.getAdvertisingState();
 
-  static Future<UniversalBlePeripheralCapabilities> getCapabilities() =>
+  static Future<BlePeripheralCapabilities> getCapabilities() =>
       _platform.getCapabilities();
 
   static Future<void> addService(
@@ -58,11 +87,11 @@ class UniversalBlePeripheral {
   static Future<void> updateCharacteristicValue({
     required String characteristicId,
     required Uint8List value,
-    PeripheralUpdateTarget target = const PeripheralUpdateAllSubscribed(),
+    String? deviceId,
   }) => _platform.updateCharacteristicValue(
     characteristicId: BleUuidParser.string(characteristicId),
     value: value,
-    target: target,
+    deviceId: deviceId,
   );
 
   /// Returns client device ids currently subscribed to [characteristicId]

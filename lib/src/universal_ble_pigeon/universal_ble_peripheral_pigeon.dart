@@ -1,9 +1,8 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
-import 'package:universal_ble/src/models/model_exports.dart';
 import 'package:universal_ble/src/universal_ble.g.dart';
-import 'package:universal_ble/src/interfaces/universal_ble_peripheral_platform_interface.dart';
+import 'package:universal_ble/universal_ble.dart';
 
 class UniversalBlePeripheralPigeon extends UniversalBlePeripheralPlatform
     implements UniversalBlePeripheralCallback {
@@ -16,28 +15,11 @@ class UniversalBlePeripheralPigeon extends UniversalBlePeripheralPlatform
       _instance ??= UniversalBlePeripheralPigeon._();
 
   final _channel = UniversalBlePeripheralChannel();
-  final StreamController<({String serviceId, String? error})>
-  _serviceResultController =
-      StreamController<({String serviceId, String? error})>.broadcast();
-  final StreamController<UniversalBlePeripheralEvent> _eventController =
-      StreamController<UniversalBlePeripheralEvent>.broadcast();
-  bool _disposed = false;
+
   OnPeripheralReadRequest? _readRequestHandler;
   OnPeripheralWriteRequest? _writeRequestHandler;
   OnPeripheralDescriptorReadRequest? _descriptorReadRequestHandler;
   OnPeripheralDescriptorWriteRequest? _descriptorWriteRequestHandler;
-
-  @override
-  Stream<UniversalBlePeripheralEvent> get eventStream =>
-      _eventController.stream;
-
-  @override
-  void setRequestHandlers(PeripheralRequestHandlers handlers) {
-    _readRequestHandler = handlers.onReadRequest;
-    _writeRequestHandler = handlers.onWriteRequest;
-    _descriptorReadRequestHandler = handlers.onDescriptorReadRequest;
-    _descriptorWriteRequestHandler = handlers.onDescriptorWriteRequest;
-  }
 
   @override
   Future<PeripheralReadinessState> getAvailabilityState() =>
@@ -48,14 +30,14 @@ class UniversalBlePeripheralPigeon extends UniversalBlePeripheralPlatform
       _channel.getAdvertisingState();
 
   @override
-  Future<UniversalBlePeripheralCapabilities> getCapabilities() async {
+  Future<BlePeripheralCapabilities> getCapabilities() async {
     final readiness = await getAvailabilityState();
     final supported = readiness != PeripheralReadinessState.unsupported;
     final supportsManufacturerDataInScanResponse =
         defaultTargetPlatform == TargetPlatform.android;
     final supportsAdvertisingTimeout =
         defaultTargetPlatform == TargetPlatform.android;
-    return UniversalBlePeripheralCapabilities(
+    return BlePeripheralCapabilities(
       supportsPeripheralMode: supported,
       supportsManufacturerDataInAdvertisement: supported,
       supportsManufacturerDataInScanResponse:
@@ -74,13 +56,13 @@ class UniversalBlePeripheralPigeon extends UniversalBlePeripheralPlatform
   }) async {
     final String serviceId = BleUuidParser.string(service.uuid);
     final Completer<void> completer = Completer<void>();
-    _serviceResultController.stream
+    serviceAddedStream
         .where((e) => BleUuidParser.compareStrings(e.serviceId, serviceId))
         .first
         .timeout(
           timeout ?? const Duration(seconds: 5),
           onTimeout: () =>
-              (serviceId: serviceId, error: 'Service add timed out'),
+              BlePeripheralServiceAdded(serviceId, 'Service add timed out'),
         )
         .then((e) {
           if (completer.isCompleted) return;
@@ -136,12 +118,8 @@ class UniversalBlePeripheralPigeon extends UniversalBlePeripheralPlatform
   Future<void> updateCharacteristicValue({
     required String characteristicId,
     required Uint8List value,
-    PeripheralUpdateTarget target = const PeripheralUpdateAllSubscribed(),
+    String? deviceId,
   }) {
-    final String? deviceId = switch (target) {
-      PeripheralUpdateAllSubscribed() => null,
-      PeripheralUpdateSingleDevice(deviceId: final id) => id,
-    };
     return _channel.updateCharacteristic(
       BleUuidParser.string(characteristicId),
       value,
@@ -158,15 +136,29 @@ class UniversalBlePeripheralPigeon extends UniversalBlePeripheralPlatform
       _channel.getMaximumNotifyLength(deviceId);
 
   @override
+  void setReadRequestHandler(OnPeripheralReadRequest? handler) =>
+      _readRequestHandler = handler;
+
+  @override
+  void setWriteRequestHandler(OnPeripheralWriteRequest? handler) =>
+      _writeRequestHandler = handler;
+
+  @override
+  void setDescriptorReadRequestHandler(
+    OnPeripheralDescriptorReadRequest? handler,
+  ) => _descriptorReadRequestHandler = handler;
+
+  @override
+  void setDescriptorWriteRequestHandler(
+    OnPeripheralDescriptorWriteRequest? handler,
+  ) => _descriptorWriteRequestHandler = handler;
+
+  @override
   void onAdvertisingStateChange(
     PeripheralAdvertisingState state,
     String? error,
   ) {
-    if (!_eventController.isClosed) {
-      _eventController.add(
-        UniversalBlePeripheralAdvertisingStateChanged(state, error),
-      );
-    }
+    updateAdvertisingState(BlePeripheralAdvertisingStateChanged(state, error));
   }
 
   @override
@@ -176,32 +168,26 @@ class UniversalBlePeripheralPigeon extends UniversalBlePeripheralPlatform
     bool isSubscribed,
     String? name,
   ) {
-    if (!_eventController.isClosed) {
-      _eventController.add(
-        UniversalBlePeripheralCharacteristicSubscriptionChanged(
-          deviceId: deviceId,
-          characteristicId: characteristicId,
-          isSubscribed: isSubscribed,
-          name: name,
-        ),
-      );
-    }
+    updateCharacteristicSubscription(
+      BlePeripheralCharacteristicSubscriptionChanged(
+        deviceId: deviceId,
+        characteristicId: characteristicId,
+        isSubscribed: isSubscribed,
+        name: name,
+      ),
+    );
   }
 
   @override
   void onConnectionStateChange(String deviceId, bool connected) {
-    if (!_eventController.isClosed) {
-      _eventController.add(
-        UniversalBlePeripheralConnectionStateChanged(deviceId, connected),
-      );
-    }
+    updateConnectionState(
+      BlePeripheralConnectionStateChanged(deviceId, connected),
+    );
   }
 
   @override
   void onMtuChange(String deviceId, int mtu) {
-    if (!_eventController.isClosed) {
-      _eventController.add(UniversalBlePeripheralMtuChanged(deviceId, mtu));
-    }
+    updateMtu(BlePeripheralMtuChanged(deviceId, mtu));
   }
 
   @override
@@ -227,14 +213,7 @@ class UniversalBlePeripheralPigeon extends UniversalBlePeripheralPlatform
 
   @override
   void onServiceAdded(String serviceId, String? error) {
-    if (!_eventController.isClosed) {
-      _eventController.add(
-        UniversalBlePeripheralServiceAdded(serviceId, error),
-      );
-    }
-    if (!_serviceResultController.isClosed) {
-      _serviceResultController.add((serviceId: serviceId, error: error));
-    }
+    updateServiceAdded(BlePeripheralServiceAdded(serviceId, error));
   }
 
   @override
@@ -306,15 +285,12 @@ class UniversalBlePeripheralPigeon extends UniversalBlePeripheralPlatform
 
   @override
   void dispose() {
-    if (_disposed) return;
-    _disposed = true;
     UniversalBlePeripheralCallback.setUp(null);
-    if (!_serviceResultController.isClosed) {
-      _serviceResultController.close();
-    }
-    if (!_eventController.isClosed) {
-      _eventController.close();
-    }
+    _readRequestHandler = null;
+    _writeRequestHandler = null;
+    _descriptorReadRequestHandler = null;
+    _descriptorWriteRequestHandler = null;
+    super.dispose();
     if (identical(_instance, this)) {
       _instance = null;
     }

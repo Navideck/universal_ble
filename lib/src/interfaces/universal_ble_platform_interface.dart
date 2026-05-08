@@ -207,23 +207,3 @@ abstract class UniversalBlePlatform {
     } catch (_) {}
   }
 }
-
-// Callback types
-typedef OnConnectionChange =
-    void Function(String deviceId, bool isConnected, String? error);
-
-typedef OnValueChange =
-    void Function(
-      String deviceId,
-      String characteristicId,
-      Uint8List value,
-      int? timestamp,
-    );
-
-typedef OnScanResult = void Function(BleDevice scanResult);
-
-typedef OnAvailabilityChange = void Function(AvailabilityState state);
-
-typedef OnPairingStateChange = void Function(String deviceId, bool isPaired);
-
-typedef OnQueueUpdate = void Function(String id, int remainingQueueItems);
