@@ -1,5 +1,5 @@
 import 'package:flutter/services.dart';
-import 'package:universal_ble/src/universal_ble_pigeon/universal_ble.g.dart';
+import 'package:universal_ble/src/universal_ble.g.dart';
 
 /// Utility class to parse error codes from dynamic errors
 class UniversalBleErrorParser {

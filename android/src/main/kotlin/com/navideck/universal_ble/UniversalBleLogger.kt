@@ -7,40 +7,40 @@ import java.util.Locale
 
 object UniversalBleLogger {
     private const val TAG = "UniversalBle"
-    private var currentLogLevel: UniversalBleLogLevel = UniversalBleLogLevel.NONE
+    private var currentLogLevel: BleLogLevel = BleLogLevel.NONE
     private val timeFormatter = SimpleDateFormat("HH:mm:ss.SSS", Locale.US)
 
-    fun setLogLevel(logLevel: UniversalBleLogLevel) {
+    fun setLogLevel(logLevel: BleLogLevel) {
         currentLogLevel = logLevel
     }
 
     fun logError(message: String) {
-        if (!allows(UniversalBleLogLevel.ERROR)) return
+        if (!allows(BleLogLevel.ERROR)) return
         Log.e(TAG, withTimestamp(message))
     }
 
     fun logWarning(message: String) {
-        if (!allows(UniversalBleLogLevel.WARNING)) return
+        if (!allows(BleLogLevel.WARNING)) return
         Log.w(TAG, withTimestamp(message))
     }
 
     fun logInfo(message: String) {
-        if (!allows(UniversalBleLogLevel.INFO)) return
+        if (!allows(BleLogLevel.INFO)) return
         Log.i(TAG, withTimestamp(message))
     }
 
     fun logDebug(message: String) {
-        if (!allows(UniversalBleLogLevel.DEBUG)) return
+        if (!allows(BleLogLevel.DEBUG)) return
         Log.d(TAG, withTimestamp(message))
     }
 
     fun logVerbose(message: String) {
-        if (!allows(UniversalBleLogLevel.VERBOSE)) return
+        if (!allows(BleLogLevel.VERBOSE)) return
         Log.v(TAG, withTimestamp(message))
     }
 
-    private fun allows(level: UniversalBleLogLevel): Boolean {
-        return currentLogLevel != UniversalBleLogLevel.NONE && level.ordinal <= currentLogLevel.ordinal
+    private fun allows(level: BleLogLevel): Boolean {
+        return currentLogLevel != BleLogLevel.NONE && level.ordinal <= currentLogLevel.ordinal
     }
 
     private fun withTimestamp(message: String): String {

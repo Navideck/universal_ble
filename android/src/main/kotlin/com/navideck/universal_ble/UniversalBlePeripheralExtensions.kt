@@ -128,31 +128,27 @@ fun String.findService(): BluetoothGattService? {
     return null
 }
 
-private fun List<Long>.toPropertiesList(): Int =
-    map { it.toInt() }.fold(0) { acc, i -> acc or i.toPropertyBits() }
+private fun List<CharacteristicProperty>.toPropertiesList(): Int =
+    fold(0) { acc, property -> acc or property.toPropertyBits() }
 
-private fun List<Long>.toPermissionsList(): Int =
-    map { it.toInt() }.fold(0) { acc, i -> acc or i.toPermissionBits() }
+private fun List<PeripheralAttributePermission>.toPermissionsList(): Int =
+    fold(0) { acc, permission -> acc or permission.toPermissionBits() }
 
-private fun Int.toPropertyBits(): Int = when (this) {
-    0 -> BluetoothGattCharacteristic.PROPERTY_BROADCAST
-    1 -> BluetoothGattCharacteristic.PROPERTY_READ
-    2 -> BluetoothGattCharacteristic.PROPERTY_WRITE_NO_RESPONSE
-    3 -> BluetoothGattCharacteristic.PROPERTY_WRITE
-    4 -> BluetoothGattCharacteristic.PROPERTY_NOTIFY
-    5 -> BluetoothGattCharacteristic.PROPERTY_INDICATE
-    6 -> BluetoothGattCharacteristic.PROPERTY_SIGNED_WRITE
-    7 -> BluetoothGattCharacteristic.PROPERTY_EXTENDED_PROPS
+private fun CharacteristicProperty.toPropertyBits(): Int = when (this) {
+    CharacteristicProperty.BROADCAST -> BluetoothGattCharacteristic.PROPERTY_BROADCAST
+    CharacteristicProperty.READ -> BluetoothGattCharacteristic.PROPERTY_READ
+    CharacteristicProperty.WRITE_WITHOUT_RESPONSE -> BluetoothGattCharacteristic.PROPERTY_WRITE_NO_RESPONSE
+    CharacteristicProperty.WRITE -> BluetoothGattCharacteristic.PROPERTY_WRITE
+    CharacteristicProperty.NOTIFY -> BluetoothGattCharacteristic.PROPERTY_NOTIFY
+    CharacteristicProperty.INDICATE -> BluetoothGattCharacteristic.PROPERTY_INDICATE
+    CharacteristicProperty.AUTHENTICATED_SIGNED_WRITES -> BluetoothGattCharacteristic.PROPERTY_SIGNED_WRITE
+    CharacteristicProperty.EXTENDED_PROPERTIES -> BluetoothGattCharacteristic.PROPERTY_EXTENDED_PROPS
     // Android uses dedicated encrypted notify/indicate property bits.
-    8 -> 0x100 // PROPERTY_NOTIFY_ENCRYPTED
-    9 -> 0x200 // PROPERTY_INDICATE_ENCRYPTED
-    else -> 0
 }
 
-private fun Int.toPermissionBits(): Int = when (this) {
-    0 -> BluetoothGattCharacteristic.PERMISSION_READ
-    1 -> BluetoothGattCharacteristic.PERMISSION_WRITE
-    2 -> BluetoothGattCharacteristic.PERMISSION_READ_ENCRYPTED
-    3 -> BluetoothGattCharacteristic.PERMISSION_WRITE_ENCRYPTED
-    else -> 0
+private fun PeripheralAttributePermission.toPermissionBits(): Int = when (this) {
+    PeripheralAttributePermission.READABLE -> BluetoothGattCharacteristic.PERMISSION_READ
+    PeripheralAttributePermission.WRITEABLE -> BluetoothGattCharacteristic.PERMISSION_WRITE
+    PeripheralAttributePermission.READ_ENCRYPTION_REQUIRED -> BluetoothGattCharacteristic.PERMISSION_READ_ENCRYPTED
+    PeripheralAttributePermission.WRITE_ENCRYPTION_REQUIRED -> BluetoothGattCharacteristic.PERMISSION_WRITE_ENCRYPTED
 }

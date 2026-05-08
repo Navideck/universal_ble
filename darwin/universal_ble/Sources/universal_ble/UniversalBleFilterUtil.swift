@@ -72,7 +72,7 @@ public class UniversalBleFilterUtil {
 
         for filter in filters {
             let companyIdentifier: Int64 = filter.companyIdentifier
-            if msd.companyIdentifier == companyIdentifier && findData(find: filter.data?.toData(), inData: msd.data.toData(), usingMask: filter.mask?.toData()) {
+            if msd.companyIdentifier == companyIdentifier && findData(find: filter.payloadPrefix?.toData(), inData: msd.data.toData(), usingMask: filter.payloadMask?.toData()) {
                 return true
             }
         }

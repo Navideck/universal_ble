@@ -1,5 +1,5 @@
 import 'package:flutter/services.dart';
-import 'package:universal_ble/src/universal_ble_pigeon/universal_ble.g.dart';
+import 'package:universal_ble/src/universal_ble.g.dart';
 import 'package:universal_ble/src/utils/universal_ble_error_parser.dart';
 
 /// Base exception class for all BLE errors with typed error codes

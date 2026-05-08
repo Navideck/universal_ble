@@ -1,4 +1,4 @@
-import 'package:universal_ble/src/models/manufacturer_data_filter.dart';
+import 'package:universal_ble/universal_ble.dart';
 
 class ScanFilter {
   List<String> withServices;

@@ -137,7 +137,7 @@ class UniversalBlePeripheralPlugin(
         services: List<String>,
         localName: String?,
         timeout: Long?,
-        manufacturerData: PeripheralManufacturerData?,
+        manufacturerData: UniversalManufacturerData?,
         addManufacturerDataInScanResponse: Boolean,
     ) {
         initializePeripheral()
@@ -177,12 +177,12 @@ class UniversalBlePeripheralPlugin(
             manufacturerData?.let {
                 if (addManufacturerDataInScanResponse) {
                     scanResponseBuilder.addManufacturerData(
-                        it.manufacturerId.toInt(),
+                        it.companyIdentifier.toInt(),
                         it.data,
                     )
                 } else {
                     advertiseDataBuilder.addManufacturerData(
-                        it.manufacturerId.toInt(),
+                        it.companyIdentifier.toInt(),
                         it.data,
                     )
                 }

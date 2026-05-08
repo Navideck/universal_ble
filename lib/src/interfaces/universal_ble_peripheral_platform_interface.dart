@@ -2,54 +2,11 @@ import 'dart:typed_data';
 
 import 'package:universal_ble/universal_ble.dart';
 
-typedef OnPeripheralReadRequest = BleReadRequestResult? Function(
-  String deviceId,
-  PeripheralCharacteristicId characteristicId,
-  int offset,
-  Uint8List? value,
-);
-typedef OnPeripheralWriteRequest = BleWriteRequestResult? Function(
-  String deviceId,
-  PeripheralCharacteristicId characteristicId,
-  int offset,
-  Uint8List? value,
-);
-typedef OnPeripheralDescriptorReadRequest = BleReadRequestResult? Function(
-  String deviceId,
-  PeripheralCharacteristicId characteristicId,
-  PeripheralDescriptorId descriptorId,
-  int offset,
-  Uint8List? value,
-);
-typedef OnPeripheralDescriptorWriteRequest = BleWriteRequestResult? Function(
-  String deviceId,
-  PeripheralCharacteristicId characteristicId,
-  PeripheralDescriptorId descriptorId,
-  int offset,
-  Uint8List? value,
-);
-
-enum UniversalBlePeripheralReadinessState {
-  unknown,
-  ready,
-  bluetoothOff,
-  unauthorized,
-  unsupported,
-}
-
-enum UniversalBlePeripheralAdvertisingState {
-  idle,
-  starting,
-  advertising,
-  stopping,
-  error,
-}
-
 sealed class UniversalBlePeripheralEvent {}
 
 class UniversalBlePeripheralAdvertisingStateChanged
     extends UniversalBlePeripheralEvent {
-  final UniversalBlePeripheralAdvertisingState state;
+  final PeripheralAdvertisingState state;
   final String? error;
   UniversalBlePeripheralAdvertisingStateChanged(this.state, this.error);
 }
@@ -60,6 +17,7 @@ class UniversalBlePeripheralCharacteristicSubscriptionChanged
   final String characteristicId;
   final bool isSubscribed;
   final String? name;
+
   UniversalBlePeripheralCharacteristicSubscriptionChanged({
     required this.deviceId,
     required this.characteristicId,
@@ -107,21 +65,6 @@ class UniversalBlePeripheralCapabilities {
   });
 }
 
-class PeripheralServiceId {
-  final String value;
-  const PeripheralServiceId(this.value);
-}
-
-class PeripheralCharacteristicId {
-  final String value;
-  const PeripheralCharacteristicId(this.value);
-}
-
-class PeripheralDescriptorId {
-  final String value;
-  const PeripheralDescriptorId(this.value);
-}
-
 class PeripheralRequestHandlers {
   final OnPeripheralReadRequest? onReadRequest;
   final OnPeripheralWriteRequest? onWriteRequest;
@@ -154,35 +97,39 @@ abstract class UniversalBlePeripheralPlatform {
 
   void setRequestHandlers(PeripheralRequestHandlers handlers);
 
-  Future<UniversalBlePeripheralReadinessState> getReadinessState();
-  Future<UniversalBlePeripheralAdvertisingState> getAdvertisingState();
-  Future<UniversalBlePeripheralCapabilities> getStaticCapabilities();
+  Future<PeripheralReadinessState> getAvailabilityState();
 
-  Future<void> addService(
-    BleService service, {
-    bool primary = true,
-    Duration? timeout,
-  });
+  Future<PeripheralAdvertisingState> getAdvertisingState();
 
-  Future<void> removeService(PeripheralServiceId serviceId);
+  Future<UniversalBlePeripheralCapabilities> getCapabilities();
+
+  Future<void> addService(PeripheralService service, {Duration? timeout});
+
+  Future<void> removeService(String serviceId);
+
   Future<void> clearServices();
-  Future<List<PeripheralServiceId>> getServices();
+
+  Future<List<String>> getServices();
+
   Future<void> startAdvertising({
-    required List<PeripheralServiceId> services,
+    required List<String> services,
     String? localName,
-    int? timeout,
+    Duration? timeout,
     ManufacturerData? manufacturerData,
     bool addManufacturerDataInScanResponse = false,
   });
+
   Future<void> stopAdvertising();
+
   Future<void> updateCharacteristicValue({
-    required PeripheralCharacteristicId characteristicId,
+    required String characteristicId,
     required Uint8List value,
     PeripheralUpdateTarget target = const PeripheralUpdateAllSubscribed(),
   });
 
   /// Returns GATT client device ids currently subscribed to [characteristicId].
-  Future<List<String>> getSubscribedClients(PeripheralCharacteristicId characteristicId);
+  Future<List<String>> getSubscribedClients(String characteristicId);
+
   Future<int?> getMaximumNotifyLength(String deviceId);
 
   /// Called when this platform implementation is being replaced.
@@ -204,7 +151,7 @@ class UniversalBlePeripheralUnsupported extends UniversalBlePeripheralPlatform {
 
   @override
   Future<void> addService(
-    BleService service, {
+    PeripheralService service, {
     bool primary = true,
     Duration? timeout,
   }) async {
@@ -217,17 +164,17 @@ class UniversalBlePeripheralUnsupported extends UniversalBlePeripheralPlatform {
   }
 
   @override
-  Future<List<PeripheralServiceId>> getServices() async {
+  Future<List<String>> getServices() async {
     throw _notSupported();
   }
 
   @override
-  Future<UniversalBlePeripheralAdvertisingState> getAdvertisingState() async {
+  Future<PeripheralAdvertisingState> getAdvertisingState() async {
     throw _notSupported();
   }
 
   @override
-  Future<UniversalBlePeripheralCapabilities> getStaticCapabilities() async {
+  Future<UniversalBlePeripheralCapabilities> getCapabilities() async {
     return const UniversalBlePeripheralCapabilities(
       supportsPeripheralMode: false,
       supportsManufacturerDataInAdvertisement: false,
@@ -240,20 +187,20 @@ class UniversalBlePeripheralUnsupported extends UniversalBlePeripheralPlatform {
   }
 
   @override
-  Future<UniversalBlePeripheralReadinessState> getReadinessState() async {
-    return UniversalBlePeripheralReadinessState.unsupported;
+  Future<PeripheralReadinessState> getAvailabilityState() async {
+    return PeripheralReadinessState.unsupported;
   }
 
   @override
-  Future<void> removeService(PeripheralServiceId serviceId) async {
+  Future<void> removeService(String serviceId) async {
     throw _notSupported();
   }
 
   @override
   Future<void> startAdvertising({
-    required List<PeripheralServiceId> services,
+    required List<String> services,
     String? localName,
-    int? timeout,
+    Duration? timeout,
     ManufacturerData? manufacturerData,
     bool addManufacturerDataInScanResponse = false,
   }) async {
@@ -267,7 +214,7 @@ class UniversalBlePeripheralUnsupported extends UniversalBlePeripheralPlatform {
 
   @override
   Future<void> updateCharacteristicValue({
-    required PeripheralCharacteristicId characteristicId,
+    required String characteristicId,
     required Uint8List value,
     PeripheralUpdateTarget target = const PeripheralUpdateAllSubscribed(),
   }) async {
@@ -275,7 +222,7 @@ class UniversalBlePeripheralUnsupported extends UniversalBlePeripheralPlatform {
   }
 
   @override
-  Future<List<String>> getSubscribedClients(PeripheralCharacteristicId characteristicId) async {
+  Future<List<String>> getSubscribedClients(String characteristicId) async {
     throw _notSupported();
   }
 
@@ -284,3 +231,37 @@ class UniversalBlePeripheralUnsupported extends UniversalBlePeripheralPlatform {
     return null;
   }
 }
+
+typedef OnPeripheralReadRequest =
+    PeripheralReadRequestResult? Function(
+      String deviceId,
+      String characteristicId,
+      int offset,
+      Uint8List? value,
+    );
+
+typedef OnPeripheralWriteRequest =
+    PeripheralWriteRequestResult? Function(
+      String deviceId,
+      String characteristicId,
+      int offset,
+      Uint8List? value,
+    );
+
+typedef OnPeripheralDescriptorReadRequest =
+    PeripheralReadRequestResult? Function(
+      String deviceId,
+      String characteristicId,
+      String descriptorId,
+      int offset,
+      Uint8List? value,
+    );
+
+typedef OnPeripheralDescriptorWriteRequest =
+    PeripheralWriteRequestResult? Function(
+      String deviceId,
+      String characteristicId,
+      String descriptorId,
+      int offset,
+      Uint8List? value,
+    );

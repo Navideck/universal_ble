@@ -78,33 +78,35 @@ extension String {
   }
 }
 
-extension Int64 {
+extension CharacteristicProperty {
   func toCBCharacteristicProperties() -> CBCharacteristicProperties? {
     switch self {
-    case 0: return .broadcast
-    case 1: return .read
-    case 2: return .writeWithoutResponse
-    case 3: return .write
-    case 4: return .notify
-    case 5: return .indicate
-    case 6: return .authenticatedSignedWrites
-    case 7: return .extendedProperties
-    case 8: return .notifyEncryptionRequired
-    case 9: return .indicateEncryptionRequired
+    case .broadcast: return .broadcast
+    case .read: return .read
+    case .writeWithoutResponse: return .writeWithoutResponse
+    case .write: return .write
+    case .notify: return .notify
+    case .indicate: return .indicate
+    case .authenticatedSignedWrites: return .authenticatedSignedWrites
+    case .extendedProperties: return .extendedProperties
     default: return nil
     }
   }
+}
 
+extension PeripheralAttributePermission {
   func toCBAttributePermissions() -> CBAttributePermissions? {
     switch self {
-    case 0: return .readable
-    case 1: return .writeable
-    case 2: return .readEncryptionRequired
-    case 3: return .writeEncryptionRequired
+    case .readable: return .readable
+    case .writeable: return .writeable
+    case .readEncryptionRequired: return .readEncryptionRequired
+    case .writeEncryptionRequired: return .writeEncryptionRequired
     default: return nil
     }
   }
+}
 
+extension Int64 {
   func toCBATTErrorCode() -> CBATTError.Code {
     switch self {
     case 0: return .success

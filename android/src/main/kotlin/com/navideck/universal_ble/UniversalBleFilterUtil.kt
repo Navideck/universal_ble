@@ -77,7 +77,7 @@ class UniversalBleFilterUtil {
         return manufacturerDataList.any { msd ->
             filters.any { filter ->
                 msd.companyIdentifier == filter.companyIdentifier &&
-                        isDataMatching(filter.data, msd.data, filter.mask)
+                        isDataMatching(filter.payloadPrefix, msd.data, filter.payloadMask)
             }
         }
     }
@@ -131,8 +131,8 @@ fun UniversalScanFilter.toScanFilters(serviceUuids: List<UUID>): List<ScanFilter
     for (manufacturerData in this.withManufacturerData) {
         try {
             manufacturerData.companyIdentifier.let {
-                val data: ByteArray = manufacturerData.data ?: ByteArray(0)
-                val mask: ByteArray? = manufacturerData.mask
+                val data: ByteArray = manufacturerData.payloadPrefix ?: ByteArray(0)
+                val mask: ByteArray? = manufacturerData.payloadMask
                 if (mask == null) {
                     scanFilters.add(
                         ScanFilter.Builder().setManufacturerData(
@@ -151,7 +151,7 @@ fun UniversalScanFilter.toScanFilters(serviceUuids: List<UUID>): List<ScanFilter
             Log.e(TAG, e.toString())
             throw createFlutterError(
                 UniversalBleErrorCode.FAILED,
-                "Invalid manufacturerData: ${manufacturerData.companyIdentifier} ${manufacturerData.data} ${manufacturerData.mask}",
+                "Invalid manufacturerData: ${manufacturerData.companyIdentifier} ${manufacturerData.payloadPrefix} ${manufacturerData.payloadMask}",
                 e.toString()
             )
         }

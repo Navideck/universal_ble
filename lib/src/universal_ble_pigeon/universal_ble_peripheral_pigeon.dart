@@ -1,25 +1,23 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
-import 'package:universal_ble/src/universal_ble_pigeon/universal_ble.g.dart'
-    as pigeon;
-import 'package:universal_ble/src/universal_ble_peripheral/universal_ble_peripheral_mapper.dart';
-import 'package:universal_ble/universal_ble.dart';
+import 'package:universal_ble/src/models/model_exports.dart';
+import 'package:universal_ble/src/universal_ble.g.dart';
+import 'package:universal_ble/src/interfaces/universal_ble_peripheral_platform_interface.dart';
 
 class UniversalBlePeripheralPigeon extends UniversalBlePeripheralPlatform
-    implements pigeon.UniversalBlePeripheralCallback {
+    implements UniversalBlePeripheralCallback {
   UniversalBlePeripheralPigeon._() {
-    pigeon.UniversalBlePeripheralCallback.setUp(this);
+    UniversalBlePeripheralCallback.setUp(this);
   }
 
   static UniversalBlePeripheralPigeon? _instance;
   static UniversalBlePeripheralPigeon get instance =>
       _instance ??= UniversalBlePeripheralPigeon._();
 
-  final pigeon.UniversalBlePeripheralChannel _channel =
-      pigeon.UniversalBlePeripheralChannel();
+  final _channel = UniversalBlePeripheralChannel();
   final StreamController<({String serviceId, String? error})>
-      _serviceResultController =
+  _serviceResultController =
       StreamController<({String serviceId, String? error})>.broadcast();
   final StreamController<UniversalBlePeripheralEvent> _eventController =
       StreamController<UniversalBlePeripheralEvent>.broadcast();
@@ -42,49 +40,21 @@ class UniversalBlePeripheralPigeon extends UniversalBlePeripheralPlatform
   }
 
   @override
-  Future<UniversalBlePeripheralReadinessState> getReadinessState() async {
-    final state = await _channel.getReadinessState();
-    return switch (state) {
-      pigeon.PeripheralReadinessState.ready =>
-        UniversalBlePeripheralReadinessState.ready,
-      pigeon.PeripheralReadinessState.bluetoothOff =>
-        UniversalBlePeripheralReadinessState.bluetoothOff,
-      pigeon.PeripheralReadinessState.unauthorized =>
-        UniversalBlePeripheralReadinessState.unauthorized,
-      pigeon.PeripheralReadinessState.unsupported =>
-        UniversalBlePeripheralReadinessState.unsupported,
-      pigeon.PeripheralReadinessState.unknown =>
-        UniversalBlePeripheralReadinessState.unknown,
-    };
-  }
+  Future<PeripheralReadinessState> getAvailabilityState() =>
+      _channel.getReadinessState();
 
   @override
-  Future<UniversalBlePeripheralAdvertisingState> getAdvertisingState() async {
-    final state = await _channel.getAdvertisingState();
-    return switch (state) {
-      pigeon.PeripheralAdvertisingState.idle =>
-        UniversalBlePeripheralAdvertisingState.idle,
-      pigeon.PeripheralAdvertisingState.starting =>
-        UniversalBlePeripheralAdvertisingState.starting,
-      pigeon.PeripheralAdvertisingState.advertising =>
-        UniversalBlePeripheralAdvertisingState.advertising,
-      pigeon.PeripheralAdvertisingState.stopping =>
-        UniversalBlePeripheralAdvertisingState.stopping,
-      pigeon.PeripheralAdvertisingState.error =>
-        UniversalBlePeripheralAdvertisingState.error,
-    };
-  }
+  Future<PeripheralAdvertisingState> getAdvertisingState() =>
+      _channel.getAdvertisingState();
 
   @override
-  Future<UniversalBlePeripheralCapabilities> getStaticCapabilities() async {
-    final readiness = await getReadinessState();
-    final platform = defaultTargetPlatform;
-    final supported = readiness != UniversalBlePeripheralReadinessState.unsupported;
-
+  Future<UniversalBlePeripheralCapabilities> getCapabilities() async {
+    final readiness = await getAvailabilityState();
+    final supported = readiness != PeripheralReadinessState.unsupported;
     final supportsManufacturerDataInScanResponse =
-        platform == TargetPlatform.android;
-    final supportsAdvertisingTimeout = platform == TargetPlatform.android;
-
+        defaultTargetPlatform == TargetPlatform.android;
+    final supportsAdvertisingTimeout =
+        defaultTargetPlatform == TargetPlatform.android;
     return UniversalBlePeripheralCapabilities(
       supportsPeripheralMode: supported,
       supportsManufacturerDataInAdvertisement: supported,
@@ -99,8 +69,7 @@ class UniversalBlePeripheralPigeon extends UniversalBlePeripheralPlatform
 
   @override
   Future<void> addService(
-    BleService service, {
-    bool primary = true,
+    PeripheralService service, {
     Duration? timeout,
   }) async {
     final String serviceId = BleUuidParser.string(service.uuid);
@@ -114,46 +83,48 @@ class UniversalBlePeripheralPigeon extends UniversalBlePeripheralPlatform
               (serviceId: serviceId, error: 'Service add timed out'),
         )
         .then((e) {
-      if (completer.isCompleted) return;
-      if (e.error != null) {
-        completer.completeError(
-          PlatformException(code: 'service-add-failed', message: e.error),
-        );
-      } else {
-        completer.complete();
-      }
-    });
+          if (completer.isCompleted) return;
+          if (e.error != null) {
+            completer.completeError(
+              PlatformException(code: 'service-add-failed', message: e.error),
+            );
+          } else {
+            completer.complete();
+          }
+        });
 
-    await _channel.addService(
-      UniversalBlePeripheralMapper.toPigeonService(service, primary: primary),
-    );
+    await _channel.addService(service);
     await completer.future;
   }
 
   @override
-  Future<void> removeService(PeripheralServiceId serviceId) =>
-      _channel.removeService(BleUuidParser.string(serviceId.value));
+  Future<void> removeService(String serviceId) =>
+      _channel.removeService(BleUuidParser.string(serviceId));
 
   @override
   Future<void> clearServices() => _channel.clearServices();
 
   @override
-  Future<List<PeripheralServiceId>> getServices() async =>
-      (await _channel.getServices()).map(PeripheralServiceId.new).toList();
+  Future<List<String>> getServices() => _channel.getServices();
 
   @override
   Future<void> startAdvertising({
-    required List<PeripheralServiceId> services,
+    required List<String> services,
     String? localName,
-    int? timeout,
+    Duration? timeout,
     ManufacturerData? manufacturerData,
     bool addManufacturerDataInScanResponse = false,
   }) {
     return _channel.startAdvertising(
-      services.map((e) => BleUuidParser.string(e.value)).toList(),
+      services.map((e) => BleUuidParser.string(e)).toList(),
       localName,
-      timeout,
-      UniversalBlePeripheralMapper.toPigeonManufacturerData(manufacturerData),
+      timeout?.inMilliseconds,
+      manufacturerData != null
+          ? UniversalManufacturerData(
+              companyIdentifier: manufacturerData.companyId,
+              data: manufacturerData.payload,
+            )
+          : null,
       addManufacturerDataInScanResponse,
     );
   }
@@ -163,7 +134,7 @@ class UniversalBlePeripheralPigeon extends UniversalBlePeripheralPlatform
 
   @override
   Future<void> updateCharacteristicValue({
-    required PeripheralCharacteristicId characteristicId,
+    required String characteristicId,
     required Uint8List value,
     PeripheralUpdateTarget target = const PeripheralUpdateAllSubscribed(),
   }) {
@@ -172,15 +143,15 @@ class UniversalBlePeripheralPigeon extends UniversalBlePeripheralPlatform
       PeripheralUpdateSingleDevice(deviceId: final id) => id,
     };
     return _channel.updateCharacteristic(
-      BleUuidParser.string(characteristicId.value),
+      BleUuidParser.string(characteristicId),
       value,
       deviceId,
     );
   }
 
   @override
-  Future<List<String>> getSubscribedClients(PeripheralCharacteristicId characteristicId) =>
-      _channel.getSubscribedClients(characteristicId.value);
+  Future<List<String>> getSubscribedClients(String characteristicId) =>
+      _channel.getSubscribedClients(characteristicId);
 
   @override
   Future<int?> getMaximumNotifyLength(String deviceId) =>
@@ -188,24 +159,12 @@ class UniversalBlePeripheralPigeon extends UniversalBlePeripheralPlatform
 
   @override
   void onAdvertisingStateChange(
-    pigeon.PeripheralAdvertisingState state,
+    PeripheralAdvertisingState state,
     String? error,
   ) {
-    final mapped = switch (state) {
-      pigeon.PeripheralAdvertisingState.idle =>
-        UniversalBlePeripheralAdvertisingState.idle,
-      pigeon.PeripheralAdvertisingState.starting =>
-        UniversalBlePeripheralAdvertisingState.starting,
-      pigeon.PeripheralAdvertisingState.advertising =>
-        UniversalBlePeripheralAdvertisingState.advertising,
-      pigeon.PeripheralAdvertisingState.stopping =>
-        UniversalBlePeripheralAdvertisingState.stopping,
-      pigeon.PeripheralAdvertisingState.error =>
-        UniversalBlePeripheralAdvertisingState.error,
-    };
     if (!_eventController.isClosed) {
       _eventController.add(
-        UniversalBlePeripheralAdvertisingStateChanged(mapped, error),
+        UniversalBlePeripheralAdvertisingStateChanged(state, error),
       );
     }
   }
@@ -246,7 +205,7 @@ class UniversalBlePeripheralPigeon extends UniversalBlePeripheralPlatform
   }
 
   @override
-  pigeon.PeripheralReadRequestResult? onReadRequest(
+  PeripheralReadRequestResult? onReadRequest(
     String deviceId,
     String characteristicId,
     int offset,
@@ -254,12 +213,12 @@ class UniversalBlePeripheralPigeon extends UniversalBlePeripheralPlatform
   ) {
     final result = _readRequestHandler?.call(
       deviceId,
-      PeripheralCharacteristicId(characteristicId),
+      characteristicId,
       offset,
       value,
     );
     if (result == null) return null;
-    return pigeon.PeripheralReadRequestResult(
+    return PeripheralReadRequestResult(
       value: result.value,
       offset: result.offset,
       status: result.status,
@@ -269,7 +228,9 @@ class UniversalBlePeripheralPigeon extends UniversalBlePeripheralPlatform
   @override
   void onServiceAdded(String serviceId, String? error) {
     if (!_eventController.isClosed) {
-      _eventController.add(UniversalBlePeripheralServiceAdded(serviceId, error));
+      _eventController.add(
+        UniversalBlePeripheralServiceAdded(serviceId, error),
+      );
     }
     if (!_serviceResultController.isClosed) {
       _serviceResultController.add((serviceId: serviceId, error: error));
@@ -277,20 +238,20 @@ class UniversalBlePeripheralPigeon extends UniversalBlePeripheralPlatform
   }
 
   @override
-  pigeon.PeripheralWriteRequestResult? onWriteRequest(
+  PeripheralWriteRequestResult? onWriteRequest(
     String deviceId,
     String characteristicId,
     int offset,
     Uint8List? value,
   ) {
     final result = _writeRequestHandler?.call(
-          deviceId,
-          PeripheralCharacteristicId(characteristicId),
-          offset,
-          value,
-        );
+      deviceId,
+      characteristicId,
+      offset,
+      value,
+    );
     if (result == null) return null;
-    return pigeon.PeripheralWriteRequestResult(
+    return PeripheralWriteRequestResult(
       value: result.value,
       offset: result.offset,
       status: result.status,
@@ -298,7 +259,7 @@ class UniversalBlePeripheralPigeon extends UniversalBlePeripheralPlatform
   }
 
   @override
-  pigeon.PeripheralReadRequestResult? onDescriptorReadRequest(
+  PeripheralReadRequestResult? onDescriptorReadRequest(
     String deviceId,
     String characteristicId,
     String descriptorId,
@@ -307,13 +268,13 @@ class UniversalBlePeripheralPigeon extends UniversalBlePeripheralPlatform
   ) {
     final result = _descriptorReadRequestHandler?.call(
       deviceId,
-      PeripheralCharacteristicId(characteristicId),
-      PeripheralDescriptorId(descriptorId),
+      characteristicId,
+      descriptorId,
       offset,
       value,
     );
     if (result == null) return null;
-    return pigeon.PeripheralReadRequestResult(
+    return PeripheralReadRequestResult(
       value: result.value,
       offset: result.offset,
       status: result.status,
@@ -321,7 +282,7 @@ class UniversalBlePeripheralPigeon extends UniversalBlePeripheralPlatform
   }
 
   @override
-  pigeon.PeripheralWriteRequestResult? onDescriptorWriteRequest(
+  PeripheralWriteRequestResult? onDescriptorWriteRequest(
     String deviceId,
     String characteristicId,
     String descriptorId,
@@ -330,13 +291,13 @@ class UniversalBlePeripheralPigeon extends UniversalBlePeripheralPlatform
   ) {
     final result = _descriptorWriteRequestHandler?.call(
       deviceId,
-      PeripheralCharacteristicId(characteristicId),
-      PeripheralDescriptorId(descriptorId),
+      characteristicId,
+      descriptorId,
       offset,
       value,
     );
     if (result == null) return null;
-    return pigeon.PeripheralWriteRequestResult(
+    return PeripheralWriteRequestResult(
       value: result.value,
       offset: result.offset,
       status: result.status,
@@ -347,7 +308,7 @@ class UniversalBlePeripheralPigeon extends UniversalBlePeripheralPlatform
   void dispose() {
     if (_disposed) return;
     _disposed = true;
-    pigeon.UniversalBlePeripheralCallback.setUp(null);
+    UniversalBlePeripheralCallback.setUp(null);
     if (!_serviceResultController.isClosed) {
       _serviceResultController.close();
     }

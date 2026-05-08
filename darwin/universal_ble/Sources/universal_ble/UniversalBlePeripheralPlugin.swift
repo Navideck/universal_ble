@@ -86,7 +86,7 @@ final class UniversalBlePeripheralPlugin: NSObject, UniversalBlePeripheralChanne
     services: [String],
     localName: String?,
     timeout: Int64?,
-    manufacturerData: PeripheralManufacturerData?,
+    manufacturerData: UniversalManufacturerData?,
     addManufacturerDataInScanResponse: Bool
   ) throws {
     if let timeout, timeout > 0 {
@@ -114,7 +114,7 @@ final class UniversalBlePeripheralPlugin: NSObject, UniversalBlePeripheralChanne
     if let manufacturerData {
       // CoreBluetooth expects the full AD manufacturer field: company ID (LE uint16)
       // followed by payload. Dart's `ManufacturerData` keeps id and payload separate.
-      let companyId = UInt16(truncatingIfNeeded: manufacturerData.manufacturerId)
+      let companyId = UInt16(truncatingIfNeeded: manufacturerData.companyIdentifier)
       var manufacturerField = Data()
       manufacturerField.append(UInt8(companyId & 0x00ff))
       manufacturerField.append(UInt8((companyId >> 8) & 0x00ff))

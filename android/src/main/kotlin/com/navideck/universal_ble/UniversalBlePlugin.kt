@@ -98,11 +98,11 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
         permissionHandler = null
     }
 
-    override fun getBluetoothAvailabilityState(callback: (Result<Long>) -> Unit) {
+    override fun getBluetoothAvailabilityState(callback: (Result<AvailabilityState>) -> Unit) {
         callback(
             Result.success(
                 bluetoothManager.adapter?.state?.toAvailabilityState()
-                    ?: AvailabilityState.Unknown.value
+                    ?: AvailabilityState.UNKNOWN
             )
         )
     }
@@ -284,25 +284,25 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
         }
     }
 
-    override fun getConnectionState(deviceId: String): Long {
+    override fun getConnectionState(deviceId: String): BleConnectionState {
         try {
             val connectionState = bluetoothManager.getConnectionState(
                 bluetoothManager.adapter.getRemoteDevice(deviceId),
                 BluetoothProfile.GATT
             )
             return if (deviceId.isKnownGatt() || connectionState == BluetoothGatt.STATE_DISCONNECTED || connectionState == BluetoothGatt.STATE_DISCONNECTING) {
-                connectionState.toBleConnectionState().value
+                connectionState.toBleConnectionState()
             } else {
                 // Might be connected with device, but not with app
                 UniversalBleLogger.logError("Device might be connected but not known to this app")
-                BleConnectionState.Disconnected.value
+                BleConnectionState.DISCONNECTED
             }
         } catch (_: Exception) {
-            return BleConnectionState.Disconnected.value
+            return BleConnectionState.DISCONNECTED
         }
     }
 
-    override fun setLogLevel(logLevel: UniversalBleLogLevel) {
+    override fun setLogLevel(logLevel: BleLogLevel) {
         UniversalBleLogger.setLogLevel(logLevel)
     }
 
@@ -427,7 +427,7 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
         deviceId: String,
         service: String,
         characteristic: String,
-        bleInputProperty: Long,
+        bleInputProperty: BleInputProperty,
         callback: (Result<Unit>) -> Unit,
     ) {
         try {
@@ -451,12 +451,9 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
             val descriptor: BluetoothGattDescriptor? =
                 gattCharacteristic.getDescriptor(ccdCharacteristic)
 
-            val bleInputPropertyEnum: BleInputProperty =
-                BleInputProperty.entries.first { it.value == bleInputProperty }
-
-            val (value, enable) = when (bleInputPropertyEnum) {
-                BleInputProperty.Notification -> BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE to true
-                BleInputProperty.Indication -> BluetoothGattDescriptor.ENABLE_INDICATION_VALUE to true
+            val (value, enable) = when (bleInputProperty) {
+                BleInputProperty.NOTIFICATION -> BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE to true
+                BleInputProperty.INDICATION -> BluetoothGattDescriptor.ENABLE_INDICATION_VALUE to true
                 else -> BluetoothGattDescriptor.DISABLE_NOTIFICATION_VALUE to false
             }
 
@@ -628,7 +625,7 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
         service: String,
         characteristic: String,
         value: ByteArray,
-        bleOutputProperty: Long,
+        bleOutputProperty: BleOutputProperty,
         callback: (Result<Unit>) -> Unit,
     ) {
         try {
@@ -648,7 +645,7 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
             }
 
             var writeType = BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT
-            if (bleOutputProperty == BleOutputProperty.WithResponse.value) {
+            if (bleOutputProperty == BleOutputProperty.WITH_RESPONSE) {
                 if (gattCharacteristic.properties and BluetoothGattCharacteristic.PROPERTY_WRITE == 0) {
                     callback(
                         Result.failure(
@@ -661,7 +658,7 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
                     return
                 }
                 writeType = BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT
-            } else if (bleOutputProperty == BleOutputProperty.WithoutResponse.value) {
+            } else if (bleOutputProperty == BleOutputProperty.WITHOUT_RESPONSE) {
                 if (gattCharacteristic.properties and BluetoothGattCharacteristic.PROPERTY_WRITE_NO_RESPONSE == 0) {
                     callback(
                         Result.failure(
@@ -762,24 +759,15 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
 
     override fun requestConnectionPriority(
         deviceId: String,
-        priority: Long,
+        priority: BleConnectionPriority,
         callback: (Result<Unit>) -> Unit,
     ) {
         try {
             val gatt = deviceId.toBluetoothGatt()
-            val priorityEnum = BleConnectionPriority.entries.firstOrNull { it.value == priority }
-                ?: return callback(
-                    Result.failure(
-                        createFlutterError(
-                            UniversalBleErrorCode.ILLEGAL_ARGUMENT,
-                            "Unknown priority: $priority"
-                        )
-                    )
-                )
-            val androidPriority = when (priorityEnum) {
-                BleConnectionPriority.Balanced -> BluetoothGatt.CONNECTION_PRIORITY_BALANCED
-                BleConnectionPriority.HighPerformance -> BluetoothGatt.CONNECTION_PRIORITY_HIGH
-                BleConnectionPriority.LowPower -> BluetoothGatt.CONNECTION_PRIORITY_LOW_POWER
+            val androidPriority = when (priority) {
+                BleConnectionPriority.BALANCED -> BluetoothGatt.CONNECTION_PRIORITY_BALANCED
+                BleConnectionPriority.HIGH_PERFORMANCE -> BluetoothGatt.CONNECTION_PRIORITY_HIGH
+                BleConnectionPriority.LOW_POWER -> BluetoothGatt.CONNECTION_PRIORITY_LOW_POWER
             }
             val success = gatt.requestConnectionPriority(androidPriority)
             if (success) {
@@ -1106,7 +1094,7 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
                 mainThreadHandler?.post {
                     callbackChannel?.onAvailabilityChanged(
                         bluetoothManager.adapter?.state?.toAvailabilityState()
-                            ?: AvailabilityState.Unknown.value
+                            ?: AvailabilityState.UNKNOWN
                     ) {}
                 }
             } else if (intent.action == BluetoothDevice.ACTION_BOND_STATE_CHANGED) {

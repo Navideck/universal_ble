@@ -4,7 +4,7 @@ import 'package:pigeon/pigeon.dart';
 @ConfigurePigeon(
   PigeonOptions(
     dartPackageName: 'universal_ble',
-    dartOut: 'lib/src/universal_ble_pigeon/universal_ble.g.dart',
+    dartOut: 'lib/src/universal_ble.g.dart',
     dartOptions: DartOptions(),
     kotlinOut:
         'android/src/main/kotlin/com/navideck/universal_ble/UniversalBle.g.kt',
@@ -17,12 +17,228 @@ import 'package:pigeon/pigeon.dart';
     debugGenerators: true,
   ),
 )
+/// Shared models & enums
+/// ------------------------------------------------------------
+class UniversalBleScanResult {
+  final String deviceId;
+  final String? name;
+  final bool? isPaired;
+  final int? rssi;
+  final List<UniversalManufacturerData>? manufacturerDataList;
+  final Map<String, Uint8List>? serviceData;
+  final List<String>? services;
+  final int? timestamp;
 
-/// Flutter -> Native
+  UniversalBleScanResult({
+    required this.name,
+    required this.deviceId,
+    required this.isPaired,
+    required this.rssi,
+    required this.manufacturerDataList,
+    required this.serviceData,
+    required this.services,
+    required this.timestamp,
+  });
+}
+
+enum BleLogLevel { none, error, warning, info, debug, verbose }
+
+enum AvailabilityState {
+  unknown,
+  resetting,
+  unsupported,
+  unauthorized,
+  poweredOff,
+  poweredOn,
+}
+
+enum BleConnectionState { connected, disconnected, connecting, disconnecting }
+
+enum BleInputProperty { disabled, notification, indication }
+
+enum BleOutputProperty { withResponse, withoutResponse }
+
+/// Connection priority hint passed to [requestConnectionPriority].
+///
+/// Maps to Android `BluetoothGatt.CONNECTION_PRIORITY_*` constants.
+enum BleConnectionPriority {
+  /// Default OS-managed interval (~30-50 ms). Android constant: 0.
+  balanced,
+
+  /// Low-latency interval (~7.5-15 ms), higher power draw. Android constant: 1.
+  highPerformance,
+
+  /// Power-optimized interval (~100-125 ms). Android constant: 2.
+  lowPower,
+}
+
+enum AndroidScanMode { balanced, lowLatency, lowPower, opportunistic }
+
+enum CharacteristicProperty {
+  broadcast,
+  read,
+  writeWithoutResponse,
+  write,
+  notify,
+  indicate,
+  authenticatedSignedWrites,
+  extendedProperties,
+}
+
+enum PeripheralReadinessState {
+  unknown,
+  ready,
+  bluetoothOff,
+  unauthorized,
+  unsupported,
+}
+
+enum PeripheralAttributePermission {
+  readable,
+  writeable,
+  readEncryptionRequired,
+  writeEncryptionRequired,
+}
+
+enum PeripheralAdvertisingState { idle, starting, advertising, stopping, error }
+
+/// Central/GATT models
+class UniversalBleService {
+  String uuid;
+  List<UniversalBleCharacteristic>? characteristics;
+  UniversalBleService(this.uuid, this.characteristics);
+}
+
+class UniversalBleCharacteristic {
+  String uuid;
+  List<CharacteristicProperty> properties;
+  List<UniversalBleDescriptor> descriptors;
+  UniversalBleCharacteristic(this.uuid, this.properties, this.descriptors);
+}
+
+class UniversalBleDescriptor {
+  String uuid;
+  UniversalBleDescriptor(this.uuid);
+}
+
+/// Scan models
+/// Android options to scan devices
+/// [requestLocationPermission] is used to request location permission on Android 12+ (API 31+).
+/// [scanMode] is used to set the scan mode for Bluetooth LE scan.
+/// Set [reportDelayMillis] timestamp for Bluetooth LE scan. If set to 0, you will be notified of scan results immediately.
+/// If > 0, scan results are queued up and delivered after the requested delay or 5000 milliseconds (whichever is higher).
+/// Note scan results may be delivered sooner if the internal buffers fill up.
+class AndroidOptions {
+  bool? requestLocationPermission;
+  AndroidScanMode? scanMode;
+  int? reportDelayMillis;
+  AndroidOptions({
+    this.requestLocationPermission,
+    this.scanMode,
+    this.reportDelayMillis,
+  });
+}
+
+class UniversalScanConfig {
+  AndroidOptions? android;
+  UniversalScanConfig(this.android);
+}
+
+class UniversalScanFilter {
+  final List<String> withServices;
+  final List<String> withNamePrefix;
+  final List<ManufacturerDataFilter> withManufacturerData;
+
+  UniversalScanFilter(
+    this.withServices,
+    this.withNamePrefix,
+    this.withManufacturerData,
+  );
+}
+
+class ManufacturerDataFilter {
+  /// Must be of integer type, in hex or decimal form (e.g. 0x004c or 76).
+  int companyIdentifier;
+
+  /// Matches as prefix the device's advertised data.
+  Uint8List? payloadPrefix;
+
+  /// For each bit in the mask, set it to 1 if it needs to match
+  /// the corresponding one in manufacturer data, or otherwise set it to 0.
+  /// The 'mask' must have the same length as the payload.
+  Uint8List? payloadMask;
+
+  /// Filter manufacturer data by company identifier, payload prefix, or payload mask.
+  ManufacturerDataFilter({
+    required this.companyIdentifier,
+    this.payloadPrefix,
+    this.payloadMask,
+  });
+}
+
+class UniversalManufacturerData {
+  final int companyIdentifier;
+  final Uint8List data;
+
+  UniversalManufacturerData({
+    required this.companyIdentifier,
+    required this.data,
+  });
+}
+
+/// Peripheral/GATT server models
+class PeripheralService {
+  String uuid;
+  bool primary;
+  List<PeripheralCharacteristic> characteristics;
+  PeripheralService(this.uuid, this.primary, this.characteristics);
+}
+
+class PeripheralCharacteristic {
+  String uuid;
+  List<CharacteristicProperty> properties;
+  List<PeripheralAttributePermission> permissions;
+  List<PeripheralDescriptor>? descriptors;
+  Uint8List? value;
+
+  PeripheralCharacteristic(
+    this.uuid,
+    this.properties,
+    this.permissions,
+    this.descriptors,
+    this.value,
+  );
+}
+
+class PeripheralDescriptor {
+  String uuid;
+  Uint8List? value;
+  List<PeripheralAttributePermission>? permissions;
+  PeripheralDescriptor(this.uuid, this.value, this.permissions);
+}
+
+class PeripheralReadRequestResult {
+  Uint8List value;
+  int? offset;
+  int? status;
+  PeripheralReadRequestResult({required this.value, this.offset, this.status});
+}
+
+class PeripheralWriteRequestResult {
+  Uint8List? value;
+  int? offset;
+  int? status;
+  PeripheralWriteRequestResult({this.value, this.offset, this.status});
+}
+
+/// APIs (Flutter -> Native / Native -> Flutter)
+/// ------------------------------------------------------------
+
+/// Flutter -> Native (central)
 @HostApi()
 abstract class UniversalBlePlatformChannel {
   @async
-  int getBluetoothAvailabilityState();
+  AvailabilityState getBluetoothAvailabilityState();
 
   bool hasPermissions(bool withAndroidFineLocation);
 
@@ -50,7 +266,7 @@ abstract class UniversalBlePlatformChannel {
     String deviceId,
     String service,
     String characteristic,
-    int bleInputProperty,
+    BleInputProperty bleInputProperty,
   );
 
   @async
@@ -60,11 +276,7 @@ abstract class UniversalBlePlatformChannel {
   );
 
   @async
-  Uint8List readValue(
-    String deviceId,
-    String service,
-    String characteristic,
-  );
+  Uint8List readValue(String deviceId, String service, String characteristic);
 
   @async
   int requestMtu(String deviceId, int expectedMtu);
@@ -75,7 +287,7 @@ abstract class UniversalBlePlatformChannel {
     String service,
     String characteristic,
     Uint8List value,
-    int bleOutputProperty,
+    BleOutputProperty bleOutputProperty,
   );
 
   @async
@@ -87,25 +299,26 @@ abstract class UniversalBlePlatformChannel {
   void unPair(String deviceId);
 
   @async
-  List<UniversalBleScanResult> getSystemDevices(
-    List<String> withServices,
-  );
+  List<UniversalBleScanResult> getSystemDevices(List<String> withServices);
 
-  int getConnectionState(String deviceId);
+  BleConnectionState getConnectionState(String deviceId);
 
   @async
   int readRssi(String deviceId);
 
   @async
-  void requestConnectionPriority(String deviceId, int priority);
+  void requestConnectionPriority(
+    String deviceId,
+    BleConnectionPriority priority,
+  );
 
-  void setLogLevel(UniversalBleLogLevel logLevel);
+  void setLogLevel(BleLogLevel logLevel);
 }
 
-/// Native -> Flutter
+/// Native -> Flutter (central)
 @FlutterApi()
 abstract class UniversalBleCallbackChannel {
-  void onAvailabilityChanged(int state);
+  void onAvailabilityChanged(AvailabilityState state);
 
   void onPairStateChange(String deviceId, bool isPaired, String? error);
 
@@ -118,211 +331,34 @@ abstract class UniversalBleCallbackChannel {
     int? timestamp,
   );
 
-  void onConnectionChanged(
-    String deviceId,
-    bool connected,
-    String? error,
-  );
-}
-
-class UniversalBleScanResult {
-  final String deviceId;
-  final String? name;
-  final bool? isPaired;
-  final int? rssi;
-  final List<UniversalManufacturerData>? manufacturerDataList;
-  final Map<String, Uint8List>? serviceData;
-  final List<String>? services;
-  final int? timestamp;
-
-  UniversalBleScanResult({
-    required this.name,
-    required this.deviceId,
-    required this.isPaired,
-    required this.rssi,
-    required this.manufacturerDataList,
-    required this.serviceData,
-    required this.services,
-    required this.timestamp,
-  });
-}
-
-enum UniversalBleLogLevel {
-  none,
-  error,
-  warning,
-  info,
-  debug,
-  verbose,
-}
-
-class UniversalBleService {
-  String uuid;
-  List<UniversalBleCharacteristic>? characteristics;
-  UniversalBleService(this.uuid, this.characteristics);
-}
-
-class UniversalBleCharacteristic {
-  String uuid;
-  List<int> properties;
-  List<UniversalBleDescriptor> descriptors;
-  UniversalBleCharacteristic(this.uuid, this.properties, this.descriptors);
-}
-
-class UniversalBleDescriptor {
-  String uuid;
-  UniversalBleDescriptor(this.uuid);
-}
-
-/// Scan config
-
-enum AndroidScanMode {
-  balanced,
-  lowLatency,
-  lowPower,
-  opportunistic,
-}
-
-/// Android options to scan devices
-/// [requestLocationPermission] is used to request location permission on Android 12+ (API 31+).
-/// [scanMode] is used to set the scan mode for for Bluetooth LE scan.
-/// Set [reportDelayMillis] timestamp for Bluetooth LE scan. If set to 0, you will be notified of scan results immediately.
-/// If > 0, scan results are queued up and delivered after the requested delay or 5000 milliseconds (whichever is higher).
-/// Note scan results may be delivered sooner if the internal buffers fill up.
-class AndroidOptions {
-  bool? requestLocationPermission;
-  AndroidScanMode? scanMode;
-  int? reportDelayMillis;
-  AndroidOptions({
-    this.requestLocationPermission,
-    this.scanMode,
-    this.reportDelayMillis,
-  });
-}
-
-class UniversalScanConfig {
-  AndroidOptions? android;
-  UniversalScanConfig(this.android);
-}
-
-/// Scan Filters
-class UniversalScanFilter {
-  final List<String> withServices;
-  final List<String> withNamePrefix;
-  final List<UniversalManufacturerDataFilter> withManufacturerData;
-
-  UniversalScanFilter(
-    this.withServices,
-    this.withNamePrefix,
-    this.withManufacturerData,
-  );
-}
-
-class UniversalManufacturerDataFilter {
-  int companyIdentifier;
-  Uint8List? data;
-  Uint8List? mask;
-  UniversalManufacturerDataFilter({
-    required this.companyIdentifier,
-    this.data,
-    this.mask,
-  });
-}
-
-class UniversalManufacturerData {
-  final int companyIdentifier;
-  final Uint8List data;
-
-  UniversalManufacturerData({
-    required this.companyIdentifier,
-    required this.data,
-  });
-}
-
-class PeripheralService {
-  String uuid;
-  bool primary;
-  List<PeripheralCharacteristic> characteristics;
-  PeripheralService(this.uuid, this.primary, this.characteristics);
-}
-
-class PeripheralCharacteristic {
-  String uuid;
-  List<int> properties;
-  List<int> permissions;
-  List<PeripheralDescriptor>? descriptors;
-  Uint8List? value;
-
-  PeripheralCharacteristic(
-    this.uuid,
-    this.properties,
-    this.permissions,
-    this.descriptors,
-    this.value,
-  );
-}
-
-class PeripheralDescriptor {
-  String uuid;
-  Uint8List? value;
-  List<int>? permissions;
-  PeripheralDescriptor(this.uuid, this.value, this.permissions);
-}
-
-class PeripheralReadRequestResult {
-  Uint8List value;
-  int? offset;
-  int? status;
-  PeripheralReadRequestResult({required this.value, this.offset, this.status});
-}
-
-class PeripheralWriteRequestResult {
-  Uint8List? value;
-  int? offset;
-  int? status;
-  PeripheralWriteRequestResult({this.value, this.offset, this.status});
-}
-
-class PeripheralManufacturerData {
-  int manufacturerId;
-  Uint8List data;
-  PeripheralManufacturerData(
-      {required this.manufacturerId, required this.data});
-}
-
-enum PeripheralReadinessState {
-  unknown,
-  ready,
-  bluetoothOff,
-  unauthorized,
-  unsupported,
-}
-
-enum PeripheralAdvertisingState {
-  idle,
-  starting,
-  advertising,
-  stopping,
-  error,
+  void onConnectionChanged(String deviceId, bool connected, String? error);
 }
 
 /// Flutter -> Native (peripheral)
 @HostApi()
 abstract class UniversalBlePeripheralChannel {
   PeripheralAdvertisingState getAdvertisingState();
+
   PeripheralReadinessState getReadinessState();
+
   void stopAdvertising();
+
   void addService(PeripheralService service);
+
   void removeService(String serviceId);
+
   void clearServices();
+
   List<String> getServices();
+
   void startAdvertising(
     List<String> services,
     String? localName,
     int? timeout,
-    PeripheralManufacturerData? manufacturerData,
+    UniversalManufacturerData? manufacturerData,
     bool addManufacturerDataInScanResponse,
   );
+
   void updateCharacteristic(
     String characteristicId,
     Uint8List value,
@@ -376,9 +412,16 @@ abstract class UniversalBlePeripheralCallback {
     bool isSubscribed,
     String? name,
   );
-  void onAdvertisingStateChange(PeripheralAdvertisingState state, String? error);
+
+  void onAdvertisingStateChange(
+    PeripheralAdvertisingState state,
+    String? error,
+  );
+
   void onServiceAdded(String serviceId, String? error);
+
   void onMtuChange(String deviceId, int mtu);
+
   void onConnectionStateChange(String deviceId, bool connected);
 }
 

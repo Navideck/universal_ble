@@ -13,12 +13,11 @@ class PeripheralHome extends StatefulWidget {
 }
 
 class _PeripheralHomeState extends State<PeripheralHome> {
-  final UniversalBlePeripheralClient _peripheral = UniversalBlePeripheralClient();
   final List<String> _logs = <String>[];
   StreamSubscription<UniversalBlePeripheralEvent>? _eventSub;
   bool _initialized = false;
-  UniversalBlePeripheralAdvertisingState _advertisingState =
-      UniversalBlePeripheralAdvertisingState.idle;
+  PeripheralAdvertisingState _advertisingState =
+      PeripheralAdvertisingState.idle;
 
   static const String _serviceBattery = '0000180F-0000-1000-8000-00805F9B34FB';
   static const String _charBattery = '00002A19-0000-1000-8000-00805F9B34FB';
@@ -28,13 +27,14 @@ class _PeripheralHomeState extends State<PeripheralHome> {
   @override
   void initState() {
     super.initState();
-    _eventSub = _peripheral.eventStream.listen((event) {
+    _eventSub = UniversalBlePeripheral.eventStream.listen((event) {
       switch (event) {
         case UniversalBlePeripheralAdvertisingStateChanged():
           setState(() {
             _advertisingState = event.state;
           });
-          _log('Advertising state: ${event.state.name} ${event.error ?? ''}'.trim());
+          _log('Advertising state: ${event.state.name} ${event.error ?? ''}'
+              .trim());
         case UniversalBlePeripheralServiceAdded():
           _log('Service added: ${event.serviceId} ${event.error ?? ''}'.trim());
         case UniversalBlePeripheralCharacteristicSubscriptionChanged():
@@ -50,17 +50,17 @@ class _PeripheralHomeState extends State<PeripheralHome> {
           _log('MTU: ${event.deviceId} mtu=${event.mtu}');
       }
     });
-    _peripheral.setRequestHandlers(
+    UniversalBlePeripheral.setRequestHandlers(
       PeripheralRequestHandlers(
         onReadRequest: (deviceId, characteristicId, _, __) {
-          _log('Read request: $deviceId ${characteristicId.value}');
-          return BleReadRequestResult(
+          _log('Read request: $deviceId $characteristicId');
+          return PeripheralReadRequestResult(
             value: Uint8List.fromList(utf8.encode('Hello World')),
           );
         },
         onWriteRequest: (deviceId, characteristicId, _, value) {
-          _log('Write request: $deviceId ${characteristicId.value} $value');
-          return const BleWriteRequestResult();
+          _log('Write request: $deviceId $characteristicId $value');
+          return PeripheralWriteRequestResult();
         },
       ),
     );
@@ -74,34 +74,42 @@ class _PeripheralHomeState extends State<PeripheralHome> {
 
   Future<void> _initialize() async {
     final supported =
-        (await _peripheral.getStaticCapabilities()).supportsPeripheralMode;
+        (await UniversalBlePeripheral.getCapabilities()).supportsPeripheralMode;
     setState(() {
       _initialized = supported;
     });
-    final readiness = await _peripheral.getReadinessState();
-    _log('Peripheral ready check. supported=$supported readiness=${readiness.name}');
+    final readiness = await UniversalBlePeripheral.getAvailabilityState();
+    _log(
+        'Peripheral ready check. supported=$supported readiness=${readiness.name}');
   }
 
   Future<void> _addServices() async {
-    await _peripheral.addService(
-      BleService(_serviceBattery, [
-        BleCharacteristic(
-          _charBattery,
-          [CharacteristicProperty.read, CharacteristicProperty.notify],
-          [],
+    await UniversalBlePeripheral.addService(
+      PeripheralService(uuid: _serviceBattery, primary: true, characteristics: [
+        PeripheralCharacteristic(
+          uuid: _charBattery,
+          properties: [
+            CharacteristicProperty.read,
+            CharacteristicProperty.notify
+          ],
+          permissions: [],
+          descriptors: [],
+          value: null,
         ),
       ]),
     );
-    await _peripheral.addService(
-      BleService(_serviceTest, [
-        BleCharacteristic(
-          _charTest,
-          [
+    await UniversalBlePeripheral.addService(
+      PeripheralService(uuid: _serviceTest, primary: false, characteristics: [
+        PeripheralCharacteristic(
+          uuid: _charTest,
+          properties: [
             CharacteristicProperty.read,
             CharacteristicProperty.notify,
-            CharacteristicProperty.write,
+            CharacteristicProperty.write
           ],
-          [BleDescriptor('00002908-0000-1000-8000-00805F9B34FB')],
+          permissions: [],
+          descriptors: [],
+          value: null,
         ),
       ]),
     );
@@ -109,11 +117,12 @@ class _PeripheralHomeState extends State<PeripheralHome> {
   }
 
   Future<void> _startAdvertising() async {
-    final isWindows = !kIsWeb && defaultTargetPlatform == TargetPlatform.windows;
-    await _peripheral.startAdvertising(
+    final isWindows =
+        !kIsWeb && defaultTargetPlatform == TargetPlatform.windows;
+    await UniversalBlePeripheral.startAdvertising(
       services: [
-        const PeripheralServiceId(_serviceBattery),
-        const PeripheralServiceId(_serviceTest),
+        _serviceBattery,
+        _serviceTest,
       ],
       localName: isWindows ? null : 'UniversalBlePeripheral',
       manufacturerData: isWindows
@@ -152,10 +161,9 @@ class _PeripheralHomeState extends State<PeripheralHome> {
               ElevatedButton(
                 onPressed: _initialized
                     ? () async {
-                        await _peripheral.stopAdvertising();
+                        await UniversalBlePeripheral.stopAdvertising();
                         setState(() {
-                          _advertisingState =
-                              UniversalBlePeripheralAdvertisingState.idle;
+                          _advertisingState = PeripheralAdvertisingState.idle;
                         });
                         _log('Stop advertising requested');
                       }
@@ -165,10 +173,8 @@ class _PeripheralHomeState extends State<PeripheralHome> {
               ElevatedButton(
                 onPressed: _initialized
                     ? () async {
-                        await _peripheral.updateCharacteristicValue(
-                          characteristicId: const PeripheralCharacteristicId(
-                            _charTest,
-                          ),
+                        await UniversalBlePeripheral.updateCharacteristicValue(
+                          characteristicId: _charTest,
                           value: Uint8List.fromList(utf8.encode('Test Data')),
                         );
                         _log('Characteristic updated');

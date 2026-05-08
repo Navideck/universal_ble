@@ -16,11 +16,15 @@ abstract class UniversalBlePlatform {
 
   final _scanStreamController = UniversalBleStreamController<BleDevice>();
 
-  final bleConnectionUpdateStreamController = UniversalBleStreamController<
-      ({String deviceId, bool isConnected, String? error})>();
+  final bleConnectionUpdateStreamController =
+      UniversalBleStreamController<
+        ({String deviceId, bool isConnected, String? error})
+      >();
 
-  final _valueStreamController = UniversalBleStreamController<
-      ({String deviceId, String characteristicId, Uint8List value})>();
+  final _valueStreamController =
+      UniversalBleStreamController<
+        ({String deviceId, String characteristicId, Uint8List value})
+      >();
 
   final _pairStateStreamController =
       UniversalBleStreamController<({String deviceId, bool isPaired})>();
@@ -28,8 +32,8 @@ abstract class UniversalBlePlatform {
   /// Send latest availability state upon subscribing
   late final _availabilityStreamController =
       UniversalBleStreamController<AvailabilityState>(
-    initialEvent: getAvailabilityState,
-  );
+        initialEvent: getAvailabilityState,
+      );
 
   Future<AvailabilityState> getAvailabilityState();
 
@@ -37,9 +41,7 @@ abstract class UniversalBlePlatform {
 
   Future<bool> disableBluetooth();
 
-  Future<bool> hasPermissions({
-    bool withAndroidFineLocation = false,
-  }) async {
+  Future<bool> hasPermissions({bool withAndroidFineLocation = false}) async {
     return true;
   }
 
@@ -131,15 +133,18 @@ abstract class UniversalBlePlatform {
     String characteristicId,
   ) {
     characteristicId = BleUuidParser.string(characteristicId);
-    return _valueStreamController.stream.where((e) {
-      return e.deviceId == deviceId && e.characteristicId == characteristicId;
-    }).map((e) => e.value);
+    return _valueStreamController.stream
+        .where((e) {
+          return e.deviceId == deviceId &&
+              e.characteristicId == characteristicId;
+        })
+        .map((e) => e.value);
   }
 
-  Stream<bool> pairingStateStream(String deviceId) =>
-      _pairStateStreamController.stream
-          .where((e) => e.deviceId == deviceId)
-          .map((e) => e.isPaired);
+  Stream<bool> pairingStateStream(String deviceId) => _pairStateStreamController
+      .stream
+      .where((e) => e.deviceId == deviceId)
+      .map((e) => e.isPaired);
 
   /// Update Handlers
   void updateScanResult(BleDevice bleDevice) {
@@ -204,15 +209,16 @@ abstract class UniversalBlePlatform {
 }
 
 // Callback types
-typedef OnConnectionChange = void Function(
-    String deviceId, bool isConnected, String? error);
+typedef OnConnectionChange =
+    void Function(String deviceId, bool isConnected, String? error);
 
-typedef OnValueChange = void Function(
-  String deviceId,
-  String characteristicId,
-  Uint8List value,
-  int? timestamp,
-);
+typedef OnValueChange =
+    void Function(
+      String deviceId,
+      String characteristicId,
+      Uint8List value,
+      int? timestamp,
+    );
 
 typedef OnScanResult = void Function(BleDevice scanResult);
 

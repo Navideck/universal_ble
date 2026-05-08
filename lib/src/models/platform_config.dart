@@ -1,4 +1,4 @@
-import 'package:universal_ble/src/universal_ble_pigeon/universal_ble.g.dart';
+import 'package:universal_ble/src/universal_ble.g.dart';
 
 /// Platform specific config to scan devices
 ///
