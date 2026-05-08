@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+import 'package:universal_ble/src/universal_ble.g.dart';
 import 'package:universal_ble/universal_ble.dart';
 
 class BleService {
@@ -70,4 +72,73 @@ class BleDescriptor {
 
   @override
   int get hashCode => uuid.hashCode;
+}
+
+/// Peripheral/GATT server service model that reuses [BleService].
+///
+/// This extends [BleService] with peripheral-only fields such as [primary].
+class BlePeripheralService extends BleService {
+  bool primary;
+
+  @override
+  List<BlePeripheralCharacteristic> get characteristics =>
+      super.characteristics.cast<BlePeripheralCharacteristic>();
+
+  BlePeripheralService({
+    this.primary = true,
+    required String uuid,
+    required List<BlePeripheralCharacteristic> characteristics,
+  }) : super(uuid, characteristics);
+
+  PeripheralService toPeripheralService() => PeripheralService(
+    uuid: uuid,
+    primary: primary,
+    characteristics: characteristics
+        .map((characteristic) => characteristic.toPeripheralCharacteristic())
+        .toList(),
+  );
+}
+
+/// Peripheral/GATT server characteristic model that reuses [BleCharacteristic].
+///
+/// This extends [BleCharacteristic] with peripheral-only fields such as
+/// [permissions] and optional initial [value].
+class BlePeripheralCharacteristic extends BleCharacteristic {
+  List<PeripheralAttributePermission> permissions;
+  Uint8List? value;
+
+  @override
+  List<BlePeripheralDescriptor> get descriptors =>
+      super.descriptors.cast<BlePeripheralDescriptor>();
+
+  BlePeripheralCharacteristic({
+    required String uuid,
+    required List<CharacteristicProperty> properties,
+    List<BlePeripheralDescriptor> descriptors = const [],
+    required this.permissions,
+    this.value,
+  }) : super(uuid, properties, descriptors);
+
+  PeripheralCharacteristic toPeripheralCharacteristic() =>
+      PeripheralCharacteristic(
+        uuid: uuid,
+        properties: properties,
+        permissions: permissions,
+        descriptors: descriptors
+            .map((e) => e.toPeripheralDescriptor())
+            .toList(),
+        value: value,
+      );
+}
+
+/// Peripheral/GATT server descriptor model that reuses [BleDescriptor].
+class BlePeripheralDescriptor extends BleDescriptor {
+  Uint8List? value;
+  List<PeripheralAttributePermission>? permissions;
+
+  BlePeripheralDescriptor({required String uuid, this.value, this.permissions})
+    : super(uuid);
+
+  PeripheralDescriptor toPeripheralDescriptor() =>
+      PeripheralDescriptor(uuid: uuid, value: value, permissions: permissions);
 }

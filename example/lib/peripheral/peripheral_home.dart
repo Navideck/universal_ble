@@ -126,39 +126,45 @@ class _PeripheralHomeState extends State<PeripheralHome> {
 
   Future<void> _addServices() async {
     await UniversalBlePeripheral.addService(
-      PeripheralService(uuid: _serviceBattery, primary: true, characteristics: [
-        PeripheralCharacteristic(
-          uuid: _charBattery,
-          properties: [
-            CharacteristicProperty.read,
-            CharacteristicProperty.notify
-          ],
-          permissions: [
-            PeripheralAttributePermission.readable,
-            PeripheralAttributePermission.writeable,
-            PeripheralAttributePermission.readEncryptionRequired,
-            PeripheralAttributePermission.writeEncryptionRequired,
-          ],
-        ),
-      ]),
+      BlePeripheralService(
+          uuid: _serviceBattery,
+          primary: true,
+          characteristics: [
+            BlePeripheralCharacteristic(
+              uuid: _charBattery,
+              properties: [
+                CharacteristicProperty.read,
+                CharacteristicProperty.notify
+              ],
+              permissions: [
+                PeripheralAttributePermission.readable,
+                PeripheralAttributePermission.writeable,
+                PeripheralAttributePermission.readEncryptionRequired,
+                PeripheralAttributePermission.writeEncryptionRequired,
+              ],
+            ),
+          ]),
     );
     await UniversalBlePeripheral.addService(
-      PeripheralService(uuid: _serviceTest, primary: false, characteristics: [
-        PeripheralCharacteristic(
-          uuid: _charTest,
-          properties: [
-            CharacteristicProperty.read,
-            CharacteristicProperty.notify,
-            CharacteristicProperty.write
-          ],
-          permissions: [
-            PeripheralAttributePermission.readable,
-            PeripheralAttributePermission.writeable,
-            PeripheralAttributePermission.readEncryptionRequired,
-            PeripheralAttributePermission.writeEncryptionRequired,
-          ],
-        ),
-      ]),
+      BlePeripheralService(
+          uuid: _serviceTest,
+          primary: false,
+          characteristics: [
+            BlePeripheralCharacteristic(
+              uuid: _charTest,
+              properties: [
+                CharacteristicProperty.read,
+                CharacteristicProperty.notify,
+                CharacteristicProperty.write
+              ],
+              permissions: [
+                PeripheralAttributePermission.readable,
+                PeripheralAttributePermission.writeable,
+                PeripheralAttributePermission.readEncryptionRequired,
+                PeripheralAttributePermission.writeEncryptionRequired,
+              ],
+            ),
+          ]),
     );
     _log('Services queued');
   }

@@ -26,8 +26,5 @@ export 'package:universal_ble/src/universal_ble.g.dart'
         PeripheralAttributePermission,
         PeripheralAdvertisingState,
         PeripheralReadinessState,
-        PeripheralService,
-        PeripheralCharacteristic,
-        PeripheralDescriptor,
         PeripheralReadRequestResult,
         PeripheralWriteRequestResult;

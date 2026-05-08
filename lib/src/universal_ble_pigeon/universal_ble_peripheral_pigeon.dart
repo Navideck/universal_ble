@@ -173,7 +173,7 @@ class UniversalBlePeripheralPigeon extends UniversalBlePeripheralPlatform
     updateCharacteristicSubscription(
       BlePeripheralCharacteristicSubscriptionChanged(
         deviceId: deviceId,
-        characteristicId: characteristicId,
+        characteristicId: BleUuidParser.string(characteristicId),
         isSubscribed: isSubscribed,
         name: name,
       ),
@@ -201,7 +201,7 @@ class UniversalBlePeripheralPigeon extends UniversalBlePeripheralPlatform
   ) {
     final result = _readRequestHandler?.call(
       deviceId,
-      characteristicId,
+      BleUuidParser.string(characteristicId),
       offset,
       value,
     );
@@ -215,7 +215,9 @@ class UniversalBlePeripheralPigeon extends UniversalBlePeripheralPlatform
 
   @override
   void onServiceAdded(String serviceId, String? error) {
-    updateServiceAdded(BlePeripheralServiceAdded(serviceId, error));
+    updateServiceAdded(
+      BlePeripheralServiceAdded(BleUuidParser.string(serviceId), error),
+    );
   }
 
   @override
@@ -227,7 +229,7 @@ class UniversalBlePeripheralPigeon extends UniversalBlePeripheralPlatform
   ) {
     final result = _writeRequestHandler?.call(
       deviceId,
-      characteristicId,
+      BleUuidParser.string(characteristicId),
       offset,
       value,
     );
@@ -249,8 +251,8 @@ class UniversalBlePeripheralPigeon extends UniversalBlePeripheralPlatform
   ) {
     final result = _descriptorReadRequestHandler?.call(
       deviceId,
-      characteristicId,
-      descriptorId,
+      BleUuidParser.string(characteristicId),
+      BleUuidParser.string(descriptorId),
       offset,
       value,
     );
@@ -272,8 +274,8 @@ class UniversalBlePeripheralPigeon extends UniversalBlePeripheralPlatform
   ) {
     final result = _descriptorWriteRequestHandler?.call(
       deviceId,
-      characteristicId,
-      descriptorId,
+      BleUuidParser.string(characteristicId),
+      BleUuidParser.string(descriptorId),
       offset,
       value,
     );

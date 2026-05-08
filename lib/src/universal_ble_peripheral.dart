@@ -57,9 +57,9 @@ class UniversalBlePeripheral {
       _platform.getCapabilities();
 
   static Future<void> addService(
-    PeripheralService service, {
+    BlePeripheralService service, {
     Duration? timeout,
-  }) => _platform.addService(service, timeout: timeout);
+  }) => _platform.addService(service.toPeripheralService(), timeout: timeout);
 
   static Future<void> removeService(String serviceId) =>
       _platform.removeService(BleUuidParser.string(serviceId));
