@@ -51,6 +51,7 @@ template<class T> class ErrorOr {
   friend class UniversalBlePlatformChannel;
   friend class UniversalBleCallbackChannel;
   friend class UniversalBlePeripheralChannel;
+  friend class UniversalBleAndroidChannel;
   friend class UniversalBlePeripheralCallback;
   ErrorOr() = default;
   T TakeValue() && { return std::get<T>(std::move(v_)); }
@@ -275,6 +276,7 @@ class UniversalBleScanResult {
   friend class UniversalBlePlatformChannel;
   friend class UniversalBleCallbackChannel;
   friend class UniversalBlePeripheralChannel;
+  friend class UniversalBleAndroidChannel;
   friend class UniversalBlePeripheralCallback;
   friend class PigeonInternalCodecSerializer;
   std::string device_id_;
@@ -318,6 +320,7 @@ class UniversalBleService {
   friend class UniversalBlePlatformChannel;
   friend class UniversalBleCallbackChannel;
   friend class UniversalBlePeripheralChannel;
+  friend class UniversalBleAndroidChannel;
   friend class UniversalBlePeripheralCallback;
   friend class PigeonInternalCodecSerializer;
   std::string uuid_;
@@ -353,6 +356,7 @@ class UniversalBleCharacteristic {
   friend class UniversalBlePlatformChannel;
   friend class UniversalBleCallbackChannel;
   friend class UniversalBlePeripheralChannel;
+  friend class UniversalBleAndroidChannel;
   friend class UniversalBlePeripheralCallback;
   friend class PigeonInternalCodecSerializer;
   std::string uuid_;
@@ -380,6 +384,7 @@ class UniversalBleDescriptor {
   friend class UniversalBlePlatformChannel;
   friend class UniversalBleCallbackChannel;
   friend class UniversalBlePeripheralChannel;
+  friend class UniversalBleAndroidChannel;
   friend class UniversalBlePeripheralCallback;
   friend class PigeonInternalCodecSerializer;
   std::string uuid_;
@@ -429,6 +434,7 @@ class AndroidOptions {
   friend class UniversalBlePlatformChannel;
   friend class UniversalBleCallbackChannel;
   friend class UniversalBlePeripheralChannel;
+  friend class UniversalBleAndroidChannel;
   friend class UniversalBlePeripheralCallback;
   friend class PigeonInternalCodecSerializer;
   std::optional<bool> request_location_permission_;
@@ -465,6 +471,7 @@ class UniversalScanConfig {
   friend class UniversalBlePlatformChannel;
   friend class UniversalBleCallbackChannel;
   friend class UniversalBlePeripheralChannel;
+  friend class UniversalBleAndroidChannel;
   friend class UniversalBlePeripheralCallback;
   friend class PigeonInternalCodecSerializer;
   std::unique_ptr<AndroidOptions> android_;
@@ -499,6 +506,7 @@ class UniversalScanFilter {
   friend class UniversalBlePlatformChannel;
   friend class UniversalBleCallbackChannel;
   friend class UniversalBlePeripheralChannel;
+  friend class UniversalBleAndroidChannel;
   friend class UniversalBlePeripheralCallback;
   friend class PigeonInternalCodecSerializer;
   ::flutter::EncodableList with_services_;
@@ -545,6 +553,7 @@ class ManufacturerDataFilter {
   friend class UniversalBlePlatformChannel;
   friend class UniversalBleCallbackChannel;
   friend class UniversalBlePeripheralChannel;
+  friend class UniversalBleAndroidChannel;
   friend class UniversalBlePeripheralCallback;
   friend class PigeonInternalCodecSerializer;
   int64_t company_identifier_;
@@ -577,6 +586,7 @@ class UniversalManufacturerData {
   friend class UniversalBlePlatformChannel;
   friend class UniversalBleCallbackChannel;
   friend class UniversalBlePeripheralChannel;
+  friend class UniversalBleAndroidChannel;
   friend class UniversalBlePeripheralCallback;
   friend class PigeonInternalCodecSerializer;
   int64_t company_identifier_;
@@ -608,6 +618,7 @@ class PeripheralAndroidOptions {
   friend class UniversalBlePlatformChannel;
   friend class UniversalBleCallbackChannel;
   friend class UniversalBlePeripheralChannel;
+  friend class UniversalBleAndroidChannel;
   friend class UniversalBlePeripheralCallback;
   friend class PigeonInternalCodecSerializer;
   std::optional<bool> add_manufacturer_data_in_scan_response_;
@@ -642,6 +653,7 @@ class PeripheralPlatformConfig {
   friend class UniversalBlePlatformChannel;
   friend class UniversalBleCallbackChannel;
   friend class UniversalBlePeripheralChannel;
+  friend class UniversalBleAndroidChannel;
   friend class UniversalBlePeripheralCallback;
   friend class PigeonInternalCodecSerializer;
   std::unique_ptr<PeripheralAndroidOptions> android_;
@@ -678,6 +690,7 @@ class PeripheralService {
   friend class UniversalBlePlatformChannel;
   friend class UniversalBleCallbackChannel;
   friend class UniversalBlePeripheralChannel;
+  friend class UniversalBleAndroidChannel;
   friend class UniversalBlePeripheralCallback;
   friend class PigeonInternalCodecSerializer;
   std::string uuid_;
@@ -730,6 +743,7 @@ class PeripheralCharacteristic {
   friend class UniversalBlePlatformChannel;
   friend class UniversalBleCallbackChannel;
   friend class UniversalBlePeripheralChannel;
+  friend class UniversalBleAndroidChannel;
   friend class UniversalBlePeripheralCallback;
   friend class PigeonInternalCodecSerializer;
   std::string uuid_;
@@ -773,6 +787,7 @@ class PeripheralDescriptor {
   friend class UniversalBlePlatformChannel;
   friend class UniversalBleCallbackChannel;
   friend class UniversalBlePeripheralChannel;
+  friend class UniversalBleAndroidChannel;
   friend class UniversalBlePeripheralCallback;
   friend class PigeonInternalCodecSerializer;
   std::string uuid_;
@@ -814,6 +829,7 @@ class PeripheralReadRequestResult {
   friend class UniversalBlePlatformChannel;
   friend class UniversalBleCallbackChannel;
   friend class UniversalBlePeripheralChannel;
+  friend class UniversalBleAndroidChannel;
   friend class UniversalBlePeripheralCallback;
   friend class PigeonInternalCodecSerializer;
   std::vector<uint8_t> value_;
@@ -856,6 +872,7 @@ class PeripheralWriteRequestResult {
   friend class UniversalBlePlatformChannel;
   friend class UniversalBleCallbackChannel;
   friend class UniversalBlePeripheralChannel;
+  friend class UniversalBleAndroidChannel;
   friend class UniversalBlePeripheralCallback;
   friend class PigeonInternalCodecSerializer;
   std::optional<std::vector<uint8_t>> value_;
@@ -1055,6 +1072,32 @@ class UniversalBlePeripheralChannel {
   static ::flutter::EncodableValue WrapError(const FlutterError& error);
  protected:
   UniversalBlePeripheralChannel() = default;
+};
+// Flutter -> Native (Android only)
+//
+// Generated interface from Pigeon that represents a handler of messages from Flutter.
+class UniversalBleAndroidChannel {
+ public:
+  UniversalBleAndroidChannel(const UniversalBleAndroidChannel&) = delete;
+  UniversalBleAndroidChannel& operator=(const UniversalBleAndroidChannel&) = delete;
+  virtual ~UniversalBleAndroidChannel() {}
+  virtual ErrorOr<bool> HasBluetoothAdvertisePermission() = 0;
+  virtual void RequestBluetoothAdvertisePermission(std::function<void(ErrorOr<bool> reply)> result) = 0;
+
+  // The codec used by UniversalBleAndroidChannel.
+  static const ::flutter::StandardMessageCodec& GetCodec();
+  // Sets up an instance of `UniversalBleAndroidChannel` to handle messages through the `binary_messenger`.
+  static void SetUp(
+    ::flutter::BinaryMessenger* binary_messenger,
+    UniversalBleAndroidChannel* api);
+  static void SetUp(
+    ::flutter::BinaryMessenger* binary_messenger,
+    UniversalBleAndroidChannel* api,
+    const std::string& message_channel_suffix);
+  static ::flutter::EncodableValue WrapError(std::string_view error_message);
+  static ::flutter::EncodableValue WrapError(const FlutterError& error);
+ protected:
+  UniversalBleAndroidChannel() = default;
 };
 // Native -> Flutter (peripheral)
 //

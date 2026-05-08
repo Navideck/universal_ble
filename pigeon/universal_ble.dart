@@ -383,6 +383,15 @@ abstract class UniversalBlePeripheralChannel {
   int? getMaximumNotifyLength(String deviceId);
 }
 
+/// Flutter -> Native (Android only)
+@HostApi()
+abstract class UniversalBleAndroidChannel {
+  bool hasBluetoothAdvertisePermission();
+
+  @async
+  bool requestBluetoothAdvertisePermission();
+}
+
 /// Native -> Flutter (peripheral)
 @FlutterApi()
 abstract class UniversalBlePeripheralCallback {

@@ -4,7 +4,6 @@ import android.annotation.SuppressLint
 import android.app.Activity
 import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothDevice
-import android.bluetooth.BluetoothDevice.BOND_BONDED
 import android.bluetooth.BluetoothGatt
 import android.bluetooth.BluetoothGattCallback
 import android.bluetooth.BluetoothGattCharacteristic
@@ -18,7 +17,6 @@ import android.bluetooth.le.ScanResult
 import android.bluetooth.le.ScanSettings
 import android.content.BroadcastReceiver
 import android.content.Context
-import android.content.Context.RECEIVER_EXPORTED
 import android.content.Intent
 import android.content.IntentFilter
 import android.os.Build
@@ -36,11 +34,13 @@ import androidx.core.content.edit
 
 @SuppressLint("MissingPermission")
 class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(), FlutterPlugin,
+    UniversalBleAndroidPermissionChannel,
     ActivityAware, PluginRegistry.ActivityResultListener,
     PluginRegistry.RequestPermissionsResultListener {
     private val bluetoothEnableRequestCode = 2342313
     private val bluetoothDisableRequestCode = 2342414
     private val permissionRequestCode = 2342515
+    private val advertisePermissionRequestCode = 2342616
     private var permissionHandler: PermissionHandler? = null
     private var callbackChannel: UniversalBleCallbackChannel? = null
     private var mainThreadHandler: Handler? = null
@@ -65,26 +65,30 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
     private val autoConnectDevices = mutableSetOf<String>()
 
     override fun onAttachedToEngine(flutterPluginBinding: FlutterPlugin.FlutterPluginBinding) {
+        context = flutterPluginBinding.applicationContext
+        mainThreadHandler = Handler(Looper.getMainLooper())
+        permissionHandler = PermissionHandler(
+            context,
+            permissionRequestCode,
+            advertisePermissionRequestCode,
+        )
+        bluetoothManager = context.getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager
+        safeScanner = SafeScanner(bluetoothManager)
+
         UniversalBlePlatformChannel.setUp(flutterPluginBinding.binaryMessenger, this)
+        UniversalBleAndroidPermissionChannel.setUp(flutterPluginBinding.binaryMessenger, this)
         peripheralPlugin = UniversalBlePeripheralPlugin(
             flutterPluginBinding.applicationContext,
+            bluetoothManager,
             flutterPluginBinding.binaryMessenger
         )
         UniversalBlePeripheralChannel.setUp(flutterPluginBinding.binaryMessenger, peripheralPlugin)
         callbackChannel = UniversalBleCallbackChannel(flutterPluginBinding.binaryMessenger)
-        context = flutterPluginBinding.applicationContext
-        mainThreadHandler = Handler(Looper.getMainLooper())
-        permissionHandler = PermissionHandler(context, permissionRequestCode)
-        bluetoothManager = context.getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager
-        safeScanner = SafeScanner(bluetoothManager)
+
 
         val intentFilter = IntentFilter(BluetoothAdapter.ACTION_STATE_CHANGED)
         intentFilter.addAction(BluetoothDevice.ACTION_BOND_STATE_CHANGED)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            context.registerReceiver(broadcastReceiver, intentFilter, RECEIVER_EXPORTED)
-        } else {
-            context.registerReceiver(broadcastReceiver, intentFilter)
-        }
+        context.registerReceiverCompat(broadcastReceiver, intentFilter, exported = true)
         cachedServicesMap.putAll(getCachedServicesMap())
     }
 
@@ -93,6 +97,7 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
         context.unregisterReceiver(broadcastReceiver)
         peripheralPlugin.dispose()
         UniversalBlePeripheralChannel.setUp(binding.binaryMessenger, null)
+        UniversalBleAndroidPermissionChannel.setUp(binding.binaryMessenger, null)
         callbackChannel = null
         mainThreadHandler = null
         permissionHandler = null
@@ -304,6 +309,26 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
 
     override fun setLogLevel(logLevel: BleLogLevel) {
         UniversalBleLogger.setLogLevel(logLevel)
+    }
+
+    override fun hasBluetoothAdvertisePermission(): Boolean {
+        return permissionHandler?.hasBluetoothAdvertisePermission() ?: false
+    }
+
+    override fun requestBluetoothAdvertisePermission(callback: (Result<Boolean>) -> Unit) {
+        val handler = permissionHandler
+        if (handler == null) {
+            callback(
+                Result.failure(
+                    createFlutterError(
+                        UniversalBleErrorCode.FAILED,
+                        "PermissionHandler is not initialized",
+                    ),
+                ),
+            )
+            return
+        }
+        handler.requestBluetoothAdvertisePermission(callback)
     }
 
     override fun readRssi(deviceId: String, callback: (Result<Long>) -> Unit) {
@@ -823,7 +848,7 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
     override fun isPaired(deviceId: String, callback: (Result<Boolean>) -> Unit) {
         val remoteDevice: BluetoothDevice =
             bluetoothManager.adapter.getRemoteDevice(deviceId)
-        callback(Result.success(remoteDevice.bondState == BOND_BONDED))
+        callback(Result.success(remoteDevice.isBonded()))
     }
 
     override fun pair(deviceId: String, callback: (Result<Boolean>) -> Unit) {
@@ -832,7 +857,7 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
             val pendingFuture = pairResultFutures.remove(deviceId)
 
             // If already paired, return and complete pending futures
-            if (remoteDevice.bondState == BOND_BONDED) {
+            if (remoteDevice.isBonded()) {
                 pendingFuture?.let { it(Result.success(true)) }
                 callback(Result.success(true))
                 return
@@ -877,7 +902,7 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
     override fun unPair(deviceId: String) {
         val remoteDevice: BluetoothDevice =
             bluetoothManager.adapter.getRemoteDevice(deviceId)
-        if (remoteDevice.bondState == BOND_BONDED) {
+        if (remoteDevice.isBonded()) {
             remoteDevice.removeBond()
         }
     }
@@ -897,7 +922,7 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
                     UniversalBleScanResult(
                         name = it.name,
                         deviceId = it.address,
-                        isPaired = it.bondState == BOND_BONDED,
+                        isPaired = it.isBonded(),
                         manufacturerDataList = null,
                         serviceData = null,
                         rssi = null,
@@ -1098,37 +1123,29 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
                     ) {}
                 }
             } else if (intent.action == BluetoothDevice.ACTION_BOND_STATE_CHANGED) {
-                val device: BluetoothDevice? =
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                        intent.getParcelableExtra(
-                            BluetoothDevice.EXTRA_DEVICE,
-                            BluetoothDevice::class.java
-                        )
-                    } else {
-                        @Suppress("DEPRECATION")
-                        intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE)
-                    }
-                if (device == null) {
+                val bondStateChange = intent.getBondStateChange()
+                if (bondStateChange == null) {
                     UniversalBleLogger.logError("No device found in ACTION_BOND_STATE_CHANGED intent")
                     return
                 }
+                peripheralPlugin.onBondStateChanged(bondStateChange)
                 // get pairing failed error
-                when (intent.getIntExtra(BluetoothDevice.EXTRA_BOND_STATE, BluetoothDevice.ERROR)) {
+                when (bondStateChange.state) {
                     BluetoothDevice.BOND_BONDING -> {
-                        UniversalBleLogger.logVerbose("${device.address} BOND_BONDING")
+                        UniversalBleLogger.logVerbose("${bondStateChange.device.address} BOND_BONDING")
                     }
 
-                    BOND_BONDED -> {
-                        onBondStateUpdate(device.address, true)
+                    BluetoothDevice.BOND_BONDED -> {
+                        onBondStateUpdate(bondStateChange.device.address, true)
                     }
 
                     BluetoothDevice.ERROR -> {
-                        onBondStateUpdate(device.address, false, "Failed to Pair")
+                        onBondStateUpdate(bondStateChange.device.address, false, "Failed to Pair")
                     }
 
                     BluetoothDevice.BOND_NONE -> {
-                        UniversalBleLogger.logError("${device.address} BOND_NONE")
-                        onBondStateUpdate(device.address, false)
+                        UniversalBleLogger.logError("${bondStateChange.device.address} BOND_NONE")
+                        onBondStateUpdate(bondStateChange.device.address, false)
                     }
                 }
             }
@@ -1171,7 +1188,7 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
                     UniversalBleScanResult(
                         name = result.device.name,
                         deviceId = result.device.address,
-                        isPaired = result.device.bondState == BOND_BONDED,
+                        isPaired = result.device.isBonded(),
                         manufacturerDataList = manufacturerDataList,
                         serviceData = serviceData,
                         rssi = result.rssi.toLong(),
@@ -1209,7 +1226,7 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
 
             // Always clean up internal state (futures, etc.)
             cleanUpConnection(deviceId)
-            
+
             // Send connection changed callback
             mainThreadHandler?.post {
                 callbackChannel?.onConnectionChanged(
@@ -1294,7 +1311,7 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
     }
 
     private fun isBluetoothAvailable(): Boolean {
-        return bluetoothManager.adapter.isEnabled
+        return bluetoothManager.isBluetoothEnabled()
     }
 
     private fun setCachedServices(deviceId: String, services: List<String>) {

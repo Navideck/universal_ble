@@ -2184,6 +2184,60 @@ interface UniversalBlePeripheralChannel {
   }
 }
 /**
+ * Flutter -> Native (Android only)
+ *
+ * Generated interface from Pigeon that represents a handler of messages from Flutter.
+ */
+interface UniversalBleAndroidChannel {
+  fun hasBluetoothAdvertisePermission(): Boolean
+  fun requestBluetoothAdvertisePermission(callback: (Result<Boolean>) -> Unit)
+
+  companion object {
+    /** The codec used by UniversalBleAndroidChannel. */
+    val codec: MessageCodec<Any?> by lazy {
+      UniversalBlePigeonCodec()
+    }
+    /** Sets up an instance of `UniversalBleAndroidChannel` to handle messages through the `binaryMessenger`. */
+    @JvmOverloads
+    fun setUp(binaryMessenger: BinaryMessenger, api: UniversalBleAndroidChannel?, messageChannelSuffix: String = "") {
+      val separatedMessageChannelSuffix = if (messageChannelSuffix.isNotEmpty()) ".$messageChannelSuffix" else ""
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.universal_ble.UniversalBleAndroidChannel.hasBluetoothAdvertisePermission$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { _, reply ->
+            val wrapped: List<Any?> = try {
+              listOf(api.hasBluetoothAdvertisePermission())
+            } catch (exception: Throwable) {
+              UniversalBlePigeonUtils.wrapError(exception)
+            }
+            reply.reply(wrapped)
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.universal_ble.UniversalBleAndroidChannel.requestBluetoothAdvertisePermission$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { _, reply ->
+            api.requestBluetoothAdvertisePermission{ result: Result<Boolean> ->
+              val error = result.exceptionOrNull()
+              if (error != null) {
+                reply.reply(UniversalBlePigeonUtils.wrapError(error))
+              } else {
+                val data = result.getOrNull()
+                reply.reply(UniversalBlePigeonUtils.wrapResult(data))
+              }
+            }
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+    }
+  }
+}
+/**
  * Native -> Flutter (peripheral)
  *
  * Generated class from Pigeon that represents Flutter messages that can be called from Kotlin.

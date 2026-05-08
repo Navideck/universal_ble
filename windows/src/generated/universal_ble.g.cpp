@@ -3068,6 +3068,84 @@ EncodableValue UniversalBlePeripheralChannel::WrapError(const FlutterError& erro
   });
 }
 
+/// The codec used by UniversalBleAndroidChannel.
+const ::flutter::StandardMessageCodec& UniversalBleAndroidChannel::GetCodec() {
+  return ::flutter::StandardMessageCodec::GetInstance(&PigeonInternalCodecSerializer::GetInstance());
+}
+
+// Sets up an instance of `UniversalBleAndroidChannel` to handle messages through the `binary_messenger`.
+void UniversalBleAndroidChannel::SetUp(
+  ::flutter::BinaryMessenger* binary_messenger,
+  UniversalBleAndroidChannel* api) {
+  UniversalBleAndroidChannel::SetUp(binary_messenger, api, "");
+}
+
+void UniversalBleAndroidChannel::SetUp(
+  ::flutter::BinaryMessenger* binary_messenger,
+  UniversalBleAndroidChannel* api,
+  const std::string& message_channel_suffix) {
+  const std::string prepended_suffix = message_channel_suffix.length() > 0 ? std::string(".") + message_channel_suffix : "";
+  {
+    BasicMessageChannel<> channel(binary_messenger, "dev.flutter.pigeon.universal_ble.UniversalBleAndroidChannel.hasBluetoothAdvertisePermission" + prepended_suffix, &GetCodec());
+    if (api != nullptr) {
+      channel.SetMessageHandler([api](const EncodableValue& message, const ::flutter::MessageReply<EncodableValue>& reply) {
+        try {
+          ErrorOr<bool> output = api->HasBluetoothAdvertisePermission();
+          if (output.has_error()) {
+            reply(WrapError(output.error()));
+            return;
+          }
+          EncodableList wrapped;
+          wrapped.push_back(EncodableValue(std::move(output).TakeValue()));
+          reply(EncodableValue(std::move(wrapped)));
+        } catch (const std::exception& exception) {
+          reply(WrapError(exception.what()));
+        }
+      });
+    } else {
+      channel.SetMessageHandler(nullptr);
+    }
+  }
+  {
+    BasicMessageChannel<> channel(binary_messenger, "dev.flutter.pigeon.universal_ble.UniversalBleAndroidChannel.requestBluetoothAdvertisePermission" + prepended_suffix, &GetCodec());
+    if (api != nullptr) {
+      channel.SetMessageHandler([api](const EncodableValue& message, const ::flutter::MessageReply<EncodableValue>& reply) {
+        try {
+          api->RequestBluetoothAdvertisePermission([reply](ErrorOr<bool>&& output) {
+            if (output.has_error()) {
+              reply(WrapError(output.error()));
+              return;
+            }
+            EncodableList wrapped;
+            wrapped.push_back(EncodableValue(std::move(output).TakeValue()));
+            reply(EncodableValue(std::move(wrapped)));
+          });
+        } catch (const std::exception& exception) {
+          reply(WrapError(exception.what()));
+        }
+      });
+    } else {
+      channel.SetMessageHandler(nullptr);
+    }
+  }
+}
+
+EncodableValue UniversalBleAndroidChannel::WrapError(std::string_view error_message) {
+  return EncodableValue(EncodableList{
+    EncodableValue(std::string(error_message)),
+    EncodableValue("Error"),
+    EncodableValue()
+  });
+}
+
+EncodableValue UniversalBleAndroidChannel::WrapError(const FlutterError& error) {
+  return EncodableValue(EncodableList{
+    EncodableValue(error.code()),
+    EncodableValue(error.message()),
+    error.details()
+  });
+}
+
 // Generated class from Pigeon that represents Flutter messages that can be called from C++.
 UniversalBlePeripheralCallback::UniversalBlePeripheralCallback(::flutter::BinaryMessenger* binary_messenger)
  : binary_messenger_(binary_messenger),

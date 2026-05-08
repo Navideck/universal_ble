@@ -15,6 +15,12 @@ class UniversalBlePeripheralPigeon extends UniversalBlePeripheralPlatform
   }
 
   final _channel = UniversalBlePeripheralChannel();
+  UniversalBleAndroidChannel? _androidChannelRef;
+
+  UniversalBleAndroidChannel? get _androidChannel =>
+      (kIsWeb || defaultTargetPlatform != TargetPlatform.android)
+      ? null
+      : _androidChannelRef ??= UniversalBleAndroidChannel();
 
   OnPeripheralReadRequest? _readRequestHandler;
   OnPeripheralWriteRequest? _writeRequestHandler;
@@ -96,7 +102,8 @@ class UniversalBlePeripheralPigeon extends UniversalBlePeripheralPlatform
     Duration? timeout,
     ManufacturerData? manufacturerData,
     PeripheralPlatformConfig? platformConfig,
-  }) {
+  }) async {
+    await _ensureBluetoothAdvertisePermission();
     return _channel.startAdvertising(
       services.map((e) => BleUuidParser.string(e)).toList(),
       localName,
@@ -277,6 +284,26 @@ class UniversalBlePeripheralPigeon extends UniversalBlePeripheralPlatform
       status: result.status,
     );
   }
+
+  Future<void> _ensureBluetoothAdvertisePermission() async {
+    if (await _hasBluetoothAdvertisePermission()) {
+      return;
+    }
+    if (await _requestBluetoothAdvertisePermission()) {
+      return;
+    }
+    throw PlatformException(
+      code: 'bluetooth-advertise-permission-denied',
+      message: 'Bluetooth advertise permission denied',
+    );
+  }
+
+  Future<bool> _requestBluetoothAdvertisePermission() =>
+      _androidChannel?.requestBluetoothAdvertisePermission() ??
+      Future.value(true);
+
+  Future<bool> _hasBluetoothAdvertisePermission() =>
+      _androidChannel?.hasBluetoothAdvertisePermission() ?? Future.value(true);
 
   @override
   void dispose() {

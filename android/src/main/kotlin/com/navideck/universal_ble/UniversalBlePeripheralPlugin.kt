@@ -16,12 +16,8 @@ import android.bluetooth.le.AdvertiseCallback
 import android.bluetooth.le.AdvertiseData
 import android.bluetooth.le.AdvertiseSettings
 import android.bluetooth.le.BluetoothLeAdvertiser
-import android.content.BroadcastReceiver
 import android.content.Context
-import android.content.Context.RECEIVER_NOT_EXPORTED
 import android.content.Intent
-import android.content.IntentFilter
-import android.os.Build
 import android.os.Handler
 import android.os.ParcelUuid
 import android.util.Log
@@ -32,13 +28,12 @@ private const val TAG = "UniversalBlePeripheral"
 @SuppressLint("MissingPermission")
 class UniversalBlePeripheralPlugin(
     private val applicationContext: Context,
+    private val bluetoothManager: BluetoothManager,
     messenger: BinaryMessenger,
 ) : UniversalBlePeripheralChannel {
     private var activity: Activity? = null
     private val callback = UniversalBlePeripheralCallback(messenger)
     private val handler = Handler(applicationContext.mainLooper)
-    private val bluetoothManager =
-        applicationContext.getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager
     private var bluetoothLeAdvertiser: BluetoothLeAdvertiser? = null
     private var gattServer: BluetoothGattServer? = null
     private val bluetoothDevicesMap: MutableMap<String, BluetoothDevice> = HashMap()
@@ -46,7 +41,6 @@ class UniversalBlePeripheralPlugin(
     private val listOfDevicesWaitingForBond = mutableListOf<String>()
     private val emptyBytes = byteArrayOf()
     private var advertisingState: PeripheralAdvertisingState = PeripheralAdvertisingState.IDLE
-    private var receiverRegistered = false
     private var originalAdapterName: String? = null
     private var adapterNameOverridden = false
 
@@ -60,11 +54,23 @@ class UniversalBlePeripheralPlugin(
         this.activity = activity
     }
 
-    fun dispose() {
-        if (receiverRegistered) {
-            kotlin.runCatching { applicationContext.unregisterReceiver(broadcastReceiver) }
-            receiverRegistered = false
+    fun onBondStateChanged(bondStateChange: BondStateChange) {
+        val device = bondStateChange.device
+        val waitingForConnection = synchronized(listOfDevicesWaitingForBond) {
+            listOfDevicesWaitingForBond.contains(device.address)
         }
+        if (bondStateChange.state == BluetoothDevice.BOND_BONDED && waitingForConnection) {
+            synchronized(listOfDevicesWaitingForBond) {
+                listOfDevicesWaitingForBond.remove(device.address)
+            }
+            synchronized(bluetoothDevicesMap) {
+                bluetoothDevicesMap[device.address] = device
+            }
+            handler.post { gattServer?.connect(device, true) }
+        }
+    }
+
+    fun dispose() {
         kotlin.runCatching { bluetoothLeAdvertiser?.stopAdvertising(advertiseCallback) }
         restoreAdapterNameIfNeeded()
         gattServer?.close()
@@ -80,28 +86,13 @@ class UniversalBlePeripheralPlugin(
     private fun initializePeripheral() {
         val adapter = bluetoothManager.adapter
             ?: throw UnsupportedOperationException("Bluetooth is not available.")
-        if (bluetoothLeAdvertiser != null && gattServer != null && receiverRegistered) return
+        if (bluetoothLeAdvertiser != null && gattServer != null) return
         bluetoothLeAdvertiser = adapter.bluetoothLeAdvertiser
             ?: throw UnsupportedOperationException(
                 "Bluetooth LE Advertising not supported on this device.",
             )
         gattServer = bluetoothManager.openGattServer(applicationContext, gattServerCallback)
             ?: throw UnsupportedOperationException("gattServer is null, check Bluetooth is ON.")
-
-        if (!receiverRegistered) {
-            val intentFilter = IntentFilter(BluetoothDevice.ACTION_BOND_STATE_CHANGED)
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                applicationContext.registerReceiver(
-                    broadcastReceiver,
-                    intentFilter,
-                    RECEIVER_NOT_EXPORTED,
-                )
-            } else {
-                @Suppress("DEPRECATION")
-                applicationContext.registerReceiver(broadcastReceiver, intentFilter)
-            }
-            receiverRegistered = true
-        }
     }
 
     override fun getAdvertisingState(): PeripheralAdvertisingState = advertisingState
@@ -143,7 +134,7 @@ class UniversalBlePeripheralPlugin(
         initializePeripheral()
         advertisingState = PeripheralAdvertisingState.STARTING
         callback.onAdvertisingStateChange(PeripheralAdvertisingState.STARTING, null) {}
-        if (!isBluetoothEnabled()) {
+        if (!bluetoothManager.isBluetoothEnabled()) {
             activity?.startActivityForResult(
                 Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE),
                 0xB1E,
@@ -248,9 +239,6 @@ class UniversalBlePeripheralPlugin(
         return (mtu - 3).coerceAtLeast(0).toLong()
     }
 
-    private fun isBluetoothEnabled(): Boolean =
-        bluetoothManager.adapter?.isEnabled ?: false
-
     private fun onConnectionUpdate(device: BluetoothDevice, status: Int, newState: Int) {
         Log.e(TAG, "onConnectionStateChange: $status -> $newState")
         handler.post {
@@ -321,7 +309,7 @@ class UniversalBlePeripheralPlugin(
                             listOfDevicesWaitingForBond.add(device.address)
                         }
                         device.createBond()
-                    } else if (device.bondState == BluetoothDevice.BOND_BONDED) {
+                    } else if (device.isBonded()) {
                         handler.post { gattServer?.connect(device, true) }
                     }
                     onConnectionUpdate(device, status, newState)
@@ -504,36 +492,6 @@ class UniversalBlePeripheralPlugin(
                             writeResult?.offset?.toInt() ?: offset,
                             writeResult?.value ?: value ?: emptyBytes,
                         )
-                    }
-                }
-            }
-        }
-    }
-
-    private val broadcastReceiver = object : BroadcastReceiver() {
-        override fun onReceive(context: Context, intent: Intent) {
-            when (intent.action) {
-                BluetoothDevice.ACTION_BOND_STATE_CHANGED -> {
-                    val state = intent.getIntExtra(
-                        BluetoothDevice.EXTRA_BOND_STATE, BluetoothDevice.ERROR,
-                    )
-                    val device: BluetoothDevice? = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                        intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE, BluetoothDevice::class.java)
-                    } else {
-                        @Suppress("DEPRECATION")
-                        intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE)
-                    }
-                    val waitingForConnection = synchronized(listOfDevicesWaitingForBond) {
-                        listOfDevicesWaitingForBond.contains(device?.address)
-                    }
-                    if (state == BluetoothDevice.BOND_BONDED && device != null && waitingForConnection) {
-                        synchronized(listOfDevicesWaitingForBond) {
-                            listOfDevicesWaitingForBond.remove(device.address)
-                        }
-                        synchronized(bluetoothDevicesMap) {
-                            bluetoothDevicesMap[device.address] = device
-                        }
-                        handler.post { gattServer?.connect(device, true) }
                     }
                 }
             }

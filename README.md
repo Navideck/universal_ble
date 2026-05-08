@@ -862,6 +862,15 @@ The `withAndroidFineLocation` parameter in `requestPermissions()` controls locat
   - Location permission is always requested if declared in your manifest (required for BLE scanning)
   - The `withAndroidFineLocation` parameter is ignored
 
+#### Android Bluetooth Advertise permission
+
+If your app uses peripheral advertising, add:
+
+```xml
+<uses-permission android:name="android.permission.BLUETOOTH_ADVERTISE" />
+```
+
+
 #### Background Scanning (ForegroundTask)
 
 Universal BLE supports BLE scanning from background services (e.g., using `flutter_foreground_task` or similar packages) on Android. When running in a background context without an Activity:

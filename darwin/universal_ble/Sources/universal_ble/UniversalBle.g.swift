@@ -1932,6 +1932,50 @@ class UniversalBlePeripheralChannelSetup {
     }
   }
 }
+/// Flutter -> Native (Android only)
+///
+/// Generated protocol from Pigeon that represents a handler of messages from Flutter.
+protocol UniversalBleAndroidChannel {
+  func hasBluetoothAdvertisePermission() throws -> Bool
+  func requestBluetoothAdvertisePermission(completion: @escaping (Result<Bool, Error>) -> Void)
+}
+
+/// Generated setup class from Pigeon to handle messages through the `binaryMessenger`.
+class UniversalBleAndroidChannelSetup {
+  static var codec: FlutterStandardMessageCodec { UniversalBlePigeonCodec.shared }
+  /// Sets up an instance of `UniversalBleAndroidChannel` to handle messages through the `binaryMessenger`.
+  static func setUp(binaryMessenger: FlutterBinaryMessenger, api: UniversalBleAndroidChannel?, messageChannelSuffix: String = "") {
+    let channelSuffix = messageChannelSuffix.count > 0 ? ".\(messageChannelSuffix)" : ""
+    let hasBluetoothAdvertisePermissionChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.universal_ble.UniversalBleAndroidChannel.hasBluetoothAdvertisePermission\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    if let api = api {
+      hasBluetoothAdvertisePermissionChannel.setMessageHandler { _, reply in
+        do {
+          let result = try api.hasBluetoothAdvertisePermission()
+          reply(wrapResult(result))
+        } catch {
+          reply(wrapError(error))
+        }
+      }
+    } else {
+      hasBluetoothAdvertisePermissionChannel.setMessageHandler(nil)
+    }
+    let requestBluetoothAdvertisePermissionChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.universal_ble.UniversalBleAndroidChannel.requestBluetoothAdvertisePermission\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    if let api = api {
+      requestBluetoothAdvertisePermissionChannel.setMessageHandler { _, reply in
+        api.requestBluetoothAdvertisePermission { result in
+          switch result {
+          case .success(let res):
+            reply(wrapResult(res))
+          case .failure(let error):
+            reply(wrapError(error))
+          }
+        }
+      }
+    } else {
+      requestBluetoothAdvertisePermissionChannel.setMessageHandler(nil)
+    }
+  }
+}
 /// Native -> Flutter (peripheral)
 ///
 /// Generated protocol from Pigeon that represents Flutter messages that can be called from Swift.

@@ -4,6 +4,7 @@ import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothDevice
 import android.bluetooth.BluetoothGatt
 import android.bluetooth.BluetoothGattCharacteristic
+import android.bluetooth.BluetoothManager
 import android.bluetooth.BluetoothStatusCodes
 import android.bluetooth.le.ScanCallback.SCAN_FAILED_ALREADY_STARTED
 import android.bluetooth.le.ScanCallback.SCAN_FAILED_APPLICATION_REGISTRATION_FAILED
@@ -13,6 +14,12 @@ import android.bluetooth.le.ScanCallback.SCAN_FAILED_OUT_OF_HARDWARE_RESOURCES
 import android.bluetooth.le.ScanCallback.SCAN_FAILED_SCANNING_TOO_FREQUENTLY
 import android.bluetooth.le.ScanResult
 import android.bluetooth.le.ScanSettings
+import android.content.BroadcastReceiver
+import android.content.Context
+import android.content.Context.RECEIVER_EXPORTED
+import android.content.Context.RECEIVER_NOT_EXPORTED
+import android.content.Intent
+import android.content.IntentFilter
 import android.os.Build
 import android.util.Log
 import android.util.SparseArray
@@ -25,6 +32,11 @@ private const val TAG = "UniversalBlePlugin"
 
 private val knownGatts = mutableMapOf<String, BluetoothGatt>()
 val ccdCharacteristic: UUID = UUID.fromString("00002902-0000-1000-8000-00805f9b34fb")
+
+data class BondStateChange(
+    val device: BluetoothDevice,
+    val state: Int,
+)
 
 
 fun Int.toBleConnectionState(): BleConnectionState {
@@ -56,6 +68,42 @@ fun String.isKnownGatt(): Boolean {
 
 fun String.findGatt(): BluetoothGatt? {
     return knownGatts[this]
+}
+
+fun BluetoothManager.isBluetoothEnabled(): Boolean {
+    return adapter?.isEnabled == true
+}
+
+fun Intent.getBluetoothDeviceCompat(): BluetoothDevice? {
+    return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+        getParcelableExtra(BluetoothDevice.EXTRA_DEVICE, BluetoothDevice::class.java)
+    } else {
+        @Suppress("DEPRECATION")
+        getParcelableExtra(BluetoothDevice.EXTRA_DEVICE)
+    }
+}
+
+fun Intent.getBondStateChange(): BondStateChange? {
+    if (action != BluetoothDevice.ACTION_BOND_STATE_CHANGED) return null
+    val device = getBluetoothDeviceCompat() ?: return null
+    val state = getIntExtra(BluetoothDevice.EXTRA_BOND_STATE, BluetoothDevice.ERROR)
+    return BondStateChange(device, state)
+}
+
+fun BluetoothDevice.isBonded(): Boolean = bondState == BluetoothDevice.BOND_BONDED
+
+fun Context.registerReceiverCompat(
+    receiver: BroadcastReceiver,
+    filter: IntentFilter,
+    exported: Boolean,
+) {
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+        val receiverFlag = if (exported) RECEIVER_EXPORTED else RECEIVER_NOT_EXPORTED
+        registerReceiver(receiver, filter, receiverFlag)
+    } else {
+        @Suppress("DEPRECATION")
+        registerReceiver(receiver, filter)
+    }
 }
 
 fun BluetoothGatt.saveCacheIfNeeded() {
