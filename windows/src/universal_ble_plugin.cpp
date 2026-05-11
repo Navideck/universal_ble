@@ -1676,19 +1676,27 @@ std::optional<FlutterError>
 UniversalBlePlugin::RemoveService(const std::string &service_id) {
   std::lock_guard<std::mutex> lock(peripheral_mutex_);
   const std::string service_id_lc = to_lower_case(service_id);
-  const auto it = peripheral_service_provider_map_[service_id_lc];
-  DisposePeripheralServiceProvider(it);
-  peripheral_service_provider_map_.erase(service_id_lc);
+  peripheral_advertising_targets_lc_.erase(
+      std::remove(peripheral_advertising_targets_lc_.begin(),
+                  peripheral_advertising_targets_lc_.end(), service_id_lc),
+      peripheral_advertising_targets_lc_.end());
+
+  const auto it = peripheral_service_provider_map_.find(service_id_lc);
+  if (it == peripheral_service_provider_map_.end()) {
+    return FlutterError("not-found", "Service not found", nullptr);
+  }
+
+  DisposePeripheralServiceProvider(it->second);
+  peripheral_service_provider_map_.erase(it);
   return std::nullopt;
 }
 
 std::optional<FlutterError> UniversalBlePlugin::ClearServices() {
   std::lock_guard<std::mutex> lock(peripheral_mutex_);
-  for (auto const& [key, gattServiceObject] : peripheral_service_provider_map_)
-  {
-      DisposePeripheralServiceProvider(gattServiceObject);
+  for (auto const &[_, gatt_service_object] : peripheral_service_provider_map_) {
+    DisposePeripheralServiceProvider(gatt_service_object);
   }
-  // Clear map
+  peripheral_service_provider_map_.clear();
   peripheral_advertising_targets_lc_.clear();
   return std::nullopt;
 }
