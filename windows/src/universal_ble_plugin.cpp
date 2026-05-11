@@ -1765,7 +1765,7 @@ std::optional<FlutterError> UniversalBlePlugin::StartAdvertising(
     const PeripheralPlatformConfig *platform_config) {
   std::lock_guard<std::mutex> lock(peripheral_mutex_);
   if (peripheral_service_provider_map_.empty()) {
-    return FlutterError("failed", "No services added to advertise", nullptr);
+    return FlutterError("failed", "No services added to advertise");
   }
   if (local_name != nullptr) {
     UniversalBleLogger::LogDebug("Windows GattServiceProvider advertising does "
@@ -1787,8 +1787,10 @@ std::optional<FlutterError> UniversalBlePlugin::StartAdvertising(
       const auto service_id_lc = to_lower_case(service_id);
       selected_services_lc.push_back(service_id_lc);
       if (peripheral_service_provider_map_.count(service_id_lc) == 0) {
-        return FlutterError("not-found", "Service not found for advertising",
-                            service_id);
+        return FlutterError("not-found", "Service not found for advertising: " + service_id);
+      }
+      if (peripheral_service_provider_map_[service_id_lc] == nullptr) {
+        return FlutterError("failed", "Service provider is null: " + service_id);
       }
     }
 
@@ -1805,6 +1807,9 @@ std::optional<FlutterError> UniversalBlePlugin::StartAdvertising(
       if (!should_start) {
         continue;
       }
+      if (provider == nullptr) {
+        return FlutterError("failed", "Service provider is null: " + key);
+      }
       if (provider->obj.AdvertisementStatus() !=
           GattServiceProviderAdvertisementStatus::Started) {
         provider->obj.StartAdvertising(params);
@@ -1812,8 +1817,13 @@ std::optional<FlutterError> UniversalBlePlugin::StartAdvertising(
     }
     peripheral_advertising_targets_lc_ = std::move(selected_services_lc);
     return std::nullopt;
+  } catch (const hresult_error &err) {
+    return FlutterError(
+        "failed",
+        "Failed to start advertising (hr=" + std::to_string(err.code()) +
+            "): " + to_string(err.message()));
   } catch (...) {
-    return FlutterError("failed", "Failed to start advertising", nullptr);
+    return FlutterError("failed", "Failed to start advertising");
   }
 }
 
