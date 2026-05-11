@@ -94,35 +94,35 @@ namespace universal_ble
 		auto properties = flutter::EncodableList();
 		if ((properties_value & GattCharacteristicProperties::Broadcast) != GattCharacteristicProperties::None)
 		{
-			properties.push_back(static_cast<int>(CharacteristicProperty::kBroadcast));
+			properties.push_back(flutter::CustomEncodableValue(CharacteristicProperty::kBroadcast));
 		}
 		if ((properties_value & GattCharacteristicProperties::Read) != GattCharacteristicProperties::None)
 		{
-			properties.push_back(static_cast<int>(CharacteristicProperty::kRead));
+			properties.push_back(flutter::CustomEncodableValue(CharacteristicProperty::kRead));
 		}
 		if ((properties_value & GattCharacteristicProperties::Write) != GattCharacteristicProperties::None)
 		{
-			properties.push_back(static_cast<int>(CharacteristicProperty::kWrite));
+			properties.push_back(flutter::CustomEncodableValue(CharacteristicProperty::kWrite));
 		}
 		if ((properties_value & GattCharacteristicProperties::WriteWithoutResponse) != GattCharacteristicProperties::None)
 		{
-			properties.push_back(static_cast<int>(CharacteristicProperty::kWriteWithoutResponse));
+			properties.push_back(flutter::CustomEncodableValue(CharacteristicProperty::kWriteWithoutResponse));
 		}
 		if ((properties_value & GattCharacteristicProperties::Notify) != GattCharacteristicProperties::None)
 		{
-			properties.push_back(static_cast<int>(CharacteristicProperty::kNotify));
+			properties.push_back(flutter::CustomEncodableValue(CharacteristicProperty::kNotify));
 		}
 		if ((properties_value & GattCharacteristicProperties::Indicate) != GattCharacteristicProperties::None)
 		{
-			properties.push_back(static_cast<int>(CharacteristicProperty::kIndicate));
+			properties.push_back(flutter::CustomEncodableValue(CharacteristicProperty::kIndicate));
 		}
 		if ((properties_value & GattCharacteristicProperties::AuthenticatedSignedWrites) != GattCharacteristicProperties::None)
 		{
-			properties.push_back(static_cast<int>(CharacteristicProperty::kAuthenticatedSignedWrites));
+			properties.push_back(flutter::CustomEncodableValue(CharacteristicProperty::kAuthenticatedSignedWrites));
 		}
 		if ((properties_value & GattCharacteristicProperties::ExtendedProperties) != GattCharacteristicProperties::None)
 		{
-			properties.push_back(static_cast<int>(CharacteristicProperty::kExtendedProperties));
+			properties.push_back(flutter::CustomEncodableValue(CharacteristicProperty::kExtendedProperties));
 		}
 		return properties;
 	}
