@@ -36,6 +36,7 @@ const auto is_present_key = L"System.Devices.Aep.IsPresent";
 const auto device_address_key = L"System.Devices.Aep.DeviceAddress";
 const auto signal_strength_key = L"System.Devices.Aep.SignalStrength";
 static std::unique_ptr<UniversalBleCallbackChannel> callback_channel;
+std::unique_ptr<UniversalBlePeripheralCallback> peripheral_callback_channel_;
 
 namespace {
 std::string to_lower_case(std::string value) {
@@ -53,14 +54,14 @@ void UniversalBlePlugin::RegisterWithRegistrar(
   UniversalBlePeripheralChannel::SetUp(registrar->messenger(), plugin.get());
   callback_channel =
       std::make_unique<UniversalBleCallbackChannel>(registrar->messenger());
+  peripheral_callback_channel_ =
+      std::make_unique<UniversalBlePeripheralCallback>(registrar->messenger());
   registrar->AddPlugin(std::move(plugin));
 }
 
 UniversalBlePlugin::UniversalBlePlugin(
     flutter::PluginRegistrarWindows *registrar)
     : registrar_(registrar), ui_thread_handler_(registrar) {
-  peripheral_callback_channel_ =
-      std::make_unique<UniversalBlePeripheralCallback>(registrar->messenger());
   InitializeAsync();
 }
 
@@ -1675,26 +1676,20 @@ std::optional<FlutterError>
 UniversalBlePlugin::RemoveService(const std::string &service_id) {
   std::lock_guard<std::mutex> lock(peripheral_mutex_);
   const std::string service_id_lc = to_lower_case(service_id);
-  peripheral_advertising_targets_lc_.erase(
-      std::remove(peripheral_advertising_targets_lc_.begin(),
-                  peripheral_advertising_targets_lc_.end(), service_id_lc),
-      peripheral_advertising_targets_lc_.end());
-  const auto it = peripheral_service_provider_map_.find(service_id_lc);
-  if (it == peripheral_service_provider_map_.end()) {
-    return FlutterError("not-found", "Service not found", nullptr);
-  }
-  DisposePeripheralServiceProvider(it->second.get());
-  peripheral_service_provider_map_.erase(it);
+  const auto it = peripheral_service_provider_map_[service_id_lc];
+  DisposePeripheralServiceProvider(it);
+  peripheral_service_provider_map_.erase(service_id_lc);
   return std::nullopt;
 }
 
 std::optional<FlutterError> UniversalBlePlugin::ClearServices() {
   std::lock_guard<std::mutex> lock(peripheral_mutex_);
-  peripheral_advertising_targets_lc_.clear();
-  for (auto const &[_, provider] : peripheral_service_provider_map_) {
-    DisposePeripheralServiceProvider(provider.get());
+  for (auto const& [key, gattServiceObject] : peripheral_service_provider_map_)
+  {
+      DisposePeripheralServiceProvider(gattServiceObject);
   }
-  peripheral_service_provider_map_.clear();
+  // Clear map
+  peripheral_advertising_targets_lc_.clear();
   return std::nullopt;
 }
 
@@ -1871,161 +1866,166 @@ UniversalBlePlugin::UpdateCharacteristic(const std::string &characteristic_id,
   return std::nullopt;
 }
 
-fire_and_forget UniversalBlePlugin::PeripheralAddServiceAsync(
-    const PeripheralService &service) {
-  const auto service_uuid = service.uuid();
-  try {
-    auto service_provider_result =
-        co_await GattServiceProvider::CreateAsync(uuid_to_guid(service_uuid));
-    if (service_provider_result.Error() != BluetoothError::Success) {
-      auto err = std::string("Failed to create service provider: ") +
-                 service_uuid + ", error: " +
-                 ParsePeripheralBluetoothError(service_provider_result.Error());
-      ui_thread_handler_.Post([this, service_uuid, err] {
-        peripheral_callback_channel_->OnServiceAdded(
-            service_uuid, &err, SuccessCallback, ErrorCallback);
-      });
+fire_and_forget UniversalBlePlugin::PeripheralAddServiceAsync(const PeripheralService &service)
+{
+  auto serviceUuid = service.uuid();
+  try
+  {
+    // Build Service
+    auto characteristics = service.characteristics();
+    auto gattCharacteristicObjList = std::map<std::string, PeripheralGattCharacteristicObject *>();
+
+    auto serviceProviderResult = co_await GattServiceProvider::CreateAsync(uuid_to_guid(serviceUuid));
+    if (serviceProviderResult.Error() != BluetoothError::Success)
+    {
+      std::string bleError = ParsePeripheralBluetoothError(serviceProviderResult.Error());
+      std::string err = "Failed to create service provider: " + serviceUuid + ", errorCode: " + bleError;
+      std::cout << err << std::endl;
+      peripheral_callback_channel_->OnServiceAdded(serviceUuid, &err, SuccessCallback, ErrorCallback);
       co_return;
     }
 
-    GattServiceProvider service_provider =
-        service_provider_result.ServiceProvider();
-    auto service_provider_object =
-        std::make_unique<PeripheralGattServiceProviderObject>();
-    service_provider_object->obj = service_provider;
+    GattServiceProvider serviceProvider = serviceProviderResult.ServiceProvider();
 
-    const auto characteristics = service.characteristics();
-    for (auto characteristic_encoded : characteristics) {
-      PeripheralCharacteristic characteristic =
-          std::any_cast<PeripheralCharacteristic>(
-              std::get<flutter::CustomEncodableValue>(characteristic_encoded));
-      auto params = GattLocalCharacteristicParameters();
-      const auto characteristic_uuid = characteristic.uuid();
-      for (auto property_encoded : characteristic.properties()) {
-        int property = static_cast<int>(std::get<int64_t>(property_encoded));
-        params.CharacteristicProperties(
-            params.CharacteristicProperties() |
-            ToPeripheralGattCharacteristicProperties(property));
-      }
-      for (auto permission_encoded : characteristic.permissions()) {
-        int permission =
-            static_cast<int>(std::get<int64_t>(permission_encoded));
-        switch (ToPeripheralBlePermission(permission)) {
-        case PeripheralBlePermission::readable:
-          params.ReadProtectionLevel(GattProtectionLevel::Plain);
-          break;
-        case PeripheralBlePermission::writeable:
-          params.WriteProtectionLevel(GattProtectionLevel::Plain);
-          break;
-        case PeripheralBlePermission::readEncryptionRequired:
-          params.ReadProtectionLevel(GattProtectionLevel::EncryptionRequired);
-          break;
-        case PeripheralBlePermission::writeEncryptionRequired:
-          params.WriteProtectionLevel(GattProtectionLevel::EncryptionRequired);
-          break;
-        default:
-          break;
-        }
-      }
-      if (characteristic.value() != nullptr) {
-        params.StaticValue(from_bytevc(*characteristic.value()));
-      }
-
-      auto characteristic_result =
-          co_await service_provider.Service().CreateCharacteristicAsync(
-              uuid_to_guid(characteristic_uuid), params);
-      if (characteristic_result.Error() != BluetoothError::Success) {
-        continue;
-      }
-
-      auto gatt_local_characteristic = characteristic_result.Characteristic();
-      auto characteristic_object =
-          std::make_unique<PeripheralGattCharacteristicObject>();
-      characteristic_object->obj = gatt_local_characteristic;
-      characteristic_object->stored_clients =
-          gatt_local_characteristic.SubscribedClients();
-      characteristic_object->read_requested_token =
-          gatt_local_characteristic.ReadRequested(
-              {this, &UniversalBlePlugin::PeripheralReadRequestedAsync});
-      characteristic_object->write_requested_token =
-          gatt_local_characteristic.WriteRequested(
-              {this, &UniversalBlePlugin::PeripheralWriteRequestedAsync});
-      characteristic_object->subscribed_clients_changed_token =
-          gatt_local_characteristic.SubscribedClientsChanged(
-              {this, &UniversalBlePlugin::PeripheralSubscribedClientsChanged});
-
-      service_provider_object->characteristics.insert_or_assign(
-          guid_to_uuid(gatt_local_characteristic.Uuid()),
-          std::move(characteristic_object));
-
-      const auto descriptors_ptr = characteristic.descriptors();
-      if (descriptors_ptr != nullptr) {
-        for (auto descriptor_encoded : *descriptors_ptr) {
-          PeripheralDescriptor descriptor = std::any_cast<PeripheralDescriptor>(
-              std::get<flutter::CustomEncodableValue>(descriptor_encoded));
-          auto descriptor_params = GattLocalDescriptorParameters();
-          const auto permissions = descriptor.permissions();
-          if (permissions != nullptr) {
-            for (auto permission_encoded : *permissions) {
-              int permission =
-                  static_cast<int>(std::get<int64_t>(permission_encoded));
-              switch (ToPeripheralBlePermission(permission)) {
-              case PeripheralBlePermission::readable:
-                descriptor_params.ReadProtectionLevel(
-                    GattProtectionLevel::Plain);
-                break;
-              case PeripheralBlePermission::writeable:
-                descriptor_params.WriteProtectionLevel(
-                    GattProtectionLevel::Plain);
-                break;
-              case PeripheralBlePermission::readEncryptionRequired:
-                descriptor_params.ReadProtectionLevel(
-                    GattProtectionLevel::EncryptionRequired);
-                break;
-              case PeripheralBlePermission::writeEncryptionRequired:
-                descriptor_params.WriteProtectionLevel(
-                    GattProtectionLevel::EncryptionRequired);
-                break;
-              default:
-                break;
-              }
-            }
-          }
-          if (descriptor.value() != nullptr) {
-            descriptor_params.StaticValue(from_bytevc(*descriptor.value()));
-          }
-          co_await gatt_local_characteristic.CreateDescriptorAsync(
-              uuid_to_guid(descriptor.uuid()), descriptor_params);
-        }
-      }
-    }
-
-    service_provider_object->advertisement_status_changed_token =
-        service_provider.AdvertisementStatusChanged(
-            {this, &UniversalBlePlugin::PeripheralAdvertisementStatusChanged});
+    // Build Characteristic
+    for (auto characteristicEncoded : characteristics)
     {
-      std::lock_guard<std::mutex> lock(peripheral_mutex_);
-      peripheral_service_provider_map_.insert_or_assign(
-          guid_to_uuid(service_provider.Service().Uuid()),
-          std::move(service_provider_object));
+      PeripheralCharacteristic characteristic = std::any_cast<PeripheralCharacteristic>(std::get<flutter::CustomEncodableValue>(characteristicEncoded));
+      flutter::EncodableList descriptors = characteristic.descriptors() == nullptr ? flutter::EncodableList() : *characteristic.descriptors();
+
+      auto charParameters = GattLocalCharacteristicParameters();
+      auto characteristicUuid = characteristic.uuid();
+
+      // Add characteristic properties
+      auto charProperties = characteristic.properties();
+      for (flutter::EncodableValue propertyEncoded : charProperties)
+      {
+        auto property = std::any_cast<CharacteristicProperty>(std::get<flutter::CustomEncodableValue>(propertyEncoded));
+        charParameters.CharacteristicProperties(charParameters.CharacteristicProperties() | ToPeripheralGattCharacteristicProperties(property));
+      }
+
+      // Add characteristic permissions
+      auto charPermissions = characteristic.permissions();
+      for (flutter::EncodableValue permissionEncoded : charPermissions)
+      {
+        auto blePermission = std::any_cast<PeripheralAttributePermission>(std::get<flutter::CustomEncodableValue>(permissionEncoded));
+        switch (blePermission)
+        {
+        case PeripheralAttributePermission::kReadable:
+          charParameters.ReadProtectionLevel(GattProtectionLevel::Plain);
+          break;
+        case PeripheralAttributePermission::kWriteable:
+          charParameters.WriteProtectionLevel(GattProtectionLevel::Plain);
+          break;
+        case PeripheralAttributePermission::kReadEncryptionRequired:
+          charParameters.ReadProtectionLevel(GattProtectionLevel::EncryptionRequired);
+          break;
+        case PeripheralAttributePermission::kWriteEncryptionRequired:
+          charParameters.WriteProtectionLevel(GattProtectionLevel::EncryptionRequired);
+          break;
+        }
+      }
+
+      const std::vector<uint8_t> *characteristicValue = characteristic.value();
+      if (characteristicValue != nullptr)
+      {
+        auto characteristicBytes = from_bytevc(*characteristicValue);
+        charParameters.StaticValue(characteristicBytes);
+      }
+
+      auto characteristicResult = co_await serviceProvider.Service().CreateCharacteristicAsync(uuid_to_guid(characteristicUuid), charParameters);
+      if (characteristicResult.Error() != BluetoothError::Success)
+      {
+        std::wcerr << "Failed to create Char Provider: " << std::endl;
+        co_return;
+      }
+      auto gattCharacteristic = characteristicResult.Characteristic();
+
+      auto gattCharacteristicObject = new PeripheralGattCharacteristicObject();
+      gattCharacteristicObject->obj = gattCharacteristic;
+      gattCharacteristicObject->stored_clients = gattCharacteristic.SubscribedClients();
+
+      gattCharacteristicObject->read_requested_token = gattCharacteristic.ReadRequested({this, &UniversalBlePlugin::PeripheralReadRequestedAsync});
+      gattCharacteristicObject->write_requested_token = gattCharacteristic.WriteRequested({this, &UniversalBlePlugin::PeripheralWriteRequestedAsync});
+      gattCharacteristicObject->value_changed_token = gattCharacteristic.SubscribedClientsChanged({this, &UniversalBlePlugin::PeripheralSubscribedClientsChanged});
+
+      // Build Descriptors
+      for (flutter::EncodableValue descriptorEncoded : descriptors)
+      {
+        PeripheralDescriptor descriptor = std::any_cast<PeripheralDescriptor>(std::get<flutter::CustomEncodableValue>(descriptorEncoded));
+        auto descriptorUuid = descriptor.uuid();
+        auto descriptorParameters = GattLocalDescriptorParameters();
+
+        // Add descriptor permissions
+        flutter::EncodableList descriptorPermissions = descriptor.permissions() == nullptr ? flutter::EncodableList() : *descriptor.permissions();
+        for (flutter::EncodableValue permissionsEncoded : descriptorPermissions)
+        {
+          auto blePermission = std::any_cast<PeripheralAttributePermission>(std::get<flutter::CustomEncodableValue>(permissionsEncoded));
+          switch (blePermission)
+          {
+          case PeripheralAttributePermission::kReadable:
+            descriptorParameters.ReadProtectionLevel(GattProtectionLevel::Plain);
+            break;
+          case PeripheralAttributePermission::kWriteable:
+            descriptorParameters.WriteProtectionLevel(GattProtectionLevel::Plain);
+            break;
+          case PeripheralAttributePermission::kReadEncryptionRequired:
+            descriptorParameters.ReadProtectionLevel(GattProtectionLevel::EncryptionRequired);
+            break;
+          case PeripheralAttributePermission::kWriteEncryptionRequired:
+            descriptorParameters.WriteProtectionLevel(GattProtectionLevel::EncryptionRequired);
+            break;
+          }
+        }
+        const std::vector<uint8_t> *descriptorValue = descriptor.value();
+        if (descriptorValue != nullptr)
+        {
+          auto descriptorBytes = from_bytevc(*descriptorValue);
+          descriptorParameters.StaticValue(descriptorBytes);
+        }
+        auto descriptorResult = co_await gattCharacteristic.CreateDescriptorAsync(uuid_to_guid(descriptorUuid), descriptorParameters);
+        if (descriptorResult.Error() != BluetoothError::Success)
+        {
+          std::wcerr << "Failed to create Descriptor Provider: " << std::endl;
+          co_return;
+        }
+        GattLocalDescriptor gattDescriptor = descriptorResult.Descriptor();
+      }
+
+      gattCharacteristicObjList.insert_or_assign(guid_to_uuid(gattCharacteristic.Uuid()), gattCharacteristicObject);
     }
 
-    ui_thread_handler_.Post([this, service_uuid] {
-      peripheral_callback_channel_->OnServiceAdded(
-          service_uuid, nullptr, SuccessCallback, ErrorCallback);
-    });
-  } catch (const winrt::hresult_error &e) {
-    auto err = winrt::to_string(e.message());
-    ui_thread_handler_.Post([this, service_uuid, err] {
-      peripheral_callback_channel_->OnServiceAdded(
-          service_uuid, &err, SuccessCallback, ErrorCallback);
-    });
-  } catch (...) {
-    auto err = std::string("Unknown error");
-    ui_thread_handler_.Post([this, service_uuid, err] {
-      peripheral_callback_channel_->OnServiceAdded(
-          service_uuid, &err, SuccessCallback, ErrorCallback);
-    });
+    PeripheralGattServiceProviderObject *gattServiceProviderObject = new PeripheralGattServiceProviderObject();
+    gattServiceProviderObject->obj = serviceProvider;
+    gattServiceProviderObject->characteristics = gattCharacteristicObjList;
+    gattServiceProviderObject->advertisement_status_changed_token = serviceProvider.AdvertisementStatusChanged({this, &UniversalBlePlugin::PeripheralAdvertisementStatusChanged});
+    peripheral_service_provider_map_.insert_or_assign(guid_to_uuid(serviceProvider.Service().Uuid()), gattServiceProviderObject);
+
+    ui_thread_handler_.Post([serviceUuid]
+                          { peripheral_callback_channel_->OnServiceAdded(serviceUuid, nullptr, SuccessCallback, ErrorCallback); });
+  }
+  catch (const winrt::hresult_error &e)
+  {
+    std::wcerr << "Failed with error: Code: " << e.code() << "Message: " << e.message().c_str() << std::endl;
+    std::string errorMessage = winrt::to_string(e.message());
+
+    ui_thread_handler_.Post([serviceUuid, errorMessage]
+                          { peripheral_callback_channel_->OnServiceAdded(serviceUuid, &errorMessage, SuccessCallback, ErrorCallback); });
+  }
+  catch (const std::exception &e)
+  {
+    std::cout << "Error: " << e.what() << std::endl;
+    std::wstring errorMessage = winrt::to_hstring(e.what()).c_str();
+    std::string *err = new std::string(winrt::to_string(errorMessage));
+    ui_thread_handler_.Post([serviceUuid, err]
+                          { peripheral_callback_channel_->OnServiceAdded(serviceUuid, err, SuccessCallback, ErrorCallback); });
+  }
+  catch (...)
+  {
+    std::cout << "Error: Unknown error" << std::endl;
+    std::string *err = new std::string(winrt::to_string(L"Unknown error"));
+    ui_thread_handler_.Post([serviceUuid, err]
+                          { peripheral_callback_channel_->OnServiceAdded(serviceUuid, err, SuccessCallback, ErrorCallback); });
   }
 }
 
@@ -2102,31 +2102,32 @@ fire_and_forget UniversalBlePlugin::PeripheralSubscribedClientsChanged(
   }
 }
 
-fire_and_forget UniversalBlePlugin::PeripheralReadRequestedAsync(
-    GattLocalCharacteristic const &local_char,
-    GattReadRequestedEventArgs args) {
+fire_and_forget UniversalBlePlugin::PeripheralReadRequestedAsync(GattLocalCharacteristic const &local_char, GattReadRequestedEventArgs args) {
   auto deferral = args.GetDeferral();
   try {
+    std::string characteristicId = to_uuidstr(local_char.Uuid());
+    auto value_holder = std::make_shared<std::vector<uint8_t>>();
+    std::vector<uint8_t> *value_arg = nullptr;
+    IBuffer charValue = local_char.StaticValue();
+    if (charValue != nullptr) {
+      *value_holder = to_bytevc(charValue);
+      value_arg = value_holder.get();
+    }
     auto request = co_await args.GetRequestAsync();
     if (request == nullptr) {
+      // No access allowed to the device.  Application should indicate this to the user.
+      std::cout << "No access allowed to the device" << std::endl;
       deferral.Complete();
       co_return;
     }
-
-    const auto characteristic_id = guid_to_uuid(local_char.Uuid());
     const auto device_id =
         ParsePeripheralBluetoothClientId(args.Session().DeviceId().Id());
     const int64_t offset = request.Offset();
-    auto value_holder = std::make_shared<std::vector<uint8_t>>();
-    std::vector<uint8_t> *value_ptr = nullptr;
-    if (local_char.StaticValue() != nullptr) {
-      *value_holder = to_bytevc(local_char.StaticValue());
-      value_ptr = value_holder.get();
-    }
-    ui_thread_handler_.Post([this, device_id, characteristic_id, offset,
-                             value_ptr, value_holder, request, deferral] {
+    ui_thread_handler_.Post([this, device_id, characteristicId, offset, value_arg,
+                             value_holder, deferral, request] {
       peripheral_callback_channel_->OnReadRequest(
-          device_id, characteristic_id, offset, value_ptr,
+          device_id, characteristicId, offset, value_arg,
+          // SuccessCallback
           [request, deferral](const PeripheralReadRequestResult *result) {
             if (result != nullptr) {
               if (result->status() != nullptr) {
@@ -2144,6 +2145,7 @@ fire_and_forget UniversalBlePlugin::PeripheralReadRequestedAsync(
             }
             deferral.Complete();
           },
+          // ErrorCallback
           [request, deferral](const FlutterError &error) {
             request.RespondWithProtocolError(0x0E);
             deferral.Complete();
@@ -2155,40 +2157,105 @@ fire_and_forget UniversalBlePlugin::PeripheralReadRequestedAsync(
 }
 
 fire_and_forget UniversalBlePlugin::PeripheralWriteRequestedAsync(
-    GattLocalCharacteristic const &local_char,
-    GattWriteRequestedEventArgs args) {
+    GattLocalCharacteristic const &localChar, GattWriteRequestedEventArgs args) {
   auto deferral = args.GetDeferral();
   try {
-    auto request = co_await args.GetRequestAsync();
+    std::string characteristicId = to_uuidstr(localChar.Uuid());
+
+    GattWriteRequest request = co_await args.GetRequestAsync();
     if (request == nullptr) {
       deferral.Complete();
       co_return;
     }
-    const auto characteristic_id = guid_to_uuid(local_char.Uuid());
-    const auto device_id =
-        ParsePeripheralBluetoothClientId(args.Session().DeviceId().Id());
-    const int64_t offset = request.Offset();
-    auto value_holder =
-        std::make_shared<std::vector<uint8_t>>(to_bytevc(request.Value()));
-    ui_thread_handler_.Post([this, device_id, characteristic_id, offset,
-                             value_holder, request, deferral] {
+
+    std::string deviceId = ParsePeripheralBluetoothClientId(args.Session().DeviceId().Id());
+    
+    int64_t offset = 0;
+    try {
+      offset = request.Offset();
+    } catch (const hresult_error &err) {
+      UniversalBleLogger::LogError(
+          "PERIPHERAL_WRITE_REQ failed offset hr=" +
+          std::to_string(err.code()) + " msg=" + to_string(err.message()));
+    } catch (...) {
+      UniversalBleLogger::LogError("PERIPHERAL_WRITE_REQ failed offset unknown");
+    }
+
+    bool with_response = false;
+    try {
+      with_response = request.Option() == GattWriteOption::WriteWithResponse;
+    } catch (const hresult_error &err) {
+      UniversalBleLogger::LogError(
+          "PERIPHERAL_WRITE_REQ failed option hr=" +
+          std::to_string(err.code()) + " msg=" + to_string(err.message()));
+    } catch (...) {
+      UniversalBleLogger::LogError("PERIPHERAL_WRITE_REQ failed option unknown");
+    }
+
+    auto value_holder = std::make_shared<std::vector<uint8_t>>();
+    try {
+      if (request.Value() != nullptr) {
+        *value_holder = to_bytevc(request.Value());
+      }
+    } catch (const hresult_error &err) {
+      UniversalBleLogger::LogError(
+          "PERIPHERAL_WRITE_REQ failed value extraction hr=" +
+          std::to_string(err.code()) + " msg=" + to_string(err.message()));
+    } catch (...) {
+      UniversalBleLogger::LogError(
+          "PERIPHERAL_WRITE_REQ failed value extraction unknown");
+    }
+
+    ui_thread_handler_.Post([this, characteristicId, offset, value_holder, request,
+                             deferral, deviceId, with_response] {
       peripheral_callback_channel_->OnWriteRequest(
-          device_id, characteristic_id, offset, value_holder.get(),
-          [request, deferral](const PeripheralWriteRequestResult *result) {
-            if (result != nullptr && result->status() != nullptr) {
-              request.RespondWithProtocolError(
-                  ToGattProtocolError(*result->status()));
-            } else {
-              request.Respond();
+          deviceId, characteristicId, offset, value_holder.get(),
+          [deferral, request, deviceId, characteristicId,
+           with_response](const PeripheralWriteRequestResult *writeResult) {
+            try {
+              if (with_response) {
+                if (writeResult != nullptr && writeResult->status() != nullptr) {
+                  request.RespondWithProtocolError(ToGattProtocolError(*writeResult->status()));
+                } else {
+                  request.Respond();
+                }
+              }
+            } catch (const hresult_error &err) {
+              UniversalBleLogger::LogError(
+                  "PERIPHERAL_WRITE_REQ response hresult_error hr=" +
+                  std::to_string(err.code()) + " msg=" +
+                  to_string(err.message()));
+            } catch (...) {
+              UniversalBleLogger::LogError(
+                  "PERIPHERAL_WRITE_REQ response unknown exception");
             }
             deferral.Complete();
           },
-          [request, deferral](const FlutterError &error) {
-            request.RespondWithProtocolError(0x0E);
+          [deferral, request, with_response](const FlutterError &error) {
+            try {
+              if (with_response) {
+                request.RespondWithProtocolError(0x0E);
+              }
+            } catch (const hresult_error &err) {
+              UniversalBleLogger::LogError(
+                  "PERIPHERAL_WRITE_REQ error-response hresult_error hr=" +
+                  std::to_string(err.code()) + " msg=" +
+                  to_string(err.message()));
+            } catch (...) {
+              UniversalBleLogger::LogError(
+                  "PERIPHERAL_WRITE_REQ error-response unknown exception");
+            }
             deferral.Complete();
           });
     });
+  } catch (const hresult_error &err) {
+    UniversalBleLogger::LogError(
+        "PERIPHERAL_WRITE_REQ outer hresult_error hr=" +
+        std::to_string(err.code()) + " msg=" + to_string(err.message()));
+    deferral.Complete();
   } catch (...) {
+    UniversalBleLogger::LogError(
+        "PERIPHERAL_WRITE_REQ outer unknown exception");
     deferral.Complete();
   }
 }
@@ -2235,38 +2302,48 @@ void UniversalBlePlugin::DisposePeripheralServiceProvider(
   for (auto const &[_, characteristic_object] :
        service_provider_object->characteristics) {
     try {
-      characteristic_object->obj.ReadRequested(
-          characteristic_object->read_requested_token);
-      characteristic_object->obj.WriteRequested(
-          characteristic_object->write_requested_token);
-      characteristic_object->obj.SubscribedClientsChanged(
-          characteristic_object->subscribed_clients_changed_token);
+      characteristic_object->obj.ReadRequested(characteristic_object->read_requested_token);
+      characteristic_object->obj.WriteRequested(characteristic_object->write_requested_token);
+      characteristic_object->obj.SubscribedClientsChanged(characteristic_object->value_changed_token);
     } catch (...) {
     }
   }
 }
 
-PeripheralGattCharacteristicObject *
+//PeripheralGattCharacteristicObject *
+//UniversalBlePlugin::FindPeripheralGattCharacteristicObject(
+//    const std::string &characteristic_id, bool *ambiguous_match) {
+//  const auto characteristic_id_lc = to_lower_case(characteristic_id);
+//  PeripheralGattCharacteristicObject *first_match = nullptr;
+//  for (auto const &[_, service_provider] : peripheral_service_provider_map_) {
+//    for (auto const &[char_key, characteristic_object] : service_provider->characteristics) {
+//      if (to_lower_case(char_key) == characteristic_id_lc) {
+//        if (first_match == nullptr) {
+//          first_match = characteristic_object.get();
+//        } else {
+//          if (ambiguous_match != nullptr) {
+//            *ambiguous_match = true;
+//          }
+//          return nullptr;
+//        }
+//      }
+//    }
+//  }
+//  return first_match;
+//}
+
+PeripheralGattCharacteristicObject*
 UniversalBlePlugin::FindPeripheralGattCharacteristicObject(
-    const std::string &characteristic_id, bool *ambiguous_match) {
-  const auto characteristic_id_lc = to_lower_case(characteristic_id);
-  PeripheralGattCharacteristicObject *first_match = nullptr;
-  for (auto const &[_, service_provider] : peripheral_service_provider_map_) {
-    for (auto const &[char_key, characteristic_object] :
-         service_provider->characteristics) {
-      if (to_lower_case(char_key) == characteristic_id_lc) {
-        if (first_match == nullptr) {
-          first_match = characteristic_object.get();
-        } else {
-          if (ambiguous_match != nullptr) {
-            *ambiguous_match = true;
-          }
-          return nullptr;
+    const std::string& characteristic_id, bool* ambiguous_match) {
+    // This might return wrong result if multiple services have same characteristic Id
+    std::string loweCaseCharId = to_lower_case(characteristic_id);
+    for (auto const& [key, gattServiceObject] : peripheral_service_provider_map_) {
+        for (auto const& [charKey, gattChar] : gattServiceObject->characteristics) {
+            if (charKey == loweCaseCharId)
+                return gattChar;
         }
-      }
     }
-  }
-  return first_match;
+    return nullptr;
 }
 
 bool UniversalBlePlugin::ArePeripheralAdvertisingTargetsStarted() const {
@@ -2296,46 +2373,26 @@ bool UniversalBlePlugin::ArePeripheralAdvertisingTargetsStarted() const {
 }
 
 GattCharacteristicProperties
-UniversalBlePlugin::ToPeripheralGattCharacteristicProperties(int property) {
+UniversalBlePlugin::ToPeripheralGattCharacteristicProperties(CharacteristicProperty property) {
   switch (property) {
-  case 0:
+  case CharacteristicProperty::kBroadcast:
     return GattCharacteristicProperties::Broadcast;
-  case 1:
+  case CharacteristicProperty::kRead:
     return GattCharacteristicProperties::Read;
-  case 2:
+  case CharacteristicProperty::kWriteWithoutResponse:
     return GattCharacteristicProperties::WriteWithoutResponse;
-  case 3:
+  case CharacteristicProperty::kWrite:
     return GattCharacteristicProperties::Write;
-  case 4:
+  case CharacteristicProperty::kNotify:
     return GattCharacteristicProperties::Notify;
-  case 5:
+  case CharacteristicProperty::kIndicate:
     return GattCharacteristicProperties::Indicate;
-  case 6:
+  case CharacteristicProperty::kAuthenticatedSignedWrites:
     return GattCharacteristicProperties::AuthenticatedSignedWrites;
-  case 7:
+  case CharacteristicProperty::kExtendedProperties:
     return GattCharacteristicProperties::ExtendedProperties;
-  case 8:
-    return GattCharacteristicProperties::Notify;
-  case 9:
-    return GattCharacteristicProperties::Indicate;
   default:
     return GattCharacteristicProperties::None;
-  }
-}
-
-PeripheralBlePermission
-UniversalBlePlugin::ToPeripheralBlePermission(int permission) {
-  switch (permission) {
-  case 0:
-    return PeripheralBlePermission::readable;
-  case 1:
-    return PeripheralBlePermission::writeable;
-  case 2:
-    return PeripheralBlePermission::readEncryptionRequired;
-  case 3:
-    return PeripheralBlePermission::writeEncryptionRequired;
-  default:
-    return PeripheralBlePermission::none;
   }
 }
 

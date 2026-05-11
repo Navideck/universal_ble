@@ -27,7 +27,7 @@ class _PeripheralHomeState extends State<PeripheralHome> {
 
   static const String _serviceBattery = '0000180F-0000-1000-8000-00805F9B34FB';
   static const String _charBattery = '00002A19-0000-1000-8000-00805F9B34FB';
-  static const String _serviceTest = '00004432-0000-1000-8000-00805F9B34FB';
+  static const String _serviceTest = '0000180D-0000-1000-8000-00805F9B34FB';
   static const String _charTest = '00002A18-0000-1000-8000-00805F9B34FB';
 
   @override
@@ -125,44 +125,56 @@ class _PeripheralHomeState extends State<PeripheralHome> {
   }
 
   Future<void> _addServices() async {
-    await UniversalBlePeripheral.addService(
-      BlePeripheralService(
-          uuid: _serviceBattery,
+    List services = await UniversalBlePeripheral.getServices();
+    _log('Current Services: $services');
+
+    if (!services.contains(_serviceBattery)) {
+      await UniversalBlePeripheral.addService(
+        BlePeripheralService(
+            uuid: _serviceBattery,
+            primary: true,
+            characteristics: [
+              BlePeripheralCharacteristic(
+                uuid: _charBattery,
+                properties: [
+                  CharacteristicProperty.read,
+                  CharacteristicProperty.notify
+                ],
+                permissions: [
+                  PeripheralAttributePermission.readable,
+                  PeripheralAttributePermission.writeable,
+                ],
+              ),
+            ]),
+      );
+    } else {
+      _log('Service $_serviceBattery already exists');
+    }
+
+    if (!services.contains(_serviceTest)) {
+      await UniversalBlePeripheral.addService(
+        BlePeripheralService(
+          uuid: _serviceTest,
           primary: true,
           characteristics: [
             BlePeripheralCharacteristic(
-              uuid: _charBattery,
+              uuid: _charTest,
               properties: [
                 CharacteristicProperty.read,
-                CharacteristicProperty.notify
+                CharacteristicProperty.notify,
+                CharacteristicProperty.write
               ],
               permissions: [
                 PeripheralAttributePermission.readable,
                 PeripheralAttributePermission.writeable,
               ],
             ),
-          ]),
-    );
-    await UniversalBlePeripheral.addService(
-      BlePeripheralService(
-        uuid: _serviceTest,
-        primary: true,
-        characteristics: [
-          BlePeripheralCharacteristic(
-            uuid: _charTest,
-            properties: [
-              CharacteristicProperty.read,
-              CharacteristicProperty.notify,
-              CharacteristicProperty.write
-            ],
-            permissions: [
-              PeripheralAttributePermission.readable,
-              PeripheralAttributePermission.writeable,
-            ],
-          ),
-        ],
-      ),
-    );
+          ],
+        ),
+      );
+    } else {
+      _log("Service $_serviceTest already exists");
+    }
     _log('Services queued');
   }
 
@@ -209,6 +221,13 @@ class _PeripheralHomeState extends State<PeripheralHome> {
                 child: const Text('Add Services'),
               ),
               ElevatedButton(
+                onPressed: () async {
+                  await UniversalBlePeripheral.clearServices();
+                  _log('Services cleared');
+                },
+                child: const Text('Clear Services'),
+              ),
+              ElevatedButton(
                 onPressed: _startAdvertising,
                 child: const Text('Start Advertising'),
               ),
@@ -231,6 +250,21 @@ class _PeripheralHomeState extends State<PeripheralHome> {
                   _log('Characteristic updated');
                 },
                 child: const Text('Update Characteristic'),
+              ),
+              ElevatedButton(
+                onPressed: () async {
+                  final services = await UniversalBlePeripheral.getServices();
+                  _log('Services: $services');
+                },
+                child: const Text('Get Services'),
+              ),
+              ElevatedButton(
+                onPressed: () async {
+                  setState(() {
+                    _logs.clear();
+                  });
+                },
+                child: const Text('Clear Logs'),
               ),
             ],
           ),

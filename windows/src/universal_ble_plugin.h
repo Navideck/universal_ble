@@ -37,17 +37,16 @@ struct GattServiceObject {
 
 struct PeripheralGattCharacteristicObject {
   GattLocalCharacteristic obj = nullptr;
-  event_token read_requested_token{};
-  event_token write_requested_token{};
-  event_token subscribed_clients_changed_token{};
-  IVectorView<GattSubscribedClient> stored_clients = nullptr;
+  IVectorView<GattSubscribedClient> stored_clients;
+  winrt::event_token value_changed_token;
+  winrt::event_token read_requested_token;
+  winrt::event_token write_requested_token;
 };
 
 struct PeripheralGattServiceProviderObject {
   GattServiceProvider obj = nullptr;
-  event_token advertisement_status_changed_token{};
-  std::unordered_map<std::string, std::unique_ptr<PeripheralGattCharacteristicObject>>
-      characteristics;
+  winrt::event_token advertisement_status_changed_token;
+  std::map<std::string, PeripheralGattCharacteristicObject*> characteristics;
 };
 
 enum class PeripheralBlePermission {
@@ -194,13 +193,11 @@ private:
   void GattCharacteristicValueChanged(const GattCharacteristic &sender,
                                       const GattValueChangedEventArgs &args);
   // Peripheral runtime state
-  std::unordered_map<std::string, std::unique_ptr<PeripheralGattServiceProviderObject>>
-      peripheral_service_provider_map_{};
+  std::map<std::string, PeripheralGattServiceProviderObject *> peripheral_service_provider_map_{};
   /// Lowercased service UUIDs from the last successful `StartAdvertising` call.
   /// Empty means all registered services were selected.
   std::vector<std::string> peripheral_advertising_targets_lc_{};
   event_revoker<IRadio> peripheral_radio_state_changed_revoker_;
-  std::unique_ptr<UniversalBlePeripheralCallback> peripheral_callback_channel_;
   std::mutex peripheral_mutex_;
 
   // Peripheral helpers
@@ -224,8 +221,7 @@ private:
   bool ArePeripheralAdvertisingTargetsStarted() const;
   static uint8_t ToGattProtocolError(int64_t status_code);
   static GattCharacteristicProperties ToPeripheralGattCharacteristicProperties(
-      int property);
-  static PeripheralBlePermission ToPeripheralBlePermission(int permission);
+      CharacteristicProperty property);
   static std::string PeripheralAdvertisementStatusToString(
       GattServiceProviderAdvertisementStatus status);
   static std::string ParsePeripheralBluetoothClientId(hstring client_id);
