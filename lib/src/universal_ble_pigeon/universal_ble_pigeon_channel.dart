@@ -17,7 +17,7 @@ class UniversalBlePigeonChannel extends UniversalBlePlatform
   final _channel = UniversalBlePlatformChannel();
 
   @override
-  Future<AvailabilityState> getAvailabilityState() =>
+  Future<AvailabilityState> getBluetoothAvailabilityState() =>
       _executeWithErrorHandling(() => _channel.getBluetoothAvailabilityState());
 
   @override

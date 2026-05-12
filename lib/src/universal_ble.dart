@@ -66,9 +66,9 @@ class UniversalBle {
 
   /// Get Bluetooth availability state.
   /// To be notified of updates, set [onAvailabilityChange] listener.
-  static Future<AvailabilityState> getAvailabilityState() async {
+  static Future<AvailabilityState> getBluetoothAvailabilityState() async {
     return await _bleCommandQueue.queueCommand(
-      () => _platform.getAvailabilityState(),
+      () => _platform.getBluetoothAvailabilityState(),
     );
   }
 
@@ -547,7 +547,7 @@ class UniversalBle {
   static set onAvailabilityChange(OnAvailabilityChange? onAvailabilityChange) {
     _platform.onAvailabilityChange = onAvailabilityChange;
     if (onAvailabilityChange != null) {
-      getAvailabilityState()
+      getBluetoothAvailabilityState()
           .then((value) {
             onAvailabilityChange(value);
           })

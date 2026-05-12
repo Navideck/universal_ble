@@ -32,10 +32,10 @@ abstract class UniversalBlePlatform {
   /// Send latest availability state upon subscribing
   late final _availabilityStreamController =
       UniversalBleStreamController<AvailabilityState>(
-        initialEvent: getAvailabilityState,
+        initialEvent: getBluetoothAvailabilityState,
       );
 
-  Future<AvailabilityState> getAvailabilityState();
+  Future<AvailabilityState> getBluetoothAvailabilityState();
 
   Future<bool> enableBluetooth();
 

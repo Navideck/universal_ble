@@ -66,7 +66,7 @@ class MockUniversalBle extends UniversalBlePlatform {
   }
 
   @override
-  Future<AvailabilityState> getAvailabilityState() async {
+  Future<AvailabilityState> getBluetoothAvailabilityState() async {
     return AvailabilityState.poweredOn;
   }
 
