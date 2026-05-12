@@ -33,18 +33,18 @@ class UniversalBlePeripheral {
   static Stream<BlePeripheralMtuChanged> get mtuChangedStream =>
       _platform.mtuChangedStream;
 
-  static void setReadRequestHandlers(OnPeripheralReadRequest handlers) =>
+  static void setReadRequestHandlers(OnPeripheralReadRequest? handlers) =>
       _platform.setReadRequestHandler(handlers);
 
-  static void setWriteRequestHandlers(OnPeripheralWriteRequest handlers) =>
+  static void setWriteRequestHandlers(OnPeripheralWriteRequest? handlers) =>
       _platform.setWriteRequestHandler(handlers);
 
   static void setDescriptorReadRequestHandlers(
-    OnPeripheralDescriptorReadRequest handlers,
+    OnPeripheralDescriptorReadRequest? handlers,
   ) => _platform.setDescriptorReadRequestHandler(handlers);
 
   static void setDescriptorWriteRequestHandlers(
-    OnPeripheralDescriptorWriteRequest handlers,
+    OnPeripheralDescriptorWriteRequest? handlers,
   ) => _platform.setDescriptorWriteRequestHandler(handlers);
 
   static Future<PeripheralReadinessState> getAvailabilityState() =>
@@ -103,7 +103,7 @@ class UniversalBlePeripheral {
       _platform.getMaximumNotifyLength(deviceId);
 
   static UniversalBlePeripheralPlatform _defaultPlatform() {
-    if (kIsWeb || defaultTargetPlatform == TargetPlatform.linux) {
+    if (!BleCapabilities.supportsPeripheralApi) {
       return UniversalBlePeripheralUnsupported();
     }
     return UniversalBlePeripheralPigeon.instance;

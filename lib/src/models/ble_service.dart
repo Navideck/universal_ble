@@ -38,6 +38,30 @@ class BleCharacteristic {
          serviceId: BleUuidParser.string(serviceId),
        );
 
+  factory BleCharacteristic.fromJson(Map<String, dynamic> json) {
+    final propertiesJson = (json['properties'] as List<dynamic>? ?? <dynamic>[])
+        .whereType<String>()
+        .map(_propertyFromName)
+        .whereType<CharacteristicProperty>()
+        .toList();
+    final descriptorsJson =
+        (json['descriptors'] as List<dynamic>? ?? <dynamic>[])
+            .whereType<Map>()
+            .map((e) => BleDescriptor.fromJson(Map<String, dynamic>.from(e)))
+            .toList();
+    return BleCharacteristic(
+      json['uuid'] as String,
+      propertiesJson,
+      descriptorsJson,
+    );
+  }
+
+  Map<String, dynamic> toJson() => <String, dynamic>{
+    'uuid': uuid,
+    'properties': properties.map((e) => e.name).toList(),
+    'descriptors': descriptors.map((e) => e.toJson()).toList(),
+  };
+
   @override
   String toString() {
     return 'BleCharacteristic{uuid: $uuid, properties: $properties}';
@@ -60,6 +84,12 @@ class BleCharacteristic {
 class BleDescriptor {
   String uuid;
   BleDescriptor(String uuid) : uuid = BleUuidParser.string(uuid);
+
+  factory BleDescriptor.fromJson(Map<String, dynamic> json) {
+    return BleDescriptor(json['uuid'] as String);
+  }
+
+  Map<String, dynamic> toJson() => <String, dynamic>{'uuid': uuid};
 
   @override
   String toString() => 'BleDescriptor{uuid: $uuid}';
@@ -90,6 +120,31 @@ class BlePeripheralService extends BleService {
     required List<BlePeripheralCharacteristic> characteristics,
   }) : super(uuid, characteristics);
 
+  factory BlePeripheralService.fromJson(Map<String, dynamic> json) {
+    final characteristics =
+        (json['characteristics'] as List<dynamic>? ?? <dynamic>[])
+            .whereType<Map>()
+            .map(
+              (e) => BlePeripheralCharacteristic.fromJson(
+                Map<String, dynamic>.from(e),
+              ),
+            )
+            .toList();
+    return BlePeripheralService(
+      primary: json['primary'] as bool? ?? true,
+      uuid: json['uuid'] as String,
+      characteristics: characteristics,
+    );
+  }
+
+  Map<String, dynamic> toJson() => <String, dynamic>{
+    'uuid': uuid,
+    'primary': primary,
+    'characteristics': characteristics
+        .map((characteristic) => characteristic.toJson())
+        .toList(),
+  };
+
   PeripheralService toPeripheralService() => PeripheralService(
     uuid: uuid,
     primary: primary,
@@ -119,6 +174,47 @@ class BlePeripheralCharacteristic extends BleCharacteristic {
     this.value,
   }) : super(uuid, properties, descriptors);
 
+  factory BlePeripheralCharacteristic.fromJson(Map<String, dynamic> json) {
+    final propertiesJson = (json['properties'] as List<dynamic>? ?? <dynamic>[])
+        .whereType<String>()
+        .map(_propertyFromName)
+        .whereType<CharacteristicProperty>()
+        .toList();
+    final descriptorsJson =
+        (json['descriptors'] as List<dynamic>? ?? <dynamic>[])
+            .whereType<Map>()
+            .map(
+              (e) => BlePeripheralDescriptor.fromJson(
+                Map<String, dynamic>.from(e),
+              ),
+            )
+            .toList();
+    final permissions = (json['permissions'] as List<dynamic>? ?? <dynamic>[])
+        .whereType<String>()
+        .map(_permissionFromName)
+        .whereType<PeripheralAttributePermission>()
+        .toList();
+    final valueList = json['value'] as List<dynamic>?;
+    return BlePeripheralCharacteristic(
+      uuid: json['uuid'] as String,
+      properties: propertiesJson,
+      descriptors: descriptorsJson,
+      permissions: permissions,
+      value: valueList == null || valueList.isEmpty
+          ? null
+          : Uint8List.fromList(valueList.whereType<int>().toList()),
+    );
+  }
+
+  @override
+  Map<String, dynamic> toJson() => <String, dynamic>{
+    'uuid': uuid,
+    'properties': properties.map((e) => e.name).toList(),
+    'descriptors': descriptors.map((e) => e.toJson()).toList(),
+    'permissions': permissions.map((e) => e.name).toList(),
+    'value': value?.toList(),
+  };
+
   PeripheralCharacteristic toPeripheralCharacteristic() =>
       PeripheralCharacteristic(
         uuid: uuid,
@@ -139,6 +235,45 @@ class BlePeripheralDescriptor extends BleDescriptor {
   BlePeripheralDescriptor({required String uuid, this.value, this.permissions})
     : super(uuid);
 
+  factory BlePeripheralDescriptor.fromJson(Map<String, dynamic> json) {
+    final permissions = (json['permissions'] as List<dynamic>? ?? <dynamic>[])
+        .whereType<String>()
+        .map(_permissionFromName)
+        .whereType<PeripheralAttributePermission>()
+        .toList();
+    final valueList = json['value'] as List<dynamic>?;
+    return BlePeripheralDescriptor(
+      uuid: json['uuid'] as String,
+      value: valueList == null || valueList.isEmpty
+          ? null
+          : Uint8List.fromList(valueList.whereType<int>().toList()),
+      permissions: permissions.isEmpty ? null : permissions,
+    );
+  }
+
+  @override
+  Map<String, dynamic> toJson() => <String, dynamic>{
+    'uuid': uuid,
+    'value': value?.toList(),
+    'permissions': permissions?.map((e) => e.name).toList(),
+  };
+
   PeripheralDescriptor toPeripheralDescriptor() =>
       PeripheralDescriptor(uuid: uuid, value: value, permissions: permissions);
+}
+
+CharacteristicProperty? _propertyFromName(String propertyName) {
+  try {
+    return CharacteristicProperty.values.byName(propertyName);
+  } catch (_) {
+    return null;
+  }
+}
+
+PeripheralAttributePermission? _permissionFromName(String permissionName) {
+  try {
+    return PeripheralAttributePermission.values.byName(permissionName);
+  } catch (_) {
+    return null;
+  }
 }

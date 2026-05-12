@@ -24,16 +24,16 @@ abstract class UniversalBlePeripheralPlatform {
   Stream<BlePeripheralMtuChanged> get mtuChangedStream =>
       _blePeripheralStreamHandler.mtuChangedStreamController.stream;
 
-  void setReadRequestHandler(OnPeripheralReadRequest handler);
+  void setReadRequestHandler(OnPeripheralReadRequest? handler);
 
-  void setWriteRequestHandler(OnPeripheralWriteRequest handler);
+  void setWriteRequestHandler(OnPeripheralWriteRequest? handler);
 
   void setDescriptorReadRequestHandler(
-    OnPeripheralDescriptorReadRequest handler,
+    OnPeripheralDescriptorReadRequest? handler,
   );
 
   void setDescriptorWriteRequestHandler(
-    OnPeripheralDescriptorWriteRequest handler,
+    OnPeripheralDescriptorWriteRequest? handler,
   );
 
   Future<PeripheralReadinessState> getAvailabilityState();
@@ -192,19 +192,19 @@ class UniversalBlePeripheralUnsupported extends UniversalBlePeripheralPlatform {
   }
 
   @override
-  void setReadRequestHandler(OnPeripheralReadRequest handler) {}
+  void setReadRequestHandler(OnPeripheralReadRequest? handler) {}
 
   @override
-  void setWriteRequestHandler(OnPeripheralWriteRequest handler) {}
+  void setWriteRequestHandler(OnPeripheralWriteRequest? handler) {}
 
   @override
   void setDescriptorReadRequestHandler(
-    OnPeripheralDescriptorReadRequest handler,
+    OnPeripheralDescriptorReadRequest? handler,
   ) {}
 
   @override
   void setDescriptorWriteRequestHandler(
-    OnPeripheralDescriptorWriteRequest handler,
+    OnPeripheralDescriptorWriteRequest? handler,
   ) {}
 
   UnsupportedError _notSupported() =>
