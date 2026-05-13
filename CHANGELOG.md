@@ -1,7 +1,6 @@
 ## 2.0.0
 * Add peripheral mode on Android, iOS, macOS, and Windows
 * Add `requestConnectionPriority` to allow tuning BLE connection intervals on Android
-* BREAKING CHANGE: `getBluetoothAvailabilityState` renamed to `getAvailabilityState`
 * Add SPM support on Apple
 
 ## 1.2.0

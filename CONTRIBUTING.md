@@ -51,7 +51,7 @@ Host–native APIs are defined in [pigeon/universal_ble.dart](pigeon/universal_b
 ./build_pigeon.sh
 ```
 
-That runs `dart run pigeon --input pigeon/universal_ble.dart` and formats `lib/src/universal_ble_pigeon/universal_ble.g.dart`. Regenerated Kotlin, Swift, and C++ files land under `android/`, `darwin/`, and `windows/` as configured in the Pigeon `@ConfigurePigeon` block—keep those in sync with the Dart definitions.
+That runs `dart run pigeon --input pigeon/universal_ble.dart` and formats `lib/src/universal_ble.g.dart`. Regenerated Kotlin, Swift, and C++ files land under `android/`, `darwin/`, and `windows/` as configured in the Pigeon `@ConfigurePigeon` block—keep those in sync with the Dart definitions.
 
 ## Code conventions
 

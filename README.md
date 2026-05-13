@@ -39,34 +39,34 @@ A cross-platform (Android/iOS/macOS/Windows/Linux/Web) Bluetooth Low Energy (BLE
 
 ### Client Mode (`UniversalBle`)
 
-|                           | Android | iOS | macOS | Windows | Linux | Web |
-| :------------------------ | :-----: | :-: | :---: | :-----: | :---: | :-: |
-| startScan/stopScan        |   ✔️    | ✔️  |  ✔️   |   ✔️    |  ✔️   | ✔️  |
-| connect/disconnect        |   ✔️    | ✔️  |  ✔️   |   ✔️    |  ✔️   | ✔️  |
-| autoConnect               |   ✔️    | ✔️  |  ✔️   |   ❌    |  ❌   | ❌  |
-| getSystemDevices          |   ✔️    | ✔️  |  ✔️   |   ✔️    |  ✔️   | ❌  |
-| discoverServices          |   ✔️    | ✔️  |  ✔️   |   ✔️    |  ✔️   | ✔️  |
-| read                      |   ✔️    | ✔️  |  ✔️   |   ✔️    |  ✔️   | ✔️  |
-| write                     |   ✔️    | ✔️  |  ✔️   |   ✔️    |  ✔️   | ✔️  |
-| subscriptions             |   ✔️    | ✔️  |  ✔️   |   ✔️    |  ✔️   | ✔️  |
-| pair                      |   ✔️    | ✔️  |  ✔️   |   ✔️    |  ✔️   |  ⏺  |
-| unpair                    |   ✔️    | ❌  |  ❌   |   ✔️    |  ✔️   | ❌  |
-| isPaired                  |   ✔️    | ✔️  |  ✔️   |   ✔️    |  ✔️   | ✔️  |
-| onPairingStateChange      |   ✔️    |  ⏺  |   ⏺   |   ✔️    |  ✔️   |  ⏺  |
-| getBluetoothAvailabilityState      |   ✔️    | ✔️  |  ✔️   |   ✔️    |  ✔️   | ❌  |
-| enable/disable Bluetooth  |   ✔️    | ❌  |  ❌   |   ✔️    |  ✔️   | ❌  |
-| onAvailabilityChange      |   ✔️    | ✔️  |  ✔️   |   ✔️    |  ✔️   | ✔️  |
-| requestMtu                |   ✔️    | ✔️  |  ✔️   |   ✔️    |  ✔️   | ❌  |
-| requestConnectionPriority |   ✔️    | ❌  |  ❌   |   ❌    |  ❌   | ❌  |
-| readRssi                  |   ✔️    | ✔️  |  ✔️   |   ❌    |  🚧   | ❌  |
-| requestPermissions        |   ✔️    | ✔️  |  ✔️   |   ✔️    |  ✔️   | ✔️  |
+|                               | Android | iOS | macOS | Windows | Linux | Web |
+| :---------------------------- | :-----: | :-: | :---: | :-----: | :---: | :-: |
+| startScan/stopScan            |   ✔️    | ✔️  |  ✔️   |   ✔️    |  ✔️   | ✔️  |
+| connect/disconnect            |   ✔️    | ✔️  |  ✔️   |   ✔️    |  ✔️   | ✔️  |
+| autoConnect                   |   ✔️    | ✔️  |  ✔️   |   ❌    |  ❌   | ❌  |
+| getSystemDevices              |   ✔️    | ✔️  |  ✔️   |   ✔️    |  ✔️   | ❌  |
+| discoverServices              |   ✔️    | ✔️  |  ✔️   |   ✔️    |  ✔️   | ✔️  |
+| read                          |   ✔️    | ✔️  |  ✔️   |   ✔️    |  ✔️   | ✔️  |
+| write                         |   ✔️    | ✔️  |  ✔️   |   ✔️    |  ✔️   | ✔️  |
+| subscriptions                 |   ✔️    | ✔️  |  ✔️   |   ✔️    |  ✔️   | ✔️  |
+| pair                          |   ✔️    | ✔️  |  ✔️   |   ✔️    |  ✔️   |  ⏺  |
+| unpair                        |   ✔️    | ❌  |  ❌   |   ✔️    |  ✔️   | ❌  |
+| isPaired                      |   ✔️    | ✔️  |  ✔️   |   ✔️    |  ✔️   | ✔️  |
+| onPairingStateChange          |   ✔️    |  ⏺  |   ⏺   |   ✔️    |  ✔️   |  ⏺  |
+| getBluetoothAvailabilityState |   ✔️    | ✔️  |  ✔️   |   ✔️    |  ✔️   | ❌  |
+| enable/disable Bluetooth      |   ✔️    | ❌  |  ❌   |   ✔️    |  ✔️   | ❌  |
+| onAvailabilityChange          |   ✔️    | ✔️  |  ✔️   |   ✔️    |  ✔️   | ✔️  |
+| requestMtu                    |   ✔️    | ✔️  |  ✔️   |   ✔️    |  ✔️   | ❌  |
+| requestConnectionPriority     |   ✔️    | ❌  |  ❌   |   ❌    |  ❌   | ❌  |
+| readRssi                      |   ✔️    | ✔️  |  ✔️   |   ❌    |  🚧   | ❌  |
+| requestPermissions            |   ✔️    | ✔️  |  ✔️   |   ✔️    |  ✔️   | ✔️  |
 
 ### Peripheral Mode (`UniversalBlePeripheral`)
 
 | API                           | Android | iOS | macOS | Windows | Linux | Web |
 | :---------------------------- | :-----: | :-: | :---: | :-----: | :---: | :-: |
-| getStaticCapabilities         |   ✔️    | ✔️  |  ✔️   |   ✔️    |  🚧   | ❌  |
-| getReadinessState\*           |   ✔️    | ✔️  |  ✔️   |   ✔️    |  🚧   | ❌  |
+| getCapabilities               |   ✔️    | ✔️  |  ✔️   |   ✔️    |  🚧   | ❌  |
+| getAvailabilityState\*        |   ✔️    | ✔️  |  ✔️   |   ✔️    |  🚧   | ❌  |
 | getAdvertisingState           |   ✔️    | ✔️  |  ✔️   |   ✔️    |  🚧   | ❌  |
 | addService                    |   ✔️    | ✔️  |  ✔️   |   ✔️    |  🚧   | ❌  |
 | removeService                 |   ✔️    | ✔️  |  ✔️   |   ✔️    |  🚧   | ❌  |
@@ -79,7 +79,7 @@ A cross-platform (Android/iOS/macOS/Windows/Linux/Web) Bluetooth Low Energy (BLE
 | getMaximumNotifyLength        |   ✔️    | ✔️  |  ✔️   |   ✔️    |  🚧   | ❌  |
 | events stream\*\*\*           |   ✔️    | ✔️  |  ✔️   |   ✔️    |  🚧   | ❌  |
 
-\* `getReadinessState` returns a snapshot state. Use `eventStream` for ongoing runtime changes.
+\* `getAvailabilityState` returns a snapshot state. Use `eventStream` for ongoing runtime changes.
 \*\* `updateCharacteristicValue` supports broadcast to all subscribed devices or a specific device via `PeripheralUpdateTarget`.
 \*\*\* events include advertising state changes, MTU changes, subscription changes, and related peripheral events.
 
@@ -633,7 +633,7 @@ The error parser automatically converts platform-specific error formats (strings
 
 ## Peripheral Mode
 
-`universal_ble` provides peripheral mode through `UniversalBlePeripheralClient`, so your app can advertise as a peripheral "server" in addition to client mode.
+`universal_ble` provides peripheral mode through `UniversalBlePeripheral`, so your app can advertise as a peripheral "server" in addition to client mode.
 
 ### Setup
 
@@ -642,13 +642,11 @@ import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
 import 'package:universal_ble/universal_ble.dart';
 
-final peripheral = UniversalBlePeripheralClient();
-
-final caps = await peripheral.getStaticCapabilities();
+final caps = await UniversalBlePeripheral.getCapabilities();
 if (!caps.supportsPeripheralMode) return;
 
-final readiness = await peripheral.getReadinessState();
-if (readiness != UniversalBlePeripheralReadinessState.ready) return;
+final readiness = await UniversalBlePeripheral.getAvailabilityState();
+if (readiness != PeripheralReadinessState.ready) return;
 ```
 
 ### Service Management
@@ -781,13 +779,6 @@ final sub = peripheral.eventStream.listen((event) {
   }
 });
 ```
-
-### Breaking changes
-
-- `isSupported()` was replaced by `getStaticCapabilities().supportsPeripheralMode`.
-- `isAdvertising()` was replaced by `getAdvertisingState()`.
-- Static callback setters were replaced by `eventStream` + `setRequestHandlers(...)`.
-- `UniversalBlePeripheralClient` is the recommended API; `UniversalBlePeripheral` remains as a singleton facade.
 
 ### Platform notes
 

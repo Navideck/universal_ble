@@ -132,15 +132,20 @@ class UniversalBlePeripheralPlugin(
         platformConfig: PeripheralPlatformConfig?,
     ) {
         initializePeripheral()
-        advertisingState = PeripheralAdvertisingState.STARTING
-        callback.onAdvertisingStateChange(PeripheralAdvertisingState.STARTING, null) {}
         if (!bluetoothManager.isBluetoothEnabled()) {
+            advertisingState = PeripheralAdvertisingState.ERROR
+            callback.onAdvertisingStateChange(
+                PeripheralAdvertisingState.ERROR,
+                "Bluetooth is not enabled",
+            ) {}
             activity?.startActivityForResult(
                 Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE),
                 0xB1E,
             )
             throw Exception("Bluetooth is not enabled")
         }
+        advertisingState = PeripheralAdvertisingState.STARTING
+        callback.onAdvertisingStateChange(PeripheralAdvertisingState.STARTING, null) {}
 
         handler.post {
             val adapter = bluetoothManager.adapter
