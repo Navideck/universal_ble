@@ -5,8 +5,8 @@ import 'package:flutter/services.dart';
 import 'package:universal_ble/src/models/model_exports.dart';
 import 'package:universal_ble/src/utils/universal_ble_error_parser.dart';
 import 'package:universal_ble/src/utils/universal_ble_filter_util.dart';
-import 'package:universal_ble/src/universal_ble_pigeon/universal_ble.g.dart';
-import 'package:universal_ble/src/universal_ble_platform_interface.dart';
+import 'package:universal_ble/src/universal_ble.g.dart';
+import 'package:universal_ble/src/interfaces/universal_ble_platform_interface.dart';
 import 'package:universal_ble/src/utils/universal_logger.dart';
 import 'package:universal_ble/src/universal_ble_exceptions.dart';
 

@@ -33,8 +33,11 @@ A cross-platform (Android/iOS/macOS/Windows/Linux/Web) Bluetooth Low Energy (BLE
 - [Error Handling](#error-handling)
 - [UUID Format Agnostic](#uuid-format-agnostic)
 - [Permissions](#permissions)
+- [Peripheral Mode](#peripheral-mode)
 
 ## API Support
+
+### Client Mode (`UniversalBle`)
 
 |                               | Android | iOS | macOS | Windows | Linux | Web |
 | :---------------------------- | :-----: | :-: | :---: | :-----: | :---: | :-: |
@@ -58,6 +61,28 @@ A cross-platform (Android/iOS/macOS/Windows/Linux/Web) Bluetooth Low Energy (BLE
 | readRssi                      |   ✔️    | ✔️  |  ✔️   |   ❌    |  🚧   | ❌  |
 | requestPermissions            |   ✔️    | ✔️  |  ✔️   |   ✔️    |  ✔️   | ✔️  |
 
+### Peripheral Mode (`UniversalBlePeripheral`)
+
+| API                           | Android | iOS | macOS | Windows | Linux | Web |
+| :---------------------------- | :-----: | :-: | :---: | :-----: | :---: | :-: |
+| getCapabilities               |   ✔️    | ✔️  |  ✔️   |   ✔️    |  🚧   | ❌  |
+| getAvailabilityState\*        |   ✔️    | ✔️  |  ✔️   |   ✔️    |  🚧   | ❌  |
+| getAdvertisingState           |   ✔️    | ✔️  |  ✔️   |   ✔️    |  🚧   | ❌  |
+| addService                    |   ✔️    | ✔️  |  ✔️   |   ✔️    |  🚧   | ❌  |
+| removeService                 |   ✔️    | ✔️  |  ✔️   |   ✔️    |  🚧   | ❌  |
+| clearServices                 |   ✔️    | ✔️  |  ✔️   |   ✔️    |  🚧   | ❌  |
+| getServices                   |   ✔️    | ✔️  |  ✔️   |   ✔️    |  🚧   | ❌  |
+| startAdvertising              |   ✔️    | ✔️  |  ✔️   |   ✔️    |  🚧   | ❌  |
+| stopAdvertising               |   ✔️    | ✔️  |  ✔️   |   ✔️    |  🚧   | ❌  |
+| updateCharacteristicValue\*\* |   ✔️    | ✔️  |  ✔️   |   ✔️    |  🚧   | ❌  |
+| getSubscribedClients          |   ✔️    | ✔️  |  ✔️   |   ✔️    |  🚧   | ❌  |
+| getMaximumNotifyLength        |   ✔️    | ✔️  |  ✔️   |   ✔️    |  🚧   | ❌  |
+| events stream\*\*\*           |   ✔️    | ✔️  |  ✔️   |   ✔️    |  🚧   | ❌  |
+
+\* `getAvailabilityState` returns a snapshot state. Use `eventStream` for ongoing runtime changes.
+\*\* `updateCharacteristicValue` supports broadcast to all subscribed devices or a specific device via `PeripheralUpdateTarget`.
+\*\*\* events include advertising state changes, MTU changes, subscription changes, and related peripheral events.
+
 ## Getting Started
 
 Add universal_ble in your pubspec.yaml:
@@ -70,6 +95,7 @@ dependencies:
 and import it wherever you want to use it:
 
 ```dart
+import 'dart:typed_data';
 import 'package:universal_ble/universal_ble.dart';
 ```
 
@@ -234,6 +260,7 @@ BleConnectionState connectionState = await bleDevice.connectionState;
 ```
 
 #### Auto-connect
+
 You can enable automatic reconnection by setting the `autoConnect` parameter to `true`. When enabled, the system will automatically attempt to reconnect to the device when it becomes available again.
 
 ```dart
@@ -422,7 +449,7 @@ UniversalBle.disableBluetooth();
 int mtu = await bleDevice.requestMtu(256);
 ```
 
-> ⚠️ Note: Requesting an MTU is a *best-effort* operation.
+> ⚠️ Note: Requesting an MTU is a _best-effort_ operation.
 > On many platforms the final MTU is fully controlled by the OS and remote device.
 
 #### Platform Limitations
@@ -430,46 +457,45 @@ int mtu = await bleDevice.requestMtu(256);
 MTU negotiation is largely platform- and stack-managed, and often cannot be
 explicitly controlled by applications:
 
-* **iOS / macOS**
+- **iOS / macOS**
 
-  * MTU is fully OS-managed; apps cannot request or set it.
-  * Historically ~185 bytes, but modern devices may negotiate larger MTUs
+  - MTU is fully OS-managed; apps cannot request or set it.
+  - Historically ~185 bytes, but modern devices may negotiate larger MTUs
     (≈247–517) automatically.
 
-* **Android**
+- **Android**
 
-  * **Android ≤ 13**: Apps may request MTU once per connection (up to 517).
+  - **Android ≤ 13**: Apps may request MTU once per connection (up to 517).
     If never requested, the default MTU is 23.
-  * **Android 14+**: The first GATT client effectively drives MTU negotiation
+  - **Android 14+**: The first Bluetooth client effectively drives MTU negotiation
     to 517 (or the link’s maximum); subsequent MTU requests are ignored.
 
-* **Windows**
+- **Windows**
 
-  * MTU is automatically negotiated by the OS.
-  * Apps cannot set it; they can only query the effective PDU size.
+  - MTU is automatically negotiated by the OS.
+  - Apps cannot set it; they can only query the effective PDU size.
 
-* **Linux (BlueZ)**
+- **Linux (BlueZ)**
 
-  * MTU is negotiated automatically by default.
-  * The standard D-Bus GATT API does not expose MTU control.
-  * MTU can be requested via BlueZ tools or lower-level APIs, but most apps
+  - MTU is negotiated automatically by default.
+  - The standard D-Bus Bluetooth API does not expose MTU control.
+  - MTU can be requested via BlueZ tools or lower-level APIs, but most apps
     treat it as stack-defined.
 
-* **Web**
+- **Web**
 
-  * MTU is negotiated internally by the browser/OS.
-  * No API exists to query or modify the MTU size.
+  - MTU is negotiated internally by the browser/OS.
+  - No API exists to query or modify the MTU size.
 
 #### Best Practices
 
 When developing cross-platform BLE applications and devices:
 
-* Always design for the default ATT MTU (23 bytes)
-* Treat MTU requests as opportunistic, not guaranteed
-* Dynamically adapt packet sizes based on the negotiated MTU
-* Implement application-level fragmentation for larger payloads
-* Take advantage of higher MTUs when available, without depending on them
-
+- Always design for the default ATT MTU (23 bytes)
+- Treat MTU requests as opportunistic, not guaranteed
+- Dynamically adapt packet sizes based on the negotiated MTU
+- Implement application-level fragmentation for larger payloads
+- Take advantage of higher MTUs when available, without depending on them
 
 ### Requesting Connection Priority
 
@@ -498,10 +524,9 @@ int rssi = await bleDevice.readRssi();
 
 #### Platform Limitations
 
-* **Android / iOS / macOS**: Fully supported.
+- **Android / iOS / macOS**: Fully supported.
 
-* **Windows / Linux / Web**: Not supported.
-
+- **Windows / Linux / Web**: Not supported.
 
 ## Command Queue
 
@@ -606,6 +631,161 @@ try {
 
 The error parser automatically converts platform-specific error formats (strings, numeric codes, PlatformExceptions) into the unified `UniversalBleErrorCode` enum, ensuring consistent error handling across all platforms.
 
+## Peripheral Mode
+
+`universal_ble` provides peripheral mode through `UniversalBlePeripheral`, so your app can advertise as a peripheral "server" in addition to client mode.
+
+### Setup
+
+```dart
+import 'dart:typed_data';
+import 'package:flutter/foundation.dart';
+import 'package:universal_ble/universal_ble.dart';
+
+final caps = await UniversalBlePeripheral.getCapabilities();
+if (!caps.supportsPeripheralMode) return;
+
+final readiness = await UniversalBlePeripheral.getAvailabilityState();
+if (readiness != PeripheralReadinessState.ready) return;
+```
+
+### Service Management
+
+```dart
+await peripheral.addService(
+  BleService("0000180F-0000-1000-8000-00805F9B34FB", [
+    BleCharacteristic(
+      "00002A19-0000-1000-8000-00805F9B34FB",
+      [CharacteristicProperty.read, CharacteristicProperty.notify],
+      [BleDescriptor("00002902-0000-1000-8000-00805F9B34FB")],
+    ),
+  ]),
+  primary: true,
+);
+
+await peripheral.addService(
+  BleService("0000180D-0000-1000-8000-00805F9B34FB", [
+    BleCharacteristic(
+      "00002A37-0000-1000-8000-00805F9B34FB",
+      [
+        CharacteristicProperty.read,
+        CharacteristicProperty.notify,
+        CharacteristicProperty.write,
+      ],
+      [],
+    ),
+  ]),
+);
+
+final services = await peripheral.getServices();
+await peripheral.removeService(const PeripheralServiceId("0000180D-0000-1000-8000-00805F9B34FB"));
+```
+
+### Advertising
+
+On **Android**, passing `localName` may temporarily change the system Bluetooth device name (so it can appear in the advertisement). The plugin restores the previous name when advertising stops, if starting advertising fails, or when the plugin is disposed.
+
+On **Windows**, `GattServiceProvider`-based advertising does not support `localName`, manufacturer data, or a scan-response flag; omit them (as below) or the call will return a not-supported error.
+
+```dart
+final isWindows = !kIsWeb && defaultTargetPlatform == TargetPlatform.windows;
+
+await peripheral.startAdvertising(
+  services: const [
+    PeripheralServiceId("0000180F-0000-1000-8000-00805F9B34FB"),
+  ],
+  localName: "UniversalBlePeripheral",
+  manufacturerData:  ManufacturerData(
+          0x012D,
+          Uint8List.fromList([0x03, 0x00, 0x64, 0x00]),
+        ),
+);
+
+final advertisingState = await peripheral.getAdvertisingState();
+if (advertisingState == UniversalBlePeripheralAdvertisingState.advertising) {
+  // Peripheral is advertising.
+}
+
+await peripheral.stopAdvertising();
+```
+
+### Request Handlers
+
+```dart
+peripheral.setRequestHandlers(
+  PeripheralRequestHandlers(
+    onReadRequest: (deviceId, characteristicId, offset, value) {
+      return BleReadRequestResult(value: value ?? Uint8List(0));
+    },
+    onWriteRequest: (deviceId, characteristicId, offset, value) {
+      return const BleWriteRequestResult();
+    },
+    onDescriptorReadRequest:
+        (deviceId, characteristicId, descriptorId, offset, value) {
+          return BleReadRequestResult(value: value ?? Uint8List(0));
+        },
+    onDescriptorWriteRequest:
+        (deviceId, characteristicId, descriptorId, offset, value) {
+          return const BleWriteRequestResult();
+        },
+  ),
+);
+```
+
+### Characteristic Updates
+
+```dart
+await peripheral.updateCharacteristicValue(
+  characteristicId: const PeripheralCharacteristicId(
+    "00002A19-0000-1000-8000-00805F9B34FB",
+  ),
+  value: Uint8List.fromList([92]),
+);
+```
+
+### Subscribed Clients and Notify Length
+
+```dart
+final subscribers = await peripheral.getSubscribedClients(
+  const PeripheralCharacteristicId("00002A19-0000-1000-8000-00805F9B34FB"),
+);
+
+for (final deviceId in subscribers) {
+  final maxNotifyLength = await peripheral.getMaximumNotifyLength(deviceId);
+  // maxNotifyLength can be null when unknown for this device.
+}
+```
+
+### Event Stream
+
+```dart
+final sub = peripheral.eventStream.listen((event) {
+  switch (event) {
+    case UniversalBlePeripheralAdvertisingStateChanged():
+      // event.state / event.error
+      break;
+    case UniversalBlePeripheralCharacteristicSubscriptionChanged():
+      // event.deviceId / event.characteristicId / event.isSubscribed
+      break;
+    case UniversalBlePeripheralConnectionStateChanged():
+      // event.deviceId / event.connected
+      break;
+    case UniversalBlePeripheralMtuChanged():
+      // event.deviceId / event.mtu
+      break;
+    case UniversalBlePeripheralServiceAdded():
+      // event.serviceId / event.error
+      break;
+  }
+});
+```
+
+### Platform notes
+
+- Linux/Web currently return unsupported for peripheral mode.
+- Windows peripheral advertising does not expose all advertising payload customization options from Android/Apple stacks.
+- iOS/macOS setup (including required `Info.plist` keys for peripheral usage) is documented in [Permissions → iOS / macOS](#ios--macos).
+
 ## UUID Format Agnostic
 
 Universal BLE is agnostic to the UUID format of services and characteristics regardless of the platform the app runs on. When passing a UUID, you can pass it in any format (long/short) or character case (upper/lower case) you want. Universal BLE will take care of necessary conversions, across all platforms, so that you don't need to worry about underlying platform differences.
@@ -673,6 +853,14 @@ The `withAndroidFineLocation` parameter in `requestPermissions()` controls locat
   - Location permission is always requested if declared in your manifest (required for BLE scanning)
   - The `withAndroidFineLocation` parameter is ignored
 
+#### Android Bluetooth Advertise permission
+
+If your app uses peripheral advertising, add:
+
+```xml
+<uses-permission android:name="android.permission.BLUETOOTH_ADVERTISE" />
+```
+
 #### Background Scanning (ForegroundTask)
 
 Universal BLE supports BLE scanning from background services (e.g., using `flutter_foreground_task` or similar packages) on Android. When running in a background context without an Activity:
@@ -692,7 +880,21 @@ await UniversalBle.startScan();
 
 ### iOS / macOS
 
-Add `NSBluetoothPeripheralUsageDescription` and `NSBluetoothAlwaysUsageDescription` to Info.plist of your iOS and macOS app.
+For Bluetooth usage (including peripheral mode), add both keys to your app's `Info.plist`:
+
+- `NSBluetoothAlwaysUsageDescription`: message shown when the app requests Bluetooth access.
+- `NSBluetoothPeripheralUsageDescription`: message used for peripheral role access on Apple platforms.
+
+Example:
+
+```xml
+<key>NSBluetoothAlwaysUsageDescription</key>
+<string>This app uses Bluetooth to scan, connect, and advertise to nearby devices.</string>
+<key>NSBluetoothPeripheralUsageDescription</key>
+<string>This app uses Bluetooth to advertise services to nearby devices.</string>
+```
+
+Use clear, user-facing text that explains why Bluetooth is needed in your app.
 
 Add the `Bluetooth` capability to the macOS app from Xcode.
 
@@ -865,7 +1067,12 @@ Future<void> resetBleState() async {
 
 ## Example app
 
-This repo includes an [example app](example/) you can run to try the API. For a full-blown app, check [Universal-BLE](https://github.com/Navideck/Universal-BLE).
+This repo includes an [example app](example/) with two tabs:
+
+- `Client`: scanning and device communication workflows.
+- `Peripheral`: peripheral server and advertising workflows.
+
+For a full-blown app, check [Universal-BLE](https://github.com/Navideck/Universal-BLE).
 
 ## Low level API
 
@@ -885,7 +1092,6 @@ Here are some of the apps leveraging the power of `universal_ble`:
 - [**Flutter MIDI Command**](https://pub.dev/packages/flutter_midi_command) - Flutter plugin for sending and receiving MIDI messages between Flutter and physical/virtual MIDI devices. Supports USB and BLE transports across iOS, macOS, Android, Linux, and Windows.
 - [**NT Helper**](https://github.com/thorinside/nt_helper) - Cross-platform Flutter application for editing presets on the Expert Sleepers Disting NT module. Provides comprehensive preset management, algorithm editing, parameter mapping, and routing analysis. Available on Windows, macOS, Linux, iOS, and Android.
 - [**MOCs Train Controller**](https://github.com/sonnny/mocs_train_controller) - Model train controller using Raspberry Pi Pico W and Flutter. Control trains via Bluetooth Low Energy with support for Android, iOS, and Linux platforms.
-
 
 > 💡 **Built something cool with Universal BLE?**  
 > We'd love to showcase your app here!  

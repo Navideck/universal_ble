@@ -18,7 +18,13 @@ public class UniversalBlePlugin: NSObject, FlutterPlugin {
     #endif
     let callbackChannel = UniversalBleCallbackChannel(binaryMessenger: messenger)
     let api = BleCentralDarwin(callbackChannel: callbackChannel)
+    let peripheralCallbackChannel = UniversalBlePeripheralCallback(binaryMessenger: messenger)
+    let peripheralApi = UniversalBlePeripheralPlugin(callbackChannel: peripheralCallbackChannel)
     UniversalBlePlatformChannelSetup.setUp(binaryMessenger: messenger, api: api)
+    UniversalBlePeripheralChannelSetup.setUp(
+      binaryMessenger: messenger,
+      api: peripheralApi
+    )
   }
 }
 
@@ -32,7 +38,7 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
   var callbackChannel: UniversalBleCallbackChannel
   private var universalBleFilterUtil = UniversalBleFilterUtil()
   private lazy var manager: CBCentralManager = .init(delegate: self, queue: nil)
-  private var availabilityStateUpdateHandlers: [(Result<Int64, Error>) -> Void] = []
+  private var availabilityStateUpdateHandlers: [(Result<AvailabilityState, Error>) -> Void] = []
   private var requestPermissionStateUpdateHandlers: [(Result<Void, Error>) -> Void] = []
   private var activeServiceDiscoveries: [String: UniversalBleAsyncServiceDiscovery] = [:]
   private var characteristicReadFutures = [CharacteristicReadFuture]()
@@ -49,9 +55,9 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
     super.init()
   }
 
-  func getBluetoothAvailabilityState(completion: @escaping (Result<Int64, Error>) -> Void) {
+  func getBluetoothAvailabilityState(completion: @escaping (Result<AvailabilityState, Error>) -> Void) {
     if manager.state != .unknown {
-      completion(.success(manager.state.toAvailabilityState().rawValue))
+      completion(.success(manager.state.toAvailabilityState()))
     } else {
       availabilityStateUpdateHandlers.append(completion)
       _ = manager
@@ -126,7 +132,7 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
     return isManageScanning
   }
 
-  func setLogLevel(logLevel: UniversalBleLogLevel) throws {
+  func setLogLevel(logLevel: BleLogLevel) throws {
     UniversalBleLogger.shared.setLogLevel(logLevel)
   }
 
@@ -173,21 +179,21 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
     cleanUpConnection(deviceId: deviceId)
   }
 
-  func getConnectionState(deviceId: String) throws -> Int64 {
+  func getConnectionState(deviceId: String) throws -> BleConnectionState {
     guard let peripheral = deviceId.findPeripheral(manager: manager) else {
-      return BlueConnectionState.disconnected.rawValue
+      return .disconnected
     }
     switch peripheral.state {
     case .connecting:
-      return BlueConnectionState.connecting.rawValue
+      return .connecting
     case .connected:
-      return BlueConnectionState.connected.rawValue
+      return .connected
     case .disconnecting:
-      return BlueConnectionState.disconnecting.rawValue
+      return .disconnecting
     case .disconnected:
-      return BlueConnectionState.disconnected.rawValue
+      return .disconnected
     @unknown default:
-      return BlueConnectionState.disconnected.rawValue
+      return .disconnected
     }
   }
 
@@ -279,7 +285,7 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
     discovery.startDiscovery()
   }
 
-  func setNotifiable(deviceId: String, service: String, characteristic: String, bleInputProperty: Int64, completion: @escaping (Result<Void, any Error>) -> Void) {
+  func setNotifiable(deviceId: String, service: String, characteristic: String, bleInputProperty: BleInputProperty, completion: @escaping (Result<Void, any Error>) -> Void) {
     UniversalBleLogger.shared.logDebug("SET_NOTIFY -> \(deviceId) \(service) \(characteristic) input=\(bleInputProperty)")
     guard let peripheral = deviceId.findPeripheral(manager: manager) else {
       completion(Result.failure(createFlutterError(code: .deviceNotFound, message: "Unknown deviceId:\(deviceId)")))
@@ -291,17 +297,17 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
       return
     }
 
-    if bleInputProperty == BleInputProperty.notification.rawValue && !gattCharacteristic.properties.contains(.notify) {
+    if bleInputProperty == .notification && !gattCharacteristic.properties.contains(.notify) {
       completion(Result.failure(createFlutterError(code: .characteristicDoesNotSupportNotify, message: "Characteristic does not support notify")))
       return
     }
 
-    if bleInputProperty == BleInputProperty.indication.rawValue && !gattCharacteristic.properties.contains(.indicate) {
+    if bleInputProperty == .indication && !gattCharacteristic.properties.contains(.indicate) {
       completion(Result.failure(createFlutterError(code: .characteristicDoesNotSupportIndicate, message: "Characteristic does not support indicate")))
       return
     }
 
-    let shouldNotify = bleInputProperty != BleInputProperty.disabled.rawValue
+    let shouldNotify = bleInputProperty != .disabled
     peripheral.setNotifyValue(shouldNotify, for: gattCharacteristic)
     characteristicNotifyFutures.append(CharacteristicNotifyFuture(deviceId: deviceId, characteristicId: gattCharacteristic.uuid.uuidStr, serviceId: gattCharacteristic.service?.uuid.uuidStr, result: completion))
   }
@@ -324,7 +330,7 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
     characteristicReadFutures.append(CharacteristicReadFuture(deviceId: deviceId, characteristicId: gattCharacteristic.uuid.uuidStr, serviceId: gattCharacteristic.service?.uuid.uuidStr, result: completion))
   }
 
-  func writeValue(deviceId: String, service: String, characteristic: String, value: FlutterStandardTypedData, bleOutputProperty: Int64, completion: @escaping (Result<Void, Error>) -> Void) {
+  func writeValue(deviceId: String, service: String, characteristic: String, value: FlutterStandardTypedData, bleOutputProperty: BleOutputProperty, completion: @escaping (Result<Void, Error>) -> Void) {
     UniversalBleLogger.shared.logDebug("WRITE -> \(deviceId) \(service) \(characteristic) len=\(value.data.count) property=\(bleOutputProperty)")
     guard let peripheral = deviceId.findPeripheral(manager: manager) else {
       completion(Result.failure(createFlutterError(code: .deviceNotFound, message: "Unknown deviceId:\(self)")))
@@ -335,7 +341,7 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
       return
     }
 
-    let type = bleOutputProperty == BleOutputProperty.withoutResponse.rawValue ? CBCharacteristicWriteType.withoutResponse : CBCharacteristicWriteType.withResponse
+    let type = bleOutputProperty == .withoutResponse ? CBCharacteristicWriteType.withoutResponse : CBCharacteristicWriteType.withResponse
 
     if type == CBCharacteristicWriteType.withResponse {
       if !gattCharacteristic.properties.contains(.write) {
@@ -373,7 +379,7 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
 
   func requestConnectionPriority(
     deviceId _: String,
-    priority _: Int64,
+    priority _: BleConnectionPriority,
     completion: @escaping (Result<Void, Error>) -> Void
   ) {
     completion(.failure(createFlutterError(code: .notSupported, message: "requestConnectionPriority is not supported on Apple platforms")))
@@ -425,7 +431,7 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
   }
 
   func centralManagerDidUpdateState(_ central: CBCentralManager) {
-    let state = central.state.toAvailabilityState().rawValue
+    let state = central.state.toAvailabilityState()
     callbackChannel.onAvailabilityChanged(state: state) { _ in }
     // Complete Pending state handler
     availabilityStateUpdateHandlers.removeAll { handler in

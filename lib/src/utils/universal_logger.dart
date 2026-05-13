@@ -1,5 +1,5 @@
 import 'dart:developer';
-import 'package:universal_ble/src/models/ble_log_level.dart';
+import 'package:universal_ble/universal_ble.dart';
 
 class UniversalLogger {
   static BleLogLevel _currentLogLevel = BleLogLevel.none;

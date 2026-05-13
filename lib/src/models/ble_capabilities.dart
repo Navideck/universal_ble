@@ -39,6 +39,8 @@ class BleCapabilities {
 
   static bool supportsConnectedDevicesApi = !_Platform.isWeb;
 
+  static bool supportsPeripheralApi = !_Platform.isWeb && !_Platform.isLinux;
+
   static bool supportsRequestMtuApi = !_Platform.isWeb;
 
   static bool supportsConnectionPriorityApi =

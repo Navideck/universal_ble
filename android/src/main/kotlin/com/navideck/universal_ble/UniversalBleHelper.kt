@@ -4,6 +4,7 @@ import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothDevice
 import android.bluetooth.BluetoothGatt
 import android.bluetooth.BluetoothGattCharacteristic
+import android.bluetooth.BluetoothManager
 import android.bluetooth.BluetoothStatusCodes
 import android.bluetooth.le.ScanCallback.SCAN_FAILED_ALREADY_STARTED
 import android.bluetooth.le.ScanCallback.SCAN_FAILED_APPLICATION_REGISTRATION_FAILED
@@ -13,6 +14,12 @@ import android.bluetooth.le.ScanCallback.SCAN_FAILED_OUT_OF_HARDWARE_RESOURCES
 import android.bluetooth.le.ScanCallback.SCAN_FAILED_SCANNING_TOO_FREQUENTLY
 import android.bluetooth.le.ScanResult
 import android.bluetooth.le.ScanSettings
+import android.content.BroadcastReceiver
+import android.content.Context
+import android.content.Context.RECEIVER_EXPORTED
+import android.content.Context.RECEIVER_NOT_EXPORTED
+import android.content.Intent
+import android.content.IntentFilter
 import android.os.Build
 import android.util.Log
 import android.util.SparseArray
@@ -26,58 +33,19 @@ private const val TAG = "UniversalBlePlugin"
 private val knownGatts = mutableMapOf<String, BluetoothGatt>()
 val ccdCharacteristic: UUID = UUID.fromString("00002902-0000-1000-8000-00805f9b34fb")
 
-enum class BleConnectionState(val value: Long) {
-    Connected(0),
-    Disconnected(1),
-    Connecting(2),
-    Disconnecting(3)
-}
-
-enum class AvailabilityState(val value: Long) {
-    Unknown(0),
-    Resetting(1),
-    Unsupported(2),
-    Unauthorized(3),
-    PoweredOff(4),
-    PoweredOn(5);
-}
-
-enum class BleInputProperty(val value: Long) {
-    Disabled(0),
-    Notification(1),
-    Indication(2);
-}
-
-enum class BleOutputProperty(val value: Long) {
-    WithResponse(0),
-    WithoutResponse(1);
-}
-
-enum class BleConnectionPriority(val value: Long) {
-    Balanced(0),
-    HighPerformance(1),
-    LowPower(2);
-}
-
-enum class CharacteristicProperty(val value: Long) {
-    Broadcast(0),
-    Read(1),
-    WriteWithoutResponse(2),
-    Write(3),
-    Notify(4),
-    Indicate(5),
-    AuthenticatedSignedWrites(6),
-    ExtendedProperties(7)
-}
+data class BondStateChange(
+    val device: BluetoothDevice,
+    val state: Int,
+)
 
 
 fun Int.toBleConnectionState(): BleConnectionState {
     return when (this) {
-        BluetoothGatt.STATE_CONNECTED -> BleConnectionState.Connected
-        BluetoothGatt.STATE_CONNECTING -> BleConnectionState.Connecting
-        BluetoothGatt.STATE_DISCONNECTING -> BleConnectionState.Disconnecting
-        BluetoothGatt.STATE_DISCONNECTED -> BleConnectionState.Disconnected
-        else -> BleConnectionState.Disconnected
+        BluetoothGatt.STATE_CONNECTED -> BleConnectionState.CONNECTED
+        BluetoothGatt.STATE_CONNECTING -> BleConnectionState.CONNECTING
+        BluetoothGatt.STATE_DISCONNECTING -> BleConnectionState.DISCONNECTING
+        BluetoothGatt.STATE_DISCONNECTED -> BleConnectionState.DISCONNECTED
+        else -> BleConnectionState.DISCONNECTED
     }
 }
 
@@ -102,6 +70,42 @@ fun String.findGatt(): BluetoothGatt? {
     return knownGatts[this]
 }
 
+fun BluetoothManager.isBluetoothEnabled(): Boolean {
+    return adapter?.isEnabled == true
+}
+
+fun Intent.getBluetoothDeviceCompat(): BluetoothDevice? {
+    return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+        getParcelableExtra(BluetoothDevice.EXTRA_DEVICE, BluetoothDevice::class.java)
+    } else {
+        @Suppress("DEPRECATION")
+        getParcelableExtra(BluetoothDevice.EXTRA_DEVICE)
+    }
+}
+
+fun Intent.getBondStateChange(): BondStateChange? {
+    if (action != BluetoothDevice.ACTION_BOND_STATE_CHANGED) return null
+    val device = getBluetoothDeviceCompat() ?: return null
+    val state = getIntExtra(BluetoothDevice.EXTRA_BOND_STATE, BluetoothDevice.ERROR)
+    return BondStateChange(device, state)
+}
+
+fun BluetoothDevice.isBonded(): Boolean = bondState == BluetoothDevice.BOND_BONDED
+
+fun Context.registerReceiverCompat(
+    receiver: BroadcastReceiver,
+    filter: IntentFilter,
+    exported: Boolean,
+) {
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+        val receiverFlag = if (exported) RECEIVER_EXPORTED else RECEIVER_NOT_EXPORTED
+        registerReceiver(receiver, filter, receiverFlag)
+    } else {
+        @Suppress("DEPRECATION")
+        registerReceiver(receiver, filter)
+    }
+}
+
 fun BluetoothGatt.saveCacheIfNeeded() {
     knownGatts[this.device.address] = this
 }
@@ -111,13 +115,13 @@ fun BluetoothGatt.removeCache() {
 }
 
 
-fun Int.toAvailabilityState(): Long {
+fun Int.toAvailabilityState(): AvailabilityState {
     return when (this) {
-        BluetoothAdapter.STATE_OFF -> AvailabilityState.PoweredOff.value
-        BluetoothAdapter.STATE_ON -> AvailabilityState.PoweredOn.value
-        BluetoothAdapter.STATE_TURNING_ON -> AvailabilityState.Resetting.value
-        BluetoothAdapter.STATE_TURNING_OFF -> AvailabilityState.Resetting.value
-        else -> AvailabilityState.Unknown.value
+        BluetoothAdapter.STATE_OFF -> AvailabilityState.POWERED_OFF
+        BluetoothAdapter.STATE_ON -> AvailabilityState.POWERED_ON
+        BluetoothAdapter.STATE_TURNING_ON -> AvailabilityState.RESETTING
+        BluetoothAdapter.STATE_TURNING_OFF -> AvailabilityState.RESETTING
+        else -> AvailabilityState.UNKNOWN
     }
 }
 
@@ -166,31 +170,31 @@ fun BluetoothDevice.removeBond() {
     }
 }
 
-fun BluetoothGattCharacteristic.getPropertiesList(): ArrayList<Long> {
-    val propertiesList = arrayListOf<Long>()
+fun BluetoothGattCharacteristic.getPropertiesList(): ArrayList<CharacteristicProperty> {
+    val propertiesList = arrayListOf<CharacteristicProperty>()
     if (properties and BluetoothGattCharacteristic.PROPERTY_BROADCAST > 0) {
-        propertiesList.add(CharacteristicProperty.Broadcast.value)
+        propertiesList.add(CharacteristicProperty.BROADCAST)
     }
     if (properties and BluetoothGattCharacteristic.PROPERTY_READ > 0) {
-        propertiesList.add(CharacteristicProperty.Read.value)
+        propertiesList.add(CharacteristicProperty.READ)
     }
     if (properties and BluetoothGattCharacteristic.PROPERTY_WRITE_NO_RESPONSE > 0) {
-        propertiesList.add(CharacteristicProperty.WriteWithoutResponse.value)
+        propertiesList.add(CharacteristicProperty.WRITE_WITHOUT_RESPONSE)
     }
     if (properties and BluetoothGattCharacteristic.PROPERTY_WRITE > 0) {
-        propertiesList.add(CharacteristicProperty.Write.value)
+        propertiesList.add(CharacteristicProperty.WRITE)
     }
     if (properties and BluetoothGattCharacteristic.PROPERTY_NOTIFY > 0) {
-        propertiesList.add(CharacteristicProperty.Notify.value)
+        propertiesList.add(CharacteristicProperty.NOTIFY)
     }
     if (properties and BluetoothGattCharacteristic.PROPERTY_INDICATE > 0) {
-        propertiesList.add(CharacteristicProperty.Indicate.value)
+        propertiesList.add(CharacteristicProperty.INDICATE)
     }
     if (properties and BluetoothGattCharacteristic.PROPERTY_SIGNED_WRITE > 0) {
-        propertiesList.add(CharacteristicProperty.AuthenticatedSignedWrites.value)
+        propertiesList.add(CharacteristicProperty.AUTHENTICATED_SIGNED_WRITES)
     }
     if (properties and BluetoothGattCharacteristic.PROPERTY_EXTENDED_PROPS > 0) {
-        propertiesList.add(CharacteristicProperty.ExtendedProperties.value)
+        propertiesList.add(CharacteristicProperty.EXTENDED_PROPERTIES)
     }
     return propertiesList
 }

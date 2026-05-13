@@ -1,15 +1,11 @@
-export 'package:universal_ble/src/models/ble_log_level.dart';
 export 'package:universal_ble/src/models/manufacturer_data.dart';
 export 'package:universal_ble/src/models/platform_config.dart';
 export 'package:universal_ble/src/models/queue_type.dart';
 export 'package:universal_ble/src/models/ble_uuid_parser.dart';
 export 'package:universal_ble/src/models/scan_filter.dart';
-export 'package:universal_ble/src/models/manufacturer_data_filter.dart';
-export 'package:universal_ble/src/models/ble_property.dart';
 export 'package:universal_ble/src/models/ble_service.dart';
-export 'package:universal_ble/src/models/availability_state.dart';
-export 'package:universal_ble/src/models/ble_connection_state.dart';
 export 'package:universal_ble/src/models/ble_device.dart';
 export 'package:universal_ble/src/models/ble_command.dart';
 export 'package:universal_ble/src/models/ble_capabilities.dart';
-export 'package:universal_ble/src/models/ble_connection_priority.dart';
+export 'package:universal_ble/src/models/ble_peripheral_event.dart';
+export 'package:universal_ble/src/models/ble_peripheral_capabilities.dart';

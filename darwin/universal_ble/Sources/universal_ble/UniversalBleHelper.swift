@@ -13,70 +13,32 @@ import Foundation
     import FlutterMacOS
 #endif
 
-enum BleInputProperty: Int {
-    case disabled = 0
-    case notification = 1
-    case indication = 2
-}
-
-enum BleOutputProperty: Int {
-    case withResponse = 0
-    case withoutResponse = 1
-}
-
-enum BlueConnectionState: Int64 {
-    case connected = 0
-    case disconnected = 1
-    case connecting = 2
-    case disconnecting = 3
-}
-
-enum AvailabilityState: Int64 {
-    case unknown = 0
-    case resetting = 1
-    case unsupported = 2
-    case unauthorized = 3
-    case poweredOff = 4
-    case poweredOn = 5
-}
-
-enum CharacteristicProperty: Int64 {
-    case broadcast = 0
-    case read = 1
-    case writeWithoutResponse = 2
-    case write = 3
-    case notify = 4
-    case indicate = 5
-    case authenticatedSignedWrites = 6
-    case extendedProperties = 7
-}
-
 extension CBCharacteristicProperties {
-    var toCharacteristicProperty: [Int64] {
-        var properties = [Int64]()
+    var toCharacteristicProperty: [CharacteristicProperty] {
+        var properties = [CharacteristicProperty]()
         if contains(.broadcast) {
-            properties.append(CharacteristicProperty.broadcast.rawValue)
+            properties.append(.broadcast)
         }
         if contains(.read) {
-            properties.append(CharacteristicProperty.read.rawValue)
+            properties.append(.read)
         }
         if contains(.writeWithoutResponse) {
-            properties.append(CharacteristicProperty.writeWithoutResponse.rawValue)
+            properties.append(.writeWithoutResponse)
         }
         if contains(.write) {
-            properties.append(CharacteristicProperty.write.rawValue)
+            properties.append(.write)
         }
         if contains(.notify) {
-            properties.append(CharacteristicProperty.notify.rawValue)
+            properties.append(.notify)
         }
         if contains(.indicate) {
-            properties.append(CharacteristicProperty.indicate.rawValue)
+            properties.append(.indicate)
         }
         if contains(.authenticatedSignedWrites) {
-            properties.append(CharacteristicProperty.authenticatedSignedWrites.rawValue)
+            properties.append(.authenticatedSignedWrites)
         }
         if contains(.extendedProperties) {
-            properties.append(CharacteristicProperty.extendedProperties.rawValue)
+            properties.append(.extendedProperties)
         }
         return properties
     }
@@ -86,19 +48,19 @@ extension CBManagerState {
     func toAvailabilityState() -> AvailabilityState {
         switch self {
         case .unknown:
-            return AvailabilityState.unknown
+            return .unknown
         case .resetting:
-            return AvailabilityState.resetting
+            return .resetting
         case .unsupported:
-            return AvailabilityState.unsupported
+            return .unsupported
         case .unauthorized:
-            return AvailabilityState.unauthorized
+            return .unauthorized
         case .poweredOff:
-            return AvailabilityState.poweredOff
+            return .poweredOff
         case .poweredOn:
-            return AvailabilityState.poweredOn
+            return .poweredOn
         @unknown default:
-            return AvailabilityState.unknown
+            return .unknown
         }
     }
 }

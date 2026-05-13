@@ -800,7 +800,7 @@ class UniversalBle {
 
   /// Get scan results.
   static set onScanResult(OnScanResult? onScanResult) =>
-      _platform.onScanResult = onScanResult;
+      _platform.onScanResultUpdate = onScanResult;
 
   /// Get connection state changes.
   static set onConnectionChange(OnConnectionChange? onConnectionChange) =>

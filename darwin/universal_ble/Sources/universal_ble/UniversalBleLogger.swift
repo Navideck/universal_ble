@@ -11,9 +11,9 @@ final class UniversalBleLogger {
     return formatter
   }()
 
-  private var currentLogLevel: UniversalBleLogLevel = .none
+  private var currentLogLevel: BleLogLevel = .none
 
-  func setLogLevel(_ logLevel: UniversalBleLogLevel) {
+  func setLogLevel(_ logLevel: BleLogLevel) {
     currentLogLevel = logLevel
   }
 
@@ -42,7 +42,7 @@ final class UniversalBleLogger {
     print("UniversalBle:VERBOSE \(withTimestamp(message))")
   }
 
-  private func allows(_ level: UniversalBleLogLevel) -> Bool {
+  private func allows(_ level: BleLogLevel) -> Bool {
     return currentLogLevel != .none && level.rawValue <= currentLogLevel.rawValue
   }
 

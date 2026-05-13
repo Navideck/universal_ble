@@ -3,8 +3,11 @@ import 'package:universal_ble/universal_ble.dart';
 
 abstract class UniversalBlePlatformMock extends UniversalBlePlatform {
   @override
-  Future<void> connect(String deviceId,
-      {bool autoConnect = false, Duration? connectionTimeout}) {
+  Future<void> connect(
+    String deviceId, {
+    bool autoConnect = false,
+    Duration? connectionTimeout,
+  }) {
     throw UnimplementedError();
   }
 
@@ -20,7 +23,9 @@ abstract class UniversalBlePlatformMock extends UniversalBlePlatform {
 
   @override
   Future<List<BleService>> discoverServices(
-      String deviceId, bool withDescriptors) {
+    String deviceId,
+    bool withDescriptors,
+  ) {
     throw UnimplementedError();
   }
 
@@ -56,8 +61,11 @@ abstract class UniversalBlePlatformMock extends UniversalBlePlatform {
 
   @override
   Future<Uint8List> readValue(
-      String deviceId, String service, String characteristic,
-      {Duration? timeout}) {
+    String deviceId,
+    String service,
+    String characteristic, {
+    Duration? timeout,
+  }) {
     throw UnimplementedError();
   }
 
@@ -75,14 +83,20 @@ abstract class UniversalBlePlatformMock extends UniversalBlePlatform {
   }
 
   @override
-  Future<void> setNotifiable(String deviceId, String service,
-      String characteristic, BleInputProperty bleInputProperty) {
+  Future<void> setNotifiable(
+    String deviceId,
+    String service,
+    String characteristic,
+    BleInputProperty bleInputProperty,
+  ) {
     throw UnimplementedError();
   }
 
   @override
-  Future<void> startScan(
-      {ScanFilter? scanFilter, PlatformConfig? platformConfig}) {
+  Future<void> startScan({
+    ScanFilter? scanFilter,
+    PlatformConfig? platformConfig,
+  }) {
     throw UnimplementedError();
   }
 
@@ -98,11 +112,12 @@ abstract class UniversalBlePlatformMock extends UniversalBlePlatform {
 
   @override
   Future<void> writeValue(
-      String deviceId,
-      String service,
-      String characteristic,
-      Uint8List value,
-      BleOutputProperty bleOutputProperty) {
+    String deviceId,
+    String service,
+    String characteristic,
+    Uint8List value,
+    BleOutputProperty bleOutputProperty,
+  ) {
     throw UnimplementedError();
   }
 

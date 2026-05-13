@@ -5,8 +5,7 @@
 
 namespace universal_ble {
 
-UniversalBleLogLevel UniversalBleLogger::current_level_ =
-    UniversalBleLogLevel::kNone;
+BleLogLevel UniversalBleLogger::current_level_ = BleLogLevel::kNone;
 
 static std::string GetCurrentTimestampString() {
   auto now = std::chrono::system_clock::now();
@@ -24,60 +23,60 @@ static std::string GetCurrentTimestampString() {
   return "[" + oss.str() + "]";
 }
 
-void UniversalBleLogger::SetLogLevel(UniversalBleLogLevel level) {
+void UniversalBleLogger::SetLogLevel(BleLogLevel level) {
   current_level_ = level;
 }
 
-UniversalBleLogLevel UniversalBleLogger::current_log_level() {
+BleLogLevel UniversalBleLogger::current_log_level() {
   return current_level_;
 }
 
 void UniversalBleLogger::LogError(const std::string &message) {
-  if (!Allows(UniversalBleLogLevel::kError))
+  if (!Allows(BleLogLevel::kError))
     return;
   std::cout << "UniversalBle:ERROR " << message << std::endl;
 }
 
 void UniversalBleLogger::LogWarning(const std::string &message) {
-  if (!Allows(UniversalBleLogLevel::kWarning))
+  if (!Allows(BleLogLevel::kWarning))
     return;
   std::cout << "UniversalBle:WARN " << message << std::endl;
 }
 
 void UniversalBleLogger::LogInfo(const std::string &message) {
-  if (!Allows(UniversalBleLogLevel::kInfo))
+  if (!Allows(BleLogLevel::kInfo))
     return;
   std::cout << "UniversalBle:INFO " << message << std::endl;
 }
 
 void UniversalBleLogger::LogDebug(const std::string &message) {
-  if (!Allows(UniversalBleLogLevel::kDebug))
+  if (!Allows(BleLogLevel::kDebug))
     return;
   std::cout << "UniversalBle:DEBUG " << message << std::endl;
 }
 
 void UniversalBleLogger::LogVerbose(const std::string &message) {
-  if (!Allows(UniversalBleLogLevel::kVerbose))
+  if (!Allows(BleLogLevel::kVerbose))
     return;
   std::cout << "UniversalBle:VERBOSE " << message << std::endl;
 }
 
 void UniversalBleLogger::LogDebugWithTimestamp(const std::string &message) {
-  if (!Allows(UniversalBleLogLevel::kDebug))
+  if (!Allows(BleLogLevel::kDebug))
     return;
   std::cout << "UniversalBle:DEBUG " << GetCurrentTimestampString() << " " << message
             << std::endl;
 }
 
 void UniversalBleLogger::LogVerboseWithTimestamp(const std::string &message) {
-  if (!Allows(UniversalBleLogLevel::kVerbose))
+  if (!Allows(BleLogLevel::kVerbose))
     return;
   std::cout << "UniversalBle:VERBOSE " << GetCurrentTimestampString() << " "
             << message << std::endl;
 }
 
-bool UniversalBleLogger::Allows(UniversalBleLogLevel level) {
-  return current_level_ != UniversalBleLogLevel::kNone &&
+bool UniversalBleLogger::Allows(BleLogLevel level) {
+  return current_level_ != BleLogLevel::kNone &&
          static_cast<int>(level) <= static_cast<int>(current_level_);
 }
 

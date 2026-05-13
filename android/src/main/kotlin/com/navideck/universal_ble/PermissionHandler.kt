@@ -20,6 +20,7 @@ private const val TAG = "PermissionHandler"
 class PermissionHandler(
     private val context: Context,
     private val requestCode: Int,
+    private val advertisePermissionRequestCode: Int,
 ) {
     private var activity: Activity? = null
 
@@ -31,6 +32,7 @@ class PermissionHandler(
         this.activity = activity
     }
     private var permissionRequestCallback: ((Result<Unit>) -> Unit)? = null
+    private var advertisePermissionRequestCallback: ((Result<Boolean>) -> Unit)? = null
 
     /**
      * Check if we have required permissions
@@ -124,6 +126,16 @@ class PermissionHandler(
         permissions: Array<out String>,
         grantResults: IntArray,
     ): Boolean {
+        if (requestCode == advertisePermissionRequestCode) {
+            val callback = advertisePermissionRequestCallback ?: return false
+            advertisePermissionRequestCallback = null
+            val granted = grantResults.isNotEmpty() && grantResults.all {
+                it == PackageManager.PERMISSION_GRANTED
+            }
+            callback(Result.success(granted))
+            return true
+        }
+
         if (requestCode != this.requestCode) {
             return false
         }
@@ -148,6 +160,54 @@ class PermissionHandler(
             )
         }
         return true
+    }
+
+    fun hasBluetoothAdvertisePermission(): Boolean {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) return true
+        return hasPermissionGranted(Manifest.permission.BLUETOOTH_ADVERTISE)
+    }
+
+    fun requestBluetoothAdvertisePermission(callback: (Result<Boolean>) -> Unit) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) {
+            callback(Result.success(true))
+            return
+        }
+        if (hasBluetoothAdvertisePermission()) {
+            callback(Result.success(true))
+            return
+        }
+
+        val currentActivity = activity
+        if (currentActivity == null) {
+            callback(
+                Result.failure(
+                    createFlutterError(
+                        UniversalBleErrorCode.FAILED,
+                        "Activity is not available to request BLUETOOTH_ADVERTISE permission.",
+                    ),
+                ),
+            )
+            return
+        }
+
+        if (advertisePermissionRequestCallback != null) {
+            callback(
+                Result.failure(
+                    createFlutterError(
+                        UniversalBleErrorCode.OPERATION_IN_PROGRESS,
+                        "BLUETOOTH_ADVERTISE permission request already in progress",
+                    ),
+                ),
+            )
+            return
+        }
+
+        advertisePermissionRequestCallback = callback
+        ActivityCompat.requestPermissions(
+            currentActivity,
+            arrayOf(Manifest.permission.BLUETOOTH_ADVERTISE),
+            advertisePermissionRequestCode,
+        )
     }
 
 
