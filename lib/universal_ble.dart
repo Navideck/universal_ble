@@ -12,6 +12,9 @@ export 'package:universal_ble/src/universal_ble.g.dart'
     show
         AndroidOptions,
         AndroidScanMode,
+        AndroidScanCallbackType,
+        AndroidScanMatchMode,
+        AndroidScanNumOfMatches,
         UniversalBleErrorCode,
         BleLogLevel,
         AvailabilityState,
