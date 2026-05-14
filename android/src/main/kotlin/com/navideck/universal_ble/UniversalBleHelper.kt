@@ -249,6 +249,56 @@ fun AndroidScanMode.parse(): Int? {
     }
 }
 
+fun AndroidScanCallbackType.parse(): Int? {
+    return when (this) {
+        AndroidScanCallbackType.ALL_MATCHES -> ScanSettings.CALLBACK_TYPE_ALL_MATCHES
+        AndroidScanCallbackType.FIRST_MATCH ->
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                ScanSettings.CALLBACK_TYPE_FIRST_MATCH
+            } else {
+                UniversalBleLogger.logError("CALLBACK_TYPE_FIRST_MATCH requires Android API 23+.")
+                null
+            }
+        AndroidScanCallbackType.MATCH_LOST ->
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                ScanSettings.CALLBACK_TYPE_MATCH_LOST
+            } else {
+                UniversalBleLogger.logError("CALLBACK_TYPE_MATCH_LOST requires Android API 23+.")
+                null
+            }
+        AndroidScanCallbackType.ALL_MATCHES_AUTO_BATCH ->
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+                ScanSettings.CALLBACK_TYPE_ALL_MATCHES_AUTO_BATCH
+            } else {
+                UniversalBleLogger.logError("CALLBACK_TYPE_ALL_MATCHES_AUTO_BATCH requires Android API 34+.")
+                null
+            }
+    }
+}
+
+fun AndroidScanMatchMode.parse(): Int? {
+    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) {
+        UniversalBleLogger.logError("Match mode is not supported on this Android version.")
+        return null
+    }
+    return when (this) {
+        AndroidScanMatchMode.AGGRESSIVE -> ScanSettings.MATCH_MODE_AGGRESSIVE
+        AndroidScanMatchMode.STICKY -> ScanSettings.MATCH_MODE_STICKY
+    }
+}
+
+fun AndroidScanNumOfMatches.parse(): Int? {
+    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) {
+        UniversalBleLogger.logError("Num of matches is not supported on this Android version.")
+        return null
+    }
+    return when (this) {
+        AndroidScanNumOfMatches.ONE -> ScanSettings.MATCH_NUM_ONE_ADVERTISEMENT
+        AndroidScanNumOfMatches.FEW -> ScanSettings.MATCH_NUM_FEW_ADVERTISEMENT
+        AndroidScanNumOfMatches.MAX -> ScanSettings.MATCH_NUM_MAX_ADVERTISEMENT
+    }
+}
+
 fun Int.parseBluetoothStatusCodeError(): UniversalBleErrorCode? {
     if (this == BluetoothStatusCodes.SUCCESS) return null
     return when (this) {
