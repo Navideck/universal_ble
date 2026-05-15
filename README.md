@@ -77,11 +77,11 @@ A cross-platform (Android/iOS/macOS/Windows/Linux/Web) Bluetooth Low Energy (BLE
 | updateCharacteristicValue\*\* |   ✔️    | ✔️  |  ✔️   |   ✔️    |  🚧   | ❌  |
 | getSubscribedClients          |   ✔️    | ✔️  |  ✔️   |   ✔️    |  🚧   | ❌  |
 | getMaximumNotifyLength        |   ✔️    | ✔️  |  ✔️   |   ✔️    |  🚧   | ❌  |
-| events stream\*\*\*           |   ✔️    | ✔️  |  ✔️   |   ✔️    |  🚧   | ❌  |
+| event streams\*\*\*           |   ✔️    | ✔️  |  ✔️   |   ✔️    |  🚧   | ❌  |
 
-\* `getAvailabilityState` returns a snapshot state. Use `eventStream` for ongoing runtime changes.
-\*\* `updateCharacteristicValue` supports broadcast to all subscribed devices or a specific device via `PeripheralUpdateTarget`.
-\*\*\* events include advertising state changes, MTU changes, subscription changes, and related peripheral events.
+\* `getAvailabilityState` returns a snapshot. Listen to `advertisingStateStream`, `connectionStateStream`, and related streams for runtime updates.
+\*\* Pass `deviceId` to notify one client; omit it to notify all subscribed clients (when supported — see `getCapabilities().supportsTargetedCharacteristicUpdate`).
+\*\*\* `advertisingStateStream`, `characteristicSubscriptionStream`, `connectionStateStream`, `serviceAddedStream`, `mtuChangedStream`.
 
 ## Getting Started
 
@@ -638,8 +638,6 @@ The error parser automatically converts platform-specific error formats (strings
 ### Setup
 
 ```dart
-import 'dart:typed_data';
-import 'package:flutter/foundation.dart';
 import 'package:universal_ble/universal_ble.dart';
 
 final caps = await UniversalBlePeripheral.getCapabilities();
@@ -651,133 +649,211 @@ if (readiness != PeripheralReadinessState.ready) return;
 
 ### Service Management
 
+Peripheral GATT services use `BlePeripheralService`, `BlePeripheralCharacteristic`, and `BlePeripheralDescriptor`. Each characteristic requires `permissions`; descriptors can include an initial `value` (for example HID Report Reference `0x2908`).
+
 ```dart
-await peripheral.addService(
-  BleService("0000180F-0000-1000-8000-00805F9B34FB", [
-    BleCharacteristic(
-      "00002A19-0000-1000-8000-00805F9B34FB",
-      [CharacteristicProperty.read, CharacteristicProperty.notify],
-      [BleDescriptor("00002902-0000-1000-8000-00805F9B34FB")],
-    ),
-  ]),
-  primary: true,
+import 'package:universal_ble/universal_ble.dart';
+
+const batteryService = '0000180f-0000-1000-8000-00805f9b34fb';
+const batteryLevelChar = '00002a19-0000-1000-8000-00805f9b34fb';
+const heartRateService = '0000180d-0000-1000-8000-00805f9b34fb';
+const heartRateChar = '00002a37-0000-1000-8000-00805f9b34fb';
+
+await UniversalBlePeripheral.addService(
+  BlePeripheralService(
+    uuid: batteryService,
+    primary: true,
+    characteristics: [
+      BlePeripheralCharacteristic(
+        uuid: batteryLevelChar,
+        properties: [
+          CharacteristicProperty.read,
+          CharacteristicProperty.notify,
+        ],
+        permissions: [
+          PeripheralAttributePermission.readable,
+          PeripheralAttributePermission.writeable,
+        ],
+        descriptors: [
+          BlePeripheralDescriptor(uuid: '00002902-0000-1000-8000-00805f9b34fb'),
+        ],
+      ),
+    ],
+  ),
 );
 
-await peripheral.addService(
-  BleService("0000180D-0000-1000-8000-00805F9B34FB", [
-    BleCharacteristic(
-      "00002A37-0000-1000-8000-00805F9B34FB",
-      [
-        CharacteristicProperty.read,
-        CharacteristicProperty.notify,
-        CharacteristicProperty.write,
-      ],
-      [],
-    ),
-  ]),
+await UniversalBlePeripheral.addService(
+  BlePeripheralService(
+    uuid: heartRateService,
+    characteristics: [
+      BlePeripheralCharacteristic(
+        uuid: heartRateChar,
+        properties: [
+          CharacteristicProperty.read,
+          CharacteristicProperty.notify,
+          CharacteristicProperty.write,
+        ],
+        permissions: [
+          PeripheralAttributePermission.readable,
+          PeripheralAttributePermission.writeable,
+        ],
+      ),
+    ],
+  ),
 );
 
-final services = await peripheral.getServices();
-await peripheral.removeService(const PeripheralServiceId("0000180D-0000-1000-8000-00805F9B34FB"));
+final services = await UniversalBlePeripheral.getServices();
+await UniversalBlePeripheral.removeService(heartRateService);
+await UniversalBlePeripheral.clearServices();
 ```
 
 ### Advertising
 
 On **Android**, passing `localName` may temporarily change the system Bluetooth device name (so it can appear in the advertisement). The plugin restores the previous name when advertising stops, if starting advertising fails, or when the plugin is disposed.
 
-On **Windows**, `GattServiceProvider`-based advertising does not support `localName`, manufacturer data, or a scan-response flag; omit them (as below) or the call will return a not-supported error.
+On **Windows**, `GattServiceProvider`-based advertising does not support `localName`, manufacturer data, or a scan-response flag; pass `null` for those parameters or the call returns a not-supported error. Use `getCapabilities()` to check feature support before calling.
 
 ```dart
-final isWindows = !kIsWeb && defaultTargetPlatform == TargetPlatform.windows;
+import 'dart:typed_data';
+import 'package:flutter/foundation.dart';
+import 'package:universal_ble/universal_ble.dart';
 
-await peripheral.startAdvertising(
-  services: const [
-    PeripheralServiceId("0000180F-0000-1000-8000-00805F9B34FB"),
-  ],
-  localName: "UniversalBlePeripheral",
-  manufacturerData:  ManufacturerData(
-          0x012D,
+// Uses batteryService from Service Management above.
+final isWindows = !kIsWeb && defaultTargetPlatform == TargetPlatform.windows;
+final caps = await UniversalBlePeripheral.getCapabilities();
+
+await UniversalBlePeripheral.startAdvertising(
+  services: [batteryService],
+  localName: isWindows ? null : 'UniversalBlePeripheral',
+  manufacturerData: isWindows || !caps.supportsManufacturerDataInAdvertisement
+      ? null
+      : ManufacturerData(
+          0x012d,
           Uint8List.fromList([0x03, 0x00, 0x64, 0x00]),
         ),
+  platformConfig: PeripheralPlatformConfig(
+    android: PeripheralAndroidOptions(
+      addManufacturerDataInScanResponse: false,
+    ),
+  ),
 );
 
-final advertisingState = await peripheral.getAdvertisingState();
-if (advertisingState == UniversalBlePeripheralAdvertisingState.advertising) {
+final advertisingState = await UniversalBlePeripheral.getAdvertisingState();
+if (advertisingState == PeripheralAdvertisingState.advertising) {
   // Peripheral is advertising.
 }
 
-await peripheral.stopAdvertising();
+await UniversalBlePeripheral.stopAdvertising();
 ```
 
 ### Request Handlers
 
+Register read/write handlers separately. Return `null` to let the stack use the characteristic's current value.
+
 ```dart
-peripheral.setRequestHandlers(
-  PeripheralRequestHandlers(
-    onReadRequest: (deviceId, characteristicId, offset, value) {
-      return BleReadRequestResult(value: value ?? Uint8List(0));
-    },
-    onWriteRequest: (deviceId, characteristicId, offset, value) {
-      return const BleWriteRequestResult();
-    },
-    onDescriptorReadRequest:
-        (deviceId, characteristicId, descriptorId, offset, value) {
-          return BleReadRequestResult(value: value ?? Uint8List(0));
-        },
-    onDescriptorWriteRequest:
-        (deviceId, characteristicId, descriptorId, offset, value) {
-          return const BleWriteRequestResult();
-        },
-  ),
+import 'dart:typed_data';
+import 'package:universal_ble/universal_ble.dart';
+
+UniversalBlePeripheral.setReadRequestHandlers(
+  (deviceId, characteristicId, offset, value) {
+    return PeripheralReadRequestResult(
+      value: value ?? Uint8List(0),
+    );
+  },
+);
+
+UniversalBlePeripheral.setWriteRequestHandlers(
+  (deviceId, characteristicId, offset, value) {
+    return PeripheralWriteRequestResult();
+  },
+);
+
+UniversalBlePeripheral.setDescriptorReadRequestHandlers(
+  (deviceId, characteristicId, descriptorId, offset, value) {
+    return PeripheralReadRequestResult(
+      value: value ?? Uint8List(0),
+    );
+  },
+);
+
+UniversalBlePeripheral.setDescriptorWriteRequestHandlers(
+  (deviceId, characteristicId, descriptorId, offset, value) {
+    return PeripheralWriteRequestResult();
+  },
 );
 ```
 
 ### Characteristic Updates
 
 ```dart
-await peripheral.updateCharacteristicValue(
-  characteristicId: const PeripheralCharacteristicId(
-    "00002A19-0000-1000-8000-00805F9B34FB",
-  ),
+import 'dart:typed_data';
+import 'package:universal_ble/universal_ble.dart';
+
+await UniversalBlePeripheral.updateCharacteristicValue(
+  characteristicId: batteryLevelChar,
   value: Uint8List.fromList([92]),
+);
+
+// Notify one client (when getCapabilities().supportsTargetedCharacteristicUpdate).
+await UniversalBlePeripheral.updateCharacteristicValue(
+  characteristicId: batteryLevelChar,
+  value: Uint8List.fromList([88]),
+  deviceId: deviceId,
 );
 ```
 
 ### Subscribed Clients and Notify Length
 
+Useful to restore in-app state after a process restart (subscription callbacks are not replayed).
+
 ```dart
-final subscribers = await peripheral.getSubscribedClients(
-  const PeripheralCharacteristicId("00002A19-0000-1000-8000-00805F9B34FB"),
+import 'package:universal_ble/universal_ble.dart';
+
+final subscribers = await UniversalBlePeripheral.getSubscribedClients(
+  batteryLevelChar,
 );
 
 for (final deviceId in subscribers) {
-  final maxNotifyLength = await peripheral.getMaximumNotifyLength(deviceId);
-  // maxNotifyLength can be null when unknown for this device.
+  final maxNotifyLength =
+      await UniversalBlePeripheral.getMaximumNotifyLength(deviceId);
+  // maxNotifyLength is null when unknown for this device.
 }
 ```
 
-### Event Stream
+### Event Streams
 
 ```dart
-final sub = peripheral.eventStream.listen((event) {
-  switch (event) {
-    case UniversalBlePeripheralAdvertisingStateChanged():
-      // event.state / event.error
-      break;
-    case UniversalBlePeripheralCharacteristicSubscriptionChanged():
-      // event.deviceId / event.characteristicId / event.isSubscribed
-      break;
-    case UniversalBlePeripheralConnectionStateChanged():
-      // event.deviceId / event.connected
-      break;
-    case UniversalBlePeripheralMtuChanged():
-      // event.deviceId / event.mtu
-      break;
-    case UniversalBlePeripheralServiceAdded():
-      // event.serviceId / event.error
-      break;
-  }
-});
+import 'package:universal_ble/universal_ble.dart';
+
+UniversalBlePeripheral.advertisingStateStream.listen(
+  (BlePeripheralAdvertisingStateChanged event) {
+    // event.state, event.error
+  },
+);
+
+UniversalBlePeripheral.characteristicSubscriptionStream.listen(
+  (BlePeripheralCharacteristicSubscriptionChanged event) {
+    // event.deviceId, event.characteristicId, event.isSubscribed, event.name
+  },
+);
+
+UniversalBlePeripheral.connectionStateStream.listen(
+  (BlePeripheralConnectionStateChanged event) {
+    // event.deviceId, event.connected
+  },
+);
+
+UniversalBlePeripheral.serviceAddedStream.listen(
+  (BlePeripheralServiceAdded event) {
+    // event.serviceId, event.error
+  },
+);
+
+UniversalBlePeripheral.mtuChangedStream.listen(
+  (BlePeripheralMtuChanged event) {
+    // event.deviceId, event.mtu
+  },
+);
 ```
 
 ### Platform notes
