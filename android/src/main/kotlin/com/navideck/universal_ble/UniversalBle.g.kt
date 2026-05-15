@@ -294,6 +294,48 @@ enum class AndroidScanMode(val raw: Int) {
   }
 }
 
+/**
+ * Mirrors `android.bluetooth.le.ScanSettings#setCallbackType`.
+ *
+ * See https://developer.android.com/reference/android/bluetooth/le/ScanSettings
+ */
+enum class AndroidScanCallbackType(val raw: Int) {
+  ALL_MATCHES(0),
+  FIRST_MATCH(1),
+  MATCH_LOST(2);
+
+  companion object {
+    fun ofRaw(raw: Int): AndroidScanCallbackType? {
+      return values().firstOrNull { it.raw == raw }
+    }
+  }
+}
+
+/** Mirrors `android.bluetooth.le.ScanSettings#setMatchMode`. */
+enum class AndroidScanMatchMode(val raw: Int) {
+  AGGRESSIVE(0),
+  STICKY(1);
+
+  companion object {
+    fun ofRaw(raw: Int): AndroidScanMatchMode? {
+      return values().firstOrNull { it.raw == raw }
+    }
+  }
+}
+
+/** Mirrors `android.bluetooth.le.ScanSettings#setNumOfMatches`. */
+enum class AndroidScanNumOfMatches(val raw: Int) {
+  ONE(0),
+  FEW(1),
+  MAX(2);
+
+  companion object {
+    fun ofRaw(raw: Int): AndroidScanNumOfMatches? {
+      return values().firstOrNull { it.raw == raw }
+    }
+  }
+}
+
 enum class CharacteristicProperty(val raw: Int) {
   BROADCAST(0),
   READ(1),
@@ -616,13 +658,22 @@ data class UniversalBleDescriptor (
  * Set [reportDelayMillis] timestamp for Bluetooth LE scan. If set to 0, you will be notified of scan results immediately.
  * If > 0, scan results are queued up and delivered after the requested delay or 5000 milliseconds (whichever is higher).
  * Note scan results may be delivered sooner if the internal buffers fill up.
+ * [callbackType], [matchMode], and [numOfMatches] map directly to the equivalent
+ * `android.bluetooth.le.ScanSettings` setters. When `null`, the plugin leaves them
+ * at the platform default — set them only if you need to override platform-side
+ * advert de-duplication (e.g. on Pixel hardware where the default settings
+ * throttle advertisements compared with nRF Connect).
+ * See https://developer.android.com/reference/android/bluetooth/le/ScanSettings
  *
  * Generated class from Pigeon that represents data sent in messages.
  */
 data class AndroidOptions (
   val requestLocationPermission: Boolean? = null,
   val scanMode: AndroidScanMode? = null,
-  val reportDelayMillis: Long? = null
+  val reportDelayMillis: Long? = null,
+  val callbackType: AndroidScanCallbackType? = null,
+  val matchMode: AndroidScanMatchMode? = null,
+  val numOfMatches: AndroidScanNumOfMatches? = null
 )
  {
   companion object {
@@ -630,7 +681,10 @@ data class AndroidOptions (
       val requestLocationPermission = pigeonVar_list[0] as Boolean?
       val scanMode = pigeonVar_list[1] as AndroidScanMode?
       val reportDelayMillis = pigeonVar_list[2] as Long?
-      return AndroidOptions(requestLocationPermission, scanMode, reportDelayMillis)
+      val callbackType = pigeonVar_list[3] as AndroidScanCallbackType?
+      val matchMode = pigeonVar_list[4] as AndroidScanMatchMode?
+      val numOfMatches = pigeonVar_list[5] as AndroidScanNumOfMatches?
+      return AndroidOptions(requestLocationPermission, scanMode, reportDelayMillis, callbackType, matchMode, numOfMatches)
     }
   }
   fun toList(): List<Any?> {
@@ -638,6 +692,9 @@ data class AndroidOptions (
       requestLocationPermission,
       scanMode,
       reportDelayMillis,
+      callbackType,
+      matchMode,
+      numOfMatches,
     )
   }
   override fun equals(other: Any?): Boolean {
@@ -648,7 +705,7 @@ data class AndroidOptions (
       return true
     }
     val other = other as AndroidOptions
-    return UniversalBlePigeonUtils.deepEquals(this.requestLocationPermission, other.requestLocationPermission) && UniversalBlePigeonUtils.deepEquals(this.scanMode, other.scanMode) && UniversalBlePigeonUtils.deepEquals(this.reportDelayMillis, other.reportDelayMillis)
+    return UniversalBlePigeonUtils.deepEquals(this.requestLocationPermission, other.requestLocationPermission) && UniversalBlePigeonUtils.deepEquals(this.scanMode, other.scanMode) && UniversalBlePigeonUtils.deepEquals(this.reportDelayMillis, other.reportDelayMillis) && UniversalBlePigeonUtils.deepEquals(this.callbackType, other.callbackType) && UniversalBlePigeonUtils.deepEquals(this.matchMode, other.matchMode) && UniversalBlePigeonUtils.deepEquals(this.numOfMatches, other.numOfMatches)
   }
 
   override fun hashCode(): Int {
@@ -656,6 +713,9 @@ data class AndroidOptions (
     result = 31 * result + UniversalBlePigeonUtils.deepHash(this.requestLocationPermission)
     result = 31 * result + UniversalBlePigeonUtils.deepHash(this.scanMode)
     result = 31 * result + UniversalBlePigeonUtils.deepHash(this.reportDelayMillis)
+    result = 31 * result + UniversalBlePigeonUtils.deepHash(this.callbackType)
+    result = 31 * result + UniversalBlePigeonUtils.deepHash(this.matchMode)
+    result = 31 * result + UniversalBlePigeonUtils.deepHash(this.numOfMatches)
     return result
   }
 }
@@ -1152,105 +1212,120 @@ private open class UniversalBlePigeonCodec : StandardMessageCodec() {
       }
       136.toByte() -> {
         return (readValue(buffer) as Long?)?.let {
-          CharacteristicProperty.ofRaw(it.toInt())
+          AndroidScanCallbackType.ofRaw(it.toInt())
         }
       }
       137.toByte() -> {
         return (readValue(buffer) as Long?)?.let {
-          PeripheralReadinessState.ofRaw(it.toInt())
+          AndroidScanMatchMode.ofRaw(it.toInt())
         }
       }
       138.toByte() -> {
         return (readValue(buffer) as Long?)?.let {
-          PeripheralAttributePermission.ofRaw(it.toInt())
+          AndroidScanNumOfMatches.ofRaw(it.toInt())
         }
       }
       139.toByte() -> {
         return (readValue(buffer) as Long?)?.let {
-          PeripheralAdvertisingState.ofRaw(it.toInt())
+          CharacteristicProperty.ofRaw(it.toInt())
         }
       }
       140.toByte() -> {
         return (readValue(buffer) as Long?)?.let {
-          UniversalBleErrorCode.ofRaw(it.toInt())
+          PeripheralReadinessState.ofRaw(it.toInt())
         }
       }
       141.toByte() -> {
-        return (readValue(buffer) as? List<Any?>)?.let {
-          UniversalBleScanResult.fromList(it)
+        return (readValue(buffer) as Long?)?.let {
+          PeripheralAttributePermission.ofRaw(it.toInt())
         }
       }
       142.toByte() -> {
-        return (readValue(buffer) as? List<Any?>)?.let {
-          UniversalBleService.fromList(it)
+        return (readValue(buffer) as Long?)?.let {
+          PeripheralAdvertisingState.ofRaw(it.toInt())
         }
       }
       143.toByte() -> {
-        return (readValue(buffer) as? List<Any?>)?.let {
-          UniversalBleCharacteristic.fromList(it)
+        return (readValue(buffer) as Long?)?.let {
+          UniversalBleErrorCode.ofRaw(it.toInt())
         }
       }
       144.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          UniversalBleDescriptor.fromList(it)
+          UniversalBleScanResult.fromList(it)
         }
       }
       145.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          AndroidOptions.fromList(it)
+          UniversalBleService.fromList(it)
         }
       }
       146.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          UniversalScanConfig.fromList(it)
+          UniversalBleCharacteristic.fromList(it)
         }
       }
       147.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          UniversalScanFilter.fromList(it)
+          UniversalBleDescriptor.fromList(it)
         }
       }
       148.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          ManufacturerDataFilter.fromList(it)
+          AndroidOptions.fromList(it)
         }
       }
       149.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          UniversalManufacturerData.fromList(it)
+          UniversalScanConfig.fromList(it)
         }
       }
       150.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          PeripheralAndroidOptions.fromList(it)
+          UniversalScanFilter.fromList(it)
         }
       }
       151.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          PeripheralPlatformConfig.fromList(it)
+          ManufacturerDataFilter.fromList(it)
         }
       }
       152.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          PeripheralService.fromList(it)
+          UniversalManufacturerData.fromList(it)
         }
       }
       153.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          PeripheralCharacteristic.fromList(it)
+          PeripheralAndroidOptions.fromList(it)
         }
       }
       154.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          PeripheralDescriptor.fromList(it)
+          PeripheralPlatformConfig.fromList(it)
         }
       }
       155.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          PeripheralReadRequestResult.fromList(it)
+          PeripheralService.fromList(it)
         }
       }
       156.toByte() -> {
+        return (readValue(buffer) as? List<Any?>)?.let {
+          PeripheralCharacteristic.fromList(it)
+        }
+      }
+      157.toByte() -> {
+        return (readValue(buffer) as? List<Any?>)?.let {
+          PeripheralDescriptor.fromList(it)
+        }
+      }
+      158.toByte() -> {
+        return (readValue(buffer) as? List<Any?>)?.let {
+          PeripheralReadRequestResult.fromList(it)
+        }
+      }
+      159.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
           PeripheralWriteRequestResult.fromList(it)
         }
@@ -1288,88 +1363,100 @@ private open class UniversalBlePigeonCodec : StandardMessageCodec() {
         stream.write(135)
         writeValue(stream, value.raw.toLong())
       }
-      is CharacteristicProperty -> {
+      is AndroidScanCallbackType -> {
         stream.write(136)
         writeValue(stream, value.raw.toLong())
       }
-      is PeripheralReadinessState -> {
+      is AndroidScanMatchMode -> {
         stream.write(137)
         writeValue(stream, value.raw.toLong())
       }
-      is PeripheralAttributePermission -> {
+      is AndroidScanNumOfMatches -> {
         stream.write(138)
         writeValue(stream, value.raw.toLong())
       }
-      is PeripheralAdvertisingState -> {
+      is CharacteristicProperty -> {
         stream.write(139)
         writeValue(stream, value.raw.toLong())
       }
-      is UniversalBleErrorCode -> {
+      is PeripheralReadinessState -> {
         stream.write(140)
         writeValue(stream, value.raw.toLong())
       }
-      is UniversalBleScanResult -> {
+      is PeripheralAttributePermission -> {
         stream.write(141)
-        writeValue(stream, value.toList())
+        writeValue(stream, value.raw.toLong())
       }
-      is UniversalBleService -> {
+      is PeripheralAdvertisingState -> {
         stream.write(142)
-        writeValue(stream, value.toList())
+        writeValue(stream, value.raw.toLong())
       }
-      is UniversalBleCharacteristic -> {
+      is UniversalBleErrorCode -> {
         stream.write(143)
-        writeValue(stream, value.toList())
+        writeValue(stream, value.raw.toLong())
       }
-      is UniversalBleDescriptor -> {
+      is UniversalBleScanResult -> {
         stream.write(144)
         writeValue(stream, value.toList())
       }
-      is AndroidOptions -> {
+      is UniversalBleService -> {
         stream.write(145)
         writeValue(stream, value.toList())
       }
-      is UniversalScanConfig -> {
+      is UniversalBleCharacteristic -> {
         stream.write(146)
         writeValue(stream, value.toList())
       }
-      is UniversalScanFilter -> {
+      is UniversalBleDescriptor -> {
         stream.write(147)
         writeValue(stream, value.toList())
       }
-      is ManufacturerDataFilter -> {
+      is AndroidOptions -> {
         stream.write(148)
         writeValue(stream, value.toList())
       }
-      is UniversalManufacturerData -> {
+      is UniversalScanConfig -> {
         stream.write(149)
         writeValue(stream, value.toList())
       }
-      is PeripheralAndroidOptions -> {
+      is UniversalScanFilter -> {
         stream.write(150)
         writeValue(stream, value.toList())
       }
-      is PeripheralPlatformConfig -> {
+      is ManufacturerDataFilter -> {
         stream.write(151)
         writeValue(stream, value.toList())
       }
-      is PeripheralService -> {
+      is UniversalManufacturerData -> {
         stream.write(152)
         writeValue(stream, value.toList())
       }
-      is PeripheralCharacteristic -> {
+      is PeripheralAndroidOptions -> {
         stream.write(153)
         writeValue(stream, value.toList())
       }
-      is PeripheralDescriptor -> {
+      is PeripheralPlatformConfig -> {
         stream.write(154)
         writeValue(stream, value.toList())
       }
-      is PeripheralReadRequestResult -> {
+      is PeripheralService -> {
         stream.write(155)
         writeValue(stream, value.toList())
       }
-      is PeripheralWriteRequestResult -> {
+      is PeripheralCharacteristic -> {
         stream.write(156)
+        writeValue(stream, value.toList())
+      }
+      is PeripheralDescriptor -> {
+        stream.write(157)
+        writeValue(stream, value.toList())
+      }
+      is PeripheralReadRequestResult -> {
+        stream.write(158)
+        writeValue(stream, value.toList())
+      }
+      is PeripheralWriteRequestResult -> {
+        stream.write(159)
         writeValue(stream, value.toList())
       }
       else -> super.writeValue(stream, value)

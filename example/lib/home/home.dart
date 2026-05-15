@@ -90,7 +90,22 @@ class _CentralHomeState extends State<CentralHome> {
   }
 
   Future<void> startScan() async {
-    await UniversalBle.startScan(scanFilter: scanFilter);
+    await UniversalBle.startScan(
+      scanFilter: scanFilter,
+      // Demonstrates the Android-only ScanSettings knobs. Defaults keep the
+      // platform behaviour, so most callers can omit `platformConfig` entirely.
+      // The combination below disables chip-side advert de-duplication, which
+      // matters on some Pixel hardware where the default settings throttle
+      // advertisements compared with nRF Connect.
+      platformConfig: PlatformConfig(
+        android: AndroidOptions(
+          scanMode: AndroidScanMode.lowLatency,
+          callbackType: AndroidScanCallbackType.allMatches,
+          matchMode: AndroidScanMatchMode.aggressive,
+          numOfMatches: AndroidScanNumOfMatches.max,
+        ),
+      ),
+    );
   }
 
   Future<void> _getSystemDevices() async {

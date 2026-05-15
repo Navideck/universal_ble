@@ -192,6 +192,9 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
             androidConfig.reportDelayMillis?.let { reportDelay ->
                 builder.setReportDelay(reportDelay)
             }
+            androidConfig.callbackType?.parse()?.let { builder.setCallbackType(it) }
+            androidConfig.matchMode?.parse()?.let { builder.setMatchMode(it) }
+            androidConfig.numOfMatches?.parse()?.let { builder.setNumOfMatches(it) }
         }
         val settings = builder.build()
 

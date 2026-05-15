@@ -1,3 +1,6 @@
+## Unreleased
+* Android: expose `callbackType`, `matchMode`, and `numOfMatches` on `AndroidOptions` so callers can configure `ScanSettings` to defeat aggressive chip-side advert de-duplication on Pixel devices.
+
 ## 2.0.0
 * Add peripheral mode on Android, iOS, macOS, and Windows
 * Add `requestConnectionPriority` to allow tuning BLE connection intervals on Android
