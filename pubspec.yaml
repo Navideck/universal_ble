@@ -33,6 +33,7 @@ dependencies:
   plugin_platform_interface: ^2.1.8
   flutter_web_bluetooth: ^1.1.0
   bluez: ^0.8.3
+  meta: ^1.17.0
 
 dev_dependencies:
   flutter_test:
