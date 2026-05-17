@@ -38,7 +38,7 @@ class UniversalBlePeripheralPlugin(
     private var gattServer: BluetoothGattServer? = null
     private val bluetoothDevicesMap: MutableMap<String, BluetoothDevice> = HashMap()
     private val mtuByDeviceId: MutableMap<String, Int> = HashMap()
-    private val listOfDevicesWaitingForBond = mutableListOf<String>()
+    private val devicesWaitingForBond = mutableSetOf<String>()
     private val emptyBytes = byteArrayOf()
     private var advertisingState: PeripheralAdvertisingState = PeripheralAdvertisingState.IDLE
     private var originalAdapterName: String? = null
@@ -51,17 +51,22 @@ class UniversalBlePeripheralPlugin(
 
     fun onBondStateChanged(bondStateChange: BondStateChange) {
         val device = bondStateChange.device
-        val waitingForConnection = synchronized(listOfDevicesWaitingForBond) {
-            listOfDevicesWaitingForBond.contains(device.address)
-        }
-        if (bondStateChange.state == BluetoothDevice.BOND_BONDED && waitingForConnection) {
-            synchronized(listOfDevicesWaitingForBond) {
-                listOfDevicesWaitingForBond.remove(device.address)
+        when (bondStateChange.state) {
+            BluetoothDevice.BOND_BONDED -> {
+                val waitingForConnection = synchronized(devicesWaitingForBond) {
+                    devicesWaitingForBond.remove(device.address)
+                }
+                if (waitingForConnection) {
+                    synchronized(bluetoothDevicesMap) {
+                        bluetoothDevicesMap[device.address] = device
+                    }
+                    handler.post { gattServer?.connect(device, true) }
+                }
             }
-            synchronized(bluetoothDevicesMap) {
-                bluetoothDevicesMap[device.address] = device
+
+            BluetoothDevice.BOND_NONE -> synchronized(devicesWaitingForBond) {
+                devicesWaitingForBond.remove(device.address)
             }
-            handler.post { gattServer?.connect(device, true) }
         }
     }
 
@@ -71,8 +76,8 @@ class UniversalBlePeripheralPlugin(
         gattServer?.close()
         gattServer = null
         bluetoothDevicesMap.clear()
-        synchronized(listOfDevicesWaitingForBond) {
-            listOfDevicesWaitingForBond.clear()
+        synchronized(devicesWaitingForBond) {
+            devicesWaitingForBond.clear()
         }
         synchronized(mtuByDeviceId) { mtuByDeviceId.clear() }
         clearPeripheralCaches()
@@ -310,10 +315,10 @@ class UniversalBlePeripheralPlugin(
                     }
                     if (device.bondState == BluetoothDevice.BOND_NONE) {
                         if (!device.address.isKnownGatt()) {
-                            synchronized(listOfDevicesWaitingForBond) {
-                                listOfDevicesWaitingForBond.add(device.address)
+                            val startedBonding = synchronized(devicesWaitingForBond) {
+                                devicesWaitingForBond.add(device.address)
                             }
-                            device.createBond()
+                            if (startedBonding) device.createBond()
                         }
                     } else if (device.isBonded()) {
                         handler.post { gattServer?.connect(device, true) }
@@ -325,8 +330,8 @@ class UniversalBlePeripheralPlugin(
                     synchronized(bluetoothDevicesMap) {
                         bluetoothDevicesMap.remove(device.address)
                     }
-                    synchronized(listOfDevicesWaitingForBond) {
-                        listOfDevicesWaitingForBond.remove(device.address)
+                    synchronized(devicesWaitingForBond) {
+                        devicesWaitingForBond.remove(device.address)
                     }
                     onConnectionUpdate(device, status, newState)
                 }
