@@ -64,7 +64,12 @@ class UniversalBlePeripheralPlugin(
                 }
             }
 
-            BluetoothDevice.BOND_NONE -> synchronized(devicesWaitingForBond) {
+            BluetoothDevice.BOND_NONE,
+            BluetoothDevice.ERROR -> synchronized(devicesWaitingForBond) {
+                devicesWaitingForBond.remove(device.address)
+            }
+
+            else -> synchronized(devicesWaitingForBond) {
                 devicesWaitingForBond.remove(device.address)
             }
         }
