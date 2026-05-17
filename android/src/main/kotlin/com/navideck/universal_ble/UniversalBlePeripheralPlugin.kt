@@ -314,12 +314,10 @@ class UniversalBlePeripheralPlugin(
                         bluetoothDevicesMap[device.address] = device
                     }
                     if (device.bondState == BluetoothDevice.BOND_NONE) {
-                        if (!device.address.isKnownGatt()) {
-                            val startedBonding = synchronized(devicesWaitingForBond) {
-                                devicesWaitingForBond.add(device.address)
-                            }
-                            if (startedBonding) device.createBond()
+                        val startedBonding = synchronized(devicesWaitingForBond) {
+                            devicesWaitingForBond.add(device.address)
                         }
+                        if (startedBonding) device.createBond()
                     } else if (device.isBonded()) {
                         handler.post { gattServer?.connect(device, true) }
                     }
