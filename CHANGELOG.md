@@ -1,4 +1,4 @@
-## 2.0.0
+## 2.0.1
 * Remove the deferred initialization of the peripheral in the Kotlin constructor
 
 ## 2.0.0
