@@ -212,11 +212,13 @@ class UniversalBlePeripheralPlugin(
     }
 
     override fun stopAdvertising() {
-        ensurePeripheralInitialized()
+        if (advertisingState == PeripheralAdvertisingState.IDLE && bluetoothLeAdvertiser == null) {
+            return
+        }
         advertisingState = PeripheralAdvertisingState.STOPPING
         callback.onAdvertisingStateChange(PeripheralAdvertisingState.STOPPING, null) {}
         handler.post {
-            requireLeAdvertiser().stopAdvertising(advertiseCallback)
+            kotlin.runCatching { bluetoothLeAdvertiser?.stopAdvertising(advertiseCallback) }
             restoreAdapterNameIfNeeded()
             advertisingState = PeripheralAdvertisingState.IDLE
             callback.onAdvertisingStateChange(PeripheralAdvertisingState.IDLE, null) {}
