@@ -319,7 +319,15 @@ class UniversalBlePeripheralPlugin(
                         val startedBonding = synchronized(devicesWaitingForBond) {
                             devicesWaitingForBond.add(device.address)
                         }
-                        if (startedBonding) device.createBond()
+                        if (startedBonding) {
+                            val bondInitiated = device.createBond()
+                            if (!bondInitiated) {
+                                synchronized(devicesWaitingForBond) {
+                                    devicesWaitingForBond.remove(device.address)
+                                }
+                                Log.w(TAG, "Failed to initiate bonding for device ${device.address}")
+                            }
+                        }
                     } else if (device.isBonded()) {
                         handler.post { gattServer?.connect(device, true) }
                     }
