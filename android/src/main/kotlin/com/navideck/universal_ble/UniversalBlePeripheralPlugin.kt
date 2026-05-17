@@ -228,7 +228,7 @@ class UniversalBlePeripheralPlugin(
         value: ByteArray,
         deviceId: String?,
     ) {
-        val gatt = requireGattServer()
+        requireGattServer()
         val characteristic =
             characteristicId.findGattCharacteristic() ?: throw Exception("Characteristic not found")
         characteristic.value = value
@@ -243,7 +243,7 @@ class UniversalBlePeripheralPlugin(
             (characteristic.properties and BluetoothGattCharacteristic.PROPERTY_INDICATE) != 0
         targetDevices.forEach { device ->
             handler.post {
-                gatt.notifyCharacteristicChanged(device, characteristic, indicate)
+                gattServer?.notifyCharacteristicChanged(device, characteristic, indicate)
             }
         }
     }
