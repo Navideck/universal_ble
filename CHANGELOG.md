@@ -1,5 +1,7 @@
 ## 2.0.1
 * Remove the deferred initialization of the peripheral in the Kotlin constructor
+* Android peripheral: track pending bonds in a set, call `createBond()` only once per connecting central, and clear pending state on bond failure or disconnect
+* Android: use a concurrent map for the central GATT connection cache (`knownGatts`) for thread-safe access from BLE callbacks
 
 ## 2.0.0
 * Add peripheral mode on Android, iOS, macOS, and Windows
