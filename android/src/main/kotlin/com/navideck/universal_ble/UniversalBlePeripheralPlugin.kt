@@ -112,6 +112,8 @@ class UniversalBlePeripheralPlugin(
     }
 
     override fun removeService(serviceId: String) {
+        // GATT server is lazily created; without this, removeService no-ops if called first.
+        initializePeripheral()
         serviceId.findService()?.let { gattServer?.removeService(it) }
     }
 
