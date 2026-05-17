@@ -75,7 +75,9 @@ class UniversalBlePeripheralPlugin(
         restoreAdapterNameIfNeeded()
         gattServer?.close()
         gattServer = null
-        bluetoothDevicesMap.clear()
+        synchronized(bluetoothDevicesMap) {
+            bluetoothDevicesMap.clear()
+        }
         synchronized(devicesWaitingForBond) {
             devicesWaitingForBond.clear()
         }
