@@ -488,13 +488,12 @@ class UniversalBlePeripheralPlugin(
                         ) {}
                     }
                     synchronized(subscribedCharDevicesMap) {
-                        val charList = subscribedCharDevicesMap[address] ?: mutableListOf()
+                        val charSet = subscribedCharDevicesMap.getOrPut(address) { mutableSetOf() }
                         if (isSubscribed) {
-                            charList.add(characteristicId)
+                            charSet.add(characteristicId)
                         } else {
-                            charList.remove(characteristicId)
+                            charSet.remove(characteristicId)
                         }
-                        subscribedCharDevicesMap[address] = charList
                     }
                 }
             }
