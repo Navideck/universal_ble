@@ -85,7 +85,8 @@ class UniversalBlePeripheralPlugin(
         clearPeripheralCaches()
     }
 
-    private fun initializePeripheral() {
+    /** Opens the LE advertiser and GATT server on first use (not in the constructor). */
+    private fun ensurePeripheralInitialized() {
         val adapter = bluetoothManager.adapter
             ?: throw UnsupportedOperationException("Bluetooth is not available.")
         if (bluetoothLeAdvertiser != null && gattServer != null) return
@@ -95,6 +96,16 @@ class UniversalBlePeripheralPlugin(
             )
         gattServer = bluetoothManager.openGattServer(applicationContext, gattServerCallback)
             ?: throw UnsupportedOperationException("gattServer is null, check Bluetooth is ON.")
+    }
+
+    private fun requireGattServer(): BluetoothGattServer {
+        ensurePeripheralInitialized()
+        return checkNotNull(gattServer) { "GATT server not available." }
+    }
+
+    private fun requireLeAdvertiser(): BluetoothLeAdvertiser {
+        ensurePeripheralInitialized()
+        return checkNotNull(bluetoothLeAdvertiser) { "LE advertiser not available." }
     }
 
     override fun getAdvertisingState(): PeripheralAdvertisingState = advertisingState
@@ -107,25 +118,20 @@ class UniversalBlePeripheralPlugin(
     }
 
     override fun addService(service: PeripheralService) {
-        initializePeripheral()
-        gattServer?.addService(service.toGattService())
+        requireGattServer().addService(service.toGattService())
     }
 
     override fun removeService(serviceId: String) {
-        // GATT server is lazily created; without this, removeService no-ops if called first.
-        initializePeripheral()
-        serviceId.findService()?.let { gattServer?.removeService(it) }
+        serviceId.findService()?.let { requireGattServer().removeService(it) }
     }
 
     override fun clearServices() {
-        initializePeripheral()
-        gattServer?.clearServices()
+        requireGattServer().clearServices()
     }
 
     override fun getServices(): List<String> =
         runCatching {
-            initializePeripheral()
-            gattServer?.services?.map { it.uuid.toString() } ?: emptyList()
+            requireGattServer().services.map { it.uuid.toString() }
         }.getOrDefault(emptyList())
 
     override fun startAdvertising(
@@ -135,7 +141,7 @@ class UniversalBlePeripheralPlugin(
         manufacturerData: UniversalManufacturerData?,
         platformConfig: PeripheralPlatformConfig?,
     ) {
-        initializePeripheral()
+        ensurePeripheralInitialized()
         if (!bluetoothManager.isBluetoothEnabled()) {
             advertisingState = PeripheralAdvertisingState.ERROR
             callback.onAdvertisingStateChange(
@@ -191,7 +197,7 @@ class UniversalBlePeripheralPlugin(
             }
             services.forEach { advertiseDataBuilder.addServiceUuid(ParcelUuid.fromString(it)) }
 
-            bluetoothLeAdvertiser?.startAdvertising(
+            requireLeAdvertiser().startAdvertising(
                 advertiseSettings,
                 advertiseDataBuilder.build(),
                 scanResponseBuilder.build(),
@@ -201,11 +207,11 @@ class UniversalBlePeripheralPlugin(
     }
 
     override fun stopAdvertising() {
-        initializePeripheral()
+        ensurePeripheralInitialized()
         advertisingState = PeripheralAdvertisingState.STOPPING
         callback.onAdvertisingStateChange(PeripheralAdvertisingState.STOPPING, null) {}
         handler.post {
-            bluetoothLeAdvertiser?.stopAdvertising(advertiseCallback)
+            requireLeAdvertiser().stopAdvertising(advertiseCallback)
             restoreAdapterNameIfNeeded()
             advertisingState = PeripheralAdvertisingState.IDLE
             callback.onAdvertisingStateChange(PeripheralAdvertisingState.IDLE, null) {}
@@ -217,7 +223,7 @@ class UniversalBlePeripheralPlugin(
         value: ByteArray,
         deviceId: String?,
     ) {
-        initializePeripheral()
+        val gatt = requireGattServer()
         val characteristic =
             characteristicId.findGattCharacteristic() ?: throw Exception("Characteristic not found")
         characteristic.value = value
@@ -232,7 +238,7 @@ class UniversalBlePeripheralPlugin(
             (characteristic.properties and BluetoothGattCharacteristic.PROPERTY_INDICATE) != 0
         targetDevices.forEach { device ->
             handler.post {
-                gattServer?.notifyCharacteristicChanged(device, characteristic, indicate)
+                gatt.notifyCharacteristicChanged(device, characteristic, indicate)
             }
         }
     }
