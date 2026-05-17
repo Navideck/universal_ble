@@ -80,6 +80,7 @@ class UniversalBlePeripheralPlugin(
         restoreAdapterNameIfNeeded()
         gattServer?.close()
         gattServer = null
+        bluetoothLeAdvertiser = null
         synchronized(bluetoothDevicesMap) {
             bluetoothDevicesMap.clear()
         }
@@ -106,11 +107,6 @@ class UniversalBlePeripheralPlugin(
     private fun requireGattServer(): BluetoothGattServer {
         ensurePeripheralInitialized()
         return checkNotNull(gattServer) { "GATT server not available." }
-    }
-
-    private fun requireLeAdvertiser(): BluetoothLeAdvertiser {
-        ensurePeripheralInitialized()
-        return checkNotNull(bluetoothLeAdvertiser) { "LE advertiser not available." }
     }
 
     override fun getAdvertisingState(): PeripheralAdvertisingState = advertisingState
@@ -202,7 +198,7 @@ class UniversalBlePeripheralPlugin(
             }
             services.forEach { advertiseDataBuilder.addServiceUuid(ParcelUuid.fromString(it)) }
 
-            requireLeAdvertiser().startAdvertising(
+            bluetoothLeAdvertiser?.startAdvertising(
                 advertiseSettings,
                 advertiseDataBuilder.build(),
                 scanResponseBuilder.build(),
