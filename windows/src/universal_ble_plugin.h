@@ -22,6 +22,7 @@
 #include "ui_thread_handler.hpp"
 #include "universal_ble_thread_safe.h"
 #include <memory>
+#include <mutex>
 #include <vector>
 
 namespace universal_ble {
@@ -126,6 +127,7 @@ private:
   BluetoothLEAdvertisementWatcher bluetooth_le_watcher_{nullptr};
   DeviceWatcher device_watcher_{nullptr};
 
+  std::mutex connected_devices_mutex_;
   std::unordered_map<uint64_t, std::unique_ptr<BluetoothDeviceAgent>>
       connected_devices_{};
   ThreadSafeMap<std::string, DeviceInformation> device_watcher_devices_{};

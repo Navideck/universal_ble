@@ -240,6 +240,7 @@ ErrorOr<bool> UniversalBlePlugin::IsScanning() {
 
 ErrorOr<BleConnectionState>
 UniversalBlePlugin::GetConnectionState(const std::string &device_id) {
+  std::lock_guard<std::mutex> lock(connected_devices_mutex_);
   const auto it = connected_devices_.find(str_to_mac_address(device_id));
   if (it == connected_devices_.end()) {
     return BleConnectionState::kDisconnected;
@@ -272,6 +273,7 @@ UniversalBlePlugin::Connect(const std::string &device_id,
 std::optional<FlutterError>
 UniversalBlePlugin::Disconnect(const std::string &device_id) {
   auto device_address = str_to_mac_address(device_id);
+  std::lock_guard<std::mutex> lock(connected_devices_mutex_);
   const auto it = connected_devices_.find(device_address);
   if (it != connected_devices_.end()) {
     it->second->device.Close();
@@ -307,14 +309,17 @@ void UniversalBlePlugin::ReadValue(
   UniversalBleLogger::LogDebugWithTimestamp("READ -> " + device_id + " " +
                                             service + " " + characteristic);
   try {
-    const auto it = connected_devices_.find(str_to_mac_address(device_id));
-    if (it == connected_devices_.end()) {
-      result(create_flutter_error(UniversalBleErrorCode::kDeviceNotFound,
-                                  "Unknown devicesId:" + device_id));
-      return;
+    BluetoothDeviceAgent bluetooth_agent;
+    {
+      std::lock_guard<std::mutex> lock(connected_devices_mutex_);
+      const auto it = connected_devices_.find(str_to_mac_address(device_id));
+      if (it == connected_devices_.end()) {
+        result(create_flutter_error(UniversalBleErrorCode::kDeviceNotFound,
+                                    "Unknown devicesId:" + device_id));
+        return;
+      }
+      bluetooth_agent = *it->second;
     }
-
-    auto bluetooth_agent = *it->second;
     const GattCharacteristicObject &gatt_characteristic_holder =
         bluetooth_agent.FetchCharacteristic(service, characteristic);
     const GattCharacteristic gatt_characteristic =
@@ -362,13 +367,17 @@ void UniversalBlePlugin::WriteValue(
       " len=" + std::to_string(value.size()) +
       " property=" + std::to_string(static_cast<int>(ble_output_property)));
   try {
-    const auto it = connected_devices_.find(str_to_mac_address(device_id));
-    if (it == connected_devices_.end()) {
-      result(create_flutter_error(UniversalBleErrorCode::kDeviceNotFound,
-                                  "Unknown devicesId:" + device_id));
-      return;
+    BluetoothDeviceAgent bluetooth_agent;
+    {
+      std::lock_guard<std::mutex> lock(connected_devices_mutex_);
+      const auto it = connected_devices_.find(str_to_mac_address(device_id));
+      if (it == connected_devices_.end()) {
+        result(create_flutter_error(UniversalBleErrorCode::kDeviceNotFound,
+                                    "Unknown devicesId:" + device_id));
+        return;
+      }
+      bluetooth_agent = *it->second;
     }
-    auto bluetooth_agent = *it->second;
     const GattCharacteristicObject &gatt_characteristic_holder =
         bluetooth_agent.FetchCharacteristic(service, characteristic);
     const GattCharacteristic gatt_characteristic =
@@ -432,13 +441,17 @@ void UniversalBlePlugin::RequestMtu(
       "REQUEST_MTU -> " + device_id +
       " expected=" + std::to_string(expected_mtu));
   try {
-    const auto it = connected_devices_.find(str_to_mac_address(device_id));
-    if (it == connected_devices_.end()) {
-      result(create_flutter_error(UniversalBleErrorCode::kDeviceNotFound,
-                                  "Unknown devicesId:" + device_id));
-      return;
+    BluetoothDeviceAgent bluetooth_agent;
+    {
+      std::lock_guard<std::mutex> lock(connected_devices_mutex_);
+      const auto it = connected_devices_.find(str_to_mac_address(device_id));
+      if (it == connected_devices_.end()) {
+        result(create_flutter_error(UniversalBleErrorCode::kDeviceNotFound,
+                                    "Unknown devicesId:" + device_id));
+        return;
+      }
+      bluetooth_agent = *it->second;
     }
-    const auto bluetooth_agent = *it->second;
     GattSession::FromDeviceIdAsync(bluetooth_agent.device.BluetoothDeviceId())
         .Completed([&, result](IAsyncOperation<GattSession> const &sender,
                                AsyncStatus const args) {
@@ -1203,7 +1216,10 @@ fire_and_forget UniversalBlePlugin::ConnectAsync(uint64_t bluetooth_address) {
     auto device_agent = std::make_unique<BluetoothDeviceAgent>(
         device, connection_status_changed_token, gatt_map);
     auto pair = std::make_pair(bluetooth_address, std::move(device_agent));
-    connected_devices_.insert(std::move(pair));
+    {
+      std::lock_guard<std::mutex> lock(connected_devices_mutex_);
+      connected_devices_.insert(std::move(pair));
+    }
     UniversalBleLogger::LogInfo("ConnectionLog: Connected");
     NotifyConnectionChanged(bluetooth_address, true, std::nullopt);
   } catch (const hresult_error &err) {
@@ -1247,6 +1263,7 @@ void UniversalBlePlugin::BluetoothLeDeviceConnectionStatusChanged(
 
 void UniversalBlePlugin::CleanConnection(const uint64_t bluetooth_address) {
   try {
+    std::lock_guard<std::mutex> lock(connected_devices_mutex_);
     const auto node = connected_devices_.extract(bluetooth_address);
     if (!node.empty()) {
       const auto device_agent = std::move(node.mapped());
@@ -1325,14 +1342,20 @@ void UniversalBlePlugin::ResetState() {
 
     // Close all connected devices and clear map
     std::vector<uint64_t> addrs;
-    addrs.reserve(connected_devices_.size());
-    for (const auto &p : connected_devices_) {
-      addrs.push_back(p.first);
+    {
+      std::lock_guard<std::mutex> lock(connected_devices_mutex_);
+      addrs.reserve(connected_devices_.size());
+      for (const auto &p : connected_devices_) {
+        addrs.push_back(p.first);
+      }
     }
     for (const auto addr : addrs) {
       CleanConnection(addr);
     }
-    connected_devices_.clear();
+    {
+      std::lock_guard<std::mutex> lock(connected_devices_mutex_);
+      connected_devices_.clear();
+    }
 
     UniversalBleLogger::LogInfo("ResetState: completed clean slate");
   } catch (const hresult_error &err) {
@@ -1405,15 +1428,20 @@ fire_and_forget UniversalBlePlugin::DiscoverServicesAsync(
     const std::string &device_id, bool with_descriptors,
     std::function<void(ErrorOr<flutter::EncodableList> reply)> result) {
   try {
-    const auto it = connected_devices_.find(str_to_mac_address(device_id));
-    if (it == connected_devices_.end()) {
-      result(create_flutter_error(UniversalBleErrorCode::kDeviceNotFound,
-                                  "Unknown devicesId:" + device_id));
-      co_return;
+    BluetoothDeviceAgent bluetooth_agent;
+    {
+      std::lock_guard<std::mutex> lock(connected_devices_mutex_);
+      const auto it = connected_devices_.find(str_to_mac_address(device_id));
+      if (it == connected_devices_.end()) {
+        result(create_flutter_error(UniversalBleErrorCode::kDeviceNotFound,
+                                    "Unknown devicesId:" + device_id));
+        co_return;
+      }
+      bluetooth_agent = *it->second;
     }
 
     auto universal_services = flutter::EncodableList();
-    for (auto &[service_id, service] : it->second->gatt_map) {
+    for (auto &[service_id, service] : bluetooth_agent.gatt_map) {
       flutter::EncodableList universal_characteristics;
       for (auto [char_id, characteristic] : service.characteristics) {
         auto &c = characteristic.obj;
@@ -1494,14 +1522,18 @@ fire_and_forget UniversalBlePlugin::SetNotifiableAsync(
       "SET_NOTIFY -> " + device_id + " " + service + " " + characteristic +
       " input=" + std::to_string(static_cast<int>(ble_input_property)));
   try {
-    const auto it = connected_devices_.find(str_to_mac_address(device_id));
-    if (it == connected_devices_.end()) {
-      result(create_flutter_error(UniversalBleErrorCode::kDeviceNotFound,
-                                  "Unknown devicesId:" + device_id));
-      co_return;
+    const auto device_address = str_to_mac_address(device_id);
+    GattCharacteristicObject gatt_char;
+    {
+      std::lock_guard<std::mutex> lock(connected_devices_mutex_);
+      const auto it = connected_devices_.find(device_address);
+      if (it == connected_devices_.end()) {
+        result(create_flutter_error(UniversalBleErrorCode::kDeviceNotFound,
+                                    "Unknown devicesId:" + device_id));
+        co_return;
+      }
+      gatt_char = it->second->FetchCharacteristic(service, characteristic);
     }
-
-    auto &gatt_char = it->second->FetchCharacteristic(service, characteristic);
 
     const auto properties = gatt_char.obj.CharacteristicProperties();
     auto descriptor_value =
@@ -1579,6 +1611,16 @@ fire_and_forget UniversalBlePlugin::SetNotifiableAsync(
       gatt_char.subscription_token =
           std::make_optional(gatt_characteristic.ValueChanged(
               {this, &UniversalBlePlugin::GattCharacteristicValueChanged}));
+    }
+
+    {
+      std::lock_guard<std::mutex> lock(connected_devices_mutex_);
+      const auto it = connected_devices_.find(device_address);
+      if (it != connected_devices_.end()) {
+        auto &stored =
+            it->second->FetchCharacteristic(service, characteristic);
+        stored.subscription_token = gatt_char.subscription_token;
+      }
     }
 
     result(std::nullopt);
