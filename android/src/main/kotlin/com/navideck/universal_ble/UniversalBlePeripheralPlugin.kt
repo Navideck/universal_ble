@@ -69,9 +69,9 @@ class UniversalBlePeripheralPlugin(
                 devicesWaitingForBond.remove(device.address)
             }
 
-            else -> synchronized(devicesWaitingForBond) {
-                devicesWaitingForBond.remove(device.address)
-            }
+            BluetoothDevice.BOND_BONDING -> Unit
+
+            else -> Unit
         }
     }
 
