@@ -44,11 +44,6 @@ class UniversalBlePeripheralPlugin(
     private var originalAdapterName: String? = null
     private var adapterNameOverridden = false
 
-    init {
-        kotlin.runCatching { initializePeripheral() }.onFailure {
-            Log.w(TAG, "Deferred peripheral init: ${it.message}")
-        }
-    }
 
     fun attachActivity(activity: Activity?) {
         this.activity = activity
@@ -314,10 +309,12 @@ class UniversalBlePeripheralPlugin(
                         bluetoothDevicesMap[device.address] = device
                     }
                     if (device.bondState == BluetoothDevice.BOND_NONE) {
-                        synchronized(listOfDevicesWaitingForBond) {
-                            listOfDevicesWaitingForBond.add(device.address)
+                        if (!device.address.isKnownGatt()) {
+                            synchronized(listOfDevicesWaitingForBond) {
+                                listOfDevicesWaitingForBond.add(device.address)
+                            }
+                            device.createBond()
                         }
-                        device.createBond()
                     } else if (device.isBonded()) {
                         handler.post { gattServer?.connect(device, true) }
                     }
@@ -327,6 +324,9 @@ class UniversalBlePeripheralPlugin(
                 BluetoothProfile.STATE_DISCONNECTED -> {
                     synchronized(bluetoothDevicesMap) {
                         bluetoothDevicesMap.remove(device.address)
+                    }
+                    synchronized(listOfDevicesWaitingForBond) {
+                        listOfDevicesWaitingForBond.remove(device.address)
                     }
                     onConnectionUpdate(device, status, newState)
                 }
