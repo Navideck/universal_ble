@@ -1,3 +1,6 @@
+## 2.0.1
+* Add `onConnectionParametersChange` to notify when Android link-layer connection parameters change (API 26+)
+
 ## 2.0.0
 * Add peripheral mode on Android, iOS, macOS, and Windows
 * Add `requestConnectionPriority` to allow tuning BLE connection intervals on Android

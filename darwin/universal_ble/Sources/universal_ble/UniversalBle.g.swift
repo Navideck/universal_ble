@@ -511,6 +511,62 @@ struct UniversalBleDescriptor: Hashable {
   }
 }
 
+/// Link-layer connection parameters reported by Android [onConnectionUpdated].
+///
+/// [interval] and [supervisionTimeout] use BLE connection parameter units
+/// (multiply interval by 1.25 for ms; supervisionTimeout by 10 for ms).
+///
+/// Generated class from Pigeon that represents data sent in messages.
+struct BleConnectionParametersUpdated: Hashable {
+  var deviceId: String
+  var interval: Int64
+  var latency: Int64
+  var supervisionTimeout: Int64
+  var status: Int64
+
+
+  // swift-format-ignore: AlwaysUseLowerCamelCase
+  static func fromList(_ pigeonVar_list: [Any?]) -> BleConnectionParametersUpdated? {
+    let deviceId = pigeonVar_list[0] as! String
+    let interval = pigeonVar_list[1] as! Int64
+    let latency = pigeonVar_list[2] as! Int64
+    let supervisionTimeout = pigeonVar_list[3] as! Int64
+    let status = pigeonVar_list[4] as! Int64
+
+    return BleConnectionParametersUpdated(
+      deviceId: deviceId,
+      interval: interval,
+      latency: latency,
+      supervisionTimeout: supervisionTimeout,
+      status: status
+    )
+  }
+  func toList() -> [Any?] {
+    return [
+      deviceId,
+      interval,
+      latency,
+      supervisionTimeout,
+      status,
+    ]
+  }
+  static func == (lhs: BleConnectionParametersUpdated, rhs: BleConnectionParametersUpdated) -> Bool {
+    if Swift.type(of: lhs) != Swift.type(of: rhs) {
+      return false
+    }
+    return deepEqualsUniversalBle(lhs.deviceId, rhs.deviceId) && deepEqualsUniversalBle(lhs.interval, rhs.interval) && deepEqualsUniversalBle(lhs.latency, rhs.latency) && deepEqualsUniversalBle(lhs.supervisionTimeout, rhs.supervisionTimeout) && deepEqualsUniversalBle(lhs.status, rhs.status)
+  }
+
+  func hash(into hasher: inout Hasher) {
+    hasher.combine("BleConnectionParametersUpdated")
+    deepHashUniversalBle(value: deviceId, hasher: &hasher)
+    deepHashUniversalBle(value: interval, hasher: &hasher)
+    deepHashUniversalBle(value: latency, hasher: &hasher)
+    deepHashUniversalBle(value: supervisionTimeout, hasher: &hasher)
+    deepHashUniversalBle(value: status, hasher: &hasher)
+  }
+}
+
 /// Scan models
 /// Android options to scan devices
 /// [requestLocationPermission] is used to request location permission on Android 12+ (API 31+).
@@ -1077,28 +1133,30 @@ private class UniversalBlePigeonCodecReader: FlutterStandardReader {
     case 144:
       return UniversalBleDescriptor.fromList(self.readValue() as! [Any?])
     case 145:
-      return AndroidOptions.fromList(self.readValue() as! [Any?])
+      return BleConnectionParametersUpdated.fromList(self.readValue() as! [Any?])
     case 146:
-      return UniversalScanConfig.fromList(self.readValue() as! [Any?])
+      return AndroidOptions.fromList(self.readValue() as! [Any?])
     case 147:
-      return UniversalScanFilter.fromList(self.readValue() as! [Any?])
+      return UniversalScanConfig.fromList(self.readValue() as! [Any?])
     case 148:
-      return ManufacturerDataFilter.fromList(self.readValue() as! [Any?])
+      return UniversalScanFilter.fromList(self.readValue() as! [Any?])
     case 149:
-      return UniversalManufacturerData.fromList(self.readValue() as! [Any?])
+      return ManufacturerDataFilter.fromList(self.readValue() as! [Any?])
     case 150:
-      return PeripheralAndroidOptions.fromList(self.readValue() as! [Any?])
+      return UniversalManufacturerData.fromList(self.readValue() as! [Any?])
     case 151:
-      return PeripheralPlatformConfig.fromList(self.readValue() as! [Any?])
+      return PeripheralAndroidOptions.fromList(self.readValue() as! [Any?])
     case 152:
-      return PeripheralService.fromList(self.readValue() as! [Any?])
+      return PeripheralPlatformConfig.fromList(self.readValue() as! [Any?])
     case 153:
-      return PeripheralCharacteristic.fromList(self.readValue() as! [Any?])
+      return PeripheralService.fromList(self.readValue() as! [Any?])
     case 154:
-      return PeripheralDescriptor.fromList(self.readValue() as! [Any?])
+      return PeripheralCharacteristic.fromList(self.readValue() as! [Any?])
     case 155:
-      return PeripheralReadRequestResult.fromList(self.readValue() as! [Any?])
+      return PeripheralDescriptor.fromList(self.readValue() as! [Any?])
     case 156:
+      return PeripheralReadRequestResult.fromList(self.readValue() as! [Any?])
+    case 157:
       return PeripheralWriteRequestResult.fromList(self.readValue() as! [Any?])
     default:
       return super.readValue(ofType: type)
@@ -1156,41 +1214,44 @@ private class UniversalBlePigeonCodecWriter: FlutterStandardWriter {
     } else if let value = value as? UniversalBleDescriptor {
       super.writeByte(144)
       super.writeValue(value.toList())
-    } else if let value = value as? AndroidOptions {
+    } else if let value = value as? BleConnectionParametersUpdated {
       super.writeByte(145)
       super.writeValue(value.toList())
-    } else if let value = value as? UniversalScanConfig {
+    } else if let value = value as? AndroidOptions {
       super.writeByte(146)
       super.writeValue(value.toList())
-    } else if let value = value as? UniversalScanFilter {
+    } else if let value = value as? UniversalScanConfig {
       super.writeByte(147)
       super.writeValue(value.toList())
-    } else if let value = value as? ManufacturerDataFilter {
+    } else if let value = value as? UniversalScanFilter {
       super.writeByte(148)
       super.writeValue(value.toList())
-    } else if let value = value as? UniversalManufacturerData {
+    } else if let value = value as? ManufacturerDataFilter {
       super.writeByte(149)
       super.writeValue(value.toList())
-    } else if let value = value as? PeripheralAndroidOptions {
+    } else if let value = value as? UniversalManufacturerData {
       super.writeByte(150)
       super.writeValue(value.toList())
-    } else if let value = value as? PeripheralPlatformConfig {
+    } else if let value = value as? PeripheralAndroidOptions {
       super.writeByte(151)
       super.writeValue(value.toList())
-    } else if let value = value as? PeripheralService {
+    } else if let value = value as? PeripheralPlatformConfig {
       super.writeByte(152)
       super.writeValue(value.toList())
-    } else if let value = value as? PeripheralCharacteristic {
+    } else if let value = value as? PeripheralService {
       super.writeByte(153)
       super.writeValue(value.toList())
-    } else if let value = value as? PeripheralDescriptor {
+    } else if let value = value as? PeripheralCharacteristic {
       super.writeByte(154)
       super.writeValue(value.toList())
-    } else if let value = value as? PeripheralReadRequestResult {
+    } else if let value = value as? PeripheralDescriptor {
       super.writeByte(155)
       super.writeValue(value.toList())
-    } else if let value = value as? PeripheralWriteRequestResult {
+    } else if let value = value as? PeripheralReadRequestResult {
       super.writeByte(156)
+      super.writeValue(value.toList())
+    } else if let value = value as? PeripheralWriteRequestResult {
+      super.writeByte(157)
       super.writeValue(value.toList())
     } else {
       super.writeValue(value)
@@ -1638,6 +1699,7 @@ protocol UniversalBleCallbackChannelProtocol {
   func onScanResult(result resultArg: UniversalBleScanResult, completion: @escaping (Result<Void, PigeonError>) -> Void)
   func onValueChanged(deviceId deviceIdArg: String, characteristicId characteristicIdArg: String, value valueArg: FlutterStandardTypedData, timestamp timestampArg: Int64?, completion: @escaping (Result<Void, PigeonError>) -> Void)
   func onConnectionChanged(deviceId deviceIdArg: String, connected connectedArg: Bool, error errorArg: String?, completion: @escaping (Result<Void, PigeonError>) -> Void)
+  func onConnectionParametersUpdated(update updateArg: BleConnectionParametersUpdated, completion: @escaping (Result<Void, PigeonError>) -> Void)
 }
 class UniversalBleCallbackChannel: UniversalBleCallbackChannelProtocol {
   private let binaryMessenger: FlutterBinaryMessenger
@@ -1725,6 +1787,24 @@ class UniversalBleCallbackChannel: UniversalBleCallbackChannelProtocol {
     let channelName: String = "dev.flutter.pigeon.universal_ble.UniversalBleCallbackChannel.onConnectionChanged\(messageChannelSuffix)"
     let channel = FlutterBasicMessageChannel(name: channelName, binaryMessenger: binaryMessenger, codec: codec)
     channel.sendMessage([deviceIdArg, connectedArg, errorArg] as [Any?]) { response in
+      guard let listResponse = response as? [Any?] else {
+        completion(.failure(createConnectionError(withChannelName: channelName)))
+        return
+      }
+      if listResponse.count > 1 {
+        let code: String = listResponse[0] as! String
+        let message: String? = nilOrValue(listResponse[1])
+        let details: String? = nilOrValue(listResponse[2])
+        completion(.failure(PigeonError(code: code, message: message, details: details)))
+      } else {
+        completion(.success(()))
+      }
+    }
+  }
+  func onConnectionParametersUpdated(update updateArg: BleConnectionParametersUpdated, completion: @escaping (Result<Void, PigeonError>) -> Void) {
+    let channelName: String = "dev.flutter.pigeon.universal_ble.UniversalBleCallbackChannel.onConnectionParametersUpdated\(messageChannelSuffix)"
+    let channel = FlutterBasicMessageChannel(name: channelName, binaryMessenger: binaryMessenger, codec: codec)
+    channel.sendMessage([updateArg] as [Any?]) { response in
       guard let listResponse = response as? [Any?] else {
         completion(.failure(createConnectionError(withChannelName: channelName)))
         return

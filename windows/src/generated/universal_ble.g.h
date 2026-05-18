@@ -391,6 +391,58 @@ class UniversalBleDescriptor {
 };
 
 
+// Link-layer connection parameters reported by Android [onConnectionUpdated].
+//
+// [interval] and [supervisionTimeout] use BLE connection parameter units
+// (multiply interval by 1.25 for ms; supervisionTimeout by 10 for ms).
+//
+// Generated class from Pigeon that represents data sent in messages.
+class BleConnectionParametersUpdated {
+ public:
+  // Constructs an object setting all fields.
+  explicit BleConnectionParametersUpdated(
+    const std::string& device_id,
+    int64_t interval,
+    int64_t latency,
+    int64_t supervision_timeout,
+    int64_t status);
+
+  const std::string& device_id() const;
+  void set_device_id(std::string_view value_arg);
+
+  int64_t interval() const;
+  void set_interval(int64_t value_arg);
+
+  int64_t latency() const;
+  void set_latency(int64_t value_arg);
+
+  int64_t supervision_timeout() const;
+  void set_supervision_timeout(int64_t value_arg);
+
+  int64_t status() const;
+  void set_status(int64_t value_arg);
+
+  bool operator==(const BleConnectionParametersUpdated& other) const;
+  bool operator!=(const BleConnectionParametersUpdated& other) const;
+  /// Returns a hash code value for the object. This method is supported for the benefit of hash tables.
+  size_t Hash() const;
+ private:
+  static BleConnectionParametersUpdated FromEncodableList(const ::flutter::EncodableList& list);
+  ::flutter::EncodableList ToEncodableList() const;
+  friend class UniversalBlePlatformChannel;
+  friend class UniversalBleCallbackChannel;
+  friend class UniversalBlePeripheralChannel;
+  friend class UniversalBleAndroidChannel;
+  friend class UniversalBlePeripheralCallback;
+  friend class PigeonInternalCodecSerializer;
+  std::string device_id_;
+  int64_t interval_;
+  int64_t latency_;
+  int64_t supervision_timeout_;
+  int64_t status_;
+};
+
+
 // Scan models
 // Android options to scan devices
 // [requestLocationPermission] is used to request location permission on Android 12+ (API 31+).
@@ -1020,6 +1072,10 @@ class UniversalBleCallbackChannel {
     const std::string& device_id,
     bool connected,
     const std::string* error,
+    std::function<void(void)>&& on_success,
+    std::function<void(const FlutterError&)>&& on_error);
+  void OnConnectionParametersUpdated(
+    const BleConnectionParametersUpdated& update,
     std::function<void(void)>&& on_success,
     std::function<void(const FlutterError&)>&& on_error);
  private:

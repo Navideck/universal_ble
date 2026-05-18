@@ -814,6 +814,11 @@ class UniversalBle {
   static set onPairingStateChange(OnPairingStateChange pairingStateChange) =>
       _platform.onPairingStateChange = pairingStateChange;
 
+  /// Connection parameter updates (Android API 26+).
+  static set onConnectionParametersChange(
+    OnConnectionParametersChange? onConnectionParametersChange,
+  ) => _platform.onConnectionParametersChange = onConnectionParametersChange;
+
   static UniversalBlePlatform _defaultPlatform() {
     if (kIsWeb) return UniversalBleWeb.instance;
     if (defaultTargetPlatform == TargetPlatform.linux) {

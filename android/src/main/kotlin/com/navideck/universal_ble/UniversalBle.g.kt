@@ -609,6 +609,63 @@ data class UniversalBleDescriptor (
 }
 
 /**
+ * Link-layer connection parameters reported by Android [onConnectionUpdated].
+ *
+ * [interval] and [supervisionTimeout] use BLE connection parameter units
+ * (multiply interval by 1.25 for ms; supervisionTimeout by 10 for ms).
+ *
+ * Generated class from Pigeon that represents data sent in messages.
+ */
+data class BleConnectionParametersUpdated (
+  val deviceId: String,
+  val interval: Long,
+  val latency: Long,
+  val supervisionTimeout: Long,
+  val status: Long
+)
+ {
+  companion object {
+    fun fromList(pigeonVar_list: List<Any?>): BleConnectionParametersUpdated {
+      val deviceId = pigeonVar_list[0] as String
+      val interval = pigeonVar_list[1] as Long
+      val latency = pigeonVar_list[2] as Long
+      val supervisionTimeout = pigeonVar_list[3] as Long
+      val status = pigeonVar_list[4] as Long
+      return BleConnectionParametersUpdated(deviceId, interval, latency, supervisionTimeout, status)
+    }
+  }
+  fun toList(): List<Any?> {
+    return listOf(
+      deviceId,
+      interval,
+      latency,
+      supervisionTimeout,
+      status,
+    )
+  }
+  override fun equals(other: Any?): Boolean {
+    if (other == null || other.javaClass != javaClass) {
+      return false
+    }
+    if (this === other) {
+      return true
+    }
+    val other = other as BleConnectionParametersUpdated
+    return UniversalBlePigeonUtils.deepEquals(this.deviceId, other.deviceId) && UniversalBlePigeonUtils.deepEquals(this.interval, other.interval) && UniversalBlePigeonUtils.deepEquals(this.latency, other.latency) && UniversalBlePigeonUtils.deepEquals(this.supervisionTimeout, other.supervisionTimeout) && UniversalBlePigeonUtils.deepEquals(this.status, other.status)
+  }
+
+  override fun hashCode(): Int {
+    var result = javaClass.hashCode()
+    result = 31 * result + UniversalBlePigeonUtils.deepHash(this.deviceId)
+    result = 31 * result + UniversalBlePigeonUtils.deepHash(this.interval)
+    result = 31 * result + UniversalBlePigeonUtils.deepHash(this.latency)
+    result = 31 * result + UniversalBlePigeonUtils.deepHash(this.supervisionTimeout)
+    result = 31 * result + UniversalBlePigeonUtils.deepHash(this.status)
+    return result
+  }
+}
+
+/**
  * Scan models
  * Android options to scan devices
  * [requestLocationPermission] is used to request location permission on Android 12+ (API 31+).
@@ -1197,60 +1254,65 @@ private open class UniversalBlePigeonCodec : StandardMessageCodec() {
       }
       145.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          AndroidOptions.fromList(it)
+          BleConnectionParametersUpdated.fromList(it)
         }
       }
       146.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          UniversalScanConfig.fromList(it)
+          AndroidOptions.fromList(it)
         }
       }
       147.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          UniversalScanFilter.fromList(it)
+          UniversalScanConfig.fromList(it)
         }
       }
       148.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          ManufacturerDataFilter.fromList(it)
+          UniversalScanFilter.fromList(it)
         }
       }
       149.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          UniversalManufacturerData.fromList(it)
+          ManufacturerDataFilter.fromList(it)
         }
       }
       150.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          PeripheralAndroidOptions.fromList(it)
+          UniversalManufacturerData.fromList(it)
         }
       }
       151.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          PeripheralPlatformConfig.fromList(it)
+          PeripheralAndroidOptions.fromList(it)
         }
       }
       152.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          PeripheralService.fromList(it)
+          PeripheralPlatformConfig.fromList(it)
         }
       }
       153.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          PeripheralCharacteristic.fromList(it)
+          PeripheralService.fromList(it)
         }
       }
       154.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          PeripheralDescriptor.fromList(it)
+          PeripheralCharacteristic.fromList(it)
         }
       }
       155.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          PeripheralReadRequestResult.fromList(it)
+          PeripheralDescriptor.fromList(it)
         }
       }
       156.toByte() -> {
+        return (readValue(buffer) as? List<Any?>)?.let {
+          PeripheralReadRequestResult.fromList(it)
+        }
+      }
+      157.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
           PeripheralWriteRequestResult.fromList(it)
         }
@@ -1324,52 +1386,56 @@ private open class UniversalBlePigeonCodec : StandardMessageCodec() {
         stream.write(144)
         writeValue(stream, value.toList())
       }
-      is AndroidOptions -> {
+      is BleConnectionParametersUpdated -> {
         stream.write(145)
         writeValue(stream, value.toList())
       }
-      is UniversalScanConfig -> {
+      is AndroidOptions -> {
         stream.write(146)
         writeValue(stream, value.toList())
       }
-      is UniversalScanFilter -> {
+      is UniversalScanConfig -> {
         stream.write(147)
         writeValue(stream, value.toList())
       }
-      is ManufacturerDataFilter -> {
+      is UniversalScanFilter -> {
         stream.write(148)
         writeValue(stream, value.toList())
       }
-      is UniversalManufacturerData -> {
+      is ManufacturerDataFilter -> {
         stream.write(149)
         writeValue(stream, value.toList())
       }
-      is PeripheralAndroidOptions -> {
+      is UniversalManufacturerData -> {
         stream.write(150)
         writeValue(stream, value.toList())
       }
-      is PeripheralPlatformConfig -> {
+      is PeripheralAndroidOptions -> {
         stream.write(151)
         writeValue(stream, value.toList())
       }
-      is PeripheralService -> {
+      is PeripheralPlatformConfig -> {
         stream.write(152)
         writeValue(stream, value.toList())
       }
-      is PeripheralCharacteristic -> {
+      is PeripheralService -> {
         stream.write(153)
         writeValue(stream, value.toList())
       }
-      is PeripheralDescriptor -> {
+      is PeripheralCharacteristic -> {
         stream.write(154)
         writeValue(stream, value.toList())
       }
-      is PeripheralReadRequestResult -> {
+      is PeripheralDescriptor -> {
         stream.write(155)
         writeValue(stream, value.toList())
       }
-      is PeripheralWriteRequestResult -> {
+      is PeripheralReadRequestResult -> {
         stream.write(156)
+        writeValue(stream, value.toList())
+      }
+      is PeripheralWriteRequestResult -> {
+        stream.write(157)
         writeValue(stream, value.toList())
       }
       else -> super.writeValue(stream, value)
@@ -1947,6 +2013,23 @@ class UniversalBleCallbackChannel(private val binaryMessenger: BinaryMessenger, 
     val channelName = "dev.flutter.pigeon.universal_ble.UniversalBleCallbackChannel.onConnectionChanged$separatedMessageChannelSuffix"
     val channel = BasicMessageChannel<Any?>(binaryMessenger, channelName, codec)
     channel.send(listOf(deviceIdArg, connectedArg, errorArg)) {
+      if (it is List<*>) {
+        if (it.size > 1) {
+          callback(Result.failure(FlutterError(it[0] as String, it[1] as String, it[2] as String?)))
+        } else {
+          callback(Result.success(Unit))
+        }
+      } else {
+        callback(Result.failure(UniversalBlePigeonUtils.createConnectionError(channelName)))
+      } 
+    }
+  }
+  fun onConnectionParametersUpdated(updateArg: BleConnectionParametersUpdated, callback: (Result<Unit>) -> Unit)
+{
+    val separatedMessageChannelSuffix = if (messageChannelSuffix.isNotEmpty()) ".$messageChannelSuffix" else ""
+    val channelName = "dev.flutter.pigeon.universal_ble.UniversalBleCallbackChannel.onConnectionParametersUpdated$separatedMessageChannelSuffix"
+    val channel = BasicMessageChannel<Any?>(binaryMessenger, channelName, codec)
+    channel.send(listOf(updateArg)) {
       if (it is List<*>) {
         if (it.size > 1) {
           callback(Result.failure(FlutterError(it[0] as String, it[1] as String, it[2] as String?)))

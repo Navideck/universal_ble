@@ -121,6 +121,26 @@ class UniversalBleDescriptor {
   UniversalBleDescriptor(this.uuid);
 }
 
+/// Link-layer connection parameters reported by Android [onConnectionUpdated].
+///
+/// [interval] and [supervisionTimeout] use BLE connection parameter units
+/// (multiply interval by 1.25 for ms; supervisionTimeout by 10 for ms).
+class BleConnectionParametersUpdated {
+  final String deviceId;
+  final int interval;
+  final int latency;
+  final int supervisionTimeout;
+  final int status;
+
+  BleConnectionParametersUpdated({
+    required this.deviceId,
+    required this.interval,
+    required this.latency,
+    required this.supervisionTimeout,
+    required this.status,
+  });
+}
+
 /// Scan models
 /// Android options to scan devices
 /// [requestLocationPermission] is used to request location permission on Android 12+ (API 31+).
@@ -342,6 +362,8 @@ abstract class UniversalBleCallbackChannel {
   );
 
   void onConnectionChanged(String deviceId, bool connected, String? error);
+
+  void onConnectionParametersUpdated(BleConnectionParametersUpdated update);
 }
 
 /// Flutter -> Native (peripheral)
