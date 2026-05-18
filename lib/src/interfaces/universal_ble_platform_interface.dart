@@ -14,7 +14,8 @@ abstract class UniversalBlePlatform {
   OnPairingStateChange? onPairingStateChange;
   OnConnectionParametersChange? onConnectionParametersChange;
   final Map<String, bool> _pairStateMap = {};
-  BleConnectionParametersUpdated? _lastConnectionParameters;
+  final Map<String, BleConnectionParametersUpdated>
+  _lastConnectionParametersMap = {};
 
   final _scanStreamController = UniversalBleStreamController<BleDevice>();
 
@@ -170,9 +171,7 @@ abstract class UniversalBlePlatform {
 
     if (!isConnected) {
       CacheHandler.instance.resetDeviceCache(deviceId);
-      if (_lastConnectionParameters?.deviceId == deviceId) {
-        _lastConnectionParameters = null;
-      }
+      _lastConnectionParametersMap.remove(deviceId);
     }
   }
 
@@ -213,7 +212,7 @@ abstract class UniversalBlePlatform {
   }
 
   void updateConnectionParameters(BleConnectionParametersUpdated update) {
-    final last = _lastConnectionParameters;
+    final last = _lastConnectionParametersMap[update.deviceId];
     if (last != null &&
         last.deviceId == update.deviceId &&
         last.interval == update.interval &&
@@ -222,7 +221,7 @@ abstract class UniversalBlePlatform {
         last.status == update.status) {
       return;
     }
-    _lastConnectionParameters = update;
+    _lastConnectionParametersMap[update.deviceId] = update;
 
     try {
       onConnectionParametersChange?.call(update);
