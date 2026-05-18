@@ -1127,7 +1127,6 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
                     UniversalBleLogger.logError("No device found in ACTION_BOND_STATE_CHANGED intent")
                     return
                 }
-                peripheralPlugin.onBondStateChanged(bondStateChange)
                 // get pairing failed error
                 when (bondStateChange.state) {
                     BluetoothDevice.BOND_BONDING -> {

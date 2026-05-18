@@ -38,7 +38,6 @@ class UniversalBlePeripheralPlugin(
     private var gattServer: BluetoothGattServer? = null
     private val bluetoothDevicesMap: MutableMap<String, BluetoothDevice> = HashMap()
     private val mtuByDeviceId: MutableMap<String, Int> = HashMap()
-    private val devicesWaitingForBond = mutableSetOf<String>()
     private val emptyBytes = byteArrayOf()
     private var advertisingState: PeripheralAdvertisingState = PeripheralAdvertisingState.IDLE
     private var originalAdapterName: String? = null
@@ -49,32 +48,6 @@ class UniversalBlePeripheralPlugin(
         this.activity = activity
     }
 
-    fun onBondStateChanged(bondStateChange: BondStateChange) {
-        val device = bondStateChange.device
-        when (bondStateChange.state) {
-            BluetoothDevice.BOND_BONDED -> {
-                val waitingForConnection = synchronized(devicesWaitingForBond) {
-                    devicesWaitingForBond.remove(device.address)
-                }
-                if (waitingForConnection) {
-                    synchronized(bluetoothDevicesMap) {
-                        bluetoothDevicesMap[device.address] = device
-                    }
-                    handler.post { gattServer?.connect(device, true) }
-                }
-            }
-
-            BluetoothDevice.BOND_NONE,
-            BluetoothDevice.ERROR -> synchronized(devicesWaitingForBond) {
-                devicesWaitingForBond.remove(device.address)
-            }
-
-            BluetoothDevice.BOND_BONDING -> Unit
-
-            else -> Unit
-        }
-    }
-
     fun dispose() {
         kotlin.runCatching { bluetoothLeAdvertiser?.stopAdvertising(advertiseCallback) }
         restoreAdapterNameIfNeeded()
@@ -83,9 +56,6 @@ class UniversalBlePeripheralPlugin(
         bluetoothLeAdvertiser = null
         synchronized(bluetoothDevicesMap) {
             bluetoothDevicesMap.clear()
-        }
-        synchronized(devicesWaitingForBond) {
-            devicesWaitingForBond.clear()
         }
         synchronized(mtuByDeviceId) { mtuByDeviceId.clear() }
         clearPeripheralCaches()
@@ -326,31 +296,13 @@ class UniversalBlePeripheralPlugin(
                     synchronized(bluetoothDevicesMap) {
                         bluetoothDevicesMap[device.address] = device
                     }
-                    if (device.bondState == BluetoothDevice.BOND_NONE) {
-                        val startedBonding = synchronized(devicesWaitingForBond) {
-                            devicesWaitingForBond.add(device.address)
-                        }
-                        if (startedBonding) {
-                            val bondInitiated = device.createBond()
-                            if (!bondInitiated) {
-                                synchronized(devicesWaitingForBond) {
-                                    devicesWaitingForBond.remove(device.address)
-                                }
-                                Log.w(TAG, "Failed to initiate bonding for device ${device.address}")
-                            }
-                        }
-                    } else if (device.isBonded()) {
-                        handler.post { gattServer?.connect(device, true) }
-                    }
+                    handler.post { gattServer?.connect(device, true) }
                     onConnectionUpdate(device, status, newState)
                 }
 
                 BluetoothProfile.STATE_DISCONNECTED -> {
                     synchronized(bluetoothDevicesMap) {
                         bluetoothDevicesMap.remove(device.address)
-                    }
-                    synchronized(devicesWaitingForBond) {
-                        devicesWaitingForBond.remove(device.address)
                     }
                     onConnectionUpdate(device, status, newState)
                 }
