@@ -1,8 +1,6 @@
 name: Pull Request
 
 on:
-  push:
-    branches: [main]
   pull_request:
     branches: [main]
 
@@ -34,6 +32,15 @@ jobs:
         uses: coactions/setup-xvfb@v1
         with:
           run: flutter test --platform chrome
+
+      - name: Install Linux desktop dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang cmake ninja-build pkg-config libgtk-3-dev libstdc++-12-dev
+
+      - name: Build Linux
+        working-directory: example
+        run: flutter build linux
 
   pana:
     runs-on: ubuntu-latest
