@@ -1,3 +1,6 @@
+## Unreleased
+* Android: expose `callbackType`, `matchMode`, and `numOfMatches` on `AndroidOptions` so callers can configure `ScanSettings` to defeat aggressive chip-side advert de-duplication on Pixel devices. `callbackType` accepts a `List<AndroidScanCallbackType>` (OR-folded on the native side) and includes a new `allMatchesAutoBatch` value (API 34+).
+
 ## 2.0.1
 * Android peripheral: eager Kotlin initialization, thread-safe GATT connection cache, and pairing only via `pair()` or when encryption requires it
 
