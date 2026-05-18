@@ -35,6 +35,10 @@ jobs:
         with:
           run: flutter test --platform chrome
 
+      - name: Build Linux
+        working-directory: example
+        run: flutter build linux
+
   pana:
     runs-on: ubuntu-latest
 
