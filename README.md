@@ -58,6 +58,7 @@ A cross-platform (Android/iOS/macOS/Windows/Linux/Web) Bluetooth Low Energy (BLE
 | onAvailabilityChange          |   ✔️    | ✔️  |  ✔️   |   ✔️    |  ✔️   | ✔️  |
 | requestMtu                    |   ✔️    | ✔️  |  ✔️   |   ✔️    |  ✔️   | ❌  |
 | requestConnectionPriority     |   ✔️    | ❌  |  ❌   |   ❌    |  ❌   | ❌  |
+| onConnectionParametersChange  |   ✔️    | ❌  |  ❌   |   ❌    |  ❌   | ❌  |
 | readRssi                      |   ✔️    | ✔️  |  ✔️   |   ❌    |  🚧   | ❌  |
 | requestPermissions            |   ✔️    | ✔️  |  ✔️   |   ✔️    |  ✔️   | ✔️  |
 
@@ -511,6 +512,23 @@ await UniversalBle.requestConnectionPriority(
 
 > **Note:** Only supported on Android. On all other platforms this throws `UniversalBleException` with code `notSupported`.
 > Call this after connecting and after `requestMtu()`, before beginning data transfer.
+
+The OS may later change connection parameters without your app requesting it (e.g. for power saving), which can reduce throughput. On Android API 26+, set `UniversalBle.onConnectionParametersChange` and react if needed:
+
+```dart
+UniversalBle.onConnectionParametersChange = (update) {
+  if (update.deviceId != deviceId || !update.isSuccess) return;
+  // Prefer intervalMs for throughput decisions; estimatedPriority is approximate.
+  if (update.intervalMs > 50) {
+    UniversalBle.requestConnectionPriority(
+      deviceId,
+      BleConnectionPriority.highPerformance,
+    );
+  }
+};
+```
+
+> **Note:** Re-requesting high priority on every update can fight the OS power manager — debounce in app code. Requires Android API 26+ (`BleCapabilities.supportsConnectionParametersUpdates`).
 
 ### Reading RSSI
 

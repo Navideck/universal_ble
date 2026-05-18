@@ -21,6 +21,9 @@ typedef OnAvailabilityChange = void Function(AvailabilityState state);
 
 typedef OnPairingStateChange = void Function(String deviceId, bool isPaired);
 
+typedef OnConnectionParametersChange =
+    void Function(BleConnectionParametersUpdated update);
+
 typedef OnQueueUpdate = void Function(String id, int remainingQueueItems);
 
 /// Peripheral mode callbacks

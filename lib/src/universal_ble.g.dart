@@ -477,6 +477,70 @@ class UniversalBleDescriptor {
   int get hashCode => _deepHash(<Object?>[runtimeType, ..._toList()]);
 }
 
+/// Link-layer connection parameters reported by Android [onConnectionUpdated].
+///
+/// [interval] and [supervisionTimeout] use BLE connection parameter units
+/// (multiply interval by 1.25 for ms; supervisionTimeout by 10 for ms).
+class BleConnectionParametersUpdated {
+  BleConnectionParametersUpdated({
+    required this.deviceId,
+    required this.interval,
+    required this.latency,
+    required this.supervisionTimeout,
+    required this.status,
+  });
+
+  String deviceId;
+
+  int interval;
+
+  int latency;
+
+  int supervisionTimeout;
+
+  int status;
+
+  List<Object?> _toList() {
+    return <Object?>[deviceId, interval, latency, supervisionTimeout, status];
+  }
+
+  Object encode() {
+    return _toList();
+  }
+
+  static BleConnectionParametersUpdated decode(Object result) {
+    result as List<Object?>;
+    return BleConnectionParametersUpdated(
+      deviceId: result[0]! as String,
+      interval: result[1]! as int,
+      latency: result[2]! as int,
+      supervisionTimeout: result[3]! as int,
+      status: result[4]! as int,
+    );
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  bool operator ==(Object other) {
+    if (other is! BleConnectionParametersUpdated ||
+        other.runtimeType != runtimeType) {
+      return false;
+    }
+    if (identical(this, other)) {
+      return true;
+    }
+    return _deepEquals(deviceId, other.deviceId) &&
+        _deepEquals(interval, other.interval) &&
+        _deepEquals(latency, other.latency) &&
+        _deepEquals(supervisionTimeout, other.supervisionTimeout) &&
+        _deepEquals(status, other.status);
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  int get hashCode => _deepHash(<Object?>[runtimeType, ..._toList()]);
+}
+
 /// Scan models
 /// Android options to scan devices
 /// [requestLocationPermission] is used to request location permission on Android 12+ (API 31+).
@@ -1150,41 +1214,44 @@ class _PigeonCodec extends StandardMessageCodec {
     } else if (value is UniversalBleDescriptor) {
       buffer.putUint8(147);
       writeValue(buffer, value.encode());
-    } else if (value is AndroidOptions) {
+    } else if (value is BleConnectionParametersUpdated) {
       buffer.putUint8(148);
       writeValue(buffer, value.encode());
-    } else if (value is UniversalScanConfig) {
+    } else if (value is AndroidOptions) {
       buffer.putUint8(149);
       writeValue(buffer, value.encode());
-    } else if (value is UniversalScanFilter) {
+    } else if (value is UniversalScanConfig) {
       buffer.putUint8(150);
       writeValue(buffer, value.encode());
-    } else if (value is ManufacturerDataFilter) {
+    } else if (value is UniversalScanFilter) {
       buffer.putUint8(151);
       writeValue(buffer, value.encode());
-    } else if (value is UniversalManufacturerData) {
+    } else if (value is ManufacturerDataFilter) {
       buffer.putUint8(152);
       writeValue(buffer, value.encode());
-    } else if (value is PeripheralAndroidOptions) {
+    } else if (value is UniversalManufacturerData) {
       buffer.putUint8(153);
       writeValue(buffer, value.encode());
-    } else if (value is PeripheralPlatformConfig) {
+    } else if (value is PeripheralAndroidOptions) {
       buffer.putUint8(154);
       writeValue(buffer, value.encode());
-    } else if (value is PeripheralService) {
+    } else if (value is PeripheralPlatformConfig) {
       buffer.putUint8(155);
       writeValue(buffer, value.encode());
-    } else if (value is PeripheralCharacteristic) {
+    } else if (value is PeripheralService) {
       buffer.putUint8(156);
       writeValue(buffer, value.encode());
-    } else if (value is PeripheralDescriptor) {
+    } else if (value is PeripheralCharacteristic) {
       buffer.putUint8(157);
       writeValue(buffer, value.encode());
-    } else if (value is PeripheralReadRequestResult) {
+    } else if (value is PeripheralDescriptor) {
       buffer.putUint8(158);
       writeValue(buffer, value.encode());
-    } else if (value is PeripheralWriteRequestResult) {
+    } else if (value is PeripheralReadRequestResult) {
       buffer.putUint8(159);
+      writeValue(buffer, value.encode());
+    } else if (value is PeripheralWriteRequestResult) {
+      buffer.putUint8(160);
       writeValue(buffer, value.encode());
     } else {
       super.writeValue(buffer, value);
@@ -1250,28 +1317,30 @@ class _PigeonCodec extends StandardMessageCodec {
       case 147:
         return UniversalBleDescriptor.decode(readValue(buffer)!);
       case 148:
-        return AndroidOptions.decode(readValue(buffer)!);
+        return BleConnectionParametersUpdated.decode(readValue(buffer)!);
       case 149:
-        return UniversalScanConfig.decode(readValue(buffer)!);
+        return AndroidOptions.decode(readValue(buffer)!);
       case 150:
-        return UniversalScanFilter.decode(readValue(buffer)!);
+        return UniversalScanConfig.decode(readValue(buffer)!);
       case 151:
-        return ManufacturerDataFilter.decode(readValue(buffer)!);
+        return UniversalScanFilter.decode(readValue(buffer)!);
       case 152:
-        return UniversalManufacturerData.decode(readValue(buffer)!);
+        return ManufacturerDataFilter.decode(readValue(buffer)!);
       case 153:
-        return PeripheralAndroidOptions.decode(readValue(buffer)!);
+        return UniversalManufacturerData.decode(readValue(buffer)!);
       case 154:
-        return PeripheralPlatformConfig.decode(readValue(buffer)!);
+        return PeripheralAndroidOptions.decode(readValue(buffer)!);
       case 155:
-        return PeripheralService.decode(readValue(buffer)!);
+        return PeripheralPlatformConfig.decode(readValue(buffer)!);
       case 156:
-        return PeripheralCharacteristic.decode(readValue(buffer)!);
+        return PeripheralService.decode(readValue(buffer)!);
       case 157:
-        return PeripheralDescriptor.decode(readValue(buffer)!);
+        return PeripheralCharacteristic.decode(readValue(buffer)!);
       case 158:
-        return PeripheralReadRequestResult.decode(readValue(buffer)!);
+        return PeripheralDescriptor.decode(readValue(buffer)!);
       case 159:
+        return PeripheralReadRequestResult.decode(readValue(buffer)!);
+      case 160:
         return PeripheralWriteRequestResult.decode(readValue(buffer)!);
       default:
         return super.readValueOfType(type, buffer);
@@ -1809,6 +1878,8 @@ abstract class UniversalBleCallbackChannel {
 
   void onConnectionChanged(String deviceId, bool connected, String? error);
 
+  void onConnectionParametersUpdated(BleConnectionParametersUpdated update);
+
   static void setUp(
     UniversalBleCallbackChannel? api, {
     BinaryMessenger? binaryMessenger,
@@ -1944,6 +2015,32 @@ abstract class UniversalBleCallbackChannel {
           final String? arg_error = args[2] as String?;
           try {
             api.onConnectionChanged(arg_deviceId, arg_connected, arg_error);
+            return wrapResponse(empty: true);
+          } on PlatformException catch (e) {
+            return wrapResponse(error: e);
+          } catch (e) {
+            return wrapResponse(
+              error: PlatformException(code: 'error', message: e.toString()),
+            );
+          }
+        });
+      }
+    }
+    {
+      final pigeonVar_channel = BasicMessageChannel<Object?>(
+        'dev.flutter.pigeon.universal_ble.UniversalBleCallbackChannel.onConnectionParametersUpdated$messageChannelSuffix',
+        pigeonChannelCodec,
+        binaryMessenger: binaryMessenger,
+      );
+      if (api == null) {
+        pigeonVar_channel.setMessageHandler(null);
+      } else {
+        pigeonVar_channel.setMessageHandler((Object? message) async {
+          final List<Object?> args = message! as List<Object?>;
+          final BleConnectionParametersUpdated arg_update =
+              args[0]! as BleConnectionParametersUpdated;
+          try {
+            api.onConnectionParametersUpdated(arg_update);
             return wrapResponse(empty: true);
           } on PlatformException catch (e) {
             return wrapResponse(error: e);

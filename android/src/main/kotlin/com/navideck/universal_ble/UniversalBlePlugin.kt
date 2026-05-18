@@ -827,6 +827,32 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
         }
     }
 
+    override fun onConnectionUpdated(
+        gatt: BluetoothGatt,
+        interval: Int,
+        latency: Int,
+        timeout: Int,
+        status: Int,
+    ) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
+        val deviceId = gatt.device.address
+        if (!deviceId.isKnownGatt()) return
+        UniversalBleLogger.logDebug(
+            "onConnectionUpdated -> $deviceId interval=$interval latency=$latency timeout=$timeout status=$status"
+        )
+        mainThreadHandler?.post {
+            callbackChannel?.onConnectionParametersUpdated(
+                BleConnectionParametersUpdated(
+                    deviceId = deviceId,
+                    interval = interval.toLong(),
+                    latency = latency.toLong(),
+                    supervisionTimeout = timeout.toLong(),
+                    status = status.toLong(),
+                )
+            ) {}
+        }
+    }
+
     override fun onMtuChanged(gatt: BluetoothGatt?, mtu: Int, status: Int) {
         val deviceId = gatt?.device?.address ?: return
         mtuResultFutureList.removeAll {
