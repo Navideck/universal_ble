@@ -1,7 +1,5 @@
 ## 2.0.1
-* Remove the deferred initialization of the peripheral in the Kotlin constructor
-* Android peripheral: stop calling `createBond()` automatically when a central connects (pairing is only initiated via the central `pair()` API or when the stack requires it for encrypted GATT access)
-* Android: use a concurrent map for the central GATT connection cache (`knownGatts`) for thread-safe access from BLE callbacks
+* Android peripheral: eager Kotlin initialization, thread-safe GATT connection cache, and pairing only via `pair()` or when encryption requires it
 
 ## 2.0.0
 * Add peripheral mode on Android, iOS, macOS, and Windows
