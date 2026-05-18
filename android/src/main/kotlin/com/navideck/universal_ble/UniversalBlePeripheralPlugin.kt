@@ -38,36 +38,14 @@ class UniversalBlePeripheralPlugin(
     private var gattServer: BluetoothGattServer? = null
     private val bluetoothDevicesMap: MutableMap<String, BluetoothDevice> = HashMap()
     private val mtuByDeviceId: MutableMap<String, Int> = HashMap()
-    private val listOfDevicesWaitingForBond = mutableListOf<String>()
     private val emptyBytes = byteArrayOf()
     private var advertisingState: PeripheralAdvertisingState = PeripheralAdvertisingState.IDLE
     private var originalAdapterName: String? = null
     private var adapterNameOverridden = false
 
-    init {
-        kotlin.runCatching { initializePeripheral() }.onFailure {
-            Log.w(TAG, "Deferred peripheral init: ${it.message}")
-        }
-    }
 
     fun attachActivity(activity: Activity?) {
         this.activity = activity
-    }
-
-    fun onBondStateChanged(bondStateChange: BondStateChange) {
-        val device = bondStateChange.device
-        val waitingForConnection = synchronized(listOfDevicesWaitingForBond) {
-            listOfDevicesWaitingForBond.contains(device.address)
-        }
-        if (bondStateChange.state == BluetoothDevice.BOND_BONDED && waitingForConnection) {
-            synchronized(listOfDevicesWaitingForBond) {
-                listOfDevicesWaitingForBond.remove(device.address)
-            }
-            synchronized(bluetoothDevicesMap) {
-                bluetoothDevicesMap[device.address] = device
-            }
-            handler.post { gattServer?.connect(device, true) }
-        }
     }
 
     fun dispose() {
@@ -75,15 +53,16 @@ class UniversalBlePeripheralPlugin(
         restoreAdapterNameIfNeeded()
         gattServer?.close()
         gattServer = null
-        bluetoothDevicesMap.clear()
-        synchronized(listOfDevicesWaitingForBond) {
-            listOfDevicesWaitingForBond.clear()
+        bluetoothLeAdvertiser = null
+        synchronized(bluetoothDevicesMap) {
+            bluetoothDevicesMap.clear()
         }
         synchronized(mtuByDeviceId) { mtuByDeviceId.clear() }
         clearPeripheralCaches()
     }
 
-    private fun initializePeripheral() {
+    /** Opens the LE advertiser and GATT server on first use (not in the constructor). */
+    private fun ensurePeripheralInitialized() {
         val adapter = bluetoothManager.adapter
             ?: throw UnsupportedOperationException("Bluetooth is not available.")
         if (bluetoothLeAdvertiser != null && gattServer != null) return
@@ -93,6 +72,11 @@ class UniversalBlePeripheralPlugin(
             )
         gattServer = bluetoothManager.openGattServer(applicationContext, gattServerCallback)
             ?: throw UnsupportedOperationException("gattServer is null, check Bluetooth is ON.")
+    }
+
+    private fun requireGattServer(): BluetoothGattServer {
+        ensurePeripheralInitialized()
+        return checkNotNull(gattServer) { "GATT server not available." }
     }
 
     override fun getAdvertisingState(): PeripheralAdvertisingState = advertisingState
@@ -105,23 +89,20 @@ class UniversalBlePeripheralPlugin(
     }
 
     override fun addService(service: PeripheralService) {
-        initializePeripheral()
-        gattServer?.addService(service.toGattService())
+        requireGattServer().addService(service.toGattService())
     }
 
     override fun removeService(serviceId: String) {
-        serviceId.findService()?.let { gattServer?.removeService(it) }
+        serviceId.findService()?.let { requireGattServer().removeService(it) }
     }
 
     override fun clearServices() {
-        initializePeripheral()
-        gattServer?.clearServices()
+        requireGattServer().clearServices()
     }
 
     override fun getServices(): List<String> =
         runCatching {
-            initializePeripheral()
-            gattServer?.services?.map { it.uuid.toString() } ?: emptyList()
+            requireGattServer().services.map { it.uuid.toString() }
         }.getOrDefault(emptyList())
 
     override fun startAdvertising(
@@ -131,7 +112,7 @@ class UniversalBlePeripheralPlugin(
         manufacturerData: UniversalManufacturerData?,
         platformConfig: PeripheralPlatformConfig?,
     ) {
-        initializePeripheral()
+        ensurePeripheralInitialized()
         if (!bluetoothManager.isBluetoothEnabled()) {
             advertisingState = PeripheralAdvertisingState.ERROR
             callback.onAdvertisingStateChange(
@@ -197,11 +178,13 @@ class UniversalBlePeripheralPlugin(
     }
 
     override fun stopAdvertising() {
-        initializePeripheral()
+        if (advertisingState == PeripheralAdvertisingState.IDLE && bluetoothLeAdvertiser == null) {
+            return
+        }
         advertisingState = PeripheralAdvertisingState.STOPPING
         callback.onAdvertisingStateChange(PeripheralAdvertisingState.STOPPING, null) {}
         handler.post {
-            bluetoothLeAdvertiser?.stopAdvertising(advertiseCallback)
+            kotlin.runCatching { bluetoothLeAdvertiser?.stopAdvertising(advertiseCallback) }
             restoreAdapterNameIfNeeded()
             advertisingState = PeripheralAdvertisingState.IDLE
             callback.onAdvertisingStateChange(PeripheralAdvertisingState.IDLE, null) {}
@@ -213,7 +196,7 @@ class UniversalBlePeripheralPlugin(
         value: ByteArray,
         deviceId: String?,
     ) {
-        initializePeripheral()
+        requireGattServer()
         val characteristic =
             characteristicId.findGattCharacteristic() ?: throw Exception("Characteristic not found")
         characteristic.value = value
@@ -313,14 +296,7 @@ class UniversalBlePeripheralPlugin(
                     synchronized(bluetoothDevicesMap) {
                         bluetoothDevicesMap[device.address] = device
                     }
-                    if (device.bondState == BluetoothDevice.BOND_NONE) {
-                        synchronized(listOfDevicesWaitingForBond) {
-                            listOfDevicesWaitingForBond.add(device.address)
-                        }
-                        device.createBond()
-                    } else if (device.isBonded()) {
-                        handler.post { gattServer?.connect(device, true) }
-                    }
+                    handler.post { gattServer?.connect(device, true) }
                     onConnectionUpdate(device, status, newState)
                 }
 
@@ -475,13 +451,12 @@ class UniversalBlePeripheralPlugin(
                         ) {}
                     }
                     synchronized(subscribedCharDevicesMap) {
-                        val charList = subscribedCharDevicesMap[address] ?: mutableListOf()
+                        val charSet = subscribedCharDevicesMap.getOrPut(address) { mutableSetOf() }
                         if (isSubscribed) {
-                            charList.add(characteristicId)
+                            charSet.add(characteristicId)
                         } else {
-                            charList.remove(characteristicId)
+                            charSet.remove(characteristicId)
                         }
-                        subscribedCharDevicesMap[address] = charList
                     }
                 }
             }

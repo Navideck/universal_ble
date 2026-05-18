@@ -26,11 +26,12 @@ import android.util.SparseArray
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.util.UUID
+import java.util.concurrent.ConcurrentHashMap
 import androidx.core.util.size
 
 private const val TAG = "UniversalBlePlugin"
 
-private val knownGatts = mutableMapOf<String, BluetoothGatt>()
+private val knownGatts = ConcurrentHashMap<String, BluetoothGatt>()
 val ccdCharacteristic: UUID = UUID.fromString("00002902-0000-1000-8000-00805f9b34fb")
 
 data class BondStateChange(
