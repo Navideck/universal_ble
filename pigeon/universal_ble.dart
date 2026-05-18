@@ -74,6 +74,31 @@ enum BleConnectionPriority {
 
 enum AndroidScanMode { balanced, lowLatency, lowPower, opportunistic }
 
+/// Mirrors `android.bluetooth.le.ScanSettings#setCallbackType`. Pass any
+/// combination via `AndroidOptions.callbackType` (the plugin OR-folds the list
+/// before calling `setCallbackType`).
+///
+/// API-level notes:
+/// * [allMatches] — API 21+
+/// * [firstMatch], [matchLost] — API 23+ (Marshmallow). Silently dropped on
+///   older devices.
+/// * [allMatchesAutoBatch] — API 34+ (Upside Down Cake). Silently dropped on
+///   older devices.
+///
+/// See https://developer.android.com/reference/android/bluetooth/le/ScanSettings
+enum AndroidScanCallbackType {
+  allMatches,
+  firstMatch,
+  matchLost,
+  allMatchesAutoBatch,
+}
+
+/// Mirrors `android.bluetooth.le.ScanSettings#setMatchMode`.
+enum AndroidScanMatchMode { aggressive, sticky }
+
+/// Mirrors `android.bluetooth.le.ScanSettings#setNumOfMatches`.
+enum AndroidScanNumOfMatches { one, few, max }
+
 enum CharacteristicProperty {
   broadcast,
   read,
@@ -148,14 +173,34 @@ class BleConnectionParametersUpdated {
 /// Set [reportDelayMillis] timestamp for Bluetooth LE scan. If set to 0, you will be notified of scan results immediately.
 /// If > 0, scan results are queued up and delivered after the requested delay or 5000 milliseconds (whichever is higher).
 /// Note scan results may be delivered sooner if the internal buffers fill up.
+/// [callbackType], [matchMode], and [numOfMatches] map directly to the equivalent
+/// `android.bluetooth.le.ScanSettings` setters. When `null`, the plugin leaves them
+/// at the platform default — set them only if you need to override platform-side
+/// advert de-duplication (e.g. on Pixel hardware where the default settings
+/// throttle advertisements compared with nRF Connect).
+///
+/// [callbackType] is a list because Android's `setCallbackType` accepts any
+/// bitwise combination of [AndroidScanCallbackType] values (for example
+/// `[firstMatch, matchLost]` to be notified once on entry and again on exit).
+/// The plugin OR-folds the list before calling the native API. Values that
+/// require a newer API than the device supports are silently dropped (and
+/// logged); see the [AndroidScanCallbackType] doc for per-value API levels.
+///
+/// See https://developer.android.com/reference/android/bluetooth/le/ScanSettings
 class AndroidOptions {
   bool? requestLocationPermission;
   AndroidScanMode? scanMode;
   int? reportDelayMillis;
+  List<AndroidScanCallbackType>? callbackType;
+  AndroidScanMatchMode? matchMode;
+  AndroidScanNumOfMatches? numOfMatches;
   AndroidOptions({
     this.requestLocationPermission,
     this.scanMode,
     this.reportDelayMillis,
+    this.callbackType,
+    this.matchMode,
+    this.numOfMatches,
   });
 }
 

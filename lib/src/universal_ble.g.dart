@@ -144,6 +144,31 @@ enum BleConnectionPriority {
 
 enum AndroidScanMode { balanced, lowLatency, lowPower, opportunistic }
 
+/// Mirrors `android.bluetooth.le.ScanSettings#setCallbackType`. Pass any
+/// combination via `AndroidOptions.callbackType` (the plugin OR-folds the list
+/// before calling `setCallbackType`).
+///
+/// API-level notes:
+/// * [allMatches] — API 21+
+/// * [firstMatch], [matchLost] — API 23+ (Marshmallow). Silently dropped on
+///   older devices.
+/// * [allMatchesAutoBatch] — API 34+ (Upside Down Cake). Silently dropped on
+///   older devices.
+///
+/// See https://developer.android.com/reference/android/bluetooth/le/ScanSettings
+enum AndroidScanCallbackType {
+  allMatches,
+  firstMatch,
+  matchLost,
+  allMatchesAutoBatch,
+}
+
+/// Mirrors `android.bluetooth.le.ScanSettings#setMatchMode`.
+enum AndroidScanMatchMode { aggressive, sticky }
+
+/// Mirrors `android.bluetooth.le.ScanSettings#setNumOfMatches`.
+enum AndroidScanNumOfMatches { one, few, max }
+
 enum CharacteristicProperty {
   broadcast,
   read,
@@ -523,11 +548,28 @@ class BleConnectionParametersUpdated {
 /// Set [reportDelayMillis] timestamp for Bluetooth LE scan. If set to 0, you will be notified of scan results immediately.
 /// If > 0, scan results are queued up and delivered after the requested delay or 5000 milliseconds (whichever is higher).
 /// Note scan results may be delivered sooner if the internal buffers fill up.
+/// [callbackType], [matchMode], and [numOfMatches] map directly to the equivalent
+/// `android.bluetooth.le.ScanSettings` setters. When `null`, the plugin leaves them
+/// at the platform default — set them only if you need to override platform-side
+/// advert de-duplication (e.g. on Pixel hardware where the default settings
+/// throttle advertisements compared with nRF Connect).
+///
+/// [callbackType] is a list because Android's `setCallbackType` accepts any
+/// bitwise combination of [AndroidScanCallbackType] values (for example
+/// `[firstMatch, matchLost]` to be notified once on entry and again on exit).
+/// The plugin OR-folds the list before calling the native API. Values that
+/// require a newer API than the device supports are silently dropped (and
+/// logged); see the [AndroidScanCallbackType] doc for per-value API levels.
+///
+/// See https://developer.android.com/reference/android/bluetooth/le/ScanSettings
 class AndroidOptions {
   AndroidOptions({
     this.requestLocationPermission,
     this.scanMode,
     this.reportDelayMillis,
+    this.callbackType,
+    this.matchMode,
+    this.numOfMatches,
   });
 
   bool? requestLocationPermission;
@@ -536,8 +578,21 @@ class AndroidOptions {
 
   int? reportDelayMillis;
 
+  List<AndroidScanCallbackType>? callbackType;
+
+  AndroidScanMatchMode? matchMode;
+
+  AndroidScanNumOfMatches? numOfMatches;
+
   List<Object?> _toList() {
-    return <Object?>[requestLocationPermission, scanMode, reportDelayMillis];
+    return <Object?>[
+      requestLocationPermission,
+      scanMode,
+      reportDelayMillis,
+      callbackType,
+      matchMode,
+      numOfMatches,
+    ];
   }
 
   Object encode() {
@@ -550,6 +605,10 @@ class AndroidOptions {
       requestLocationPermission: result[0] as bool?,
       scanMode: result[1] as AndroidScanMode?,
       reportDelayMillis: result[2] as int?,
+      callbackType: (result[3] as List<Object?>?)
+          ?.cast<AndroidScanCallbackType>(),
+      matchMode: result[4] as AndroidScanMatchMode?,
+      numOfMatches: result[5] as AndroidScanNumOfMatches?,
     );
   }
 
@@ -567,7 +626,10 @@ class AndroidOptions {
           other.requestLocationPermission,
         ) &&
         _deepEquals(scanMode, other.scanMode) &&
-        _deepEquals(reportDelayMillis, other.reportDelayMillis);
+        _deepEquals(reportDelayMillis, other.reportDelayMillis) &&
+        _deepEquals(callbackType, other.callbackType) &&
+        _deepEquals(matchMode, other.matchMode) &&
+        _deepEquals(numOfMatches, other.numOfMatches);
   }
 
   @override
@@ -1116,71 +1178,80 @@ class _PigeonCodec extends StandardMessageCodec {
     } else if (value is AndroidScanMode) {
       buffer.putUint8(135);
       writeValue(buffer, value.index);
-    } else if (value is CharacteristicProperty) {
+    } else if (value is AndroidScanCallbackType) {
       buffer.putUint8(136);
       writeValue(buffer, value.index);
-    } else if (value is PeripheralReadinessState) {
+    } else if (value is AndroidScanMatchMode) {
       buffer.putUint8(137);
       writeValue(buffer, value.index);
-    } else if (value is PeripheralAttributePermission) {
+    } else if (value is AndroidScanNumOfMatches) {
       buffer.putUint8(138);
       writeValue(buffer, value.index);
-    } else if (value is PeripheralAdvertisingState) {
+    } else if (value is CharacteristicProperty) {
       buffer.putUint8(139);
       writeValue(buffer, value.index);
-    } else if (value is UniversalBleErrorCode) {
+    } else if (value is PeripheralReadinessState) {
       buffer.putUint8(140);
       writeValue(buffer, value.index);
-    } else if (value is UniversalBleScanResult) {
+    } else if (value is PeripheralAttributePermission) {
       buffer.putUint8(141);
-      writeValue(buffer, value.encode());
-    } else if (value is UniversalBleService) {
+      writeValue(buffer, value.index);
+    } else if (value is PeripheralAdvertisingState) {
       buffer.putUint8(142);
-      writeValue(buffer, value.encode());
-    } else if (value is UniversalBleCharacteristic) {
+      writeValue(buffer, value.index);
+    } else if (value is UniversalBleErrorCode) {
       buffer.putUint8(143);
-      writeValue(buffer, value.encode());
-    } else if (value is UniversalBleDescriptor) {
+      writeValue(buffer, value.index);
+    } else if (value is UniversalBleScanResult) {
       buffer.putUint8(144);
       writeValue(buffer, value.encode());
-    } else if (value is BleConnectionParametersUpdated) {
+    } else if (value is UniversalBleService) {
       buffer.putUint8(145);
       writeValue(buffer, value.encode());
-    } else if (value is AndroidOptions) {
+    } else if (value is UniversalBleCharacteristic) {
       buffer.putUint8(146);
       writeValue(buffer, value.encode());
-    } else if (value is UniversalScanConfig) {
+    } else if (value is UniversalBleDescriptor) {
       buffer.putUint8(147);
       writeValue(buffer, value.encode());
-    } else if (value is UniversalScanFilter) {
+    } else if (value is BleConnectionParametersUpdated) {
       buffer.putUint8(148);
       writeValue(buffer, value.encode());
-    } else if (value is ManufacturerDataFilter) {
+    } else if (value is AndroidOptions) {
       buffer.putUint8(149);
       writeValue(buffer, value.encode());
-    } else if (value is UniversalManufacturerData) {
+    } else if (value is UniversalScanConfig) {
       buffer.putUint8(150);
       writeValue(buffer, value.encode());
-    } else if (value is PeripheralAndroidOptions) {
+    } else if (value is UniversalScanFilter) {
       buffer.putUint8(151);
       writeValue(buffer, value.encode());
-    } else if (value is PeripheralPlatformConfig) {
+    } else if (value is ManufacturerDataFilter) {
       buffer.putUint8(152);
       writeValue(buffer, value.encode());
-    } else if (value is PeripheralService) {
+    } else if (value is UniversalManufacturerData) {
       buffer.putUint8(153);
       writeValue(buffer, value.encode());
-    } else if (value is PeripheralCharacteristic) {
+    } else if (value is PeripheralAndroidOptions) {
       buffer.putUint8(154);
       writeValue(buffer, value.encode());
-    } else if (value is PeripheralDescriptor) {
+    } else if (value is PeripheralPlatformConfig) {
       buffer.putUint8(155);
       writeValue(buffer, value.encode());
-    } else if (value is PeripheralReadRequestResult) {
+    } else if (value is PeripheralService) {
       buffer.putUint8(156);
       writeValue(buffer, value.encode());
-    } else if (value is PeripheralWriteRequestResult) {
+    } else if (value is PeripheralCharacteristic) {
       buffer.putUint8(157);
+      writeValue(buffer, value.encode());
+    } else if (value is PeripheralDescriptor) {
+      buffer.putUint8(158);
+      writeValue(buffer, value.encode());
+    } else if (value is PeripheralReadRequestResult) {
+      buffer.putUint8(159);
+      writeValue(buffer, value.encode());
+    } else if (value is PeripheralWriteRequestResult) {
+      buffer.putUint8(160);
       writeValue(buffer, value.encode());
     } else {
       super.writeValue(buffer, value);
@@ -1213,54 +1284,63 @@ class _PigeonCodec extends StandardMessageCodec {
         return value == null ? null : AndroidScanMode.values[value];
       case 136:
         final value = readValue(buffer) as int?;
-        return value == null ? null : CharacteristicProperty.values[value];
+        return value == null ? null : AndroidScanCallbackType.values[value];
       case 137:
         final value = readValue(buffer) as int?;
-        return value == null ? null : PeripheralReadinessState.values[value];
+        return value == null ? null : AndroidScanMatchMode.values[value];
       case 138:
+        final value = readValue(buffer) as int?;
+        return value == null ? null : AndroidScanNumOfMatches.values[value];
+      case 139:
+        final value = readValue(buffer) as int?;
+        return value == null ? null : CharacteristicProperty.values[value];
+      case 140:
+        final value = readValue(buffer) as int?;
+        return value == null ? null : PeripheralReadinessState.values[value];
+      case 141:
         final value = readValue(buffer) as int?;
         return value == null
             ? null
             : PeripheralAttributePermission.values[value];
-      case 139:
+      case 142:
         final value = readValue(buffer) as int?;
         return value == null ? null : PeripheralAdvertisingState.values[value];
-      case 140:
+      case 143:
         final value = readValue(buffer) as int?;
         return value == null ? null : UniversalBleErrorCode.values[value];
-      case 141:
-        return UniversalBleScanResult.decode(readValue(buffer)!);
-      case 142:
-        return UniversalBleService.decode(readValue(buffer)!);
-      case 143:
-        return UniversalBleCharacteristic.decode(readValue(buffer)!);
       case 144:
-        return UniversalBleDescriptor.decode(readValue(buffer)!);
+        return UniversalBleScanResult.decode(readValue(buffer)!);
       case 145:
-        return BleConnectionParametersUpdated.decode(readValue(buffer)!);
+        return UniversalBleService.decode(readValue(buffer)!);
       case 146:
-        return AndroidOptions.decode(readValue(buffer)!);
+        return UniversalBleCharacteristic.decode(readValue(buffer)!);
       case 147:
-        return UniversalScanConfig.decode(readValue(buffer)!);
+        return UniversalBleDescriptor.decode(readValue(buffer)!);
       case 148:
-        return UniversalScanFilter.decode(readValue(buffer)!);
+        return BleConnectionParametersUpdated.decode(readValue(buffer)!);
       case 149:
-        return ManufacturerDataFilter.decode(readValue(buffer)!);
+        return AndroidOptions.decode(readValue(buffer)!);
       case 150:
-        return UniversalManufacturerData.decode(readValue(buffer)!);
+        return UniversalScanConfig.decode(readValue(buffer)!);
       case 151:
-        return PeripheralAndroidOptions.decode(readValue(buffer)!);
+        return UniversalScanFilter.decode(readValue(buffer)!);
       case 152:
-        return PeripheralPlatformConfig.decode(readValue(buffer)!);
+        return ManufacturerDataFilter.decode(readValue(buffer)!);
       case 153:
-        return PeripheralService.decode(readValue(buffer)!);
+        return UniversalManufacturerData.decode(readValue(buffer)!);
       case 154:
-        return PeripheralCharacteristic.decode(readValue(buffer)!);
+        return PeripheralAndroidOptions.decode(readValue(buffer)!);
       case 155:
-        return PeripheralDescriptor.decode(readValue(buffer)!);
+        return PeripheralPlatformConfig.decode(readValue(buffer)!);
       case 156:
-        return PeripheralReadRequestResult.decode(readValue(buffer)!);
+        return PeripheralService.decode(readValue(buffer)!);
       case 157:
+        return PeripheralCharacteristic.decode(readValue(buffer)!);
+      case 158:
+        return PeripheralDescriptor.decode(readValue(buffer)!);
+      case 159:
+        return PeripheralReadRequestResult.decode(readValue(buffer)!);
+      case 160:
         return PeripheralWriteRequestResult.decode(readValue(buffer)!);
       default:
         return super.readValueOfType(type, buffer);

@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:universal_ble/universal_ble.dart';
 import 'package:universal_ble_example/data/mock_universal_ble.dart';
+import 'package:universal_ble_example/home/widgets/android_scan_options_widget.dart';
 import 'package:universal_ble_example/home/widgets/scan_filter_widget.dart';
 import 'package:universal_ble_example/home/widgets/scanned_devices_placeholder_widget.dart';
 import 'package:universal_ble_example/home/widgets/scanned_item_widget.dart';
@@ -33,6 +34,7 @@ class _CentralHomeState extends State<CentralHome> {
       _availabilityStreamSubscription != null;
   AvailabilityState? bleAvailabilityState;
   ScanFilter? scanFilter;
+  AndroidOptions? _androidOptions;
 
   @override
   void initState() {
@@ -90,7 +92,13 @@ class _CentralHomeState extends State<CentralHome> {
   }
 
   Future<void> startScan() async {
-    await UniversalBle.startScan(scanFilter: scanFilter);
+    final platformConfig = _androidOptions == null
+        ? null
+        : PlatformConfig(android: _androidOptions);
+    await UniversalBle.startScan(
+      scanFilter: scanFilter,
+      platformConfig: platformConfig,
+    );
   }
 
   Future<void> _getSystemDevices() async {
@@ -126,6 +134,23 @@ class _CentralHomeState extends State<CentralHome> {
           onScanFilter: (ScanFilter? filter) {
             setState(() {
               scanFilter = filter;
+            });
+          },
+        );
+      },
+    );
+  }
+
+  void _showAndroidScanOptionsBottomSheet() {
+    showModalBottomSheet(
+      isScrollControlled: true,
+      context: context,
+      builder: (context) {
+        return AndroidScanOptionsWidget(
+          initial: _androidOptions,
+          onChanged: (AndroidOptions? options) {
+            setState(() {
+              _androidOptions = options;
             });
           },
         );
@@ -278,6 +303,12 @@ class _CentralHomeState extends State<CentralHome> {
                 PlatformButton(
                   text: 'Scan Filters',
                   onPressed: _showScanFilterBottomSheet,
+                ),
+                PlatformButton(
+                  text: _androidOptions == null
+                      ? 'Android Scan Options'
+                      : 'Android Scan Options •',
+                  onPressed: _showAndroidScanOptionsBottomSheet,
                 ),
                 if (_hiddenDevices.isNotEmpty)
                   PlatformButton(

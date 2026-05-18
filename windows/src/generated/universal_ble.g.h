@@ -115,6 +115,38 @@ enum class AndroidScanMode {
   kOpportunistic = 3
 };
 
+// Mirrors `android.bluetooth.le.ScanSettings#setCallbackType`. Pass any
+// combination via `AndroidOptions.callbackType` (the plugin OR-folds the list
+// before calling `setCallbackType`).
+//
+// API-level notes:
+// * [allMatches] — API 21+
+// * [firstMatch], [matchLost] — API 23+ (Marshmallow). Silently dropped on
+//   older devices.
+// * [allMatchesAutoBatch] — API 34+ (Upside Down Cake). Silently dropped on
+//   older devices.
+//
+// See https://developer.android.com/reference/android/bluetooth/le/ScanSettings
+enum class AndroidScanCallbackType {
+  kAllMatches = 0,
+  kFirstMatch = 1,
+  kMatchLost = 2,
+  kAllMatchesAutoBatch = 3
+};
+
+// Mirrors `android.bluetooth.le.ScanSettings#setMatchMode`.
+enum class AndroidScanMatchMode {
+  kAggressive = 0,
+  kSticky = 1
+};
+
+// Mirrors `android.bluetooth.le.ScanSettings#setNumOfMatches`.
+enum class AndroidScanNumOfMatches {
+  kOne = 0,
+  kFew = 1,
+  kMax = 2
+};
+
 enum class CharacteristicProperty {
   kBroadcast = 0,
   kRead = 1,
@@ -450,6 +482,20 @@ class BleConnectionParametersUpdated {
 // Set [reportDelayMillis] timestamp for Bluetooth LE scan. If set to 0, you will be notified of scan results immediately.
 // If > 0, scan results are queued up and delivered after the requested delay or 5000 milliseconds (whichever is higher).
 // Note scan results may be delivered sooner if the internal buffers fill up.
+// [callbackType], [matchMode], and [numOfMatches] map directly to the equivalent
+// `android.bluetooth.le.ScanSettings` setters. When `null`, the plugin leaves them
+// at the platform default — set them only if you need to override platform-side
+// advert de-duplication (e.g. on Pixel hardware where the default settings
+// throttle advertisements compared with nRF Connect).
+//
+// [callbackType] is a list because Android's `setCallbackType` accepts any
+// bitwise combination of [AndroidScanCallbackType] values (for example
+// `[firstMatch, matchLost]` to be notified once on entry and again on exit).
+// The plugin OR-folds the list before calling the native API. Values that
+// require a newer API than the device supports are silently dropped (and
+// logged); see the [AndroidScanCallbackType] doc for per-value API levels.
+//
+// See https://developer.android.com/reference/android/bluetooth/le/ScanSettings
 //
 // Generated class from Pigeon that represents data sent in messages.
 class AndroidOptions {
@@ -461,7 +507,10 @@ class AndroidOptions {
   explicit AndroidOptions(
     const bool* request_location_permission,
     const AndroidScanMode* scan_mode,
-    const int64_t* report_delay_millis);
+    const int64_t* report_delay_millis,
+    const ::flutter::EncodableList* callback_type,
+    const AndroidScanMatchMode* match_mode,
+    const AndroidScanNumOfMatches* num_of_matches);
 
   const bool* request_location_permission() const;
   void set_request_location_permission(const bool* value_arg);
@@ -474,6 +523,18 @@ class AndroidOptions {
   const int64_t* report_delay_millis() const;
   void set_report_delay_millis(const int64_t* value_arg);
   void set_report_delay_millis(int64_t value_arg);
+
+  const ::flutter::EncodableList* callback_type() const;
+  void set_callback_type(const ::flutter::EncodableList* value_arg);
+  void set_callback_type(const ::flutter::EncodableList& value_arg);
+
+  const AndroidScanMatchMode* match_mode() const;
+  void set_match_mode(const AndroidScanMatchMode* value_arg);
+  void set_match_mode(const AndroidScanMatchMode& value_arg);
+
+  const AndroidScanNumOfMatches* num_of_matches() const;
+  void set_num_of_matches(const AndroidScanNumOfMatches* value_arg);
+  void set_num_of_matches(const AndroidScanNumOfMatches& value_arg);
 
   bool operator==(const AndroidOptions& other) const;
   bool operator!=(const AndroidOptions& other) const;
@@ -492,6 +553,9 @@ class AndroidOptions {
   std::optional<bool> request_location_permission_;
   std::optional<AndroidScanMode> scan_mode_;
   std::optional<int64_t> report_delay_millis_;
+  std::optional<::flutter::EncodableList> callback_type_;
+  std::optional<AndroidScanMatchMode> match_mode_;
+  std::optional<AndroidScanNumOfMatches> num_of_matches_;
 };
 
 
