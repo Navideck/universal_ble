@@ -12,7 +12,7 @@ import java.util.UUID
 private val bluetoothGattCharacteristics:
     MutableMap<String, BluetoothGattCharacteristic> = HashMap()
 private val descriptorValueReadMap: MutableMap<String, ByteArray> = HashMap()
-val subscribedCharDevicesMap: MutableMap<String, MutableList<String>> = HashMap()
+val subscribedCharDevicesMap: MutableMap<String, MutableSet<String>> = HashMap()
 const val peripheralDescriptorCCUUID = "00002902-0000-1000-8000-00805f9b34fb"
 
 fun clearPeripheralCaches() {
