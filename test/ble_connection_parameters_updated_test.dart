@@ -1,5 +1,4 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:universal_ble/src/models/ble_connection_parameters_updated.dart';
 import 'package:universal_ble/src/universal_ble_pigeon/universal_ble_pigeon_channel.dart';
 import 'package:universal_ble/universal_ble.dart';
 
