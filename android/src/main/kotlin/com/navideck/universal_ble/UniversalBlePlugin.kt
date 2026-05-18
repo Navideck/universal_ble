@@ -830,15 +830,18 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
         }
     }
 
-    override fun onConnectionUpdated(
-        gatt: BluetoothGatt,
+    // BluetoothGattCallback.onConnectionUpdated is @hide (not in public android.jar).
+    // Same method name is required so the framework invokes it at runtime; no `override`.
+    @Suppress("unused")
+    fun onConnectionUpdated(
+        gatt: BluetoothGatt?,
         interval: Int,
         latency: Int,
         timeout: Int,
         status: Int,
     ) {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
-        val deviceId = gatt.device.address
+        val deviceId = gatt?.device?.address ?: return
         if (!deviceId.isKnownGatt()) return
         UniversalBleLogger.logDebug(
             "onConnectionUpdated -> $deviceId interval=$interval latency=$latency timeout=$timeout status=$status"
