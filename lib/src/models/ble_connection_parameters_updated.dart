@@ -19,8 +19,8 @@ extension BleConnectionParametersUpdatedX on BleConnectionParametersUpdated {
   /// This is approximate — the OS may use intervals outside documented priority
   /// ranges (e.g. interval 420 ≈ 525 ms). Prefer [intervalMs] for throughput logic.
   BleConnectionPriority? get estimatedPriority {
-    if (interval <= 24) return BleConnectionPriority.highPerformance;
-    if (interval <= 64) return BleConnectionPriority.balanced;
+    if (interval <= 12) return BleConnectionPriority.highPerformance;
+    if (interval <= 40) return BleConnectionPriority.balanced;
     return BleConnectionPriority.lowPower;
   }
 }
