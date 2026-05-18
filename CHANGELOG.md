@@ -1,4 +1,5 @@
 ## 2.0.1
+* Android peripheral: eager Kotlin initialization, thread-safe GATT connection cache, and pairing only via `pair()` or when encryption requires it
 * Add `onConnectionParametersChange` to notify when Android link-layer connection parameters change (API 26+)
 
 ## 2.0.0
