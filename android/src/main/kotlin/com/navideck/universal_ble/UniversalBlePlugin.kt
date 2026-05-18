@@ -829,15 +829,8 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
 
     // BluetoothGattCallback.onConnectionUpdated is @hide (not in public android.jar).
     // Same method name is required so the framework invokes it at runtime; no `override`.
+    @Suppress("unused")
     fun onConnectionUpdated(
-        gatt: BluetoothGatt,
-        interval: Int,
-        latency: Int,
-        timeout: Int,
-        status: Int,
-    ) = handleConnectionParametersUpdated(gatt, interval, latency, timeout, status)
-
-    private fun handleConnectionParametersUpdated(
         gatt: BluetoothGatt,
         interval: Int,
         latency: Int,

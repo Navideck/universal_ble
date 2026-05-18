@@ -42,6 +42,8 @@ class _PeripheralDetailPageState extends State<PeripheralDetailPage> {
     pairingStateSubscription =
         bleDevice.pairingStateStream.listen(_handlePairingStateChange);
     UniversalBle.onValueChange = _handleValueChange;
+    UniversalBle.onConnectionParametersChange =
+        _handleConnectionParametersChange;
     _asyncInits();
   }
 
@@ -61,6 +63,7 @@ class _PeripheralDetailPageState extends State<PeripheralDetailPage> {
     connectionStreamSubscription?.cancel();
     pairingStateSubscription?.cancel();
     UniversalBle.onValueChange = null;
+    UniversalBle.onConnectionParametersChange = null;
   }
 
   void _addLog(String type, dynamic data) {
@@ -95,6 +98,16 @@ class _PeripheralDetailPageState extends State<PeripheralDetailPage> {
   void _handlePairingStateChange(bool isPaired) {
     debugPrint('isPaired $isPaired');
     _addLog("PairingStateChange - isPaired", isPaired);
+  }
+
+  void _handleConnectionParametersChange(
+    BleConnectionParametersUpdated update,
+  ) {
+    debugPrint('ConnectionParametersChange $update');
+    _addLog(
+      "ConnectionParametersChange",
+      "Interval: ${update.interval} Latency: ${update.latency} Supervision Timeout: ${update.supervisionTimeout} Status: ${update.status}",
+    );
   }
 
   Future<void> _discoverServices() async {
@@ -190,6 +203,17 @@ class _PeripheralDetailPageState extends State<PeripheralDetailPage> {
       return characteristic.indications;
     }
     return null;
+  }
+
+  Future<void> _requestConnectionPriority() async {
+    try {
+      await UniversalBle.requestConnectionPriority(
+        bleDevice.deviceId,
+        BleConnectionPriority.highPerformance,
+      );
+    } catch (e) {
+      _addLog('RequestConnectionPriorityError', e);
+    }
   }
 
   @override
@@ -360,6 +384,15 @@ class _PeripheralDetailPageState extends State<PeripheralDetailPage> {
                               },
                               text: 'Connection State',
                             ),
+                            if (BleCapabilities
+                                .supportsConnectionParametersUpdates)
+                              PlatformButton(
+                                enabled: isConnected,
+                                onPressed: () async {
+                                  _requestConnectionPriority();
+                                },
+                                text: 'Request Connection Priority',
+                              ),
                             if (BleCapabilities.supportsRequestMtuApi)
                               PlatformButton(
                                 enabled: isConnected,
