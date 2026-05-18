@@ -25,7 +25,7 @@ void main() {
         BleConnectionPriority.highPerformance,
       );
       expect(
-        _update(interval: 48).estimatedPriority,
+        _update(interval: 40).estimatedPriority,
         BleConnectionPriority.balanced,
       );
       expect(
