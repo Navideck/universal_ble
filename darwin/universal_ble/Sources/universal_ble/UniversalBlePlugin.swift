@@ -676,6 +676,7 @@ extension String {
     if let uuid = UUID(uuidString: self) {
       let peripherals = manager.retrievePeripherals(withIdentifiers: [uuid])
       if let peripheral = peripherals.first {
+        discoveredPeripherals[self] = peripheral
         return peripheral
       }
     }
