@@ -1,7 +1,6 @@
 ## 2.0.2
 * iOS/macOS: retain peripheral from retrievePeripherals to fix API MISUSE on connect
-* Android: migrate to built-in Kotlin (requires Flutter 3.44+)
-* Updates minimum supported SDK version to Flutter 3.44 / Dart 3.12
+* Android: migrate to built-in Kotlin (removes Kotlin Gradle Plugin usage)
 
 ## 2.0.1
 * Android peripheral: eager Kotlin initialization, thread-safe GATT connection cache, and pairing only via `pair()` or when encryption requires it
