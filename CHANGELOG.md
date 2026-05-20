@@ -1,3 +1,7 @@
+## 2.0.3
+* Android: migrate to built-in Kotlin (requires Flutter 3.44+)
+* Updates minimum supported SDK version to Flutter 3.44 / Dart 3.12
+
 ## 2.0.2
 * iOS/macOS: retain peripheral from retrievePeripherals to fix API MISUSE on connect
 
