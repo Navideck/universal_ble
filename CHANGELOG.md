@@ -1,3 +1,6 @@
+## 2.0.2
+* iOS/macOS: retain peripheral from retrievePeripherals to fix API MISUSE on connect
+
 ## 2.0.1
 * Android peripheral: eager Kotlin initialization, thread-safe GATT connection cache, and pairing only via `pair()` or when encryption requires it
 * Add `onConnectionParametersChange` to notify when Android link-layer connection parameters change (API 26+)
