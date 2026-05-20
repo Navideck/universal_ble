@@ -1,6 +1,7 @@
 ## 2.0.2
 * iOS/macOS: retain peripheral from retrievePeripherals to fix API MISUSE on connect
 * Android: migrate to built-in Kotlin (removes Kotlin Gradle Plugin usage)
+* Use conditional imports for the Linux backend so the package is compatible with the WASM runtime on pub.dev
 
 ## 2.0.1
 * Android peripheral: eager Kotlin initialization, thread-safe GATT connection cache, and pairing only via `pair()` or when encryption requires it
