@@ -45,6 +45,20 @@ std::string to_lower_case(std::string value) {
       [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
   return value;
 }
+
+template <typename PropertyMap>
+IPropertyValue lookup_i_property_value(const PropertyMap &properties,
+                                       const wchar_t *key,
+                                       const char *property_name,
+                                       const char *context) {
+  auto value = properties.Lookup(key).try_as<IPropertyValue>();
+  if (!value) {
+    UniversalBleLogger::LogError(std::string(context) +
+                                 ": unexpected type for " + property_name +
+                                 " property");
+  }
+  return value;
+}
 } // namespace
 
 void UniversalBlePlugin::RegisterWithRegistrar(
@@ -831,10 +845,14 @@ void UniversalBlePlugin::SetupDeviceWatcher() {
         if (!properties.HasKey(device_address_key)) {
           return;
         }
+        const auto device_address_property_value = lookup_i_property_value(
+            properties, device_address_key, "DeviceAddress",
+            "DeviceWatcher.Added");
+        if (!device_address_property_value) {
+          return;
+        }
         const auto device_address =
-            to_string(properties.Lookup(device_address_key)
-                          .as<IPropertyValue>()
-                          .GetString());
+            to_string(device_address_property_value.GetString());
         const std::string device_info_id = to_string(device_info.Id());
         // Map Id -> MAC and MAC -> DeviceInformation
         device_watcher_id_to_mac_.insert_or_assign(device_info_id,
@@ -918,19 +936,19 @@ void UniversalBlePlugin::OnDeviceInfoReceived(
   const auto properties = device_info.Properties();
 
   // Avoid devices if not connectable or if deviceAddressKey is not present
-  
   if (!properties.HasKey(is_connectable_key) || !properties.HasKey(device_address_key)) {
     return;
   }
 
-  const auto is_connectable_property_value =
-      properties.Lookup(is_connectable_key).try_as<IPropertyValue>();
+  const auto is_connectable_property_value = lookup_i_property_value(
+      properties, is_connectable_key, "IsConnectable", "OnDeviceInfoReceived");
   if (!is_connectable_property_value ||
       !is_connectable_property_value.GetBoolean()) {
     return;
   }
 
-  auto bluetooth_address_property_value = properties.Lookup(device_address_key).try_as<IPropertyValue>();
+  const auto bluetooth_address_property_value = lookup_i_property_value(
+      properties, device_address_key, "DeviceAddress", "OnDeviceInfoReceived");
   if (!bluetooth_address_property_value) {
     return;
   }
@@ -941,9 +959,11 @@ void UniversalBlePlugin::OnDeviceInfoReceived(
   if (scan_results_.get(device_address).has_value()) {
     bool is_paired = device_info.Pairing().IsPaired();
     if (properties.HasKey(is_paired_key)) {
-      const auto is_paired_property_value =
-          properties.Lookup(is_paired_key).as<IPropertyValue>();
-      is_paired = is_paired_property_value.GetBoolean();
+      const auto is_paired_property_value = lookup_i_property_value(
+          properties, is_paired_key, "IsPaired", "OnDeviceInfoReceived");
+      if (is_paired_property_value) {
+        is_paired = is_paired_property_value.GetBoolean();
+      }
     }
 
     UniversalBleScanResult universal_scan_result(device_address);
@@ -953,10 +973,13 @@ void UniversalBlePlugin::OnDeviceInfoReceived(
       universal_scan_result.set_name(to_string(device_info.Name()));
 
     if (properties.HasKey(signal_strength_key)) {
-      const auto rssi_property_value =
-          properties.Lookup(signal_strength_key).as<IPropertyValue>();
-      const int16_t rssi = rssi_property_value.GetInt16();
-      universal_scan_result.set_rssi(rssi);
+      const auto rssi_property_value = lookup_i_property_value(
+          properties, signal_strength_key, "SignalStrength",
+          "OnDeviceInfoReceived");
+      if (rssi_property_value) {
+        const int16_t rssi = rssi_property_value.GetInt16();
+        universal_scan_result.set_rssi(rssi);
+      }
     }
 
     PushUniversalScanResult(universal_scan_result, true);
@@ -1084,9 +1107,13 @@ void UniversalBlePlugin::BluetoothLeWatcherReceived(
 
       // Update Paired Status
       bool is_paired = device_info.Pairing().IsPaired();
-      if (properties.HasKey(is_paired_key))
-        is_paired = (properties.Lookup(is_paired_key).as<IPropertyValue>())
-                        .GetBoolean();
+      if (properties.HasKey(is_paired_key)) {
+        const auto is_paired_property_value = lookup_i_property_value(
+            properties, is_paired_key, "IsPaired", "BluetoothLeWatcherReceived");
+        if (is_paired_property_value) {
+          is_paired = is_paired_property_value.GetBoolean();
+        }
+      }
       universal_scan_result.set_is_paired(is_paired);
 
       // Update Name

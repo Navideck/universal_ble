@@ -1,3 +1,6 @@
+## 2.0.3
+* Windows: Fix null pointer crash when BLE device is unpaired during active scan
+
 ## 2.0.2
 * iOS/macOS: retain peripheral from retrievePeripherals to fix API MISUSE on connect
 * Android: migrate to built-in Kotlin (removes Kotlin Gradle Plugin usage)
