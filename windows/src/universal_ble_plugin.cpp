@@ -919,21 +919,16 @@ void UniversalBlePlugin::OnDeviceInfoReceived(
 
   // Avoid devices if not connectable or if deviceAddressKey is not present
   
-  auto isConnectableProp = properties.Lookup(is_connectable_key).try_as<IPropertyValue>();
-  if ( !isConnectableProp ) {
-    return;
-  }
-  
-  if (!properties.HasKey(is_connectable_key) && isConnectableProp.GetBoolean() || !properties.HasKey(device_address_key)){
-    return;
-  }
-      
-  auto bluetooth_address_raw = properties.Lookup(device_address_key);
-  if (!bluetooth_address_raw) {
+  if (!properties.HasKey(is_connectable_key) || !properties.HasKey(device_address_key)) {
     return;
   }
 
-  auto bluetooth_address_property_value = bluetooth_address_raw.try_as<IPropertyValue>();
+  auto isConnectableProp = properties.Lookup(is_connectable_key).try_as<IPropertyValue>();
+  if (!isConnectableProp || !isConnectableProp.GetBoolean()) {
+    return;
+  }
+
+  auto bluetooth_address_property_value = properties.Lookup(device_address_key).try_as<IPropertyValue>();
   if (!bluetooth_address_property_value) {
     return;
   }
