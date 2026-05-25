@@ -46,9 +46,17 @@ final class UniversalBlePeripheralPlugin: NSObject, UniversalBlePeripheralChanne
         }
       } else if advertisingState == .advertising {
         advertisingState = .idle
+      } else {
+        completeStopIfNeeded()
       }
     }
     return advertisingState
+  }
+
+  private func completeStopIfNeeded() {
+    guard advertisingState == .stopping else { return }
+    advertisingState = .idle
+    callbackChannel.onAdvertisingStateChange(state: .idle, error: nil) { _ in }
   }
 
   func getReadinessState() throws -> PeripheralReadinessState {
@@ -71,9 +79,14 @@ final class UniversalBlePeripheralPlugin: NSObject, UniversalBlePeripheralChanne
   func stopAdvertising() throws {
     advertisingState = .stopping
     callbackChannel.onAdvertisingStateChange(state: .stopping, error: nil) { _ in }
-    peripheralManager?.stopAdvertising()
-    advertisingState = .idle
-    callbackChannel.onAdvertisingStateChange(state: .idle, error: nil) { _ in }
+    guard let peripheralManager else {
+      completeStopIfNeeded()
+      return
+    }
+    peripheralManager.stopAdvertising()
+    if !peripheralManager.isAdvertising {
+      completeStopIfNeeded()
+    }
   }
 
   func addService(service: PeripheralService) throws {
