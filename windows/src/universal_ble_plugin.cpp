@@ -918,16 +918,24 @@ void UniversalBlePlugin::OnDeviceInfoReceived(
   const auto properties = device_info.Properties();
 
   // Avoid devices if not connectable or if deviceAddressKey is not present
-  if (!(properties.HasKey(is_connectable_key) &&
-        (properties.Lookup(is_connectable_key).as<IPropertyValue>())
-            .GetBoolean()) ||
-      !properties.HasKey(device_address_key))
+  
+  if (!properties.HasKey(is_connectable_key) || !properties.HasKey(device_address_key)) {
     return;
+  }
 
-  const auto bluetooth_address_property_value =
-      properties.Lookup(device_address_key).as<IPropertyValue>();
-  const std::string device_address =
-      to_string(bluetooth_address_property_value.GetString());
+  const auto is_connectable_property_value =
+      properties.Lookup(is_connectable_key).try_as<IPropertyValue>();
+  if (!is_connectable_property_value ||
+      !is_connectable_property_value.GetBoolean()) {
+    return;
+  }
+
+  auto bluetooth_address_property_value = properties.Lookup(device_address_key).try_as<IPropertyValue>();
+  if (!bluetooth_address_property_value) {
+    return;
+  }
+
+  const std::string device_address = to_string(bluetooth_address_property_value.GetString());
 
   // Update device info if already discovered in advertisementWatcher
   if (scan_results_.get(device_address).has_value()) {
