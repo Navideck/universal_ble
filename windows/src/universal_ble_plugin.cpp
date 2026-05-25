@@ -923,8 +923,10 @@ void UniversalBlePlugin::OnDeviceInfoReceived(
     return;
   }
 
-  auto isConnectableProp = properties.Lookup(is_connectable_key).try_as<IPropertyValue>();
-  if (!isConnectableProp || !isConnectableProp.GetBoolean()) {
+  const auto is_connectable_property_value =
+      properties.Lookup(is_connectable_key).try_as<IPropertyValue>();
+  if (!is_connectable_property_value ||
+      !is_connectable_property_value.GetBoolean()) {
     return;
   }
 
