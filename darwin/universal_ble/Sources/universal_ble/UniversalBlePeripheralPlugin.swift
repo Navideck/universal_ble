@@ -12,8 +12,7 @@ final class UniversalBlePeripheralPlugin: NSObject, UniversalBlePeripheralChanne
 {
   private let callbackChannel: UniversalBlePeripheralCallback
   private var advertisingState: PeripheralAdvertisingState = .idle
-  private lazy var peripheralManager: CBPeripheralManager =
-    .init(delegate: self, queue: nil, options: nil)
+  private var peripheralManager: CBPeripheralManager?
   private let centralsLock = NSLock()
   private var centralsById = [String: CBCentral]()
   private var centralCharacteristicSubscriptions = [String: Set<String>]()
@@ -21,22 +20,39 @@ final class UniversalBlePeripheralPlugin: NSObject, UniversalBlePeripheralChanne
   init(callbackChannel: UniversalBlePeripheralCallback) {
     self.callbackChannel = callbackChannel
     super.init()
-    _ = peripheralManager.isAdvertising
   }
 
   deinit {
-    peripheralManager.stopAdvertising()
-    peripheralManager.removeAllServices()
+    peripheralManager?.stopAdvertising()
+    peripheralManager?.removeAllServices()
     clearPeripheralCaches()
     clearCentrals()
   }
 
+  private func ensurePeripheralManager() -> CBPeripheralManager {
+    if let peripheralManager {
+      return peripheralManager
+    }
+    let manager = CBPeripheralManager(delegate: self, queue: nil, options: nil)
+    peripheralManager = manager
+    return manager
+  }
+
   func getAdvertisingState() throws -> PeripheralAdvertisingState {
-    advertisingState
+    if let peripheralManager {
+      if peripheralManager.isAdvertising {
+        if advertisingState == .idle {
+          advertisingState = .advertising
+        }
+      } else if advertisingState == .advertising {
+        advertisingState = .idle
+      }
+    }
+    return advertisingState
   }
 
   func getReadinessState() throws -> PeripheralReadinessState {
-    switch peripheralManager.state {
+    switch ensurePeripheralManager().state {
     case .poweredOn:
       return .ready
     case .poweredOff:
@@ -55,18 +71,18 @@ final class UniversalBlePeripheralPlugin: NSObject, UniversalBlePeripheralChanne
   func stopAdvertising() throws {
     advertisingState = .stopping
     callbackChannel.onAdvertisingStateChange(state: .stopping, error: nil) { _ in }
-    peripheralManager.stopAdvertising()
+    peripheralManager?.stopAdvertising()
     advertisingState = .idle
     callbackChannel.onAdvertisingStateChange(state: .idle, error: nil) { _ in }
   }
 
   func addService(service: PeripheralService) throws {
-    peripheralManager.add(service.toCBService())
+    ensurePeripheralManager().add(service.toCBService())
   }
 
   func removeService(serviceId: String) throws {
     if let service = serviceId.findPeripheralService() {
-      peripheralManager.remove(service)
+      ensurePeripheralManager().remove(service)
       peripheralServicesList.removeAll {
         $0.uuid.uuidString.lowercased() == service.uuid.uuidString.lowercased()
       }
@@ -74,7 +90,7 @@ final class UniversalBlePeripheralPlugin: NSObject, UniversalBlePeripheralChanne
   }
 
   func clearServices() throws {
-    peripheralManager.removeAllServices()
+    peripheralManager?.removeAllServices()
     peripheralServicesList.removeAll()
   }
 
@@ -113,7 +129,7 @@ final class UniversalBlePeripheralPlugin: NSObject, UniversalBlePeripheralChanne
     }
     advertisingState = .starting
     callbackChannel.onAdvertisingStateChange(state: .starting, error: nil) { _ in }
-    peripheralManager.startAdvertising(advertisementData)
+    ensurePeripheralManager().startAdvertising(advertisementData)
   }
 
   func updateCharacteristic(
@@ -128,13 +144,13 @@ final class UniversalBlePeripheralPlugin: NSObject, UniversalBlePeripheralChanne
       guard let central = central(for: deviceId) else {
         throw UniversalBlePeripheralError.notFound("\(deviceId) device not found")
       }
-      peripheralManager.updateValue(
+      ensurePeripheralManager().updateValue(
         value.toData(),
         for: characteristic,
         onSubscribedCentrals: [central]
       )
     } else {
-      peripheralManager.updateValue(value.toData(), for: characteristic, onSubscribedCentrals: nil)
+      ensurePeripheralManager().updateValue(value.toData(), for: characteristic, onSubscribedCentrals: nil)
     }
   }
 
@@ -206,7 +222,7 @@ final class UniversalBlePeripheralPlugin: NSObject, UniversalBlePeripheralChanne
   }
 
   nonisolated func peripheralManager(
-    _: CBPeripheralManager,
+    _ peripheral: CBPeripheralManager,
     didReceiveRead request: CBATTRequest
   ) {
     callbackChannel.onReadRequest(
@@ -219,29 +235,29 @@ final class UniversalBlePeripheralPlugin: NSObject, UniversalBlePeripheralChanne
         let result = try readReq.get()
         let status = result?.status?.toCBATTErrorCode() ?? .success
         guard status == .success else {
-          self.peripheralManager.respond(to: request, withResult: status)
+          peripheral.respond(to: request, withResult: status)
           return
         }
         guard let fullData = result?.value.toData() as Data? else {
-          self.peripheralManager.respond(to: request, withResult: .requestNotSupported)
+          peripheral.respond(to: request, withResult: .requestNotSupported)
           return
         }
         let offset = Int(request.offset)
         guard offset <= fullData.count else {
-          self.peripheralManager.respond(to: request, withResult: .invalidOffset)
+          peripheral.respond(to: request, withResult: .invalidOffset)
           return
         }
         let sliced = fullData.subdata(in: offset..<fullData.count)
         request.value = sliced
-        self.peripheralManager.respond(to: request, withResult: .success)
+        peripheral.respond(to: request, withResult: .success)
       } catch {
-        self.peripheralManager.respond(to: request, withResult: .requestNotSupported)
+        peripheral.respond(to: request, withResult: .requestNotSupported)
       }
     }
   }
 
   nonisolated func peripheralManager(
-    _: CBPeripheralManager,
+    _ peripheral: CBPeripheralManager,
     didReceiveWrite requests: [CBATTRequest]
   ) {
     requests.forEach { req in
@@ -254,9 +270,9 @@ final class UniversalBlePeripheralPlugin: NSObject, UniversalBlePeripheralChanne
         do {
           let response = try writeRes.get()
           let status = response?.status?.toCBATTErrorCode() ?? .success
-          self.peripheralManager.respond(to: req, withResult: status)
+          peripheral.respond(to: req, withResult: status)
         } catch {
-          self.peripheralManager.respond(to: req, withResult: .requestNotSupported)
+          peripheral.respond(to: req, withResult: .requestNotSupported)
         }
       }
     }

@@ -1,3 +1,6 @@
+## 2.0.3
+* iOS/macOS: defer `CBPeripheralManager` creation until peripheral APIs are used, fixing Bluetooth permission prompt on app launch 
+
 ## 2.0.2
 * iOS/macOS: retain peripheral from retrievePeripherals to fix API MISUSE on connect
 * Android: migrate to built-in Kotlin (removes Kotlin Gradle Plugin usage)
