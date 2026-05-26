@@ -46,18 +46,23 @@ std::string to_lower_case(std::string value) {
   return value;
 }
 
-template <typename PropertyMap>
-IPropertyValue lookup_i_property_value(const PropertyMap &properties,
-                                       const wchar_t *key,
-                                       const char *property_name,
-                                       const char *context) {
-  auto value = properties.Lookup(key).try_as<IPropertyValue>();
-  if (!value) {
-    UniversalBleLogger::LogError(std::string(context) +
-                                 ": unexpected type for " + property_name +
-                                 " property");
+IPropertyValue lookup_i_property_value(
+    const IMapView<hstring, IInspectable> &properties, const hstring &key,
+    const char *property_name, const char *context) {
+  try {
+    auto value = properties.Lookup(key).try_as<IPropertyValue>();
+    if (!value) {
+      UniversalBleLogger::LogError(std::string(context) +
+                                   ": unexpected type for " + property_name +
+                                   " property");
+    }
+    return value;
+  } catch (const hresult_error &err) {
+    UniversalBleLogger::LogError(std::string(context) + ": failed to lookup " +
+                                 property_name + " property (hr=" +
+                                 std::to_string(err.code()) + ")");
+    return nullptr;
   }
-  return value;
 }
 } // namespace
 
