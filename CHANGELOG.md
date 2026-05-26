@@ -1,5 +1,6 @@
 ## 2.0.3
 * iOS/macOS: defer `CBPeripheralManager` creation until peripheral APIs are used, fixing Bluetooth permission prompt on app launch
+* Windows: Fix null pointer crash when BLE device is unpaired during active scan
 
 ## 2.0.2
 * iOS/macOS: retain peripheral from retrievePeripherals to fix API MISUSE on connect
