@@ -21,7 +21,10 @@
 #include "helper/utils.h"
 #include "ui_thread_handler.hpp"
 #include "universal_ble_thread_safe.h"
+#include <atomic>
 #include <memory>
+#include <optional>
+#include <thread>
 #include <vector>
 
 namespace universal_ble {
@@ -142,6 +145,12 @@ private:
   event_token device_watcher_stopped_token_;
   event_revoker<IRadio> radio_state_changed_revoker_;
 
+  // Connection parameter polling
+  std::thread polling_thread_;
+  std::atomic<bool> polling_active_{false};
+  std::unordered_map<uint64_t, std::optional<BleConnectionParametersUpdated>>
+      last_connection_params_;
+
   fire_and_forget InitializeAsync();
   fire_and_forget ConnectAsync(uint64_t bluetooth_address);
   fire_and_forget SetNotifiableAsync(
@@ -163,6 +172,9 @@ private:
   fire_and_forget DiscoverServicesAsync(
       const std::string &device_id, bool with_descriptors,
       std::function<void(ErrorOr<flutter::EncodableList> reply)> result);
+
+  void StartConnectionParameterPolling();
+  void StopConnectionParameterPolling();
 
   void
   PairingRequestedHandler(DeviceInformationCustomPairing sender,

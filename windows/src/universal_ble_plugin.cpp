@@ -63,9 +63,11 @@ UniversalBlePlugin::UniversalBlePlugin(
     flutter::PluginRegistrarWindows *registrar)
     : registrar_(registrar), ui_thread_handler_(registrar) {
   InitializeAsync();
+  StartConnectionParameterPolling();
 }
 
 UniversalBlePlugin::~UniversalBlePlugin() {
+  StopConnectionParameterPolling();
   ClearServices();
   peripheral_callback_channel_.reset();
 }
@@ -493,6 +495,51 @@ void UniversalBlePlugin::RequestConnectionPriority(
   } catch (...) {
     result(create_flutter_error(UniversalBleErrorCode::kUnknownError,
                                 "Unknown error"));
+  }
+}
+
+void UniversalBlePlugin::StartConnectionParameterPolling() {
+  if (polling_active_.exchange(true)) return;
+  polling_thread_ = std::thread([this] {
+    while (polling_active_) {
+      std::this_thread::sleep_for(std::chrono::seconds(2));
+      if (!polling_active_) break;
+      ui_thread_handler_.Post([this] {
+        for (const auto &[addr, agent] : connected_devices_) {
+          try {
+            if (agent->device.ConnectionStatus() !=
+                BluetoothConnectionStatus::Connected)
+              continue;
+            auto params = agent->device.GetConnectionParameters();
+            BleConnectionParametersUpdated update(
+                mac_address_to_str(addr),
+                static_cast<int64_t>(params.ConnectionInterval()),
+                static_cast<int64_t>(params.ConnectionLatency()),
+                static_cast<int64_t>(params.LinkTimeout()),
+                0);
+            auto it = last_connection_params_.find(addr);
+            if (it == last_connection_params_.end() ||
+                !it->second.has_value() ||
+                it->second->interval() != update.interval() ||
+                it->second->latency() != update.latency() ||
+                it->second->supervision_timeout() !=
+                    update.supervision_timeout()) {
+              last_connection_params_[addr] = update;
+              callback_channel->OnConnectionParametersUpdated(
+                  update, SuccessCallback, ErrorCallback);
+            }
+          } catch (...) {
+          }
+        }
+      });
+    }
+  });
+}
+
+void UniversalBlePlugin::StopConnectionParameterPolling() {
+  polling_active_ = false;
+  if (polling_thread_.joinable()) {
+    polling_thread_.join();
   }
 }
 

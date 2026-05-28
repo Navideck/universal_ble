@@ -58,7 +58,7 @@ A cross-platform (Android/iOS/macOS/Windows/Linux/Web) Bluetooth Low Energy (BLE
 | onAvailabilityChange          |   ✔️    | ✔️  |  ✔️   |   ✔️    |  ✔️   | ✔️  |
 | requestMtu                    |   ✔️    | ✔️  |  ✔️   |   ✔️    |  ✔️   | ❌  |
 | requestConnectionPriority     |   ✔️    | ❌  |  ❌   |   ✔️    |  ❌   | ❌  |
-| onConnectionParametersChange  |   ✔️    | ❌  |  ❌   |   ❌    |  ❌   | ❌  |
+| onConnectionParametersChange  |   ✔️    | ❌  |  ❌   |   ✔️    |  ❌   | ❌  |
 | readRssi                      |   ✔️    | ✔️  |  ✔️   |   ❌    |  🚧   | ❌  |
 | requestPermissions            |   ✔️    | ✔️  |  ✔️   |   ✔️    |  ✔️   | ✔️  |
 
@@ -513,7 +513,7 @@ await UniversalBle.requestConnectionPriority(
 > **Note:** Supported on Android and Windows. On all other platforms this throws `UniversalBleException` with code `notSupported`.
 > Call this after connecting and after `requestMtu()`, before beginning data transfer.
 
-The OS may later change connection parameters without your app requesting it (e.g. for power saving), which can reduce throughput. On Android API 26+, set `UniversalBle.onConnectionParametersChange` and react if needed:
+The OS may later change connection parameters without your app requesting it (e.g. for power saving), which can reduce throughput. Set `UniversalBle.onConnectionParametersChange` and react if needed. On Android this is event-driven (API 26+); on Windows it uses polling every 2 seconds.
 
 ```dart
 UniversalBle.onConnectionParametersChange = (update) {
@@ -528,7 +528,7 @@ UniversalBle.onConnectionParametersChange = (update) {
 };
 ```
 
-> **Note:** Re-requesting high priority on every update can fight the OS power manager — debounce in app code. Requires Android API 26+ (`BleCapabilities.supportsConnectionParametersUpdates`).
+> **Note:** Re-requesting high priority on every update can fight the OS power manager — debounce in app code. On Android, requires API 26+ (`BleCapabilities.supportsConnectionParametersUpdates`).
 
 ### Reading RSSI
 
