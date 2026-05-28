@@ -57,7 +57,7 @@ A cross-platform (Android/iOS/macOS/Windows/Linux/Web) Bluetooth Low Energy (BLE
 | enable/disable Bluetooth      |   ✔️    | ❌  |  ❌   |   ✔️    |  ✔️   | ❌  |
 | onAvailabilityChange          |   ✔️    | ✔️  |  ✔️   |   ✔️    |  ✔️   | ✔️  |
 | requestMtu                    |   ✔️    | ✔️  |  ✔️   |   ✔️    |  ✔️   | ❌  |
-| requestConnectionPriority     |   ✔️    | ❌  |  ❌   |   ❌    |  ❌   | ❌  |
+| requestConnectionPriority     |   ✔️    | ❌  |  ❌   |   ✔️    |  ❌   | ❌  |
 | onConnectionParametersChange  |   ✔️    | ❌  |  ❌   |   ❌    |  ❌   | ❌  |
 | readRssi                      |   ✔️    | ✔️  |  ✔️   |   ❌    |  🚧   | ❌  |
 | requestPermissions            |   ✔️    | ✔️  |  ✔️   |   ✔️    |  ✔️   | ✔️  |
@@ -500,7 +500,7 @@ When developing cross-platform BLE applications and devices:
 
 ### Requesting Connection Priority
 
-On Android, you can request a connection parameter update to tune the BLE connection interval. This can yield a 3–7× throughput improvement for data-intensive transfers.
+On Android and Windows, you can request a connection parameter update to tune the BLE connection interval. This can yield a 3–7× throughput improvement for data-intensive transfers.
 
 ```dart
 // Before starting high-throughput data transfer:
@@ -510,7 +510,7 @@ await UniversalBle.requestConnectionPriority(
 );
 ```
 
-> **Note:** Only supported on Android. On all other platforms this throws `UniversalBleException` with code `notSupported`.
+> **Note:** Supported on Android and Windows. On all other platforms this throws `UniversalBleException` with code `notSupported`.
 > Call this after connecting and after `requestMtu()`, before beginning data transfer.
 
 The OS may later change connection parameters without your app requesting it (e.g. for power saving), which can reduce throughput. On Android API 26+, set `UniversalBle.onConnectionParametersChange` and react if needed:

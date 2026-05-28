@@ -358,7 +358,7 @@ class UniversalBle {
   /// - [BleConnectionPriority.highPerformance] - low latency, higher power (~7.5-15 ms interval).
   /// - [BleConnectionPriority.lowPower] - power-optimised (~100-125 ms interval).
   ///
-  /// Only supported on Android. On all other platforms this throws
+  /// Only supported on Android and Windows. On all other platforms this throws
   /// [UniversalBleException] with code [UniversalBleErrorCode.notSupported].
   ///
   /// Should be called after a successful connection and MTU negotiation, before

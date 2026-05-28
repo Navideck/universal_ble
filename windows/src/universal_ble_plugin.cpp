@@ -457,9 +457,43 @@ void UniversalBlePlugin::RequestMtu(
 void UniversalBlePlugin::RequestConnectionPriority(
     const std::string &device_id, const BleConnectionPriority &priority,
     std::function<void(std::optional<FlutterError> reply)> result) {
-  result(create_flutter_error(
-      UniversalBleErrorCode::kNotSupported,
-      "requestConnectionPriority is not supported on Windows platform"));
+  try {
+    auto it = connected_devices_.find(str_to_mac_address(device_id));
+    if (it == connected_devices_.end()) {
+      result(create_flutter_error(UniversalBleErrorCode::kDeviceNotFound,
+                                  "Unknown devicesId:" + device_id));
+      return;
+    }
+    auto bluetooth_agent = *it->second;
+    auto connected = bluetooth_agent.device.ConnectionStatus() ==
+                     BluetoothConnectionStatus::Connected;
+    if (connected) {
+      BluetoothLEPreferredConnectionParameters params{nullptr};
+      switch (priority) {
+        case BleConnectionPriority::kBalanced:
+          params = BluetoothLEPreferredConnectionParameters::Balanced();
+          break;
+        case BleConnectionPriority::kHighPerformance:
+          params =
+              BluetoothLEPreferredConnectionParameters::ThroughputOptimized();
+          break;
+        case BleConnectionPriority::kLowPower:
+          params = BluetoothLEPreferredConnectionParameters::PowerOptimized();
+          break;
+      }
+      bluetooth_agent.device.RequestPreferredConnectionParameters(params);
+    }
+    result(std::nullopt);
+  } catch (const FlutterError &err) {
+    result(err);
+  } catch (const winrt::hresult_error &err) {
+    result(create_flutter_error(
+        UniversalBleErrorCode::kFailed,
+        "requestConnectionPriority failed: " + to_string(err.message())));
+  } catch (...) {
+    result(create_flutter_error(UniversalBleErrorCode::kUnknownError,
+                                "Unknown error"));
+  }
 }
 
 void UniversalBlePlugin::ReadRssi(

@@ -44,7 +44,9 @@ class BleCapabilities {
   static bool supportsRequestMtuApi = !_Platform.isWeb;
 
   static bool supportsConnectionPriorityApi =
-      !_Platform.isWeb && defaultTargetPlatform == TargetPlatform.android;
+      !_Platform.isWeb &&
+      (defaultTargetPlatform == TargetPlatform.android ||
+          defaultTargetPlatform == TargetPlatform.windows);
 
   /// Whether connection parameter update events are reported (Android API 26+).
   static bool supportsConnectionParametersUpdates =
