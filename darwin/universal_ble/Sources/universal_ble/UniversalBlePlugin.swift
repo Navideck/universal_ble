@@ -468,13 +468,14 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
         return
       }
       // Re-adopt every peripheral CoreBluetooth handed back so the existing
-      // connection stays usable: restore the delegate, repopulate the lookup cache,
-      // and keep them in the auto-connect set so disconnects trigger reconnection.
+      // connection stays usable: restore the delegate and repopulate the lookup
+      // cache. We intentionally do NOT touch the auto-connect set here — CoreBluetooth
+      // restores peripherals regardless of how they were connected, so their
+      // auto-connect intent is whatever `connect(autoConnect:)` already recorded.
       for peripheral in peripherals {
         peripheral.delegate = self
         peripheral.saveCache()
         let deviceId = peripheral.uuid.uuidString
-        autoConnectDevices.insert(deviceId)
         // Best-effort: surface the live state to Dart. If the Flutter side isn't
         // listening yet (cold background relaunch), the Dart layer re-subscribes
         // on resume using the cached peripheral, so nothing is lost.
