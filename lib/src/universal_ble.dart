@@ -285,7 +285,7 @@ class UniversalBle {
     String deviceId,
     String service,
     String characteristic, {
-    final Duration? timeout,
+    Duration? timeout,
   }) async {
     return await _bleCommandQueue.queueCommand(
       () => _platform.readValue(
@@ -594,7 +594,7 @@ class UniversalBle {
     String deviceId,
     String service,
     String characteristic, {
-    final Duration? timeout,
+    Duration? timeout,
   }) {
     return read(deviceId, service, characteristic, timeout: timeout);
   }

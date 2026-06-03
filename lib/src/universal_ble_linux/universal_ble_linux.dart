@@ -318,7 +318,7 @@ class UniversalBleLinux extends UniversalBlePlatform {
     String deviceId,
     String service,
     String characteristic, {
-    final Duration? timeout,
+    Duration? timeout,
   }) async {
     UniversalLogger.logDebug(
       "READ -> $deviceId $service $characteristic",

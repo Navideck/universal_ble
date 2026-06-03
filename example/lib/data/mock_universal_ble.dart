@@ -80,7 +80,7 @@ class MockUniversalBle extends UniversalBlePlatform {
     String deviceId,
     String service,
     String characteristic, {
-    final Duration? timeout,
+    Duration? timeout,
   }) async {
     await Future.delayed(const Duration(milliseconds: 500));
     return _serviceValue;

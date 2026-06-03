@@ -85,7 +85,7 @@ abstract class UniversalBlePlatform {
     String deviceId,
     String service,
     String characteristic, {
-    final Duration? timeout,
+    Duration? timeout,
   });
 
   Future<void> writeValue(
