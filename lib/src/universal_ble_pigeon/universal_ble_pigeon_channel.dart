@@ -115,7 +115,7 @@ class UniversalBlePigeonChannel extends UniversalBlePlatform
     String deviceId,
     String service,
     String characteristic, {
-    final Duration? timeout,
+    Duration? timeout,
   }) {
     return _executeWithErrorHandling(
       () => _channel.readValue(deviceId, service, characteristic),
