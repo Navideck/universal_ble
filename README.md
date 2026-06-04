@@ -994,6 +994,25 @@ Add the `Bluetooth` capability to the macOS app from Xcode.
 
 **Permissions are automatically requested when calling `startScan()`.** You can also manually call `requestPermissions()` if needed.
 
+#### iOS background state restoration
+
+On iOS, the central manager is created with a `CBCentralManagerOptionRestoreIdentifierKey`, so CoreBluetooth can **relaunch your app in the background** when a connected peripheral has activity, and hand the live connection back to the plugin. This happens automatically — no API call is required.
+
+To benefit from it, your app must declare the Bluetooth central background mode in its `Info.plist`:
+
+```xml
+<key>UIBackgroundModes</key>
+<array>
+  <string>bluetooth-central</string>
+</array>
+```
+
+Notes:
+
+- Without the `bluetooth-central` background mode, iOS will not relaunch the app for Bluetooth events and state restoration is effectively disabled.
+- macOS does not support CoreBluetooth state restoration; this behavior is iOS-only.
+- On relaunch, the plugin re-adopts the restored peripherals and emits `onConnectionChanged` for any that are still connected, so your Dart code can resume where it left off.
+
 ### Windows
 
 Your Bluetooth adapter needs to support at least Bluetooth 4.0. If you have more than 1 adapters, the first one returned from the system will be picked.

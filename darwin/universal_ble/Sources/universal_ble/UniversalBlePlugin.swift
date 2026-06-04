@@ -22,11 +22,8 @@ public class UniversalBlePlugin: NSObject, FlutterPlugin {
     let peripheralApi = UniversalBlePeripheralPlugin(callbackChannel: peripheralCallbackChannel)
     UniversalBlePlatformChannelSetup.setUp(binaryMessenger: messenger, api: api)
     #if os(iOS)
-      // CoreBluetooth only delivers `willRestoreState:` if the central manager is
-      // (re)created with the same restore identifier during app launch. Plugin
-      // registration runs inside `didFinishLaunchingWithOptions`, so eagerly build
-      // the manager here. This is what lets iOS relaunch the app in the background
-      // when a managed peripheral reconnects and hand back the live connection.
+      // Build the manager during launch so CoreBluetooth can deliver
+      // `willRestoreState:` after a background relaunch (see activateStateRestoration).
       api.activateStateRestoration()
     #endif
     UniversalBlePeripheralChannelSetup.setUp(
@@ -43,15 +40,13 @@ private var discoveredPeripherals = [String: CBPeripheral]()
 private var advertisementNameCache = [String: String]()
 
 private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentralManagerDelegate, CBPeripheralDelegate {
-  // Stable identifier CoreBluetooth uses to preserve/restore this central manager
-  // across app relaunches (iOS background state restoration).
+  // Identifier CoreBluetooth uses to restore this central across relaunches.
   static let stateRestorationIdentifier = "com.universalble.central.restoration"
 
   var callbackChannel: UniversalBleCallbackChannel
   private var universalBleFilterUtil = UniversalBleFilterUtil()
   #if os(iOS)
-    // On iOS, opt into state preservation/restoration by passing a restore
-    // identifier. The delegate's `willRestoreState:` is then invoked on relaunch.
+    // iOS: opt into state restoration so `willRestoreState:` fires on relaunch.
     private lazy var manager: CBCentralManager = .init(
       delegate: self,
       queue: nil,
@@ -80,9 +75,8 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
     super.init()
   }
 
-  /// Forces the lazy central manager to be created during app launch so that
-  /// CoreBluetooth can deliver `centralManager(_:willRestoreState:)` when the app
-  /// is relaunched in the background by a previously connected peripheral.
+  /// Eagerly creates the central manager at launch so CoreBluetooth can deliver
+  /// `willRestoreState:` when a managed peripheral relaunches the app.
   func activateStateRestoration() {
     _ = manager
   }
@@ -467,18 +461,14 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
       guard let peripherals = dict[CBCentralManagerRestoredStatePeripheralsKey] as? [CBPeripheral] else {
         return
       }
-      // Re-adopt every peripheral CoreBluetooth handed back so the existing
-      // connection stays usable: restore the delegate and repopulate the lookup
-      // cache. We intentionally do NOT touch the auto-connect set here — CoreBluetooth
-      // restores peripherals regardless of how they were connected, so their
-      // auto-connect intent is whatever `connect(autoConnect:)` already recorded.
+      // Re-adopt restored peripherals: restore the delegate and repopulate the
+      // lookup cache so the existing connection stays usable.
       for peripheral in peripherals {
         peripheral.delegate = self
         peripheral.saveCache()
         let deviceId = peripheral.uuid.uuidString
-        // Best-effort: surface the live state to Dart. If the Flutter side isn't
-        // listening yet (cold background relaunch), the Dart layer re-subscribes
-        // on resume using the cached peripheral, so nothing is lost.
+        // Notify Dart if already connected; on a cold relaunch the Dart layer
+        // re-subscribes on resume using the cached peripheral.
         if peripheral.state == .connected {
           callbackChannel.onConnectionChanged(deviceId: deviceId, connected: true, error: nil) { _ in }
         }
