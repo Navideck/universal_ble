@@ -138,6 +138,13 @@ fun Int.parseScanErrorMessage(): String {
     }
 }
 
+val ScanResult.resolvedDeviceName: String?
+    get() {
+        val advertisedName = scanRecord?.deviceName
+        if (!advertisedName.isNullOrBlank()) return advertisedName
+        return device.name
+    }
+
 val ScanResult.manufacturerDataList: List<UniversalManufacturerData>
     get() {
         return scanRecord?.manufacturerSpecificData?.toList()?.map { (key, value) ->
