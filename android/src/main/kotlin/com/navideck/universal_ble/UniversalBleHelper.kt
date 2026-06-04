@@ -142,7 +142,11 @@ val ScanResult.resolvedDeviceName: String?
     get() {
         val advertisedName = scanRecord?.deviceName
         if (!advertisedName.isNullOrBlank()) return advertisedName
-        return device.name
+        return try {
+            device.name
+        } catch (_: SecurityException) {
+            null
+        }
     }
 
 val ScanResult.manufacturerDataList: List<UniversalManufacturerData>
