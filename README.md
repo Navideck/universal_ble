@@ -996,7 +996,7 @@ Add the `Bluetooth` capability to the macOS app from Xcode.
 
 #### iOS background state restoration
 
-On iOS, the central manager is created with a `CBCentralManagerOptionRestoreIdentifierKey`, so CoreBluetooth can **relaunch your app in the background** when a connected peripheral has activity, and hand the live connection back to the plugin. This happens automatically — no API call is required.
+On iOS, the central manager is created with a `CBCentralManagerOptionRestoreIdentifierKey`, so CoreBluetooth can [relaunch your app](https://developer.apple.com/documentation/technotes/tn3115-bluetooth-state-restoration-app-relaunch-rules) in the background when a connected peripheral has activity, and hand the live connection back to the plugin. This happens automatically — no API call is required.
 
 To benefit from it, your app must declare the `Uses Bluetooth LE accessories` background mode. After enabling it, in `Info.plist` you should have:
 
