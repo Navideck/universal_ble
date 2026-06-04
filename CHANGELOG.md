@@ -1,9 +1,8 @@
-## Unreleased
-* iOS: add CoreBluetooth state preservation/restoration so the app can be relaunched in the background by a connected peripheral and resume the live connection. Requires the `bluetooth-central` background mode in `Info.plist` (see README → Permissions → iOS / macOS).
-
 ## 2.0.3
 * iOS/macOS: defer `CBPeripheralManager` creation until peripheral APIs are used, fixing Bluetooth permission prompt on app launch
-* Windows: Fix null pointer crash when BLE device is unpaired during active scan
+* iOS: add CoreBluetooth state preservation/restoration so the app can be relaunched in the background by a connected peripheral and resume the live connection. Requires the `bluetooth-central` background mode in `Info.plist` (see README → Permissions → iOS / macOS).
+* Windows: Fix null pointer crash when BLE device is unpaired during active scanCommits on May 28, * Windows: Refactor property value lookups to use a safe lookup function
+* Fix Dart primary constructor compatibility
 
 ## 2.0.2
 * iOS/macOS: retain peripheral from retrievePeripherals to fix API MISUSE on connect
