@@ -1207,7 +1207,7 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
                 }
             }
 
-            val name = result.device.name
+            val name = result.resolvedDeviceName
             val manufacturerDataList = result.manufacturerDataList
             val serviceData = result.serviceData
 
@@ -1222,7 +1222,7 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
             mainThreadHandler?.post {
                 callbackChannel?.onScanResult(
                     UniversalBleScanResult(
-                        name = result.device.name,
+                        name = name,
                         deviceId = result.device.address,
                         isPaired = result.device.isBonded(),
                         manufacturerDataList = manufacturerDataList,
