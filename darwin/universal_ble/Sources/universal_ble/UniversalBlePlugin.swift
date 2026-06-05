@@ -47,12 +47,12 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
   #if os(iOS)
     /// True when the host app declares the `bluetooth-central` background mode.
     /// State restoration and eager manager creation are only enabled in that case.
-    private static var hasBluetoothCentralBackgroundMode: Bool {
+    private static let hasBluetoothCentralBackgroundMode: Bool = {
       guard let modes = Bundle.main.object(forInfoDictionaryKey: "UIBackgroundModes") as? [String] else {
         return false
       }
       return modes.contains("bluetooth-central")
-    }
+    }()
   #endif
 
   var callbackChannel: UniversalBleCallbackChannel
