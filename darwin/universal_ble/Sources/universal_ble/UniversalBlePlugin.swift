@@ -22,8 +22,9 @@ public class UniversalBlePlugin: NSObject, FlutterPlugin {
     let peripheralApi = UniversalBlePeripheralPlugin(callbackChannel: peripheralCallbackChannel)
     UniversalBlePlatformChannelSetup.setUp(binaryMessenger: messenger, api: api)
     #if os(iOS)
-      // Build the manager during launch so CoreBluetooth can deliver
-      // `willRestoreState:` after a background relaunch (see activateStateRestoration).
+      // When the host app declares `bluetooth-central`, build the manager during
+      // launch so CoreBluetooth can deliver `willRestoreState:` after a background
+      // relaunch (see activateStateRestoration).
       api.activateStateRestoration()
     #endif
     UniversalBlePeripheralChannelSetup.setUp(
@@ -43,17 +44,32 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
   // Identifier CoreBluetooth uses to restore this central across relaunches.
   static let stateRestorationIdentifier = "com.universalble.central.restoration"
 
+  #if os(iOS)
+    /// True when the host app declares the `bluetooth-central` background mode.
+    /// State restoration and eager manager creation are only enabled in that case.
+    private static var hasBluetoothCentralBackgroundMode: Bool {
+      guard let modes = Bundle.main.object(forInfoDictionaryKey: "UIBackgroundModes") as? [String] else {
+        return false
+      }
+      return modes.contains("bluetooth-central")
+    }
+  #endif
+
   var callbackChannel: UniversalBleCallbackChannel
   private var universalBleFilterUtil = UniversalBleFilterUtil()
   #if os(iOS)
-    // iOS: opt into state restoration so `willRestoreState:` fires on relaunch.
-    private lazy var manager: CBCentralManager = .init(
-      delegate: self,
-      queue: nil,
-      options: [
-        CBCentralManagerOptionRestoreIdentifierKey: BleCentralDarwin.stateRestorationIdentifier,
-      ]
-    )
+    private lazy var manager: CBCentralManager = {
+      if Self.hasBluetoothCentralBackgroundMode {
+        return CBCentralManager(
+          delegate: self,
+          queue: nil,
+          options: [
+            CBCentralManagerOptionRestoreIdentifierKey: BleCentralDarwin.stateRestorationIdentifier,
+          ]
+        )
+      }
+      return CBCentralManager(delegate: self, queue: nil)
+    }()
   #else
     // macOS does not support CoreBluetooth state restoration.
     private lazy var manager: CBCentralManager = .init(delegate: self, queue: nil)
@@ -75,11 +91,15 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
     super.init()
   }
 
-  /// Eagerly creates the central manager at launch so CoreBluetooth can deliver
-  /// `willRestoreState:` when a managed peripheral relaunches the app.
-  func activateStateRestoration() {
-    _ = manager
-  }
+  #if os(iOS)
+    /// Eagerly creates the central manager at launch when the app declares the
+    /// `bluetooth-central` background mode, so CoreBluetooth can deliver
+    /// `willRestoreState:` when a managed peripheral relaunches the app.
+    func activateStateRestoration() {
+      guard Self.hasBluetoothCentralBackgroundMode else { return }
+      _ = manager
+    }
+  #endif
 
   func getBluetoothAvailabilityState(completion: @escaping (Result<AvailabilityState, Error>) -> Void) {
     if manager.state != .unknown {
