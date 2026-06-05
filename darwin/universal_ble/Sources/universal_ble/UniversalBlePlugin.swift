@@ -53,6 +53,22 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
       }
       return modes.contains("bluetooth-central")
     }()
+
+    private static var hasBluetoothPermission: Bool {
+      CBCentralManager.authorization == .allowedAlways
+    }
+
+    /// Availability derived from `CBCentralManager.authorization` without creating a manager.
+    private static var availabilityStateFromAuthorization: AvailabilityState {
+      switch CBCentralManager.authorization {
+      case .restricted, .denied:
+        return .unauthorized
+      case .notDetermined:
+        return .unknown
+      default:
+        return .unknown
+      }
+    }
   #endif
 
   var callbackChannel: UniversalBleCallbackChannel
@@ -93,15 +109,23 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
 
   #if os(iOS)
     /// Eagerly creates the central manager at launch when the app declares the
-    /// `bluetooth-central` background mode, so CoreBluetooth can deliver
-    /// `willRestoreState:` when a managed peripheral relaunches the app.
+    /// `bluetooth-central` background mode and Bluetooth permission is already
+    /// granted, so CoreBluetooth can deliver `willRestoreState:` when a managed
+    /// peripheral relaunches the app. Otherwise creation stays deferred until
+    /// a central BLE API (e.g. `startScan`, `connect`) is called.
     func activateStateRestoration() {
-      guard Self.hasBluetoothCentralBackgroundMode else { return }
+      guard Self.hasBluetoothCentralBackgroundMode, Self.hasBluetoothPermission else { return }
       _ = manager
     }
   #endif
 
   func getBluetoothAvailabilityState(completion: @escaping (Result<AvailabilityState, Error>) -> Void) {
+    #if os(iOS)
+      if Self.hasBluetoothCentralBackgroundMode, !Self.hasBluetoothPermission {
+        completion(.success(Self.availabilityStateFromAuthorization))
+        return
+      }
+    #endif
     if manager.state != .unknown {
       completion(.success(manager.state.toAvailabilityState()))
     } else {

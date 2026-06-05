@@ -1,5 +1,6 @@
 ## 2.0.4
 * iOS: gate CoreBluetooth state restoration on the `bluetooth-central` background mode so apps without it no longer crash at launch and `CBCentralManager` stays lazy until the first BLE API call
+* iOS: when state restoration is enabled, defer `CBCentralManager` creation at launch until Bluetooth permission is granted and a central BLE API is called
 
 ## 2.0.3
 * iOS/macOS: defer `CBPeripheralManager` creation until peripheral APIs are used, fixing Bluetooth permission prompt on app launch

@@ -996,7 +996,7 @@ Add the `Bluetooth` capability to the macOS app from Xcode.
 
 #### iOS background state restoration
 
-On iOS, when your app declares the `bluetooth-central` background mode, the central manager is created at launch with a `CBCentralManagerOptionRestoreIdentifierKey`, so CoreBluetooth can [relaunch your app](https://developer.apple.com/documentation/technotes/tn3115-bluetooth-state-restoration-app-relaunch-rules) in the background when a connected peripheral has activity, and hand the live connection back to the plugin. This happens automatically — no API call is required.
+On iOS, when your app declares the `bluetooth-central` background mode and Bluetooth permission is already granted, the central manager is created at launch with a `CBCentralManagerOptionRestoreIdentifierKey`, so CoreBluetooth can [relaunch your app](https://developer.apple.com/documentation/technotes/tn3115-bluetooth-state-restoration-app-relaunch-rules) in the background when a connected peripheral has activity, and hand the live connection back to the plugin. If permission has not been granted yet, creation is deferred until a central BLE API (such as `startScan()` or `connect()`) is called.
 
 To opt in, declare the `Uses Bluetooth LE accessories` background mode. After enabling it, in `Info.plist` you should have:
 
@@ -1010,7 +1010,7 @@ To opt in, declare the `Uses Bluetooth LE accessories` background mode. After en
 
 Notes:
 
-- Without the `bluetooth-central` background mode, `CBCentralManager` is created lazily on the first BLE API call and state restoration is disabled.
+- Without the `bluetooth-central` background mode, `CBCentralManager` is created lazily on the first central BLE API call and state restoration is disabled.
 - macOS does not support CoreBluetooth state restoration; this behavior is iOS-only.
 - On relaunch, the plugin re-adopts the restored peripherals and emits `onConnectionChanged` for any that are still connected, so your Dart code can resume where it left off.
 
