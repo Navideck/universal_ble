@@ -1007,7 +1007,7 @@ To opt in, declare the `Uses Bluetooth LE accessories` background mode. After en
   <string>bluetooth-central</string>
   ...
 </array>
-
+```
 Notes:
 
 - Without the `bluetooth-central` background mode, `CBCentralManager` is created lazily on the first central BLE API call and state restoration is disabled.
