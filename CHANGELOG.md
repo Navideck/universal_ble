@@ -1,3 +1,7 @@
+## 2.0.4
+* iOS: make Bluetooth state restoration optional by enabling it only when the `bluetooth-central` background mode is declared
+* iOS: when state restoration is enabled, init `CBCentralManager` at launch only if Bluetooth permission is granted
+
 ## 2.0.3
 * iOS/macOS: defer `CBPeripheralManager` creation until peripheral APIs are used, fixing Bluetooth permission prompt on app launch
 * iOS: add CoreBluetooth state preservation/restoration so the app can be relaunched in the background by a connected peripheral and resume the live connection. Requires the `bluetooth-central` background mode in `Info.plist` (see README → Permissions → iOS / macOS).
