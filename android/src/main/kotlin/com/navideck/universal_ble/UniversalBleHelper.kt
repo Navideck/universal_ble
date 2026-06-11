@@ -153,30 +153,33 @@ val ScanResult.manufacturerDataList: List<UniversalManufacturerData>
     get() {
         val raw = scanRecord?.bytes
         if (raw != null) {
-            val byCompany = LinkedHashMap<Int, java.io.ByteArrayOutputStream>()
-            var i = 0
-            while (i < raw.size) {
-                val fieldLen = raw[i].toInt() and 0xFF
-                if (fieldLen == 0) break
-                if (i + fieldLen >= raw.size) break
-                if ((raw[i + 1].toInt() and 0xFF) == 0xFF && fieldLen >= 3) {
-                    val companyId =
-                        (raw[i + 2].toInt() and 0xFF) or ((raw[i + 3].toInt() and 0xFF) shl 8)
-                    byCompany.getOrPut(companyId) { java.io.ByteArrayOutputStream() }
-                        .write(raw, i + 4, fieldLen - 3)
-                }
-                i += fieldLen + 1
-            }
-            if (byCompany.isNotEmpty()) {
-                return byCompany.map { (companyId, buffer) ->
-                    UniversalManufacturerData(companyId.toLong(), buffer.toByteArray())
-                }
-            }
+            val parsed = parseManufacturerDataFromRawBytes(raw)
+            if (parsed.isNotEmpty()) return parsed
         }
         return scanRecord?.manufacturerSpecificData?.toList()?.map { (key, value) ->
             UniversalManufacturerData(key.toLong(), value)
         } ?: emptyList()
     }
+
+internal fun parseManufacturerDataFromRawBytes(raw: ByteArray): List<UniversalManufacturerData> {
+    val byCompany = LinkedHashMap<Int, java.io.ByteArrayOutputStream>()
+    var i = 0
+    while (i < raw.size) {
+        val fieldLen = raw[i].toInt() and 0xFF
+        if (fieldLen == 0) break
+        if (i + fieldLen >= raw.size) break
+        if ((raw[i + 1].toInt() and 0xFF) == 0xFF && fieldLen >= 3) {
+            val companyId =
+                (raw[i + 2].toInt() and 0xFF) or ((raw[i + 3].toInt() and 0xFF) shl 8)
+            byCompany.getOrPut(companyId) { java.io.ByteArrayOutputStream() }
+                .write(raw, i + 4, fieldLen - 3)
+        }
+        i += fieldLen + 1
+    }
+    return byCompany.map { (companyId, buffer) ->
+        UniversalManufacturerData(companyId.toLong(), buffer.toByteArray())
+    }
+}
 
 val ScanResult.serviceData: Map<String, ByteArray>
     get() {
