@@ -557,6 +557,20 @@ If you want to parallelize commands between multiple devices, you can set:
 UniversalBle.queueType = QueueType.perDevice;
 ```
 
+To route specific commands to a separate queue, pass an optional `queueId` to any queued API. Commands with the same `queueId` are serialized together, but run in parallel with the default queue:
+
+```dart
+const batchCommands = 'batchCommands';
+
+// Intermediate writes share a dedicated queue
+UniversalBle.write(deviceId, service, char, payload10, queueId: batchCommands);
+UniversalBle.write(deviceId, service, char, payload20, queueId: batchCommands);
+
+// Drop pending commands on that queue, then send only the final value
+UniversalBle.clearQueue(batchCommands);
+await UniversalBle.write(deviceId, service, char, payloadFinal, queueId: batchCommands);
+```
+
 You can also completely disable the queue and batch all commands, even for the same device, by using:
 
 ```dart
@@ -1008,6 +1022,7 @@ To opt in, declare the `Uses Bluetooth LE accessories` background mode. After en
   ...
 </array>
 ```
+
 Notes:
 
 - Without the `bluetooth-central` background mode, `CBCentralManager` is created lazily on the first central BLE API call and state restoration is disabled.

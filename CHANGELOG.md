@@ -1,5 +1,5 @@
-## 2.0.5
-* Add optional queueId to BLE command queue
+## 2.1.0
+* Add optional `queueId` to queued BLE APIs
 
 ## 2.0.4
 * iOS: make Bluetooth state restoration optional by enabling it only when the `bluetooth-central` background mode is declared
