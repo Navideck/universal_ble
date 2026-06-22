@@ -92,7 +92,7 @@ void main() {
         queueId: 'tilta',
       );
 
-      await Future<void>.delayed(Duration.zero);
+      await pumpEventQueue();
       expect(order, isEmpty);
 
       releaseCustom.complete();
@@ -166,7 +166,7 @@ void main() {
         queueId: 'shared',
       );
 
-      await Future<void>.delayed(Duration.zero);
+      await pumpEventQueue();
       expect(order, isEmpty);
 
       releaseShared.complete();

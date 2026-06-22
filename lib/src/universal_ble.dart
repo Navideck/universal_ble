@@ -111,11 +111,11 @@ class UniversalBle {
     String? queueId,
   }) async {
     return await _bleCommandQueue.queueCommandWithoutTimeout(
-      queueId: queueId,
       () => _platform.startScan(
         scanFilter: scanFilter,
         platformConfig: platformConfig,
       ),
+      queueId: queueId,
     );
   }
 
@@ -124,8 +124,8 @@ class UniversalBle {
   /// It might throw errors if Bluetooth is not available.
   static Future<void> stopScan({String? queueId}) async {
     return await _bleCommandQueue.queueCommandWithoutTimeout(
-      queueId: queueId,
       () => _platform.stopScan(),
+      queueId: queueId,
     );
   }
 
@@ -133,8 +133,8 @@ class UniversalBle {
   /// Returns `true` if scanning is active, `false` otherwise.
   static Future<bool> isScanning({String? queueId}) async {
     return await _bleCommandQueue.queueCommand(
-      queueId: queueId,
       () => _platform.isScanning(),
+      queueId: queueId,
     );
   }
 
@@ -461,6 +461,7 @@ class UniversalBle {
         pairingCommand,
         updateCallbackValue: false,
         timeout: timeout,
+        queueId: queueId,
       );
 
       // Because pairingCommand will be never null, so we wont get Unknown result here
@@ -504,6 +505,7 @@ class UniversalBle {
         deviceId,
         pairingCommand,
         timeout: timeout,
+        queueId: queueId,
       );
     }
   }
@@ -733,8 +735,13 @@ class UniversalBle {
     BleCommand? bleCommand, {
     bool updateCallbackValue = false,
     Duration? timeout,
+    String? queueId,
   }) async {
-    var connectionState = await getConnectionState(deviceId, timeout: timeout);
+    var connectionState = await getConnectionState(
+      deviceId,
+      timeout: timeout,
+      queueId: queueId,
+    );
     // Try to connect first
     if (connectionState != BleConnectionState.connected) {
       UniversalLogger.logInfo("Connecting to $deviceId");
@@ -744,16 +751,28 @@ class UniversalBle {
     List<BleService> services = await discoverServices(
       deviceId,
       timeout: timeout,
+      queueId: queueId,
     );
     UniversalLogger.logInfo("Discovered services: ${services.length}");
 
     if (bleCommand == null) {
       // Just attempt pairing
-      await _attemptPairingReadingAll(deviceId, services, timeout: timeout);
+      await _attemptPairingReadingAll(
+        deviceId,
+        services,
+        timeout: timeout,
+        queueId: queueId,
+      );
       return;
     }
 
-    await _executeBleCommand(deviceId, services, bleCommand, timeout: timeout);
+    await _executeBleCommand(
+      deviceId,
+      services,
+      bleCommand,
+      timeout: timeout,
+      queueId: queueId,
+    );
     if (updateCallbackValue) _platform.updatePairingState(deviceId, true);
   }
 
@@ -762,6 +781,7 @@ class UniversalBle {
     String deviceId,
     List<BleService> services, {
     Duration? timeout,
+    String? queueId,
   }) async {
     bool containsReadCharacteristics = false;
     try {
@@ -775,6 +795,7 @@ class UniversalBle {
               service.uuid,
               characteristic.uuid,
               timeout: timeout ?? const Duration(seconds: 30),
+              queueId: queueId,
             );
           }
         }
@@ -791,6 +812,7 @@ class UniversalBle {
     List<BleService> services,
     BleCommand bleCommand, {
     Duration? timeout,
+    String? queueId,
   }) async {
     // First find BleCommand's characteristic
     BleCharacteristic? characteristic;
@@ -839,6 +861,7 @@ class UniversalBle {
           value,
           withoutResponse: withoutResponse,
           timeout: timeout,
+          queueId: queueId,
         );
       } else {
         // Fallback to read if supported
@@ -847,6 +870,7 @@ class UniversalBle {
           bleCommand.service,
           bleCommand.characteristic,
           timeout: timeout ?? const Duration(seconds: 30),
+          queueId: queueId,
         );
       }
     } catch (e) {
