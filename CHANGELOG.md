@@ -1,3 +1,6 @@
+## 2.0.5
+* Add optional queueId to BLE command queue
+
 ## 2.0.4
 * iOS: make Bluetooth state restoration optional by enabling it only when the `bluetooth-central` background mode is declared
 * iOS: when state restoration is enabled, init `CBCentralManager` at launch only if Bluetooth permission is granted

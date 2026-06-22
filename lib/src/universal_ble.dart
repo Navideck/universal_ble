@@ -66,9 +66,12 @@ class UniversalBle {
 
   /// Get Bluetooth availability state.
   /// To be notified of updates, set [onAvailabilityChange] listener.
-  static Future<AvailabilityState> getBluetoothAvailabilityState() async {
+  static Future<AvailabilityState> getBluetoothAvailabilityState({
+    String? queueId,
+  }) async {
     return await _bleCommandQueue.queueCommand(
       () => _platform.getBluetoothAvailabilityState(),
+      queueId: queueId,
     );
   }
 
@@ -105,8 +108,10 @@ class UniversalBle {
   static Future<void> startScan({
     ScanFilter? scanFilter,
     PlatformConfig? platformConfig,
+    String? queueId,
   }) async {
     return await _bleCommandQueue.queueCommandWithoutTimeout(
+      queueId: queueId,
       () => _platform.startScan(
         scanFilter: scanFilter,
         platformConfig: platformConfig,
@@ -117,16 +122,20 @@ class UniversalBle {
   /// Stop scan.
   /// Set [onScanResult] listener to `null` if you don't need it anymore.
   /// It might throw errors if Bluetooth is not available.
-  static Future<void> stopScan() async {
+  static Future<void> stopScan({String? queueId}) async {
     return await _bleCommandQueue.queueCommandWithoutTimeout(
+      queueId: queueId,
       () => _platform.stopScan(),
     );
   }
 
   /// Check if currently scanning for devices.
   /// Returns `true` if scanning is active, `false` otherwise.
-  static Future<bool> isScanning() async {
-    return await _bleCommandQueue.queueCommand(() => _platform.isScanning());
+  static Future<bool> isScanning({String? queueId}) async {
+    return await _bleCommandQueue.queueCommand(
+      queueId: queueId,
+      () => _platform.isScanning(),
+    );
   }
 
   /// Connect to a device.
@@ -166,7 +175,11 @@ class UniversalBle {
 
   /// Disconnect from a device.
   /// Get notified of connection state changes in [onConnectionChange] listener.
-  static Future<void> disconnect(String deviceId, {Duration? timeout}) async {
+  static Future<void> disconnect(
+    String deviceId, {
+    Duration? timeout,
+    String? queueId,
+  }) async {
     timeout ??= const Duration(seconds: 60);
     BleConnectionState? connectionState;
     try {
@@ -186,6 +199,7 @@ class UniversalBle {
             () => _platform.disconnect(deviceId),
             timeout: timeout,
             deviceId: deviceId,
+            queueId: queueId,
           )
           .catchError((error) {
             if (completer.isCompleted) return;
@@ -219,11 +233,13 @@ class UniversalBle {
     String deviceId, {
     bool withDescriptors = false,
     Duration? timeout,
+    String? queueId,
   }) async {
     return await _bleCommandQueue.queueCommand(
       () => _platform.discoverServices(deviceId, withDescriptors),
       timeout: timeout,
       deviceId: deviceId,
+      queueId: queueId,
     );
   }
 
@@ -235,6 +251,7 @@ class UniversalBle {
     String service,
     String characteristic, {
     Duration? timeout,
+    String? queueId,
   }) async {
     return _sendBleInputPropertyCommand(
       deviceId,
@@ -242,6 +259,7 @@ class UniversalBle {
       characteristic,
       BleInputProperty.notification,
       timeout: timeout,
+      queueId: queueId,
     );
   }
 
@@ -253,6 +271,7 @@ class UniversalBle {
     String service,
     String characteristic, {
     Duration? timeout,
+    String? queueId,
   }) async {
     return _sendBleInputPropertyCommand(
       deviceId,
@@ -260,6 +279,7 @@ class UniversalBle {
       characteristic,
       BleInputProperty.indication,
       timeout: timeout,
+      queueId: queueId,
     );
   }
 
@@ -269,6 +289,7 @@ class UniversalBle {
     String service,
     String characteristic, {
     Duration? timeout,
+    String? queueId,
   }) async {
     return _sendBleInputPropertyCommand(
       deviceId,
@@ -276,6 +297,7 @@ class UniversalBle {
       characteristic,
       BleInputProperty.disabled,
       timeout: timeout,
+      queueId: queueId,
     );
   }
 
@@ -286,6 +308,7 @@ class UniversalBle {
     String service,
     String characteristic, {
     Duration? timeout,
+    String? queueId,
   }) async {
     return await _bleCommandQueue.queueCommand(
       () => _platform.readValue(
@@ -296,6 +319,7 @@ class UniversalBle {
       ),
       timeout: timeout,
       deviceId: deviceId,
+      queueId: queueId,
     );
   }
 
@@ -308,6 +332,7 @@ class UniversalBle {
     Uint8List value, {
     bool withoutResponse = false,
     Duration? timeout,
+    String? queueId,
   }) async {
     await _bleCommandQueue.queueCommand(
       () => _platform.writeValue(
@@ -321,6 +346,7 @@ class UniversalBle {
       ),
       timeout: timeout,
       deviceId: deviceId,
+      queueId: queueId,
     );
   }
 
@@ -343,11 +369,13 @@ class UniversalBle {
     String deviceId,
     int expectedMtu, {
     Duration? timeout,
+    String? queueId,
   }) async {
     return await _bleCommandQueue.queueCommand(
       () => _platform.requestMtu(deviceId, expectedMtu),
       timeout: timeout,
       deviceId: deviceId,
+      queueId: queueId,
     );
   }
 
@@ -367,11 +395,13 @@ class UniversalBle {
     String deviceId,
     BleConnectionPriority priority, {
     Duration? timeout,
+    String? queueId,
   }) async {
     return await _bleCommandQueue.queueCommand(
       () => _platform.requestConnectionPriority(deviceId, priority),
       timeout: timeout,
       deviceId: deviceId,
+      queueId: queueId,
     );
   }
 
@@ -386,11 +416,16 @@ class UniversalBle {
   /// Throws [UniversalBleException] if:
   /// - The device is not connected
   /// - Reading RSSI fails
-  static Future<int> readRssi(String deviceId, {Duration? timeout}) async {
+  static Future<int> readRssi(
+    String deviceId, {
+    Duration? timeout,
+    String? queueId,
+  }) async {
     return await _bleCommandQueue.queueCommand(
       () => _platform.readRssi(deviceId),
       timeout: timeout,
       deviceId: deviceId,
+      queueId: queueId,
     );
   }
 
@@ -404,12 +439,14 @@ class UniversalBle {
     String deviceId, {
     BleCommand? pairingCommand,
     Duration? timeout,
+    String? queueId,
   }) async {
     if (BleCapabilities.hasSystemPairingApi) {
       return _bleCommandQueue.queueCommand(
         () => _platform.isPaired(deviceId),
         deviceId: deviceId,
         timeout: timeout,
+        queueId: queueId,
       );
     }
 
@@ -449,12 +486,14 @@ class UniversalBle {
     String deviceId, {
     BleCommand? pairingCommand,
     Duration? timeout,
+    String? queueId,
   }) async {
     if (BleCapabilities.hasSystemPairingApi) {
       bool paired = await _bleCommandQueue.queueCommand(
         () => _platform.pair(deviceId),
         deviceId: deviceId,
         timeout: timeout,
+        queueId: queueId,
       );
       if (!paired) throw PairingException();
     } else {
@@ -471,11 +510,16 @@ class UniversalBle {
 
   /// Unpair a device.
   /// It might throw an error if device is not paired.
-  static Future<void> unpair(String deviceId, {Duration? timeout}) async {
+  static Future<void> unpair(
+    String deviceId, {
+    Duration? timeout,
+    String? queueId,
+  }) async {
     return await _bleCommandQueue.queueCommand(
       () => _platform.unpair(deviceId),
       deviceId: deviceId,
       timeout: timeout,
+      queueId: queueId,
     );
   }
 
@@ -487,10 +531,12 @@ class UniversalBle {
   static Future<List<BleDevice>> getSystemDevices({
     List<String>? withServices,
     Duration? timeout,
+    String? queueId,
   }) async {
     return await _bleCommandQueue.queueCommand(
       () => _platform.getSystemDevices(withServices?.toValidUUIDList()),
       timeout: timeout,
+      queueId: queueId,
     );
   }
 
@@ -500,30 +546,40 @@ class UniversalBle {
   static Future<BleConnectionState> getConnectionState(
     String deviceId, {
     Duration? timeout,
+    String? queueId,
   }) async {
     return await _bleCommandQueue.queueCommand(
       () => _platform.getConnectionState(deviceId),
       timeout: timeout,
+      queueId: queueId,
     );
   }
 
   /// Enable Bluetooth.
   /// It might throw errors if Bluetooth is not available.
   /// Not supported on `Web` and `Apple`.
-  static Future<bool> enableBluetooth({Duration? timeout}) async {
+  static Future<bool> enableBluetooth({
+    Duration? timeout,
+    String? queueId,
+  }) async {
     return await _bleCommandQueue.queueCommand(
       () => _platform.enableBluetooth(),
       timeout: timeout,
+      queueId: queueId,
     );
   }
 
   /// Disable Bluetooth.
   /// It might throw errors if Bluetooth is not available.
   /// Not supported on `Web` and `Apple`.
-  static Future<bool> disableBluetooth({Duration? timeout}) async {
+  static Future<bool> disableBluetooth({
+    Duration? timeout,
+    String? queueId,
+  }) async {
     return await _bleCommandQueue.queueCommand(
       () => _platform.disableBluetooth(),
       timeout: timeout,
+      queueId: queueId,
     );
   }
 
@@ -562,13 +618,15 @@ class UniversalBle {
     String deviceId,
     String service,
     String characteristic,
-    BleInputProperty bleInputProperty,
-  ) async {
+    BleInputProperty bleInputProperty, {
+    String? queueId,
+  }) async {
     return _sendBleInputPropertyCommand(
       deviceId,
       service,
       characteristic,
       bleInputProperty,
+      queueId: queueId,
     );
   }
 
@@ -655,6 +713,7 @@ class UniversalBle {
     String characteristic,
     BleInputProperty bleInputProperty, {
     Duration? timeout,
+    String? queueId,
   }) async {
     return await _bleCommandQueue.queueCommand(
       () => _platform.setNotifiable(
@@ -665,6 +724,7 @@ class UniversalBle {
       ),
       deviceId: deviceId,
       timeout: timeout,
+      queueId: queueId,
     );
   }
 

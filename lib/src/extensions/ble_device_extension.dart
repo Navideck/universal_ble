@@ -25,7 +25,8 @@ extension BleDeviceExtension on BleDevice {
       );
 
   /// Disconnects from the device.
-  Future<void> disconnect() => UniversalBle.disconnect(deviceId);
+  Future<void> disconnect({Duration? timeout, String? queueId}) =>
+      UniversalBle.disconnect(deviceId, timeout: timeout, queueId: queueId);
 
   /// Requests an MTU (Maximum Transmission Unit) value for the connection.
   ///
@@ -34,8 +35,8 @@ extension BleDeviceExtension on BleDevice {
   /// which may differ from `expectedMtu`.
   ///
   /// See [UniversalBle.requestMtu] for platform limitations and best practices.
-  Future<int> requestMtu(int expectedMtu) =>
-      UniversalBle.requestMtu(deviceId, expectedMtu);
+  Future<int> requestMtu(int expectedMtu, {String? queueId}) =>
+      UniversalBle.requestMtu(deviceId, expectedMtu, queueId: queueId);
 
   /// Check if a device is paired.
   ///
@@ -43,11 +44,16 @@ extension BleDeviceExtension on BleDevice {
   /// Returns true/false if it manages to execute the command.
   /// Returns null when no `pairingCommand` is passed.
   /// Note that it will trigger pairing if the device is not already paired.
-  Future<bool?> isPaired({BleCommand? pairingCommand, Duration? timeout}) {
+  Future<bool?> isPaired({
+    BleCommand? pairingCommand,
+    Duration? timeout,
+    String? queueId,
+  }) {
     return UniversalBle.isPaired(
       deviceId,
       pairingCommand: pairingCommand,
       timeout: timeout,
+      queueId: queueId,
     );
   }
 
@@ -62,19 +68,24 @@ extension BleDeviceExtension on BleDevice {
   ///
   /// On `Web/Windows` and `Web/Linux`, it does not work for devices that use `ConfirmOnly` pairing.
   /// Can throw `PairingException`, `ConnectionException` or `PlatformException`.
-  Future<void> pair({BleCommand? pairingCommand, Duration? timeout}) {
+  Future<void> pair({
+    BleCommand? pairingCommand,
+    Duration? timeout,
+    String? queueId,
+  }) {
     return UniversalBle.pair(
       deviceId,
       pairingCommand: pairingCommand,
       timeout: timeout,
+      queueId: queueId,
     );
   }
 
   /// Unpair a device.
   ///
   /// It might throw an error if device is not paired.
-  Future<void> unpair({Duration? timeout}) =>
-      UniversalBle.unpair(deviceId, timeout: timeout);
+  Future<void> unpair({Duration? timeout, String? queueId}) =>
+      UniversalBle.unpair(deviceId, timeout: timeout, queueId: queueId);
 
   /// Discovers the services offered by the device.
   ///
@@ -82,11 +93,13 @@ extension BleDeviceExtension on BleDevice {
   Future<List<BleService>> discoverServices({
     Duration? timeout,
     bool withDescriptors = false,
+    String? queueId,
   }) async {
     List<BleService> servicesCache = await UniversalBle.discoverServices(
       deviceId,
       withDescriptors: withDescriptors,
       timeout: timeout,
+      queueId: queueId,
     );
     CacheHandler.instance.saveServices(deviceId, servicesCache);
     return servicesCache;
@@ -101,13 +114,17 @@ extension BleDeviceExtension on BleDevice {
     String service, {
     bool preferCached = true,
     Duration? timeout,
+    String? queueId,
   }) async {
     List<BleService> discoveredServices = [];
     if (preferCached) {
       discoveredServices = CacheHandler.instance.getServices(deviceId) ?? [];
     }
     if (discoveredServices.isEmpty) {
-      discoveredServices = await discoverServices(timeout: timeout);
+      discoveredServices = await discoverServices(
+        timeout: timeout,
+        queueId: queueId,
+      );
     }
 
     if (discoveredServices.isEmpty) {
@@ -137,11 +154,13 @@ extension BleDeviceExtension on BleDevice {
     required String service,
     bool preferCached = true,
     Duration? timeout,
+    String? queueId,
   }) async {
     BleService bluetoothService = await getService(
       service,
       preferCached: preferCached,
       timeout: timeout,
+      queueId: queueId,
     );
     return bluetoothService.getCharacteristic(characteristic);
   }
