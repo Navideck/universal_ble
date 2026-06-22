@@ -32,7 +32,7 @@ A cross-platform (Android/iOS/macOS/Windows/Linux/Web) Bluetooth Low Energy (BLE
 - [Timeout](#timeout)
 - [Error Handling](#error-handling)
 - [UUID Format Agnostic](#uuid-format-agnostic)
-- [Permissions](#permissions)
+- [Platform-specific setup](#platform-specific-setup)
 - [Peripheral Mode](#peripheral-mode)
 
 ## API Support
