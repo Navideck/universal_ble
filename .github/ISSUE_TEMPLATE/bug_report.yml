@@ -60,7 +60,7 @@ body:
       description: The BLE peripheral you are connecting to or interacting with
       placeholder: e.g. Nordic nRF52840 DK, Xiaomi Mi Scale, custom ESP32
     validations:
-      required: true
+      required: false
 
   - type: input
     id: ble_version
@@ -86,7 +86,7 @@ body:
       description: Minimal Dart code that reproduces the issue
       render: dart
     validations:
-      required: true
+      required: false
 
   - type: textarea
     id: logs
