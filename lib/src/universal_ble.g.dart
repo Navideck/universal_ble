@@ -562,9 +562,10 @@ class BleConnectionParametersUpdated {
 /// logged); see the [AndroidScanCallbackType] doc for per-value API levels.
 ///
 /// [legacy] controls whether only legacy advertisements (BLE 4.2 and below) are
-/// returned. When `null` or `true`, the plugin leaves Android's default (legacy
-/// advertisements). Set to `false` to scan for BLE 5 extended advertisements
-/// only; on API 26+ the plugin also sets `PHY_LE_ALL_SUPPORTED` in that case.
+/// returned (API 26+). When `null` or `false`, the plugin scans for BLE 5
+/// extended advertisements only (the library default, unchanged from prior
+/// releases). Set to `true` for legacy BLE 4.x advertisements (e.g. ESP32); on
+/// API 26+ the plugin sets `setLegacy(true)` and does not set `PHY`.
 ///
 /// See https://developer.android.com/reference/android/bluetooth/le/ScanSettings
 class AndroidOptions {

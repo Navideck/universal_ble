@@ -1,6 +1,5 @@
 ## 2.1.0
-* Android: stop forcing `setLegacy(false)` on scan so legacy BLE 4.x advertisements (e.g. ESP32) are discovered by default; add `legacy` to `AndroidOptions` — set `legacy: false` to scan BLE 5 extended advertisements only (API 26+)
-* **Migration (Android API 26+):** If you relied on extended-advertisement scanning without `platformConfig`, pass `AndroidOptions(legacy: false)`.
+* Android: add `legacy` to `AndroidOptions` — set `legacy: true` to scan legacy BLE 4.x advertisements (e.g. ESP32) on API 26+; default (`null`/`false`) keeps extended-advertisement scanning unchanged from prior releases
 
 ## 2.0.4
 * iOS: make Bluetooth state restoration optional by enabling it only when the `bluetooth-central` background mode is declared

@@ -957,13 +957,13 @@ If your app uses peripheral advertising, add:
 
 #### Android scan options
 
-By default, legacy advertisements (BLE 4.x) are returned. Set `legacy: false` for BLE 5 extended advertisements only (API 26+).
+By default, BLE 5 extended advertisements are scanned (API 26+, unchanged from prior releases). Set `legacy: true` for legacy BLE 4.x devices (e.g. ESP32).
 
 ```dart
 UniversalBle.startScan(
   platformConfig: PlatformConfig(
     android: AndroidOptions(
-      legacy: false, // omit for legacy BLE 4.x (default)
+      legacy: true, // omit for extended BLE 5 (default)
       scanMode: AndroidScanMode.lowLatency,
       callbackType: [AndroidScanCallbackType.allMatches],
       requestLocationPermission: false,

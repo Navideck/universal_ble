@@ -131,8 +131,8 @@ class _AndroidScanOptionsWidgetState extends State<AndroidScanOptionsWidget> {
             const SizedBox(height: 16),
             _SectionTitle('legacy'),
             const Text(
-              'null/true: legacy BLE 4.x advertisements (Android default). '
-              'false: BLE 5 extended advertisements only (API 26+).',
+              'null/false: BLE 5 extended advertisements (library default). '
+              'true: legacy BLE 4.x advertisements (API 26+).',
             ),
             const SizedBox(height: 8),
             _SingleSelect<bool>(
