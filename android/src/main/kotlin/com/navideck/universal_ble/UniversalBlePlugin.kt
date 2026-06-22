@@ -181,10 +181,6 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
         )
 
         val builder = ScanSettings.Builder()
-        if (Build.VERSION.SDK_INT >= 26) {
-            builder.setPhy(ScanSettings.PHY_LE_ALL_SUPPORTED)
-            builder.setLegacy(false)
-        }
         config?.android?.let { androidConfig ->
             androidConfig.scanMode?.parse()?.let { scanMode ->
                 builder.setScanMode(scanMode)

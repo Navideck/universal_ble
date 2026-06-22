@@ -1,3 +1,6 @@
+## 2.0.5
+* Android: stop forcing `setLegacy(false)` on scan so legacy BLE 4.x advertisements (e.g. ESP32) are discovered again; Android defaults to legacy advertising scan results
+
 ## 2.0.4
 * iOS: make Bluetooth state restoration optional by enabling it only when the `bluetooth-central` background mode is declared
 * iOS: when state restoration is enabled, init `CBCentralManager` at launch only if Bluetooth permission is granted
