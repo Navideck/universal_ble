@@ -1,0 +1,98 @@
+name: Bug Report
+description: Report unexpected behavior or a crash
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting a bug. Please fill in as much detail as you can — issues that include a minimal reproduction are much easier to fix.
+
+  - type: input
+    id: library_version
+    attributes:
+      label: Library version
+      description: The `universal_ble` version from your `pubspec.yaml` or `pubspec.lock`
+      placeholder: e.g. 2.0.4
+    validations:
+      required: true
+
+  - type: dropdown
+    id: reproducible_with_example
+    attributes:
+      label: Reproducible with the example app
+      description: Can you reproduce this using the [example app](https://github.com/Navideck/universal_ble/tree/main/example) in this repository?
+      options:
+        - "Yes"
+        - "No"
+        - "Not tested"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: os
+    attributes:
+      label: OS
+      description: Platform where the issue occurs
+      options:
+        - Android
+        - iOS
+        - macOS
+        - Windows
+        - Linux
+        - Web
+    validations:
+      required: true
+
+  - type: input
+    id: os_version
+    attributes:
+      label: OS version
+      description: Full OS version on the device running your Flutter app
+      placeholder: e.g. Android 14, iOS 17.2, macOS 14.1, Windows 11 23H2, Ubuntu 22.04
+    validations:
+      required: true
+
+  - type: input
+    id: device_connecting_to
+    attributes:
+      label: Device connecting to
+      description: The BLE peripheral you are connecting to or interacting with
+      placeholder: e.g. Nordic nRF52840 DK, Xiaomi Mi Scale, custom ESP32
+    validations:
+      required: true
+
+  - type: input
+    id: ble_version
+    attributes:
+      label: BLE version of connecting device
+      description: Bluetooth LE version supported by the peripheral, if known
+      placeholder: e.g. BLE 4.2, BLE 5.0, BLE 5.2, Unknown
+    validations:
+      required: false
+
+  - type: textarea
+    id: description
+    attributes:
+      label: What happened?
+      description: Describe the issue and what you expected instead
+    validations:
+      required: true
+
+  - type: textarea
+    id: sample_code
+    attributes:
+      label: Sample code
+      description: Minimal Dart code that reproduces the issue
+      render: dart
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs / stack trace
+      description: Relevant console output, native logs, or stack traces
+      render: shell
+    validations:
+      required: false
