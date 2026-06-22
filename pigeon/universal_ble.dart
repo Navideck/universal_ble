@@ -186,6 +186,11 @@ class BleConnectionParametersUpdated {
 /// require a newer API than the device supports are silently dropped (and
 /// logged); see the [AndroidScanCallbackType] doc for per-value API levels.
 ///
+/// [legacy] controls whether only legacy advertisements (BLE 4.2 and below) are
+/// returned. When `null` or `true`, the plugin leaves Android's default (legacy
+/// advertisements). Set to `false` to scan for BLE 5 extended advertisements
+/// only; on API 26+ the plugin also sets `PHY_LE_ALL_SUPPORTED` in that case.
+///
 /// See https://developer.android.com/reference/android/bluetooth/le/ScanSettings
 class AndroidOptions {
   bool? requestLocationPermission;
@@ -194,6 +199,7 @@ class AndroidOptions {
   List<AndroidScanCallbackType>? callbackType;
   AndroidScanMatchMode? matchMode;
   AndroidScanNumOfMatches? numOfMatches;
+  bool? legacy;
   AndroidOptions({
     this.requestLocationPermission,
     this.scanMode,
@@ -201,6 +207,7 @@ class AndroidOptions {
     this.callbackType,
     this.matchMode,
     this.numOfMatches,
+    this.legacy,
   });
 }
 

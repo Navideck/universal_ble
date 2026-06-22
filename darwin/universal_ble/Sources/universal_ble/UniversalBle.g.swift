@@ -619,6 +619,11 @@ struct BleConnectionParametersUpdated: Hashable {
 /// require a newer API than the device supports are silently dropped (and
 /// logged); see the [AndroidScanCallbackType] doc for per-value API levels.
 ///
+/// [legacy] controls whether only legacy advertisements (BLE 4.2 and below) are
+/// returned. When `null` or `true`, the plugin leaves Android's default (legacy
+/// advertisements). Set to `false` to scan for BLE 5 extended advertisements
+/// only; on API 26+ the plugin also sets `PHY_LE_ALL_SUPPORTED` in that case.
+///
 /// See https://developer.android.com/reference/android/bluetooth/le/ScanSettings
 ///
 /// Generated class from Pigeon that represents data sent in messages.
@@ -629,6 +634,7 @@ struct AndroidOptions: Hashable {
   var callbackType: [AndroidScanCallbackType]? = nil
   var matchMode: AndroidScanMatchMode? = nil
   var numOfMatches: AndroidScanNumOfMatches? = nil
+  var legacy: Bool? = nil
 
 
   // swift-format-ignore: AlwaysUseLowerCamelCase
@@ -639,6 +645,7 @@ struct AndroidOptions: Hashable {
     let callbackType: [AndroidScanCallbackType]? = nilOrValue(pigeonVar_list[3])
     let matchMode: AndroidScanMatchMode? = nilOrValue(pigeonVar_list[4])
     let numOfMatches: AndroidScanNumOfMatches? = nilOrValue(pigeonVar_list[5])
+    let legacy: Bool? = nilOrValue(pigeonVar_list[6])
 
     return AndroidOptions(
       requestLocationPermission: requestLocationPermission,
@@ -646,7 +653,8 @@ struct AndroidOptions: Hashable {
       reportDelayMillis: reportDelayMillis,
       callbackType: callbackType,
       matchMode: matchMode,
-      numOfMatches: numOfMatches
+      numOfMatches: numOfMatches,
+      legacy: legacy
     )
   }
   func toList() -> [Any?] {
@@ -657,13 +665,14 @@ struct AndroidOptions: Hashable {
       callbackType,
       matchMode,
       numOfMatches,
+      legacy,
     ]
   }
   static func == (lhs: AndroidOptions, rhs: AndroidOptions) -> Bool {
     if Swift.type(of: lhs) != Swift.type(of: rhs) {
       return false
     }
-    return deepEqualsUniversalBle(lhs.requestLocationPermission, rhs.requestLocationPermission) && deepEqualsUniversalBle(lhs.scanMode, rhs.scanMode) && deepEqualsUniversalBle(lhs.reportDelayMillis, rhs.reportDelayMillis) && deepEqualsUniversalBle(lhs.callbackType, rhs.callbackType) && deepEqualsUniversalBle(lhs.matchMode, rhs.matchMode) && deepEqualsUniversalBle(lhs.numOfMatches, rhs.numOfMatches)
+    return deepEqualsUniversalBle(lhs.requestLocationPermission, rhs.requestLocationPermission) && deepEqualsUniversalBle(lhs.scanMode, rhs.scanMode) && deepEqualsUniversalBle(lhs.reportDelayMillis, rhs.reportDelayMillis) && deepEqualsUniversalBle(lhs.callbackType, rhs.callbackType) && deepEqualsUniversalBle(lhs.matchMode, rhs.matchMode) && deepEqualsUniversalBle(lhs.numOfMatches, rhs.numOfMatches) && deepEqualsUniversalBle(lhs.legacy, rhs.legacy)
   }
 
   func hash(into hasher: inout Hasher) {
@@ -674,6 +683,7 @@ struct AndroidOptions: Hashable {
     deepHashUniversalBle(value: callbackType, hasher: &hasher)
     deepHashUniversalBle(value: matchMode, hasher: &hasher)
     deepHashUniversalBle(value: numOfMatches, hasher: &hasher)
+    deepHashUniversalBle(value: legacy, hasher: &hasher)
   }
 }
 

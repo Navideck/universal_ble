@@ -561,6 +561,11 @@ class BleConnectionParametersUpdated {
 /// require a newer API than the device supports are silently dropped (and
 /// logged); see the [AndroidScanCallbackType] doc for per-value API levels.
 ///
+/// [legacy] controls whether only legacy advertisements (BLE 4.2 and below) are
+/// returned. When `null` or `true`, the plugin leaves Android's default (legacy
+/// advertisements). Set to `false` to scan for BLE 5 extended advertisements
+/// only; on API 26+ the plugin also sets `PHY_LE_ALL_SUPPORTED` in that case.
+///
 /// See https://developer.android.com/reference/android/bluetooth/le/ScanSettings
 class AndroidOptions {
   AndroidOptions({
@@ -570,6 +575,7 @@ class AndroidOptions {
     this.callbackType,
     this.matchMode,
     this.numOfMatches,
+    this.legacy,
   });
 
   bool? requestLocationPermission;
@@ -584,6 +590,8 @@ class AndroidOptions {
 
   AndroidScanNumOfMatches? numOfMatches;
 
+  bool? legacy;
+
   List<Object?> _toList() {
     return <Object?>[
       requestLocationPermission,
@@ -592,6 +600,7 @@ class AndroidOptions {
       callbackType,
       matchMode,
       numOfMatches,
+      legacy,
     ];
   }
 
@@ -609,6 +618,7 @@ class AndroidOptions {
           ?.cast<AndroidScanCallbackType>(),
       matchMode: result[4] as AndroidScanMatchMode?,
       numOfMatches: result[5] as AndroidScanNumOfMatches?,
+      legacy: result[6] as bool?,
     );
   }
 
@@ -629,7 +639,8 @@ class AndroidOptions {
         _deepEquals(reportDelayMillis, other.reportDelayMillis) &&
         _deepEquals(callbackType, other.callbackType) &&
         _deepEquals(matchMode, other.matchMode) &&
-        _deepEquals(numOfMatches, other.numOfMatches);
+        _deepEquals(numOfMatches, other.numOfMatches) &&
+        _deepEquals(legacy, other.legacy);
   }
 
   @override

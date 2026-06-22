@@ -495,6 +495,11 @@ class BleConnectionParametersUpdated {
 // require a newer API than the device supports are silently dropped (and
 // logged); see the [AndroidScanCallbackType] doc for per-value API levels.
 //
+// [legacy] controls whether only legacy advertisements (BLE 4.2 and below) are
+// returned. When `null` or `true`, the plugin leaves Android's default (legacy
+// advertisements). Set to `false` to scan for BLE 5 extended advertisements
+// only; on API 26+ the plugin also sets `PHY_LE_ALL_SUPPORTED` in that case.
+//
 // See https://developer.android.com/reference/android/bluetooth/le/ScanSettings
 //
 // Generated class from Pigeon that represents data sent in messages.
@@ -510,7 +515,8 @@ class AndroidOptions {
     const int64_t* report_delay_millis,
     const ::flutter::EncodableList* callback_type,
     const AndroidScanMatchMode* match_mode,
-    const AndroidScanNumOfMatches* num_of_matches);
+    const AndroidScanNumOfMatches* num_of_matches,
+    const bool* legacy);
 
   const bool* request_location_permission() const;
   void set_request_location_permission(const bool* value_arg);
@@ -536,6 +542,10 @@ class AndroidOptions {
   void set_num_of_matches(const AndroidScanNumOfMatches* value_arg);
   void set_num_of_matches(const AndroidScanNumOfMatches& value_arg);
 
+  const bool* legacy() const;
+  void set_legacy(const bool* value_arg);
+  void set_legacy(bool value_arg);
+
   bool operator==(const AndroidOptions& other) const;
   bool operator!=(const AndroidOptions& other) const;
   /// Returns a hash code value for the object. This method is supported for the benefit of hash tables.
@@ -556,6 +566,7 @@ class AndroidOptions {
   std::optional<::flutter::EncodableList> callback_type_;
   std::optional<AndroidScanMatchMode> match_mode_;
   std::optional<AndroidScanNumOfMatches> num_of_matches_;
+  std::optional<bool> legacy_;
 };
 
 

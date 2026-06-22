@@ -910,7 +910,7 @@ BleUuidParser.number(0x180A); // "0000180a-0000-1000-8000-00805f9b34fb"
 BleUuidParser.compare("180a","0000180A-0000-1000-8000-00805F9B34FB"); // true
 ```
 
-## Permissions
+## Platform-specific setup
 
 You need to perform the following setups:
 
@@ -953,6 +953,23 @@ If your app uses peripheral advertising, add:
 
 ```xml
 <uses-permission android:name="android.permission.BLUETOOTH_ADVERTISE" />
+```
+
+#### Android scan options
+
+By default, legacy advertisements (BLE 4.x) are returned. Set `legacy: false` for BLE 5 extended advertisements only (API 26+).
+
+```dart
+UniversalBle.startScan(
+  platformConfig: PlatformConfig(
+    android: AndroidOptions(
+      legacy: false, // omit for legacy BLE 4.x (default)
+      scanMode: AndroidScanMode.lowLatency,
+      callbackType: [AndroidScanCallbackType.allMatches],
+      requestLocationPermission: false,
+    ),
+  ),
+);
 ```
 
 #### Background Scanning (ForegroundTask)
@@ -1076,7 +1093,7 @@ UniversalBle.requestPermissions(
 );
 ```
 
-> **Note**: When calling `startScan()`, permissions are automatically requested. To configure location permission requests during scanning, use the `platformConfig` parameter:
+> **Note**: When calling `startScan()`, permissions are automatically requested. To configure location permission requests during scanning, use `requestLocationPermission` on `AndroidOptions` (see [Android scan options](#android-scan-options)):
 
 ```dart
 UniversalBle.startScan(

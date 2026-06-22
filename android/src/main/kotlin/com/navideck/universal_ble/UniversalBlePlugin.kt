@@ -189,6 +189,11 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
                 builder.setReportDelay(reportDelay)
             }
 
+            if (Build.VERSION.SDK_INT >= 26 && androidConfig.legacy == false) {
+                builder.setPhy(ScanSettings.PHY_LE_ALL_SUPPORTED)
+                builder.setLegacy(false)
+            }
+
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
                 androidConfig.callbackType?.let { types ->
                     val combined = types.mapNotNull { it.parse() }.fold(0) { acc, v -> acc or v }
