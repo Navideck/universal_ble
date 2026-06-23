@@ -557,18 +557,11 @@ If you want to parallelize commands between multiple devices, you can set:
 UniversalBle.queueType = QueueType.perDevice;
 ```
 
-To route specific commands to a separate queue, pass an optional `queueId` to any queued API. Commands with the same `queueId` are serialized together, but run in parallel with the default queue:
+You can have separate queues by passing an optional `queueId`. Commands with the same `queueId` are serialized together, but run in parallel with both `QueueType.perDevice` and `QueueType.global`:
 
 ```dart
-const batchCommands = 'batchCommands';
-
-// Intermediate writes share a dedicated queue
-UniversalBle.write(deviceId, service, char, payload10, queueId: batchCommands);
-UniversalBle.write(deviceId, service, char, payload20, queueId: batchCommands);
-
-// Drop pending commands on that queue, then send only the final value
-UniversalBle.clearQueue(batchCommands);
-await UniversalBle.write(deviceId, service, char, payloadFinal, queueId: batchCommands);
+UniversalBle.write(deviceId, service, char, payload10, queueId: '1');
+UniversalBle.write(deviceId, service, char, payload20, queueId: '2');
 ```
 
 You can also completely disable the queue and batch all commands, even for the same device, by using:
@@ -589,13 +582,20 @@ UniversalBle.onQueueUpdate = (String id, int remainingItems) {
 };
 ```
 
-To clear the queue:
+To clear a queue:
 
 ```dart
-  /// Use [BleCommandQueue.globalQueueId] to clear the global queue.
-  /// To clear the queue of a specific device, use `deviceId` as [id].
-  /// If no [id] is provided, all queues will be cleared.
-  UniversalBle.clearQueue(BleCommandQueue.globalQueueId);
+// Clear global queue
+UniversalBle.clearQueue(BleCommandQueue.globalQueueId);
+
+// Clear a per-device queue (when queueType is perDevice)
+UniversalBle.clearQueue(deviceId);
+
+// Clear a custom queue (same string passed as queueId to read/write/etc.)
+UniversalBle.clearQueue('customQueueId');
+
+// Clear all queues
+UniversalBle.clearQueue();
 ```
 
 ## Timeout
