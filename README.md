@@ -557,6 +557,13 @@ If you want to parallelize commands between multiple devices, you can set:
 UniversalBle.queueType = QueueType.perDevice;
 ```
 
+You can have separate queues by passing an optional `queueId`. Commands with the same `queueId` are serialized together, but run in parallel with both `QueueType.perDevice` and `QueueType.global`:
+
+```dart
+UniversalBle.write(deviceId, service, char, value1, queueId: '1');
+UniversalBle.write(deviceId, service, char, value2, queueId: '2');
+```
+
 You can also completely disable the queue and batch all commands, even for the same device, by using:
 
 ```dart
@@ -575,13 +582,20 @@ UniversalBle.onQueueUpdate = (String id, int remainingItems) {
 };
 ```
 
-To clear the queue:
+To clear a queue:
 
 ```dart
-  /// Use [BleCommandQueue.globalQueueId] to clear the global queue.
-  /// To clear the queue of a specific device, use `deviceId` as [id].
-  /// If no [id] is provided, all queues will be cleared.
-  UniversalBle.clearQueue(BleCommandQueue.globalQueueId);
+// Clear global queue
+UniversalBle.clearQueue(BleCommandQueue.globalQueueId);
+
+// Clear a per-device queue (when queueType is perDevice)
+UniversalBle.clearQueue(deviceId);
+
+// Clear a custom queue (same string passed as queueId to read/write/etc.)
+UniversalBle.clearQueue('customQueueId');
+
+// Clear all queues
+UniversalBle.clearQueue();
 ```
 
 ## Timeout
@@ -1025,6 +1039,7 @@ To opt in, declare the `Uses Bluetooth LE accessories` background mode. After en
   ...
 </array>
 ```
+
 Notes:
 
 - Without the `bluetooth-central` background mode, `CBCentralManager` is created lazily on the first central BLE API call and state restoration is disabled.

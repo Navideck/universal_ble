@@ -21,12 +21,24 @@ extension BleCharacteristicExtension on BleCharacteristic {
       CharacteristicSubscription(this, CharacteristicProperty.indicate);
 
   /// Unsubscribes notifications/indications from this characteristic.
-  Future<void> unsubscribe({Duration? timeout}) =>
-      UniversalBle.unsubscribe(_deviceId, _serviceId, uuid, timeout: timeout);
+  Future<void> unsubscribe({Duration? timeout, String? queueId}) =>
+      UniversalBle.unsubscribe(
+        _deviceId,
+        _serviceId,
+        uuid,
+        timeout: timeout,
+        queueId: queueId,
+      );
 
   /// Reads the current value of the characteristic.
-  Future<Uint8List> read({Duration? timeout}) =>
-      UniversalBle.read(_deviceId, _serviceId, uuid, timeout: timeout);
+  Future<Uint8List> read({Duration? timeout, String? queueId}) =>
+      UniversalBle.read(
+        _deviceId,
+        _serviceId,
+        uuid,
+        timeout: timeout,
+        queueId: queueId,
+      );
 
   /// Writes a value to the characteristic.
   ///
@@ -38,6 +50,7 @@ extension BleCharacteristicExtension on BleCharacteristic {
     List<int> value, {
     bool withResponse = true,
     Duration? timeout,
+    String? queueId,
   }) async {
     await UniversalBle.write(
       _deviceId,
@@ -46,6 +59,7 @@ extension BleCharacteristicExtension on BleCharacteristic {
       Uint8List.fromList(value),
       withoutResponse: !withResponse,
       timeout: timeout,
+      queueId: queueId,
     );
   }
 
@@ -85,7 +99,7 @@ class CharacteristicSubscription {
   final bool isSupported;
 
   CharacteristicSubscription(this._characteristic, this._property)
-      : isSupported = _characteristic.properties.contains(_property);
+    : isSupported = _characteristic.properties.contains(_property);
 
   /// Registers a listener for incoming data from the characteristic.
   StreamSubscription listen(
@@ -103,7 +117,7 @@ class CharacteristicSubscription {
   }
 
   /// Subscribes to this characteristic.
-  Future<void> subscribe({Duration? timeout}) {
+  Future<void> subscribe({Duration? timeout, String? queueId}) {
     if (!isSupported) throw Exception('Operation not supported');
 
     if (_property == CharacteristicProperty.indicate) {
@@ -112,6 +126,7 @@ class CharacteristicSubscription {
         _characteristic._serviceId,
         _characteristic.uuid,
         timeout: timeout,
+        queueId: queueId,
       );
     }
 
@@ -120,17 +135,19 @@ class CharacteristicSubscription {
       _characteristic._serviceId,
       _characteristic.uuid,
       timeout: timeout,
+      queueId: queueId,
     );
   }
 
   /// Unsubscribes from this characteristic.
-  Future<void> unsubscribe({Duration? timeout}) {
+  Future<void> unsubscribe({Duration? timeout, String? queueId}) {
     if (!isSupported) throw Exception('Operation not supported');
     return UniversalBle.unsubscribe(
       _characteristic._deviceId,
       _characteristic._serviceId,
       _characteristic.uuid,
       timeout: timeout,
+      queueId: queueId,
     );
   }
 
