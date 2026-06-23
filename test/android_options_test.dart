@@ -10,11 +10,13 @@ void main() {
         callbackType: [AndroidScanCallbackType.allMatches],
         matchMode: AndroidScanMatchMode.aggressive,
         numOfMatches: AndroidScanNumOfMatches.max,
+        legacy: false,
       );
 
       expect(options.callbackType, [AndroidScanCallbackType.allMatches]);
       expect(options.matchMode, AndroidScanMatchMode.aggressive);
       expect(options.numOfMatches, AndroidScanNumOfMatches.max);
+      expect(options.legacy, false);
     });
 
     test('round-trips a multi-value callbackType through the pigeon codec', () {
@@ -28,6 +30,7 @@ void main() {
         ],
         matchMode: AndroidScanMatchMode.sticky,
         numOfMatches: AndroidScanNumOfMatches.few,
+        legacy: true,
       );
 
       final decoded = AndroidOptions.decode(original.encode());
@@ -41,6 +44,7 @@ void main() {
       expect(decoded.scanMode, AndroidScanMode.lowLatency);
       expect(decoded.reportDelayMillis, 0);
       expect(decoded.requestLocationPermission, true);
+      expect(decoded.legacy, true);
     });
 
     test('leaves the new fields null by default', () {
@@ -49,6 +53,7 @@ void main() {
       expect(options.callbackType, isNull);
       expect(options.matchMode, isNull);
       expect(options.numOfMatches, isNull);
+      expect(options.legacy, isNull);
     });
   });
 }
