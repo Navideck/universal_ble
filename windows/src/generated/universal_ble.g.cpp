@@ -722,13 +722,15 @@ AndroidOptions::AndroidOptions(
   const int64_t* report_delay_millis,
   const EncodableList* callback_type,
   const AndroidScanMatchMode* match_mode,
-  const AndroidScanNumOfMatches* num_of_matches)
+  const AndroidScanNumOfMatches* num_of_matches,
+  const bool* legacy)
  : request_location_permission_(request_location_permission ? std::optional<bool>(*request_location_permission) : std::nullopt),
     scan_mode_(scan_mode ? std::optional<AndroidScanMode>(*scan_mode) : std::nullopt),
     report_delay_millis_(report_delay_millis ? std::optional<int64_t>(*report_delay_millis) : std::nullopt),
     callback_type_(callback_type ? std::optional<EncodableList>(*callback_type) : std::nullopt),
     match_mode_(match_mode ? std::optional<AndroidScanMatchMode>(*match_mode) : std::nullopt),
-    num_of_matches_(num_of_matches ? std::optional<AndroidScanNumOfMatches>(*num_of_matches) : std::nullopt) {}
+    num_of_matches_(num_of_matches ? std::optional<AndroidScanNumOfMatches>(*num_of_matches) : std::nullopt),
+    legacy_(legacy ? std::optional<bool>(*legacy) : std::nullopt) {}
 
 const bool* AndroidOptions::request_location_permission() const {
   return request_location_permission_ ? &(*request_location_permission_) : nullptr;
@@ -808,15 +810,29 @@ void AndroidOptions::set_num_of_matches(const AndroidScanNumOfMatches& value_arg
 }
 
 
+const bool* AndroidOptions::legacy() const {
+  return legacy_ ? &(*legacy_) : nullptr;
+}
+
+void AndroidOptions::set_legacy(const bool* value_arg) {
+  legacy_ = value_arg ? std::optional<bool>(*value_arg) : std::nullopt;
+}
+
+void AndroidOptions::set_legacy(bool value_arg) {
+  legacy_ = value_arg;
+}
+
+
 EncodableList AndroidOptions::ToEncodableList() const {
   EncodableList list;
-  list.reserve(6);
+  list.reserve(7);
   list.push_back(request_location_permission_ ? EncodableValue(*request_location_permission_) : EncodableValue());
   list.push_back(scan_mode_ ? CustomEncodableValue(*scan_mode_) : EncodableValue());
   list.push_back(report_delay_millis_ ? EncodableValue(*report_delay_millis_) : EncodableValue());
   list.push_back(callback_type_ ? EncodableValue(*callback_type_) : EncodableValue());
   list.push_back(match_mode_ ? CustomEncodableValue(*match_mode_) : EncodableValue());
   list.push_back(num_of_matches_ ? CustomEncodableValue(*num_of_matches_) : EncodableValue());
+  list.push_back(legacy_ ? EncodableValue(*legacy_) : EncodableValue());
   return list;
 }
 
@@ -846,11 +862,15 @@ AndroidOptions AndroidOptions::FromEncodableList(const EncodableList& list) {
   if (!encodable_num_of_matches.IsNull()) {
     decoded.set_num_of_matches(std::any_cast<const AndroidScanNumOfMatches&>(std::get<CustomEncodableValue>(encodable_num_of_matches)));
   }
+  auto& encodable_legacy = list[6];
+  if (!encodable_legacy.IsNull()) {
+    decoded.set_legacy(std::get<bool>(encodable_legacy));
+  }
   return decoded;
 }
 
 bool AndroidOptions::operator==(const AndroidOptions& other) const {
-  return PigeonInternalDeepEquals(request_location_permission_, other.request_location_permission_) && PigeonInternalDeepEquals(scan_mode_, other.scan_mode_) && PigeonInternalDeepEquals(report_delay_millis_, other.report_delay_millis_) && PigeonInternalDeepEquals(callback_type_, other.callback_type_) && PigeonInternalDeepEquals(match_mode_, other.match_mode_) && PigeonInternalDeepEquals(num_of_matches_, other.num_of_matches_);
+  return PigeonInternalDeepEquals(request_location_permission_, other.request_location_permission_) && PigeonInternalDeepEquals(scan_mode_, other.scan_mode_) && PigeonInternalDeepEquals(report_delay_millis_, other.report_delay_millis_) && PigeonInternalDeepEquals(callback_type_, other.callback_type_) && PigeonInternalDeepEquals(match_mode_, other.match_mode_) && PigeonInternalDeepEquals(num_of_matches_, other.num_of_matches_) && PigeonInternalDeepEquals(legacy_, other.legacy_);
 }
 
 bool AndroidOptions::operator!=(const AndroidOptions& other) const {
@@ -865,6 +885,7 @@ size_t AndroidOptions::Hash() const {
   result = result * 31 + PigeonInternalDeepHash(callback_type_);
   result = result * 31 + PigeonInternalDeepHash(match_mode_);
   result = result * 31 + PigeonInternalDeepHash(num_of_matches_);
+  result = result * 31 + PigeonInternalDeepHash(legacy_);
   return result;
 }
 

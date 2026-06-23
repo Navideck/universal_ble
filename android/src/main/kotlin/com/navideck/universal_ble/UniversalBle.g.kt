@@ -738,6 +738,12 @@ data class BleConnectionParametersUpdated (
  * require a newer API than the device supports are silently dropped (and
  * logged); see the [AndroidScanCallbackType] doc for per-value API levels.
  *
+ * [legacy] controls whether only legacy advertisements (BLE 4.2 and below) are
+ * returned (API 26+). When `null` or `false`, the plugin scans for BLE 5
+ * extended advertisements only (the library default, unchanged from prior
+ * releases). Set to `true` for legacy BLE 4.x advertisements (e.g. ESP32); on
+ * API 26+ the plugin sets `setLegacy(true)` and does not set `PHY`.
+ *
  * See https://developer.android.com/reference/android/bluetooth/le/ScanSettings
  *
  * Generated class from Pigeon that represents data sent in messages.
@@ -748,7 +754,8 @@ data class AndroidOptions (
   val reportDelayMillis: Long? = null,
   val callbackType: List<AndroidScanCallbackType>? = null,
   val matchMode: AndroidScanMatchMode? = null,
-  val numOfMatches: AndroidScanNumOfMatches? = null
+  val numOfMatches: AndroidScanNumOfMatches? = null,
+  val legacy: Boolean? = null
 )
  {
   companion object {
@@ -759,7 +766,8 @@ data class AndroidOptions (
       val callbackType = pigeonVar_list[3] as List<AndroidScanCallbackType>?
       val matchMode = pigeonVar_list[4] as AndroidScanMatchMode?
       val numOfMatches = pigeonVar_list[5] as AndroidScanNumOfMatches?
-      return AndroidOptions(requestLocationPermission, scanMode, reportDelayMillis, callbackType, matchMode, numOfMatches)
+      val legacy = pigeonVar_list[6] as Boolean?
+      return AndroidOptions(requestLocationPermission, scanMode, reportDelayMillis, callbackType, matchMode, numOfMatches, legacy)
     }
   }
   fun toList(): List<Any?> {
@@ -770,6 +778,7 @@ data class AndroidOptions (
       callbackType,
       matchMode,
       numOfMatches,
+      legacy,
     )
   }
   override fun equals(other: Any?): Boolean {
@@ -780,7 +789,7 @@ data class AndroidOptions (
       return true
     }
     val other = other as AndroidOptions
-    return UniversalBlePigeonUtils.deepEquals(this.requestLocationPermission, other.requestLocationPermission) && UniversalBlePigeonUtils.deepEquals(this.scanMode, other.scanMode) && UniversalBlePigeonUtils.deepEquals(this.reportDelayMillis, other.reportDelayMillis) && UniversalBlePigeonUtils.deepEquals(this.callbackType, other.callbackType) && UniversalBlePigeonUtils.deepEquals(this.matchMode, other.matchMode) && UniversalBlePigeonUtils.deepEquals(this.numOfMatches, other.numOfMatches)
+    return UniversalBlePigeonUtils.deepEquals(this.requestLocationPermission, other.requestLocationPermission) && UniversalBlePigeonUtils.deepEquals(this.scanMode, other.scanMode) && UniversalBlePigeonUtils.deepEquals(this.reportDelayMillis, other.reportDelayMillis) && UniversalBlePigeonUtils.deepEquals(this.callbackType, other.callbackType) && UniversalBlePigeonUtils.deepEquals(this.matchMode, other.matchMode) && UniversalBlePigeonUtils.deepEquals(this.numOfMatches, other.numOfMatches) && UniversalBlePigeonUtils.deepEquals(this.legacy, other.legacy)
   }
 
   override fun hashCode(): Int {
@@ -791,6 +800,7 @@ data class AndroidOptions (
     result = 31 * result + UniversalBlePigeonUtils.deepHash(this.callbackType)
     result = 31 * result + UniversalBlePigeonUtils.deepHash(this.matchMode)
     result = 31 * result + UniversalBlePigeonUtils.deepHash(this.numOfMatches)
+    result = 31 * result + UniversalBlePigeonUtils.deepHash(this.legacy)
     return result
   }
 }

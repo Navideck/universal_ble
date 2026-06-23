@@ -26,6 +26,7 @@ class _AndroidScanOptionsWidgetState extends State<AndroidScanOptionsWidget> {
   final Set<AndroidScanCallbackType> _callbackType = {};
   AndroidScanMatchMode? _matchMode;
   AndroidScanNumOfMatches? _numOfMatches;
+  bool? _legacy;
 
   @override
   void initState() {
@@ -37,6 +38,7 @@ class _AndroidScanOptionsWidgetState extends State<AndroidScanOptionsWidget> {
       _callbackType.addAll(initial.callbackType ?? const []);
       _matchMode = initial.matchMode;
       _numOfMatches = initial.numOfMatches;
+      _legacy = initial.legacy;
     }
   }
 
@@ -53,7 +55,8 @@ class _AndroidScanOptionsWidgetState extends State<AndroidScanOptionsWidget> {
         reportDelay != null ||
         _callbackType.isNotEmpty ||
         _matchMode != null ||
-        _numOfMatches != null;
+        _numOfMatches != null ||
+        _legacy != null;
     if (!hasAny) return null;
     return AndroidOptions(
       scanMode: _scanMode,
@@ -62,6 +65,7 @@ class _AndroidScanOptionsWidgetState extends State<AndroidScanOptionsWidget> {
           _callbackType.isEmpty ? null : _callbackType.toList(growable: false),
       matchMode: _matchMode,
       numOfMatches: _numOfMatches,
+      legacy: _legacy,
     );
   }
 
@@ -125,6 +129,19 @@ class _AndroidScanOptionsWidgetState extends State<AndroidScanOptionsWidget> {
                   .toList(growable: false),
             ),
             const SizedBox(height: 16),
+            _SectionTitle('legacy'),
+            const Text(
+              'null/false: BLE 5 extended advertisements (library default). '
+              'true: legacy BLE 4.x advertisements (API 26+).',
+            ),
+            const SizedBox(height: 8),
+            _SingleSelect<bool>(
+              values: const [true, false],
+              selected: _legacy,
+              label: (v) => v ? 'true' : 'false',
+              onChanged: (v) => setState(() => _legacy = v),
+            ),
+            const SizedBox(height: 16),
             _SectionTitle('matchMode'),
             _SingleSelect<AndroidScanMatchMode>(
               values: AndroidScanMatchMode.values,
@@ -153,6 +170,7 @@ class _AndroidScanOptionsWidgetState extends State<AndroidScanOptionsWidget> {
                         _callbackType.clear();
                         _matchMode = null;
                         _numOfMatches = null;
+                        _legacy = null;
                       });
                       widget.onChanged(null);
                     },

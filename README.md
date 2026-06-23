@@ -32,7 +32,7 @@ A cross-platform (Android/iOS/macOS/Windows/Linux/Web) Bluetooth Low Energy (BLE
 - [Timeout](#timeout)
 - [Error Handling](#error-handling)
 - [UUID Format Agnostic](#uuid-format-agnostic)
-- [Permissions](#permissions)
+- [Platform-specific setup](#platform-specific-setup)
 - [Peripheral Mode](#peripheral-mode)
 
 ## API Support
@@ -924,7 +924,7 @@ BleUuidParser.number(0x180A); // "0000180a-0000-1000-8000-00805f9b34fb"
 BleUuidParser.compare("180a","0000180A-0000-1000-8000-00805F9B34FB"); // true
 ```
 
-## Permissions
+## Platform-specific setup
 
 You need to perform the following setups:
 
@@ -967,6 +967,23 @@ If your app uses peripheral advertising, add:
 
 ```xml
 <uses-permission android:name="android.permission.BLUETOOTH_ADVERTISE" />
+```
+
+#### Android scan options
+
+By default, BLE 5 extended advertisements are scanned (API 26+, unchanged from prior releases). Set `legacy: true` for legacy BLE 4.x devices (e.g. ESP32).
+
+```dart
+UniversalBle.startScan(
+  platformConfig: PlatformConfig(
+    android: AndroidOptions(
+      legacy: true, // omit for extended BLE 5 (default)
+      scanMode: AndroidScanMode.lowLatency,
+      callbackType: [AndroidScanCallbackType.allMatches],
+      requestLocationPermission: false,
+    ),
+  ),
+);
 ```
 
 #### Background Scanning (ForegroundTask)
@@ -1091,7 +1108,7 @@ UniversalBle.requestPermissions(
 );
 ```
 
-> **Note**: When calling `startScan()`, permissions are automatically requested. To configure location permission requests during scanning, use the `platformConfig` parameter:
+> **Note**: When calling `startScan()`, permissions are automatically requested. To configure location permission requests during scanning, use `requestLocationPermission` on `AndroidOptions` (see [Android scan options](#android-scan-options)):
 
 ```dart
 UniversalBle.startScan(
