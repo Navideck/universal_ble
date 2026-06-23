@@ -560,8 +560,8 @@ UniversalBle.queueType = QueueType.perDevice;
 You can have separate queues by passing an optional `queueId`. Commands with the same `queueId` are serialized together, but run in parallel with both `QueueType.perDevice` and `QueueType.global`:
 
 ```dart
-UniversalBle.write(deviceId, service, char, payload1, queueId: '1');
-UniversalBle.write(deviceId, service, char, payload2, queueId: '2');
+UniversalBle.write(deviceId, service, char, value1, queueId: '1');
+UniversalBle.write(deviceId, service, char, value2, queueId: '2');
 ```
 
 You can also completely disable the queue and batch all commands, even for the same device, by using:
