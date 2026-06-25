@@ -261,7 +261,18 @@ class UniversalManufacturerData {
 
 class PeripheralAndroidOptions {
   bool? addManufacturerDataInScanResponse;
-  PeripheralAndroidOptions({this.addManufacturerDataInScanResponse});
+
+  /// Put advertised service UUIDs in the scan response instead of the primary
+  /// advertisement. The Android primary advertisement and scan response are
+  /// both capped at 31 bytes. A 128-bit service UUID (18 bytes) plus a
+  /// device name can overflow the primary packet.
+  /// Note: If this is enabled with `addManufacturerDataInScanResponse`, ensure
+  /// the combined data fits within the scan response's 31-byte limit.
+  bool? addServicesInScanResponse;
+  PeripheralAndroidOptions({
+    this.addManufacturerDataInScanResponse,
+    this.addServicesInScanResponse,
+  });
 }
 
 class PeripheralPlatformConfig {

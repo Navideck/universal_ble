@@ -729,11 +729,23 @@ class PeripheralAndroidOptions {
   PeripheralAndroidOptions();
 
   // Constructs an object setting all fields.
-  explicit PeripheralAndroidOptions(const bool* add_manufacturer_data_in_scan_response);
+  explicit PeripheralAndroidOptions(
+    const bool* add_manufacturer_data_in_scan_response,
+    const bool* add_services_in_scan_response);
 
   const bool* add_manufacturer_data_in_scan_response() const;
   void set_add_manufacturer_data_in_scan_response(const bool* value_arg);
   void set_add_manufacturer_data_in_scan_response(bool value_arg);
+
+  // Put advertised service UUIDs in the scan response instead of the primary
+  // advertisement. The Android primary advertisement is capped at 31 bytes;
+  // a 128-bit service UUID (18 bytes) plus a device name can overflow it
+  // ("ADVERTISE_FAILED_DATA_TOO_LARGE"). Moving the UUIDs to the scan
+  // response keeps them discoverable to active scanners while freeing the
+  // primary packet.
+  const bool* add_services_in_scan_response() const;
+  void set_add_services_in_scan_response(const bool* value_arg);
+  void set_add_services_in_scan_response(bool value_arg);
 
   bool operator==(const PeripheralAndroidOptions& other) const;
   bool operator!=(const PeripheralAndroidOptions& other) const;
@@ -750,6 +762,7 @@ class PeripheralAndroidOptions {
   friend class UniversalBlePeripheralCallback;
   friend class PigeonInternalCodecSerializer;
   std::optional<bool> add_manufacturer_data_in_scan_response_;
+  std::optional<bool> add_services_in_scan_response_;
 };
 
 

@@ -845,31 +845,42 @@ struct UniversalManufacturerData: Hashable {
 /// Generated class from Pigeon that represents data sent in messages.
 struct PeripheralAndroidOptions: Hashable {
   var addManufacturerDataInScanResponse: Bool? = nil
+  /// Put advertised service UUIDs in the scan response instead of the primary
+  /// advertisement. The Android primary advertisement is capped at 31 bytes;
+  /// a 128-bit service UUID (18 bytes) plus a device name can overflow it
+  /// ("ADVERTISE_FAILED_DATA_TOO_LARGE"). Moving the UUIDs to the scan
+  /// response keeps them discoverable to active scanners while freeing the
+  /// primary packet.
+  var addServicesInScanResponse: Bool? = nil
 
 
   // swift-format-ignore: AlwaysUseLowerCamelCase
   static func fromList(_ pigeonVar_list: [Any?]) -> PeripheralAndroidOptions? {
     let addManufacturerDataInScanResponse: Bool? = nilOrValue(pigeonVar_list[0])
+    let addServicesInScanResponse: Bool? = nilOrValue(pigeonVar_list[1])
 
     return PeripheralAndroidOptions(
-      addManufacturerDataInScanResponse: addManufacturerDataInScanResponse
+      addManufacturerDataInScanResponse: addManufacturerDataInScanResponse,
+      addServicesInScanResponse: addServicesInScanResponse
     )
   }
   func toList() -> [Any?] {
     return [
-      addManufacturerDataInScanResponse
+      addManufacturerDataInScanResponse,
+      addServicesInScanResponse,
     ]
   }
   static func == (lhs: PeripheralAndroidOptions, rhs: PeripheralAndroidOptions) -> Bool {
     if Swift.type(of: lhs) != Swift.type(of: rhs) {
       return false
     }
-    return deepEqualsUniversalBle(lhs.addManufacturerDataInScanResponse, rhs.addManufacturerDataInScanResponse)
+    return deepEqualsUniversalBle(lhs.addManufacturerDataInScanResponse, rhs.addManufacturerDataInScanResponse) && deepEqualsUniversalBle(lhs.addServicesInScanResponse, rhs.addServicesInScanResponse)
   }
 
   func hash(into hasher: inout Hasher) {
     hasher.combine("PeripheralAndroidOptions")
     deepHashUniversalBle(value: addManufacturerDataInScanResponse, hasher: &hasher)
+    deepHashUniversalBle(value: addServicesInScanResponse, hasher: &hasher)
   }
 }
 
