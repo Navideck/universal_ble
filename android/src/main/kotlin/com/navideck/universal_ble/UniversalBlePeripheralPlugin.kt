@@ -146,31 +146,27 @@ class UniversalBlePeripheralPlugin(
 
             val addServicesInScanResponse =
                 platformConfig?.android?.addServicesInScanResponse == true
+            val addManufacturerDataInScanResponse =
+                platformConfig?.android?.addManufacturerDataInScanResponse == true
+
             val advertiseDataBuilder = AdvertiseData.Builder()
                 .setIncludeTxPowerLevel(false)
                 .setIncludeDeviceName(localName != null)
             val scanResponseBuilder = AdvertiseData.Builder()
                 .setIncludeTxPowerLevel(false)
-// Device name is already included in the primary advertisement when localName != null.
-// Keeping it out of the scan response saves space for manufacturer data / service UUIDs.
-.setIncludeDeviceName(false)
-            val addManufacturerDataInScanResponse =
-                platformConfig?.android?.addManufacturerDataInScanResponse == true
+                .setIncludeDeviceName(false)
 
+            val msdBuilder =
+                if (addManufacturerDataInScanResponse) scanResponseBuilder else advertiseDataBuilder
             manufacturerData?.let {
-                if (addManufacturerDataInScanResponse) {
-                    scanResponseBuilder.addManufacturerData(
-                        it.companyIdentifier.toInt(),
-                        it.data,
-                    )
-                } else {
-                    advertiseDataBuilder.addManufacturerData(
-                        it.companyIdentifier.toInt(),
-                        it.data,
-                    )
-                }
+                msdBuilder.addManufacturerData(
+                    it.companyIdentifier.toInt(),
+                    it.data,
+                )
             }
-            val servicesBuilder = if (addServicesInScanResponse) scanResponseBuilder else advertiseDataBuilder
+
+            val servicesBuilder =
+                if (addServicesInScanResponse) scanResponseBuilder else advertiseDataBuilder
             services.forEach { servicesBuilder.addServiceUuid(ParcelUuid.fromString(it)) }
 
             bluetoothLeAdvertiser?.startAdvertising(
