@@ -738,11 +738,11 @@ class PeripheralAndroidOptions {
   void set_add_manufacturer_data_in_scan_response(bool value_arg);
 
   // Put advertised service UUIDs in the scan response instead of the primary
-  // advertisement. The Android primary advertisement is capped at 31 bytes;
-  // a 128-bit service UUID (18 bytes) plus a device name can overflow it
-  // ("ADVERTISE_FAILED_DATA_TOO_LARGE"). Moving the UUIDs to the scan
-  // response keeps them discoverable to active scanners while freeing the
-  // primary packet.
+  // advertisement. The Android primary advertisement and scan response are
+  // both capped at 31 bytes. A 128-bit service UUID (18 bytes) plus a
+  // device name can overflow the primary packet.
+  // Note: If this is enabled with `addManufacturerDataInScanResponse`, ensure
+  // the combined data fits within the scan response's 31-byte limit.
   const bool* add_services_in_scan_response() const;
   void set_add_services_in_scan_response(const bool* value_arg);
   void set_add_services_in_scan_response(bool value_arg);
