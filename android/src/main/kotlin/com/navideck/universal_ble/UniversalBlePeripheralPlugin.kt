@@ -144,12 +144,17 @@ class UniversalBlePeripheralPlugin(
                 .setAdvertiseMode(AdvertiseSettings.ADVERTISE_MODE_LOW_LATENCY)
                 .build()
 
+            val addServicesInScanResponse =
+                platformConfig?.android?.addServicesInScanResponse == true
             val advertiseDataBuilder = AdvertiseData.Builder()
                 .setIncludeTxPowerLevel(false)
                 .setIncludeDeviceName(localName != null)
             val scanResponseBuilder = AdvertiseData.Builder()
                 .setIncludeTxPowerLevel(false)
-                .setIncludeDeviceName(localName != null)
+                // When the scan response also carries the service UUIDs, keep the
+                // device name out of it: a name plus a 128-bit UUID can overflow
+                // the 31-byte scan response just like the primary advertisement.
+                .setIncludeDeviceName(localName != null && !addServicesInScanResponse)
             val addManufacturerDataInScanResponse =
                 platformConfig?.android?.addManufacturerDataInScanResponse == true
 
@@ -166,7 +171,8 @@ class UniversalBlePeripheralPlugin(
                     )
                 }
             }
-            services.forEach { advertiseDataBuilder.addServiceUuid(ParcelUuid.fromString(it)) }
+            val servicesBuilder = if (addServicesInScanResponse) scanResponseBuilder else advertiseDataBuilder
+            services.forEach { servicesBuilder.addServiceUuid(ParcelUuid.fromString(it)) }
 
             bluetoothLeAdvertiser?.startAdvertising(
                 advertiseSettings,

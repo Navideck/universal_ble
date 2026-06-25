@@ -970,18 +970,29 @@ data class UniversalManufacturerData (
 
 /** Generated class from Pigeon that represents data sent in messages. */
 data class PeripheralAndroidOptions (
-  val addManufacturerDataInScanResponse: Boolean? = null
+  val addManufacturerDataInScanResponse: Boolean? = null,
+  /**
+   * Put advertised service UUIDs in the scan response instead of the primary
+   * advertisement. The Android primary advertisement is capped at 31 bytes;
+   * a 128-bit service UUID (18 bytes) plus a device name can overflow it
+   * ("ADVERTISE_FAILED_DATA_TOO_LARGE"). Moving the UUIDs to the scan
+   * response keeps them discoverable to active scanners while freeing the
+   * primary packet.
+   */
+  val addServicesInScanResponse: Boolean? = null
 )
  {
   companion object {
     fun fromList(pigeonVar_list: List<Any?>): PeripheralAndroidOptions {
       val addManufacturerDataInScanResponse = pigeonVar_list[0] as Boolean?
-      return PeripheralAndroidOptions(addManufacturerDataInScanResponse)
+      val addServicesInScanResponse = pigeonVar_list[1] as Boolean?
+      return PeripheralAndroidOptions(addManufacturerDataInScanResponse, addServicesInScanResponse)
     }
   }
   fun toList(): List<Any?> {
     return listOf(
       addManufacturerDataInScanResponse,
+      addServicesInScanResponse,
     )
   }
   override fun equals(other: Any?): Boolean {
@@ -992,12 +1003,13 @@ data class PeripheralAndroidOptions (
       return true
     }
     val other = other as PeripheralAndroidOptions
-    return UniversalBlePigeonUtils.deepEquals(this.addManufacturerDataInScanResponse, other.addManufacturerDataInScanResponse)
+    return UniversalBlePigeonUtils.deepEquals(this.addManufacturerDataInScanResponse, other.addManufacturerDataInScanResponse) && UniversalBlePigeonUtils.deepEquals(this.addServicesInScanResponse, other.addServicesInScanResponse)
   }
 
   override fun hashCode(): Int {
     var result = javaClass.hashCode()
     result = 31 * result + UniversalBlePigeonUtils.deepHash(this.addManufacturerDataInScanResponse)
+    result = 31 * result + UniversalBlePigeonUtils.deepHash(this.addServicesInScanResponse)
     return result
   }
 }

@@ -834,12 +834,26 @@ class UniversalManufacturerData {
 }
 
 class PeripheralAndroidOptions {
-  PeripheralAndroidOptions({this.addManufacturerDataInScanResponse});
+  PeripheralAndroidOptions({
+    this.addManufacturerDataInScanResponse,
+    this.addServicesInScanResponse,
+  });
 
   bool? addManufacturerDataInScanResponse;
 
+  /// Put advertised service UUIDs in the scan response instead of the primary
+  /// advertisement. The Android primary advertisement is capped at 31 bytes;
+  /// a 128-bit service UUID (18 bytes) plus a device name can overflow it
+  /// ("ADVERTISE_FAILED_DATA_TOO_LARGE"). Moving the UUIDs to the scan
+  /// response keeps them discoverable to active scanners while freeing the
+  /// primary packet.
+  bool? addServicesInScanResponse;
+
   List<Object?> _toList() {
-    return <Object?>[addManufacturerDataInScanResponse];
+    return <Object?>[
+      addManufacturerDataInScanResponse,
+      addServicesInScanResponse,
+    ];
   }
 
   Object encode() {
@@ -850,6 +864,7 @@ class PeripheralAndroidOptions {
     result as List<Object?>;
     return PeripheralAndroidOptions(
       addManufacturerDataInScanResponse: result[0] as bool?,
+      addServicesInScanResponse: result[1] as bool?,
     );
   }
 
@@ -864,9 +879,10 @@ class PeripheralAndroidOptions {
       return true;
     }
     return _deepEquals(
-      addManufacturerDataInScanResponse,
-      other.addManufacturerDataInScanResponse,
-    );
+          addManufacturerDataInScanResponse,
+          other.addManufacturerDataInScanResponse,
+        ) &&
+        _deepEquals(addServicesInScanResponse, other.addServicesInScanResponse);
   }
 
   @override

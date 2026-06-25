@@ -1184,8 +1184,11 @@ size_t PigeonInternalDeepHash(const UniversalManufacturerData& v) {
 
 PeripheralAndroidOptions::PeripheralAndroidOptions() {}
 
-PeripheralAndroidOptions::PeripheralAndroidOptions(const bool* add_manufacturer_data_in_scan_response)
- : add_manufacturer_data_in_scan_response_(add_manufacturer_data_in_scan_response ? std::optional<bool>(*add_manufacturer_data_in_scan_response) : std::nullopt) {}
+PeripheralAndroidOptions::PeripheralAndroidOptions(
+  const bool* add_manufacturer_data_in_scan_response,
+  const bool* add_services_in_scan_response)
+ : add_manufacturer_data_in_scan_response_(add_manufacturer_data_in_scan_response ? std::optional<bool>(*add_manufacturer_data_in_scan_response) : std::nullopt),
+    add_services_in_scan_response_(add_services_in_scan_response ? std::optional<bool>(*add_services_in_scan_response) : std::nullopt) {}
 
 const bool* PeripheralAndroidOptions::add_manufacturer_data_in_scan_response() const {
   return add_manufacturer_data_in_scan_response_ ? &(*add_manufacturer_data_in_scan_response_) : nullptr;
@@ -1200,10 +1203,24 @@ void PeripheralAndroidOptions::set_add_manufacturer_data_in_scan_response(bool v
 }
 
 
+const bool* PeripheralAndroidOptions::add_services_in_scan_response() const {
+  return add_services_in_scan_response_ ? &(*add_services_in_scan_response_) : nullptr;
+}
+
+void PeripheralAndroidOptions::set_add_services_in_scan_response(const bool* value_arg) {
+  add_services_in_scan_response_ = value_arg ? std::optional<bool>(*value_arg) : std::nullopt;
+}
+
+void PeripheralAndroidOptions::set_add_services_in_scan_response(bool value_arg) {
+  add_services_in_scan_response_ = value_arg;
+}
+
+
 EncodableList PeripheralAndroidOptions::ToEncodableList() const {
   EncodableList list;
-  list.reserve(1);
+  list.reserve(2);
   list.push_back(add_manufacturer_data_in_scan_response_ ? EncodableValue(*add_manufacturer_data_in_scan_response_) : EncodableValue());
+  list.push_back(add_services_in_scan_response_ ? EncodableValue(*add_services_in_scan_response_) : EncodableValue());
   return list;
 }
 
@@ -1213,11 +1230,15 @@ PeripheralAndroidOptions PeripheralAndroidOptions::FromEncodableList(const Encod
   if (!encodable_add_manufacturer_data_in_scan_response.IsNull()) {
     decoded.set_add_manufacturer_data_in_scan_response(std::get<bool>(encodable_add_manufacturer_data_in_scan_response));
   }
+  auto& encodable_add_services_in_scan_response = list[1];
+  if (!encodable_add_services_in_scan_response.IsNull()) {
+    decoded.set_add_services_in_scan_response(std::get<bool>(encodable_add_services_in_scan_response));
+  }
   return decoded;
 }
 
 bool PeripheralAndroidOptions::operator==(const PeripheralAndroidOptions& other) const {
-  return PigeonInternalDeepEquals(add_manufacturer_data_in_scan_response_, other.add_manufacturer_data_in_scan_response_);
+  return PigeonInternalDeepEquals(add_manufacturer_data_in_scan_response_, other.add_manufacturer_data_in_scan_response_) && PigeonInternalDeepEquals(add_services_in_scan_response_, other.add_services_in_scan_response_);
 }
 
 bool PeripheralAndroidOptions::operator!=(const PeripheralAndroidOptions& other) const {
@@ -1227,6 +1248,7 @@ bool PeripheralAndroidOptions::operator!=(const PeripheralAndroidOptions& other)
 size_t PeripheralAndroidOptions::Hash() const {
   size_t result = 1;
   result = result * 31 + PigeonInternalDeepHash(add_manufacturer_data_in_scan_response_);
+  result = result * 31 + PigeonInternalDeepHash(add_services_in_scan_response_);
   return result;
 }
 
