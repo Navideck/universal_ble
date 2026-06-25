@@ -151,10 +151,9 @@ class UniversalBlePeripheralPlugin(
                 .setIncludeDeviceName(localName != null)
             val scanResponseBuilder = AdvertiseData.Builder()
                 .setIncludeTxPowerLevel(false)
-                // When the scan response also carries the service UUIDs, keep the
-                // device name out of it: a name plus a 128-bit UUID can overflow
-                // the 31-byte scan response just like the primary advertisement.
-                .setIncludeDeviceName(localName != null && !addServicesInScanResponse)
+// Device name is already included in the primary advertisement when localName != null.
+// Keeping it out of the scan response saves space for manufacturer data / service UUIDs.
+.setIncludeDeviceName(false)
             val addManufacturerDataInScanResponse =
                 platformConfig?.android?.addManufacturerDataInScanResponse == true
 
