@@ -471,13 +471,15 @@ class UniversalBlePeripheralPlugin(
                         valueArg = value,
                     ) { writeResponse ->
                         val writeResult = writeResponse.getOrNull()
-                        gattServer?.sendResponse(
-                            device,
-                            requestId,
-                            writeResult?.status?.toInt() ?: BluetoothGatt.GATT_SUCCESS,
-                            writeResult?.offset?.toInt() ?: offset,
-                            writeResult?.value ?: value ?: emptyBytes,
-                        )
+                        device?.let {
+                            gattServer?.sendResponse(
+                                it,
+                                requestId,
+                                writeResult?.status?.toInt() ?: BluetoothGatt.GATT_SUCCESS,
+                                writeResult?.offset?.toInt() ?: offset,
+                                writeResult?.value ?: value ?: emptyBytes,
+                            )
+                        }
                     }
                 }
             }
