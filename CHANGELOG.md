@@ -1,3 +1,6 @@
+## 2.1.1
+* Android: Fix BluetoothDevice null-safety compile error under Kotlin 2.x
+
 ## 2.1.0
 * Add optional `queueId` parameter to all APIs
 * Android: add `legacy` to `AndroidOptions` — set `legacy: true` to scan legacy BLE 4.x advertisements (e.g. ESP32) on API 26+; default (`null`/`false`) keeps extended-advertisement scanning unchanged from prior releases
