@@ -428,7 +428,7 @@ class UniversalBlePeripheralPlugin(
         }
 
         override fun onDescriptorWriteRequest(
-            device: BluetoothDevice?,
+            device: BluetoothDevice,
             requestId: Int,
             descriptor: BluetoothGattDescriptor,
             preparedWrite: Boolean,
