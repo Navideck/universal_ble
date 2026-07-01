@@ -211,11 +211,24 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
     peripheral.delegate = self
     let shouldAutoConnect = autoConnect ?? false
 
+    // Ask the system to surface connection-related events while the app is
+    // suspended (relaunching it into the background when one occurs), so a
+    // backgrounded central stays responsive — e.g. while reconnecting to a
+    // previously paired peripheral — without the user having to foreground the
+    // app. Apple gates this behind per-connection options:
+    //   - NotifyOnConnectionKey:    a connection succeeded
+    //   - NotifyOnDisconnectionKey: the peripheral disconnected
+    //   - NotifyOnNotificationKey:  a characteristic notification arrived
+    var options: [String: Any] = [
+      CBConnectPeripheralOptionNotifyOnConnectionKey: true,
+      CBConnectPeripheralOptionNotifyOnDisconnectionKey: true,
+      CBConnectPeripheralOptionNotifyOnNotificationKey: true,
+    ]
+
     if shouldAutoConnect {
       autoConnectDevices.insert(deviceId)
       if #available(iOS 17.0, macOS 14.0, watchOS 10.0, tvOS 17.0, *) {
-        let options: [String: Any] = [CBConnectPeripheralOptionEnableAutoReconnect: true]
-        manager.connect(peripheral, options: options)
+        options[CBConnectPeripheralOptionEnableAutoReconnect] = true
       } else {
         // Auto-reconnect via CBConnectPeripheralOptionEnableAutoReconnect is only
         // available on iOS 17.0 / macOS 14.0 / watchOS 10.0 / tvOS 17.0 and later.
@@ -228,12 +241,12 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
             "is only available on iOS 17+/macOS 14+/watchOS 10+/tvOS 17+. " +
             "On this OS version, reconnections must be handled manually."
         )
-        manager.connect(peripheral)
       }
     } else {
       autoConnectDevices.remove(deviceId)
-      manager.connect(peripheral)
     }
+
+    manager.connect(peripheral, options: options)
   }
 
   func disconnect(deviceId: String) throws {
