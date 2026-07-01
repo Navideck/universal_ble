@@ -1144,6 +1144,7 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
     private fun cleanConnection(gatt: BluetoothGatt) {
         gatt.removeCache()
         gatt.disconnect()
+        gatt.close()
         cleanUpConnection(gatt.device.address)
     }
 
