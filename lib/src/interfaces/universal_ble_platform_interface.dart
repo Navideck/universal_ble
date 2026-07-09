@@ -65,6 +65,7 @@ abstract class UniversalBlePlatform {
     String deviceId, {
     Duration? connectionTimeout,
     bool autoConnect = false,
+    ConnectionPlatformConfig? platformConfig,
   });
 
   Future<void> disconnect(String deviceId);

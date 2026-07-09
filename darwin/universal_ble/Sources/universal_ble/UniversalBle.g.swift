@@ -842,6 +842,98 @@ struct UniversalManufacturerData: Hashable {
   }
 }
 
+/// Apple options for `connect`.
+///
+/// Each flag maps to a `CBConnectPeripheralOptionNotifyOn*Key` connect option.
+/// When `true`, the system displays an alert for the corresponding event if
+/// the app is suspended while it occurs, relaunching the app into the
+/// background to handle it. This keeps a backgrounded central responsive —
+/// e.g. while reconnecting to a previously paired peripheral — without the
+/// user having to foreground the app. Requires the `bluetooth-central`
+/// background mode on iOS.
+///
+/// All flags default to `false` (no alerts, background events are not
+/// delivered while suspended).
+///
+/// Generated class from Pigeon that represents data sent in messages.
+struct AppleConnectionOptions: Hashable {
+  /// `CBConnectPeripheralOptionNotifyOnConnectionKey`:
+  /// notify when a connection to the device succeeds while the app is suspended.
+  var notifyOnConnection: Bool? = nil
+  /// `CBConnectPeripheralOptionNotifyOnDisconnectionKey`:
+  /// notify when the peripheral disconnects while the app is suspended.
+  var notifyOnDisconnection: Bool? = nil
+  /// `CBConnectPeripheralOptionNotifyOnNotificationKey`:
+  /// notify when a characteristic notification arrives while the app is
+  /// suspended. Fires per notification.
+  var notifyOnNotification: Bool? = nil
+
+
+  // swift-format-ignore: AlwaysUseLowerCamelCase
+  static func fromList(_ pigeonVar_list: [Any?]) -> AppleConnectionOptions? {
+    let notifyOnConnection: Bool? = nilOrValue(pigeonVar_list[0])
+    let notifyOnDisconnection: Bool? = nilOrValue(pigeonVar_list[1])
+    let notifyOnNotification: Bool? = nilOrValue(pigeonVar_list[2])
+
+    return AppleConnectionOptions(
+      notifyOnConnection: notifyOnConnection,
+      notifyOnDisconnection: notifyOnDisconnection,
+      notifyOnNotification: notifyOnNotification
+    )
+  }
+  func toList() -> [Any?] {
+    return [
+      notifyOnConnection,
+      notifyOnDisconnection,
+      notifyOnNotification,
+    ]
+  }
+  static func == (lhs: AppleConnectionOptions, rhs: AppleConnectionOptions) -> Bool {
+    if Swift.type(of: lhs) != Swift.type(of: rhs) {
+      return false
+    }
+    return deepEqualsUniversalBle(lhs.notifyOnConnection, rhs.notifyOnConnection) && deepEqualsUniversalBle(lhs.notifyOnDisconnection, rhs.notifyOnDisconnection) && deepEqualsUniversalBle(lhs.notifyOnNotification, rhs.notifyOnNotification)
+  }
+
+  func hash(into hasher: inout Hasher) {
+    hasher.combine("AppleConnectionOptions")
+    deepHashUniversalBle(value: notifyOnConnection, hasher: &hasher)
+    deepHashUniversalBle(value: notifyOnDisconnection, hasher: &hasher)
+    deepHashUniversalBle(value: notifyOnNotification, hasher: &hasher)
+  }
+}
+
+/// Generated class from Pigeon that represents data sent in messages.
+struct ConnectionPlatformConfig: Hashable {
+  var apple: AppleConnectionOptions? = nil
+
+
+  // swift-format-ignore: AlwaysUseLowerCamelCase
+  static func fromList(_ pigeonVar_list: [Any?]) -> ConnectionPlatformConfig? {
+    let apple: AppleConnectionOptions? = nilOrValue(pigeonVar_list[0])
+
+    return ConnectionPlatformConfig(
+      apple: apple
+    )
+  }
+  func toList() -> [Any?] {
+    return [
+      apple
+    ]
+  }
+  static func == (lhs: ConnectionPlatformConfig, rhs: ConnectionPlatformConfig) -> Bool {
+    if Swift.type(of: lhs) != Swift.type(of: rhs) {
+      return false
+    }
+    return deepEqualsUniversalBle(lhs.apple, rhs.apple)
+  }
+
+  func hash(into hasher: inout Hasher) {
+    hasher.combine("ConnectionPlatformConfig")
+    deepHashUniversalBle(value: apple, hasher: &hasher)
+  }
+}
+
 /// Generated class from Pigeon that represents data sent in messages.
 struct PeripheralAndroidOptions: Hashable {
   var addManufacturerDataInScanResponse: Bool? = nil
@@ -1246,18 +1338,22 @@ private class UniversalBlePigeonCodecReader: FlutterStandardReader {
     case 153:
       return UniversalManufacturerData.fromList(self.readValue() as! [Any?])
     case 154:
-      return PeripheralAndroidOptions.fromList(self.readValue() as! [Any?])
+      return AppleConnectionOptions.fromList(self.readValue() as! [Any?])
     case 155:
-      return PeripheralPlatformConfig.fromList(self.readValue() as! [Any?])
+      return ConnectionPlatformConfig.fromList(self.readValue() as! [Any?])
     case 156:
-      return PeripheralService.fromList(self.readValue() as! [Any?])
+      return PeripheralAndroidOptions.fromList(self.readValue() as! [Any?])
     case 157:
-      return PeripheralCharacteristic.fromList(self.readValue() as! [Any?])
+      return PeripheralPlatformConfig.fromList(self.readValue() as! [Any?])
     case 158:
-      return PeripheralDescriptor.fromList(self.readValue() as! [Any?])
+      return PeripheralService.fromList(self.readValue() as! [Any?])
     case 159:
-      return PeripheralReadRequestResult.fromList(self.readValue() as! [Any?])
+      return PeripheralCharacteristic.fromList(self.readValue() as! [Any?])
     case 160:
+      return PeripheralDescriptor.fromList(self.readValue() as! [Any?])
+    case 161:
+      return PeripheralReadRequestResult.fromList(self.readValue() as! [Any?])
+    case 162:
       return PeripheralWriteRequestResult.fromList(self.readValue() as! [Any?])
     default:
       return super.readValue(ofType: type)
@@ -1342,26 +1438,32 @@ private class UniversalBlePigeonCodecWriter: FlutterStandardWriter {
     } else if let value = value as? UniversalManufacturerData {
       super.writeByte(153)
       super.writeValue(value.toList())
-    } else if let value = value as? PeripheralAndroidOptions {
+    } else if let value = value as? AppleConnectionOptions {
       super.writeByte(154)
       super.writeValue(value.toList())
-    } else if let value = value as? PeripheralPlatformConfig {
+    } else if let value = value as? ConnectionPlatformConfig {
       super.writeByte(155)
       super.writeValue(value.toList())
-    } else if let value = value as? PeripheralService {
+    } else if let value = value as? PeripheralAndroidOptions {
       super.writeByte(156)
       super.writeValue(value.toList())
-    } else if let value = value as? PeripheralCharacteristic {
+    } else if let value = value as? PeripheralPlatformConfig {
       super.writeByte(157)
       super.writeValue(value.toList())
-    } else if let value = value as? PeripheralDescriptor {
+    } else if let value = value as? PeripheralService {
       super.writeByte(158)
       super.writeValue(value.toList())
-    } else if let value = value as? PeripheralReadRequestResult {
+    } else if let value = value as? PeripheralCharacteristic {
       super.writeByte(159)
       super.writeValue(value.toList())
-    } else if let value = value as? PeripheralWriteRequestResult {
+    } else if let value = value as? PeripheralDescriptor {
       super.writeByte(160)
+      super.writeValue(value.toList())
+    } else if let value = value as? PeripheralReadRequestResult {
+      super.writeByte(161)
+      super.writeValue(value.toList())
+    } else if let value = value as? PeripheralWriteRequestResult {
+      super.writeByte(162)
       super.writeValue(value.toList())
     } else {
       super.writeValue(value)
@@ -1398,7 +1500,7 @@ protocol UniversalBlePlatformChannel {
   func startScan(filter: UniversalScanFilter?, config: UniversalScanConfig?) throws
   func stopScan() throws
   func isScanning() throws -> Bool
-  func connect(deviceId: String, autoConnect: Bool?) throws
+  func connect(deviceId: String, autoConnect: Bool?, platformConfig: ConnectionPlatformConfig?) throws
   func disconnect(deviceId: String) throws
   func setNotifiable(deviceId: String, service: String, characteristic: String, bleInputProperty: BleInputProperty, completion: @escaping (Result<Void, Error>) -> Void)
   func discoverServices(deviceId: String, withDescriptors: Bool, completion: @escaping (Result<[UniversalBleService], Error>) -> Void)
@@ -1546,8 +1648,9 @@ class UniversalBlePlatformChannelSetup {
         let args = message as! [Any?]
         let deviceIdArg = args[0] as! String
         let autoConnectArg: Bool? = nilOrValue(args[1])
+        let platformConfigArg: ConnectionPlatformConfig? = nilOrValue(args[2])
         do {
-          try api.connect(deviceId: deviceIdArg, autoConnect: autoConnectArg)
+          try api.connect(deviceId: deviceIdArg, autoConnect: autoConnectArg, platformConfig: platformConfigArg)
           reply(wrapResult(nil))
         } catch {
           reply(wrapError(error))

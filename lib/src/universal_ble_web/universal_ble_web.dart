@@ -35,8 +35,10 @@ class UniversalBleWeb extends UniversalBlePlatform {
     String deviceId, {
     Duration? connectionTimeout = const Duration(seconds: 10),
     bool autoConnect = false,
+    ConnectionPlatformConfig? platformConfig,
   }) async {
     // Note: autoConnect is not directly supported on Web platform
+    // Note: platformConfig only carries Apple-specific options
     var device = _getDeviceById(deviceId);
     if (device == null) {
       throw UniversalBleException(

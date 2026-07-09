@@ -206,24 +206,30 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
     UniversalBleLogger.shared.setLogLevel(logLevel)
   }
 
-  func connect(deviceId: String, autoConnect: Bool?) throws {
+  func connect(deviceId: String, autoConnect: Bool?, platformConfig: ConnectionPlatformConfig?) throws {
     let peripheral = try deviceId.getPeripheral(manager: manager)
     peripheral.delegate = self
     let shouldAutoConnect = autoConnect ?? false
 
-    // Ask the system to surface connection-related events while the app is
-    // suspended (relaunching it into the background when one occurs), so a
-    // backgrounded central stays responsive — e.g. while reconnecting to a
-    // previously paired peripheral — without the user having to foreground the
-    // app. Apple gates this behind per-connection options:
-    //   - NotifyOnConnectionKey:    a connection succeeded
-    //   - NotifyOnDisconnectionKey: the peripheral disconnected
-    //   - NotifyOnNotificationKey:  a characteristic notification arrived
-    var options: [String: Any] = [
-      CBConnectPeripheralOptionNotifyOnConnectionKey: true,
-      CBConnectPeripheralOptionNotifyOnDisconnectionKey: true,
-      CBConnectPeripheralOptionNotifyOnNotificationKey: true,
-    ]
+    var options: [String: Any] = [:]
+
+    // Opt-in: ask the system to surface connection-related events while the
+    // app is suspended (relaunching it into the background when one occurs),
+    // so a backgrounded central stays responsive — e.g. while reconnecting to
+    // a previously paired peripheral — without the user having to foreground
+    // the app. The system may show the user an alert for these events, which
+    // is why they are off unless requested via `AppleConnectionOptions`.
+    if let appleOptions = platformConfig?.apple {
+      if appleOptions.notifyOnConnection == true {
+        options[CBConnectPeripheralOptionNotifyOnConnectionKey] = true
+      }
+      if appleOptions.notifyOnDisconnection == true {
+        options[CBConnectPeripheralOptionNotifyOnDisconnectionKey] = true
+      }
+      if appleOptions.notifyOnNotification == true {
+        options[CBConnectPeripheralOptionNotifyOnNotificationKey] = true
+      }
+    }
 
     if shouldAutoConnect {
       autoConnectDevices.insert(deviceId)
@@ -246,7 +252,7 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
       autoConnectDevices.remove(deviceId)
     }
 
-    manager.connect(peripheral, options: options)
+    manager.connect(peripheral, options: options.isEmpty ? nil : options)
   }
 
   func disconnect(deviceId: String) throws {

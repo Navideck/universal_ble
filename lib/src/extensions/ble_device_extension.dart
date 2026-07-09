@@ -17,12 +17,17 @@ extension BleDeviceExtension on BleDevice {
 
   /// Connects to the device.
   /// [autoConnect] enables automatic reconnection when the device becomes available.
-  Future<void> connect({bool autoConnect = false, Duration? timeout}) =>
-      UniversalBle.connect(
-        deviceId,
-        autoConnect: autoConnect,
-        timeout: timeout,
-      );
+  /// [platformConfig] sets platform specific connection options.
+  Future<void> connect({
+    bool autoConnect = false,
+    Duration? timeout,
+    ConnectionPlatformConfig? platformConfig,
+  }) => UniversalBle.connect(
+    deviceId,
+    autoConnect: autoConnect,
+    timeout: timeout,
+    platformConfig: platformConfig,
+  );
 
   /// Disconnects from the device.
   Future<void> disconnect({Duration? timeout, String? queueId}) =>

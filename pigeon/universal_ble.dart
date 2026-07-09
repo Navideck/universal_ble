@@ -259,6 +259,44 @@ class UniversalManufacturerData {
   });
 }
 
+/// Apple options for `connect`.
+///
+/// Each flag maps to a `CBConnectPeripheralOptionNotifyOn*Key` connect option.
+/// When `true`, the system displays an alert for the corresponding event if
+/// the app is suspended while it occurs, relaunching the app into the
+/// background to handle it. This keeps a backgrounded central responsive —
+/// e.g. while reconnecting to a previously paired peripheral — without the
+/// user having to foreground the app. Requires the `bluetooth-central`
+/// background mode on iOS.
+///
+/// All flags default to `false` (no alerts, background events are not
+/// delivered while suspended).
+class AppleConnectionOptions {
+  /// `CBConnectPeripheralOptionNotifyOnConnectionKey`:
+  /// notify when a connection to the device succeeds while the app is suspended.
+  bool? notifyOnConnection;
+
+  /// `CBConnectPeripheralOptionNotifyOnDisconnectionKey`:
+  /// notify when the peripheral disconnects while the app is suspended.
+  bool? notifyOnDisconnection;
+
+  /// `CBConnectPeripheralOptionNotifyOnNotificationKey`:
+  /// notify when a characteristic notification arrives while the app is
+  /// suspended. Fires per notification.
+  bool? notifyOnNotification;
+
+  AppleConnectionOptions({
+    this.notifyOnConnection,
+    this.notifyOnDisconnection,
+    this.notifyOnNotification,
+  });
+}
+
+class ConnectionPlatformConfig {
+  AppleConnectionOptions? apple;
+  ConnectionPlatformConfig({this.apple});
+}
+
 class PeripheralAndroidOptions {
   bool? addManufacturerDataInScanResponse;
 
@@ -351,7 +389,11 @@ abstract class UniversalBlePlatformChannel {
 
   bool isScanning();
 
-  void connect(String deviceId, {bool? autoConnect});
+  void connect(
+    String deviceId, {
+    bool? autoConnect,
+    ConnectionPlatformConfig? platformConfig,
+  });
 
   void disconnect(String deviceId);
 

@@ -250,7 +250,12 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
         return safeScanner.isScanning()
     }
 
-    override fun connect(deviceId: String, autoConnect: Boolean?) {
+    override fun connect(
+        deviceId: String,
+        autoConnect: Boolean?,
+        platformConfig: ConnectionPlatformConfig?,
+    ) {
+        // Note: platformConfig only carries Apple-specific options
         // If already connected, send connected message,
         // if connecting, do nothing
         deviceId.findGatt()?.let {

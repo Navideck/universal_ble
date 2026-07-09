@@ -833,6 +833,116 @@ class UniversalManufacturerData {
   int get hashCode => _deepHash(<Object?>[runtimeType, ..._toList()]);
 }
 
+/// Apple options for `connect`.
+///
+/// Each flag maps to a `CBConnectPeripheralOptionNotifyOn*Key` connect option.
+/// When `true`, the system displays an alert for the corresponding event if
+/// the app is suspended while it occurs, relaunching the app into the
+/// background to handle it. This keeps a backgrounded central responsive —
+/// e.g. while reconnecting to a previously paired peripheral — without the
+/// user having to foreground the app. Requires the `bluetooth-central`
+/// background mode on iOS.
+///
+/// All flags default to `false` (no alerts, background events are not
+/// delivered while suspended).
+class AppleConnectionOptions {
+  AppleConnectionOptions({
+    this.notifyOnConnection,
+    this.notifyOnDisconnection,
+    this.notifyOnNotification,
+  });
+
+  /// `CBConnectPeripheralOptionNotifyOnConnectionKey`:
+  /// notify when a connection to the device succeeds while the app is suspended.
+  bool? notifyOnConnection;
+
+  /// `CBConnectPeripheralOptionNotifyOnDisconnectionKey`:
+  /// notify when the peripheral disconnects while the app is suspended.
+  bool? notifyOnDisconnection;
+
+  /// `CBConnectPeripheralOptionNotifyOnNotificationKey`:
+  /// notify when a characteristic notification arrives while the app is
+  /// suspended. Fires per notification.
+  bool? notifyOnNotification;
+
+  List<Object?> _toList() {
+    return <Object?>[
+      notifyOnConnection,
+      notifyOnDisconnection,
+      notifyOnNotification,
+    ];
+  }
+
+  Object encode() {
+    return _toList();
+  }
+
+  static AppleConnectionOptions decode(Object result) {
+    result as List<Object?>;
+    return AppleConnectionOptions(
+      notifyOnConnection: result[0] as bool?,
+      notifyOnDisconnection: result[1] as bool?,
+      notifyOnNotification: result[2] as bool?,
+    );
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  bool operator ==(Object other) {
+    if (other is! AppleConnectionOptions || other.runtimeType != runtimeType) {
+      return false;
+    }
+    if (identical(this, other)) {
+      return true;
+    }
+    return _deepEquals(notifyOnConnection, other.notifyOnConnection) &&
+        _deepEquals(notifyOnDisconnection, other.notifyOnDisconnection) &&
+        _deepEquals(notifyOnNotification, other.notifyOnNotification);
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  int get hashCode => _deepHash(<Object?>[runtimeType, ..._toList()]);
+}
+
+class ConnectionPlatformConfig {
+  ConnectionPlatformConfig({this.apple});
+
+  AppleConnectionOptions? apple;
+
+  List<Object?> _toList() {
+    return <Object?>[apple];
+  }
+
+  Object encode() {
+    return _toList();
+  }
+
+  static ConnectionPlatformConfig decode(Object result) {
+    result as List<Object?>;
+    return ConnectionPlatformConfig(
+      apple: result[0] as AppleConnectionOptions?,
+    );
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  bool operator ==(Object other) {
+    if (other is! ConnectionPlatformConfig ||
+        other.runtimeType != runtimeType) {
+      return false;
+    }
+    if (identical(this, other)) {
+      return true;
+    }
+    return _deepEquals(apple, other.apple);
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  int get hashCode => _deepHash(<Object?>[runtimeType, ..._toList()]);
+}
+
 class PeripheralAndroidOptions {
   PeripheralAndroidOptions({
     this.addManufacturerDataInScanResponse,
@@ -1260,26 +1370,32 @@ class _PigeonCodec extends StandardMessageCodec {
     } else if (value is UniversalManufacturerData) {
       buffer.putUint8(153);
       writeValue(buffer, value.encode());
-    } else if (value is PeripheralAndroidOptions) {
+    } else if (value is AppleConnectionOptions) {
       buffer.putUint8(154);
       writeValue(buffer, value.encode());
-    } else if (value is PeripheralPlatformConfig) {
+    } else if (value is ConnectionPlatformConfig) {
       buffer.putUint8(155);
       writeValue(buffer, value.encode());
-    } else if (value is PeripheralService) {
+    } else if (value is PeripheralAndroidOptions) {
       buffer.putUint8(156);
       writeValue(buffer, value.encode());
-    } else if (value is PeripheralCharacteristic) {
+    } else if (value is PeripheralPlatformConfig) {
       buffer.putUint8(157);
       writeValue(buffer, value.encode());
-    } else if (value is PeripheralDescriptor) {
+    } else if (value is PeripheralService) {
       buffer.putUint8(158);
       writeValue(buffer, value.encode());
-    } else if (value is PeripheralReadRequestResult) {
+    } else if (value is PeripheralCharacteristic) {
       buffer.putUint8(159);
       writeValue(buffer, value.encode());
-    } else if (value is PeripheralWriteRequestResult) {
+    } else if (value is PeripheralDescriptor) {
       buffer.putUint8(160);
+      writeValue(buffer, value.encode());
+    } else if (value is PeripheralReadRequestResult) {
+      buffer.putUint8(161);
+      writeValue(buffer, value.encode());
+    } else if (value is PeripheralWriteRequestResult) {
+      buffer.putUint8(162);
       writeValue(buffer, value.encode());
     } else {
       super.writeValue(buffer, value);
@@ -1357,18 +1473,22 @@ class _PigeonCodec extends StandardMessageCodec {
       case 153:
         return UniversalManufacturerData.decode(readValue(buffer)!);
       case 154:
-        return PeripheralAndroidOptions.decode(readValue(buffer)!);
+        return AppleConnectionOptions.decode(readValue(buffer)!);
       case 155:
-        return PeripheralPlatformConfig.decode(readValue(buffer)!);
+        return ConnectionPlatformConfig.decode(readValue(buffer)!);
       case 156:
-        return PeripheralService.decode(readValue(buffer)!);
+        return PeripheralAndroidOptions.decode(readValue(buffer)!);
       case 157:
-        return PeripheralCharacteristic.decode(readValue(buffer)!);
+        return PeripheralPlatformConfig.decode(readValue(buffer)!);
       case 158:
-        return PeripheralDescriptor.decode(readValue(buffer)!);
+        return PeripheralService.decode(readValue(buffer)!);
       case 159:
-        return PeripheralReadRequestResult.decode(readValue(buffer)!);
+        return PeripheralCharacteristic.decode(readValue(buffer)!);
       case 160:
+        return PeripheralDescriptor.decode(readValue(buffer)!);
+      case 161:
+        return PeripheralReadRequestResult.decode(readValue(buffer)!);
+      case 162:
         return PeripheralWriteRequestResult.decode(readValue(buffer)!);
       default:
         return super.readValueOfType(type, buffer);
@@ -1554,7 +1674,11 @@ class UniversalBlePlatformChannel {
     return pigeonVar_replyValue! as bool;
   }
 
-  Future<void> connect(String deviceId, {bool? autoConnect}) async {
+  Future<void> connect(
+    String deviceId, {
+    bool? autoConnect,
+    ConnectionPlatformConfig? platformConfig,
+  }) async {
     final pigeonVar_channelName =
         'dev.flutter.pigeon.universal_ble.UniversalBlePlatformChannel.connect$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
@@ -1563,7 +1687,7 @@ class UniversalBlePlatformChannel {
       binaryMessenger: pigeonVar_binaryMessenger,
     );
     final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
-      <Object?>[deviceId, autoConnect],
+      <Object?>[deviceId, autoConnect, platformConfig],
     );
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 

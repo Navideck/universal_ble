@@ -282,8 +282,10 @@ UniversalBlePlugin::SetLogLevel(const BleLogLevel &log_level) {
 
 std::optional<FlutterError>
 UniversalBlePlugin::Connect(const std::string &device_id,
-                            const bool *auto_connect) {
+                            const bool *auto_connect,
+                            const ConnectionPlatformConfig *platform_config) {
   // Note: autoConnect is not directly supported on Windows platform
+  // Note: platformConfig only carries Apple-specific options
   ConnectAsync(str_to_mac_address(device_id));
   return std::nullopt;
 };
