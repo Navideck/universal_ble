@@ -968,6 +968,110 @@ data class UniversalManufacturerData (
   }
 }
 
+/**
+ * Apple options for `connect`.
+ *
+ * Each flag maps to a `CBConnectPeripheralOptionNotifyOn*Key` connect option.
+ * When `true`, the system displays an alert for the corresponding event if
+ * the app is suspended while it occurs, relaunching the app into the
+ * background to handle it. This keeps a backgrounded central responsive —
+ * e.g. while reconnecting to a previously paired peripheral — without the
+ * user having to foreground the app. Requires the `bluetooth-central`
+ * background mode on iOS.
+ *
+ * All flags default to `false` (no alerts, background events are not
+ * delivered while suspended).
+ *
+ * Generated class from Pigeon that represents data sent in messages.
+ */
+data class AppleConnectionOptions (
+  /**
+   * `CBConnectPeripheralOptionNotifyOnConnectionKey`:
+   * notify when a connection to the device succeeds while the app is suspended.
+   */
+  val notifyOnConnection: Boolean? = null,
+  /**
+   * `CBConnectPeripheralOptionNotifyOnDisconnectionKey`:
+   * notify when the peripheral disconnects while the app is suspended.
+   */
+  val notifyOnDisconnection: Boolean? = null,
+  /**
+   * `CBConnectPeripheralOptionNotifyOnNotificationKey`:
+   * notify when a characteristic notification arrives while the app is
+   * suspended. Fires per notification.
+   */
+  val notifyOnNotification: Boolean? = null
+)
+ {
+  companion object {
+    fun fromList(pigeonVar_list: List<Any?>): AppleConnectionOptions {
+      val notifyOnConnection = pigeonVar_list[0] as Boolean?
+      val notifyOnDisconnection = pigeonVar_list[1] as Boolean?
+      val notifyOnNotification = pigeonVar_list[2] as Boolean?
+      return AppleConnectionOptions(notifyOnConnection, notifyOnDisconnection, notifyOnNotification)
+    }
+  }
+  fun toList(): List<Any?> {
+    return listOf(
+      notifyOnConnection,
+      notifyOnDisconnection,
+      notifyOnNotification,
+    )
+  }
+  override fun equals(other: Any?): Boolean {
+    if (other == null || other.javaClass != javaClass) {
+      return false
+    }
+    if (this === other) {
+      return true
+    }
+    val other = other as AppleConnectionOptions
+    return UniversalBlePigeonUtils.deepEquals(this.notifyOnConnection, other.notifyOnConnection) && UniversalBlePigeonUtils.deepEquals(this.notifyOnDisconnection, other.notifyOnDisconnection) && UniversalBlePigeonUtils.deepEquals(this.notifyOnNotification, other.notifyOnNotification)
+  }
+
+  override fun hashCode(): Int {
+    var result = javaClass.hashCode()
+    result = 31 * result + UniversalBlePigeonUtils.deepHash(this.notifyOnConnection)
+    result = 31 * result + UniversalBlePigeonUtils.deepHash(this.notifyOnDisconnection)
+    result = 31 * result + UniversalBlePigeonUtils.deepHash(this.notifyOnNotification)
+    return result
+  }
+}
+
+/** Generated class from Pigeon that represents data sent in messages. */
+data class ConnectionPlatformConfig (
+  val apple: AppleConnectionOptions? = null
+)
+ {
+  companion object {
+    fun fromList(pigeonVar_list: List<Any?>): ConnectionPlatformConfig {
+      val apple = pigeonVar_list[0] as AppleConnectionOptions?
+      return ConnectionPlatformConfig(apple)
+    }
+  }
+  fun toList(): List<Any?> {
+    return listOf(
+      apple,
+    )
+  }
+  override fun equals(other: Any?): Boolean {
+    if (other == null || other.javaClass != javaClass) {
+      return false
+    }
+    if (this === other) {
+      return true
+    }
+    val other = other as ConnectionPlatformConfig
+    return UniversalBlePigeonUtils.deepEquals(this.apple, other.apple)
+  }
+
+  override fun hashCode(): Int {
+    var result = javaClass.hashCode()
+    result = 31 * result + UniversalBlePigeonUtils.deepHash(this.apple)
+    return result
+  }
+}
+
 /** Generated class from Pigeon that represents data sent in messages. */
 data class PeripheralAndroidOptions (
   val addManufacturerDataInScanResponse: Boolean? = null,
@@ -1399,35 +1503,45 @@ private open class UniversalBlePigeonCodec : StandardMessageCodec() {
       }
       154.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          PeripheralAndroidOptions.fromList(it)
+          AppleConnectionOptions.fromList(it)
         }
       }
       155.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          PeripheralPlatformConfig.fromList(it)
+          ConnectionPlatformConfig.fromList(it)
         }
       }
       156.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          PeripheralService.fromList(it)
+          PeripheralAndroidOptions.fromList(it)
         }
       }
       157.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          PeripheralCharacteristic.fromList(it)
+          PeripheralPlatformConfig.fromList(it)
         }
       }
       158.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          PeripheralDescriptor.fromList(it)
+          PeripheralService.fromList(it)
         }
       }
       159.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          PeripheralReadRequestResult.fromList(it)
+          PeripheralCharacteristic.fromList(it)
         }
       }
       160.toByte() -> {
+        return (readValue(buffer) as? List<Any?>)?.let {
+          PeripheralDescriptor.fromList(it)
+        }
+      }
+      161.toByte() -> {
+        return (readValue(buffer) as? List<Any?>)?.let {
+          PeripheralReadRequestResult.fromList(it)
+        }
+      }
+      162.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
           PeripheralWriteRequestResult.fromList(it)
         }
@@ -1537,32 +1651,40 @@ private open class UniversalBlePigeonCodec : StandardMessageCodec() {
         stream.write(153)
         writeValue(stream, value.toList())
       }
-      is PeripheralAndroidOptions -> {
+      is AppleConnectionOptions -> {
         stream.write(154)
         writeValue(stream, value.toList())
       }
-      is PeripheralPlatformConfig -> {
+      is ConnectionPlatformConfig -> {
         stream.write(155)
         writeValue(stream, value.toList())
       }
-      is PeripheralService -> {
+      is PeripheralAndroidOptions -> {
         stream.write(156)
         writeValue(stream, value.toList())
       }
-      is PeripheralCharacteristic -> {
+      is PeripheralPlatformConfig -> {
         stream.write(157)
         writeValue(stream, value.toList())
       }
-      is PeripheralDescriptor -> {
+      is PeripheralService -> {
         stream.write(158)
         writeValue(stream, value.toList())
       }
-      is PeripheralReadRequestResult -> {
+      is PeripheralCharacteristic -> {
         stream.write(159)
         writeValue(stream, value.toList())
       }
-      is PeripheralWriteRequestResult -> {
+      is PeripheralDescriptor -> {
         stream.write(160)
+        writeValue(stream, value.toList())
+      }
+      is PeripheralReadRequestResult -> {
+        stream.write(161)
+        writeValue(stream, value.toList())
+      }
+      is PeripheralWriteRequestResult -> {
+        stream.write(162)
         writeValue(stream, value.toList())
       }
       else -> super.writeValue(stream, value)
@@ -1587,7 +1709,7 @@ interface UniversalBlePlatformChannel {
   fun startScan(filter: UniversalScanFilter?, config: UniversalScanConfig?)
   fun stopScan()
   fun isScanning(): Boolean
-  fun connect(deviceId: String, autoConnect: Boolean?)
+  fun connect(deviceId: String, autoConnect: Boolean?, platformConfig: ConnectionPlatformConfig?)
   fun disconnect(deviceId: String)
   fun setNotifiable(deviceId: String, service: String, characteristic: String, bleInputProperty: BleInputProperty, callback: (Result<Unit>) -> Unit)
   fun discoverServices(deviceId: String, withDescriptors: Boolean, callback: (Result<List<UniversalBleService>>) -> Unit)
@@ -1759,8 +1881,9 @@ interface UniversalBlePlatformChannel {
             val args = message as List<Any?>
             val deviceIdArg = args[0] as String
             val autoConnectArg = args[1] as Boolean?
+            val platformConfigArg = args[2] as ConnectionPlatformConfig?
             val wrapped: List<Any?> = try {
-              api.connect(deviceIdArg, autoConnectArg)
+              api.connect(deviceIdArg, autoConnectArg, platformConfigArg)
               listOf(null)
             } catch (exception: Throwable) {
               UniversalBlePigeonUtils.wrapError(exception)

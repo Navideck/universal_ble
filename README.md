@@ -268,6 +268,25 @@ You can enable automatic reconnection by setting the `autoConnect` parameter to 
 await bleDevice.connect(autoConnect: true);
 ```
 
+#### Background connection events (iOS/macOS)
+
+By default, a suspended app does not get woken for connection events. Set `AppleConnectionOptions` to have the system alert the user and relaunch your app into the background when a connection event occurs while the app is suspended — e.g. to keep reacting to a previously paired peripheral (auto-reconnect) during a workout while the phone is locked. Requires the `bluetooth-central` background mode on iOS.
+
+Note: the system may show an alert to the user for these events, and `notifyOnNotification` fires per characteristic notification, so enable only what you need.
+
+```dart
+await bleDevice.connect(
+  autoConnect: true,
+  platformConfig: ConnectionPlatformConfig(
+    apple: AppleConnectionOptions(
+      notifyOnConnection: true,
+      notifyOnDisconnection: true,
+      notifyOnNotification: true,
+    ),
+  ),
+);
+```
+
 ### Discovering Services
 
 After establishing a connection, services need to be discovered. This method will discover all services and their characteristics.

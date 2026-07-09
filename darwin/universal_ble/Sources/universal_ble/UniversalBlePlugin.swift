@@ -206,16 +206,35 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
     UniversalBleLogger.shared.setLogLevel(logLevel)
   }
 
-  func connect(deviceId: String, autoConnect: Bool?) throws {
+  func connect(deviceId: String, autoConnect: Bool?, platformConfig: ConnectionPlatformConfig?) throws {
     let peripheral = try deviceId.getPeripheral(manager: manager)
     peripheral.delegate = self
     let shouldAutoConnect = autoConnect ?? false
 
+    var options: [String: Any] = [:]
+
+    // Opt-in: ask the system to surface connection-related events while the
+    // app is suspended (relaunching it into the background when one occurs),
+    // so a backgrounded central stays responsive — e.g. while reconnecting to
+    // a previously paired peripheral — without the user having to foreground
+    // the app. The system may show the user an alert for these events, which
+    // is why they are off unless requested via `AppleConnectionOptions`.
+    if let appleOptions = platformConfig?.apple {
+      if appleOptions.notifyOnConnection == true {
+        options[CBConnectPeripheralOptionNotifyOnConnectionKey] = true
+      }
+      if appleOptions.notifyOnDisconnection == true {
+        options[CBConnectPeripheralOptionNotifyOnDisconnectionKey] = true
+      }
+      if appleOptions.notifyOnNotification == true {
+        options[CBConnectPeripheralOptionNotifyOnNotificationKey] = true
+      }
+    }
+
     if shouldAutoConnect {
       autoConnectDevices.insert(deviceId)
       if #available(iOS 17.0, macOS 14.0, watchOS 10.0, tvOS 17.0, *) {
-        let options: [String: Any] = [CBConnectPeripheralOptionEnableAutoReconnect: true]
-        manager.connect(peripheral, options: options)
+        options[CBConnectPeripheralOptionEnableAutoReconnect] = true
       } else {
         // Auto-reconnect via CBConnectPeripheralOptionEnableAutoReconnect is only
         // available on iOS 17.0 / macOS 14.0 / watchOS 10.0 / tvOS 17.0 and later.
@@ -228,12 +247,12 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
             "is only available on iOS 17+/macOS 14+/watchOS 10+/tvOS 17+. " +
             "On this OS version, reconnections must be handled manually."
         )
-        manager.connect(peripheral)
       }
     } else {
       autoConnectDevices.remove(deviceId)
-      manager.connect(peripheral)
     }
+
+    manager.connect(peripheral, options: options.isEmpty ? nil : options)
   }
 
   func disconnect(deviceId: String) throws {

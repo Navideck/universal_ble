@@ -242,7 +242,8 @@ private:
   StartScan(const UniversalScanFilter *filter, const UniversalScanConfig *config) override;
   std::optional<FlutterError> StopScan() override;
   ErrorOr<bool> IsScanning() override;
-  std::optional<FlutterError> Connect(const std::string &device_id, const bool *auto_connect) override;
+  std::optional<FlutterError> Connect(const std::string &device_id, const bool *auto_connect,
+                                      const ConnectionPlatformConfig *platform_config) override;
   std::optional<FlutterError> Disconnect(const std::string &device_id) override;
   ErrorOr<bool> HasPermissions(bool with_android_fine_location) override;
   void RequestPermissions(

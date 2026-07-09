@@ -3,6 +3,7 @@
 
 ## 2.1.0
 * Add optional `queueId` parameter to all APIs
+* iOS/macOS: add opt-in `AppleConnectionOptions` to `connect` (via `ConnectionPlatformConfig`) — map to `CBConnectPeripheralOptionNotifyOnConnectionKey`, `NotifyOnDisconnectionKey` and `NotifyOnNotificationKey`, so a suspended app is relaunched into the background to handle connection events (e.g. auto-reconnect while the phone is locked)
 * Android: add `legacy` to `AndroidOptions` — set `legacy: true` to scan legacy BLE 4.x advertisements (e.g. ESP32) on API 26+; default (`null`/`false`) keeps extended-advertisement scanning unchanged from prior releases
 * Android: add `addServicesInScanResponse` to `PeripheralAndroidOptions` - set `addServicesInScanResponse: true` to Put advertised service UUIDs in the scan response instead of the primary advertisement
 * Android: merge manufacturer data with duplicate company id in scan results

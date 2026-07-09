@@ -1180,6 +1180,165 @@ size_t PigeonInternalDeepHash(const UniversalManufacturerData& v) {
   return v.Hash();
 }
 
+// AppleConnectionOptions
+
+AppleConnectionOptions::AppleConnectionOptions() {}
+
+AppleConnectionOptions::AppleConnectionOptions(
+  const bool* notify_on_connection,
+  const bool* notify_on_disconnection,
+  const bool* notify_on_notification)
+ : notify_on_connection_(notify_on_connection ? std::optional<bool>(*notify_on_connection) : std::nullopt),
+    notify_on_disconnection_(notify_on_disconnection ? std::optional<bool>(*notify_on_disconnection) : std::nullopt),
+    notify_on_notification_(notify_on_notification ? std::optional<bool>(*notify_on_notification) : std::nullopt) {}
+
+const bool* AppleConnectionOptions::notify_on_connection() const {
+  return notify_on_connection_ ? &(*notify_on_connection_) : nullptr;
+}
+
+void AppleConnectionOptions::set_notify_on_connection(const bool* value_arg) {
+  notify_on_connection_ = value_arg ? std::optional<bool>(*value_arg) : std::nullopt;
+}
+
+void AppleConnectionOptions::set_notify_on_connection(bool value_arg) {
+  notify_on_connection_ = value_arg;
+}
+
+
+const bool* AppleConnectionOptions::notify_on_disconnection() const {
+  return notify_on_disconnection_ ? &(*notify_on_disconnection_) : nullptr;
+}
+
+void AppleConnectionOptions::set_notify_on_disconnection(const bool* value_arg) {
+  notify_on_disconnection_ = value_arg ? std::optional<bool>(*value_arg) : std::nullopt;
+}
+
+void AppleConnectionOptions::set_notify_on_disconnection(bool value_arg) {
+  notify_on_disconnection_ = value_arg;
+}
+
+
+const bool* AppleConnectionOptions::notify_on_notification() const {
+  return notify_on_notification_ ? &(*notify_on_notification_) : nullptr;
+}
+
+void AppleConnectionOptions::set_notify_on_notification(const bool* value_arg) {
+  notify_on_notification_ = value_arg ? std::optional<bool>(*value_arg) : std::nullopt;
+}
+
+void AppleConnectionOptions::set_notify_on_notification(bool value_arg) {
+  notify_on_notification_ = value_arg;
+}
+
+
+EncodableList AppleConnectionOptions::ToEncodableList() const {
+  EncodableList list;
+  list.reserve(3);
+  list.push_back(notify_on_connection_ ? EncodableValue(*notify_on_connection_) : EncodableValue());
+  list.push_back(notify_on_disconnection_ ? EncodableValue(*notify_on_disconnection_) : EncodableValue());
+  list.push_back(notify_on_notification_ ? EncodableValue(*notify_on_notification_) : EncodableValue());
+  return list;
+}
+
+AppleConnectionOptions AppleConnectionOptions::FromEncodableList(const EncodableList& list) {
+  AppleConnectionOptions decoded;
+  auto& encodable_notify_on_connection = list[0];
+  if (!encodable_notify_on_connection.IsNull()) {
+    decoded.set_notify_on_connection(std::get<bool>(encodable_notify_on_connection));
+  }
+  auto& encodable_notify_on_disconnection = list[1];
+  if (!encodable_notify_on_disconnection.IsNull()) {
+    decoded.set_notify_on_disconnection(std::get<bool>(encodable_notify_on_disconnection));
+  }
+  auto& encodable_notify_on_notification = list[2];
+  if (!encodable_notify_on_notification.IsNull()) {
+    decoded.set_notify_on_notification(std::get<bool>(encodable_notify_on_notification));
+  }
+  return decoded;
+}
+
+bool AppleConnectionOptions::operator==(const AppleConnectionOptions& other) const {
+  return PigeonInternalDeepEquals(notify_on_connection_, other.notify_on_connection_) && PigeonInternalDeepEquals(notify_on_disconnection_, other.notify_on_disconnection_) && PigeonInternalDeepEquals(notify_on_notification_, other.notify_on_notification_);
+}
+
+bool AppleConnectionOptions::operator!=(const AppleConnectionOptions& other) const {
+  return !(*this == other);
+}
+
+size_t AppleConnectionOptions::Hash() const {
+  size_t result = 1;
+  result = result * 31 + PigeonInternalDeepHash(notify_on_connection_);
+  result = result * 31 + PigeonInternalDeepHash(notify_on_disconnection_);
+  result = result * 31 + PigeonInternalDeepHash(notify_on_notification_);
+  return result;
+}
+
+size_t PigeonInternalDeepHash(const AppleConnectionOptions& v) {
+  return v.Hash();
+}
+
+// ConnectionPlatformConfig
+
+ConnectionPlatformConfig::ConnectionPlatformConfig() {}
+
+ConnectionPlatformConfig::ConnectionPlatformConfig(const AppleConnectionOptions* apple)
+ : apple_(apple ? std::make_unique<AppleConnectionOptions>(*apple) : nullptr) {}
+
+ConnectionPlatformConfig::ConnectionPlatformConfig(const ConnectionPlatformConfig& other)
+ : apple_(other.apple_ ? std::make_unique<AppleConnectionOptions>(*other.apple_) : nullptr) {}
+
+ConnectionPlatformConfig& ConnectionPlatformConfig::operator=(const ConnectionPlatformConfig& other) {
+  apple_ = other.apple_ ? std::make_unique<AppleConnectionOptions>(*other.apple_) : nullptr;
+  return *this;
+}
+
+const AppleConnectionOptions* ConnectionPlatformConfig::apple() const {
+  return apple_.get();
+}
+
+void ConnectionPlatformConfig::set_apple(const AppleConnectionOptions* value_arg) {
+  apple_ = value_arg ? std::make_unique<AppleConnectionOptions>(*value_arg) : nullptr;
+}
+
+void ConnectionPlatformConfig::set_apple(const AppleConnectionOptions& value_arg) {
+  apple_ = std::make_unique<AppleConnectionOptions>(value_arg);
+}
+
+
+EncodableList ConnectionPlatformConfig::ToEncodableList() const {
+  EncodableList list;
+  list.reserve(1);
+  list.push_back(apple_ ? CustomEncodableValue(*apple_) : EncodableValue());
+  return list;
+}
+
+ConnectionPlatformConfig ConnectionPlatformConfig::FromEncodableList(const EncodableList& list) {
+  ConnectionPlatformConfig decoded;
+  auto& encodable_apple = list[0];
+  if (!encodable_apple.IsNull()) {
+    decoded.set_apple(std::any_cast<const AppleConnectionOptions&>(std::get<CustomEncodableValue>(encodable_apple)));
+  }
+  return decoded;
+}
+
+bool ConnectionPlatformConfig::operator==(const ConnectionPlatformConfig& other) const {
+  return PigeonInternalDeepEquals(apple_, other.apple_);
+}
+
+bool ConnectionPlatformConfig::operator!=(const ConnectionPlatformConfig& other) const {
+  return !(*this == other);
+}
+
+size_t ConnectionPlatformConfig::Hash() const {
+  size_t result = 1;
+  result = result * 31 + PigeonInternalDeepHash(apple_);
+  return result;
+}
+
+size_t PigeonInternalDeepHash(const ConnectionPlatformConfig& v) {
+  return v.Hash();
+}
+
 // PeripheralAndroidOptions
 
 PeripheralAndroidOptions::PeripheralAndroidOptions() {}
@@ -1908,24 +2067,30 @@ EncodableValue PigeonInternalCodecSerializer::ReadValueOfType(
         return CustomEncodableValue(UniversalManufacturerData::FromEncodableList(std::get<EncodableList>(ReadValue(stream))));
       }
     case 154: {
-        return CustomEncodableValue(PeripheralAndroidOptions::FromEncodableList(std::get<EncodableList>(ReadValue(stream))));
+        return CustomEncodableValue(AppleConnectionOptions::FromEncodableList(std::get<EncodableList>(ReadValue(stream))));
       }
     case 155: {
-        return CustomEncodableValue(PeripheralPlatformConfig::FromEncodableList(std::get<EncodableList>(ReadValue(stream))));
+        return CustomEncodableValue(ConnectionPlatformConfig::FromEncodableList(std::get<EncodableList>(ReadValue(stream))));
       }
     case 156: {
-        return CustomEncodableValue(PeripheralService::FromEncodableList(std::get<EncodableList>(ReadValue(stream))));
+        return CustomEncodableValue(PeripheralAndroidOptions::FromEncodableList(std::get<EncodableList>(ReadValue(stream))));
       }
     case 157: {
-        return CustomEncodableValue(PeripheralCharacteristic::FromEncodableList(std::get<EncodableList>(ReadValue(stream))));
+        return CustomEncodableValue(PeripheralPlatformConfig::FromEncodableList(std::get<EncodableList>(ReadValue(stream))));
       }
     case 158: {
-        return CustomEncodableValue(PeripheralDescriptor::FromEncodableList(std::get<EncodableList>(ReadValue(stream))));
+        return CustomEncodableValue(PeripheralService::FromEncodableList(std::get<EncodableList>(ReadValue(stream))));
       }
     case 159: {
-        return CustomEncodableValue(PeripheralReadRequestResult::FromEncodableList(std::get<EncodableList>(ReadValue(stream))));
+        return CustomEncodableValue(PeripheralCharacteristic::FromEncodableList(std::get<EncodableList>(ReadValue(stream))));
       }
     case 160: {
+        return CustomEncodableValue(PeripheralDescriptor::FromEncodableList(std::get<EncodableList>(ReadValue(stream))));
+      }
+    case 161: {
+        return CustomEncodableValue(PeripheralReadRequestResult::FromEncodableList(std::get<EncodableList>(ReadValue(stream))));
+      }
+    case 162: {
         return CustomEncodableValue(PeripheralWriteRequestResult::FromEncodableList(std::get<EncodableList>(ReadValue(stream))));
       }
     default:
@@ -2062,38 +2227,48 @@ void PigeonInternalCodecSerializer::WriteValue(
       WriteValue(EncodableValue(std::any_cast<UniversalManufacturerData>(*custom_value).ToEncodableList()), stream);
       return;
     }
-    if (custom_value->type() == typeid(PeripheralAndroidOptions)) {
+    if (custom_value->type() == typeid(AppleConnectionOptions)) {
       stream->WriteByte(154);
+      WriteValue(EncodableValue(std::any_cast<AppleConnectionOptions>(*custom_value).ToEncodableList()), stream);
+      return;
+    }
+    if (custom_value->type() == typeid(ConnectionPlatformConfig)) {
+      stream->WriteByte(155);
+      WriteValue(EncodableValue(std::any_cast<ConnectionPlatformConfig>(*custom_value).ToEncodableList()), stream);
+      return;
+    }
+    if (custom_value->type() == typeid(PeripheralAndroidOptions)) {
+      stream->WriteByte(156);
       WriteValue(EncodableValue(std::any_cast<PeripheralAndroidOptions>(*custom_value).ToEncodableList()), stream);
       return;
     }
     if (custom_value->type() == typeid(PeripheralPlatformConfig)) {
-      stream->WriteByte(155);
+      stream->WriteByte(157);
       WriteValue(EncodableValue(std::any_cast<PeripheralPlatformConfig>(*custom_value).ToEncodableList()), stream);
       return;
     }
     if (custom_value->type() == typeid(PeripheralService)) {
-      stream->WriteByte(156);
+      stream->WriteByte(158);
       WriteValue(EncodableValue(std::any_cast<PeripheralService>(*custom_value).ToEncodableList()), stream);
       return;
     }
     if (custom_value->type() == typeid(PeripheralCharacteristic)) {
-      stream->WriteByte(157);
+      stream->WriteByte(159);
       WriteValue(EncodableValue(std::any_cast<PeripheralCharacteristic>(*custom_value).ToEncodableList()), stream);
       return;
     }
     if (custom_value->type() == typeid(PeripheralDescriptor)) {
-      stream->WriteByte(158);
+      stream->WriteByte(160);
       WriteValue(EncodableValue(std::any_cast<PeripheralDescriptor>(*custom_value).ToEncodableList()), stream);
       return;
     }
     if (custom_value->type() == typeid(PeripheralReadRequestResult)) {
-      stream->WriteByte(159);
+      stream->WriteByte(161);
       WriteValue(EncodableValue(std::any_cast<PeripheralReadRequestResult>(*custom_value).ToEncodableList()), stream);
       return;
     }
     if (custom_value->type() == typeid(PeripheralWriteRequestResult)) {
-      stream->WriteByte(160);
+      stream->WriteByte(162);
       WriteValue(EncodableValue(std::any_cast<PeripheralWriteRequestResult>(*custom_value).ToEncodableList()), stream);
       return;
     }
@@ -2323,7 +2498,9 @@ void UniversalBlePlatformChannel::SetUp(
           const auto& device_id_arg = std::get<std::string>(encodable_device_id_arg);
           const auto& encodable_auto_connect_arg = args.at(1);
           const auto* auto_connect_arg = std::get_if<bool>(&encodable_auto_connect_arg);
-          std::optional<FlutterError> output = api->Connect(device_id_arg, auto_connect_arg);
+          const auto& encodable_platform_config_arg = args.at(2);
+          const auto* platform_config_arg = encodable_platform_config_arg.IsNull() ? nullptr : &(std::any_cast<const ConnectionPlatformConfig&>(std::get<CustomEncodableValue>(encodable_platform_config_arg)));
+          std::optional<FlutterError> output = api->Connect(device_id_arg, auto_connect_arg, platform_config_arg);
           if (output.has_value()) {
             reply(WrapError(output.value()));
             return;

@@ -7,6 +7,7 @@ abstract class UniversalBlePlatformMock extends UniversalBlePlatform {
     String deviceId, {
     bool autoConnect = false,
     Duration? connectionTimeout,
+    ConnectionPlatformConfig? platformConfig,
   }) {
     throw UnimplementedError();
   }

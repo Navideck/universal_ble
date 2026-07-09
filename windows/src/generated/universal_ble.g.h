@@ -722,6 +722,105 @@ class UniversalManufacturerData {
 };
 
 
+// Apple options for `connect`.
+//
+// Each flag maps to a `CBConnectPeripheralOptionNotifyOn*Key` connect option.
+// When `true`, the system displays an alert for the corresponding event if
+// the app is suspended while it occurs, relaunching the app into the
+// background to handle it. This keeps a backgrounded central responsive —
+// e.g. while reconnecting to a previously paired peripheral — without the
+// user having to foreground the app. Requires the `bluetooth-central`
+// background mode on iOS.
+//
+// All flags default to `false` (no alerts, background events are not
+// delivered while suspended).
+//
+// Generated class from Pigeon that represents data sent in messages.
+class AppleConnectionOptions {
+ public:
+  // Constructs an object setting all non-nullable fields.
+  AppleConnectionOptions();
+
+  // Constructs an object setting all fields.
+  explicit AppleConnectionOptions(
+    const bool* notify_on_connection,
+    const bool* notify_on_disconnection,
+    const bool* notify_on_notification);
+
+  // `CBConnectPeripheralOptionNotifyOnConnectionKey`:
+  // notify when a connection to the device succeeds while the app is suspended.
+  const bool* notify_on_connection() const;
+  void set_notify_on_connection(const bool* value_arg);
+  void set_notify_on_connection(bool value_arg);
+
+  // `CBConnectPeripheralOptionNotifyOnDisconnectionKey`:
+  // notify when the peripheral disconnects while the app is suspended.
+  const bool* notify_on_disconnection() const;
+  void set_notify_on_disconnection(const bool* value_arg);
+  void set_notify_on_disconnection(bool value_arg);
+
+  // `CBConnectPeripheralOptionNotifyOnNotificationKey`:
+  // notify when a characteristic notification arrives while the app is
+  // suspended. Fires per notification.
+  const bool* notify_on_notification() const;
+  void set_notify_on_notification(const bool* value_arg);
+  void set_notify_on_notification(bool value_arg);
+
+  bool operator==(const AppleConnectionOptions& other) const;
+  bool operator!=(const AppleConnectionOptions& other) const;
+  /// Returns a hash code value for the object. This method is supported for the benefit of hash tables.
+  size_t Hash() const;
+ private:
+  static AppleConnectionOptions FromEncodableList(const ::flutter::EncodableList& list);
+  ::flutter::EncodableList ToEncodableList() const;
+  friend class ConnectionPlatformConfig;
+  friend class UniversalBlePlatformChannel;
+  friend class UniversalBleCallbackChannel;
+  friend class UniversalBlePeripheralChannel;
+  friend class UniversalBleAndroidChannel;
+  friend class UniversalBlePeripheralCallback;
+  friend class PigeonInternalCodecSerializer;
+  std::optional<bool> notify_on_connection_;
+  std::optional<bool> notify_on_disconnection_;
+  std::optional<bool> notify_on_notification_;
+};
+
+
+// Generated class from Pigeon that represents data sent in messages.
+class ConnectionPlatformConfig {
+ public:
+  // Constructs an object setting all non-nullable fields.
+  ConnectionPlatformConfig();
+
+  // Constructs an object setting all fields.
+  explicit ConnectionPlatformConfig(const AppleConnectionOptions* apple);
+
+  ~ConnectionPlatformConfig() = default;
+  ConnectionPlatformConfig(const ConnectionPlatformConfig& other);
+  ConnectionPlatformConfig& operator=(const ConnectionPlatformConfig& other);
+  ConnectionPlatformConfig(ConnectionPlatformConfig&& other) = default;
+  ConnectionPlatformConfig& operator=(ConnectionPlatformConfig&& other) noexcept = default;
+  const AppleConnectionOptions* apple() const;
+  void set_apple(const AppleConnectionOptions* value_arg);
+  void set_apple(const AppleConnectionOptions& value_arg);
+
+  bool operator==(const ConnectionPlatformConfig& other) const;
+  bool operator!=(const ConnectionPlatformConfig& other) const;
+  /// Returns a hash code value for the object. This method is supported for the benefit of hash tables.
+  size_t Hash() const;
+ private:
+  static ConnectionPlatformConfig FromEncodableList(const ::flutter::EncodableList& list);
+  ::flutter::EncodableList ToEncodableList() const;
+  friend class UniversalBlePlatformChannel;
+  friend class UniversalBleCallbackChannel;
+  friend class UniversalBlePeripheralChannel;
+  friend class UniversalBleAndroidChannel;
+  friend class UniversalBlePeripheralCallback;
+  friend class PigeonInternalCodecSerializer;
+  std::unique_ptr<AppleConnectionOptions> apple_;
+};
+
+
 // Generated class from Pigeon that represents data sent in messages.
 class PeripheralAndroidOptions {
  public:
@@ -1063,7 +1162,8 @@ class UniversalBlePlatformChannel {
   virtual ErrorOr<bool> IsScanning() = 0;
   virtual std::optional<FlutterError> Connect(
     const std::string& device_id,
-    const bool* auto_connect) = 0;
+    const bool* auto_connect,
+    const ConnectionPlatformConfig* platform_config) = 0;
   virtual std::optional<FlutterError> Disconnect(const std::string& device_id) = 0;
   virtual void SetNotifiable(
     const std::string& device_id,
