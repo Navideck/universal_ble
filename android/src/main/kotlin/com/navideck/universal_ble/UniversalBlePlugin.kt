@@ -724,8 +724,12 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
                 callback
             )
 
-            // Wait for the result
-            writeResultFutureList.add(writeFuture)
+            // Wait for the result. The list is mutated both here (main thread)
+            // and in onCharacteristicWrite / cleanUpConnection (Bluetooth
+            // binder threads), so every access must hold the lock.
+            synchronized(writeResultFutureList) {
+                writeResultFutureList.add(writeFuture)
+            }
 
             val result = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                 gatt.writeCharacteristic(gattCharacteristic, value, writeType)
@@ -739,7 +743,9 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
             }
 
             if (result != BluetoothGatt.GATT_SUCCESS) {
-                writeResultFutureList.remove(writeFuture)
+                synchronized(writeResultFutureList) {
+                    writeResultFutureList.remove(writeFuture)
+                }
                 callback(
                     Result.failure(
                         createFlutterError(
@@ -760,30 +766,44 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
         characteristic: BluetoothGattCharacteristic,
         status: Int,
     ) {
-        writeResultFutureList.removeAll {
-            if (it.deviceId == gatt?.device?.address &&
-                it.characteristicId == characteristic.uuid.toString() &&
-                it.serviceId == characteristic.service.uuid.toString()
-            ) {
-                if (status == BluetoothGatt.GATT_SUCCESS) {
-                    it.result(Result.success(Unit))
-                } else {
-                    UniversalBleLogger.logError(
-                        "WRITE_FAILED <- ${gatt?.device?.address} ${characteristic.uuid} status=$status"
-                    )
-                    it.result(
-                        Result.failure(
-                            createFlutterError(
-                                gattStatusToUniversalBleErrorCode(status),
-                                "Failed to write",
-                                status.toString()
+        // Runs on a binder thread: snapshot and remove matches under the lock,
+        // then complete each future on the main thread (platform-channel
+        // replies must be sent there). Completing outside the removal loop,
+        // with each completion individually contained, means one bad callback
+        // can neither corrupt the list nor block later completions.
+        val matches: List<WriteResultFuture>
+        synchronized(writeResultFutureList) {
+            matches = writeResultFutureList.filter {
+                it.deviceId == gatt?.device?.address &&
+                    it.characteristicId == characteristic.uuid.toString() &&
+                    it.serviceId == characteristic.service.uuid.toString()
+            }
+            writeResultFutureList.removeAll(matches)
+        }
+        if (status != BluetoothGatt.GATT_SUCCESS) {
+            UniversalBleLogger.logError(
+                "WRITE_FAILED <- ${gatt?.device?.address} ${characteristic.uuid} status=$status"
+            )
+        }
+        for (future in matches) {
+            mainThreadHandler?.post {
+                try {
+                    if (status == BluetoothGatt.GATT_SUCCESS) {
+                        future.result(Result.success(Unit))
+                    } else {
+                        future.result(
+                            Result.failure(
+                                createFlutterError(
+                                    gattStatusToUniversalBleErrorCode(status),
+                                    "Failed to write",
+                                    status.toString()
+                                )
                             )
                         )
-                    )
+                    }
+                } catch (e: Exception) {
+                    UniversalBleLogger.logError("Write completion delivery failed: $e")
                 }
-                true
-            } else {
-                false
             }
         }
     }
@@ -1104,12 +1124,18 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
                 false
             }
         }
-        writeResultFutureList.removeAll {
-            if (it.deviceId == deviceId) {
-                it.result(Result.failure(deviceDisconnectedError))
-                true
-            } else {
-                false
+        val pendingWrites: List<WriteResultFuture>
+        synchronized(writeResultFutureList) {
+            pendingWrites = writeResultFutureList.filter { it.deviceId == deviceId }
+            writeResultFutureList.removeAll(pendingWrites)
+        }
+        for (future in pendingWrites) {
+            mainThreadHandler?.post {
+                try {
+                    future.result(Result.failure(deviceDisconnectedError))
+                } catch (e: Exception) {
+                    UniversalBleLogger.logError("Write completion delivery failed: $e")
+                }
             }
         }
         subscriptionResultFutureList.removeAll {
