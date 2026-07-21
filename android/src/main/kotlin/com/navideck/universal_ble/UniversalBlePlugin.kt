@@ -42,6 +42,12 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
     private val advertisePermissionRequestCode = 2342616
     private var permissionHandler: PermissionHandler? = null
     private var callbackChannel: UniversalBleCallbackChannel? = null
+
+    // Read on Bluetooth binder threads (from GATT callbacks) but assigned on the
+    // main thread in onAttachedToEngine/onDetachedFromEngine; @Volatile makes
+    // those writes visible so a binder thread never sees a stale null and drops
+    // a completion.
+    @Volatile
     private var mainThreadHandler: Handler? = null
     private lateinit var context: Context
     private var activity: Activity? = null
@@ -776,7 +782,7 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
             matches = writeResultFutureList.filter {
                 it.deviceId == gatt?.device?.address &&
                     it.characteristicId == characteristic.uuid.toString() &&
-                    it.serviceId == characteristic.service.uuid.toString()
+                    it.serviceId == characteristic.service?.uuid?.toString()
             }
             writeResultFutureList.removeAll(matches)
         }
