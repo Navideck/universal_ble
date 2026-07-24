@@ -45,6 +45,9 @@ void main() {
 
       final set = {a};
       expect(set.contains(b), isTrue);
+
+      final map = {a: true};
+      expect(map.containsKey(b), isTrue);
     });
   });
 }
