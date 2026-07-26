@@ -767,6 +767,16 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
         }
     }
 
+    // Deliver on the main looper. Platform-channel replies must be sent there,
+    // and because matching futures are removed from their list before delivery,
+    // a completion must never be dropped just because the cached handler was
+    // cleared (a GATT callback racing onDetachedFromEngine) — that would leak
+    // the pending Dart await. Fall back to a fresh main-looper handler so the
+    // completion is always attempted.
+    private fun postToMainLooper(action: () -> Unit) {
+        (mainThreadHandler ?: Handler(Looper.getMainLooper())).post(action)
+    }
+
     override fun onCharacteristicWrite(
         gatt: BluetoothGatt?,
         characteristic: BluetoothGattCharacteristic,
@@ -792,7 +802,7 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
             )
         }
         for (future in matches) {
-            mainThreadHandler?.post {
+            postToMainLooper {
                 try {
                     if (status == BluetoothGatt.GATT_SUCCESS) {
                         future.result(Result.success(Unit))
@@ -1136,7 +1146,7 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
             writeResultFutureList.removeAll(pendingWrites)
         }
         for (future in pendingWrites) {
-            mainThreadHandler?.post {
+            postToMainLooper {
                 try {
                     future.result(Result.failure(deviceDisconnectedError))
                 } catch (e: Exception) {
