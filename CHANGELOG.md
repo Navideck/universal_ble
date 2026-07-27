@@ -1,3 +1,6 @@
+## Unreleased (next major)
+* **BREAKING**: device IDs are now emitted in lower-case on every platform (scan results, connection/value/pairing/connection-parameter callbacks and streams). Previously each platform reported its native case — Android upper-cased MACs, Windows/WinRT lower-cased them. IDs are now canonicalised to lower-case throughout the Dart layer; the native side converts back to the case it requires at its boundary (Android's `getRemoteDevice` needs upper-case). Callers that stored or compared an emitted ID by exact case (e.g. an Android upper-case MAC) must now lower-case it, or compare case-insensitively. Follow-up to the case-insensitive matching in 2.1.1.
+
 ## 2.1.1
 * Android: Fix BluetoothDevice null-safety compile error under Kotlin 2.x
 * Android: Make Android write-completion delivery thread-safe

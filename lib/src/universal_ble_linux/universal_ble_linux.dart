@@ -491,6 +491,9 @@ class UniversalBleLinux extends UniversalBlePlatform {
 
   /// Get device by id from cache or from client
   BlueZDevice? _getDeviceById(String deviceId) {
+    // Ids are lower-case in the Dart layer; BlueZ addresses are upper-case, so canonicalise the lookup here
+    // (every device resolution funnels through this). Emitted ids + cache keys keep the lower-case form.
+    deviceId = deviceId.toUpperCase();
     return _devices[deviceId] ??
         _client.devices.cast<BlueZDevice?>().firstWhere(
           (device) => device?.address == deviceId,

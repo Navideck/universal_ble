@@ -3,6 +3,11 @@ import 'package:universal_ble/src/universal_ble.g.dart';
 import 'package:universal_ble/src/utils/universal_ble_filter_util.dart';
 import 'package:universal_ble/universal_ble.dart';
 
+// Device ids are lower-case throughout the Dart layer (see UniversalBlePlatform), but the native side wants
+// the upper-case form — Android's BluetoothAdapter.getRemoteDevice REQUIRES upper case, and Apple's peripheral
+// cache / Windows' address parse / Linux's BlueZ address are upper-case too. Convert here, at the boundary.
+String _nativeId(String deviceId) => deviceId.toUpperCase();
+
 class UniversalBlePigeonChannel extends UniversalBlePlatform
     implements UniversalBleCallbackChannel {
   static UniversalBlePigeonChannel? _instance;
@@ -61,7 +66,7 @@ class UniversalBlePigeonChannel extends UniversalBlePlatform
 
   @override
   Future<BleConnectionState> getConnectionState(String deviceId) =>
-      _executeWithErrorHandling(() => _channel.getConnectionState(deviceId));
+      _executeWithErrorHandling(() => _channel.getConnectionState(_nativeId(deviceId)));
 
   @override
   Future<void> connect(
@@ -71,7 +76,7 @@ class UniversalBlePigeonChannel extends UniversalBlePlatform
     ConnectionPlatformConfig? platformConfig,
   }) => _executeWithErrorHandling(
     () => _channel.connect(
-      deviceId,
+      _nativeId(deviceId),
       autoConnect: autoConnect,
       platformConfig: platformConfig,
     ),
@@ -79,7 +84,7 @@ class UniversalBlePigeonChannel extends UniversalBlePlatform
 
   @override
   Future<void> disconnect(String deviceId) =>
-      _executeWithErrorHandling(() => _channel.disconnect(deviceId));
+      _executeWithErrorHandling(() => _channel.disconnect(_nativeId(deviceId)));
 
   @override
   Future<List<BleService>> discoverServices(
@@ -88,12 +93,12 @@ class UniversalBlePigeonChannel extends UniversalBlePlatform
   ) async {
     List<UniversalBleService?> universalBleServices =
         await _executeWithErrorHandling(
-          () => _channel.discoverServices(deviceId, withDescriptors),
+          () => _channel.discoverServices(_nativeId(deviceId), withDescriptors),
         );
     return List<BleService>.from(
       universalBleServices
           .where((e) => e != null)
-          .map((e) => e!.toBleService(deviceId))
+          .map((e) => e!.toBleService(deviceId.toLowerCase())) // emitted id stays lower-case
           .toList(),
     );
   }
@@ -107,7 +112,7 @@ class UniversalBlePigeonChannel extends UniversalBlePlatform
   ) {
     return _executeWithErrorHandling(
       () => _channel.setNotifiable(
-        deviceId,
+        _nativeId(deviceId),
         service,
         characteristic,
         bleInputProperty,
@@ -123,7 +128,7 @@ class UniversalBlePigeonChannel extends UniversalBlePlatform
     Duration? timeout,
   }) {
     return _executeWithErrorHandling(
-      () => _channel.readValue(deviceId, service, characteristic),
+      () => _channel.readValue(_nativeId(deviceId), service, characteristic),
     );
   }
 
@@ -137,7 +142,7 @@ class UniversalBlePigeonChannel extends UniversalBlePlatform
   ) {
     return _executeWithErrorHandling(
       () => _channel.writeValue(
-        deviceId,
+        _nativeId(deviceId),
         service,
         characteristic,
         value,
@@ -149,32 +154,32 @@ class UniversalBlePigeonChannel extends UniversalBlePlatform
   @override
   Future<int> requestMtu(String deviceId, int expectedMtu) =>
       _executeWithErrorHandling(
-        () => _channel.requestMtu(deviceId, expectedMtu),
+        () => _channel.requestMtu(_nativeId(deviceId), expectedMtu),
       );
 
   @override
   Future<int> readRssi(String deviceId) =>
-      _executeWithErrorHandling(() => _channel.readRssi(deviceId));
+      _executeWithErrorHandling(() => _channel.readRssi(_nativeId(deviceId)));
 
   @override
   Future<void> requestConnectionPriority(
     String deviceId,
     BleConnectionPriority priority,
   ) => _executeWithErrorHandling(
-    () => _channel.requestConnectionPriority(deviceId, priority),
+    () => _channel.requestConnectionPriority(_nativeId(deviceId), priority),
   );
 
   @override
   Future<bool> isPaired(String deviceId) =>
-      _executeWithErrorHandling(() => _channel.isPaired(deviceId));
+      _executeWithErrorHandling(() => _channel.isPaired(_nativeId(deviceId)));
 
   @override
   Future<bool> pair(String deviceId) =>
-      _executeWithErrorHandling(() => _channel.pair(deviceId));
+      _executeWithErrorHandling(() => _channel.pair(_nativeId(deviceId)));
 
   @override
   Future<void> unpair(String deviceId) =>
-      _executeWithErrorHandling(() => _channel.unPair(deviceId));
+      _executeWithErrorHandling(() => _channel.unPair(_nativeId(deviceId)));
 
   @override
   Future<bool> hasPermissions({bool withAndroidFineLocation = false}) =>

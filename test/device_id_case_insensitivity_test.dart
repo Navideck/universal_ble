@@ -92,4 +92,55 @@ void main() {
     cache.resetDeviceCache(lower); // cleared via the other case
     expect(cache.getServices(upper), isNull);
   });
+
+  // Device ids are canonicalised to lower-case on the way OUT too: every callback/stream now emits the
+  // lower-case form regardless of the case the platform reported. (Breaking, for the next major — the native
+  // side converts back to upper-case at its boundary; see `_nativeId` in the pigeon channel / Linux instance.)
+
+  test('updateConnection emits a lower-case id even when the platform reports upper-case', () {
+    final platform = _MockPlatform();
+    String? emitted;
+    platform.onConnectionChange = (id, isConnected, error) => emitted = id;
+    platform.updateConnection(upper, true);
+    expect(emitted, lower);
+  });
+
+  test('updateCharacteristicValue emits a lower-case id', () {
+    final platform = _MockPlatform();
+    String? emitted;
+    platform.onValueChange =
+        (id, characteristicId, value, timestamp) => emitted = id;
+    platform.updateCharacteristicValue(
+        upper, charId, Uint8List.fromList([1]), null);
+    expect(emitted, lower);
+  });
+
+  test('updatePairingState emits a lower-case id', () {
+    final platform = _MockPlatform();
+    String? emitted;
+    platform.onPairingStateChange = (id, isPaired) => emitted = id;
+    platform.updatePairingState(upper, true);
+    expect(emitted, lower);
+  });
+
+  test('updateConnectionParameters emits a lower-case id', () {
+    final platform = _MockPlatform();
+    String? emitted;
+    platform.onConnectionParametersChange = (u) => emitted = u.deviceId;
+    platform.updateConnectionParameters(BleConnectionParametersUpdated(
+        deviceId: upper,
+        interval: 12,
+        latency: 0,
+        supervisionTimeout: 500,
+        status: 0));
+    expect(emitted, lower);
+  });
+
+  test('updateScanResult emits a lower-case id', () {
+    final platform = _MockPlatform();
+    String? emitted;
+    platform.onScanResultUpdate = (d) => emitted = d.deviceId;
+    platform.updateScanResult(BleDevice(deviceId: upper, name: null));
+    expect(emitted, lower);
+  });
 }
