@@ -2,6 +2,7 @@
 * Android: Fix BluetoothDevice null-safety compile error under Kotlin 2.x
 * Android: Make Android write-completion delivery thread-safe
 * Fix `BleCharacteristic` equality and `hashCode` to compare `properties` by value
+* Handle device IDs case-insensitively
 
 ## 2.1.0
 * Add optional `queueId` parameter to all APIs
