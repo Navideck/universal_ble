@@ -675,6 +675,7 @@ class UniversalBle {
     Duration? timeout,
   }) {
     timeout ??= const Duration(seconds: 60);
+    final target = deviceId.toLowerCase();
     StreamSubscription? connectionSubscription;
     Completer<bool> completer = Completer();
 
@@ -692,7 +693,7 @@ class UniversalBle {
     connectionSubscription = _platform
         .bleConnectionUpdateStreamController
         .stream
-        .where((e) => e.deviceId == deviceId)
+        .where((e) => e.deviceId == deviceId || e.deviceId.toLowerCase() == target)
         .listen(
           (e) {
             cancelSubscription();
