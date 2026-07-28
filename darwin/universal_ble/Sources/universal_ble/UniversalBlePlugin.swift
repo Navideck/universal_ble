@@ -95,7 +95,7 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
   private var activeServiceDiscoveries: [String: UniversalBleAsyncServiceDiscovery] = [:]
   private var characteristicReadFutures = [CharacteristicReadFuture]()
   private var characteristicWriteFutures = [CharacteristicWriteFuture]()
-  private var characteristicWriteWithoutResponseFutures = [CharacteristicWriteFuture]()
+  private var pendingWriteWithoutResponse = [PendingWriteWithoutResponse]()
   private var characteristicNotifyFutures = [CharacteristicNotifyFuture]()
   private var discoverServicesFutures = [DiscoverServicesFuture]()
   private var rssiReadFutures = [RssiReadFuture]()
@@ -305,6 +305,15 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
       }
       return false
     }
+    pendingWriteWithoutResponse.removeAll { pending in
+      if pending.deviceId == deviceId {
+        pending.result(
+          Result.failure(createFlutterError(code: .deviceDisconnected, message: "Device Disconnected"))
+        )
+        return true
+      }
+      return false
+    }
     characteristicNotifyFutures.removeAll { future in
       if future.deviceId == deviceId {
         future.result(
@@ -437,20 +446,39 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
         completion(Result.failure(createFlutterError(code: .characteristicDoesNotSupportWrite, message: "Characteristic does not support write withResponse")))
         return
       }
-    } else if type == CBCharacteristicWriteType.withoutResponse {
-      if !gattCharacteristic.properties.contains(.writeWithoutResponse) {
-        completion(Result.failure(createFlutterError(code: .characteristicDoesNotSupportWriteWithoutResponse, message: "Characteristic does not support write withoutResponse")))
-        return
-      }
+      peripheral.writeValue(value.data, for: gattCharacteristic, type: type)
+      characteristicWriteFutures.append(
+        CharacteristicWriteFuture(
+          deviceId: deviceId,
+          characteristicId: gattCharacteristic.uuid.uuidStr,
+          serviceId: gattCharacteristic.service?.uuid.uuidStr,
+          result: completion
+        )
+      )
+      return
     }
-    peripheral.writeValue(value.data, for: gattCharacteristic, type: type)
 
-    // Wait for future response
-    let future = CharacteristicWriteFuture(deviceId: deviceId, characteristicId: gattCharacteristic.uuid.uuidStr, serviceId: gattCharacteristic.service?.uuid.uuidStr, result: completion)
-    if type == CBCharacteristicWriteType.withResponse {
-      characteristicWriteFutures.append(future)
+    if !gattCharacteristic.properties.contains(.writeWithoutResponse) {
+      completion(Result.failure(createFlutterError(code: .characteristicDoesNotSupportWriteWithoutResponse, message: "Characteristic does not support write withoutResponse")))
+      return
+    }
+
+    // Complete when CoreBluetooth accepts the write into its buffer — same
+    // "local stack accepted" semantics as Android/Windows/Web/Linux.
+    // `peripheralIsReady` only fires after a failed without-response write,
+    // so parking every write on that callback hangs the Dart command queue.
+    if peripheral.canSendWriteWithoutResponse {
+      peripheral.writeValue(value.data, for: gattCharacteristic, type: .withoutResponse)
+      completion(Result.success(()))
     } else {
-      characteristicWriteWithoutResponseFutures.append(future)
+      pendingWriteWithoutResponse.append(
+        PendingWriteWithoutResponse(
+          deviceId: deviceId,
+          characteristic: gattCharacteristic,
+          data: value.data,
+          result: completion
+        )
+      )
     }
   }
 
@@ -652,12 +680,14 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
   }
 
   public func peripheralIsReady(toSendWriteWithoutResponse peripheral: CBPeripheral) {
-    characteristicWriteWithoutResponseFutures.removeAll { future in
-      if future.deviceId == peripheral.uuid.uuidString {
-        future.result(Result.success({}()))
-        return true
+    let deviceId = peripheral.uuid.uuidString
+    while peripheral.canSendWriteWithoutResponse {
+      guard let index = pendingWriteWithoutResponse.firstIndex(where: { $0.deviceId == deviceId }) else {
+        return
       }
-      return false
+      let pending = pendingWriteWithoutResponse.remove(at: index)
+      peripheral.writeValue(pending.data, for: pending.characteristic, type: .withoutResponse)
+      pending.result(Result.success(()))
     }
   }
 
