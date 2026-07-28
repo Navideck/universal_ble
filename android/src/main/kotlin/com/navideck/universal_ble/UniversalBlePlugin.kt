@@ -782,26 +782,29 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
         characteristic: BluetoothGattCharacteristic,
         status: Int,
     ) {
-        // Runs on a binder thread: snapshot and remove matches under the lock,
-        // then complete each future on the main thread (platform-channel
-        // replies must be sent there). Completing outside the removal loop,
-        // with each completion individually contained, means one bad callback
-        // can neither corrupt the list nor block later completions.
-        val matches: List<WriteResultFuture>
+        // Runs on a binder thread: remove the matching future under the lock,
+        // then complete it on the main thread (platform-channel replies must
+        // be sent there), individually contained so a bad callback can neither
+        // corrupt the list nor block later completions. Android serializes
+        // GATT operations per device, so this callback always belongs to the
+        // OLDEST pending write on this characteristic — completing every match
+        // would acknowledge later writes that are still in flight (or not yet
+        // accepted natively) with this operation's status.
+        val future: WriteResultFuture?
         synchronized(writeResultFutureList) {
-            matches = writeResultFutureList.filter {
+            future = writeResultFutureList.firstOrNull {
                 it.deviceId == gatt?.device?.address &&
                     it.characteristicId == characteristic.uuid.toString() &&
                     it.serviceId == characteristic.service?.uuid?.toString()
             }
-            writeResultFutureList.removeAll(matches)
+            future?.let { writeResultFutureList.remove(it) }
         }
         if (status != BluetoothGatt.GATT_SUCCESS) {
             UniversalBleLogger.logError(
                 "WRITE_FAILED <- ${gatt?.device?.address} ${characteristic.uuid} status=$status"
             )
         }
-        for (future in matches) {
+        if (future != null) {
             postToMainLooper {
                 try {
                     if (status == BluetoothGatt.GATT_SUCCESS) {
