@@ -3,6 +3,7 @@
 * Android: Make Android write-completion delivery thread-safe
 * Fix `BleCharacteristic` equality and `hashCode` to compare `properties` by value
 * Handle device IDs case-insensitively
+* iOS/macOS: Fix `write` without response hanging / degrading under `QueueType.global` and `perDevice` by completing when CoreBluetooth accepts the write (`canSendWriteWithoutResponse`), instead of waiting for `peripheralIsReady` after every write (#271)
 
 ## 2.1.0
 * Add optional `queueId` parameter to all APIs
