@@ -1189,9 +1189,23 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
     }
 
     private fun cleanConnection(gatt: BluetoothGatt) {
+        val deviceId = gatt.device.address
         gatt.removeCache()
         gatt.disconnect()
-        cleanUpConnection(gatt.device.address)
+        // Release the GATT client interface. disconnect() tears down the link but never frees the
+        // client that connectGatt() registered - only close() does. When the connection was never
+        // established (still CONNECTING when the caller gives up, e.g. on a client-side connect
+        // timeout) Android delivers no STATE_DISCONNECTED callback at all, so the close() in
+        // onConnectionStateChange never runs and the client leaks for the lifetime of the process.
+        // Once the per-app pool is exhausted, registerClient fails and every subsequent
+        // connectGatt returns status 257 (GATT_FAILURE) for every device until the app restarts.
+        gatt.close()
+        cleanUpConnection(deviceId)
+        // close() suppresses the STATE_DISCONNECTED callback that would otherwise report this,
+        // so surface the disconnect here - mirrors the gatt == null branch of disconnect().
+        mainThreadHandler?.post {
+            callbackChannel?.onConnectionChanged(deviceId, false, null) {}
+        }
     }
 
     private fun onBondStateUpdate(deviceId: String, bonded: Boolean, error: String? = null) {
