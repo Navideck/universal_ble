@@ -1,3 +1,6 @@
+## Unreleased
+* Windows: Harden BLE connection lifetime, asynchronous callbacks, and notification subscription handling
+
 ## 2.1.1
 * Android: Fix BluetoothDevice null-safety compile error under Kotlin 2.x
 * Android: Make Android write-completion delivery thread-safe
