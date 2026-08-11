@@ -507,7 +507,9 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
 
     // CoreBluetooth throws NSInternalInconsistencyException if writeValue:forDescriptor: is called on CCCD (0x2902).
     // CoreBluetooth requires using setNotifyValue:forCharacteristic: for CCCD.
-    if gattDescriptor.uuid == CBUUID(string: CBUUIDClientCharacteristicConfigurationString) || gattDescriptor.uuid.uuidStr.lowercased().contains("2902") {
+    let cccdUUID = CBUUID(string: CBUUIDClientCharacteristicConfigurationString)
+    let fullCccdUUID = CBUUID(string: "00002902-0000-1000-8000-00805f9b34fb")
+    if gattDescriptor.uuid == cccdUUID || gattDescriptor.uuid == fullCccdUUID {
       guard let gattCharacteristic = gattDescriptor.characteristic else {
         completion(Result.failure(createFlutterError(code: .characteristicNotFound, message: "Characteristic not found for descriptor")))
         return
