@@ -237,7 +237,10 @@ void main() {
             timeout: HilPeripheral.operationTimeout,
           );
           await peripheral.reconnect();
-          expect((await peripheral.readState()).protocolVersion, 1);
+          expect(
+            (await peripheral.readState()).contractRevision,
+            HilPeripheral.contractRevision,
+          );
         }
       },
       timeout: const Timeout(Duration(minutes: 5)),

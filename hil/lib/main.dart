@@ -177,7 +177,8 @@ class _HilWebRunnerPageState extends State<HilWebRunnerPage> {
           timeout: HilPeripheral.operationTimeout,
         );
         _check(
-          (await peripheral.readState()).protocolVersion == 1,
+          (await peripheral.readState()).contractRevision ==
+              HilPeripheral.contractRevision,
           'Reconnect read failed',
         );
       });
