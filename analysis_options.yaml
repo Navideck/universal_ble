@@ -1,4 +1,10 @@
 include: package:flutter_lints/flutter.yaml
 
+analyzer:
+  exclude:
+    # `hil` is a standalone Flutter application with its own package config.
+    # It is analyzed separately in CI.
+    - hil/**
+
 # Additional information about this file can be found at
 # https://dart.dev/guides/language/analysis-options
