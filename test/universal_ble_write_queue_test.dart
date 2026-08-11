@@ -1,6 +1,6 @@
 import 'dart:async';
+import 'dart:typed_data';
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:universal_ble/universal_ble.dart';
 
@@ -14,12 +14,10 @@ void main() {
 
   tearDown(() {
     UniversalBle.clearQueue();
-    debugDefaultTargetPlatformOverride = null;
   });
 
-  test('pipelines consecutive Apple writes', () async {
-    debugDefaultTargetPlatformOverride = TargetPlatform.macOS;
-    final platform = _PendingWritePlatform();
+  test('pipelines writes when supported by the platform', () async {
+    final platform = _PendingWritePlatform(supportsWritePipelining: true);
     UniversalBle.setInstance(platform);
 
     final first = _write(1);
@@ -33,8 +31,7 @@ void main() {
     await second;
   });
 
-  test('keeps Android writes strictly serialized', () async {
-    debugDefaultTargetPlatformOverride = TargetPlatform.android;
+  test('serializes writes when pipelining is unsupported', () async {
     final platform = _PendingWritePlatform();
     UniversalBle.setInstance(platform);
 
@@ -52,9 +49,8 @@ void main() {
     await second;
   });
 
-  test('does not pipeline an Apple write across a queue barrier', () async {
-    debugDefaultTargetPlatformOverride = TargetPlatform.macOS;
-    final platform = _PendingWritePlatform();
+  test('does not pipeline a write across a queue barrier', () async {
+    final platform = _PendingWritePlatform(supportsWritePipelining: true);
     UniversalBle.setInstance(platform);
 
     final read = UniversalBle.read('device', '180a', '202a');
@@ -77,6 +73,11 @@ Future<void> _write(int value) =>
     UniversalBle.write('device', '180a', '202a', Uint8List.fromList([value]));
 
 class _PendingWritePlatform extends UniversalBlePlatformMock {
+  @override
+  final bool supportsWritePipelining;
+
+  _PendingWritePlatform({this.supportsWritePipelining = false});
+
   final started = <int>[];
   final pending = <Completer<void>>[];
   final readPending = Completer<Uint8List>();
@@ -92,9 +93,6 @@ class _PendingWritePlatform extends UniversalBlePlatformMock {
     reads++;
     return readPending.future;
   }
-
-  @override
-  Future<int> readRssi(String deviceId) => throw UnimplementedError();
 
   @override
   Future<void> writeValue(

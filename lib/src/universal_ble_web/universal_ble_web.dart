@@ -22,6 +22,11 @@ class UniversalBleWeb extends UniversalBlePlatform {
   bool _isScanning = false;
 
   @override
+  bool get supportsWritePipelining =>
+      defaultTargetPlatform == TargetPlatform.iOS ||
+      defaultTargetPlatform == TargetPlatform.macOS;
+
+  @override
   Future<BleConnectionState> getConnectionState(String deviceId) async {
     BluetoothDevice? device = _getDeviceById(deviceId);
     bool connected = await device?.connected.first ?? false;

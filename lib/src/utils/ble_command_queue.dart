@@ -16,11 +16,37 @@ class BleCommandQueue {
     String? deviceId,
     Duration? timeout,
     String? queueId,
+  }) => _queueCommand(
+    command,
+    deviceId: deviceId,
+    timeout: timeout,
+    queueId: queueId,
+  );
+
+  Future<void> queueWrite(
+    Future<void> Function() command, {
+    String? deviceId,
+    Duration? timeout,
+    String? queueId,
+    bool pipelined = false,
+  }) => _queueCommand(
+    command,
+    deviceId: deviceId,
+    timeout: timeout,
+    queueId: queueId,
+    canRunConcurrently: pipelined,
+  );
+
+  Future<T> _queueCommand<T>(
+    Future<T> Function() command, {
+    String? deviceId,
+    Duration? timeout,
+    String? queueId,
     bool canRunConcurrently = false,
   }) {
     Duration? timeoutDuration = timeout ?? this.timeout;
     if (timeoutDuration == null) {
-      return queueCommandWithoutTimeout(
+      return _queueCommandWithoutTimeout(
         command,
         deviceId: deviceId,
         queueId: queueId,
@@ -45,6 +71,16 @@ class BleCommandQueue {
   }
 
   Future<T> queueCommandWithoutTimeout<T>(
+    Future<T> Function() command, {
+    String? deviceId,
+    String? queueId,
+  }) => _queueCommandWithoutTimeout(
+    command,
+    deviceId: deviceId,
+    queueId: queueId,
+  );
+
+  Future<T> _queueCommandWithoutTimeout<T>(
     Future<T> Function() command, {
     String? deviceId,
     String? queueId,

@@ -6,6 +6,9 @@ import 'package:universal_ble/src/utils/universal_logger.dart';
 import 'package:universal_ble/universal_ble.dart';
 
 abstract class UniversalBlePlatform {
+  /// Whether consecutive writes may be submitted before earlier writes finish.
+  bool get supportsWritePipelining => false;
+
   // Do not use these directly to push updates
   OnScanResult? onScanResultUpdate;
   OnConnectionChange? onConnectionChange;
