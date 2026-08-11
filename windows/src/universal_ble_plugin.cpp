@@ -1888,7 +1888,6 @@ fire_and_forget UniversalBlePlugin::SetNotifiableAsync(
     notification_operation_started = true;
 
     const auto gatt_characteristic = gatt_char.obj;
-    const auto uuid = to_uuidstr(gatt_characteristic.Uuid());
 
     // Write to the descriptor.
     GattCommunicationStatus status{};
