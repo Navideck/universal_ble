@@ -347,6 +347,17 @@ await characteristic.write([0x01, 0x02, 0x03]);
 await characteristic.write([0x01, 0x02, 0x03], withResponse: false);
 ```
 
+To Read and Write Descriptor of this characteristic
+
+```dart
+Uint8List value = await characteristic.readDescriptor('2901');
+```
+
+```dart
+await characteristic.writeDescriptor('2901', [0x01, 0x02, 0x03]);
+```
+
+
 ## Subscriptions
 
 Get `BleCharacteristic` using `bleDevice.getCharacteristic`

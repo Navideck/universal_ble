@@ -63,6 +63,45 @@ extension BleCharacteristicExtension on BleCharacteristic {
     );
   }
 
+  /// Reads the value of a descriptor of this characteristic.
+  ///
+  /// [descriptorUuid] is the UUID of the descriptor to read.
+  /// [timeout] is the timeout for the read operation.
+  /// [queueId] is the ID of the queue to use for the read operation.
+  Future<void> readDescriptor(
+    String descriptorUuid, {
+    Duration? timeout,
+    String? queueId,
+  }) => UniversalBle.readDescriptor(
+    _deviceId,
+    _serviceId,
+    uuid,
+    descriptorUuid,
+    timeout: timeout,
+    queueId: queueId,
+  );
+
+  /// Writes a value to a descriptor of this characteristic.
+  ///
+  /// [descriptorUuid] is the UUID of the descriptor to write.
+  /// [value] is the value to write.
+  /// [timeout] is the timeout for the write operation.
+  /// [queueId] is the ID of the queue to use for the write operation.
+  Future<void> writeDescriptor(
+    String descriptorUuid,
+    Uint8List value, {
+    Duration? timeout,
+    String? queueId,
+  }) => UniversalBle.writeDescriptor(
+    _deviceId,
+    _serviceId,
+    uuid,
+    descriptorUuid,
+    value,
+    timeout: timeout,
+    queueId: queueId,
+  );
+
   String get _deviceId {
     String? deviceId = metaData?.deviceId;
     if (deviceId == null) {
