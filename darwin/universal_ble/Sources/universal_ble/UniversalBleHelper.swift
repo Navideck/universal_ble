@@ -154,6 +154,14 @@ public extension CBPeripheral {
         return c
     }
 
+    func getDescriptor(_ descriptor: String, for characteristic: String, of service: String) -> CBDescriptor? {
+        let GSS_SUFFIX = "0000-1000-8000-00805f9b34fb"
+        guard let c = getCharacteristic(characteristic, of: service) else { return nil }
+        return c.descriptors?.first {
+            $0.uuid.uuidStr.lowercased() == descriptor.lowercased() || descriptor.lowercased() == "0000\($0.uuid.uuidStr)-\(GSS_SUFFIX)".lowercased()
+        }
+    }
+
     func setNotifiable(_ bleInputProperty: String, for characteristic: String, of service: String) {
         guard let characteristic = getCharacteristic(characteristic, of: service) else {
             return
@@ -227,6 +235,38 @@ class RssiReadFuture {
 
     init(deviceId: String, result: @escaping (Result<Int64, Error>) -> Void) {
         self.deviceId = deviceId
+        self.result = result
+    }
+}
+
+class DescriptorReadFuture {
+    let deviceId: String
+    let descriptorId: String
+    let characteristicId: String
+    let serviceId: String?
+    let result: (Result<FlutterStandardTypedData, Error>) -> Void
+
+    init(deviceId: String, descriptorId: String, characteristicId: String, serviceId: String?, result: @escaping (Result<FlutterStandardTypedData, Error>) -> Void) {
+        self.deviceId = deviceId
+        self.descriptorId = descriptorId
+        self.characteristicId = characteristicId
+        self.serviceId = serviceId
+        self.result = result
+    }
+}
+
+class DescriptorWriteFuture {
+    let deviceId: String
+    let descriptorId: String
+    let characteristicId: String
+    let serviceId: String?
+    let result: (Result<Void, Error>) -> Void
+
+    init(deviceId: String, descriptorId: String, characteristicId: String, serviceId: String?, result: @escaping (Result<Void, Error>) -> Void) {
+        self.deviceId = deviceId
+        self.descriptorId = descriptorId
+        self.characteristicId = characteristicId
+        self.serviceId = serviceId
         self.result = result
     }
 }

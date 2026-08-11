@@ -123,6 +123,28 @@ abstract class UniversalBlePlatformMock extends UniversalBlePlatform {
   }
 
   @override
+  Future<Uint8List> readDescriptorValue(
+    String deviceId,
+    String service,
+    String characteristic,
+    String descriptor, {
+    Duration? timeout,
+  }) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<void> writeDescriptorValue(
+    String deviceId,
+    String service,
+    String characteristic,
+    String descriptor,
+    Uint8List value,
+  ) {
+    throw UnimplementedError();
+  }
+
+  @override
   Future<bool> isScanning() {
     throw UnimplementedError();
   }

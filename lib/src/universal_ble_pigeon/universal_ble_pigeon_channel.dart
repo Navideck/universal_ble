@@ -128,6 +128,24 @@ class UniversalBlePigeonChannel extends UniversalBlePlatform
   }
 
   @override
+  Future<Uint8List> readDescriptorValue(
+    String deviceId,
+    String service,
+    String characteristic,
+    String descriptor, {
+    Duration? timeout,
+  }) {
+    return _executeWithErrorHandling(
+      () => _channel.readDescriptorValue(
+        deviceId,
+        service,
+        characteristic,
+        descriptor,
+      ),
+    );
+  }
+
+  @override
   Future<void> writeValue(
     String deviceId,
     String service,
@@ -142,6 +160,25 @@ class UniversalBlePigeonChannel extends UniversalBlePlatform
         characteristic,
         value,
         bleOutputProperty,
+      ),
+    );
+  }
+
+  @override
+  Future<void> writeDescriptorValue(
+    String deviceId,
+    String service,
+    String characteristic,
+    String descriptor,
+    Uint8List value,
+  ) {
+    return _executeWithErrorHandling(
+      () => _channel.writeDescriptorValue(
+        deviceId,
+        service,
+        characteristic,
+        descriptor,
+        value,
       ),
     );
   }

@@ -333,6 +333,29 @@ class UniversalBle {
     );
   }
 
+  /// Read a characteristic descriptor value.
+  static Future<Uint8List> readDescriptor(
+    String deviceId,
+    String service,
+    String characteristic,
+    String descriptor, {
+    Duration? timeout,
+    String? queueId,
+  }) async {
+    return await _bleCommandQueue.queueCommand(
+      () => _platform.readDescriptorValue(
+        deviceId,
+        BleUuidParser.string(service),
+        BleUuidParser.string(characteristic),
+        BleUuidParser.string(descriptor),
+        timeout: timeout ?? _bleCommandQueue.timeout,
+      ),
+      timeout: timeout,
+      deviceId: deviceId,
+      queueId: queueId,
+    );
+  }
+
   /// Write a characteristic value.
   /// To write a characteristic value without response, set [withoutResponse] to `true`.
   static Future<void> write(
@@ -353,6 +376,30 @@ class UniversalBle {
         withoutResponse
             ? BleOutputProperty.withoutResponse
             : BleOutputProperty.withResponse,
+      ),
+      timeout: timeout,
+      deviceId: deviceId,
+      queueId: queueId,
+    );
+  }
+
+  /// Write a characteristic descriptor value.
+  static Future<void> writeDescriptor(
+    String deviceId,
+    String service,
+    String characteristic,
+    String descriptor,
+    Uint8List value, {
+    Duration? timeout,
+    String? queueId,
+  }) async {
+    await _bleCommandQueue.queueCommand(
+      () => _platform.writeDescriptorValue(
+        deviceId,
+        BleUuidParser.string(service),
+        BleUuidParser.string(characteristic),
+        BleUuidParser.string(descriptor),
+        value,
       ),
       timeout: timeout,
       deviceId: deviceId,

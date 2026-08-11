@@ -256,6 +256,27 @@ class UniversalBleLinux extends UniversalBlePlatform {
     return c;
   }
 
+  BlueZGattDescriptor _getDescriptor(
+    String deviceId,
+    String service,
+    String characteristic,
+    String descriptor,
+  ) {
+    final c = _getCharacteristic(deviceId, service, characteristic);
+    final d = c.descriptors.cast<BlueZGattDescriptor?>().firstWhere(
+      (d) => BleUuidParser.compareStrings(d?.uuid.toString() ?? '', descriptor),
+      orElse: () => null,
+    );
+
+    if (d == null) {
+      throw UniversalBleException(
+        code: UniversalBleErrorCode.characteristicNotFound,
+        message: 'Unknown descriptor:$descriptor',
+      );
+    }
+    return d;
+  }
+
   @override
   Future<void> setNotifiable(
     String deviceId,
@@ -373,6 +394,59 @@ class UniversalBleLinux extends UniversalBlePlatform {
       );
       throw e.toUniversalBleException(
         defaultCode: UniversalBleErrorCode.writeFailed,
+      );
+    }
+  }
+
+  @override
+  Future<Uint8List> readDescriptorValue(
+    String deviceId,
+    String service,
+    String characteristic,
+    String descriptor, {
+    Duration? timeout,
+  }) async {
+    UniversalLogger.logDebug(
+      "READ_DESCRIPTOR -> $deviceId $service $characteristic $descriptor",
+      withTimestamp: true,
+    );
+    try {
+      final d = _getDescriptor(deviceId, service, characteristic, descriptor);
+      final data = await d.readValue();
+      return Uint8List.fromList(data);
+    } on BlueZFailedException catch (e) {
+      UniversalLogger.logError(
+        "READ_DESCRIPTOR_FAILED <- $deviceId $service $characteristic $descriptor ${e.message}",
+        withTimestamp: true,
+      );
+      throw e.toUniversalBleException(
+        defaultCode: UniversalBleErrorCode.readFailed,
+      );
+    }
+  }
+
+  @override
+  Future<void> writeDescriptorValue(
+    String deviceId,
+    String service,
+    String characteristic,
+    String descriptor,
+    Uint8List value,
+  ) async {
+    UniversalLogger.logDebug(
+      "WRITE_DESCRIPTOR -> $deviceId $service $characteristic $descriptor len=${value.length}",
+      withTimestamp: true,
+    );
+    try {
+      final d = _getDescriptor(deviceId, service, characteristic, descriptor);
+      await d.writeValue(value);
+    } on BlueZFailedException catch (e) {
+      UniversalLogger.logError(
+        "WRITE_DESCRIPTOR_FAILED <- $deviceId $service $characteristic $descriptor ${e.message}",
+        withTimestamp: true,
+      );
+      throw e.toUniversalBleException(
+        defaultCode: UniversalBleErrorCode.failed,
       );
     }
   }

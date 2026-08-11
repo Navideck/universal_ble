@@ -100,6 +100,30 @@ class MockUniversalBle extends UniversalBlePlatform {
   }
 
   @override
+  Future<Uint8List> readDescriptorValue(
+    String deviceId,
+    String service,
+    String characteristic,
+    String descriptor, {
+    Duration? timeout,
+  }) async {
+    await Future.delayed(const Duration(milliseconds: 500));
+    return _serviceValue;
+  }
+
+  @override
+  Future<void> writeDescriptorValue(
+    String deviceId,
+    String service,
+    String characteristic,
+    String descriptor,
+    Uint8List value,
+  ) async {
+    await Future.delayed(const Duration(milliseconds: 500));
+    _serviceValue = value;
+  }
+
+  @override
   Future<int> requestMtu(String deviceId, int expectedMtu) async {
     await Future.delayed(const Duration(seconds: 1));
     return 512;
