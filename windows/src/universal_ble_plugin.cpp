@@ -558,8 +558,7 @@ void UniversalBlePlugin::ReadDescriptorValue(
         GetConnectedDevice(str_to_mac_address(device_id));
     if (!bluetooth_agent) {
       result(create_flutter_error(UniversalBleErrorCode::kDeviceNotFound,
-                                  "Unknown devicesId:" + device_id));
-      return;
+                                  "Unknown deviceId:" + device_id));
     }
 
     const GattCharacteristicObject gatt_characteristic_holder =
