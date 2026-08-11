@@ -1040,7 +1040,18 @@ Example:
 
 Use clear, user-facing text that explains why Bluetooth is needed in your app.
 
-Add the `Bluetooth` capability to the macOS app from Xcode.
+#### macOS entitlements
+
+On macOS, add the following entitlement to both `macos/Runner/DebugProfile.entitlements` and `macos/Runner/Release.entitlements`:
+
+```xml
+<key>com.apple.security.device.bluetooth</key>
+<true/>
+```
+
+Alternatively, enable the **Bluetooth** capability in Xcode under **Signing & Capabilities**.
+
+If this entitlement is missing, `getBluetoothAvailabilityState()` returns `AvailabilityState.unsupported`.
 
 **Permissions are automatically requested when calling `startScan()`.** You can also manually call `requestPermissions()` if needed.
 
