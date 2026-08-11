@@ -94,6 +94,7 @@ final class HilPeripheral {
 
     final peripheral = HilPeripheral._(device);
     await peripheral.reconnect(timeout: scanTimeout);
+    await UniversalBle.requestMtu(peripheral.deviceId, 247);
     await peripheral.reset();
     final actualContractRevision =
         (await peripheral.readState()).contractRevision;
@@ -145,6 +146,13 @@ final class HilPeripheral {
           deviceId,
           timeout: const Duration(seconds: 5),
         );
+        try {
+          await UniversalBle.requestMtu(deviceId, 247);
+        } catch (_) {
+          // MTU negotiation may fail after some disconnect sequences;
+          // the connection is still usable with the default MTU.
+        }
+        await discover();
         return;
       } catch (error) {
         lastError = error;
