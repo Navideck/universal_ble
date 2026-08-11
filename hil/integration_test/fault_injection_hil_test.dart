@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -68,8 +69,7 @@ void main() {
           final subscription = peripheral.connections.listen(events.add);
           addTearDown(subscription.cancel);
 
-          await peripheral.requestDisconnect(Duration.zero);
-          await _waitForDisconnect(peripheral);
+          await _requestImmediateDisconnect(peripheral);
           await Future<void>.delayed(const Duration(milliseconds: 500));
 
           expect(events.where((connected) => !connected), hasLength(1));
@@ -78,8 +78,7 @@ void main() {
       testWidgets(
         '[FIT-CONN-003] reconnects after an immediate peripheral disconnect',
         (_) async {
-          await peripheral.requestDisconnect(Duration.zero);
-          await _waitForDisconnect(peripheral);
+          await _requestImmediateDisconnect(peripheral);
 
           await peripheral.reconnect();
 
@@ -134,8 +133,7 @@ void main() {
         (_) async {
           const cycles = 5;
           for (var cycle = 0; cycle < cycles; cycle++) {
-            await peripheral.requestDisconnect(Duration.zero);
-            await _waitForDisconnect(peripheral);
+            await _requestImmediateDisconnect(peripheral);
             await peripheral.reconnect();
             expect(
               (await peripheral.readState()).contractRevision,
@@ -160,24 +158,18 @@ void main() {
           addTearDown(subscription.cancel);
 
           for (var cycle = 0; cycle < cycles; cycle++) {
-            await peripheral.requestDisconnect(Duration.zero);
-            await _waitForDisconnect(peripheral);
+            await _requestImmediateDisconnect(peripheral);
             await peripheral.reconnect();
             await _waitUntil(
               () async =>
                   events.where((connected) => connected).length >= cycle + 1,
             );
           }
+          await Future<void>.delayed(const Duration(milliseconds: 300));
 
-          final transitions = <bool>[];
-          for (final event in events) {
-            if (transitions.isEmpty || transitions.last != event) {
-              transitions.add(event);
-            }
-          }
           expect(
-            transitions,
-            containsAllInOrder(
+            events,
+            orderedEquals(
               List<bool>.generate(cycles * 2, (index) => index.isOdd),
             ),
           );
@@ -225,7 +217,10 @@ void main() {
         '[FIT-READ-001] reports an ATT read error without disconnecting',
         (_) async {
           await peripheral.armReadFault(attError: 0x0e);
-          await expectLater(peripheral.read(HilUuid.read), throwsA(anything));
+          await expectLater(
+            peripheral.read(HilUuid.read),
+            throwsA(isA<UniversalBleException>()),
+          );
 
           expect(
             await UniversalBle.getConnectionState(peripheral.deviceId),
@@ -263,7 +258,19 @@ void main() {
         '[FIT-READ-007] times out a deliberately blocked read callback',
         (_) async {
           await peripheral.armReadFault(delay: const Duration(seconds: 11));
-          await expectLater(peripheral.read(HilUuid.read), throwsA(anything));
+          final stopwatch = Stopwatch()..start();
+          await expectLater(
+            peripheral.read(HilUuid.read),
+            throwsA(isA<TimeoutException>()),
+          );
+          stopwatch.stop();
+          expect(
+            stopwatch.elapsed,
+            allOf(
+              greaterThanOrEqualTo(const Duration(seconds: 9)),
+              lessThan(const Duration(seconds: 12)),
+            ),
+          );
           await Future<void>.delayed(const Duration(seconds: 2));
 
           expect(
@@ -327,7 +334,7 @@ void main() {
           await peripheral.armWriteFault(attError: 0x0e);
           await expectLater(
             peripheral.write(HilUuid.write, [0x01]),
-            throwsA(anything),
+            throwsA(isA<UniversalBleException>()),
           );
 
           expect(
@@ -350,9 +357,18 @@ void main() {
         '[FIT-WRITE-006] times out a deliberately blocked write callback',
         (_) async {
           await peripheral.armWriteFault(delay: const Duration(seconds: 11));
+          final stopwatch = Stopwatch()..start();
           await expectLater(
             peripheral.write(HilUuid.write, [0x06]),
-            throwsA(anything),
+            throwsA(isA<TimeoutException>()),
+          );
+          stopwatch.stop();
+          expect(
+            stopwatch.elapsed,
+            allOf(
+              greaterThanOrEqualTo(const Duration(seconds: 9)),
+              lessThan(const Duration(seconds: 12)),
+            ),
           );
           await Future<void>.delayed(const Duration(seconds: 2));
 
@@ -434,8 +450,21 @@ void main() {
       _pending(
         '[FIT-SUB-004] times out a deliberately blocked CCC enable authorization callback',
       );
-      _pending(
-        '[FIT-SUB-005] rolls back a handler when disconnect occurs after registration',
+      testWidgets(
+        '[FIT-SUB-005] receives a notification emitted before CCC enable completes',
+        (_) async {
+          final firstValue = peripheral.values(HilUuid.notify).first;
+          await peripheral.armNotificationOnSubscribe();
+
+          await peripheral.subscribe(HilUuid.notify);
+
+          expect(
+            utf8.decode(
+              await firstValue.timeout(HilPeripheral.operationTimeout),
+            ),
+            'CCC-ENABLED',
+          );
+        },
       );
       _pending(
         '[FIT-SUB-006] allows subscription recovery after a failed CCC enable',
@@ -463,8 +492,7 @@ void main() {
         (_) async {
           await peripheral.subscribe(HilUuid.notify);
           expect((await peripheral.readState()).notificationsEnabled, isTrue);
-          await peripheral.requestDisconnect(Duration.zero);
-          await _waitForDisconnect(peripheral);
+          await _requestImmediateDisconnect(peripheral);
           await peripheral.reconnect();
 
           expect((await peripheral.readState()).notificationsEnabled, isFalse);
@@ -548,14 +576,64 @@ void main() {
           expect(values, isEmpty);
         },
       );
-      _pending(
+      testWidgets(
         '[FIT-NOTIFY-003] detects an intentionally omitted sequence number',
+        (_) async {
+          const expected = [0, 1, 3, 4];
+          await peripheral.subscribe(HilUuid.notify);
+          final received = peripheral.values(HilUuid.notify).take(4).toList();
+
+          await peripheral.requestNotificationScript(
+            sequenceNumbers: expected,
+            size: 8,
+            interval: const Duration(milliseconds: 20),
+          );
+
+          final sequences = (await received.timeout(
+            HilPeripheral.operationTimeout,
+          )).map((value) => _uint16(value, 0));
+          expect(sequences, orderedEquals(expected));
+          expect(sequences, isNot(contains(2)));
+        },
       );
-      _pending(
+      testWidgets(
         '[FIT-NOTIFY-004] preserves an intentionally duplicated sequence number exactly once per packet',
+        (_) async {
+          const expected = [0, 1, 1, 2];
+          await peripheral.subscribe(HilUuid.notify);
+          final received = peripheral.values(HilUuid.notify).take(4).toList();
+
+          await peripheral.requestNotificationScript(
+            sequenceNumbers: expected,
+            size: 8,
+            interval: const Duration(milliseconds: 20),
+          );
+
+          final sequences = (await received.timeout(
+            HilPeripheral.operationTimeout,
+          )).map((value) => _uint16(value, 0));
+          expect(sequences, orderedEquals(expected));
+          expect(sequences.where((sequence) => sequence == 1), hasLength(2));
+        },
       );
-      _pending(
+      testWidgets(
         '[FIT-NOTIFY-005] preserves intentionally reordered application sequence numbers as received',
+        (_) async {
+          const expected = [0, 2, 1, 3];
+          await peripheral.subscribe(HilUuid.notify);
+          final received = peripheral.values(HilUuid.notify).take(4).toList();
+
+          await peripheral.requestNotificationScript(
+            sequenceNumbers: expected,
+            size: 8,
+            interval: const Duration(milliseconds: 20),
+          );
+
+          final sequences = (await received.timeout(
+            HilPeripheral.operationTimeout,
+          )).map((value) => _uint16(value, 0));
+          expect(sequences, orderedEquals(expected));
+        },
       );
       testWidgets(
         '[FIT-NOTIFY-006] receives alternating minimum and maximum payload sizes',
@@ -614,8 +692,7 @@ void main() {
         '[FIT-NOTIFY-010] receives a clean sequence after reconnect and resubscribe',
         (_) async {
           await peripheral.subscribe(HilUuid.notify);
-          await peripheral.requestDisconnect(Duration.zero);
-          await _waitForDisconnect(peripheral);
+          await _requestImmediateDisconnect(peripheral);
           await peripheral.reconnect();
           await peripheral.subscribe(HilUuid.notify);
           final received = peripheral.values(HilUuid.notify).take(5).toList();
@@ -640,11 +717,17 @@ void main() {
         '[FIT-NOTIFY-012] completes teardown while notifications are still queued',
         (_) async {
           await peripheral.subscribe(HilUuid.notify);
+          final values = <List<int>>[];
+          final subscription = peripheral
+              .values(HilUuid.notify)
+              .listen(values.add);
+          addTearDown(subscription.cancel);
           await peripheral.requestNotificationBurst(
             count: 500,
             size: 64,
             interval: const Duration(milliseconds: 1),
           );
+          await _waitUntil(() async => values.length >= 10);
 
           await UniversalBle.disconnect(
             peripheral.deviceId,
@@ -768,6 +851,27 @@ Future<void> _waitForDisconnect(HilPeripheral peripheral) async {
   await peripheral.connections
       .firstWhere((connected) => !connected)
       .timeout(HilPeripheral.operationTimeout);
+}
+
+Future<void> _requestImmediateDisconnect(HilPeripheral peripheral) async {
+  final disconnected = _waitForDisconnect(peripheral);
+  Object? commandError;
+  StackTrace? commandStackTrace;
+  try {
+    await peripheral.requestDisconnect(Duration.zero);
+  } catch (error, stackTrace) {
+    commandError = error;
+    commandStackTrace = stackTrace;
+  }
+
+  try {
+    await disconnected;
+  } catch (_) {
+    if (commandError != null) {
+      Error.throwWithStackTrace(commandError, commandStackTrace!);
+    }
+    rethrow;
+  }
 }
 
 Future<void> _waitUntil(

@@ -51,7 +51,7 @@ void main() {
 
       expect(
         service.characteristics.map((characteristic) => characteristic.uuid),
-        containsAll(<String>[
+        unorderedEquals(<String>[
           HilUuid.control,
           HilUuid.state,
           HilUuid.read,
@@ -64,10 +64,20 @@ void main() {
           HilUuid.multi,
         ]),
       );
+      _expectProperties(service, HilUuid.control, [
+        CharacteristicProperty.write,
+      ]);
+      _expectProperties(service, HilUuid.state, [CharacteristicProperty.read]);
       _expectProperties(service, HilUuid.read, [CharacteristicProperty.read]);
       _expectProperties(service, HilUuid.write, [CharacteristicProperty.write]);
       _expectProperties(service, HilUuid.writeWithoutResponse, [
         CharacteristicProperty.writeWithoutResponse,
+      ]);
+      _expectProperties(service, HilUuid.writeMirror, [
+        CharacteristicProperty.read,
+      ]);
+      _expectProperties(service, HilUuid.writeWithoutResponseMirror, [
+        CharacteristicProperty.read,
       ]);
       _expectProperties(service, HilUuid.notify, [
         CharacteristicProperty.notify,
@@ -279,7 +289,7 @@ void main() {
       final state = await peripheral.readState();
 
       expect(mtu, greaterThanOrEqualTo(23));
-      expect(state.mtu, greaterThanOrEqualTo(23));
+      expect(state.mtu, mtu);
     }, skip: kIsWeb);
 
     testWidgets(
@@ -313,7 +323,7 @@ void _expectProperties(
   final characteristic = service.characteristics.singleWhere(
     (characteristic) => BleUuidParser.compareStrings(characteristic.uuid, uuid),
   );
-  expect(characteristic.properties, containsAll(expected));
+  expect(characteristic.properties, unorderedEquals(expected));
 }
 
 Future<void> _eventually(

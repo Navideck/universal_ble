@@ -27,6 +27,8 @@ abstract final class HilCommand {
   static const notifyBurst = 0x06;
   static const armReadFault = 0x07;
   static const armWriteFault = 0x08;
+  static const notifyScript = 0x09;
+  static const notifyOnSubscribe = 0x0a;
 }
 
 final class HilState {
@@ -99,7 +101,7 @@ final class HilPeripheral {
       throw StateError(
         'HIL fixture contract mismatch: expected revision $contractRevision, '
         'received $actualContractRevision. Build and flash the matching '
-        'sample_ble_device firmware.',
+        'universal_ble_hil_firmware image.',
       );
     }
     return peripheral;
@@ -219,6 +221,32 @@ final class HilPeripheral {
     ..._uint16(size),
     ..._uint16(interval.inMilliseconds),
   ]);
+
+  Future<void> requestNotificationScript({
+    required List<int> sequenceNumbers,
+    required int size,
+    required Duration interval,
+  }) {
+    if (sequenceNumbers.isEmpty || sequenceNumbers.length > 64) {
+      throw RangeError.range(sequenceNumbers.length, 1, 64, 'sequenceNumbers');
+    }
+    if (sequenceNumbers.any((sequence) => sequence < 0 || sequence > 0xffff)) {
+      throw RangeError('Every sequence number must fit in a uint16');
+    }
+    if (size < 2 || size > 244) {
+      throw RangeError.range(size, 2, 244, 'size');
+    }
+    final intervalMs = _durationMilliseconds(interval, 'interval');
+    return command(HilCommand.notifyScript, [
+      ..._uint16(size),
+      ..._uint16(intervalMs),
+      sequenceNumbers.length,
+      ...sequenceNumbers.expand(_uint16),
+    ]);
+  }
+
+  Future<void> armNotificationOnSubscribe() =>
+      command(HilCommand.notifyOnSubscribe);
 
   Future<void> armReadFault({
     int attError = 0,
