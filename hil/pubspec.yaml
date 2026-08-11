@@ -1,0 +1,23 @@
+name: universal_ble_hil
+description: Opt-in hardware-in-the-loop tests for universal_ble.
+publish_to: none
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.12.0
+
+dependencies:
+  flutter:
+    sdk: flutter
+  universal_ble:
+    path: ../
+
+dev_dependencies:
+  flutter_lints: ^6.0.0
+  flutter_test:
+    sdk: flutter
+  integration_test:
+    sdk: flutter
+
+flutter:
+  uses-material-design: true
