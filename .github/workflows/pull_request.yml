@@ -25,6 +25,16 @@ jobs:
       - name: Run Flutter tests
         run: flutter test
 
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Run Android unit tests
+        working-directory: example/android
+        run: ./gradlew :universal_ble:testDebugUnitTest
+
       - name: Install Chrome
         uses: browser-actions/setup-chrome@latest
 
