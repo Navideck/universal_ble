@@ -143,12 +143,7 @@ class _PeripheralDetailPageState extends State<PeripheralDetailPage> {
       return;
     }
     try {
-      Uint8List value = await UniversalBle.readDescriptor(
-        bleDevice.deviceId,
-        selectedService.uuid,
-        selectedCharacteristic.uuid,
-        selectedDescriptor.uuid,
-      );
+      Uint8List value = await selectedDescriptor.read();
       String s = String.fromCharCodes(value);
       String data = '$s\nraw :  ${value.toString()}';
       _addLog('ReadDescriptor', data);
@@ -178,13 +173,7 @@ class _PeripheralDetailPageState extends State<PeripheralDetailPage> {
     }
 
     try {
-      await UniversalBle.writeDescriptor(
-        bleDevice.deviceId,
-        selectedService.uuid,
-        selectedCharacteristic.uuid,
-        selectedDescriptor.uuid,
-        value,
-      );
+      await selectedDescriptor.write(value);
       _addLog('WriteDescriptor', value);
     } catch (e) {
       debugPrint(e.toString());
@@ -401,7 +390,8 @@ class _PeripheralDetailPageState extends State<PeripheralDetailPage> {
                                                   fontWeight: FontWeight.bold),
                                             ),
                                             Expanded(
-                                              child: DropdownButton<BleDescriptor>(
+                                              child:
+                                                  DropdownButton<BleDescriptor>(
                                                 isDense: true,
                                                 isExpanded: true,
                                                 value: selectedDescriptor ??
@@ -409,15 +399,16 @@ class _PeripheralDetailPageState extends State<PeripheralDetailPage> {
                                                         .descriptors.first,
                                                 items: selectedCharacteristic!
                                                     .descriptors
-                                                    .map((d) => DropdownMenuItem(
-                                                          value: d,
-                                                          child: Text(
-                                                            d.uuid,
-                                                            overflow:
-                                                                TextOverflow
-                                                                    .ellipsis,
-                                                          ),
-                                                        ))
+                                                    .map(
+                                                        (d) => DropdownMenuItem(
+                                                              value: d,
+                                                              child: Text(
+                                                                d.uuid,
+                                                                overflow:
+                                                                    TextOverflow
+                                                                        .ellipsis,
+                                                              ),
+                                                            ))
                                                     .toList(),
                                                 onChanged: (val) {
                                                   setState(() {

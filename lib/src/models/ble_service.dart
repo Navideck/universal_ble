@@ -19,9 +19,7 @@ class BleCharacteristic {
   String uuid;
   List<CharacteristicProperty> properties;
   List<BleDescriptor> descriptors;
-
-  /// Metadata for this characteristic.
-  ({String deviceId, String serviceId})? metaData;
+  BleCharOperationMetadata? metaData;
 
   BleCharacteristic(String uuid, this.properties, this.descriptors)
     : uuid = BleUuidParser.string(uuid);
@@ -32,11 +30,14 @@ class BleCharacteristic {
     required String uuid,
     required this.properties,
     required this.descriptors,
-  }) : uuid = BleUuidParser.string(uuid),
-       metaData = (
-         deviceId: deviceId,
-         serviceId: BleUuidParser.string(serviceId),
-       );
+  }) : uuid = BleUuidParser.string(uuid) {
+    metaData = BleCharOperationMetadata(
+      deviceId: deviceId,
+      serviceId: BleUuidParser.string(serviceId),
+      characteristicId: uuid,
+    );
+    descriptors = descriptors.map((e) => e.copyWithMetadata(metaData)).toList();
+  }
 
   factory BleCharacteristic.fromJson(Map<String, dynamic> json) {
     final propertiesJson = (json['properties'] as List<dynamic>? ?? <dynamic>[])
@@ -78,16 +79,18 @@ class BleCharacteristic {
   }
 
   @override
-  int get hashCode => Object.hash(
-        uuid,
-        Object.hashAll(properties),
-        metaData,
-      );
+  int get hashCode => Object.hash(uuid, Object.hashAll(properties), metaData);
 }
 
 class BleDescriptor {
   String uuid;
   BleDescriptor(String uuid) : uuid = BleUuidParser.string(uuid);
+  BleCharOperationMetadata? metaData;
+
+  BleDescriptor copyWithMetadata(BleCharOperationMetadata? value) {
+    metaData = value;
+    return this;
+  }
 
   factory BleDescriptor.fromJson(Map<String, dynamic> json) {
     return BleDescriptor(json['uuid'] as String);
@@ -280,4 +283,18 @@ PeripheralAttributePermission? _permissionFromName(String permissionName) {
   } catch (_) {
     return null;
   }
+}
+
+/// Metadata attached with [BleCharacteristic] or [BleDescriptor] to use with
+/// BLE operations
+class BleCharOperationMetadata {
+  String deviceId;
+  String serviceId;
+  String characteristicId;
+
+  BleCharOperationMetadata({
+    required this.deviceId,
+    required this.serviceId,
+    required this.characteristicId,
+  });
 }

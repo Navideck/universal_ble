@@ -350,13 +350,12 @@ await characteristic.write([0x01, 0x02, 0x03], withResponse: false);
 To read or write a descriptor of this characteristic
 
 ```dart
-Uint8List value = await characteristic.readDescriptor('2901');
+Uint8List value = await characteristic.descriptor('2901').read();
 ```
 
 ```dart
-await characteristic.writeDescriptor('2901', [0x01, 0x02, 0x03]);
+await characteristic.descriptor('2901').write([0x01, 0x02, 0x03]);
 ```
-
 
 ## Subscriptions
 
