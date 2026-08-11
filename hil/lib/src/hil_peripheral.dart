@@ -25,11 +25,15 @@ abstract final class HilCommand {
   static const indicate = 0x04;
   static const disconnect = 0x05;
   static const notifyBurst = 0x06;
+  static const armReadFault = 0x07;
+  static const armWriteFault = 0x08;
+  static const notifyScript = 0x09;
+  static const notifyOnSubscribe = 0x0a;
 }
 
 final class HilState {
   const HilState({
-    required this.protocolVersion,
+    required this.contractRevision,
     required this.notificationsEnabled,
     required this.indicationsEnabled,
     required this.multiNotificationsEnabled,
@@ -46,7 +50,7 @@ final class HilState {
     }
     final data = ByteData.sublistView(value);
     return HilState(
-      protocolVersion: value[0],
+      contractRevision: value[0],
       notificationsEnabled: value[1] != 0,
       indicationsEnabled: value[2] != 0,
       multiNotificationsEnabled: value[3] != 0,
@@ -56,7 +60,7 @@ final class HilState {
     );
   }
 
-  final int protocolVersion;
+  final int contractRevision;
   final bool notificationsEnabled;
   final bool indicationsEnabled;
   final bool multiNotificationsEnabled;
@@ -69,6 +73,7 @@ final class HilPeripheral {
   HilPeripheral._(this.device);
 
   static const deviceName = 'UniversalBLE-HIL';
+  static const contractRevision = 1;
   static const _configuredDeviceId = String.fromEnvironment('HIL_DEVICE_ID');
   static const operationTimeout = Duration(seconds: 10);
   static const scanTimeout = Duration(seconds: 30);
@@ -89,7 +94,17 @@ final class HilPeripheral {
 
     final peripheral = HilPeripheral._(device);
     await peripheral.reconnect(timeout: scanTimeout);
+    await UniversalBle.requestMtu(peripheral.deviceId, 247);
     await peripheral.reset();
+    final actualContractRevision =
+        (await peripheral.readState()).contractRevision;
+    if (actualContractRevision != contractRevision) {
+      throw StateError(
+        'HIL fixture contract mismatch: expected revision $contractRevision, '
+        'received $actualContractRevision. Build and flash the matching '
+        'universal_ble_hil_firmware image.',
+      );
+    }
     return peripheral;
   }
 
@@ -131,6 +146,13 @@ final class HilPeripheral {
           deviceId,
           timeout: const Duration(seconds: 5),
         );
+        try {
+          await UniversalBle.requestMtu(deviceId, 247);
+        } catch (_) {
+          // MTU negotiation may fail after some disconnect sequences;
+          // the connection is still usable with the default MTU.
+        }
+        await discover();
         return;
       } catch (error) {
         lastError = error;
@@ -208,6 +230,74 @@ final class HilPeripheral {
     ..._uint16(interval.inMilliseconds),
   ]);
 
+  Future<void> requestNotificationScript({
+    required List<int> sequenceNumbers,
+    required int size,
+    required Duration interval,
+  }) {
+    if (sequenceNumbers.isEmpty || sequenceNumbers.length > 64) {
+      throw RangeError.range(sequenceNumbers.length, 1, 64, 'sequenceNumbers');
+    }
+    if (sequenceNumbers.any((sequence) => sequence < 0 || sequence > 0xffff)) {
+      throw RangeError('Every sequence number must fit in a uint16');
+    }
+    if (size < 2 || size > 244) {
+      throw RangeError.range(size, 2, 244, 'size');
+    }
+    final intervalMs = _durationMilliseconds(interval, 'interval');
+    return command(HilCommand.notifyScript, [
+      ..._uint16(size),
+      ..._uint16(intervalMs),
+      sequenceNumbers.length,
+      ...sequenceNumbers.expand(_uint16),
+    ]);
+  }
+
+  Future<void> armNotificationOnSubscribe() =>
+      command(HilCommand.notifyOnSubscribe);
+
+  Future<void> armReadFault({
+    int attError = 0,
+    Duration delay = Duration.zero,
+    Duration? disconnectAfter,
+  }) => _armOperationFault(
+    HilCommand.armReadFault,
+    attError: attError,
+    delay: delay,
+    disconnectAfter: disconnectAfter,
+  );
+
+  Future<void> armWriteFault({
+    int attError = 0,
+    Duration delay = Duration.zero,
+    Duration? disconnectAfter,
+  }) => _armOperationFault(
+    HilCommand.armWriteFault,
+    attError: attError,
+    delay: delay,
+    disconnectAfter: disconnectAfter,
+  );
+
+  Future<void> _armOperationFault(
+    int command, {
+    required int attError,
+    required Duration delay,
+    required Duration? disconnectAfter,
+  }) {
+    if (attError < 0 || attError > 0xff) {
+      throw RangeError.range(attError, 0, 0xff, 'attError');
+    }
+    final delayMs = _durationMilliseconds(delay, 'delay');
+    final disconnectMs = disconnectAfter == null
+        ? 0xffff
+        : _durationMilliseconds(disconnectAfter, 'disconnectAfter');
+    return this.command(command, [
+      attError,
+      ..._uint16(delayMs),
+      ..._uint16(disconnectMs),
+    ]);
+  }
+
   Future<void> subscribe(String characteristic, {bool indicate = false}) =>
       indicate
       ? UniversalBle.subscribeIndications(
@@ -236,4 +326,12 @@ final class HilPeripheral {
   Stream<bool> get connections => UniversalBle.connectionStream(deviceId);
 
   static List<int> _uint16(int value) => [value & 0xff, value >> 8 & 0xff];
+
+  static int _durationMilliseconds(Duration value, String name) {
+    final milliseconds = value.inMilliseconds;
+    if (milliseconds < 0 || milliseconds >= 0xffff) {
+      throw RangeError.range(milliseconds, 0, 0xfffe, name);
+    }
+    return milliseconds;
+  }
 }

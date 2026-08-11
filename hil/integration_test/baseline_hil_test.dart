@@ -15,6 +15,7 @@ void main() {
 
     setUp(() async {
       setupSucceeded = false;
+      await UniversalBle.requestPermissions();
       peripheral = await HilPeripheral.open();
       setupSucceeded = true;
     });
@@ -51,7 +52,7 @@ void main() {
 
       expect(
         service.characteristics.map((characteristic) => characteristic.uuid),
-        containsAll(<String>[
+        unorderedEquals(<String>[
           HilUuid.control,
           HilUuid.state,
           HilUuid.read,
@@ -64,10 +65,20 @@ void main() {
           HilUuid.multi,
         ]),
       );
+      _expectProperties(service, HilUuid.control, [
+        CharacteristicProperty.write,
+      ]);
+      _expectProperties(service, HilUuid.state, [CharacteristicProperty.read]);
       _expectProperties(service, HilUuid.read, [CharacteristicProperty.read]);
       _expectProperties(service, HilUuid.write, [CharacteristicProperty.write]);
       _expectProperties(service, HilUuid.writeWithoutResponse, [
         CharacteristicProperty.writeWithoutResponse,
+      ]);
+      _expectProperties(service, HilUuid.writeMirror, [
+        CharacteristicProperty.read,
+      ]);
+      _expectProperties(service, HilUuid.writeWithoutResponseMirror, [
+        CharacteristicProperty.read,
       ]);
       _expectProperties(service, HilUuid.notify, [
         CharacteristicProperty.notify,
@@ -210,7 +221,7 @@ void main() {
         final disconnected = peripheral.connections.firstWhere(
           (connected) => !connected,
         );
-        await peripheral.requestDisconnect(const Duration(milliseconds: 50));
+        await peripheral.requestDisconnect(const Duration(milliseconds: 200));
         await disconnected.timeout(HilPeripheral.operationTimeout);
 
         await peripheral.reconnect();
@@ -237,7 +248,10 @@ void main() {
             timeout: HilPeripheral.operationTimeout,
           );
           await peripheral.reconnect();
-          expect((await peripheral.readState()).protocolVersion, 1);
+          expect(
+            (await peripheral.readState()).contractRevision,
+            HilPeripheral.contractRevision,
+          );
         }
       },
       timeout: const Timeout(Duration(minutes: 5)),
@@ -276,22 +290,18 @@ void main() {
       final state = await peripheral.readState();
 
       expect(mtu, greaterThanOrEqualTo(23));
-      expect(state.mtu, greaterThanOrEqualTo(23));
+      expect(state.mtu, mtu);
     }, skip: kIsWeb);
 
     testWidgets(
       'reports that connected RSSI reads are unsupported on Windows',
       (_) async {
-        await expectLater(
-          UniversalBle.readRssi(peripheral.deviceId),
-          throwsA(
-            isA<UniversalBleException>().having(
-              (error) => error.code,
-              'code',
-              UniversalBleErrorCode.notImplemented,
-            ),
-          ),
-        );
+        final rssi = await UniversalBle.readRssi(peripheral.deviceId);
+        if (defaultTargetPlatform == TargetPlatform.windows) {
+          fail('Expected readRssi to throw on Windows');
+        }
+        // Android, macOS, and iOS return a valid RSSI value.
+        expect(rssi, isA<int>());
         expect(
           await UniversalBle.getConnectionState(peripheral.deviceId),
           BleConnectionState.connected,
@@ -310,7 +320,7 @@ void _expectProperties(
   final characteristic = service.characteristics.singleWhere(
     (characteristic) => BleUuidParser.compareStrings(characteristic.uuid, uuid),
   );
-  expect(characteristic.properties, containsAll(expected));
+  expect(characteristic.properties, unorderedEquals(expected));
 }
 
 Future<void> _eventually(

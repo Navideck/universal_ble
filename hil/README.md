@@ -1,95 +1,78 @@
 # Hardware-in-the-loop tests
 
-This directory is a self-contained Flutter application for opt-in
-`universal_ble` tests against a physical nRF52 fixture. It is separate from
-the package unit tests and example application because it requires dedicated
-hardware, flashed firmware, and exclusive access to a Bluetooth adapter.
+This is a standalone Flutter application for testing `universal_ble` against
+a physical nRF52 DK. It lives outside the normal package tests because it
+needs the DK and exclusive access to a Bluetooth adapter.
 
-The companion firmware is the `sample_ble_device` repository. Flash it and
-confirm that `UniversalBLE-HIL` is advertising before starting a test run.
+The firmware is in the [`universal_ble_hil_firmware`](https://github.com/usmanmehmood55/universal_ble_hil_firmware)
+repository. Test commands go over BLE. USB serial is only used for Zephyr logs.
 
-## 1. Test suites
+## 1. Current coverage
 
-### 1.1. Baseline suite
+The Windows suite contains 41 implemented hardware tests:
 
-[`integration_test/baseline_hil_test.dart`](integration_test/baseline_hil_test.dart)
-contains the implemented regression baseline:
+- 15 baseline tests for ordinary BLE behavior;
+- 26 fault injection tests for hostile peripheral behavior, timing, and
+  lifecycle races.
 
-- scan filtering and discovery;
-- service and characteristic discovery;
-- reads and writes with and without response;
-- notification and indication delivery;
-- unsubscribe and resubscribe;
-- ordered notification bursts;
-- host- and peripheral-initiated disconnects;
-- repeated reconnects;
-- overlapping notification operations;
-- negotiated MTU behavior.
+[`COVERAGE.md`](COVERAGE.md) lists every implemented test, what it does, and
+the bugs it is meant to catch.
 
-### 1.2. Fault-injection tracker
+[`lib/main.dart`](lib/main.dart) also provides an interactive Web Bluetooth
+runner for the portable baseline path.
 
-[`integration_test/fault_injection_hil_test.dart`](integration_test/fault_injection_hil_test.dart)
-contains the planned fault cases. Every pending case:
+## 2. How fault injection tests work
 
-- has a stable `FI-*` identifier;
-- describes one observable client behavior;
-- is skipped until the matching firmware scenario and assertions exist;
-- fails deliberately if its skip is removed without an implementation.
+The test first writes a fault plan to the fixture's control characteristic.
+The firmware keeps that plan and applies it when the next matching GATT
+operation arrives.
 
-The tracker is intentionally limited to behavior available through the stock
-Zephyr Bluetooth Host and Nordic SoftDevice Controller APIs.
+For example, a disconnect-during-read test performs these steps:
 
-## 2. Supported fault mechanisms
+1. Write a one-shot read plan containing a callback delay and disconnect delay.
+2. Start a normal read through `universal_ble`.
+3. Let the firmware disconnect while its read callback is pending.
+4. Assert bounded failure, reconnect, and a successful recovery read.
 
-The fixture can implement these faults without a custom controller:
+The timing happens on the nRF52, where it is predictable. A reset clears fault
+plans, scheduled disconnects, bursts, values, and counters. It leaves the
+active connection and CCC state alone.
 
-- start, stop, and change valid advertising data;
-- disconnect or reboot at scheduled application-level points;
-- return standard ATT errors from read and write authorization callbacks;
-- block synchronous GATT callbacks to exercise client timeouts;
-- accept, reject, or partially process valid long operations;
-- select a different valid GATT profile across reboot and reconnect;
-- send a Service Changed indication;
-- authorize or reject CCC descriptor access;
-- omit, duplicate, reorder, resize, or interleave valid application
-  notifications;
-- disconnect while notifications or indications are outstanding;
-- exhaust Zephyr notification buffers and prepare-write queues;
-- exercise standard SMP pairing, bonding, cancellation, and bond removal;
-- sweep deterministic delays and replay a recorded scenario configuration.
+## 3. Execution boundary
 
-The suite does not cover malformed ATT or link-layer packets, corrupted radio
-frames, invalid controller state transitions, interception, or RF jamming.
-Those behaviors are not exposed by the vanilla fixture stack.
+The automated suite currently runs on Windows. Calls start at the public Dart
+API and go through Pigeon, the Windows C++ plugin, WinRT, the Bluetooth stack,
+the radio link, and finally the Zephyr GATT server.
 
-## 3. Run the Windows baseline
+Fixture control also uses BLE, so faults are armed while the device is
+connected. The firmware then runs them locally using valid GATT behavior.
 
-From this directory:
+## 4. Running the tests
+
+Flash the matching firmware and confirm that `UniversalBLE-HIL` is
+advertising. From this directory, run:
 
 ```powershell
 flutter pub get
 flutter test integration_test/baseline_hil_test.dart -d windows
+flutter test integration_test/fault_injection_hil_test.dart -d windows
 ```
 
-The suite normally discovers the fixture by its advertised service. A known
-Windows device ID can avoid initial scan setup:
+If you already know the Windows device ID, you can skip the initial scan:
 
 ```powershell
 flutter test integration_test/baseline_hil_test.dart -d windows `
   --dart-define=HIL_DEVICE_ID=AA:BB:CC:DD:EE:FF
 ```
 
-Increase reconnect repetitions for lifecycle validation:
+For a longer reconnect test:
 
 ```powershell
 flutter test integration_test/baseline_hil_test.dart -d windows `
   --dart-define=HIL_RECONNECT_CYCLES=100
 ```
 
-Use 10 cycles for normal development, at least 100 for a lifecycle change,
-and 1,000 or more for a dedicated soak run.
-
-## 4. Run the Web baseline
+Run the Web baseline with:
 
 ```powershell
 flutter run -d chrome
@@ -99,34 +82,26 @@ Web Bluetooth requires a secure context, a real user gesture, and browser
 device permission. Click **Select device and run**, then select
 `UniversalBLE-HIL` in Chrome's chooser.
 
-The browser runner executes the portable scan, discovery, read, write,
-notification, indication, burst, and reconnect checks. Windows-only native
-race, RSSI capability, and MTU cases are not run in the browser.
+## 5. Isolation and diagnosis
 
-## 5. Isolation and failure diagnosis
+Each Windows test connects, resets the fixture, runs one case, and disconnects.
+The fixture only accepts one connection, so run the tests serially.
 
-The Windows baseline discovers the immutable device identity once per process.
-Each behavioral test then connects, sends the firmware reset command, performs
-one scenario, and disconnects in teardown.
-
-Writes are verified through independent read-only mirror characteristics.
-Subscription state and counters are verified through the state characteristic.
-Successful Dart API completion alone is not treated as proof that the
-peripheral observed an operation.
+A completed Dart call does not prove that the peripheral saw the same thing.
+Writes are therefore checked through read-only mirrors, subscriptions through
+fixture state, and notification bursts through sequence numbers.
 
 When a test fails, collect both outputs:
 
-- Flutter integration-test output and universal_ble debug logs;
+- Flutter integration-test output and `universal_ble` debug logs;
 - Zephyr serial logs from the nRF52 DK.
 
-If setup cannot find the fixture, verify that it is advertising and that no
+If setup cannot find the fixture, confirm that it is advertising and that no
 other host holds its single connection slot.
 
 ## 6. Execution policy
 
-HIL tests are not part of ordinary package analysis, unit tests, or pull
-request CI. Run them manually when changing native BLE lifecycle, GATT,
-subscription, queueing, or platform-channel behavior.
-
-The fault-injection suite remains skipped until its out-of-band fixture-control
-protocol and individual firmware scenarios are implemented.
+These tests do not run in normal pull-request CI. Run them manually when a
+change touches native BLE lifecycle, GATT operations, subscriptions, queueing,
+or the platform channel. A native crash can kill the test runner. Use
+`--plain-name` to rerun the failing case on its own.

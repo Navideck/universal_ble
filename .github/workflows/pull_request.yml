@@ -22,6 +22,14 @@ jobs:
       - name: Analyze project source
         run: flutter analyze
 
+      - name: Install HIL dependencies
+        working-directory: hil
+        run: flutter pub get
+
+      - name: Analyze HIL source
+        working-directory: hil
+        run: flutter analyze
+
       - name: Run Flutter tests
         run: flutter test
 
