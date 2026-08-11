@@ -1,5 +1,6 @@
 ## Unreleased
 * Windows: Harden BLE connection lifetime, asynchronous callbacks, and notification subscription handling
+* Android: instantly close the GATT client on disconnect
 
 ## 2.1.1
 * Android: Fix BluetoothDevice null-safety compile error under Kotlin 2.x
