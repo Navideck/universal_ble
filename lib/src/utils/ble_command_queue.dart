@@ -16,6 +16,7 @@ class BleCommandQueue {
     String? deviceId,
     Duration? timeout,
     String? queueId,
+    bool canRunConcurrently = false,
   }) {
     Duration? timeoutDuration = timeout ?? this.timeout;
     if (timeoutDuration == null) {
@@ -23,13 +24,22 @@ class BleCommandQueue {
         command,
         deviceId: deviceId,
         queueId: queueId,
+        canRunConcurrently: canRunConcurrently,
       );
     }
     return switch (queueType) {
-      QueueType.global => _queue(queueId).add(command, timeoutDuration),
-      QueueType.perDevice => _queue(
-        queueId ?? deviceId,
-      ).add(command, timeoutDuration),
+      QueueType.global => _add(
+        _queue(queueId),
+        command,
+        timeoutDuration,
+        canRunConcurrently,
+      ),
+      QueueType.perDevice => _add(
+        _queue(queueId ?? deviceId),
+        command,
+        timeoutDuration,
+        canRunConcurrently,
+      ),
       QueueType.none => command().timeout(timeoutDuration),
     };
   }
@@ -38,13 +48,33 @@ class BleCommandQueue {
     Future<T> Function() command, {
     String? deviceId,
     String? queueId,
+    bool canRunConcurrently = false,
   }) {
     return switch (queueType) {
-      QueueType.global => _queue(queueId).add(command),
-      QueueType.perDevice => _queue(queueId ?? deviceId).add(command),
+      QueueType.global => _add(
+        _queue(queueId),
+        command,
+        null,
+        canRunConcurrently,
+      ),
+      QueueType.perDevice => _add(
+        _queue(queueId ?? deviceId),
+        command,
+        null,
+        canRunConcurrently,
+      ),
       QueueType.none => command(),
     };
   }
+
+  Future<T> _add<T>(
+    Queue queue,
+    Future<T> Function() command,
+    Duration? timeout,
+    bool canRunConcurrently,
+  ) => canRunConcurrently
+      ? queue.addConcurrent(command, timeout)
+      : queue.add(command, timeout);
 
   Queue _queue(String? id) {
     final queueKey = id ?? globalQueueId;
