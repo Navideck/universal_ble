@@ -1,7 +1,8 @@
-## Unreleased
+## 2.2.0
+* Add Descriptor Read and Write APIs
 * Windows: Harden BLE connection lifetime, asynchronous callbacks, and notification subscription handling
 * Android: instantly close the GATT client on disconnect
-* Add Descriptor Read and Write apis
+* Android: complete only the oldest matching pending write on onCharacteristicWrite
 
 ## 2.1.1
 * Android: Fix BluetoothDevice null-safety compile error under Kotlin 2.x
