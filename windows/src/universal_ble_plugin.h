@@ -380,10 +380,19 @@ private:
       const std::string &device_id, const std::string &service,
       const std::string &characteristic,
       std::function<void(ErrorOr<std::vector<uint8_t>> reply)> result) override;
+  void ReadDescriptorValue(
+      const std::string &device_id, const std::string &service,
+      const std::string &characteristic, const std::string &descriptor,
+      std::function<void(ErrorOr<std::vector<uint8_t>> reply)> result) override;
   void WriteValue(
       const std::string &device_id, const std::string &service,
       const std::string &characteristic, const std::vector<uint8_t> &value,
       const BleOutputProperty &ble_output_property,
+      std::function<void(std::optional<FlutterError> reply)> result) override;
+  void WriteDescriptorValue(
+      const std::string &device_id, const std::string &service,
+      const std::string &characteristic, const std::string &descriptor,
+      const std::vector<uint8_t> &value,
       std::function<void(std::optional<FlutterError> reply)> result) override;
   void RequestMtu(const std::string &device_id, int64_t expected_mtu,
                   std::function<void(ErrorOr<int64_t> reply)> result) override;

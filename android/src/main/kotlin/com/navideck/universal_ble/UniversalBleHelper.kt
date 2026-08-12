@@ -463,3 +463,19 @@ class RssiResultFuture(
     val deviceId: String,
     val result: (Result<Long>) -> Unit,
 )
+
+class ReadDescriptorResultFuture(
+    val deviceId: String,
+    val descriptorId: String,
+    val characteristicId: String,
+    val serviceId: String,
+    val result: (Result<ByteArray>) -> Unit,
+)
+
+class WriteDescriptorResultFuture(
+    val deviceId: String,
+    val descriptorId: String,
+    val characteristicId: String,
+    val serviceId: String,
+    val result: (Result<Unit>) -> Unit,
+)

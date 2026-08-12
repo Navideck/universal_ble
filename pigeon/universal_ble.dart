@@ -415,6 +415,14 @@ abstract class UniversalBlePlatformChannel {
   Uint8List readValue(String deviceId, String service, String characteristic);
 
   @async
+  Uint8List readDescriptorValue(
+    String deviceId,
+    String service,
+    String characteristic,
+    String descriptor,
+  );
+
+  @async
   int requestMtu(String deviceId, int expectedMtu);
 
   @async
@@ -424,6 +432,15 @@ abstract class UniversalBlePlatformChannel {
     String characteristic,
     Uint8List value,
     BleOutputProperty bleOutputProperty,
+  );
+
+  @async
+  void writeDescriptorValue(
+    String deviceId,
+    String service,
+    String characteristic,
+    String descriptor,
+    Uint8List value,
   );
 
   @async

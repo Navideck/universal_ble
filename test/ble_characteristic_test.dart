@@ -80,11 +80,34 @@ void main() {
     debugPrint("Read Succeed");
     expect(readResult, charValue);
   });
+
+  test("Write/Read Descriptor Value Test", () async {
+    String descriptorId = "2902";
+    Uint8List descValue = Uint8List.fromList([0x01, 0x00]);
+    await UniversalBle.writeDescriptor(
+      mockDeviceId,
+      serviceId,
+      characteristicId,
+      descriptorId,
+      descValue,
+    );
+    debugPrint("Write Descriptor Succeed");
+
+    var readResult = await UniversalBle.readDescriptor(
+      mockDeviceId,
+      serviceId,
+      characteristicId,
+      descriptorId,
+    );
+    debugPrint("Read Descriptor Succeed");
+    expect(readResult, descValue);
+  });
 }
 
 class _UniversalBleMock extends UniversalBlePlatformMock {
   Timer? notifierTimer;
   Uint8List? charValue;
+  Uint8List? descValue;
 
   @override
   Future<List<BleService>> discoverServices(
@@ -126,6 +149,26 @@ class _UniversalBleMock extends UniversalBlePlatformMock {
       String deviceId, String service, String characteristic,
       {Duration? timeout}) async {
     return charValue ?? Uint8List(0);
+  }
+
+  @override
+  Future<void> writeDescriptorValue(
+      String deviceId,
+      String service,
+      String characteristic,
+      String descriptor,
+      Uint8List value) async {
+    descValue = value;
+  }
+
+  @override
+  Future<Uint8List> readDescriptorValue(
+      String deviceId,
+      String service,
+      String characteristic,
+      String descriptor,
+      {Duration? timeout}) async {
+    return descValue ?? Uint8List(0);
   }
 
   @override

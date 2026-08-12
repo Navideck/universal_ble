@@ -1505,8 +1505,10 @@ protocol UniversalBlePlatformChannel {
   func setNotifiable(deviceId: String, service: String, characteristic: String, bleInputProperty: BleInputProperty, completion: @escaping (Result<Void, Error>) -> Void)
   func discoverServices(deviceId: String, withDescriptors: Bool, completion: @escaping (Result<[UniversalBleService], Error>) -> Void)
   func readValue(deviceId: String, service: String, characteristic: String, completion: @escaping (Result<FlutterStandardTypedData, Error>) -> Void)
+  func readDescriptorValue(deviceId: String, service: String, characteristic: String, descriptor: String, completion: @escaping (Result<FlutterStandardTypedData, Error>) -> Void)
   func requestMtu(deviceId: String, expectedMtu: Int64, completion: @escaping (Result<Int64, Error>) -> Void)
   func writeValue(deviceId: String, service: String, characteristic: String, value: FlutterStandardTypedData, bleOutputProperty: BleOutputProperty, completion: @escaping (Result<Void, Error>) -> Void)
+  func writeDescriptorValue(deviceId: String, service: String, characteristic: String, descriptor: String, value: FlutterStandardTypedData, completion: @escaping (Result<Void, Error>) -> Void)
   func isPaired(deviceId: String, completion: @escaping (Result<Bool, Error>) -> Void)
   func pair(deviceId: String, completion: @escaping (Result<Bool, Error>) -> Void)
   func unPair(deviceId: String) throws
@@ -1731,6 +1733,26 @@ class UniversalBlePlatformChannelSetup {
     } else {
       readValueChannel.setMessageHandler(nil)
     }
+    let readDescriptorValueChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.universal_ble.UniversalBlePlatformChannel.readDescriptorValue\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    if let api = api {
+      readDescriptorValueChannel.setMessageHandler { message, reply in
+        let args = message as! [Any?]
+        let deviceIdArg = args[0] as! String
+        let serviceArg = args[1] as! String
+        let characteristicArg = args[2] as! String
+        let descriptorArg = args[3] as! String
+        api.readDescriptorValue(deviceId: deviceIdArg, service: serviceArg, characteristic: characteristicArg, descriptor: descriptorArg) { result in
+          switch result {
+          case .success(let res):
+            reply(wrapResult(res))
+          case .failure(let error):
+            reply(wrapError(error))
+          }
+        }
+      }
+    } else {
+      readDescriptorValueChannel.setMessageHandler(nil)
+    }
     let requestMtuChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.universal_ble.UniversalBlePlatformChannel.requestMtu\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
     if let api = api {
       requestMtuChannel.setMessageHandler { message, reply in
@@ -1769,6 +1791,27 @@ class UniversalBlePlatformChannelSetup {
       }
     } else {
       writeValueChannel.setMessageHandler(nil)
+    }
+    let writeDescriptorValueChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.universal_ble.UniversalBlePlatformChannel.writeDescriptorValue\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    if let api = api {
+      writeDescriptorValueChannel.setMessageHandler { message, reply in
+        let args = message as! [Any?]
+        let deviceIdArg = args[0] as! String
+        let serviceArg = args[1] as! String
+        let characteristicArg = args[2] as! String
+        let descriptorArg = args[3] as! String
+        let valueArg = args[4] as! FlutterStandardTypedData
+        api.writeDescriptorValue(deviceId: deviceIdArg, service: serviceArg, characteristic: characteristicArg, descriptor: descriptorArg, value: valueArg) { result in
+          switch result {
+          case .success:
+            reply(wrapResult(nil))
+          case .failure(let error):
+            reply(wrapError(error))
+          }
+        }
+      }
+    } else {
+      writeDescriptorValueChannel.setMessageHandler(nil)
     }
     let isPairedChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.universal_ble.UniversalBlePlatformChannel.isPaired\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
     if let api = api {

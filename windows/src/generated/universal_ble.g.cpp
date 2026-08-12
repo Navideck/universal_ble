@@ -2668,6 +2668,53 @@ void UniversalBlePlatformChannel::SetUp(
     }
   }
   {
+    BasicMessageChannel<> channel(binary_messenger, "dev.flutter.pigeon.universal_ble.UniversalBlePlatformChannel.readDescriptorValue" + prepended_suffix, &GetCodec());
+    if (api != nullptr) {
+      channel.SetMessageHandler([api](const EncodableValue& message, const ::flutter::MessageReply<EncodableValue>& reply) {
+        try {
+          const auto& args = std::get<EncodableList>(message);
+          const auto& encodable_device_id_arg = args.at(0);
+          if (encodable_device_id_arg.IsNull()) {
+            reply(WrapError("device_id_arg unexpectedly null."));
+            return;
+          }
+          const auto& device_id_arg = std::get<std::string>(encodable_device_id_arg);
+          const auto& encodable_service_arg = args.at(1);
+          if (encodable_service_arg.IsNull()) {
+            reply(WrapError("service_arg unexpectedly null."));
+            return;
+          }
+          const auto& service_arg = std::get<std::string>(encodable_service_arg);
+          const auto& encodable_characteristic_arg = args.at(2);
+          if (encodable_characteristic_arg.IsNull()) {
+            reply(WrapError("characteristic_arg unexpectedly null."));
+            return;
+          }
+          const auto& characteristic_arg = std::get<std::string>(encodable_characteristic_arg);
+          const auto& encodable_descriptor_arg = args.at(3);
+          if (encodable_descriptor_arg.IsNull()) {
+            reply(WrapError("descriptor_arg unexpectedly null."));
+            return;
+          }
+          const auto& descriptor_arg = std::get<std::string>(encodable_descriptor_arg);
+          api->ReadDescriptorValue(device_id_arg, service_arg, characteristic_arg, descriptor_arg, [reply](ErrorOr<std::vector<uint8_t>>&& output) {
+            if (output.has_error()) {
+              reply(WrapError(output.error()));
+              return;
+            }
+            EncodableList wrapped;
+            wrapped.push_back(EncodableValue(std::move(output).TakeValue()));
+            reply(EncodableValue(std::move(wrapped)));
+          });
+        } catch (const std::exception& exception) {
+          reply(WrapError(exception.what()));
+        }
+      });
+    } else {
+      channel.SetMessageHandler(nullptr);
+    }
+  }
+  {
     BasicMessageChannel<> channel(binary_messenger, "dev.flutter.pigeon.universal_ble.UniversalBlePlatformChannel.requestMtu" + prepended_suffix, &GetCodec());
     if (api != nullptr) {
       channel.SetMessageHandler([api](const EncodableValue& message, const ::flutter::MessageReply<EncodableValue>& reply) {
@@ -2739,6 +2786,59 @@ void UniversalBlePlatformChannel::SetUp(
           }
           const auto& ble_output_property_arg = std::any_cast<const BleOutputProperty&>(std::get<CustomEncodableValue>(encodable_ble_output_property_arg));
           api->WriteValue(device_id_arg, service_arg, characteristic_arg, value_arg, ble_output_property_arg, [reply](std::optional<FlutterError>&& output) {
+            if (output.has_value()) {
+              reply(WrapError(output.value()));
+              return;
+            }
+            EncodableList wrapped;
+            wrapped.push_back(EncodableValue());
+            reply(EncodableValue(std::move(wrapped)));
+          });
+        } catch (const std::exception& exception) {
+          reply(WrapError(exception.what()));
+        }
+      });
+    } else {
+      channel.SetMessageHandler(nullptr);
+    }
+  }
+  {
+    BasicMessageChannel<> channel(binary_messenger, "dev.flutter.pigeon.universal_ble.UniversalBlePlatformChannel.writeDescriptorValue" + prepended_suffix, &GetCodec());
+    if (api != nullptr) {
+      channel.SetMessageHandler([api](const EncodableValue& message, const ::flutter::MessageReply<EncodableValue>& reply) {
+        try {
+          const auto& args = std::get<EncodableList>(message);
+          const auto& encodable_device_id_arg = args.at(0);
+          if (encodable_device_id_arg.IsNull()) {
+            reply(WrapError("device_id_arg unexpectedly null."));
+            return;
+          }
+          const auto& device_id_arg = std::get<std::string>(encodable_device_id_arg);
+          const auto& encodable_service_arg = args.at(1);
+          if (encodable_service_arg.IsNull()) {
+            reply(WrapError("service_arg unexpectedly null."));
+            return;
+          }
+          const auto& service_arg = std::get<std::string>(encodable_service_arg);
+          const auto& encodable_characteristic_arg = args.at(2);
+          if (encodable_characteristic_arg.IsNull()) {
+            reply(WrapError("characteristic_arg unexpectedly null."));
+            return;
+          }
+          const auto& characteristic_arg = std::get<std::string>(encodable_characteristic_arg);
+          const auto& encodable_descriptor_arg = args.at(3);
+          if (encodable_descriptor_arg.IsNull()) {
+            reply(WrapError("descriptor_arg unexpectedly null."));
+            return;
+          }
+          const auto& descriptor_arg = std::get<std::string>(encodable_descriptor_arg);
+          const auto& encodable_value_arg = args.at(4);
+          if (encodable_value_arg.IsNull()) {
+            reply(WrapError("value_arg unexpectedly null."));
+            return;
+          }
+          const auto& value_arg = std::get<std::vector<uint8_t>>(encodable_value_arg);
+          api->WriteDescriptorValue(device_id_arg, service_arg, characteristic_arg, descriptor_arg, value_arg, [reply](std::optional<FlutterError>&& output) {
             if (output.has_value()) {
               reply(WrapError(output.value()));
               return;

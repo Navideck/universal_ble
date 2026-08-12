@@ -8,6 +8,7 @@ class ServicesListWidget extends StatelessWidget {
   final void Function(
     BleService service,
     BleCharacteristic characteristic,
+    BleDescriptor? descriptor,
   )? onTap;
 
   const ServicesListWidget({
@@ -48,7 +49,13 @@ class ServicesListWidget extends StatelessWidget {
                             children: [
                               InkWell(
                                 onTap: () {
-                                  onTap?.call(discoveredServices[index], e);
+                                  onTap?.call(
+                                    discoveredServices[index],
+                                    e,
+                                    e.descriptors.isNotEmpty
+                                        ? e.descriptors.first
+                                        : null,
+                                  );
                                 },
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -62,13 +69,38 @@ class ServicesListWidget extends StatelessWidget {
                                     Text(
                                       "Properties: ${e.properties.map((e) => e.name)}",
                                     ),
-                                    if (e.descriptors.isNotEmpty)
-                                      Text(
-                                        "Descriptors: ${e.descriptors.map((e) => e.uuid).join(', ')}",
-                                      )
                                   ],
                                 ),
                               ),
+                              if (e.descriptors.isNotEmpty) ...[
+                                const SizedBox(height: 4),
+                                Wrap(
+                                  spacing: 6,
+                                  runSpacing: 4,
+                                  children: e.descriptors
+                                      .map(
+                                        (d) => ActionChip(
+                                          avatar: const Icon(
+                                            Icons.description,
+                                            size: 14,
+                                          ),
+                                          label: Text(
+                                            d.uuid,
+                                            style:
+                                                const TextStyle(fontSize: 11),
+                                          ),
+                                          onPressed: () {
+                                            onTap?.call(
+                                              discoveredServices[index],
+                                              e,
+                                              d,
+                                            );
+                                          },
+                                        ),
+                                      )
+                                      .toList(),
+                                ),
+                              ],
                             ],
                           ),
                         ))

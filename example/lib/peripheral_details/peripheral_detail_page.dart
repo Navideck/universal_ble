@@ -32,6 +32,7 @@ class _PeripheralDetailPageState extends State<PeripheralDetailPage> {
   StreamSubscription? pairingStateSubscription;
   BleService? selectedService;
   BleCharacteristic? selectedCharacteristic;
+  BleDescriptor? selectedDescriptor;
 
   @override
   void initState() {
@@ -114,7 +115,7 @@ class _PeripheralDetailPageState extends State<PeripheralDetailPage> {
     const webWarning =
         "Note: Only services added in ScanFilter or WebOptions will be discovered";
     try {
-      var services = await bleDevice.discoverServices(withDescriptors: false);
+      var services = await bleDevice.discoverServices(withDescriptors: true);
       debugPrint('${services.length} services discovered');
       debugPrint(services.toString());
       setState(() {
@@ -129,6 +130,54 @@ class _PeripheralDetailPageState extends State<PeripheralDetailPage> {
       }
     } catch (e) {
       _addLog("DiscoverServicesError", '$e\n${kIsWeb ? webWarning : ""}');
+    }
+  }
+
+  Future<void> _readDescriptorValue() async {
+    BleCharacteristic? selectedCharacteristic = this.selectedCharacteristic;
+    BleService? selectedService = this.selectedService;
+    BleDescriptor? selectedDescriptor = this.selectedDescriptor;
+    if (selectedCharacteristic == null ||
+        selectedService == null ||
+        selectedDescriptor == null) {
+      return;
+    }
+    try {
+      Uint8List value = await selectedDescriptor.read();
+      String s = String.fromCharCodes(value);
+      String data = '$s\nraw :  ${value.toString()}';
+      _addLog('ReadDescriptor', data);
+    } catch (e) {
+      _addLog('ReadDescriptorError', e);
+    }
+  }
+
+  Future<void> _writeDescriptorValue() async {
+    BleCharacteristic? selectedCharacteristic = this.selectedCharacteristic;
+    BleService? selectedService = this.selectedService;
+    BleDescriptor? selectedDescriptor = this.selectedDescriptor;
+    if (selectedCharacteristic == null ||
+        selectedService == null ||
+        selectedDescriptor == null ||
+        !valueFormKey.currentState!.validate() ||
+        binaryCode.text.isEmpty) {
+      return;
+    }
+
+    Uint8List value;
+    try {
+      value = Uint8List.fromList(hex.decode(binaryCode.text));
+    } catch (e) {
+      _addLog('WriteDescriptorError', "Error parsing hex $e");
+      return;
+    }
+
+    try {
+      await selectedDescriptor.write(value);
+      _addLog('WriteDescriptor', value);
+    } catch (e) {
+      debugPrint(e.toString());
+      _addLog('WriteDescriptorError', e);
     }
   }
 
@@ -250,10 +299,14 @@ class _PeripheralDetailPageState extends State<PeripheralDetailPage> {
                       : ServicesListWidget(
                           discoveredServices: discoveredServices,
                           scrollable: true,
-                          onTap: (service, characteristic) {
+                          onTap: (service, characteristic, descriptor) {
                             setState(() {
                               selectedService = service;
                               selectedCharacteristic = characteristic;
+                              selectedDescriptor = descriptor ??
+                                  (characteristic.descriptors.isNotEmpty
+                                      ? characteristic.descriptors.first
+                                      : null);
                             });
                           },
                         ),
@@ -325,6 +378,48 @@ class _PeripheralDetailPageState extends State<PeripheralDetailPage> {
                                       Text(
                                         "Properties: ${selectedCharacteristic?.properties.map((e) => e.name)}",
                                       ),
+                                      if (selectedCharacteristic != null &&
+                                          selectedCharacteristic!
+                                              .descriptors.isNotEmpty) ...[
+                                        const SizedBox(height: 4),
+                                        Row(
+                                          children: [
+                                            const Text(
+                                              "Selected Descriptor: ",
+                                              style: TextStyle(
+                                                  fontWeight: FontWeight.bold),
+                                            ),
+                                            Expanded(
+                                              child:
+                                                  DropdownButton<BleDescriptor>(
+                                                isDense: true,
+                                                isExpanded: true,
+                                                value: selectedDescriptor ??
+                                                    selectedCharacteristic!
+                                                        .descriptors.first,
+                                                items: selectedCharacteristic!
+                                                    .descriptors
+                                                    .map(
+                                                        (d) => DropdownMenuItem(
+                                                              value: d,
+                                                              child: Text(
+                                                                d.uuid,
+                                                                overflow:
+                                                                    TextOverflow
+                                                                        .ellipsis,
+                                                              ),
+                                                            ))
+                                                    .toList(),
+                                                onChanged: (val) {
+                                                  setState(() {
+                                                    selectedDescriptor = val;
+                                                  });
+                                                },
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ],
                                     ],
                                   ),
                                 ),
@@ -332,9 +427,10 @@ class _PeripheralDetailPageState extends State<PeripheralDetailPage> {
                             ),
 
                       if (_hasSelectedCharacteristicProperty([
-                        CharacteristicProperty.write,
-                        CharacteristicProperty.writeWithoutResponse
-                      ]))
+                            CharacteristicProperty.write,
+                            CharacteristicProperty.writeWithoutResponse
+                          ]) ||
+                          selectedDescriptor != null)
                         Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 8.0),
                           child: Form(
@@ -432,6 +528,20 @@ class _PeripheralDetailPageState extends State<PeripheralDetailPage> {
                             PlatformButton(
                               enabled: isConnected &&
                                   discoveredServices.isNotEmpty &&
+                                  selectedDescriptor != null,
+                              onPressed: _readDescriptorValue,
+                              text: 'Read Descriptor',
+                            ),
+                            PlatformButton(
+                              enabled: isConnected &&
+                                  discoveredServices.isNotEmpty &&
+                                  selectedDescriptor != null,
+                              onPressed: _writeDescriptorValue,
+                              text: 'Write Descriptor',
+                            ),
+                            PlatformButton(
+                              enabled: isConnected &&
+                                  discoveredServices.isNotEmpty &&
                                   _hasSelectedCharacteristicProperty([
                                     CharacteristicProperty.notify,
                                     CharacteristicProperty.indicate
@@ -491,10 +601,14 @@ class _PeripheralDetailPageState extends State<PeripheralDetailPage> {
                       if (deviceType != DeviceType.desktop)
                         ServicesListWidget(
                           discoveredServices: discoveredServices,
-                          onTap: (service, characteristic) {
+                          onTap: (service, characteristic, descriptor) {
                             setState(() {
                               selectedService = service;
                               selectedCharacteristic = characteristic;
+                              selectedDescriptor = descriptor ??
+                                  (characteristic.descriptors.isNotEmpty
+                                      ? characteristic.descriptors.first
+                                      : null);
                             });
                           },
                         ),

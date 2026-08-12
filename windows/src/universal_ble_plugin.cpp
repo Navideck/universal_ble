@@ -547,6 +547,185 @@ void UniversalBlePlugin::WriteValue(
   }
 }
 
+void UniversalBlePlugin::ReadDescriptorValue(
+    const std::string &device_id, const std::string &service,
+    const std::string &characteristic, const std::string &descriptor,
+    std::function<void(ErrorOr<std::vector<uint8_t>> reply)> result) {
+  UniversalBleLogger::LogDebugWithTimestamp("READ_DESCRIPTOR -> " + device_id + " " +
+                                            service + " " + characteristic + " " + descriptor);
+  try {
+    const auto bluetooth_agent =
+        GetConnectedDevice(str_to_mac_address(device_id));
+    if (!bluetooth_agent) {
+      result(create_flutter_error(UniversalBleErrorCode::kDeviceNotFound,
+                                  "Unknown deviceId:" + device_id));
+    }
+
+    const GattCharacteristicObject gatt_characteristic_holder =
+        bluetooth_agent->FetchCharacteristic(service, characteristic);
+    const GattCharacteristic gatt_characteristic =
+        gatt_characteristic_holder.obj;
+
+    gatt_characteristic.GetDescriptorsForUuidAsync(uuid_to_guid(descriptor), BluetoothCacheMode::Uncached)
+        .Completed([device_id, service, characteristic, descriptor, result](
+                       IAsyncOperation<GattDescriptorsResult> const &desc_sender,
+                       AsyncStatus const desc_args) {
+          try {
+            if (desc_args != AsyncStatus::Completed) {
+              safe_reply(
+                  "ReadDescriptorValue", result,
+                  create_flutter_error(
+                      UniversalBleErrorCode::kFailed,
+                      desc_args == AsyncStatus::Canceled ? "Read descriptor was cancelled"
+                                                         : "Read descriptor failed"));
+              return;
+            }
+            const auto desc_result = desc_sender.GetResults();
+            if (desc_result.Status() != GattCommunicationStatus::Success || desc_result.Descriptors().Size() == 0) {
+              safe_reply("ReadDescriptorValue", result,
+                         create_flutter_error(UniversalBleErrorCode::kCharacteristicNotFound,
+                                             "Descriptor not found:" + descriptor));
+              return;
+            }
+            const auto gatt_descriptor = desc_result.Descriptors().GetAt(0);
+            gatt_descriptor.ReadValueAsync(BluetoothCacheMode::Uncached)
+                .Completed([device_id, service, characteristic, descriptor, result](
+                               IAsyncOperation<GattReadResult> const &sender,
+                               AsyncStatus const args) {
+                  try {
+                    if (args != AsyncStatus::Completed) {
+                      safe_reply(
+                          "ReadDescriptorValue", result,
+                          create_flutter_error(
+                              UniversalBleErrorCode::kFailed,
+                              args == AsyncStatus::Canceled ? "Read descriptor was cancelled"
+                                                            : "Read descriptor failed"));
+                      return;
+                    }
+                    const auto read_value_result = sender.GetResults();
+                    const auto status = read_value_result.Status();
+                    if (status != GattCommunicationStatus::Success) {
+                      safe_reply("ReadDescriptorValue", result,
+                                 create_flutter_error_from_gatt_communication_status(status));
+                    } else {
+                      safe_reply("ReadDescriptorValue", result,
+                                 to_bytevc(read_value_result.Value()));
+                    }
+                  } catch (const hresult_error &err) {
+                    safe_reply("ReadDescriptorValue", result,
+                               create_flutter_error(UniversalBleErrorCode::kFailed,
+                                                    to_string(err.message()),
+                                                    std::to_string(err.code())));
+                  } catch (...) {
+                    safe_reply("ReadDescriptorValue", result, create_flutter_unknown_error());
+                  }
+                });
+          } catch (const hresult_error &err) {
+            safe_reply("ReadDescriptorValue", result,
+                       create_flutter_error(UniversalBleErrorCode::kFailed,
+                                            to_string(err.message()),
+                                            std::to_string(err.code())));
+          } catch (...) {
+            safe_reply("ReadDescriptorValue", result, create_flutter_unknown_error());
+          }
+        });
+  } catch (const FlutterError &err) {
+    return result(err);
+  } catch (...) {
+    return result(create_flutter_unknown_error());
+  }
+}
+
+void UniversalBlePlugin::WriteDescriptorValue(
+    const std::string &device_id, const std::string &service,
+    const std::string &characteristic, const std::string &descriptor,
+    const std::vector<uint8_t> &value,
+    std::function<void(std::optional<FlutterError> reply)> result) {
+  UniversalBleLogger::LogDebugWithTimestamp(
+      "WRITE_DESCRIPTOR -> " + device_id + " " + service + " " + characteristic +
+      " " + descriptor + " len=" + std::to_string(value.size()));
+  try {
+    const auto bluetooth_agent =
+        GetConnectedDevice(str_to_mac_address(device_id));
+    if (!bluetooth_agent) {
+      result(create_flutter_error(UniversalBleErrorCode::kDeviceNotFound,
+                                  "Unknown devicesId:" + device_id));
+      return;
+    }
+    const GattCharacteristicObject gatt_characteristic_holder =
+        bluetooth_agent->FetchCharacteristic(service, characteristic);
+    const GattCharacteristic gatt_characteristic =
+        gatt_characteristic_holder.obj;
+
+    gatt_characteristic.GetDescriptorsForUuidAsync(uuid_to_guid(descriptor), BluetoothCacheMode::Uncached)
+        .Completed([device_id, service, characteristic, descriptor, value, result](
+                       IAsyncOperation<GattDescriptorsResult> const &desc_sender,
+                       AsyncStatus const desc_args) {
+          try {
+            if (desc_args != AsyncStatus::Completed) {
+              safe_reply(
+                  "WriteDescriptorValue", result,
+                  create_flutter_error(
+                      UniversalBleErrorCode::kFailed,
+                      desc_args == AsyncStatus::Canceled ? "Write descriptor was cancelled"
+                                                         : "Write descriptor failed"));
+              return;
+            }
+            const auto desc_result = desc_sender.GetResults();
+            if (desc_result.Status() != GattCommunicationStatus::Success || desc_result.Descriptors().Size() == 0) {
+              safe_reply("WriteDescriptorValue", result,
+                         create_flutter_error(UniversalBleErrorCode::kCharacteristicNotFound,
+                                             "Descriptor not found:" + descriptor));
+              return;
+            }
+            const auto gatt_descriptor = desc_result.Descriptors().GetAt(0);
+            gatt_descriptor.WriteValueAsync(from_bytevc(value))
+                .Completed([device_id, service, characteristic, descriptor, result](
+                               IAsyncOperation<GattCommunicationStatus> const &sender,
+                               AsyncStatus const args) {
+                  try {
+                    if (args != AsyncStatus::Completed) {
+                      safe_reply(
+                          "WriteDescriptorValue", result,
+                          create_flutter_error(
+                              UniversalBleErrorCode::kFailed,
+                              args == AsyncStatus::Canceled ? "Write descriptor was cancelled"
+                                                            : "Write descriptor failed"));
+                      return;
+                    }
+
+                    const auto status = sender.GetResults();
+                    if (status != GattCommunicationStatus::Success) {
+                      safe_reply("WriteDescriptorValue", result,
+                                 create_flutter_error_from_gatt_communication_status(status));
+                    } else {
+                      safe_reply("WriteDescriptorValue", result, std::nullopt);
+                    }
+                  } catch (const hresult_error &err) {
+                    safe_reply("WriteDescriptorValue", result,
+                               create_flutter_error(UniversalBleErrorCode::kFailed,
+                                                    to_string(err.message()),
+                                                    std::to_string(err.code())));
+                  } catch (...) {
+                    safe_reply("WriteDescriptorValue", result, create_flutter_unknown_error());
+                  }
+                });
+          } catch (const hresult_error &err) {
+            safe_reply("WriteDescriptorValue", result,
+                       create_flutter_error(UniversalBleErrorCode::kFailed,
+                                            to_string(err.message()),
+                                            std::to_string(err.code())));
+          } catch (...) {
+            safe_reply("WriteDescriptorValue", result, create_flutter_unknown_error());
+          }
+        });
+  } catch (const FlutterError &err) {
+    return result(err);
+  } catch (...) {
+    return result(create_flutter_unknown_error());
+  }
+}
+
 void UniversalBlePlugin::RequestMtu(
     const std::string &device_id, int64_t expected_mtu,
     std::function<void(ErrorOr<int64_t> reply)> result) {

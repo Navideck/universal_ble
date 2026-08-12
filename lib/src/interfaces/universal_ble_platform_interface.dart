@@ -89,12 +89,28 @@ abstract class UniversalBlePlatform {
     Duration? timeout,
   });
 
+  Future<Uint8List> readDescriptorValue(
+    String deviceId,
+    String service,
+    String characteristic,
+    String descriptor, {
+    Duration? timeout,
+  });
+
   Future<void> writeValue(
     String deviceId,
     String service,
     String characteristic,
     Uint8List value,
     BleOutputProperty bleOutputProperty,
+  );
+
+  Future<void> writeDescriptorValue(
+    String deviceId,
+    String service,
+    String characteristic,
+    String descriptor,
+    Uint8List value,
   );
 
   Future<int> requestMtu(String deviceId, int expectedMtu);

@@ -285,6 +285,63 @@ class UniversalBleWeb extends UniversalBlePlatform {
     return (await data).buffer.asUint8List();
   }
 
+  @override
+  Future<Uint8List> readDescriptorValue(
+    String deviceId,
+    String service,
+    String characteristic,
+    String descriptor, {
+    Duration? timeout,
+  }) async {
+    UniversalLogger.logDebug(
+      "READ_DESCRIPTOR -> $deviceId $service $characteristic $descriptor",
+      withTimestamp: true,
+    );
+    var bleDescriptor = await _getBleDescriptor(
+      deviceId: deviceId,
+      serviceId: service,
+      characteristicId: characteristic,
+      descriptorId: descriptor,
+    );
+    if (bleDescriptor == null) {
+      throw UniversalBleException(
+        code: UniversalBleErrorCode.characteristicNotFound,
+        message:
+            'Descriptor $descriptor for characteristic $characteristic not found',
+      );
+    }
+    var data = await bleDescriptor.readValue();
+    return data.buffer.asUint8List();
+  }
+
+  @override
+  Future<void> writeDescriptorValue(
+    String deviceId,
+    String service,
+    String characteristic,
+    String descriptor,
+    Uint8List value,
+  ) async {
+    UniversalLogger.logDebug(
+      "WRITE_DESCRIPTOR -> $deviceId $service $characteristic $descriptor len=${value.length}",
+      withTimestamp: true,
+    );
+    var bleDescriptor = await _getBleDescriptor(
+      deviceId: deviceId,
+      serviceId: service,
+      characteristicId: characteristic,
+      descriptorId: descriptor,
+    );
+    if (bleDescriptor == null) {
+      throw UniversalBleException(
+        code: UniversalBleErrorCode.characteristicNotFound,
+        message:
+            'Descriptor $descriptor for characteristic $characteristic not found',
+      );
+    }
+    await bleDescriptor.writeValue(Uint8List.fromList(value));
+  }
+
   /// `Unimplemented`
   @override
   Future<int> requestMtu(String deviceId, int expectedMtu) {
@@ -386,6 +443,33 @@ class UniversalBleWeb extends UniversalBlePlatform {
       if (BleUuidParser.compareStrings(service.uuid, serviceId)) {
         return service.getCharacteristic(characteristicId);
       }
+    }
+    return null;
+  }
+
+  Future<BluetoothDescriptor?> _getBleDescriptor({
+    required String deviceId,
+    required String serviceId,
+    required String characteristicId,
+    required String descriptorId,
+  }) async {
+    var bleCharacteristic = await _getBleCharacteristic(
+      deviceId: deviceId,
+      serviceId: serviceId,
+      characteristicId: characteristicId,
+    );
+    if (bleCharacteristic == null) return null;
+    try {
+      return await bleCharacteristic.getDescriptor(descriptorId);
+    } catch (_) {
+      try {
+        var descriptors = await bleCharacteristic.getDescriptors();
+        for (var desc in descriptors) {
+          if (BleUuidParser.compareStrings(desc.uuid, descriptorId)) {
+            return desc;
+          }
+        }
+      } catch (_) {}
     }
     return null;
   }

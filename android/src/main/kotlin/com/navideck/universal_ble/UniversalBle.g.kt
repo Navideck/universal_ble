@@ -1714,8 +1714,10 @@ interface UniversalBlePlatformChannel {
   fun setNotifiable(deviceId: String, service: String, characteristic: String, bleInputProperty: BleInputProperty, callback: (Result<Unit>) -> Unit)
   fun discoverServices(deviceId: String, withDescriptors: Boolean, callback: (Result<List<UniversalBleService>>) -> Unit)
   fun readValue(deviceId: String, service: String, characteristic: String, callback: (Result<ByteArray>) -> Unit)
+  fun readDescriptorValue(deviceId: String, service: String, characteristic: String, descriptor: String, callback: (Result<ByteArray>) -> Unit)
   fun requestMtu(deviceId: String, expectedMtu: Long, callback: (Result<Long>) -> Unit)
   fun writeValue(deviceId: String, service: String, characteristic: String, value: ByteArray, bleOutputProperty: BleOutputProperty, callback: (Result<Unit>) -> Unit)
+  fun writeDescriptorValue(deviceId: String, service: String, characteristic: String, descriptor: String, value: ByteArray, callback: (Result<Unit>) -> Unit)
   fun isPaired(deviceId: String, callback: (Result<Boolean>) -> Unit)
   fun pair(deviceId: String, callback: (Result<Boolean>) -> Unit)
   fun unPair(deviceId: String)
@@ -1978,6 +1980,29 @@ interface UniversalBlePlatformChannel {
         }
       }
       run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.universal_ble.UniversalBlePlatformChannel.readDescriptorValue$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { message, reply ->
+            val args = message as List<Any?>
+            val deviceIdArg = args[0] as String
+            val serviceArg = args[1] as String
+            val characteristicArg = args[2] as String
+            val descriptorArg = args[3] as String
+            api.readDescriptorValue(deviceIdArg, serviceArg, characteristicArg, descriptorArg) { result: Result<ByteArray> ->
+              val error = result.exceptionOrNull()
+              if (error != null) {
+                reply.reply(UniversalBlePigeonUtils.wrapError(error))
+              } else {
+                val data = result.getOrNull()
+                reply.reply(UniversalBlePigeonUtils.wrapResult(data))
+              }
+            }
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
         val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.universal_ble.UniversalBlePlatformChannel.requestMtu$separatedMessageChannelSuffix", codec)
         if (api != null) {
           channel.setMessageHandler { message, reply ->
@@ -2009,6 +2034,29 @@ interface UniversalBlePlatformChannel {
             val valueArg = args[3] as ByteArray
             val bleOutputPropertyArg = args[4] as BleOutputProperty
             api.writeValue(deviceIdArg, serviceArg, characteristicArg, valueArg, bleOutputPropertyArg) { result: Result<Unit> ->
+              val error = result.exceptionOrNull()
+              if (error != null) {
+                reply.reply(UniversalBlePigeonUtils.wrapError(error))
+              } else {
+                reply.reply(UniversalBlePigeonUtils.wrapResult(null))
+              }
+            }
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.universal_ble.UniversalBlePlatformChannel.writeDescriptorValue$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { message, reply ->
+            val args = message as List<Any?>
+            val deviceIdArg = args[0] as String
+            val serviceArg = args[1] as String
+            val characteristicArg = args[2] as String
+            val descriptorArg = args[3] as String
+            val valueArg = args[4] as ByteArray
+            api.writeDescriptorValue(deviceIdArg, serviceArg, characteristicArg, descriptorArg, valueArg) { result: Result<Unit> ->
               val error = result.exceptionOrNull()
               if (error != null) {
                 reply.reply(UniversalBlePigeonUtils.wrapError(error))
