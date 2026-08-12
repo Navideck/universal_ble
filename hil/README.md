@@ -9,10 +9,10 @@ repository. Test commands go over BLE. USB serial is only used for Zephyr logs.
 
 ## 1. Current coverage
 
-The Windows suite contains 41 implemented hardware tests:
+The Windows suite contains 57 implemented hardware tests:
 
-- 15 baseline tests for ordinary BLE behavior;
-- 26 fault injection tests for hostile peripheral behavior, timing, and
+- 18 baseline tests for ordinary BLE behavior;
+- 39 fault injection tests for hostile peripheral behavior, timing, and
   lifecycle races.
 
 [`COVERAGE.md`](COVERAGE.md) lists every implemented test, what it does, and
@@ -48,6 +48,25 @@ Fixture control also uses BLE, so faults are armed while the device is
 connected. The firmware then runs them locally using valid GATT behavior.
 
 ## 4. Running the tests
+
+The platform runners are generated locally and are not stored in Git. Create
+them after cloning or when testing a new platform:
+
+```powershell
+flutter create --platforms=android,web,windows .
+```
+
+For Android, add these permissions directly below the opening `<manifest>`
+element in `android/app/src/main/AndroidManifest.xml`:
+
+```xml
+<uses-permission android:name="android.permission.BLUETOOTH_SCAN" android:usesPermissionFlags="neverForLocation" />
+<uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
+<uses-permission android:name="android.permission.BLUETOOTH_ADVERTISE" />
+<uses-permission android:name="android.permission.BLUETOOTH" android:maxSdkVersion="30" />
+<uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" android:maxSdkVersion="30" />
+<uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" android:maxSdkVersion="30" />
+```
 
 Flash the matching firmware and confirm that `UniversalBLE-HIL` is
 advertising. From this directory, run:

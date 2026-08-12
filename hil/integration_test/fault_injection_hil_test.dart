@@ -101,8 +101,35 @@ void main() {
       _pending(
         '[FIT-CONN-005] ignores completion from a superseded connection attempt',
       );
-      _pending(
-        '[FIT-CONN-006] prevents an older disconnect callback from removing a replacement connection',
+      testWidgets(
+        '[FIT-CONN-006] prevents a superseded connection from tearing down its replacement',
+        (_) async {
+          await _requestImmediateDisconnect(peripheral);
+          UniversalBle.queueType = QueueType.none;
+          final events = <bool>[];
+          final subscription = peripheral.connections.listen(events.add);
+          addTearDown(subscription.cancel);
+
+          await Future.wait([
+            UniversalBle.connect(
+              peripheral.deviceId,
+              timeout: HilPeripheral.operationTimeout,
+            ),
+            UniversalBle.connect(
+              peripheral.deviceId,
+              timeout: HilPeripheral.operationTimeout,
+            ),
+          ]);
+          await Future<void>.delayed(const Duration(seconds: 1));
+
+          _expectOneConnectionWithNoLaterDisconnect(events);
+          expect(
+            utf8.decode(await peripheral.read(HilUuid.read)),
+            'HIL-READ-V1',
+          );
+        },
+        timeout: const Timeout(Duration(minutes: 2)),
+        skip: defaultTargetPlatform != TargetPlatform.windows,
       );
       // Android's BLE stack has longer write-acknowledgement latency than
       // Windows/WinRT. The 25 ms peripheral-disconnect delay is too tight for
@@ -215,15 +242,148 @@ void main() {
       _pending(
         '[FIT-DISC-006] observes a newly added descriptor after reconnect',
       );
-      _pending(
-        '[FIT-DISC-007] invalidates cached services after a Service Changed indication',
+      testWidgets(
+        '[FIT-DISC-007] refreshes cached services after a Service Changed indication',
+        (_) async {
+          expect(
+            await _hasService(peripheral, HilUuid.auxiliaryService),
+            isFalse,
+          );
+
+          await peripheral.setAuxiliaryService(enabled: true);
+          await _waitUntil(
+            () => _hasService(peripheral, HilUuid.auxiliaryService),
+          );
+          expect(
+            utf8.decode(
+              await UniversalBle.read(
+                peripheral.deviceId,
+                HilUuid.auxiliaryService,
+                HilUuid.auxiliaryRead,
+                timeout: HilPeripheral.operationTimeout,
+              ),
+            ),
+            'AUXILIARY-V1',
+          );
+
+          await peripheral.setAuxiliaryService(enabled: false);
+          await _waitUntil(
+            () async =>
+                !await _hasService(peripheral, HilUuid.auxiliaryService),
+          );
+          await expectLater(
+            UniversalBle.read(
+              peripheral.deviceId,
+              HilUuid.auxiliaryService,
+              HilUuid.auxiliaryRead,
+              timeout: HilPeripheral.operationTimeout,
+            ),
+            throwsA(isA<UniversalBleException>()),
+          );
+        },
       );
-      _pending('[FIT-DISC-008] handles a large vanilla GATT service table');
+      testWidgets(
+        '[FIT-DISC-008] preserves an active subscription across Service Changed',
+        (_) async {
+          await peripheral.subscribe(HilUuid.notify);
+
+          var received = peripheral.values(HilUuid.notify).first;
+          await peripheral.requestNotification([0x80]);
+          expect(await received.timeout(HilPeripheral.operationTimeout), [
+            0x80,
+          ]);
+
+          await peripheral.setAuxiliaryService(enabled: true);
+          await _waitUntil(
+            () => _hasService(peripheral, HilUuid.auxiliaryService),
+          );
+
+          received = peripheral.values(HilUuid.notify).first;
+          await peripheral.requestNotification([0x81]);
+          expect(await received.timeout(HilPeripheral.operationTimeout), [
+            0x81,
+          ]);
+
+          await peripheral.setAuxiliaryService(enabled: false);
+          await _waitUntil(
+            () async =>
+                !await _hasService(peripheral, HilUuid.auxiliaryService),
+          );
+
+          received = peripheral.values(HilUuid.notify).first;
+          await peripheral.requestNotification([0x82]);
+          expect(await received.timeout(HilPeripheral.operationTimeout), [
+            0x82,
+          ]);
+        },
+      );
+      testWidgets(
+        '[FIT-DISC-009] defers Service Changed cleanup until an active read completes',
+        (_) async {
+          await peripheral.armReadFault(delay: const Duration(seconds: 2));
+          await peripheral.scheduleAuxiliaryService(
+            enabled: true,
+            delay: const Duration(milliseconds: 100),
+          );
+
+          expect(
+            utf8.decode(await peripheral.read(HilUuid.read)),
+            'HIL-READ-V1',
+          );
+          await _waitUntil(
+            () => _hasService(peripheral, HilUuid.auxiliaryService),
+          );
+          expect(
+            utf8.decode(await peripheral.read(HilUuid.read)),
+            'HIL-READ-V1',
+          );
+        },
+      );
+      testWidgets(
+        '[FIT-DISC-010] defers Service Changed cleanup until an active write completes',
+        (_) async {
+          await peripheral.armWriteFault(delay: const Duration(seconds: 2));
+          await peripheral.scheduleAuxiliaryService(
+            enabled: true,
+            delay: const Duration(milliseconds: 100),
+          );
+
+          await peripheral.write(HilUuid.write, [0x91]);
+          await _waitUntil(
+            () => _hasService(peripheral, HilUuid.auxiliaryService),
+          );
+          expect(await peripheral.read(HilUuid.writeMirror), [0x91]);
+        },
+      );
+      testWidgets(
+        '[FIT-DISC-011] retries Service Changed after an overlapping CCC operation',
+        (_) async {
+          UniversalBle.queueType = QueueType.none;
+          await peripheral.armCccDelay(const Duration(seconds: 2));
+          await peripheral.scheduleAuxiliaryService(
+            enabled: true,
+            delay: const Duration(milliseconds: 100),
+          );
+
+          await peripheral.subscribe(HilUuid.notify);
+          UniversalBle.queueType = QueueType.global;
+          await _waitUntil(
+            () => _hasService(peripheral, HilUuid.auxiliaryService),
+          );
+          final received = peripheral.values(HilUuid.notify).first;
+          await peripheral.requestNotification([0x92]);
+          expect(await received.timeout(HilPeripheral.operationTimeout), [
+            0x92,
+          ]);
+        },
+        skip: kIsWeb,
+      );
+      _pending('[FIT-DISC-012] handles a large vanilla GATT service table');
       _pending(
-        '[FIT-DISC-009] remains usable after one service discovery returns an ATT error',
+        '[FIT-DISC-013] remains usable after one service discovery returns an ATT error',
       );
       _pending(
-        '[FIT-DISC-010] ignores discovery completion from a superseded connection',
+        '[FIT-DISC-014] ignores discovery completion from a superseded connection',
       );
     });
 
@@ -316,8 +476,32 @@ void main() {
       _pending(
         '[FIT-READ-009] fails safely when the peripheral reboots during a read',
       );
-      _pending(
+      testWidgets(
         '[FIT-READ-010] ignores a read completion from a previous connection',
+        (_) async {
+          UniversalBle.queueType = QueueType.none;
+          await peripheral.armReadFault(
+            delay: const Duration(seconds: 5),
+            disconnectAfter: const Duration(milliseconds: 50),
+          );
+          final oldRead = _captureResult(peripheral.read(HilUuid.read));
+          await _waitForDisconnect(peripheral);
+
+          final events = <bool>[];
+          final subscription = peripheral.connections.listen(events.add);
+          addTearDown(subscription.cancel);
+          await peripheral.reconnect();
+          expect(await oldRead, isA<_AsyncFailure>());
+          await Future<void>.delayed(const Duration(milliseconds: 300));
+
+          _expectOneConnectionWithNoLaterDisconnect(events);
+          expect(
+            utf8.decode(await peripheral.read(HilUuid.read)),
+            'HIL-READ-V1',
+          );
+        },
+        timeout: const Timeout(Duration(minutes: 2)),
+        skip: defaultTargetPlatform != TargetPlatform.windows,
       );
       // Android serializes GATT operations at the platform level and rejects
       // concurrent reads on the same device. This test disables app-layer
@@ -423,8 +607,32 @@ void main() {
       _pending(
         '[FIT-WRITE-009] fails safely when the peripheral reboots during a write',
       );
-      _pending(
+      testWidgets(
         '[FIT-WRITE-010] ignores a write completion from a previous connection',
+        (_) async {
+          UniversalBle.queueType = QueueType.none;
+          await peripheral.armWriteFault(
+            delay: const Duration(seconds: 5),
+            disconnectAfter: const Duration(milliseconds: 50),
+          );
+          final oldWrite = _captureResult(
+            peripheral.write(HilUuid.write, [0x10]),
+          );
+          await _waitForDisconnect(peripheral);
+
+          final events = <bool>[];
+          final subscription = peripheral.connections.listen(events.add);
+          addTearDown(subscription.cancel);
+          await peripheral.reconnect();
+          expect(await oldWrite, isA<_AsyncFailure>());
+          await Future<void>.delayed(const Duration(milliseconds: 300));
+
+          _expectOneConnectionWithNoLaterDisconnect(events);
+          await peripheral.write(HilUuid.write, [0x11]);
+          expect(await peripheral.read(HilUuid.writeMirror), [0x11]);
+        },
+        timeout: const Timeout(Duration(minutes: 2)),
+        skip: defaultTargetPlatform != TargetPlatform.windows,
       );
       _pending(
         '[FIT-WRITE-011] completes concurrent writes to different characteristics independently',
@@ -455,6 +663,77 @@ void main() {
       );
       _pending(
         '[FIT-WNR-007] reconnects and writes successfully after command-write buffer exhaustion',
+      );
+    });
+
+    group('descriptor faults', () {
+      testWidgets(
+        '[FIT-DESC-001] reports an ATT descriptor read error and recovers',
+        (_) async {
+          await peripheral.armDescriptorReadFault(attError: 0x0e);
+          await expectLater(
+            peripheral.readDescriptor(),
+            throwsA(isA<UniversalBleException>()),
+          );
+
+          expect(
+            utf8.decode(await peripheral.readDescriptor()),
+            'HIL-DESCRIPTOR-V1',
+          );
+        },
+      );
+
+      testWidgets(
+        '[FIT-DESC-002] reports an ATT descriptor write error and recovers',
+        (_) async {
+          await peripheral.armDescriptorWriteFault(attError: 0x0e);
+          await expectLater(
+            peripheral.writeDescriptor([0x21]),
+            throwsA(isA<UniversalBleException>()),
+          );
+
+          await peripheral.writeDescriptor([0x22]);
+          expect(await peripheral.readDescriptor(), [0x22]);
+        },
+      );
+
+      testWidgets(
+        '[FIT-DESC-003] fails safely when the peripheral disconnects during a descriptor read',
+        (_) async {
+          await peripheral.armDescriptorReadFault(
+            delay: const Duration(seconds: 1),
+            disconnectAfter: const Duration(milliseconds: 50),
+          );
+          await expectLater(peripheral.readDescriptor(), throwsA(anything));
+          await _waitForDisconnect(peripheral);
+
+          await peripheral.reconnect();
+          expect(
+            utf8.decode(await peripheral.readDescriptor()),
+            'HIL-DESCRIPTOR-V1',
+          );
+        },
+        timeout: const Timeout(Duration(minutes: 2)),
+      );
+
+      testWidgets(
+        '[FIT-DESC-004] fails safely when the peripheral disconnects during a descriptor write',
+        (_) async {
+          await peripheral.armDescriptorWriteFault(
+            delay: const Duration(seconds: 1),
+            disconnectAfter: const Duration(milliseconds: 50),
+          );
+          await expectLater(
+            peripheral.writeDescriptor([0x41]),
+            throwsA(anything),
+          );
+          await _waitForDisconnect(peripheral);
+
+          await peripheral.reconnect();
+          await peripheral.writeDescriptor([0x42]);
+          expect(await peripheral.readDescriptor(), [0x42]);
+        },
+        timeout: const Timeout(Duration(minutes: 2)),
       );
     });
 
@@ -693,9 +972,10 @@ void main() {
             size: 64,
             interval: const Duration(milliseconds: 10),
           );
-          await peripheral.requestDisconnect(const Duration(milliseconds: 100));
-
-          await _waitForDisconnect(peripheral);
+          await _requestDisconnectAndWait(
+            peripheral,
+            const Duration(milliseconds: 100),
+          );
           expect(values, isNotEmpty);
           expect(values.length, lessThan(100));
           await peripheral.reconnect();
@@ -874,12 +1154,26 @@ Future<void> _waitForDisconnect(HilPeripheral peripheral) async {
       .timeout(HilPeripheral.operationTimeout);
 }
 
+Future<bool> _hasService(HilPeripheral peripheral, String serviceUuid) async {
+  final services = await peripheral.discover(withDescriptors: false);
+  return services.any(
+    (service) => BleUuidParser.compareStrings(service.uuid, serviceUuid),
+  );
+}
+
 Future<void> _requestImmediateDisconnect(HilPeripheral peripheral) async {
+  await _requestDisconnectAndWait(peripheral, Duration.zero);
+}
+
+Future<void> _requestDisconnectAndWait(
+  HilPeripheral peripheral,
+  Duration delay,
+) async {
   final disconnected = _waitForDisconnect(peripheral);
   Object? commandError;
   StackTrace? commandStackTrace;
   try {
-    await peripheral.requestDisconnect(Duration.zero);
+    await peripheral.requestDisconnect(delay);
   } catch (error, stackTrace) {
     commandError = error;
     commandStackTrace = stackTrace;
@@ -911,3 +1205,23 @@ Future<void> _waitUntil(
 
 int _uint16(List<int> value, int offset) =>
     value[offset] | value[offset + 1] << 8;
+
+Future<Object?> _captureResult(Future<Object?> operation) async {
+  try {
+    return await operation;
+  } catch (error, stackTrace) {
+    return _AsyncFailure(error, stackTrace);
+  }
+}
+
+final class _AsyncFailure {
+  const _AsyncFailure(this.error, this.stackTrace);
+
+  final Object error;
+  final StackTrace stackTrace;
+}
+
+void _expectOneConnectionWithNoLaterDisconnect(List<bool> events) {
+  expect(events.where((connected) => connected), hasLength(1));
+  expect(events.last, isTrue);
+}

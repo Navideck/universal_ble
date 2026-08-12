@@ -16,6 +16,9 @@ abstract final class HilUuid {
   static const notify = '7e570009-7e57-4e57-8e57-7e5700000001';
   static const indicate = '7e57000a-7e57-4e57-8e57-7e5700000001';
   static const multi = '7e57000b-7e57-4e57-8e57-7e5700000001';
+  static const auxiliaryService = '7e57000c-7e57-4e57-8e57-7e5700000001';
+  static const auxiliaryRead = '7e57000d-7e57-4e57-8e57-7e5700000001';
+  static const descriptor = '7e57000e-7e57-4e57-8e57-7e5700000001';
 }
 
 abstract final class HilCommand {
@@ -29,6 +32,11 @@ abstract final class HilCommand {
   static const armWriteFault = 0x08;
   static const notifyScript = 0x09;
   static const notifyOnSubscribe = 0x0a;
+  static const setAuxiliaryService = 0x0b;
+  static const scheduleAuxiliaryService = 0x0c;
+  static const armCccDelay = 0x0d;
+  static const armDescriptorReadFault = 0x0e;
+  static const armDescriptorWriteFault = 0x0f;
 }
 
 final class HilState {
@@ -256,6 +264,39 @@ final class HilPeripheral {
   Future<void> armNotificationOnSubscribe() =>
       command(HilCommand.notifyOnSubscribe);
 
+  Future<void> setAuxiliaryService({required bool enabled}) =>
+      command(HilCommand.setAuxiliaryService, [enabled ? 1 : 0]);
+
+  Future<void> scheduleAuxiliaryService({
+    required bool enabled,
+    required Duration delay,
+  }) => command(HilCommand.scheduleAuxiliaryService, [
+    enabled ? 1 : 0,
+    ..._uint16(_durationMilliseconds(delay, 'delay')),
+  ]);
+
+  Future<void> armCccDelay(Duration delay) => command(
+    HilCommand.armCccDelay,
+    _uint16(_durationMilliseconds(delay, 'delay')),
+  );
+
+  Future<Uint8List> readDescriptor() => UniversalBle.readDescriptor(
+    deviceId,
+    HilUuid.service,
+    HilUuid.read,
+    HilUuid.descriptor,
+    timeout: operationTimeout,
+  );
+
+  Future<void> writeDescriptor(List<int> value) => UniversalBle.writeDescriptor(
+    deviceId,
+    HilUuid.service,
+    HilUuid.read,
+    HilUuid.descriptor,
+    Uint8List.fromList(value),
+    timeout: operationTimeout,
+  );
+
   Future<void> armReadFault({
     int attError = 0,
     Duration delay = Duration.zero,
@@ -273,6 +314,28 @@ final class HilPeripheral {
     Duration? disconnectAfter,
   }) => _armOperationFault(
     HilCommand.armWriteFault,
+    attError: attError,
+    delay: delay,
+    disconnectAfter: disconnectAfter,
+  );
+
+  Future<void> armDescriptorReadFault({
+    int attError = 0,
+    Duration delay = Duration.zero,
+    Duration? disconnectAfter,
+  }) => _armOperationFault(
+    HilCommand.armDescriptorReadFault,
+    attError: attError,
+    delay: delay,
+    disconnectAfter: disconnectAfter,
+  );
+
+  Future<void> armDescriptorWriteFault({
+    int attError = 0,
+    Duration delay = Duration.zero,
+    Duration? disconnectAfter,
+  }) => _armOperationFault(
+    HilCommand.armDescriptorWriteFault,
     attError: attError,
     delay: delay,
     disconnectAfter: disconnectAfter,

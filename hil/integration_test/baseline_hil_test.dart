@@ -106,6 +106,18 @@ void main() {
       expect(await peripheral.read(HilUuid.read), orderedEquals(expected));
     });
 
+    testWidgets('reads and writes an exact descriptor value', (_) async {
+      expect(
+        utf8.decode(await peripheral.readDescriptor()),
+        'HIL-DESCRIPTOR-V1',
+      );
+
+      final expected = Uint8List.fromList([0x00, 0x7f, 0x80, 0xff]);
+      await peripheral.writeDescriptor(expected);
+
+      expect(await peripheral.readDescriptor(), orderedEquals(expected));
+    });
+
     testWidgets(
       'writes with response and exposes the exact value and counter',
       (_) async {
@@ -151,7 +163,14 @@ void main() {
 
       expect(
         await received.timeout(HilPeripheral.operationTimeout),
-        orderedEquals(expected),
+        isA<Uint8List>()
+            .having((value) => value, 'bytes', orderedEquals(expected))
+            .having((value) => value.offsetInBytes, 'offsetInBytes', 0)
+            .having(
+              (value) => value.buffer.lengthInBytes,
+              'buffer length',
+              expected.length,
+            ),
       );
       expect((await peripheral.readState()).notificationsEnabled, isTrue);
     });
@@ -293,15 +312,70 @@ void main() {
       expect(state.mtu, mtu);
     }, skip: kIsWeb);
 
+    testWidgets('remains usable after enumerating connected system devices', (
+      _,
+    ) async {
+      if (defaultTargetPlatform == TargetPlatform.windows) {
+        final devices = await UniversalBle.getSystemDevices(
+          withServices: const [HilUuid.service],
+        );
+        expect(
+          devices.map((device) => device.deviceId.toLowerCase()),
+          contains(peripheral.deviceId.toLowerCase()),
+        );
+      }
+
+      expect(utf8.decode(await peripheral.read(HilUuid.read)), 'HIL-READ-V1');
+      await peripheral.write(HilUuid.write, [0x5a]);
+      expect(await peripheral.read(HilUuid.writeMirror), [0x5a]);
+    }, skip: kIsWeb);
+
+    testWidgets(
+      'keeps ordinary GATT operations usable across service changes',
+      (_) async {
+        await peripheral.setAuxiliaryService(enabled: true);
+        await _eventually(
+          () async => (await peripheral.discover()).any(
+            (service) => BleUuidParser.compareStrings(
+              service.uuid,
+              HilUuid.auxiliaryService,
+            ),
+          ),
+        );
+        await peripheral.setAuxiliaryService(enabled: false);
+        await _eventually(
+          () async => !(await peripheral.discover()).any(
+            (service) => BleUuidParser.compareStrings(
+              service.uuid,
+              HilUuid.auxiliaryService,
+            ),
+          ),
+        );
+
+        expect(utf8.decode(await peripheral.read(HilUuid.read)), 'HIL-READ-V1');
+        await peripheral.write(HilUuid.write, [0xa5]);
+        expect(await peripheral.read(HilUuid.writeMirror), [0xa5]);
+      },
+    );
+
     testWidgets(
       'reports that connected RSSI reads are unsupported on Windows',
       (_) async {
-        final rssi = await UniversalBle.readRssi(peripheral.deviceId);
         if (defaultTargetPlatform == TargetPlatform.windows) {
-          fail('Expected readRssi to throw on Windows');
+          await expectLater(
+            UniversalBle.readRssi(peripheral.deviceId),
+            throwsA(
+              isA<UniversalBleException>().having(
+                (error) => error.code,
+                'code',
+                UniversalBleErrorCode.notImplemented,
+              ),
+            ),
+          );
+        } else {
+          // Android, macOS, and iOS return a valid RSSI value.
+          expect(await UniversalBle.readRssi(peripheral.deviceId), isA<int>());
         }
-        // Android, macOS, and iOS return a valid RSSI value.
-        expect(rssi, isA<int>());
         expect(
           await UniversalBle.getConnectionState(peripheral.deviceId),
           BleConnectionState.connected,

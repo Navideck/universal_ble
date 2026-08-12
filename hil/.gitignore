@@ -36,10 +36,12 @@ migrate_working_dir/
 /coverage/
 /pubspec_overrides.yaml
 
-# Generated desktop build state
-/windows/build/
-/windows/out/
-/windows/flutter/ephemeral/
+# Generated platform runners. Recreate them with the command in README.md.
+/android/
+/web/
+/windows/
+/test/
+.metadata
 
 # Symbolication related
 app.*.symbols

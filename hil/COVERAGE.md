@@ -1,7 +1,7 @@
 # Hardware-in-the-loop coverage
 
-The Windows HIL suite runs 41 tests against a physical nRF52 peripheral:
-15 baseline tests and 26 fault injection tests (FIT).
+The Windows HIL suite runs 57 tests against a physical nRF52 peripheral:
+18 baseline tests and 39 fault injection tests (FIT).
 
 The calls start at the public Dart API and go through the operation queue,
 Pigeon channel, Windows C++ plugin, WinRT, Windows Bluetooth stack, radio link,
@@ -16,10 +16,11 @@ and finally the Zephyr GATT server on the fixture.
 - This catches problems in advertisement parsing, UUID conversion, WinRT
   discovery, and Dart model mapping.
 
-### 1.2. Reads and writes (3 tests)
+### 1.2. Reads and writes (4 tests)
 
 - Verifies exact reads up to 200 bytes, 200-byte writes with response, and
-  120-byte writes without response using firmware mirrors and counters.
+  120-byte writes without response using firmware mirrors and counters. It
+  also verifies an exact binary round trip through a writable descriptor.
 - This catches payload corruption, bad length handling, confusion between the
   two write paths, and incorrect native completion results.
 
@@ -37,10 +38,12 @@ and finally the Zephyr GATT server on the fixture.
 - This catches incomplete cleanup, bad replacement ownership, missing events,
   and GATT state that no longer works after reconnecting.
 
-### 1.5. Concurrency and platform results (3 tests)
+### 1.5. Concurrency, refresh, and platform results (5 tests)
 
 - Verifies recovery from overlapping subscriptions, a valid MTU result, and
-  `notImplemented` for Windows RSSI without disconnecting.
+  `notImplemented` for Windows RSSI without disconnecting. It also verifies
+  that system-device enumeration and ordinary service changes leave the
+  active connection readable and writable.
 - This catches subscription races, invalid MTU completion, incorrect error
   mapping, and operations that damage an otherwise usable connection.
 
@@ -52,6 +55,7 @@ and finally the Zephyr GATT server on the fixture.
 | -------------- | ------------------------------------------------------------------------- | ----------------------------------------------------- |
 | `FIT-CONN-002` | Immediate peripheral disconnect produces exactly one disconnect event     | Duplicate disconnect callbacks                        |
 | `FIT-CONN-003` | Immediate disconnect is followed by reconnect and a successful read       | Incomplete cleanup of the old connection              |
+| `FIT-CONN-006` | Two simultaneous connects resolve to one usable replacement connection     | Superseded native attempts disturbing the active link |
 | `FIT-CONN-007` | Host and peripheral disconnect concurrently; reconnect remains usable     | Double cleanup when both sides disconnect             |
 | `FIT-CONN-010` | Five immediate peripheral disconnect/reconnect cycles all remain readable | State or resources leaking between connections        |
 | `FIT-CONN-013` | Five rapid cycles emit alternating disconnected/connected events in order | Missing, duplicate, stale, and out-of-order callbacks |
@@ -69,6 +73,7 @@ the original write error is rethrown.
 | `FIT-READ-006` | Exact reads of 1, 20, 22, 23, 64, 128, and 244 bytes                          | Boundary and large-value handling                           |
 | `FIT-READ-007` | 11-second callback delay exceeds the 10-second timeout; later read succeeds   | Timeout completion, late callbacks, and queue release       |
 | `FIT-READ-008` | Disconnect 50 ms into a delayed read; read fails and succeeds after reconnect | Native state being freed while a read still uses it         |
+| `FIT-READ-010` | A delayed read finishes after reconnect without disturbing the new link      | Completion leaking across connection generations            |
 | `FIT-READ-011` | Three characteristics are read concurrently with queueing disabled            | Independent concurrent completion routing                   |
 
 ### 2.3. Writes with response
@@ -78,16 +83,37 @@ the original write error is rethrown.
 | `FIT-WRITE-001` | ATT error `0x0e`; write fails, connection survives, next mirrored write succeeds                | Error propagation without corrupting connection or write state |
 | `FIT-WRITE-006` | 11-second callback delay times out; later mirrored write succeeds                               | Timeout completion, late callbacks, and queue release          |
 | `FIT-WRITE-007` | Disconnect precedes acknowledgement of a delayed write; write fails and recovery write succeeds | Native state being freed while a write still uses it           |
+| `FIT-WRITE-010` | A delayed write finishes after reconnect; the replacement remains writable                  | Stale completion and incomplete replacement discovery          |
 
-### 2.4. Subscriptions
+### 2.4. Service database changes
+
+| Test           | What it does                                                     | What it catches                                  |
+| -------------- | ---------------------------------------------------------------- | ------------------------------------------------ |
+| `FIT-DISC-007` | Dynamically adds and removes a service using Service Changed        | Stale WinRT service caches and non-atomic refresh       |
+| `FIT-DISC-008` | Keeps notifications active while services are added and removed     | Subscription loss while replacing the cached GATT map  |
+| `FIT-DISC-009` | Changes the service database while a delayed read is pending        | Closing a service object still owned by an active read |
+| `FIT-DISC-010` | Changes the service database while a delayed write is pending       | Closing a service object still owned by an active write |
+| `FIT-DISC-011` | Changes the service database while a delayed CCC write is pending   | Stale refresh installation and lost subscriptions      |
+
+### 2.5. Descriptors
+
+| Test           | What it does                                                        | What it catches                                      |
+| -------------- | ------------------------------------------------------------------- | ---------------------------------------------------- |
+| `FIT-DESC-001` | Injected ATT descriptor-read error, followed by a successful read   | Error propagation and poisoned descriptor-read state |
+| `FIT-DESC-002` | Injected ATT descriptor-write error, followed by a verified write   | Error propagation and poisoned descriptor-write state |
+| `FIT-DESC-003` | Disconnect during a delayed descriptor read, then reconnect and read | Cleanup while descriptor discovery or read is active |
+| `FIT-DESC-004` | Disconnect during a delayed descriptor write, then recover and write | Cleanup while descriptor discovery or write is active |
+
+### 2.6. Subscriptions
 
 | Test          | What it does                                                                        | What it catches                                  |
 | ------------- | ----------------------------------------------------------------------------------- | ------------------------------------------------ |
+| `FIT-SUB-005` | Notification is emitted while the CCC enable write is completing                   | Handler registration after CCC enable            |
 | `FIT-SUB-013` | Subscription is cleared by disconnect; resubscription after reconnect delivers once | Old event-token and cached CCC cleanup           |
 | `FIT-SUB-014` | Five subscribe/unsubscribe cycles followed by one notification produce one callback | Leaked handler and duplicate delivery prevention |
 | `FIT-SUB-015` | Ten rapid subscribe/unsubscribe cycles still allow exact delivery                   | CCC serialization and handler churn recovery     |
 
-### 2.5. Notifications
+### 2.7. Notifications
 
 | Test             | What it does                                                                     | What it catches                                             |
 | ---------------- | -------------------------------------------------------------------------------- | ----------------------------------------------------------- |

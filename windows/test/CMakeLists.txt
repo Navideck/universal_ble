@@ -1,0 +1,10 @@
+cmake_minimum_required(VERSION 3.21)
+project(universal_ble_windows_tests LANGUAGES CXX)
+
+enable_testing()
+
+add_executable(async_operation_tracker_test async_operation_tracker_test.cpp)
+target_compile_features(async_operation_tracker_test PRIVATE cxx_std_20)
+target_include_directories(async_operation_tracker_test PRIVATE ../src)
+
+add_test(NAME async_operation_tracker_test COMMAND async_operation_tracker_test)

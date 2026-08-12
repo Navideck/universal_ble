@@ -47,6 +47,54 @@ void main() {
     expect(await event, Uint8List.fromList([1, 2, 3]));
   });
 
+  test(
+    'characteristic values exclude unrelated platform-message buffer bytes',
+    () async {
+      final platform = _MockPlatform();
+      final backingBuffer = Uint8List.fromList([
+        100,
+        58,
+        51,
+        97,
+        1,
+        2,
+        3,
+        4,
+        5,
+      ]);
+      final decodedView = Uint8List.sublistView(backingBuffer, 4, 8);
+      final streamValue = platform
+          .characteristicValueStream(upper, charId)
+          .first;
+      Uint8List? callbackValue;
+      platform.onValueChange = (_, _, value, _) => callbackValue = value;
+
+      platform.updateCharacteristicValue(lower, charId, decodedView, null);
+
+      final received = await streamValue;
+      expect(received, [1, 2, 3, 4]);
+      expect(received.offsetInBytes, 0);
+      expect(received.buffer.lengthInBytes, received.lengthInBytes);
+      expect(callbackValue, same(received));
+      expect(received.buffer.asByteData().getUint8(0), 1);
+    },
+  );
+
+  test(
+    'standalone characteristic values are forwarded without copying',
+    () async {
+      final platform = _MockPlatform();
+      final original = Uint8List.fromList([1, 2, 3]);
+      final streamValue = platform
+          .characteristicValueStream(upper, charId)
+          .first;
+
+      platform.updateCharacteristicValue(lower, charId, original, null);
+
+      expect(await streamValue, same(original));
+    },
+  );
+
   test('pairingStateStream matches a device id reported in a different case', () async {
     final platform = _MockPlatform();
     final event = platform.pairingStateStream(upper).first;
