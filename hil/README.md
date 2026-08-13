@@ -9,9 +9,9 @@ repository. Test commands go over BLE. USB serial is only used for Zephyr logs.
 
 ## 1. Current coverage
 
-The Windows suite contains 57 implemented hardware tests:
+The Windows suite contains 64 implemented hardware tests:
 
-- 18 baseline tests for ordinary BLE behavior;
+- 25 baseline tests for ordinary BLE behavior;
 - 39 fault injection tests for hostile peripheral behavior, timing, and
   lifecycle races.
 

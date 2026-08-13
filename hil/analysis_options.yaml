@@ -7,4 +7,5 @@ analyzer:
     - windows/**
     - macos/**
     - linux/**
+    - test/widget_test.dart
 include: package:flutter_lints/flutter.yaml

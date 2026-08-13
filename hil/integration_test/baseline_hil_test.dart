@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
@@ -22,6 +23,9 @@ void main() {
 
     tearDown(() async {
       UniversalBle.queueType = QueueType.global;
+      UniversalBle.onScanResult = null;
+      UniversalBle.onConnectionChange = null;
+      UniversalBle.onValueChange = null;
       if (setupSucceeded) {
         setupSucceeded = false;
         await peripheral.close();
@@ -41,6 +45,52 @@ void main() {
         ),
       );
       expect(peripheral.device.rssi, isNotNull);
+    });
+
+    testWidgets('performs a fresh scan through both result APIs', (_) async {
+      await UniversalBle.disconnect(
+        peripheral.deviceId,
+        timeout: HilPeripheral.operationTimeout,
+      );
+
+      final streamResult = Completer<BleDevice>();
+      final callbackResult = Completer<BleDevice>();
+      final subscription = UniversalBle.scanStream.listen((device) {
+        if (device.name == HilPeripheral.deviceName &&
+            !streamResult.isCompleted) {
+          streamResult.complete(device);
+        }
+      });
+      UniversalBle.onScanResult = (device) {
+        if (device.name == HilPeripheral.deviceName &&
+            !callbackResult.isCompleted) {
+          callbackResult.complete(device);
+        }
+      };
+
+      try {
+        await UniversalBle.startScan(
+          scanFilter: ScanFilter(
+            withServices: const [HilUuid.service],
+            withNamePrefix: const [HilPeripheral.deviceName],
+          ),
+        );
+        await _eventually(UniversalBle.isScanning);
+
+        final results = await Future.wait([
+          streamResult.future,
+          callbackResult.future,
+        ]).timeout(HilPeripheral.scanTimeout);
+        for (final device in results) {
+          expect(device.name, HilPeripheral.deviceName);
+          expect(device.rssi, isNotNull);
+          expect(device.services, anyElement(_isHilService));
+        }
+      } finally {
+        await UniversalBle.stopScan();
+        await subscription.cancel();
+      }
+      expect(await UniversalBle.isScanning(), isFalse);
     });
 
     testWidgets('discovers the complete characteristic contract', (_) async {
@@ -91,6 +141,33 @@ void main() {
         CharacteristicProperty.write,
         CharacteristicProperty.notify,
       ]);
+
+      final readCharacteristic = _characteristic(service, HilUuid.read);
+      expect(
+        readCharacteristic.descriptors.map((descriptor) => descriptor.uuid),
+        containsAll(<String>[
+          BleUuidParser.string('2901'),
+          BleUuidParser.string(HilUuid.descriptor),
+        ]),
+      );
+    });
+
+    testWidgets('honors descriptor discovery mode', (_) async {
+      final withoutDescriptors = await peripheral.discover(
+        withDescriptors: false,
+      );
+      expect(
+        withoutDescriptors
+            .expand((service) => service.characteristics)
+            .expand((characteristic) => characteristic.descriptors),
+        isEmpty,
+      );
+
+      final withDescriptors = await peripheral.discover();
+      final service = withDescriptors.singleWhere(
+        (service) => _isHilService(service.uuid),
+      );
+      expect(_characteristic(service, HilUuid.read).descriptors, isNotEmpty);
     });
 
     testWidgets('reads the deterministic default and a configured value', (
@@ -154,6 +231,19 @@ void main() {
       },
     );
 
+    testWidgets('uses every operation of a multi-property characteristic', (
+      _,
+    ) async {
+      final expected = Uint8List.fromList([0x00, 0x55, 0xaa, 0xff]);
+      await peripheral.write(HilUuid.multi, expected);
+      expect(await peripheral.read(HilUuid.multi), orderedEquals(expected));
+
+      await peripheral.subscribe(HilUuid.multi);
+      expect((await peripheral.readState()).multiNotificationsEnabled, isTrue);
+      await peripheral.unsubscribe(HilUuid.multi);
+      expect((await peripheral.readState()).multiNotificationsEnabled, isFalse);
+    });
+
     testWidgets('receives an exact notification payload', (_) async {
       final expected = Uint8List.fromList([0, 1, 2, 127, 128, 254, 255]);
       await peripheral.subscribe(HilUuid.notify);
@@ -175,6 +265,34 @@ void main() {
       expect((await peripheral.readState()).notificationsEnabled, isTrue);
     });
 
+    testWidgets('delivers values through both stream and callback APIs', (
+      _,
+    ) async {
+      final expected = Uint8List.fromList([0xde, 0xad, 0xbe, 0xef]);
+      final callbackValue = Completer<Uint8List>();
+      UniversalBle
+          .onValueChange = (deviceId, characteristicId, value, timestamp) {
+        if (deviceId.toLowerCase() == peripheral.deviceId.toLowerCase() &&
+            BleUuidParser.compareStrings(characteristicId, HilUuid.notify) &&
+            !callbackValue.isCompleted) {
+          callbackValue.complete(value);
+        }
+      };
+      await peripheral.subscribe(HilUuid.notify);
+      final streamValue = peripheral.values(HilUuid.notify).first;
+
+      await peripheral.requestNotification(expected);
+
+      expect(
+        await streamValue.timeout(HilPeripheral.operationTimeout),
+        orderedEquals(expected),
+      );
+      expect(
+        await callbackValue.future.timeout(HilPeripheral.operationTimeout),
+        orderedEquals(expected),
+      );
+    });
+
     testWidgets('receives an exact indication payload', (_) async {
       final expected = Uint8List.fromList(utf8.encode('indication-payload'));
       await peripheral.subscribe(HilUuid.indicate, indicate: true);
@@ -187,6 +305,18 @@ void main() {
         orderedEquals(expected),
       );
       expect((await peripheral.readState()).indicationsEnabled, isTrue);
+    });
+
+    testWidgets('disables and restores indications cleanly', (_) async {
+      await peripheral.subscribe(HilUuid.indicate, indicate: true);
+      await peripheral.unsubscribe(HilUuid.indicate);
+      expect((await peripheral.readState()).indicationsEnabled, isFalse);
+      await expectLater(peripheral.requestIndication([1]), throwsA(anything));
+
+      await peripheral.subscribe(HilUuid.indicate, indicate: true);
+      final received = peripheral.values(HilUuid.indicate).first;
+      await peripheral.requestIndication([2]);
+      expect(await received.timeout(HilPeripheral.operationTimeout), [2]);
     });
 
     testWidgets('unsubscribes and allows a clean resubscription', (_) async {
@@ -233,6 +363,41 @@ void main() {
         isFalse,
       );
     });
+
+    testWidgets(
+      'reports a host disconnect through stream, callback, and state',
+      (_) async {
+        final streamEvent = peripheral.connections.firstWhere(
+          (connected) => !connected,
+        );
+        final callbackEvent = Completer<bool>();
+        UniversalBle.onConnectionChange = (deviceId, connected, error) {
+          if (deviceId.toLowerCase() == peripheral.deviceId.toLowerCase() &&
+              !connected &&
+              !callbackEvent.isCompleted) {
+            callbackEvent.complete(connected);
+          }
+        };
+
+        await UniversalBle.disconnect(
+          peripheral.deviceId,
+          timeout: HilPeripheral.operationTimeout,
+        );
+
+        expect(
+          await streamEvent.timeout(HilPeripheral.operationTimeout),
+          isFalse,
+        );
+        expect(
+          await callbackEvent.future.timeout(HilPeripheral.operationTimeout),
+          isFalse,
+        );
+        expect(
+          await UniversalBle.getConnectionState(peripheral.deviceId),
+          BleConnectionState.disconnected,
+        );
+      },
+    );
 
     testWidgets(
       'reconnects after a peripheral-initiated disconnect',
@@ -312,6 +477,35 @@ void main() {
       expect(state.mtu, mtu);
     }, skip: kIsWeb);
 
+    testWidgets('reports usable client capabilities without harming GATT', (
+      _,
+    ) async {
+      expect(await UniversalBle.hasPermissions(), isTrue);
+      expect(
+        await UniversalBle.getBluetoothAvailabilityState(),
+        AvailabilityState.poweredOn,
+      );
+      expect(peripheral.device.receivesAdvertisements, isTrue);
+
+      if (defaultTargetPlatform == TargetPlatform.android) {
+        for (final priority in BleConnectionPriority.values) {
+          await UniversalBle.requestConnectionPriority(
+            peripheral.deviceId,
+            priority,
+          );
+        }
+      } else {
+        await expectLater(
+          UniversalBle.requestConnectionPriority(
+            peripheral.deviceId,
+            BleConnectionPriority.balanced,
+          ),
+          throwsA(isA<UniversalBleException>()),
+        );
+      }
+      expect(utf8.decode(await peripheral.read(HilUuid.read)), 'HIL-READ-V1');
+    }, skip: kIsWeb);
+
     testWidgets('remains usable after enumerating connected system devices', (
       _,
     ) async {
@@ -385,6 +579,15 @@ void main() {
     );
   });
 }
+
+bool _isHilService(String uuid) =>
+    BleUuidParser.compareStrings(uuid, HilUuid.service);
+
+BleCharacteristic _characteristic(BleService service, String uuid) =>
+    service.characteristics.singleWhere(
+      (characteristic) =>
+          BleUuidParser.compareStrings(characteristic.uuid, uuid),
+    );
 
 void _expectProperties(
   BleService service,
