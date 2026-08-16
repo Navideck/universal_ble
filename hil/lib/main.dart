@@ -46,148 +46,148 @@ class _HilWebRunnerPageState extends State<HilWebRunnerPage> {
       _results.clear();
     });
 
-    HilPeripheral? peripheral;
     try {
       // This call must remain directly inside the button action. Chrome requires
       // requestDevice() to originate from a real user gesture.
-      peripheral = await HilPeripheral.open();
-      await _case('Scan and connect', () async {
-        _check(
-          peripheral!.device.name == HilPeripheral.deviceName,
-          'Unexpected device name',
-        );
-        _check(
-          peripheral.device.services.any(
-            (uuid) => BleUuidParser.compareStrings(uuid, HilUuid.service),
-          ),
-          'HIL service was not advertised',
-        );
-      });
-      await _case('Service discovery contract', () async {
-        final services = await peripheral!.discover();
-        final service = services.singleWhere(
-          (service) =>
-              BleUuidParser.compareStrings(service.uuid, HilUuid.service),
-        );
-        _check(
-          service.characteristics.length >= 10,
-          'Expected all HIL characteristics',
-        );
-      });
-      await _case('Read and configured read', () async {
-        await peripheral!.reset();
-        _check(
-          utf8.decode(await peripheral.read(HilUuid.read)) == 'HIL-READ-V1',
-          'Default read value differs',
-        );
-        final expected = List<int>.generate(120, (index) => index);
-        await peripheral.setReadValue(expected);
-        _check(
-          _equal(await peripheral.read(HilUuid.read), expected),
-          'Configured read differs',
-        );
-      });
-      await _case('Write with response', () async {
-        await peripheral!.reset();
-        final expected = List<int>.generate(120, (index) => 255 - index);
-        await peripheral.write(HilUuid.write, expected);
-        _check(
-          _equal(await peripheral.read(HilUuid.writeMirror), expected),
-          'Write mirror differs',
-        );
-        _check(
-          (await peripheral.readState()).writesWithResponse == 1,
-          'Write counter differs',
-        );
-      });
-      await _case('Write without response', () async {
-        await peripheral!.reset();
-        final expected = List<int>.generate(80, (index) => index ^ 0x5a);
-        await peripheral.write(
-          HilUuid.writeWithoutResponse,
-          expected,
-          withoutResponse: true,
-        );
-        await Future<void>.delayed(const Duration(milliseconds: 100));
-        _check(
-          _equal(
-            await peripheral.read(HilUuid.writeWithoutResponseMirror),
-            expected,
-          ),
-          'Write-without-response mirror differs',
-        );
-      });
-      await _case('Notification delivery', () async {
-        await peripheral!.reset();
-        await peripheral.subscribe(HilUuid.notify);
-        final received = peripheral.values(HilUuid.notify).first;
-        const expected = [0, 1, 127, 128, 254, 255];
-        await peripheral.requestNotification(expected);
-        _check(
-          _equal(
-            await received.timeout(HilPeripheral.operationTimeout),
-            expected,
-          ),
-          'Notification payload differs',
-        );
-        await peripheral.unsubscribe(HilUuid.notify);
-      });
-      await _case('Indication delivery', () async {
-        await peripheral!.reset();
-        await peripheral.subscribe(HilUuid.indicate, indicate: true);
-        final received = peripheral.values(HilUuid.indicate).first;
-        final expected = utf8.encode('web-indication');
-        await peripheral.requestIndication(expected);
-        _check(
-          _equal(
-            await received.timeout(HilPeripheral.operationTimeout),
-            expected,
-          ),
-          'Indication payload differs',
-        );
-        await peripheral.unsubscribe(HilUuid.indicate);
-      });
-      await _case('Notification burst ordering', () async {
-        await peripheral!.reset();
-        await peripheral.subscribe(HilUuid.notify);
-        final received = peripheral.values(HilUuid.notify).take(20).toList();
-        await peripheral.requestNotificationBurst(
-          count: 20,
-          size: 48,
-          interval: const Duration(milliseconds: 30),
-        );
-        final values = await received.timeout(const Duration(seconds: 10));
-        for (var index = 0; index < values.length; index++) {
+      final peripheral = await HilPeripheral.open();
+      try {
+        await _case('Scan and connect', () async {
           _check(
-            values[index][0] | values[index][1] << 8 == index,
-            'Sequence $index differs',
+            peripheral.device.name == HilPeripheral.deviceName,
+            'Unexpected device name',
           );
-          _check(values[index].length == 48, 'Burst payload size differs');
-        }
-        await peripheral.unsubscribe(HilUuid.notify);
-      });
-      await _case('Peripheral disconnect and reconnect', () async {
-        final disconnected = peripheral!.connections.firstWhere(
-          (connected) => !connected,
-        );
-        await peripheral.requestDisconnect(const Duration(milliseconds: 100));
-        await disconnected.timeout(HilPeripheral.operationTimeout);
-        await UniversalBle.connect(
-          peripheral.deviceId,
-          timeout: HilPeripheral.operationTimeout,
-        );
-        _check(
-          (await peripheral.readState()).contractRevision ==
-              HilPeripheral.contractRevision,
-          'Reconnect read failed',
-        );
-      });
+          _check(
+            peripheral.device.services.any(
+              (uuid) => BleUuidParser.compareStrings(uuid, HilUuid.service),
+            ),
+            'HIL service was not advertised',
+          );
+        });
+        await _case('Service discovery contract', () async {
+          final services = await peripheral.discover();
+          final service = services.singleWhere(
+            (service) =>
+                BleUuidParser.compareStrings(service.uuid, HilUuid.service),
+          );
+          _check(
+            service.characteristics.length >= 10,
+            'Expected all HIL characteristics',
+          );
+        });
+        await _case('Read and configured read', () async {
+          await peripheral.reset();
+          _check(
+            utf8.decode(await peripheral.read(HilUuid.read)) == 'HIL-READ-V1',
+            'Default read value differs',
+          );
+          final expected = List<int>.generate(120, (index) => index);
+          await peripheral.setReadValue(expected);
+          _check(
+            _equal(await peripheral.read(HilUuid.read), expected),
+            'Configured read differs',
+          );
+        });
+        await _case('Write with response', () async {
+          await peripheral.reset();
+          final expected = List<int>.generate(120, (index) => 255 - index);
+          await peripheral.write(HilUuid.write, expected);
+          _check(
+            _equal(await peripheral.read(HilUuid.writeMirror), expected),
+            'Write mirror differs',
+          );
+          _check(
+            (await peripheral.readState()).writesWithResponse == 1,
+            'Write counter differs',
+          );
+        });
+        await _case('Write without response', () async {
+          await peripheral.reset();
+          final expected = List<int>.generate(80, (index) => index ^ 0x5a);
+          await peripheral.write(
+            HilUuid.writeWithoutResponse,
+            expected,
+            withoutResponse: true,
+          );
+          await Future<void>.delayed(const Duration(milliseconds: 100));
+          _check(
+            _equal(
+              await peripheral.read(HilUuid.writeWithoutResponseMirror),
+              expected,
+            ),
+            'Write-without-response mirror differs',
+          );
+        });
+        await _case('Notification delivery', () async {
+          await peripheral.reset();
+          await peripheral.subscribe(HilUuid.notify);
+          final received = peripheral.values(HilUuid.notify).first;
+          const expected = [0, 1, 127, 128, 254, 255];
+          await peripheral.requestNotification(expected);
+          _check(
+            _equal(
+              await received.timeout(HilPeripheral.operationTimeout),
+              expected,
+            ),
+            'Notification payload differs',
+          );
+          await peripheral.unsubscribe(HilUuid.notify);
+        });
+        await _case('Indication delivery', () async {
+          await peripheral.reset();
+          await peripheral.subscribe(HilUuid.indicate, indicate: true);
+          final received = peripheral.values(HilUuid.indicate).first;
+          final expected = utf8.encode('web-indication');
+          await peripheral.requestIndication(expected);
+          _check(
+            _equal(
+              await received.timeout(HilPeripheral.operationTimeout),
+              expected,
+            ),
+            'Indication payload differs',
+          );
+          await peripheral.unsubscribe(HilUuid.indicate);
+        });
+        await _case('Notification burst ordering', () async {
+          await peripheral.reset();
+          await peripheral.subscribe(HilUuid.notify);
+          final received = peripheral.values(HilUuid.notify).take(20).toList();
+          await peripheral.requestNotificationBurst(
+            count: 20,
+            size: 48,
+            interval: const Duration(milliseconds: 30),
+          );
+          final values = await received.timeout(const Duration(seconds: 10));
+          for (var index = 0; index < values.length; index++) {
+            _check(
+              values[index][0] | values[index][1] << 8 == index,
+              'Sequence $index differs',
+            );
+            _check(values[index].length == 48, 'Burst payload size differs');
+          }
+          await peripheral.unsubscribe(HilUuid.notify);
+        });
+        await _case('Peripheral disconnect and reconnect', () async {
+          final disconnected = peripheral.connections.firstWhere(
+            (connected) => !connected,
+          );
+          await peripheral.requestDisconnect(const Duration(milliseconds: 100));
+          await disconnected.timeout(HilPeripheral.operationTimeout);
+          await UniversalBle.connect(
+            peripheral.deviceId,
+            timeout: HilPeripheral.operationTimeout,
+          );
+          _check(
+            (await peripheral.readState()).contractRevision ==
+                HilPeripheral.contractRevision,
+            'Reconnect read failed',
+          );
+        });
+      } finally {
+        await peripheral.close();
+      }
     } catch (error, stackTrace) {
       setState(() => _fatalError = '$error\n$stackTrace');
     } finally {
-      if (peripheral != null) {
-        await peripheral.close();
-      }
       if (mounted) setState(() => _running = false);
     }
   }
