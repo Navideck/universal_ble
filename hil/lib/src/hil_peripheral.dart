@@ -102,7 +102,6 @@ final class HilPeripheral {
 
     final peripheral = HilPeripheral._(device);
     await peripheral.reconnect(timeout: scanTimeout);
-    await UniversalBle.requestMtu(peripheral.deviceId, 247);
     await peripheral.reset();
     final actualContractRevision =
         (await peripheral.readState()).contractRevision;
