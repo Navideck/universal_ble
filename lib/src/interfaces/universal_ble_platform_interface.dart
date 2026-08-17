@@ -213,27 +213,13 @@ abstract class UniversalBlePlatform {
     int? timestamp,
   ) {
     characteristicId = BleUuidParser.string(characteristicId);
-    // StandardMessageCodec decodes typed data as a view into the complete
-    // platform-message buffer. Normalize that view before exposing it so
-    // consumers which pass `value.buffer` to another binary API cannot
-    // accidentally include Pigeon envelope bytes.
-    final normalizedValue =
-        value.offsetInBytes == 0 &&
-            value.lengthInBytes == value.buffer.lengthInBytes
-        ? value
-        : Uint8List.fromList(value);
     _valueStreamController.add((
       deviceId: deviceId,
       characteristicId: characteristicId,
-      value: normalizedValue,
+      value: value,
     ));
     try {
-      onValueChange?.call(
-        deviceId,
-        characteristicId,
-        normalizedValue,
-        timestamp,
-      );
+      onValueChange?.call(deviceId, characteristicId, value, timestamp);
     } catch (_) {}
   }
 

@@ -22,42 +22,19 @@ public:
             });
     }
 
-    ~UniversalBleUiThreadHandler() { Shutdown(); }
+    ~UniversalBleUiThreadHandler()
+    {
+        registrar_->UnregisterTopLevelWindowProcDelegate(windowProcId_);
+    }
 
     UniversalBleUiThreadHandler(const UniversalBleUiThreadHandler &) = delete;
     UniversalBleUiThreadHandler &operator=(const UniversalBleUiThreadHandler &) = delete;
 
     void Post(std::function<void()> &&func)
     {
-        bool should_notify = false;
-        {
-            std::lock_guard<std::mutex> lock(mutex_);
-            if (!accepting_) {
-                return;
-            }
-            queuedFuncs_.emplace_back(std::move(func));
-            if (!wake_pending_) {
-                wake_pending_ = true;
-                should_notify = true;
-            }
-        }
-        if (should_notify) {
-            Notify();
-        }
-    }
-
-    void Shutdown()
-    {
-        {
-            std::lock_guard<std::mutex> lock(mutex_);
-            if (!accepting_) {
-                return;
-            }
-            accepting_ = false;
-            wake_pending_ = false;
-            queuedFuncs_.clear();
-        }
-        registrar_->UnregisterTopLevelWindowProcDelegate(windowProcId_);
+        std::lock_guard<std::mutex> lock(mutex_);
+        queuedFuncs_.emplace_back(std::move(func));
+        Notify();
     }
 
 private:
@@ -84,11 +61,7 @@ private:
             std::list<std::function<void()>> queuedFuncs;
             {
                 std::lock_guard<std::mutex> lock(mutex_);
-                if (!accepting_) {
-                    return std::nullopt;
-                }
                 std::swap(queuedFuncs_, queuedFuncs);
-                wake_pending_ = false;
             }
             for (auto &func : queuedFuncs)
             {
@@ -103,6 +76,4 @@ private:
     HWND hwnd_ = 0;
     std::list<std::function<void()>> queuedFuncs_;
     std::mutex mutex_;
-    bool accepting_ = true;
-    bool wake_pending_ = false;
 };

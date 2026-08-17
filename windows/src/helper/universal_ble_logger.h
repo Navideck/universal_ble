@@ -1,6 +1,5 @@
 #pragma once
 
-#include <atomic>
 #include <iostream>
 #include <string>
 
@@ -22,7 +21,7 @@ public:
   static void LogVerboseWithTimestamp(const std::string &message);
 
 private:
-  static std::atomic<BleLogLevel> current_level_;
+  static BleLogLevel current_level_;
   static bool Allows(BleLogLevel level);
 };
 
