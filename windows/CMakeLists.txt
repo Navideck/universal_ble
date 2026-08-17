@@ -39,6 +39,7 @@ list(APPEND PLUGIN_SOURCES
   "src/helper/utils.cpp"
   "src/helper/utils.h"
   "src/ui_thread_handler.hpp"
+  "src/async_operation_tracker.h"
   "src/generated/universal_ble.g.cpp"
   "src/generated/universal_ble.g.h"
   "src/pin_entry.h"

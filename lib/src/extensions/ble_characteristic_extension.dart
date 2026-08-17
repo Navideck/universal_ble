@@ -75,7 +75,7 @@ extension BleCharacteristicExtension on BleCharacteristic {
   /// [descriptorUuid] is the UUID of the descriptor to read.
   /// [timeout] is the timeout for the read operation.
   /// [queueId] is the ID of the queue to use for the read operation.
-  Future<void> readDescriptor(
+  Future<Uint8List> readDescriptor(
     String descriptorUuid, {
     Duration? timeout,
     String? queueId,
