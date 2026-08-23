@@ -289,10 +289,11 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
     rssiReadFutures.failAndRemoveAll(matching: deviceId, with: error)
 
     // Cancel and fail any active service discovery for this device
-    for (key, discovery) in activeServiceDiscoveries where key.caseInsensitiveCompare(deviceId) == .orderedSame {
+    let matchingKeys = activeServiceDiscoveries.keys.filter { $0.caseInsensitiveCompare(deviceId) == .orderedSame }
+    let discoveriesToCancel = matchingKeys.compactMap { activeServiceDiscoveries.removeValue(forKey: $0) }
+    for discovery in discoveriesToCancel {
       discovery.cancel(error: error)
     }
-    activeServiceDiscoveries = activeServiceDiscoveries.filter { $0.key.caseInsensitiveCompare(deviceId) != .orderedSame }
 
     discoverServicesFutures.failAndRemoveAll(matching: deviceId, with: error)
   }
