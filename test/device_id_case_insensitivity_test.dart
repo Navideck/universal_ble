@@ -67,7 +67,8 @@ void main() {
           .characteristicValueStream(upper, charId)
           .first;
       Uint8List? callbackValue;
-      platform.onValueChange = (_, _, value, _) => callbackValue = value;
+      platform.onValueChange =
+          (deviceId, characteristicId, value, error) => callbackValue = value;
 
       platform.updateCharacteristicValue(lower, charId, decodedView, null);
 

@@ -175,15 +175,6 @@ struct BluetoothDeviceAgent {
     return services;
   }
 
-  std::unordered_map<std::string, GattServiceObject> SnapshotGattMap() const {
-    std::lock_guard<std::mutex> lock(gatt_mutex);
-    if (!IsActive()) {
-      throw create_flutter_error(UniversalBleErrorCode::kDeviceDisconnected,
-                                 "Device disconnected");
-    }
-    return gatt_map;
-  }
-
   GattMapLease SnapshotGattMapForOperation() {
     std::lock_guard<std::mutex> lock(gatt_mutex);
     if (!IsActive()) {
@@ -352,21 +343,6 @@ struct BluetoothDeviceAgent {
     return true;
   }
 
-  void CancelNotificationOperation(
-      const std::string &service_uuid,
-      const std::string &characteristic_uuid) {
-    std::lock_guard<std::mutex> lock(gatt_mutex);
-    const auto service = gatt_map.find(service_uuid);
-    if (service == gatt_map.end()) {
-      return;
-    }
-    const auto found =
-        service->second.characteristics.find(characteristic_uuid);
-    if (found != service->second.characteristics.end()) {
-      found->second.notification_operation_in_progress = false;
-      ++gatt_revision;
-    }
-  }
 };
 
 class UniversalBlePlugin : public flutter::Plugin,
@@ -475,11 +451,11 @@ private:
                                              const IInspectable &args);
   std::shared_ptr<BluetoothDeviceAgent>
   GetConnectedDevice(uint64_t bluetooth_address);
-  std::optional<uint64_t> BeginConnectAttempt(uint64_t bluetooth_address);
   void InvalidateConnectAttempt(uint64_t bluetooth_address);
   std::shared_ptr<BluetoothDeviceAgent>
   RemoveConnectedDevice(uint64_t bluetooth_address,
-                        const BluetoothLEDevice *expected_device = nullptr);
+                        const BluetoothLEDevice *expected_device = nullptr,
+                        uint64_t *removed_generation = nullptr);
   bool InstallConnectedDevice(
       uint64_t bluetooth_address, uint64_t connect_generation,
       std::shared_ptr<BluetoothDeviceAgent> device_agent,
@@ -491,13 +467,16 @@ private:
       uint64_t bluetooth_address, uint64_t connect_generation,
       const std::string &error_message) noexcept;
   void NotifyConnectionChanged(uint64_t bluetooth_address, bool connected,
-                               std::optional<std::string> error = std::nullopt);
+                               std::optional<std::string> error = std::nullopt,
+                               std::optional<uint64_t> expected_generation =
+                                   std::nullopt);
   void NotifyConnectionException(uint64_t bluetooth_address,
                                  const std::string &error_message,
                                  const BluetoothLEDevice *expected_device =
                                      nullptr);
   bool CleanConnection(uint64_t bluetooth_address,
-                       const BluetoothLEDevice *expected_device = nullptr);
+                       const BluetoothLEDevice *expected_device = nullptr,
+                       uint64_t *removed_generation = nullptr);
   void DisposeConnection(
       const std::shared_ptr<BluetoothDeviceAgent> &device_agent);
   void ResetState();

@@ -1,5 +1,6 @@
 #pragma once
 
+#include <chrono>
 #include <condition_variable>
 #include <cstddef>
 #include <memory>
@@ -40,11 +41,12 @@ class AsyncOperationTracker {
     if (!state_->accepting) {
       return std::nullopt;
     }
+    // Allocate before incrementing. If allocation throws, no active operation
+    // exists and the count must remain unchanged.
+    auto lease = std::make_shared<Token>(state_);
     ++state_->active;
-    return std::make_shared<Token>(state_);
+    return lease;
   }
-
-  Lease Acquire() const { return TryAcquire().value(); }
 
   bool IsIdle() const {
     std::lock_guard<std::mutex> lock(state_->mutex);
@@ -56,9 +58,12 @@ class AsyncOperationTracker {
     state_->accepting = false;
   }
 
-  void WaitUntilIdle() const {
+  template <typename Rep, typename Period>
+  bool
+  WaitUntilIdleFor(const std::chrono::duration<Rep, Period> &timeout) const {
     std::unique_lock<std::mutex> lock(state_->mutex);
-    state_->idle.wait(lock, [this] { return state_->active == 0; });
+    return state_->idle.wait_for(lock, timeout,
+                                 [this] { return state_->active == 0; });
   }
 
  private:

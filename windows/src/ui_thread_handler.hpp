@@ -6,8 +6,9 @@
 
 #include <algorithm>
 #include <functional>
-#include <optional>
+#include <list>
 #include <mutex>
+#include <optional>
 
 class UniversalBleUiThreadHandler
 {
@@ -29,21 +30,14 @@ public:
 
     void Post(std::function<void()> &&func)
     {
-        bool should_notify = false;
         {
             std::lock_guard<std::mutex> lock(mutex_);
             if (!accepting_) {
                 return;
             }
             queuedFuncs_.emplace_back(std::move(func));
-            if (!wake_pending_) {
-                wake_pending_ = true;
-                should_notify = true;
-            }
         }
-        if (should_notify) {
-            Notify();
-        }
+        Notify();
     }
 
     void Shutdown()
@@ -54,7 +48,6 @@ public:
                 return;
             }
             accepting_ = false;
-            wake_pending_ = false;
             queuedFuncs_.clear();
         }
         registrar_->UnregisterTopLevelWindowProcDelegate(windowProcId_);
@@ -88,7 +81,6 @@ private:
                     return std::nullopt;
                 }
                 std::swap(queuedFuncs_, queuedFuncs);
-                wake_pending_ = false;
             }
             for (auto &func : queuedFuncs)
             {
@@ -104,5 +96,4 @@ private:
     std::list<std::function<void()>> queuedFuncs_;
     std::mutex mutex_;
     bool accepting_ = true;
-    bool wake_pending_ = false;
 };

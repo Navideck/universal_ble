@@ -1,7 +1,7 @@
 # Hardware-in-the-loop coverage
 
-The Windows HIL suite runs 64 tests against a physical nRF52 peripheral:
-25 baseline tests and 39 fault injection tests (FIT).
+The Windows HIL suite runs 65 tests against a physical nRF52 peripheral:
+25 baseline tests and 40 fault injection tests (FIT).
 
 The calls start at the public Dart API and go through the operation queue,
 Pigeon channel, Windows C++ plugin, WinRT, Windows Bluetooth stack, radio link,
@@ -62,6 +62,7 @@ and finally the Zephyr GATT server on the fixture.
 | `FIT-CONN-003` | Immediate disconnect is followed by reconnect and a successful read       | Incomplete cleanup of the old connection              |
 | `FIT-CONN-006` | Two simultaneous connects resolve to one usable replacement connection    | Superseded native attempts disturbing the active link |
 | `FIT-CONN-007` | Host and peripheral disconnect concurrently; reconnect remains usable     | Double cleanup when both sides disconnect             |
+| `FIT-CONN-009` | Reconnects before the old native disconnect callback has necessarily run  | Stale map entries suppressing the replacement attempt  |
 | `FIT-CONN-010` | Five immediate peripheral disconnect/reconnect cycles all remain readable | State or resources leaking between connections        |
 | `FIT-CONN-013` | Five rapid cycles emit alternating disconnected/connected events in order | Missing, duplicate, stale, and out-of-order callbacks |
 

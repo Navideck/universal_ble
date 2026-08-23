@@ -16,6 +16,7 @@
 #include <utility>
 
 #include "enum_parser.h"
+#include "callback_drain.h"
 #include "generated/universal_ble.g.h"
 #include "helper/universal_ble_logger.h"
 #include "helper/universal_enum.h"
@@ -112,11 +113,12 @@ UniversalBlePlugin::UniversalBlePlugin(
 }
 
 UniversalBlePlugin::~UniversalBlePlugin() {
-  // Stop new WinRT callbacks from entering before any owned state is released.
+  // Stop new WinRT callbacks from entering, let callbacks which already hold a
+  // lease finish while every member is still alive, then release owned state.
   callback_operations_.Close();
+  WaitForCallbacksWithMessagePump(callback_operations_);
   ResetState();
   ClearServices();
-  callback_operations_.WaitUntilIdle();
   ui_thread_handler_.Shutdown();
   callback_channel.reset();
   peripheral_callback_channel_.reset();
@@ -385,11 +387,46 @@ UniversalBlePlugin::Connect(const std::string &device_id,
   // Note: autoConnect is not directly supported on Windows platform
   // Note: platformConfig only carries Apple-specific options
   const auto bluetooth_address = str_to_mac_address(device_id);
-  if (GetConnectedDevice(bluetooth_address)) {
-    NotifyConnectionChanged(bluetooth_address, true, std::nullopt);
-    return std::nullopt;
+  std::shared_ptr<BluetoothDeviceAgent> stale_device;
+  std::optional<uint64_t> connect_generation;
+  {
+    std::lock_guard<std::mutex> lock(connected_devices_mutex_);
+    const auto existing = connected_devices_.find(bluetooth_address);
+    if (existing != connected_devices_.end()) {
+      bool is_connected = false;
+      try {
+        is_connected = existing->second->IsActive() &&
+                       existing->second->device.ConnectionStatus() ==
+                           BluetoothConnectionStatus::Connected;
+      } catch (const hresult_error &err) {
+        UniversalBleLogger::LogWarning(
+            "Connect: failed to inspect existing connection hr=" +
+            std::to_string(err.code()));
+      } catch (...) {
+        UniversalBleLogger::LogWarning(
+            "Connect: failed to inspect existing connection");
+      }
+      if (is_connected) {
+        const auto generation = connect_generations_.find(bluetooth_address);
+        NotifyConnectionChanged(
+            bluetooth_address, true, std::nullopt,
+            generation == connect_generations_.end() ? 0 : generation->second);
+        return std::nullopt;
+      }
+
+      stale_device = existing->second;
+      connected_devices_.erase(existing);
+    }
+
+    if (pending_connects_.find(bluetooth_address) == pending_connects_.end()) {
+      connect_generation = ++next_connect_generation_;
+      connect_generations_.insert_or_assign(bluetooth_address,
+                                             connect_generation.value());
+      pending_connects_.insert(bluetooth_address);
+    }
   }
-  const auto connect_generation = BeginConnectAttempt(bluetooth_address);
+
+  DisposeConnection(stale_device);
   if (connect_generation.has_value()) {
     ConnectAsync(bluetooth_address, connect_generation.value());
   }
@@ -400,8 +437,11 @@ std::optional<FlutterError>
 UniversalBlePlugin::Disconnect(const std::string &device_id) {
   const auto device_address = str_to_mac_address(device_id);
   InvalidateConnectAttempt(device_address);
-  DisposeConnection(RemoveConnectedDevice(device_address));
-  NotifyConnectionChanged(device_address, false, std::nullopt);
+  uint64_t disconnect_generation = 0;
+  DisposeConnection(RemoveConnectedDevice(device_address, nullptr,
+                                           &disconnect_generation));
+  NotifyConnectionChanged(device_address, false, std::nullopt,
+                          disconnect_generation);
   return std::nullopt;
 }
 
@@ -1697,9 +1737,39 @@ void UniversalBlePlugin::RadioStateChanged(const Radio &sender,
 
 void UniversalBlePlugin::NotifyConnectionChanged(
     const uint64_t bluetooth_address, const bool connected,
-    std::optional<std::string> error) {
-  ui_thread_handler_.Post([bluetooth_address, connected,
-                           error = std::move(error)] {
+    std::optional<std::string> error,
+    std::optional<uint64_t> expected_generation) {
+  uint64_t event_generation = 0;
+  if (expected_generation.has_value()) {
+    event_generation = expected_generation.value();
+  } else {
+    std::lock_guard<std::mutex> lock(connected_devices_mutex_);
+    const auto generation = connect_generations_.find(bluetooth_address);
+    if (generation != connect_generations_.end()) {
+      event_generation = generation->second;
+    }
+  }
+
+  ui_thread_handler_.Post([this, bluetooth_address, connected,
+                           error = std::move(error), event_generation] {
+    {
+      std::lock_guard<std::mutex> lock(connected_devices_mutex_);
+      const auto generation = connect_generations_.find(bluetooth_address);
+      const auto current_generation =
+          generation == connect_generations_.end() ? 0 : generation->second;
+      if (current_generation != event_generation) {
+        UniversalBleLogger::LogDebug(
+            "Ignoring a queued connection event from an older generation");
+        return;
+      }
+      if (!connected &&
+          pending_connects_.find(bluetooth_address) != pending_connects_.end()) {
+        UniversalBleLogger::LogDebug(
+            "Ignoring a queued disconnect event during a newer connection "
+            "attempt");
+        return;
+      }
+    }
     const std::string *error_ptr = error.has_value() ? &error.value() : nullptr;
     callback_channel->OnConnectionChanged(mac_address_to_str(bluetooth_address),
                                           connected, error_ptr, SuccessCallback,
@@ -1712,11 +1782,15 @@ void UniversalBlePlugin::NotifyConnectionException(
     const BluetoothLEDevice *expected_device) {
   UniversalBleLogger::LogError(error_message);
   if (bluetooth_address != 0) {
+    uint64_t disconnect_generation = 0;
     if (expected_device == nullptr) {
-      CleanConnection(bluetooth_address);
-      NotifyConnectionChanged(bluetooth_address, false, error_message);
-    } else if (CleanConnection(bluetooth_address, expected_device)) {
-      NotifyConnectionChanged(bluetooth_address, false, error_message);
+      CleanConnection(bluetooth_address, nullptr, &disconnect_generation);
+      NotifyConnectionChanged(bluetooth_address, false, error_message,
+                              disconnect_generation);
+    } else if (CleanConnection(bluetooth_address, expected_device,
+                               &disconnect_generation)) {
+      NotifyConnectionChanged(bluetooth_address, false, error_message,
+                              disconnect_generation);
     } else {
       UniversalBleLogger::LogDebug(
           "Ignoring exception from stale Bluetooth device instance");
@@ -1871,7 +1945,8 @@ fire_and_forget UniversalBlePlugin::ConnectAsync(
       UniversalBleLogger::LogInfo("ConnectionLog: Connected");
     } else if (CleanConnection(bluetooth_address, &device)) {
       NotifyConnectionChanged(bluetooth_address, false,
-                              std::string("Device disconnected while connecting"));
+                              std::string("Device disconnected while connecting"),
+                              connect_generation);
     }
   } catch (const hresult_error &err) {
     dispose_partial_connection();
@@ -2056,8 +2131,11 @@ void UniversalBlePlugin::BluetoothLeDeviceConnectionStatusChanged(
   try {
     const auto bluetooth_address = sender.BluetoothAddress();
     if (sender.ConnectionStatus() == BluetoothConnectionStatus::Disconnected) {
-      if (CleanConnection(bluetooth_address, &sender)) {
-        NotifyConnectionChanged(bluetooth_address, false, std::nullopt);
+      uint64_t disconnect_generation = 0;
+      if (CleanConnection(bluetooth_address, &sender,
+                          &disconnect_generation)) {
+        NotifyConnectionChanged(bluetooth_address, false, std::nullopt,
+                                disconnect_generation);
       } else {
         UniversalBleLogger::LogDebug(
             "Ignoring stale connection status callback");
@@ -2105,18 +2183,6 @@ UniversalBlePlugin::GetConnectedDevice(const uint64_t bluetooth_address) {
   return it == connected_devices_.end() ? nullptr : it->second;
 }
 
-std::optional<uint64_t>
-UniversalBlePlugin::BeginConnectAttempt(const uint64_t bluetooth_address) {
-  std::lock_guard<std::mutex> lock(connected_devices_mutex_);
-  if (pending_connects_.find(bluetooth_address) != pending_connects_.end()) {
-    return std::nullopt;
-  }
-  const auto generation = ++next_connect_generation_;
-  connect_generations_.insert_or_assign(bluetooth_address, generation);
-  pending_connects_.insert(bluetooth_address);
-  return generation;
-}
-
 void UniversalBlePlugin::InvalidateConnectAttempt(
   const uint64_t bluetooth_address) {
   std::lock_guard<std::mutex> lock(connected_devices_mutex_);
@@ -2128,7 +2194,8 @@ void UniversalBlePlugin::InvalidateConnectAttempt(
 std::shared_ptr<BluetoothDeviceAgent>
 UniversalBlePlugin::RemoveConnectedDevice(
     const uint64_t bluetooth_address,
-    const BluetoothLEDevice *expected_device) {
+    const BluetoothLEDevice *expected_device,
+    uint64_t *removed_generation) {
   std::lock_guard<std::mutex> lock(connected_devices_mutex_);
   const auto it = connected_devices_.find(bluetooth_address);
   if (it == connected_devices_.end() ||
@@ -2136,6 +2203,11 @@ UniversalBlePlugin::RemoveConnectedDevice(
     return nullptr;
   }
   const auto device_agent = it->second;
+  if (removed_generation != nullptr) {
+    const auto generation = connect_generations_.find(bluetooth_address);
+    *removed_generation =
+        generation == connect_generations_.end() ? 0 : generation->second;
+  }
   connected_devices_.erase(it);
   return device_agent;
 }
@@ -2176,7 +2248,8 @@ bool UniversalBlePlugin::NotifyConnectedIfCurrent(
           BluetoothConnectionStatus::Connected) {
     return false;
   }
-  NotifyConnectionChanged(bluetooth_address, true, std::nullopt);
+  NotifyConnectionChanged(bluetooth_address, true, std::nullopt,
+                          connect_generation);
   return true;
 }
 
@@ -2190,7 +2263,8 @@ void UniversalBlePlugin::NotifyConnectFailureIfCurrent(
     if (generation != connect_generations_.end() &&
         generation->second == connect_generation) {
       pending_connects_.erase(bluetooth_address);
-      NotifyConnectionChanged(bluetooth_address, false, error_message);
+      NotifyConnectionChanged(bluetooth_address, false, error_message,
+                              connect_generation);
     } else {
       UniversalBleLogger::LogDebug(
           "Ignoring failure from stale connection attempt");
@@ -2206,10 +2280,12 @@ void UniversalBlePlugin::NotifyConnectFailureIfCurrent(
 
 bool UniversalBlePlugin::CleanConnection(
     const uint64_t bluetooth_address,
-    const BluetoothLEDevice *expected_device) {
+    const BluetoothLEDevice *expected_device,
+    uint64_t *removed_generation) {
   try {
     const auto device_agent =
-        RemoveConnectedDevice(bluetooth_address, expected_device);
+        RemoveConnectedDevice(bluetooth_address, expected_device,
+                              removed_generation);
     if (!device_agent) {
       return false;
     }
