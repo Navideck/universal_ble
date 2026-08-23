@@ -274,95 +274,27 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
     guard let peripheral = deviceId.findPeripheral(manager: manager) else {
       return .disconnected
     }
-    switch peripheral.state {
-    case .connecting:
-      return .connecting
-    case .connected:
-      return .connected
-    case .disconnecting:
-      return .disconnecting
-    case .disconnected:
-      return .disconnected
-    @unknown default:
-      return .disconnected
-    }
+    return peripheral.state.toBleConnectionState
   }
 
   func cleanUpConnection(deviceId: String) {
-    let matchesDeviceId: (String) -> Bool = { targetId in
-      targetId.caseInsensitiveCompare(deviceId) == .orderedSame
-    }
+    let error = createFlutterError(code: .deviceDisconnected, message: "Device Disconnected")
 
-    characteristicReadFutures.removeAll { future in
-      if matchesDeviceId(future.deviceId) {
-        future.result(
-          Result.failure(createFlutterError(code: .deviceDisconnected, message: "Device Disconnected"))
-        )
-        return true
-      }
-      return false
-    }
-    characteristicWriteFutures.removeAll { future in
-      if matchesDeviceId(future.deviceId) {
-        future.result(
-          Result.failure(createFlutterError(code: .deviceDisconnected, message: "Device Disconnected"))
-        )
-        return true
-      }
-      return false
-    }
-    characteristicNotifyFutures.removeAll { future in
-      if matchesDeviceId(future.deviceId) {
-        future.result(
-          Result.failure(createFlutterError(code: .deviceDisconnected, message: "Device Disconnected"))
-        )
-        return true
-      }
-      return false
-    }
-    descriptorReadFutures.removeAll { future in
-      if matchesDeviceId(future.deviceId) {
-        future.result(
-          Result.failure(createFlutterError(code: .deviceDisconnected, message: "Device Disconnected"))
-        )
-        return true
-      }
-      return false
-    }
-    descriptorWriteFutures.removeAll { future in
-      if matchesDeviceId(future.deviceId) {
-        future.result(
-          Result.failure(createFlutterError(code: .deviceDisconnected, message: "Device Disconnected"))
-        )
-        return true
-      }
-      return false
-    }
-    rssiReadFutures.removeAll { future in
-      if matchesDeviceId(future.deviceId) {
-        future.result(
-          Result.failure(createFlutterError(code: .deviceDisconnected, message: "Device Disconnected"))
-        )
-        return true
-      }
-      return false
-    }
+    characteristicReadFutures.failAndRemoveAll(matching: deviceId, with: error)
+    characteristicWriteFutures.failAndRemoveAll(matching: deviceId, with: error)
+    characteristicWriteWithoutResponseFutures.failAndRemoveAll(matching: deviceId, with: error)
+    characteristicNotifyFutures.failAndRemoveAll(matching: deviceId, with: error)
+    descriptorReadFutures.failAndRemoveAll(matching: deviceId, with: error)
+    descriptorWriteFutures.failAndRemoveAll(matching: deviceId, with: error)
+    rssiReadFutures.failAndRemoveAll(matching: deviceId, with: error)
 
     // Cancel and fail any active service discovery for this device
-    for (key, discovery) in activeServiceDiscoveries where matchesDeviceId(key) {
-      discovery.cancel(error: createFlutterError(code: .deviceDisconnected, message: "Device Disconnected"))
+    for (key, discovery) in activeServiceDiscoveries where key.caseInsensitiveCompare(deviceId) == .orderedSame {
+      discovery.cancel(error: error)
     }
-    activeServiceDiscoveries = activeServiceDiscoveries.filter { !matchesDeviceId($0.key) }
+    activeServiceDiscoveries = activeServiceDiscoveries.filter { $0.key.caseInsensitiveCompare(deviceId) != .orderedSame }
 
-    discoverServicesFutures.removeAll { future in
-      if matchesDeviceId(future.deviceId) {
-        future.result(
-          Result.failure(createFlutterError(code: .deviceDisconnected, message: "Device Disconnected"))
-        )
-        return true
-      }
-      return false
-    }
+    discoverServicesFutures.failAndRemoveAll(matching: deviceId, with: error)
   }
 
   func discoverServices(deviceId: String, withDescriptors: Bool, completion: @escaping (Result<[UniversalBleService], Error>) -> Void) {

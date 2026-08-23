@@ -65,6 +65,23 @@ extension CBManagerState {
     }
 }
 
+extension CBPeripheralState {
+    var toBleConnectionState: BleConnectionState {
+        switch self {
+        case .connecting:
+            return .connecting
+        case .connected:
+            return .connected
+        case .disconnecting:
+            return .disconnecting
+        case .disconnected:
+            return .disconnected
+        @unknown default:
+            return .disconnected
+        }
+    }
+}
+
 /// Maps string error codes to UniversalBleErrorCode enum
 func mapErrorCodeToEnum(_ code: String) -> UniversalBleErrorCode {
     switch code.lowercased() {
@@ -138,9 +155,8 @@ public extension CBUUID {
 }
 
 public extension CBPeripheral {
-    // FIXME: https://forums.developer.apple.com/thread/84375
     var uuid: UUID {
-        value(forKey: "identifier") as! NSUUID as UUID
+        identifier
     }
 
     func getCharacteristic(_ characteristic: String, of service: String) -> CBCharacteristic? {
@@ -176,8 +192,25 @@ extension FlutterStandardTypedData {
     }
 }
 
-// Future classes
-class CharacteristicReadFuture {
+// Future protocol and implementations
+protocol DeviceFuture {
+    var deviceId: String { get }
+    func fail(with error: Error)
+}
+
+extension Array where Element: DeviceFuture {
+    mutating func failAndRemoveAll(matching deviceId: String, with error: Error) {
+        removeAll { future in
+            if future.deviceId.caseInsensitiveCompare(deviceId) == .orderedSame {
+                future.fail(with: error)
+                return true
+            }
+            return false
+        }
+    }
+}
+
+class CharacteristicReadFuture: DeviceFuture {
     let deviceId: String
     let characteristicId: String
     let serviceId: String?
@@ -189,9 +222,13 @@ class CharacteristicReadFuture {
         self.serviceId = serviceId
         self.result = result
     }
+
+    func fail(with error: Error) {
+        result(.failure(error))
+    }
 }
 
-class CharacteristicWriteFuture {
+class CharacteristicWriteFuture: DeviceFuture {
     let deviceId: String
     let characteristicId: String
     let serviceId: String?
@@ -203,9 +240,13 @@ class CharacteristicWriteFuture {
         self.serviceId = serviceId
         self.result = result
     }
+
+    func fail(with error: Error) {
+        result(.failure(error))
+    }
 }
 
-class CharacteristicNotifyFuture {
+class CharacteristicNotifyFuture: DeviceFuture {
     let deviceId: String
     let characteristicId: String
     let serviceId: String?
@@ -217,9 +258,13 @@ class CharacteristicNotifyFuture {
         self.serviceId = serviceId
         self.result = result
     }
+
+    func fail(with error: Error) {
+        result(.failure(error))
+    }
 }
 
-class DiscoverServicesFuture {
+class DiscoverServicesFuture: DeviceFuture {
     let deviceId: String
     let result: (Result<[UniversalBleService], Error>) -> Void
 
@@ -227,9 +272,13 @@ class DiscoverServicesFuture {
         self.deviceId = deviceId
         self.result = result
     }
+
+    func fail(with error: Error) {
+        result(.failure(error))
+    }
 }
 
-class RssiReadFuture {
+class RssiReadFuture: DeviceFuture {
     let deviceId: String
     let result: (Result<Int64, Error>) -> Void
 
@@ -237,9 +286,13 @@ class RssiReadFuture {
         self.deviceId = deviceId
         self.result = result
     }
+
+    func fail(with error: Error) {
+        result(.failure(error))
+    }
 }
 
-class DescriptorReadFuture {
+class DescriptorReadFuture: DeviceFuture {
     let deviceId: String
     let descriptorId: String
     let characteristicId: String
@@ -253,9 +306,13 @@ class DescriptorReadFuture {
         self.serviceId = serviceId
         self.result = result
     }
+
+    func fail(with error: Error) {
+        result(.failure(error))
+    }
 }
 
-class DescriptorWriteFuture {
+class DescriptorWriteFuture: DeviceFuture {
     let deviceId: String
     let descriptorId: String
     let characteristicId: String
@@ -268,5 +325,9 @@ class DescriptorWriteFuture {
         self.characteristicId = characteristicId
         self.serviceId = serviceId
         self.result = result
+    }
+
+    func fail(with error: Error) {
+        result(.failure(error))
     }
 }
