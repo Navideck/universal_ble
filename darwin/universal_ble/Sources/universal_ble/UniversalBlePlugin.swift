@@ -289,8 +289,12 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
   }
 
   func cleanUpConnection(deviceId: String) {
+    let matchesDeviceId: (String) -> Bool = { targetId in
+      targetId.caseInsensitiveCompare(deviceId) == .orderedSame
+    }
+
     characteristicReadFutures.removeAll { future in
-      if future.deviceId == deviceId {
+      if matchesDeviceId(future.deviceId) {
         future.result(
           Result.failure(createFlutterError(code: .deviceDisconnected, message: "Device Disconnected"))
         )
@@ -299,7 +303,7 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
       return false
     }
     characteristicWriteFutures.removeAll { future in
-      if future.deviceId == deviceId {
+      if matchesDeviceId(future.deviceId) {
         future.result(
           Result.failure(createFlutterError(code: .deviceDisconnected, message: "Device Disconnected"))
         )
@@ -308,7 +312,7 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
       return false
     }
     characteristicNotifyFutures.removeAll { future in
-      if future.deviceId == deviceId {
+      if matchesDeviceId(future.deviceId) {
         future.result(
           Result.failure(createFlutterError(code: .deviceDisconnected, message: "Device Disconnected"))
         )
@@ -317,7 +321,7 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
       return false
     }
     descriptorReadFutures.removeAll { future in
-      if future.deviceId == deviceId {
+      if matchesDeviceId(future.deviceId) {
         future.result(
           Result.failure(createFlutterError(code: .deviceDisconnected, message: "Device Disconnected"))
         )
@@ -326,16 +330,7 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
       return false
     }
     descriptorWriteFutures.removeAll { future in
-      if future.deviceId == deviceId {
-        future.result(
-          Result.failure(createFlutterError(code: .deviceDisconnected, message: "Device Disconnected"))
-        )
-        return true
-      }
-      return false
-    }
-    discoverServicesFutures.removeAll { future in
-      if future.deviceId == deviceId {
+      if matchesDeviceId(future.deviceId) {
         future.result(
           Result.failure(createFlutterError(code: .deviceDisconnected, message: "Device Disconnected"))
         )
@@ -344,7 +339,7 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
       return false
     }
     rssiReadFutures.removeAll { future in
-      if future.deviceId == deviceId {
+      if matchesDeviceId(future.deviceId) {
         future.result(
           Result.failure(createFlutterError(code: .deviceDisconnected, message: "Device Disconnected"))
         )
@@ -352,8 +347,22 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
       }
       return false
     }
-    activeServiceDiscoveries[deviceId]?.cleanup()
-    activeServiceDiscoveries[deviceId] = nil
+
+    // Cancel and fail any active service discovery for this device
+    for (key, discovery) in activeServiceDiscoveries where matchesDeviceId(key) {
+      discovery.cancel(error: createFlutterError(code: .deviceDisconnected, message: "Device Disconnected"))
+    }
+    activeServiceDiscoveries = activeServiceDiscoveries.filter { !matchesDeviceId($0.key) }
+
+    discoverServicesFutures.removeAll { future in
+      if matchesDeviceId(future.deviceId) {
+        future.result(
+          Result.failure(createFlutterError(code: .deviceDisconnected, message: "Device Disconnected"))
+        )
+        return true
+      }
+      return false
+    }
   }
 
   func discoverServices(deviceId: String, withDescriptors: Bool, completion: @escaping (Result<[UniversalBleService], Error>) -> Void) {
@@ -364,33 +373,43 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
       return
     }
 
-    // Check if discovery is already in progress
-    if activeServiceDiscoveries[deviceId] != nil {
-      UniversalBleLogger.shared.logWarning("Services discovery already in progress for :\(deviceId), waiting for completion.")
-      discoverServicesFutures.append(DiscoverServicesFuture(deviceId: deviceId, result: completion))
+    guard peripheral.state == .connected else {
+      completion(
+        Result.failure(createFlutterError(code: .deviceDisconnected, message: "Device is not connected"))
+      )
       return
     }
 
-    let wrappedCompletion: (Result<[UniversalBleService], Error>) -> Void = { result in
+    let normalizedDeviceId = peripheral.uuid.uuidString
+
+    // Check if discovery is already in progress
+    if activeServiceDiscoveries[normalizedDeviceId] != nil {
+      UniversalBleLogger.shared.logWarning("Services discovery already in progress for :\(normalizedDeviceId), waiting for completion.")
+      discoverServicesFutures.append(DiscoverServicesFuture(deviceId: normalizedDeviceId, result: completion))
+      return
+    }
+
+    let wrappedCompletion: (Result<[UniversalBleService], Error>) -> Void = { [weak self] result in
+      guard let self = self else { return }
       completion(result)
       self.discoverServicesFutures.removeAll { future in
-        if future.deviceId == deviceId {
+        if future.deviceId.caseInsensitiveCompare(normalizedDeviceId) == .orderedSame {
           future.result(result)
           return true
         }
         return false
       }
-      self.activeServiceDiscoveries[deviceId] = nil
+      self.activeServiceDiscoveries.removeValue(forKey: normalizedDeviceId)
     }
 
     let discovery = UniversalBleAsyncServiceDiscovery(
       peripheral: peripheral,
-      deviceId: deviceId,
+      deviceId: normalizedDeviceId,
       withDescriptors: withDescriptors,
       completion: wrappedCompletion
     )
 
-    activeServiceDiscoveries[deviceId] = discovery
+    activeServiceDiscoveries[normalizedDeviceId] = discovery
     discovery.startDiscovery()
   }
 
@@ -703,6 +722,7 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
 
     if #available(iOS 17.0, macOS 14.0, watchOS 10.0, tvOS 17.0, *) {
       if isReconnecting {
+        cleanUpConnection(deviceId: deviceId)
         return
       }
     }
@@ -721,15 +741,18 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
   }
 
   public func peripheral(_ peripheral: CBPeripheral, didDiscoverServices error: Error?) {
-    activeServiceDiscoveries[peripheral.identifier.uuidString]?.handleDidDiscoverServices(peripheral, error: error)
+    let deviceId = peripheral.uuid.uuidString
+    activeServiceDiscoveries[deviceId]?.handleDidDiscoverServices(peripheral, error: error)
   }
 
   public func peripheral(_ peripheral: CBPeripheral, didDiscoverCharacteristicsFor service: CBService, error: Error?) {
-    activeServiceDiscoveries[peripheral.identifier.uuidString]?.handleDidDiscoverCharacteristicsFor(peripheral, service: service, error: error)
+    let deviceId = peripheral.uuid.uuidString
+    activeServiceDiscoveries[deviceId]?.handleDidDiscoverCharacteristicsFor(peripheral, service: service, error: error)
   }
 
   public func peripheral(_ peripheral: CBPeripheral, didDiscoverDescriptorsFor characteristic: CBCharacteristic, error: Error?) {
-    activeServiceDiscoveries[peripheral.identifier.uuidString]?.handleDidDiscoverDescriptorsFor(peripheral, characteristic: characteristic, error: error)
+    let deviceId = peripheral.uuid.uuidString
+    activeServiceDiscoveries[deviceId]?.handleDidDiscoverDescriptorsFor(peripheral, characteristic: characteristic, error: error)
   }
 
   public func peripheralIsReady(toSendWriteWithoutResponse peripheral: CBPeripheral) {
