@@ -160,8 +160,41 @@ void main() {
       _pending(
         '[FIT-CONN-008] handles two concurrent connect requests without duplicate connected events',
       );
-      _pending(
-        '[FIT-CONN-009] handles disconnect while a connection attempt is pending',
+      testWidgets(
+        '[FIT-CONN-009] reconnects while the old disconnect callback is pending',
+        (_) async {
+          UniversalBle.queueType = QueueType.none;
+
+          // Sweep a narrow window between the native link becoming disconnected
+          // and ConnectionStatusChanged removing the old device agent. Merely
+          // finding the agent in the native map must not produce a false
+          // connected result or suppress the replacement attempt.
+          for (final delay in <Duration>[
+            Duration.zero,
+            const Duration(milliseconds: 1),
+            const Duration(milliseconds: 5),
+            const Duration(milliseconds: 10),
+            const Duration(milliseconds: 25),
+          ]) {
+            try {
+              await peripheral.requestDisconnect(Duration.zero);
+            } catch (_) {
+              // The disconnect may win the race with the control-write ACK.
+            }
+            await Future<void>.delayed(delay);
+
+            await UniversalBle.connect(
+              peripheral.deviceId,
+              timeout: HilPeripheral.operationTimeout,
+            );
+            expect(
+              utf8.decode(await peripheral.read(HilUuid.read)),
+              'HIL-READ-V1',
+            );
+          }
+        },
+        timeout: const Timeout(Duration(minutes: 3)),
+        skip: defaultTargetPlatform != TargetPlatform.windows,
       );
       testWidgets(
         '[FIT-CONN-010] reconnects after repeated peripheral disconnect cycles',

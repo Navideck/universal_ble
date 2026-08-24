@@ -3,7 +3,8 @@
 * Add `BleCommandQueue` support to `UniversalBlePeripheral` (`queueType`, `timeout`, `clearQueue`, and `onQueueUpdate`)
 * iOS/macOS: Handle CoreBluetooth peripheral transmit queue exhaustion and error handling in `updateCharacteristicValue`
 * Add Descriptor Read and Write APIs
-* Windows: Harden BLE connection lifetime, asynchronous callbacks, and notification subscription handling
+* Windows: Harden BLE connection lifetime and asynchronous callbacks
+* Windows: Harden GATT operation lifetimes, Service Changed handling, and notification subscriptions
 * Android: instantly close the GATT client on disconnect
 * Android: complete only the oldest matching pending write on onCharacteristicWrite
 * iOS/macOS: Handle service discovery failure and timeout to prevent poisoning subsequent `discoverServices` calls
