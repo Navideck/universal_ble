@@ -10,6 +10,7 @@ import Foundation
 
 enum UniversalBlePeripheralError: Error {
   case notFound(String)
+  case failed(String)
 }
 
 var peripheralCharacteristicsList = [CBMutableCharacteristic]()
