@@ -10,7 +10,7 @@
 [![GitHub stars](https://img.shields.io/github/stars/Navideck/universal_ble?style=social)](https://github.com/Navideck/universal_ble)
 [![pub points](https://img.shields.io/pub/points/universal_ble?color=2E7D32)](https://pub.dev/packages/universal_ble/score)
 [![Flutter](https://img.shields.io/badge/Flutter-%3E%3D3.3.0-blue.svg?logo=flutter)](https://flutter.dev)
-[![Dart](https://img.shields.io/badge/Dart-%3E%3D3.1.3-blue.svg?logo=dart)](https://dart.dev)
+[![Dart](https://img.shields.io/badge/Dart-%3E%3D3.3.0-blue.svg?logo=dart)](https://dart.dev)
 
 A cross-platform (Android/iOS/macOS/Windows/Linux/Web) Bluetooth Low Energy (BLE) plugin for Flutter.
 

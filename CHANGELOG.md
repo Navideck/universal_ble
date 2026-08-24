@@ -1,4 +1,5 @@
 ## 2.2.0
+* Lower minimum Dart SDK to 3.3 (Flutter 3.19+) to restore compatibility with older stable Flutter releases
 * Add Descriptor Read and Write APIs
 * Windows: Harden BLE connection lifetime and asynchronous callbacks
 * Windows: Harden GATT operation lifetimes, Service Changed handling, and notification subscriptions
