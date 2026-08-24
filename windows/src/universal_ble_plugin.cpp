@@ -1118,7 +1118,9 @@ void UniversalBlePlugin::PushUniversalScanResult(
 
   // Filter final result before sending to Flutter
   if (is_connectable && filterDevice(scan_result)) {
-    scan_result.set_timestamp(GetCurrentTimestampMillis());
+    const auto timestamp_microseconds = GetCurrentTimestampMicros();
+    scan_result.set_timestamp(timestamp_microseconds / 1000);
+    scan_result.set_timestamp_microseconds(timestamp_microseconds);
     ui_thread_handler_.Post([scan_result] {
       callback_channel->OnScanResult(scan_result, SuccessCallback,
                                      ErrorCallback);

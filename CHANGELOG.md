@@ -1,4 +1,5 @@
 ## 2.2.0
+* Expose microsecond scan timestamps captured before Flutter event dispatch
 * Lower minimum Dart SDK to 3.3 (Flutter 3.19+) to restore compatibility with older stable Flutter releases
 * Add `BleCommandQueue` support to `UniversalBlePeripheral` (`queueType`, `timeout`, `clearQueue`, and `onQueueUpdate`)
 * iOS/macOS: Handle CoreBluetooth peripheral transmit queue exhaustion and error handling in `updateCharacteristicValue`

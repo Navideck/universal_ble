@@ -22,6 +22,7 @@ import android.content.IntentFilter
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
+import android.os.SystemClock
 import io.flutter.embedding.engine.plugins.FlutterPlugin
 import io.flutter.embedding.engine.plugins.activity.ActivityAware
 import io.flutter.embedding.engine.plugins.activity.ActivityPluginBinding
@@ -1207,6 +1208,7 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
         callback(
             Result.success(
                 devices.map {
+                    val timestampMicroseconds = System.currentTimeMillis() * 1000
                     UniversalBleScanResult(
                         name = it.name,
                         deviceId = it.address,
@@ -1214,7 +1216,8 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
                         manufacturerDataList = null,
                         serviceData = null,
                         rssi = null,
-                        timestamp = System.currentTimeMillis()
+                        timestamp = timestampMicroseconds / 1000,
+                        timestampMicroseconds = timestampMicroseconds
                     )
                 }
             )
@@ -1509,6 +1512,11 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
             val name = result.resolvedDeviceName
             val manufacturerDataList = result.manufacturerDataList
             val serviceData = result.serviceData
+            // ScanResult.timestampNanos is captured by Android at packet
+            // reception. Convert that monotonic value to epoch microseconds
+            // before posting to Flutter so main-thread delay is excluded.
+            val timestampMicroseconds = System.currentTimeMillis() * 1000 -
+                (SystemClock.elapsedRealtimeNanos() - result.timestampNanos) / 1000
 
             if (!universalBleFilterUtil.filterDevice(
                     name,
@@ -1528,7 +1536,8 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
                         serviceData = serviceData,
                         rssi = result.rssi.toLong(),
                         services = serviceUuids.map { it.toString() }.toList(),
-                        timestamp = System.currentTimeMillis()
+                        timestamp = timestampMicroseconds / 1000,
+                        timestampMicroseconds = timestampMicroseconds
                     )
                 ) {}
             }

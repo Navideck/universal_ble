@@ -34,11 +34,8 @@ Object? _extractReplyValueOrThrow(
   return replyList.firstOrNull;
 }
 
-List<Object?> wrapResponse({
-  Object? result,
-  PlatformException? error,
-  bool empty = false,
-}) {
+List<Object?> wrapResponse(
+    {Object? result, PlatformException? error, bool empty = false}) {
   if (empty) {
     return <Object?>[];
   }
@@ -60,9 +57,8 @@ bool _deepEquals(Object? a, Object? b) {
   }
   if (a is List && b is List) {
     return a.length == b.length &&
-        a.indexed.every(
-          ((int, dynamic) item) => _deepEquals(item.$2, b[item.$1]),
-        );
+        a.indexed
+            .every(((int, dynamic) item) => _deepEquals(item.$2, b[item.$1]));
   }
   if (a is Map && b is Map) {
     if (a.length != b.length) {
@@ -111,7 +107,14 @@ int _deepHash(Object? value) {
   return value.hashCode;
 }
 
-enum BleLogLevel { none, error, warning, info, debug, verbose }
+enum BleLogLevel {
+  none,
+  error,
+  warning,
+  info,
+  debug,
+  verbose,
+}
 
 enum AvailabilityState {
   unknown,
@@ -122,11 +125,23 @@ enum AvailabilityState {
   poweredOn,
 }
 
-enum BleConnectionState { connected, disconnected, connecting, disconnecting }
+enum BleConnectionState {
+  connected,
+  disconnected,
+  connecting,
+  disconnecting,
+}
 
-enum BleInputProperty { disabled, notification, indication }
+enum BleInputProperty {
+  disabled,
+  notification,
+  indication,
+}
 
-enum BleOutputProperty { withResponse, withoutResponse }
+enum BleOutputProperty {
+  withResponse,
+  withoutResponse,
+}
 
 /// Connection priority hint passed to [requestConnectionPriority].
 ///
@@ -142,7 +157,12 @@ enum BleConnectionPriority {
   lowPower,
 }
 
-enum AndroidScanMode { balanced, lowLatency, lowPower, opportunistic }
+enum AndroidScanMode {
+  balanced,
+  lowLatency,
+  lowPower,
+  opportunistic,
+}
 
 /// Mirrors `android.bluetooth.le.ScanSettings#setCallbackType`. Pass any
 /// combination via `AndroidOptions.callbackType` (the plugin OR-folds the list
@@ -164,10 +184,17 @@ enum AndroidScanCallbackType {
 }
 
 /// Mirrors `android.bluetooth.le.ScanSettings#setMatchMode`.
-enum AndroidScanMatchMode { aggressive, sticky }
+enum AndroidScanMatchMode {
+  aggressive,
+  sticky,
+}
 
 /// Mirrors `android.bluetooth.le.ScanSettings#setNumOfMatches`.
-enum AndroidScanNumOfMatches { one, few, max }
+enum AndroidScanNumOfMatches {
+  one,
+  few,
+  max,
+}
 
 enum CharacteristicProperty {
   broadcast,
@@ -195,7 +222,13 @@ enum PeripheralAttributePermission {
   writeEncryptionRequired,
 }
 
-enum PeripheralAdvertisingState { idle, starting, advertising, stopping, error }
+enum PeripheralAdvertisingState {
+  idle,
+  starting,
+  advertising,
+  stopping,
+  error,
+}
 
 /// Unified error codes for all platforms
 enum UniversalBleErrorCode {
@@ -274,6 +307,7 @@ class UniversalBleScanResult {
     this.serviceData,
     this.services,
     this.timestamp,
+    this.timestampMicroseconds,
   });
 
   String deviceId;
@@ -292,6 +326,8 @@ class UniversalBleScanResult {
 
   int? timestamp;
 
+  int? timestampMicroseconds;
+
   List<Object?> _toList() {
     return <Object?>[
       deviceId,
@@ -302,6 +338,7 @@ class UniversalBleScanResult {
       serviceData,
       services,
       timestamp,
+      timestampMicroseconds,
     ];
   }
 
@@ -316,12 +353,13 @@ class UniversalBleScanResult {
       name: result[1] as String?,
       isPaired: result[2] as bool?,
       rssi: result[3] as int?,
-      manufacturerDataList: (result[4] as List<Object?>?)
-          ?.cast<UniversalManufacturerData>(),
-      serviceData: (result[5] as Map<Object?, Object?>?)
-          ?.cast<String, Uint8List>(),
+      manufacturerDataList:
+          (result[4] as List<Object?>?)?.cast<UniversalManufacturerData>(),
+      serviceData:
+          (result[5] as Map<Object?, Object?>?)?.cast<String, Uint8List>(),
       services: (result[6] as List<Object?>?)?.cast<String>(),
       timestamp: result[7] as int?,
+      timestampMicroseconds: result[8] as int?,
     );
   }
 
@@ -341,7 +379,8 @@ class UniversalBleScanResult {
         _deepEquals(manufacturerDataList, other.manufacturerDataList) &&
         _deepEquals(serviceData, other.serviceData) &&
         _deepEquals(services, other.services) &&
-        _deepEquals(timestamp, other.timestamp);
+        _deepEquals(timestamp, other.timestamp) &&
+        _deepEquals(timestampMicroseconds, other.timestampMicroseconds);
   }
 
   @override
@@ -351,14 +390,20 @@ class UniversalBleScanResult {
 
 /// Central/GATT models
 class UniversalBleService {
-  UniversalBleService({required this.uuid, this.characteristics});
+  UniversalBleService({
+    required this.uuid,
+    this.characteristics,
+  });
 
   String uuid;
 
   List<UniversalBleCharacteristic>? characteristics;
 
   List<Object?> _toList() {
-    return <Object?>[uuid, characteristics];
+    return <Object?>[
+      uuid,
+      characteristics,
+    ];
   }
 
   Object encode() {
@@ -369,8 +414,8 @@ class UniversalBleService {
     result as List<Object?>;
     return UniversalBleService(
       uuid: result[0]! as String,
-      characteristics: (result[1] as List<Object?>?)
-          ?.cast<UniversalBleCharacteristic>(),
+      characteristics:
+          (result[1] as List<Object?>?)?.cast<UniversalBleCharacteristic>(),
     );
   }
 
@@ -406,7 +451,11 @@ class UniversalBleCharacteristic {
   List<UniversalBleDescriptor> descriptors;
 
   List<Object?> _toList() {
-    return <Object?>[uuid, properties, descriptors];
+    return <Object?>[
+      uuid,
+      properties,
+      descriptors,
+    ];
   }
 
   Object encode() {
@@ -443,12 +492,16 @@ class UniversalBleCharacteristic {
 }
 
 class UniversalBleDescriptor {
-  UniversalBleDescriptor({required this.uuid});
+  UniversalBleDescriptor({
+    required this.uuid,
+  });
 
   String uuid;
 
   List<Object?> _toList() {
-    return <Object?>[uuid];
+    return <Object?>[
+      uuid,
+    ];
   }
 
   Object encode() {
@@ -457,7 +510,9 @@ class UniversalBleDescriptor {
 
   static UniversalBleDescriptor decode(Object result) {
     result as List<Object?>;
-    return UniversalBleDescriptor(uuid: result[0]! as String);
+    return UniversalBleDescriptor(
+      uuid: result[0]! as String,
+    );
   }
 
   @override
@@ -501,7 +556,13 @@ class BleConnectionParametersUpdated {
   int status;
 
   List<Object?> _toList() {
-    return <Object?>[deviceId, interval, latency, supervisionTimeout, status];
+    return <Object?>[
+      deviceId,
+      interval,
+      latency,
+      supervisionTimeout,
+      status,
+    ];
   }
 
   Object encode() {
@@ -615,8 +676,8 @@ class AndroidOptions {
       requestLocationPermission: result[0] as bool?,
       scanMode: result[1] as AndroidScanMode?,
       reportDelayMillis: result[2] as int?,
-      callbackType: (result[3] as List<Object?>?)
-          ?.cast<AndroidScanCallbackType>(),
+      callbackType:
+          (result[3] as List<Object?>?)?.cast<AndroidScanCallbackType>(),
       matchMode: result[4] as AndroidScanMatchMode?,
       numOfMatches: result[5] as AndroidScanNumOfMatches?,
       legacy: result[6] as bool?,
@@ -633,9 +694,7 @@ class AndroidOptions {
       return true;
     }
     return _deepEquals(
-          requestLocationPermission,
-          other.requestLocationPermission,
-        ) &&
+            requestLocationPermission, other.requestLocationPermission) &&
         _deepEquals(scanMode, other.scanMode) &&
         _deepEquals(reportDelayMillis, other.reportDelayMillis) &&
         _deepEquals(callbackType, other.callbackType) &&
@@ -650,12 +709,16 @@ class AndroidOptions {
 }
 
 class UniversalScanConfig {
-  UniversalScanConfig({this.android});
+  UniversalScanConfig({
+    this.android,
+  });
 
   AndroidOptions? android;
 
   List<Object?> _toList() {
-    return <Object?>[android];
+    return <Object?>[
+      android,
+    ];
   }
 
   Object encode() {
@@ -664,7 +727,9 @@ class UniversalScanConfig {
 
   static UniversalScanConfig decode(Object result) {
     result as List<Object?>;
-    return UniversalScanConfig(android: result[0] as AndroidOptions?);
+    return UniversalScanConfig(
+      android: result[0] as AndroidOptions?,
+    );
   }
 
   @override
@@ -698,7 +763,11 @@ class UniversalScanFilter {
   List<ManufacturerDataFilter> withManufacturerData;
 
   List<Object?> _toList() {
-    return <Object?>[withServices, withNamePrefix, withManufacturerData];
+    return <Object?>[
+      withServices,
+      withNamePrefix,
+      withManufacturerData,
+    ];
   }
 
   Object encode() {
@@ -710,8 +779,8 @@ class UniversalScanFilter {
     return UniversalScanFilter(
       withServices: (result[0]! as List<Object?>).cast<String>(),
       withNamePrefix: (result[1]! as List<Object?>).cast<String>(),
-      withManufacturerData: (result[2]! as List<Object?>)
-          .cast<ManufacturerDataFilter>(),
+      withManufacturerData:
+          (result[2]! as List<Object?>).cast<ManufacturerDataFilter>(),
     );
   }
 
@@ -753,7 +822,11 @@ class ManufacturerDataFilter {
   Uint8List? payloadMask;
 
   List<Object?> _toList() {
-    return <Object?>[companyIdentifier, payloadPrefix, payloadMask];
+    return <Object?>[
+      companyIdentifier,
+      payloadPrefix,
+      payloadMask,
+    ];
   }
 
   Object encode() {
@@ -799,7 +872,10 @@ class UniversalManufacturerData {
   Uint8List data;
 
   List<Object?> _toList() {
-    return <Object?>[companyIdentifier, data];
+    return <Object?>[
+      companyIdentifier,
+      data,
+    ];
   }
 
   Object encode() {
@@ -906,12 +982,16 @@ class AppleConnectionOptions {
 }
 
 class ConnectionPlatformConfig {
-  ConnectionPlatformConfig({this.apple});
+  ConnectionPlatformConfig({
+    this.apple,
+  });
 
   AppleConnectionOptions? apple;
 
   List<Object?> _toList() {
-    return <Object?>[apple];
+    return <Object?>[
+      apple,
+    ];
   }
 
   Object encode() {
@@ -988,10 +1068,8 @@ class PeripheralAndroidOptions {
     if (identical(this, other)) {
       return true;
     }
-    return _deepEquals(
-          addManufacturerDataInScanResponse,
-          other.addManufacturerDataInScanResponse,
-        ) &&
+    return _deepEquals(addManufacturerDataInScanResponse,
+            other.addManufacturerDataInScanResponse) &&
         _deepEquals(addServicesInScanResponse, other.addServicesInScanResponse);
   }
 
@@ -1001,12 +1079,16 @@ class PeripheralAndroidOptions {
 }
 
 class PeripheralPlatformConfig {
-  PeripheralPlatformConfig({this.android});
+  PeripheralPlatformConfig({
+    this.android,
+  });
 
   PeripheralAndroidOptions? android;
 
   List<Object?> _toList() {
-    return <Object?>[android];
+    return <Object?>[
+      android,
+    ];
   }
 
   Object encode() {
@@ -1053,7 +1135,11 @@ class PeripheralService {
   List<PeripheralCharacteristic> characteristics;
 
   List<Object?> _toList() {
-    return <Object?>[uuid, primary, characteristics];
+    return <Object?>[
+      uuid,
+      primary,
+      characteristics,
+    ];
   }
 
   Object encode() {
@@ -1065,8 +1151,8 @@ class PeripheralService {
     return PeripheralService(
       uuid: result[0]! as String,
       primary: result[1]! as bool,
-      characteristics: (result[2]! as List<Object?>)
-          .cast<PeripheralCharacteristic>(),
+      characteristics:
+          (result[2]! as List<Object?>).cast<PeripheralCharacteristic>(),
     );
   }
 
@@ -1109,7 +1195,13 @@ class PeripheralCharacteristic {
   Uint8List? value;
 
   List<Object?> _toList() {
-    return <Object?>[uuid, properties, permissions, descriptors, value];
+    return <Object?>[
+      uuid,
+      properties,
+      permissions,
+      descriptors,
+      value,
+    ];
   }
 
   Object encode() {
@@ -1121,8 +1213,8 @@ class PeripheralCharacteristic {
     return PeripheralCharacteristic(
       uuid: result[0]! as String,
       properties: (result[1]! as List<Object?>).cast<CharacteristicProperty>(),
-      permissions: (result[2]! as List<Object?>)
-          .cast<PeripheralAttributePermission>(),
+      permissions:
+          (result[2]! as List<Object?>).cast<PeripheralAttributePermission>(),
       descriptors: (result[3] as List<Object?>?)?.cast<PeripheralDescriptor>(),
       value: result[4] as Uint8List?,
     );
@@ -1151,7 +1243,11 @@ class PeripheralCharacteristic {
 }
 
 class PeripheralDescriptor {
-  PeripheralDescriptor({required this.uuid, this.value, this.permissions});
+  PeripheralDescriptor({
+    required this.uuid,
+    this.value,
+    this.permissions,
+  });
 
   String uuid;
 
@@ -1160,7 +1256,11 @@ class PeripheralDescriptor {
   List<PeripheralAttributePermission>? permissions;
 
   List<Object?> _toList() {
-    return <Object?>[uuid, value, permissions];
+    return <Object?>[
+      uuid,
+      value,
+      permissions,
+    ];
   }
 
   Object encode() {
@@ -1172,8 +1272,8 @@ class PeripheralDescriptor {
     return PeripheralDescriptor(
       uuid: result[0]! as String,
       value: result[1] as Uint8List?,
-      permissions: (result[2] as List<Object?>?)
-          ?.cast<PeripheralAttributePermission>(),
+      permissions:
+          (result[2] as List<Object?>?)?.cast<PeripheralAttributePermission>(),
     );
   }
 
@@ -1197,7 +1297,11 @@ class PeripheralDescriptor {
 }
 
 class PeripheralReadRequestResult {
-  PeripheralReadRequestResult({required this.value, this.offset, this.status});
+  PeripheralReadRequestResult({
+    required this.value,
+    this.offset,
+    this.status,
+  });
 
   Uint8List value;
 
@@ -1206,7 +1310,11 @@ class PeripheralReadRequestResult {
   int? status;
 
   List<Object?> _toList() {
-    return <Object?>[value, offset, status];
+    return <Object?>[
+      value,
+      offset,
+      status,
+    ];
   }
 
   Object encode() {
@@ -1243,7 +1351,11 @@ class PeripheralReadRequestResult {
 }
 
 class PeripheralWriteRequestResult {
-  PeripheralWriteRequestResult({this.value, this.offset, this.status});
+  PeripheralWriteRequestResult({
+    this.value,
+    this.offset,
+    this.status,
+  });
 
   Uint8List? value;
 
@@ -1252,7 +1364,11 @@ class PeripheralWriteRequestResult {
   int? status;
 
   List<Object?> _toList() {
-    return <Object?>[value, offset, status];
+    return <Object?>[
+      value,
+      offset,
+      status,
+    ];
   }
 
   Object encode() {
@@ -1503,13 +1619,11 @@ class UniversalBlePlatformChannel {
   /// Constructor for [UniversalBlePlatformChannel].  The [binaryMessenger] named argument is
   /// available for dependency injection.  If it is left null, the default
   /// BinaryMessenger will be used which routes to the host platform.
-  UniversalBlePlatformChannel({
-    BinaryMessenger? binaryMessenger,
-    String messageChannelSuffix = '',
-  }) : pigeonVar_binaryMessenger = binaryMessenger,
-       pigeonVar_messageChannelSuffix = messageChannelSuffix.isNotEmpty
-           ? '.$messageChannelSuffix'
-           : '';
+  UniversalBlePlatformChannel(
+      {BinaryMessenger? binaryMessenger, String messageChannelSuffix = ''})
+      : pigeonVar_binaryMessenger = binaryMessenger,
+        pigeonVar_messageChannelSuffix =
+            messageChannelSuffix.isNotEmpty ? '.$messageChannelSuffix' : '';
   final BinaryMessenger? pigeonVar_binaryMessenger;
 
   static const MessageCodec<Object?> pigeonChannelCodec = _PigeonCodec();
@@ -1543,9 +1657,8 @@ class UniversalBlePlatformChannel {
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
-      <Object?>[withAndroidFineLocation],
-    );
+    final Future<Object?> pigeonVar_sendFuture =
+        pigeonVar_channel.send(<Object?>[withAndroidFineLocation]);
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
@@ -1564,9 +1677,8 @@ class UniversalBlePlatformChannel {
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
-      <Object?>[withAndroidFineLocation],
-    );
+    final Future<Object?> pigeonVar_sendFuture =
+        pigeonVar_channel.send(<Object?>[withAndroidFineLocation]);
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     _extractReplyValueOrThrow(
@@ -1615,9 +1727,7 @@ class UniversalBlePlatformChannel {
   }
 
   Future<void> startScan(
-    UniversalScanFilter? filter,
-    UniversalScanConfig? config,
-  ) async {
+      UniversalScanFilter? filter, UniversalScanConfig? config) async {
     final pigeonVar_channelName =
         'dev.flutter.pigeon.universal_ble.UniversalBlePlatformChannel.startScan$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
@@ -1625,9 +1735,8 @@ class UniversalBlePlatformChannel {
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
-      <Object?>[filter, config],
-    );
+    final Future<Object?> pigeonVar_sendFuture =
+        pigeonVar_channel.send(<Object?>[filter, config]);
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     _extractReplyValueOrThrow(
@@ -1686,9 +1795,8 @@ class UniversalBlePlatformChannel {
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
-      <Object?>[deviceId, autoConnect, platformConfig],
-    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel
+        .send(<Object?>[deviceId, autoConnect, platformConfig]);
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     _extractReplyValueOrThrow(
@@ -1706,9 +1814,8 @@ class UniversalBlePlatformChannel {
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
-      <Object?>[deviceId],
-    );
+    final Future<Object?> pigeonVar_sendFuture =
+        pigeonVar_channel.send(<Object?>[deviceId]);
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     _extractReplyValueOrThrow(
@@ -1718,12 +1825,8 @@ class UniversalBlePlatformChannel {
     );
   }
 
-  Future<void> setNotifiable(
-    String deviceId,
-    String service,
-    String characteristic,
-    BleInputProperty bleInputProperty,
-  ) async {
+  Future<void> setNotifiable(String deviceId, String service,
+      String characteristic, BleInputProperty bleInputProperty) async {
     final pigeonVar_channelName =
         'dev.flutter.pigeon.universal_ble.UniversalBlePlatformChannel.setNotifiable$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
@@ -1731,9 +1834,8 @@ class UniversalBlePlatformChannel {
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
-      <Object?>[deviceId, service, characteristic, bleInputProperty],
-    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel
+        .send(<Object?>[deviceId, service, characteristic, bleInputProperty]);
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     _extractReplyValueOrThrow(
@@ -1744,9 +1846,7 @@ class UniversalBlePlatformChannel {
   }
 
   Future<List<UniversalBleService>> discoverServices(
-    String deviceId,
-    bool withDescriptors,
-  ) async {
+      String deviceId, bool withDescriptors) async {
     final pigeonVar_channelName =
         'dev.flutter.pigeon.universal_ble.UniversalBlePlatformChannel.discoverServices$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
@@ -1754,9 +1854,8 @@ class UniversalBlePlatformChannel {
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
-      <Object?>[deviceId, withDescriptors],
-    );
+    final Future<Object?> pigeonVar_sendFuture =
+        pigeonVar_channel.send(<Object?>[deviceId, withDescriptors]);
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
@@ -1768,10 +1867,7 @@ class UniversalBlePlatformChannel {
   }
 
   Future<Uint8List> readValue(
-    String deviceId,
-    String service,
-    String characteristic,
-  ) async {
+      String deviceId, String service, String characteristic) async {
     final pigeonVar_channelName =
         'dev.flutter.pigeon.universal_ble.UniversalBlePlatformChannel.readValue$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
@@ -1779,9 +1875,8 @@ class UniversalBlePlatformChannel {
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
-      <Object?>[deviceId, service, characteristic],
-    );
+    final Future<Object?> pigeonVar_sendFuture =
+        pigeonVar_channel.send(<Object?>[deviceId, service, characteristic]);
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
@@ -1792,12 +1887,8 @@ class UniversalBlePlatformChannel {
     return pigeonVar_replyValue! as Uint8List;
   }
 
-  Future<Uint8List> readDescriptorValue(
-    String deviceId,
-    String service,
-    String characteristic,
-    String descriptor,
-  ) async {
+  Future<Uint8List> readDescriptorValue(String deviceId, String service,
+      String characteristic, String descriptor) async {
     final pigeonVar_channelName =
         'dev.flutter.pigeon.universal_ble.UniversalBlePlatformChannel.readDescriptorValue$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
@@ -1805,9 +1896,8 @@ class UniversalBlePlatformChannel {
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
-      <Object?>[deviceId, service, characteristic, descriptor],
-    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel
+        .send(<Object?>[deviceId, service, characteristic, descriptor]);
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
@@ -1826,9 +1916,8 @@ class UniversalBlePlatformChannel {
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
-      <Object?>[deviceId, expectedMtu],
-    );
+    final Future<Object?> pigeonVar_sendFuture =
+        pigeonVar_channel.send(<Object?>[deviceId, expectedMtu]);
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
@@ -1840,12 +1929,11 @@ class UniversalBlePlatformChannel {
   }
 
   Future<void> writeValue(
-    String deviceId,
-    String service,
-    String characteristic,
-    Uint8List value,
-    BleOutputProperty bleOutputProperty,
-  ) async {
+      String deviceId,
+      String service,
+      String characteristic,
+      Uint8List value,
+      BleOutputProperty bleOutputProperty) async {
     final pigeonVar_channelName =
         'dev.flutter.pigeon.universal_ble.UniversalBlePlatformChannel.writeValue$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
@@ -1854,8 +1942,7 @@ class UniversalBlePlatformChannel {
       binaryMessenger: pigeonVar_binaryMessenger,
     );
     final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
-      <Object?>[deviceId, service, characteristic, value, bleOutputProperty],
-    );
+        <Object?>[deviceId, service, characteristic, value, bleOutputProperty]);
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     _extractReplyValueOrThrow(
@@ -1865,13 +1952,8 @@ class UniversalBlePlatformChannel {
     );
   }
 
-  Future<void> writeDescriptorValue(
-    String deviceId,
-    String service,
-    String characteristic,
-    String descriptor,
-    Uint8List value,
-  ) async {
+  Future<void> writeDescriptorValue(String deviceId, String service,
+      String characteristic, String descriptor, Uint8List value) async {
     final pigeonVar_channelName =
         'dev.flutter.pigeon.universal_ble.UniversalBlePlatformChannel.writeDescriptorValue$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
@@ -1879,9 +1961,8 @@ class UniversalBlePlatformChannel {
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
-      <Object?>[deviceId, service, characteristic, descriptor, value],
-    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel
+        .send(<Object?>[deviceId, service, characteristic, descriptor, value]);
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     _extractReplyValueOrThrow(
@@ -1899,9 +1980,8 @@ class UniversalBlePlatformChannel {
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
-      <Object?>[deviceId],
-    );
+    final Future<Object?> pigeonVar_sendFuture =
+        pigeonVar_channel.send(<Object?>[deviceId]);
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
@@ -1920,9 +2000,8 @@ class UniversalBlePlatformChannel {
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
-      <Object?>[deviceId],
-    );
+    final Future<Object?> pigeonVar_sendFuture =
+        pigeonVar_channel.send(<Object?>[deviceId]);
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
@@ -1941,9 +2020,8 @@ class UniversalBlePlatformChannel {
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
-      <Object?>[deviceId],
-    );
+    final Future<Object?> pigeonVar_sendFuture =
+        pigeonVar_channel.send(<Object?>[deviceId]);
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     _extractReplyValueOrThrow(
@@ -1954,8 +2032,7 @@ class UniversalBlePlatformChannel {
   }
 
   Future<List<UniversalBleScanResult>> getSystemDevices(
-    List<String> withServices,
-  ) async {
+      List<String> withServices) async {
     final pigeonVar_channelName =
         'dev.flutter.pigeon.universal_ble.UniversalBlePlatformChannel.getSystemDevices$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
@@ -1963,9 +2040,8 @@ class UniversalBlePlatformChannel {
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
-      <Object?>[withServices],
-    );
+    final Future<Object?> pigeonVar_sendFuture =
+        pigeonVar_channel.send(<Object?>[withServices]);
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
@@ -1985,9 +2061,8 @@ class UniversalBlePlatformChannel {
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
-      <Object?>[deviceId],
-    );
+    final Future<Object?> pigeonVar_sendFuture =
+        pigeonVar_channel.send(<Object?>[deviceId]);
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
@@ -2006,9 +2081,8 @@ class UniversalBlePlatformChannel {
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
-      <Object?>[deviceId],
-    );
+    final Future<Object?> pigeonVar_sendFuture =
+        pigeonVar_channel.send(<Object?>[deviceId]);
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
@@ -2020,9 +2094,7 @@ class UniversalBlePlatformChannel {
   }
 
   Future<void> requestConnectionPriority(
-    String deviceId,
-    BleConnectionPriority priority,
-  ) async {
+      String deviceId, BleConnectionPriority priority) async {
     final pigeonVar_channelName =
         'dev.flutter.pigeon.universal_ble.UniversalBlePlatformChannel.requestConnectionPriority$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
@@ -2030,9 +2102,8 @@ class UniversalBlePlatformChannel {
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
-      <Object?>[deviceId, priority],
-    );
+    final Future<Object?> pigeonVar_sendFuture =
+        pigeonVar_channel.send(<Object?>[deviceId, priority]);
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     _extractReplyValueOrThrow(
@@ -2050,9 +2121,8 @@ class UniversalBlePlatformChannel {
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
-      <Object?>[logLevel],
-    );
+    final Future<Object?> pigeonVar_sendFuture =
+        pigeonVar_channel.send(<Object?>[logLevel]);
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     _extractReplyValueOrThrow(
@@ -2073,12 +2143,8 @@ abstract class UniversalBleCallbackChannel {
 
   void onScanResult(UniversalBleScanResult result);
 
-  void onValueChanged(
-    String deviceId,
-    String characteristicId,
-    Uint8List value,
-    int? timestamp,
-  );
+  void onValueChanged(String deviceId, String characteristicId, Uint8List value,
+      int? timestamp);
 
   void onConnectionChanged(String deviceId, bool connected, String? error);
 
@@ -2089,15 +2155,13 @@ abstract class UniversalBleCallbackChannel {
     BinaryMessenger? binaryMessenger,
     String messageChannelSuffix = '',
   }) {
-    messageChannelSuffix = messageChannelSuffix.isNotEmpty
-        ? '.$messageChannelSuffix'
-        : '';
+    messageChannelSuffix =
+        messageChannelSuffix.isNotEmpty ? '.$messageChannelSuffix' : '';
     {
       final pigeonVar_channel = BasicMessageChannel<Object?>(
-        'dev.flutter.pigeon.universal_ble.UniversalBleCallbackChannel.onAvailabilityChanged$messageChannelSuffix',
-        pigeonChannelCodec,
-        binaryMessenger: binaryMessenger,
-      );
+          'dev.flutter.pigeon.universal_ble.UniversalBleCallbackChannel.onAvailabilityChanged$messageChannelSuffix',
+          pigeonChannelCodec,
+          binaryMessenger: binaryMessenger);
       if (api == null) {
         pigeonVar_channel.setMessageHandler(null);
       } else {
@@ -2111,18 +2175,16 @@ abstract class UniversalBleCallbackChannel {
             return wrapResponse(error: e);
           } catch (e) {
             return wrapResponse(
-              error: PlatformException(code: 'error', message: e.toString()),
-            );
+                error: PlatformException(code: 'error', message: e.toString()));
           }
         });
       }
     }
     {
       final pigeonVar_channel = BasicMessageChannel<Object?>(
-        'dev.flutter.pigeon.universal_ble.UniversalBleCallbackChannel.onPairStateChange$messageChannelSuffix',
-        pigeonChannelCodec,
-        binaryMessenger: binaryMessenger,
-      );
+          'dev.flutter.pigeon.universal_ble.UniversalBleCallbackChannel.onPairStateChange$messageChannelSuffix',
+          pigeonChannelCodec,
+          binaryMessenger: binaryMessenger);
       if (api == null) {
         pigeonVar_channel.setMessageHandler(null);
       } else {
@@ -2138,18 +2200,16 @@ abstract class UniversalBleCallbackChannel {
             return wrapResponse(error: e);
           } catch (e) {
             return wrapResponse(
-              error: PlatformException(code: 'error', message: e.toString()),
-            );
+                error: PlatformException(code: 'error', message: e.toString()));
           }
         });
       }
     }
     {
       final pigeonVar_channel = BasicMessageChannel<Object?>(
-        'dev.flutter.pigeon.universal_ble.UniversalBleCallbackChannel.onScanResult$messageChannelSuffix',
-        pigeonChannelCodec,
-        binaryMessenger: binaryMessenger,
-      );
+          'dev.flutter.pigeon.universal_ble.UniversalBleCallbackChannel.onScanResult$messageChannelSuffix',
+          pigeonChannelCodec,
+          binaryMessenger: binaryMessenger);
       if (api == null) {
         pigeonVar_channel.setMessageHandler(null);
       } else {
@@ -2164,18 +2224,16 @@ abstract class UniversalBleCallbackChannel {
             return wrapResponse(error: e);
           } catch (e) {
             return wrapResponse(
-              error: PlatformException(code: 'error', message: e.toString()),
-            );
+                error: PlatformException(code: 'error', message: e.toString()));
           }
         });
       }
     }
     {
       final pigeonVar_channel = BasicMessageChannel<Object?>(
-        'dev.flutter.pigeon.universal_ble.UniversalBleCallbackChannel.onValueChanged$messageChannelSuffix',
-        pigeonChannelCodec,
-        binaryMessenger: binaryMessenger,
-      );
+          'dev.flutter.pigeon.universal_ble.UniversalBleCallbackChannel.onValueChanged$messageChannelSuffix',
+          pigeonChannelCodec,
+          binaryMessenger: binaryMessenger);
       if (api == null) {
         pigeonVar_channel.setMessageHandler(null);
       } else {
@@ -2187,28 +2245,22 @@ abstract class UniversalBleCallbackChannel {
           final int? arg_timestamp = args[3] as int?;
           try {
             api.onValueChanged(
-              arg_deviceId,
-              arg_characteristicId,
-              arg_value,
-              arg_timestamp,
-            );
+                arg_deviceId, arg_characteristicId, arg_value, arg_timestamp);
             return wrapResponse(empty: true);
           } on PlatformException catch (e) {
             return wrapResponse(error: e);
           } catch (e) {
             return wrapResponse(
-              error: PlatformException(code: 'error', message: e.toString()),
-            );
+                error: PlatformException(code: 'error', message: e.toString()));
           }
         });
       }
     }
     {
       final pigeonVar_channel = BasicMessageChannel<Object?>(
-        'dev.flutter.pigeon.universal_ble.UniversalBleCallbackChannel.onConnectionChanged$messageChannelSuffix',
-        pigeonChannelCodec,
-        binaryMessenger: binaryMessenger,
-      );
+          'dev.flutter.pigeon.universal_ble.UniversalBleCallbackChannel.onConnectionChanged$messageChannelSuffix',
+          pigeonChannelCodec,
+          binaryMessenger: binaryMessenger);
       if (api == null) {
         pigeonVar_channel.setMessageHandler(null);
       } else {
@@ -2224,18 +2276,16 @@ abstract class UniversalBleCallbackChannel {
             return wrapResponse(error: e);
           } catch (e) {
             return wrapResponse(
-              error: PlatformException(code: 'error', message: e.toString()),
-            );
+                error: PlatformException(code: 'error', message: e.toString()));
           }
         });
       }
     }
     {
       final pigeonVar_channel = BasicMessageChannel<Object?>(
-        'dev.flutter.pigeon.universal_ble.UniversalBleCallbackChannel.onConnectionParametersUpdated$messageChannelSuffix',
-        pigeonChannelCodec,
-        binaryMessenger: binaryMessenger,
-      );
+          'dev.flutter.pigeon.universal_ble.UniversalBleCallbackChannel.onConnectionParametersUpdated$messageChannelSuffix',
+          pigeonChannelCodec,
+          binaryMessenger: binaryMessenger);
       if (api == null) {
         pigeonVar_channel.setMessageHandler(null);
       } else {
@@ -2250,8 +2300,7 @@ abstract class UniversalBleCallbackChannel {
             return wrapResponse(error: e);
           } catch (e) {
             return wrapResponse(
-              error: PlatformException(code: 'error', message: e.toString()),
-            );
+                error: PlatformException(code: 'error', message: e.toString()));
           }
         });
       }
@@ -2264,13 +2313,11 @@ class UniversalBlePeripheralChannel {
   /// Constructor for [UniversalBlePeripheralChannel].  The [binaryMessenger] named argument is
   /// available for dependency injection.  If it is left null, the default
   /// BinaryMessenger will be used which routes to the host platform.
-  UniversalBlePeripheralChannel({
-    BinaryMessenger? binaryMessenger,
-    String messageChannelSuffix = '',
-  }) : pigeonVar_binaryMessenger = binaryMessenger,
-       pigeonVar_messageChannelSuffix = messageChannelSuffix.isNotEmpty
-           ? '.$messageChannelSuffix'
-           : '';
+  UniversalBlePeripheralChannel(
+      {BinaryMessenger? binaryMessenger, String messageChannelSuffix = ''})
+      : pigeonVar_binaryMessenger = binaryMessenger,
+        pigeonVar_messageChannelSuffix =
+            messageChannelSuffix.isNotEmpty ? '.$messageChannelSuffix' : '';
   final BinaryMessenger? pigeonVar_binaryMessenger;
 
   static const MessageCodec<Object?> pigeonChannelCodec = _PigeonCodec();
@@ -2341,9 +2388,8 @@ class UniversalBlePeripheralChannel {
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
-      <Object?>[service],
-    );
+    final Future<Object?> pigeonVar_sendFuture =
+        pigeonVar_channel.send(<Object?>[service]);
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     _extractReplyValueOrThrow(
@@ -2361,9 +2407,8 @@ class UniversalBlePeripheralChannel {
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
-      <Object?>[serviceId],
-    );
+    final Future<Object?> pigeonVar_sendFuture =
+        pigeonVar_channel.send(<Object?>[serviceId]);
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     _extractReplyValueOrThrow(
@@ -2411,12 +2456,11 @@ class UniversalBlePeripheralChannel {
   }
 
   Future<void> startAdvertising(
-    List<String> services,
-    String? localName,
-    int? timeout,
-    UniversalManufacturerData? manufacturerData,
-    PeripheralPlatformConfig? platformConfig,
-  ) async {
+      List<String> services,
+      String? localName,
+      int? timeout,
+      UniversalManufacturerData? manufacturerData,
+      PeripheralPlatformConfig? platformConfig) async {
     final pigeonVar_channelName =
         'dev.flutter.pigeon.universal_ble.UniversalBlePeripheralChannel.startAdvertising$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
@@ -2424,9 +2468,14 @@ class UniversalBlePeripheralChannel {
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
-      <Object?>[services, localName, timeout, manufacturerData, platformConfig],
-    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel
+        .send(<Object?>[
+      services,
+      localName,
+      timeout,
+      manufacturerData,
+      platformConfig
+    ]);
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     _extractReplyValueOrThrow(
@@ -2437,10 +2486,7 @@ class UniversalBlePeripheralChannel {
   }
 
   Future<void> updateCharacteristic(
-    String characteristicId,
-    Uint8List value,
-    String? deviceId,
-  ) async {
+      String characteristicId, Uint8List value, String? deviceId) async {
     final pigeonVar_channelName =
         'dev.flutter.pigeon.universal_ble.UniversalBlePeripheralChannel.updateCharacteristic$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
@@ -2448,9 +2494,8 @@ class UniversalBlePeripheralChannel {
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
-      <Object?>[characteristicId, value, deviceId],
-    );
+    final Future<Object?> pigeonVar_sendFuture =
+        pigeonVar_channel.send(<Object?>[characteristicId, value, deviceId]);
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     _extractReplyValueOrThrow(
@@ -2470,9 +2515,8 @@ class UniversalBlePeripheralChannel {
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
-      <Object?>[characteristicId],
-    );
+    final Future<Object?> pigeonVar_sendFuture =
+        pigeonVar_channel.send(<Object?>[characteristicId]);
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
@@ -2492,9 +2536,8 @@ class UniversalBlePeripheralChannel {
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
-      <Object?>[deviceId],
-    );
+    final Future<Object?> pigeonVar_sendFuture =
+        pigeonVar_channel.send(<Object?>[deviceId]);
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
@@ -2511,13 +2554,11 @@ class UniversalBleAndroidChannel {
   /// Constructor for [UniversalBleAndroidChannel].  The [binaryMessenger] named argument is
   /// available for dependency injection.  If it is left null, the default
   /// BinaryMessenger will be used which routes to the host platform.
-  UniversalBleAndroidChannel({
-    BinaryMessenger? binaryMessenger,
-    String messageChannelSuffix = '',
-  }) : pigeonVar_binaryMessenger = binaryMessenger,
-       pigeonVar_messageChannelSuffix = messageChannelSuffix.isNotEmpty
-           ? '.$messageChannelSuffix'
-           : '';
+  UniversalBleAndroidChannel(
+      {BinaryMessenger? binaryMessenger, String messageChannelSuffix = ''})
+      : pigeonVar_binaryMessenger = binaryMessenger,
+        pigeonVar_messageChannelSuffix =
+            messageChannelSuffix.isNotEmpty ? '.$messageChannelSuffix' : '';
   final BinaryMessenger? pigeonVar_binaryMessenger;
 
   static const MessageCodec<Object?> pigeonChannelCodec = _PigeonCodec();
@@ -2568,46 +2609,30 @@ abstract class UniversalBlePeripheralCallback {
   static const MessageCodec<Object?> pigeonChannelCodec = _PigeonCodec();
 
   PeripheralReadRequestResult? onReadRequest(
-    String deviceId,
-    String characteristicId,
-    int offset,
-    Uint8List? value,
-  );
+      String deviceId, String characteristicId, int offset, Uint8List? value);
 
   PeripheralWriteRequestResult? onWriteRequest(
-    String deviceId,
-    String characteristicId,
-    int offset,
-    Uint8List? value,
-  );
+      String deviceId, String characteristicId, int offset, Uint8List? value);
 
   PeripheralReadRequestResult? onDescriptorReadRequest(
-    String deviceId,
-    String characteristicId,
-    String descriptorId,
-    int offset,
-    Uint8List? value,
-  );
+      String deviceId,
+      String characteristicId,
+      String descriptorId,
+      int offset,
+      Uint8List? value);
 
   PeripheralWriteRequestResult? onDescriptorWriteRequest(
-    String deviceId,
-    String characteristicId,
-    String descriptorId,
-    int offset,
-    Uint8List? value,
-  );
+      String deviceId,
+      String characteristicId,
+      String descriptorId,
+      int offset,
+      Uint8List? value);
 
-  void onCharacteristicSubscriptionChange(
-    String deviceId,
-    String characteristicId,
-    bool isSubscribed,
-    String? name,
-  );
+  void onCharacteristicSubscriptionChange(String deviceId,
+      String characteristicId, bool isSubscribed, String? name);
 
   void onAdvertisingStateChange(
-    PeripheralAdvertisingState state,
-    String? error,
-  );
+      PeripheralAdvertisingState state, String? error);
 
   void onServiceAdded(String serviceId, String? error);
 
@@ -2620,15 +2645,13 @@ abstract class UniversalBlePeripheralCallback {
     BinaryMessenger? binaryMessenger,
     String messageChannelSuffix = '',
   }) {
-    messageChannelSuffix = messageChannelSuffix.isNotEmpty
-        ? '.$messageChannelSuffix'
-        : '';
+    messageChannelSuffix =
+        messageChannelSuffix.isNotEmpty ? '.$messageChannelSuffix' : '';
     {
       final pigeonVar_channel = BasicMessageChannel<Object?>(
-        'dev.flutter.pigeon.universal_ble.UniversalBlePeripheralCallback.onReadRequest$messageChannelSuffix',
-        pigeonChannelCodec,
-        binaryMessenger: binaryMessenger,
-      );
+          'dev.flutter.pigeon.universal_ble.UniversalBlePeripheralCallback.onReadRequest$messageChannelSuffix',
+          pigeonChannelCodec,
+          binaryMessenger: binaryMessenger);
       if (api == null) {
         pigeonVar_channel.setMessageHandler(null);
       } else {
@@ -2640,28 +2663,22 @@ abstract class UniversalBlePeripheralCallback {
           final Uint8List? arg_value = args[3] as Uint8List?;
           try {
             final PeripheralReadRequestResult? output = api.onReadRequest(
-              arg_deviceId,
-              arg_characteristicId,
-              arg_offset,
-              arg_value,
-            );
+                arg_deviceId, arg_characteristicId, arg_offset, arg_value);
             return wrapResponse(result: output);
           } on PlatformException catch (e) {
             return wrapResponse(error: e);
           } catch (e) {
             return wrapResponse(
-              error: PlatformException(code: 'error', message: e.toString()),
-            );
+                error: PlatformException(code: 'error', message: e.toString()));
           }
         });
       }
     }
     {
       final pigeonVar_channel = BasicMessageChannel<Object?>(
-        'dev.flutter.pigeon.universal_ble.UniversalBlePeripheralCallback.onWriteRequest$messageChannelSuffix',
-        pigeonChannelCodec,
-        binaryMessenger: binaryMessenger,
-      );
+          'dev.flutter.pigeon.universal_ble.UniversalBlePeripheralCallback.onWriteRequest$messageChannelSuffix',
+          pigeonChannelCodec,
+          binaryMessenger: binaryMessenger);
       if (api == null) {
         pigeonVar_channel.setMessageHandler(null);
       } else {
@@ -2673,28 +2690,22 @@ abstract class UniversalBlePeripheralCallback {
           final Uint8List? arg_value = args[3] as Uint8List?;
           try {
             final PeripheralWriteRequestResult? output = api.onWriteRequest(
-              arg_deviceId,
-              arg_characteristicId,
-              arg_offset,
-              arg_value,
-            );
+                arg_deviceId, arg_characteristicId, arg_offset, arg_value);
             return wrapResponse(result: output);
           } on PlatformException catch (e) {
             return wrapResponse(error: e);
           } catch (e) {
             return wrapResponse(
-              error: PlatformException(code: 'error', message: e.toString()),
-            );
+                error: PlatformException(code: 'error', message: e.toString()));
           }
         });
       }
     }
     {
       final pigeonVar_channel = BasicMessageChannel<Object?>(
-        'dev.flutter.pigeon.universal_ble.UniversalBlePeripheralCallback.onDescriptorReadRequest$messageChannelSuffix',
-        pigeonChannelCodec,
-        binaryMessenger: binaryMessenger,
-      );
+          'dev.flutter.pigeon.universal_ble.UniversalBlePeripheralCallback.onDescriptorReadRequest$messageChannelSuffix',
+          pigeonChannelCodec,
+          binaryMessenger: binaryMessenger);
       if (api == null) {
         pigeonVar_channel.setMessageHandler(null);
       } else {
@@ -2706,31 +2717,24 @@ abstract class UniversalBlePeripheralCallback {
           final int arg_offset = args[3]! as int;
           final Uint8List? arg_value = args[4] as Uint8List?;
           try {
-            final PeripheralReadRequestResult? output = api
-                .onDescriptorReadRequest(
-                  arg_deviceId,
-                  arg_characteristicId,
-                  arg_descriptorId,
-                  arg_offset,
-                  arg_value,
-                );
+            final PeripheralReadRequestResult? output =
+                api.onDescriptorReadRequest(arg_deviceId, arg_characteristicId,
+                    arg_descriptorId, arg_offset, arg_value);
             return wrapResponse(result: output);
           } on PlatformException catch (e) {
             return wrapResponse(error: e);
           } catch (e) {
             return wrapResponse(
-              error: PlatformException(code: 'error', message: e.toString()),
-            );
+                error: PlatformException(code: 'error', message: e.toString()));
           }
         });
       }
     }
     {
       final pigeonVar_channel = BasicMessageChannel<Object?>(
-        'dev.flutter.pigeon.universal_ble.UniversalBlePeripheralCallback.onDescriptorWriteRequest$messageChannelSuffix',
-        pigeonChannelCodec,
-        binaryMessenger: binaryMessenger,
-      );
+          'dev.flutter.pigeon.universal_ble.UniversalBlePeripheralCallback.onDescriptorWriteRequest$messageChannelSuffix',
+          pigeonChannelCodec,
+          binaryMessenger: binaryMessenger);
       if (api == null) {
         pigeonVar_channel.setMessageHandler(null);
       } else {
@@ -2742,31 +2746,24 @@ abstract class UniversalBlePeripheralCallback {
           final int arg_offset = args[3]! as int;
           final Uint8List? arg_value = args[4] as Uint8List?;
           try {
-            final PeripheralWriteRequestResult? output = api
-                .onDescriptorWriteRequest(
-                  arg_deviceId,
-                  arg_characteristicId,
-                  arg_descriptorId,
-                  arg_offset,
-                  arg_value,
-                );
+            final PeripheralWriteRequestResult? output =
+                api.onDescriptorWriteRequest(arg_deviceId, arg_characteristicId,
+                    arg_descriptorId, arg_offset, arg_value);
             return wrapResponse(result: output);
           } on PlatformException catch (e) {
             return wrapResponse(error: e);
           } catch (e) {
             return wrapResponse(
-              error: PlatformException(code: 'error', message: e.toString()),
-            );
+                error: PlatformException(code: 'error', message: e.toString()));
           }
         });
       }
     }
     {
       final pigeonVar_channel = BasicMessageChannel<Object?>(
-        'dev.flutter.pigeon.universal_ble.UniversalBlePeripheralCallback.onCharacteristicSubscriptionChange$messageChannelSuffix',
-        pigeonChannelCodec,
-        binaryMessenger: binaryMessenger,
-      );
+          'dev.flutter.pigeon.universal_ble.UniversalBlePeripheralCallback.onCharacteristicSubscriptionChange$messageChannelSuffix',
+          pigeonChannelCodec,
+          binaryMessenger: binaryMessenger);
       if (api == null) {
         pigeonVar_channel.setMessageHandler(null);
       } else {
@@ -2778,28 +2775,22 @@ abstract class UniversalBlePeripheralCallback {
           final String? arg_name = args[3] as String?;
           try {
             api.onCharacteristicSubscriptionChange(
-              arg_deviceId,
-              arg_characteristicId,
-              arg_isSubscribed,
-              arg_name,
-            );
+                arg_deviceId, arg_characteristicId, arg_isSubscribed, arg_name);
             return wrapResponse(empty: true);
           } on PlatformException catch (e) {
             return wrapResponse(error: e);
           } catch (e) {
             return wrapResponse(
-              error: PlatformException(code: 'error', message: e.toString()),
-            );
+                error: PlatformException(code: 'error', message: e.toString()));
           }
         });
       }
     }
     {
       final pigeonVar_channel = BasicMessageChannel<Object?>(
-        'dev.flutter.pigeon.universal_ble.UniversalBlePeripheralCallback.onAdvertisingStateChange$messageChannelSuffix',
-        pigeonChannelCodec,
-        binaryMessenger: binaryMessenger,
-      );
+          'dev.flutter.pigeon.universal_ble.UniversalBlePeripheralCallback.onAdvertisingStateChange$messageChannelSuffix',
+          pigeonChannelCodec,
+          binaryMessenger: binaryMessenger);
       if (api == null) {
         pigeonVar_channel.setMessageHandler(null);
       } else {
@@ -2815,18 +2806,16 @@ abstract class UniversalBlePeripheralCallback {
             return wrapResponse(error: e);
           } catch (e) {
             return wrapResponse(
-              error: PlatformException(code: 'error', message: e.toString()),
-            );
+                error: PlatformException(code: 'error', message: e.toString()));
           }
         });
       }
     }
     {
       final pigeonVar_channel = BasicMessageChannel<Object?>(
-        'dev.flutter.pigeon.universal_ble.UniversalBlePeripheralCallback.onServiceAdded$messageChannelSuffix',
-        pigeonChannelCodec,
-        binaryMessenger: binaryMessenger,
-      );
+          'dev.flutter.pigeon.universal_ble.UniversalBlePeripheralCallback.onServiceAdded$messageChannelSuffix',
+          pigeonChannelCodec,
+          binaryMessenger: binaryMessenger);
       if (api == null) {
         pigeonVar_channel.setMessageHandler(null);
       } else {
@@ -2841,18 +2830,16 @@ abstract class UniversalBlePeripheralCallback {
             return wrapResponse(error: e);
           } catch (e) {
             return wrapResponse(
-              error: PlatformException(code: 'error', message: e.toString()),
-            );
+                error: PlatformException(code: 'error', message: e.toString()));
           }
         });
       }
     }
     {
       final pigeonVar_channel = BasicMessageChannel<Object?>(
-        'dev.flutter.pigeon.universal_ble.UniversalBlePeripheralCallback.onMtuChange$messageChannelSuffix',
-        pigeonChannelCodec,
-        binaryMessenger: binaryMessenger,
-      );
+          'dev.flutter.pigeon.universal_ble.UniversalBlePeripheralCallback.onMtuChange$messageChannelSuffix',
+          pigeonChannelCodec,
+          binaryMessenger: binaryMessenger);
       if (api == null) {
         pigeonVar_channel.setMessageHandler(null);
       } else {
@@ -2867,18 +2854,16 @@ abstract class UniversalBlePeripheralCallback {
             return wrapResponse(error: e);
           } catch (e) {
             return wrapResponse(
-              error: PlatformException(code: 'error', message: e.toString()),
-            );
+                error: PlatformException(code: 'error', message: e.toString()));
           }
         });
       }
     }
     {
       final pigeonVar_channel = BasicMessageChannel<Object?>(
-        'dev.flutter.pigeon.universal_ble.UniversalBlePeripheralCallback.onConnectionStateChange$messageChannelSuffix',
-        pigeonChannelCodec,
-        binaryMessenger: binaryMessenger,
-      );
+          'dev.flutter.pigeon.universal_ble.UniversalBlePeripheralCallback.onConnectionStateChange$messageChannelSuffix',
+          pigeonChannelCodec,
+          binaryMessenger: binaryMessenger);
       if (api == null) {
         pigeonVar_channel.setMessageHandler(null);
       } else {
@@ -2893,8 +2878,7 @@ abstract class UniversalBlePeripheralCallback {
             return wrapResponse(error: e);
           } catch (e) {
             return wrapResponse(
-              error: PlatformException(code: 'error', message: e.toString()),
-            );
+                error: PlatformException(code: 'error', message: e.toString()));
           }
         });
       }
