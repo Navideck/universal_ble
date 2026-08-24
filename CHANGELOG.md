@@ -1,4 +1,5 @@
 ## 2.2.0
+* Lower minimum Dart SDK to 3.3 (Flutter 3.19+) to restore compatibility with older stable Flutter releases
 * Add Descriptor Read and Write APIs
 * Windows: Harden BLE connection lifetime, asynchronous callbacks, and notification subscription handling
 * Android: instantly close the GATT client on disconnect
