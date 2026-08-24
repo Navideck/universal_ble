@@ -153,17 +153,23 @@ final class UniversalBlePeripheralPlugin: NSObject, UniversalBlePeripheralChanne
     guard let characteristic = characteristicId.findPeripheralCharacteristic() else {
       throw UniversalBlePeripheralError.notFound("\(characteristicId) characteristic not found")
     }
+    let centrals: [CBCentral]?
     if let deviceId {
-      guard let central = central(for: deviceId) else {
-        throw UniversalBlePeripheralError.notFound("\(deviceId) device not found")
+      if let central = central(for: deviceId) {
+        centrals = [central]
+      } else {
+        centrals = nil
       }
-      ensurePeripheralManager().updateValue(
-        value.toData(),
-        for: characteristic,
-        onSubscribedCentrals: [central]
-      )
     } else {
-      ensurePeripheralManager().updateValue(value.toData(), for: characteristic, onSubscribedCentrals: nil)
+      centrals = nil
+    }
+    let success = ensurePeripheralManager().updateValue(
+      value.toData(),
+      for: characteristic,
+      onSubscribedCentrals: centrals
+    )
+    if !success {
+      throw UniversalBlePeripheralError.failed("Peripheral transmit queue full")
     }
   }
 

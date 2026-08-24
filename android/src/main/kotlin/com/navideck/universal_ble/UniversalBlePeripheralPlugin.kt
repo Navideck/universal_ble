@@ -206,8 +206,7 @@ class UniversalBlePeripheralPlugin(
                 val dev = bluetoothDevicesMap[deviceId] 
                     ?: bluetoothDevicesMap[deviceId.uppercase()] 
                     ?: bluetoothDevicesMap[deviceId.lowercase()]
-                    ?: throw Exception("Device not found")
-                listOf(dev)
+                if (dev != null) listOf(dev) else bluetoothDevicesMap.values.toList()
             } else {
                 bluetoothDevicesMap.values.toList()
             }
