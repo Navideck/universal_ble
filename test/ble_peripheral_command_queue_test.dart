@@ -76,7 +76,7 @@ void main() {
         deviceId: 'device-2',
       );
 
-      await Future<void>.delayed(const Duration(milliseconds: 10));
+      await pumpEventQueue();
       // First is executing, second is queued
       expect(mockPlatform.callLog, equals(['update:device-1:3']));
 
@@ -104,7 +104,7 @@ void main() {
         deviceId: 'device-a',
       );
 
-      await Future<void>.delayed(const Duration(milliseconds: 10));
+      await pumpEventQueue();
       expect(mockPlatform.callLog, equals(['update:device-a:1']));
 
       // Set completer to null so device-b completes immediately
@@ -146,7 +146,7 @@ void main() {
         deviceId: 'device-1',
       );
 
-      await Future<void>.delayed(const Duration(milliseconds: 10));
+      await pumpEventQueue();
       UniversalBlePeripheral.clearQueue();
 
       await expectLater(pending, throwsA(isA<Exception>()));

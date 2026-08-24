@@ -155,11 +155,10 @@ final class UniversalBlePeripheralPlugin: NSObject, UniversalBlePeripheralChanne
     }
     let centrals: [CBCentral]?
     if let deviceId {
-      if let central = central(for: deviceId) {
-        centrals = [central]
-      } else {
-        centrals = nil
+      guard let central = central(for: deviceId) else {
+        throw UniversalBlePeripheralError.notFound("\(deviceId) device not found")
       }
+      centrals = [central]
     } else {
       centrals = nil
     }

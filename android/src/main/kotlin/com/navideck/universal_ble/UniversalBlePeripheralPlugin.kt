@@ -203,10 +203,11 @@ class UniversalBlePeripheralPlugin(
         characteristic.value = value
         val targetDevices = synchronized(bluetoothDevicesMap) {
             if (deviceId != null) {
-                val dev = bluetoothDevicesMap[deviceId] 
-                    ?: bluetoothDevicesMap[deviceId.uppercase()] 
+                val dev = bluetoothDevicesMap[deviceId]
+                    ?: bluetoothDevicesMap[deviceId.uppercase()]
                     ?: bluetoothDevicesMap[deviceId.lowercase()]
-                if (dev != null) listOf(dev) else bluetoothDevicesMap.values.toList()
+                    ?: throw Exception("Device not found")
+                listOf(dev)
             } else {
                 bluetoothDevicesMap.values.toList()
             }
