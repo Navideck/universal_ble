@@ -319,7 +319,7 @@ final class UniversalBlePeripheralPlugin: NSObject, UniversalBlePeripheralChanne
 
   private func central(for id: String) -> CBCentral? {
     centralsLock.lock()
-    let central = centralsById[id]
+    let central = centralsById[id] ?? centralsById[id.uppercased()] ?? centralsById[id.lowercased()]
     centralsLock.unlock()
     return central
   }
