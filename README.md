@@ -627,6 +627,26 @@ UniversalBle.clearQueue('customQueueId');
 UniversalBle.clearQueue();
 ```
 
+### Peripheral Command Queue
+
+`UniversalBlePeripheral` supports the same queueing configuration (`queueType`, `timeout`, `clearQueue`, and `onQueueUpdate`) for peripheral commands (e.g. `addService`, `startAdvertising`, `updateCharacteristicValue`):
+
+```dart
+// Configure peripheral command queue (defaults to QueueType.global)
+UniversalBlePeripheral.queueType = QueueType.perDevice;
+
+// Clear peripheral queue
+UniversalBlePeripheral.clearQueue(deviceId);
+
+// Send peripheral updates with a specific queueId
+UniversalBlePeripheral.updateCharacteristicValue(
+  characteristicId: charUuid,
+  value: data,
+  deviceId: deviceId,
+  queueId: 'customQueueId',
+);
+```
+
 ## Timeout
 
 By default, all commands have a global timeout of 10 seconds.
