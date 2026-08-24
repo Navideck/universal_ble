@@ -17,7 +17,10 @@ class UniversalBleAsyncServiceDiscovery: NSObject {
     private var discoveredDescriptorsSet: Set<String> = []
     private var expectedCharacteristicsCountMap: [String: Int] = [:]
     private var isDiscoveryInProgress = false
+    private var hasCompleted = false
     private var withDescriptors: Bool
+    private var timeoutWorkItem: DispatchWorkItem?
+    private let timeoutSeconds: TimeInterval = 10.0
 
     init(peripheral: CBPeripheral, deviceId: String, withDescriptors: Bool, completion: @escaping (Result<[UniversalBleService], Error>) -> Void) {
         self.peripheral = peripheral
@@ -29,11 +32,19 @@ class UniversalBleAsyncServiceDiscovery: NSObject {
 
     /// Starts the service discovery process
     func startDiscovery() {
-        guard !isDiscoveryInProgress else {
+        guard !isDiscoveryInProgress, !hasCompleted else {
             UniversalBleLogger.shared.logWarning("Service discovery already in progress for device: \(deviceId)")
             return
         }
         isDiscoveryInProgress = true
+
+        let workItem = DispatchWorkItem { [weak self] in
+            guard let self = self, !self.hasCompleted else { return }
+            UniversalBleLogger.shared.logError("Service discovery timed out for device: \(self.deviceId)")
+            self.completeWith(result: .failure(createFlutterError(code: .failed, message: "Service discovery timed out for device: \(self.deviceId)")))
+        }
+        self.timeoutWorkItem = workItem
+        DispatchQueue.main.asyncAfter(deadline: .now() + timeoutSeconds, execute: workItem)
 
         // Check if services are already cached
         if let cachedServices = peripheral.services, !cachedServices.isEmpty {
@@ -43,12 +54,26 @@ class UniversalBleAsyncServiceDiscovery: NSObject {
         }
     }
 
+    /// Cancels the service discovery and fails completion
+    func cancel(error: Error) {
+        completeWith(result: .failure(error))
+    }
+
     /// Cleans up discovery state
     func cleanup() {
         isDiscoveryInProgress = false
+        timeoutWorkItem?.cancel()
+        timeoutWorkItem = nil
         discoveredServicesProgressMap.removeAll()
         discoveredDescriptorsSet.removeAll()
         expectedCharacteristicsCountMap.removeAll()
+    }
+
+    private func completeWith(result: Result<[UniversalBleService], Error>) {
+        guard !hasCompleted else { return }
+        hasCompleted = true
+        cleanup()
+        completion(result)
     }
 
     private func handleServicesDiscovered(_ services: [CBService]) {
@@ -176,8 +201,7 @@ class UniversalBleAsyncServiceDiscovery: NSObject {
         guard discoveredServicesProgressMap.allSatisfy({ $0.characteristics != nil }) else {
             return
         }
-        completion(.success(discoveredServicesProgressMap))
-        cleanup()
+        completeWith(result: .success(discoveredServicesProgressMap))
     }
 }
 
@@ -185,13 +209,11 @@ class UniversalBleAsyncServiceDiscovery: NSObject {
 extension UniversalBleAsyncServiceDiscovery {
     func handleDidDiscoverServices(_ peripheral: CBPeripheral, error: Error?) {
         guard error == nil else {
-            completion(.failure(error!))
-            cleanup()
+            completeWith(result: .failure(error!))
             return
         }
         guard let services = peripheral.services else {
-            completion(.success([]))
-            cleanup()
+            completeWith(result: .success([]))
             return
         }
         handleServicesDiscovered(services)
@@ -199,8 +221,7 @@ extension UniversalBleAsyncServiceDiscovery {
 
     func handleDidDiscoverCharacteristicsFor(_: CBPeripheral, service: CBService, error: Error?) {
         guard error == nil else {
-            completion(.failure(error!))
-            cleanup()
+            completeWith(result: .failure(error!))
             return
         }
         processCharacteristicsForService(service)
@@ -208,8 +229,7 @@ extension UniversalBleAsyncServiceDiscovery {
 
     func handleDidDiscoverDescriptorsFor(_: CBPeripheral, characteristic: CBCharacteristic, error: Error?) {
         guard error == nil else {
-            completion(.failure(error!))
-            cleanup()
+            completeWith(result: .failure(error!))
             return
         }
         handleDescriptorsDiscovered(for: characteristic)
