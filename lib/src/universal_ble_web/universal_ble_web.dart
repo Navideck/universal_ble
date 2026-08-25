@@ -624,6 +624,7 @@ extension _BluetoothDeviceExtension on BluetoothDevice {
     List<String> services = const [],
     Map<String, Uint8List>? serviceDataMap,
   }) {
+    final timestampMicroseconds = DateTime.now().microsecondsSinceEpoch;
     return BleDevice(
       name: name,
       deviceId: id,
@@ -631,8 +632,8 @@ extension _BluetoothDeviceExtension on BluetoothDevice {
       rssi: rssi,
       services: services,
       serviceData: serviceDataMap ?? {},
-      timestamp: DateTime.now().millisecondsSinceEpoch,
-      timestampMicroseconds: DateTime.now().microsecondsSinceEpoch,
+      timestamp: timestampMicroseconds ~/ Duration.microsecondsPerMillisecond,
+      timestampMicroseconds: timestampMicroseconds,
     );
   }
 }

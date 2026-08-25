@@ -809,6 +809,7 @@ extension BlueZDeviceExtension on BlueZDevice {
   }
 
   BleDevice toBleDevice({bool? isSystemDevice}) {
+    final timestampMicroseconds = DateTime.now().microsecondsSinceEpoch;
     return BleDevice(
       name: name,
       deviceId: address,
@@ -818,8 +819,8 @@ extension BlueZDeviceExtension on BlueZDevice {
       services: uuids.map((e) => e.toString()).toList(),
       manufacturerDataList: manufacturerDataList,
       serviceData: serviceDataMap,
-      timestamp: DateTime.now().millisecondsSinceEpoch,
-      timestampMicroseconds: DateTime.now().microsecondsSinceEpoch,
+      timestamp: timestampMicroseconds ~/ Duration.microsecondsPerMillisecond,
+      timestampMicroseconds: timestampMicroseconds,
     );
   }
 }
