@@ -489,7 +489,8 @@ data class UniversalBleScanResult (
   val manufacturerDataList: List<UniversalManufacturerData>? = null,
   val serviceData: Map<String, ByteArray>? = null,
   val services: List<String>? = null,
-  val timestamp: Long? = null
+  val timestamp: Long? = null,
+  val timestampMicroseconds: Long? = null
 )
  {
   companion object {
@@ -502,7 +503,8 @@ data class UniversalBleScanResult (
       val serviceData = pigeonVar_list[5] as Map<String, ByteArray>?
       val services = pigeonVar_list[6] as List<String>?
       val timestamp = pigeonVar_list[7] as Long?
-      return UniversalBleScanResult(deviceId, name, isPaired, rssi, manufacturerDataList, serviceData, services, timestamp)
+      val timestampMicroseconds = pigeonVar_list[8] as Long?
+      return UniversalBleScanResult(deviceId, name, isPaired, rssi, manufacturerDataList, serviceData, services, timestamp, timestampMicroseconds)
     }
   }
   fun toList(): List<Any?> {
@@ -515,6 +517,7 @@ data class UniversalBleScanResult (
       serviceData,
       services,
       timestamp,
+      timestampMicroseconds,
     )
   }
   override fun equals(other: Any?): Boolean {
@@ -525,7 +528,7 @@ data class UniversalBleScanResult (
       return true
     }
     val other = other as UniversalBleScanResult
-    return UniversalBlePigeonUtils.deepEquals(this.deviceId, other.deviceId) && UniversalBlePigeonUtils.deepEquals(this.name, other.name) && UniversalBlePigeonUtils.deepEquals(this.isPaired, other.isPaired) && UniversalBlePigeonUtils.deepEquals(this.rssi, other.rssi) && UniversalBlePigeonUtils.deepEquals(this.manufacturerDataList, other.manufacturerDataList) && UniversalBlePigeonUtils.deepEquals(this.serviceData, other.serviceData) && UniversalBlePigeonUtils.deepEquals(this.services, other.services) && UniversalBlePigeonUtils.deepEquals(this.timestamp, other.timestamp)
+    return UniversalBlePigeonUtils.deepEquals(this.deviceId, other.deviceId) && UniversalBlePigeonUtils.deepEquals(this.name, other.name) && UniversalBlePigeonUtils.deepEquals(this.isPaired, other.isPaired) && UniversalBlePigeonUtils.deepEquals(this.rssi, other.rssi) && UniversalBlePigeonUtils.deepEquals(this.manufacturerDataList, other.manufacturerDataList) && UniversalBlePigeonUtils.deepEquals(this.serviceData, other.serviceData) && UniversalBlePigeonUtils.deepEquals(this.services, other.services) && UniversalBlePigeonUtils.deepEquals(this.timestamp, other.timestamp) && UniversalBlePigeonUtils.deepEquals(this.timestampMicroseconds, other.timestampMicroseconds)
   }
 
   override fun hashCode(): Int {
@@ -538,6 +541,7 @@ data class UniversalBleScanResult (
     result = 31 * result + UniversalBlePigeonUtils.deepHash(this.serviceData)
     result = 31 * result + UniversalBlePigeonUtils.deepHash(this.services)
     result = 31 * result + UniversalBlePigeonUtils.deepHash(this.timestamp)
+    result = 31 * result + UniversalBlePigeonUtils.deepHash(this.timestampMicroseconds)
     return result
   }
 }

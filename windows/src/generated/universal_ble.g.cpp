@@ -238,7 +238,8 @@ UniversalBleScanResult::UniversalBleScanResult(
   const EncodableList* manufacturer_data_list,
   const EncodableMap* service_data,
   const EncodableList* services,
-  const int64_t* timestamp)
+  const int64_t* timestamp,
+  const int64_t* timestamp_microseconds)
  : device_id_(device_id),
     name_(name ? std::optional<std::string>(*name) : std::nullopt),
     is_paired_(is_paired ? std::optional<bool>(*is_paired) : std::nullopt),
@@ -246,7 +247,8 @@ UniversalBleScanResult::UniversalBleScanResult(
     manufacturer_data_list_(manufacturer_data_list ? std::optional<EncodableList>(*manufacturer_data_list) : std::nullopt),
     service_data_(service_data ? std::optional<EncodableMap>(*service_data) : std::nullopt),
     services_(services ? std::optional<EncodableList>(*services) : std::nullopt),
-    timestamp_(timestamp ? std::optional<int64_t>(*timestamp) : std::nullopt) {}
+    timestamp_(timestamp ? std::optional<int64_t>(*timestamp) : std::nullopt),
+    timestamp_microseconds_(timestamp_microseconds ? std::optional<int64_t>(*timestamp_microseconds) : std::nullopt) {}
 
 const std::string& UniversalBleScanResult::device_id() const {
   return device_id_;
@@ -348,9 +350,22 @@ void UniversalBleScanResult::set_timestamp(int64_t value_arg) {
 }
 
 
+const int64_t* UniversalBleScanResult::timestamp_microseconds() const {
+  return timestamp_microseconds_ ? &(*timestamp_microseconds_) : nullptr;
+}
+
+void UniversalBleScanResult::set_timestamp_microseconds(const int64_t* value_arg) {
+  timestamp_microseconds_ = value_arg ? std::optional<int64_t>(*value_arg) : std::nullopt;
+}
+
+void UniversalBleScanResult::set_timestamp_microseconds(int64_t value_arg) {
+  timestamp_microseconds_ = value_arg;
+}
+
+
 EncodableList UniversalBleScanResult::ToEncodableList() const {
   EncodableList list;
-  list.reserve(8);
+  list.reserve(9);
   list.push_back(EncodableValue(device_id_));
   list.push_back(name_ ? EncodableValue(*name_) : EncodableValue());
   list.push_back(is_paired_ ? EncodableValue(*is_paired_) : EncodableValue());
@@ -359,6 +374,7 @@ EncodableList UniversalBleScanResult::ToEncodableList() const {
   list.push_back(service_data_ ? EncodableValue(*service_data_) : EncodableValue());
   list.push_back(services_ ? EncodableValue(*services_) : EncodableValue());
   list.push_back(timestamp_ ? EncodableValue(*timestamp_) : EncodableValue());
+  list.push_back(timestamp_microseconds_ ? EncodableValue(*timestamp_microseconds_) : EncodableValue());
   return list;
 }
 
@@ -393,11 +409,15 @@ UniversalBleScanResult UniversalBleScanResult::FromEncodableList(const Encodable
   if (!encodable_timestamp.IsNull()) {
     decoded.set_timestamp(std::get<int64_t>(encodable_timestamp));
   }
+  auto& encodable_timestamp_microseconds = list[8];
+  if (!encodable_timestamp_microseconds.IsNull()) {
+    decoded.set_timestamp_microseconds(std::get<int64_t>(encodable_timestamp_microseconds));
+  }
   return decoded;
 }
 
 bool UniversalBleScanResult::operator==(const UniversalBleScanResult& other) const {
-  return PigeonInternalDeepEquals(device_id_, other.device_id_) && PigeonInternalDeepEquals(name_, other.name_) && PigeonInternalDeepEquals(is_paired_, other.is_paired_) && PigeonInternalDeepEquals(rssi_, other.rssi_) && PigeonInternalDeepEquals(manufacturer_data_list_, other.manufacturer_data_list_) && PigeonInternalDeepEquals(service_data_, other.service_data_) && PigeonInternalDeepEquals(services_, other.services_) && PigeonInternalDeepEquals(timestamp_, other.timestamp_);
+  return PigeonInternalDeepEquals(device_id_, other.device_id_) && PigeonInternalDeepEquals(name_, other.name_) && PigeonInternalDeepEquals(is_paired_, other.is_paired_) && PigeonInternalDeepEquals(rssi_, other.rssi_) && PigeonInternalDeepEquals(manufacturer_data_list_, other.manufacturer_data_list_) && PigeonInternalDeepEquals(service_data_, other.service_data_) && PigeonInternalDeepEquals(services_, other.services_) && PigeonInternalDeepEquals(timestamp_, other.timestamp_) && PigeonInternalDeepEquals(timestamp_microseconds_, other.timestamp_microseconds_);
 }
 
 bool UniversalBleScanResult::operator!=(const UniversalBleScanResult& other) const {
@@ -414,6 +434,7 @@ size_t UniversalBleScanResult::Hash() const {
   result = result * 31 + PigeonInternalDeepHash(service_data_);
   result = result * 31 + PigeonInternalDeepHash(services_);
   result = result * 31 + PigeonInternalDeepHash(timestamp_);
+  result = result * 31 + PigeonInternalDeepHash(timestamp_microseconds_);
   return result;
 }
 

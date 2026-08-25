@@ -17,6 +17,7 @@ import 'package:pigeon/pigeon.dart';
     debugGenerators: true,
   ),
 )
+
 /// Shared models & enums
 /// ------------------------------------------------------------
 class UniversalBleScanResult {
@@ -28,6 +29,7 @@ class UniversalBleScanResult {
   final Map<String, Uint8List>? serviceData;
   final List<String>? services;
   final int? timestamp;
+  final int? timestampMicroseconds;
 
   UniversalBleScanResult({
     required this.name,
@@ -38,6 +40,7 @@ class UniversalBleScanResult {
     required this.serviceData,
     required this.services,
     required this.timestamp,
+    required this.timestampMicroseconds,
   });
 }
 

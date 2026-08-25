@@ -543,11 +543,13 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
     completion(Result.success(bleDevices.map { peripheral in
       let id = peripheral.uuid.uuidString
       let name = advertisementNameCache[id] ?? discoveredPeripherals[id]?.name ?? peripheral.name ?? ""
+      let timestampMicroseconds = Int64(Date().timeIntervalSince1970 * 1_000_000)
       return UniversalBleScanResult(
         deviceId: id,
         name: name,
         serviceData: nil,
-        timestamp: Int64(Date().timeIntervalSince1970 * 1000)
+        timestamp: timestampMicroseconds / 1000,
+        timestampMicroseconds: timestampMicroseconds
       )
     }))
   }
@@ -622,6 +624,7 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
       return
     }
 
+    let timestampMicroseconds = Int64(Date().timeIntervalSince1970 * 1_000_000)
     callbackChannel.onScanResult(result: UniversalBleScanResult(
       deviceId: peripheral.uuid.uuidString,
       name: displayName,
@@ -630,7 +633,8 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
       manufacturerDataList: manufacturerDataList,
       serviceData: serviceData,
       services: services?.map { $0.uuidStr },
-      timestamp: Int64(Date().timeIntervalSince1970 * 1000)
+      timestamp: timestampMicroseconds / 1000,
+      timestampMicroseconds: timestampMicroseconds
     )) { _ in }
   }
 

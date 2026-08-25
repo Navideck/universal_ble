@@ -373,6 +373,11 @@ private:
                std::chrono::system_clock::now().time_since_epoch())
         .count();
   }
+  static int64_t GetCurrentTimestampMicros() {
+    return std::chrono::duration_cast<std::chrono::microseconds>(
+               std::chrono::system_clock::now().time_since_epoch())
+        .count();
+  }
 
   flutter::PluginRegistrarWindows *registrar_;
   bool initialized_ = false;
