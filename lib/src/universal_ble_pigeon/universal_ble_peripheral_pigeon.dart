@@ -2,7 +2,11 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:universal_ble/src/universal_ble.g.dart';
+import 'package:universal_ble/src/universal_ble_pigeon/native_device_id.dart';
 import 'package:universal_ble/universal_ble.dart';
+
+// See native_device_id.dart for why Dart's lower-case ids are upper-cased at this boundary.
+String _nativeId(String deviceId) => nativeDeviceId(deviceId);
 
 class UniversalBlePeripheralPigeon extends UniversalBlePeripheralPlatform
     implements UniversalBlePeripheralCallback {
@@ -19,8 +23,8 @@ class UniversalBlePeripheralPigeon extends UniversalBlePeripheralPlatform
 
   UniversalBleAndroidChannel? get _androidChannel =>
       (kIsWeb || defaultTargetPlatform != TargetPlatform.android)
-      ? null
-      : _androidChannelRef ??= UniversalBleAndroidChannel();
+          ? null
+          : _androidChannelRef ??= UniversalBleAndroidChannel();
 
   OnPeripheralReadRequest? _readRequestHandler;
   OnPeripheralWriteRequest? _writeRequestHandler;
@@ -71,15 +75,15 @@ class UniversalBlePeripheralPigeon extends UniversalBlePeripheralPlatform
               BlePeripheralServiceAdded(serviceId, 'Service add timed out'),
         )
         .then((e) {
-          if (completer.isCompleted) return;
-          if (e.error != null) {
-            completer.completeError(
-              PlatformException(code: 'service-add-failed', message: e.error),
-            );
-          } else {
-            completer.complete();
-          }
-        });
+      if (completer.isCompleted) return;
+      if (e.error != null) {
+        completer.completeError(
+          PlatformException(code: 'service-add-failed', message: e.error),
+        );
+      } else {
+        completer.complete();
+      }
+    });
 
     await _channel.addService(service);
     await completer.future;
@@ -125,17 +129,20 @@ class UniversalBlePeripheralPigeon extends UniversalBlePeripheralPlatform
     return _channel.updateCharacteristic(
       BleUuidParser.string(characteristicId),
       value,
-      deviceId,
+      deviceId == null ? null : _nativeId(deviceId),
     );
   }
 
   @override
-  Future<List<String>> getSubscribedClients(String characteristicId) =>
-      _channel.getSubscribedClients(characteristicId);
+  Future<List<String>> getSubscribedClients(String characteristicId) async {
+    final clients = await _channel.getSubscribedClients(characteristicId);
+    // Emitted ids are lower-case (see UniversalBlePeripheralPlatform).
+    return clients.map((e) => e.toLowerCase()).toList();
+  }
 
   @override
   Future<int?> getMaximumNotifyLength(String deviceId) =>
-      _channel.getMaximumNotifyLength(deviceId);
+      _channel.getMaximumNotifyLength(_nativeId(deviceId));
 
   @override
   void setReadRequestHandler(OnPeripheralReadRequest? handler) =>
@@ -148,12 +155,14 @@ class UniversalBlePeripheralPigeon extends UniversalBlePeripheralPlatform
   @override
   void setDescriptorReadRequestHandler(
     OnPeripheralDescriptorReadRequest? handler,
-  ) => _descriptorReadRequestHandler = handler;
+  ) =>
+      _descriptorReadRequestHandler = handler;
 
   @override
   void setDescriptorWriteRequestHandler(
     OnPeripheralDescriptorWriteRequest? handler,
-  ) => _descriptorWriteRequestHandler = handler;
+  ) =>
+      _descriptorWriteRequestHandler = handler;
 
   @override
   void onAdvertisingStateChange(
@@ -200,7 +209,7 @@ class UniversalBlePeripheralPigeon extends UniversalBlePeripheralPlatform
     Uint8List? value,
   ) {
     final result = _readRequestHandler?.call(
-      deviceId,
+      deviceId.toLowerCase(),
       BleUuidParser.string(characteristicId),
       offset,
       value,
@@ -228,7 +237,7 @@ class UniversalBlePeripheralPigeon extends UniversalBlePeripheralPlatform
     Uint8List? value,
   ) {
     final result = _writeRequestHandler?.call(
-      deviceId,
+      deviceId.toLowerCase(),
       BleUuidParser.string(characteristicId),
       offset,
       value,
@@ -250,7 +259,7 @@ class UniversalBlePeripheralPigeon extends UniversalBlePeripheralPlatform
     Uint8List? value,
   ) {
     final result = _descriptorReadRequestHandler?.call(
-      deviceId,
+      deviceId.toLowerCase(),
       BleUuidParser.string(characteristicId),
       BleUuidParser.string(descriptorId),
       offset,
@@ -273,7 +282,7 @@ class UniversalBlePeripheralPigeon extends UniversalBlePeripheralPlatform
     Uint8List? value,
   ) {
     final result = _descriptorWriteRequestHandler?.call(
-      deviceId,
+      deviceId.toLowerCase(),
       BleUuidParser.string(characteristicId),
       BleUuidParser.string(descriptorId),
       offset,
