@@ -1,12 +1,11 @@
 import 'package:flutter/foundation.dart';
 import 'package:universal_ble/src/universal_ble.g.dart';
+import 'package:universal_ble/src/universal_ble_pigeon/native_device_id.dart';
 import 'package:universal_ble/src/utils/universal_ble_filter_util.dart';
 import 'package:universal_ble/universal_ble.dart';
 
-// Device ids are lower-case throughout the Dart layer (see UniversalBlePlatform), but the native side wants
-// the upper-case form — Android's BluetoothAdapter.getRemoteDevice REQUIRES upper case, and Apple's peripheral
-// cache / Windows' address parse / Linux's BlueZ address are upper-case too. Convert here, at the boundary.
-String _nativeId(String deviceId) => deviceId.toUpperCase();
+// See native_device_id.dart for why Dart's lower-case ids are upper-cased at this boundary.
+String _nativeId(String deviceId) => nativeDeviceId(deviceId);
 
 class UniversalBlePigeonChannel extends UniversalBlePlatform
     implements UniversalBleCallbackChannel {
@@ -76,13 +75,14 @@ class UniversalBlePigeonChannel extends UniversalBlePlatform
     Duration? connectionTimeout,
     bool autoConnect = false,
     ConnectionPlatformConfig? platformConfig,
-  }) => _executeWithErrorHandling(
-    () => _channel.connect(
-      _nativeId(deviceId),
-      autoConnect: autoConnect,
-      platformConfig: platformConfig,
-    ),
-  );
+  }) =>
+      _executeWithErrorHandling(
+        () => _channel.connect(
+          _nativeId(deviceId),
+          autoConnect: autoConnect,
+          platformConfig: platformConfig,
+        ),
+      );
 
   @override
   Future<void> disconnect(String deviceId) =>
@@ -95,8 +95,8 @@ class UniversalBlePigeonChannel extends UniversalBlePlatform
   ) async {
     List<UniversalBleService?> universalBleServices =
         await _executeWithErrorHandling(
-          () => _channel.discoverServices(_nativeId(deviceId), withDescriptors),
-        );
+      () => _channel.discoverServices(_nativeId(deviceId), withDescriptors),
+    );
     return List<BleService>.from(
       universalBleServices
           .where((e) => e != null)
@@ -206,9 +206,10 @@ class UniversalBlePigeonChannel extends UniversalBlePlatform
   Future<void> requestConnectionPriority(
     String deviceId,
     BleConnectionPriority priority,
-  ) => _executeWithErrorHandling(
-    () => _channel.requestConnectionPriority(_nativeId(deviceId), priority),
-  );
+  ) =>
+      _executeWithErrorHandling(
+        () => _channel.requestConnectionPriority(_nativeId(deviceId), priority),
+      );
 
   @override
   Future<bool> isPaired(String deviceId) =>
@@ -296,7 +297,8 @@ class UniversalBlePigeonChannel extends UniversalBlePlatform
     String characteristicId,
     Uint8List value,
     int? timestamp,
-  ) => updateCharacteristicValue(deviceId, characteristicId, value, timestamp);
+  ) =>
+      updateCharacteristicValue(deviceId, characteristicId, value, timestamp);
 
   @override
   void onPairStateChange(String deviceId, bool isPaired, String? error) =>
@@ -339,8 +341,7 @@ extension _UniversalBleScanResultExtension on UniversalBleScanResult {
       services: services?.map(BleUuidParser.string).toList() ?? [],
       timestamp: timestamp,
       timestampMicroseconds: timestampMicroseconds,
-      manufacturerDataList:
-          manufacturerDataList
+      manufacturerDataList: manufacturerDataList
               ?.map((e) => ManufacturerData(e.companyIdentifier, e.data))
               .toList() ??
           [],

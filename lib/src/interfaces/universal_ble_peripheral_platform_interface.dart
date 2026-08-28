@@ -11,9 +11,8 @@ abstract class UniversalBlePeripheralPlatform {
       _blePeripheralStreamHandler.advertisingStateStreamController.stream;
 
   Stream<BlePeripheralCharacteristicSubscriptionChanged>
-  get characteristicSubscriptionStream => _blePeripheralStreamHandler
-      .characteristicSubscriptionStreamController
-      .stream;
+      get characteristicSubscriptionStream => _blePeripheralStreamHandler
+          .characteristicSubscriptionStreamController.stream;
 
   Stream<BlePeripheralConnectionStateChanged> get connectionStateStream =>
       _blePeripheralStreamHandler.connectionStateStreamController.stream;
@@ -81,13 +80,23 @@ abstract class UniversalBlePeripheralPlatform {
     BlePeripheralCharacteristicSubscriptionChanged event,
   ) {
     _blePeripheralStreamHandler.characteristicSubscriptionStreamController.add(
-      event,
+      BlePeripheralCharacteristicSubscriptionChanged(
+        deviceId: event.deviceId.toLowerCase(), // canonical lower-case id
+        characteristicId: event.characteristicId,
+        isSubscribed: event.isSubscribed,
+        name: event.name,
+      ),
     );
   }
 
   /// Push connection state update to stream listeners.
   void updateConnectionState(BlePeripheralConnectionStateChanged event) {
-    _blePeripheralStreamHandler.connectionStateStreamController.add(event);
+    _blePeripheralStreamHandler.connectionStateStreamController.add(
+      BlePeripheralConnectionStateChanged(
+        event.deviceId.toLowerCase(), // canonical lower-case id
+        event.connected,
+      ),
+    );
   }
 
   /// Push service added update to stream listeners.
@@ -97,7 +106,12 @@ abstract class UniversalBlePeripheralPlatform {
 
   /// Push MTU update to stream listeners.
   void updateMtu(BlePeripheralMtuChanged event) {
-    _blePeripheralStreamHandler.mtuChangedStreamController.add(event);
+    _blePeripheralStreamHandler.mtuChangedStreamController.add(
+      BlePeripheralMtuChanged(
+        event.deviceId.toLowerCase(), // canonical lower-case id
+        event.mtu,
+      ),
+    );
   }
 
   /// Called when this platform implementation is being replaced.
@@ -216,8 +230,7 @@ class _BlePeripheralStreamHandler {
       UniversalBleStreamController<BlePeripheralAdvertisingStateChanged>();
   final characteristicSubscriptionStreamController =
       UniversalBleStreamController<
-        BlePeripheralCharacteristicSubscriptionChanged
-      >();
+          BlePeripheralCharacteristicSubscriptionChanged>();
   final connectionStateStreamController =
       UniversalBleStreamController<BlePeripheralConnectionStateChanged>();
   final serviceAddedStreamController =
