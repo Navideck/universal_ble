@@ -504,10 +504,13 @@ private:
   /// Lowercased service UUIDs from the last successful `StartAdvertising` call.
   /// Empty means all registered services were selected.
   std::vector<std::string> peripheral_advertising_targets_lc_{};
+  BluetoothLEAdvertisementPublisher advertisement_publisher_{nullptr};
+  event_token advertisement_publisher_status_token_{};
   event_revoker<IRadio> peripheral_radio_state_changed_revoker_;
   std::mutex peripheral_mutex_;
 
   // Peripheral helpers
+  void DisposeAdvertisementPublisher();  // Requires peripheral_mutex_.
   fire_and_forget PeripheralAddServiceAsync(const PeripheralService &service);
   fire_and_forget PeripheralReadRequestedAsync(
       GattLocalCharacteristic const &local_char,

@@ -811,7 +811,9 @@ await UniversalBlePeripheral.clearServices();
 
 On **Android**, passing `localName` may temporarily change the system Bluetooth device name (so it can appear in the advertisement). The plugin restores the previous name when advertising stops, if starting advertising fails, or when the plugin is disposed.
 
-On **Windows**, `GattServiceProvider`-based advertising does not support `localName`, manufacturer data, or a scan-response flag; pass `null` for those parameters or the call returns a not-supported error. Use `getCapabilities()` to check feature support before calling.
+On **Windows**, pass `services: []` and `manufacturerData` for connectionless advertising via `BluetoothLEAdvertisementPublisher`. No GATT service registration is needed. The company ID must fit 16 bits and the payload must be at most 27 bytes (legacy advertising). Stop advertising before changing the payload. Registered-service advertising still uses `GattServiceProvider`; combining service UUIDs with manufacturer data is not supported. Windows does not allow a custom `localName` in either mode. Unsupported combinations return `not-supported`. Advertising is best effort; listen to `advertisingStateStream` for asynchronous failures. See [Microsoft's publisher restrictions](https://learn.microsoft.com/en-us/uwp/api/windows.devices.bluetooth.advertisement.bluetoothleadvertisementpublisher).
+
+On **iOS/macOS**, CoreBluetooth supports local names and service UUIDs, not manufacturer data. `getCapabilities()` reflects this restriction. Use a local-name carrier when your protocol must also broadcast on Apple platforms.
 
 ```dart
 import 'dart:typed_data';

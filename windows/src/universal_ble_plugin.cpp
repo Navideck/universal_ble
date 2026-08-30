@@ -117,6 +117,10 @@ UniversalBlePlugin::~UniversalBlePlugin() {
   // lease finish while every member is still alive, then release owned state.
   callback_operations_.Close();
   WaitForCallbacksWithMessagePump(callback_operations_);
+  {
+    std::lock_guard<std::mutex> lock(peripheral_mutex_);
+    DisposeAdvertisementPublisher();
+  }
   ResetState();
   ClearServices();
   ui_thread_handler_.Shutdown();
@@ -2952,6 +2956,16 @@ void UniversalBlePlugin::GattCharacteristicValueChanged(
 
 ErrorOr<PeripheralAdvertisingState> UniversalBlePlugin::GetAdvertisingState() {
   std::lock_guard<std::mutex> lock(peripheral_mutex_);
+  if (advertisement_publisher_) {
+    switch (advertisement_publisher_.Status()) {
+    case BluetoothLEAdvertisementPublisherStatus::Started:
+      return PeripheralAdvertisingState::kAdvertising;
+    case BluetoothLEAdvertisementPublisherStatus::Aborted:
+      return PeripheralAdvertisingState::kError;
+    default:
+      return PeripheralAdvertisingState::kIdle;
+    }
+  }
   if (peripheral_service_provider_map_.empty()) {
     return PeripheralAdvertisingState::kIdle;
   }
@@ -2969,6 +2983,7 @@ ErrorOr<PeripheralReadinessState> UniversalBlePlugin::GetReadinessState() {
 
 std::optional<FlutterError> UniversalBlePlugin::StopAdvertising() {
   std::lock_guard<std::mutex> lock(peripheral_mutex_);
+  DisposeAdvertisementPublisher();
   peripheral_advertising_targets_lc_.clear();
   for (auto const &[key, provider] : peripheral_service_provider_map_) {
     try {
@@ -3082,22 +3097,67 @@ std::optional<FlutterError> UniversalBlePlugin::StartAdvertising(
     const int64_t *timeout, const UniversalManufacturerData *manufacturer_data,
     const PeripheralPlatformConfig *platform_config) {
   std::lock_guard<std::mutex> lock(peripheral_mutex_);
-  if (peripheral_service_provider_map_.empty()) {
-    return FlutterError("failed", "No services added to advertise");
-  }
   if (local_name != nullptr) {
-    UniversalBleLogger::LogDebug("Windows GattServiceProvider advertising does "
-                                 "not support overriding local name");
+    return FlutterError("not-supported", "Windows cannot advertise a local name");
   }
-  if (manufacturer_data != nullptr) {
-    UniversalBleLogger::LogDebug("Windows GattServiceProvider advertising does "
-                                 "not support manufacturer data");
+  if (manufacturer_data != nullptr && !services.empty()) {
+    return FlutterError("not-supported",
+                        "Windows manufacturer advertising requires services: []");
+  }
+  if (manufacturer_data != nullptr &&
+      (manufacturer_data->company_identifier() < 0 ||
+       manufacturer_data->company_identifier() > 0xffff ||
+       manufacturer_data->data().size() > 27)) {
+    return FlutterError("invalid-arguments",
+                        "Manufacturer advertising requires a 16-bit company ID "
+                        "and at most 27 payload bytes");
   }
   if (timeout != nullptr && *timeout > 0) {
     UniversalBleLogger::LogDebug(
         "Windows GattServiceProvider advertising timeout is not supported");
   }
   try {
+    if (manufacturer_data != nullptr) {
+      // Connectionless advertising does not need a registered GATT service.
+      // Windows reserves local names and service UUID AD types for the system.
+      DisposeAdvertisementPublisher();
+      for (const auto &[_, provider] : peripheral_service_provider_map_) {
+        provider->obj.StopAdvertising();
+      }
+      peripheral_advertising_targets_lc_.clear();
+      BluetoothLEAdvertisement advertisement;
+      advertisement.ManufacturerData().Append(BluetoothLEManufacturerData(
+          static_cast<uint16_t>(manufacturer_data->company_identifier()),
+          from_bytevc(manufacturer_data->data())));
+      advertisement_publisher_ = BluetoothLEAdvertisementPublisher(advertisement);
+      const auto callback_operations = callback_operations_;
+      advertisement_publisher_status_token_ = advertisement_publisher_.StatusChanged(
+          [this, callback_operations](const auto &publisher, const auto &args) {
+            const auto callback = callback_operations.TryAcquire();
+            if (!callback.has_value()) return;
+            const auto status = args.Status();
+            const auto error = args.Error();
+            ui_thread_handler_.Post([this, publisher, status, error] {
+              std::lock_guard<std::mutex> lock(peripheral_mutex_);
+              // A queued callback from a replaced/stopped publisher is stale.
+              if (publisher != advertisement_publisher_) return;
+              const auto state = status == BluetoothLEAdvertisementPublisherStatus::Started
+                  ? PeripheralAdvertisingState::kAdvertising
+                  : status == BluetoothLEAdvertisementPublisherStatus::Aborted
+                      ? PeripheralAdvertisingState::kError
+                      : PeripheralAdvertisingState::kIdle;
+              const auto message = ParsePeripheralBluetoothError(error);
+              peripheral_callback_channel_->OnAdvertisingStateChange(
+                  state, state == PeripheralAdvertisingState::kError ? &message : nullptr,
+                  SuccessCallback, ErrorCallback);
+            });
+          });
+      advertisement_publisher_.Start();
+      return std::nullopt;
+    }
+    if (peripheral_service_provider_map_.empty()) {
+      return FlutterError("failed", "No services added to advertise");
+    }
     std::vector<std::string> selected_services_lc;
     selected_services_lc.reserve(services.size());
     for (const auto &service_encoded : services) {
@@ -3115,8 +3175,7 @@ std::optional<FlutterError> UniversalBlePlugin::StartAdvertising(
     auto params = GattServiceProviderAdvertisingParameters();
     params.IsDiscoverable(true);
     params.IsConnectable(true);
-    // TODO: migrate to BluetoothLEAdvertisementPublisher to support richer
-    // payload customization (local name, manufacturer data, scan response).
+    DisposeAdvertisementPublisher();
     for (auto const &[key, provider] : peripheral_service_provider_map_) {
       const bool should_start =
           selected_services_lc.empty() ||
@@ -3136,12 +3195,28 @@ std::optional<FlutterError> UniversalBlePlugin::StartAdvertising(
     peripheral_advertising_targets_lc_ = std::move(selected_services_lc);
     return std::nullopt;
   } catch (const hresult_error &err) {
+    DisposeAdvertisementPublisher();
     return FlutterError(
         "failed",
         "Failed to start advertising (hr=" + std::to_string(err.code()) +
             "): " + to_string(err.message()));
   } catch (...) {
+    DisposeAdvertisementPublisher();
     return FlutterError("failed", "Failed to start advertising");
+  }
+}
+
+void UniversalBlePlugin::DisposeAdvertisementPublisher() {
+  if (!advertisement_publisher_) return;
+  auto publisher = advertisement_publisher_;
+  advertisement_publisher_ = nullptr;
+  try {
+    publisher.StatusChanged(advertisement_publisher_status_token_);
+  } catch (...) {
+  }
+  try {
+    publisher.Stop();
+  } catch (...) {
   }
 }
 
