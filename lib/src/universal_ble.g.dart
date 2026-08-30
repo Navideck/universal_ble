@@ -981,16 +981,64 @@ class AppleConnectionOptions {
   int get hashCode => _deepHash(<Object?>[runtimeType, ..._toList()]);
 }
 
+class AndroidConnectionOptions {
+  AndroidConnectionOptions({
+    this.closeGattOnDetach,
+  });
+
+  /// Close the GATT client when the FlutterEngine is
+  /// detached (for example, when the app is "killed").
+  bool? closeGattOnDetach;
+
+  List<Object?> _toList() {
+    return <Object?>[
+      closeGattOnDetach,
+    ];
+  }
+
+  Object encode() {
+    return _toList();
+  }
+
+  static AndroidConnectionOptions decode(Object result) {
+    result as List<Object?>;
+    return AndroidConnectionOptions(
+      closeGattOnDetach: result[0] as bool?,
+    );
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  bool operator ==(Object other) {
+    if (other is! AndroidConnectionOptions ||
+        other.runtimeType != runtimeType) {
+      return false;
+    }
+    if (identical(this, other)) {
+      return true;
+    }
+    return _deepEquals(closeGattOnDetach, other.closeGattOnDetach);
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  int get hashCode => _deepHash(<Object?>[runtimeType, ..._toList()]);
+}
+
 class ConnectionPlatformConfig {
   ConnectionPlatformConfig({
     this.apple,
+    this.android,
   });
 
   AppleConnectionOptions? apple;
 
+  AndroidConnectionOptions? android;
+
   List<Object?> _toList() {
     return <Object?>[
       apple,
+      android,
     ];
   }
 
@@ -1002,6 +1050,7 @@ class ConnectionPlatformConfig {
     result as List<Object?>;
     return ConnectionPlatformConfig(
       apple: result[0] as AppleConnectionOptions?,
+      android: result[1] as AndroidConnectionOptions?,
     );
   }
 
@@ -1015,7 +1064,8 @@ class ConnectionPlatformConfig {
     if (identical(this, other)) {
       return true;
     }
-    return _deepEquals(apple, other.apple);
+    return _deepEquals(apple, other.apple) &&
+        _deepEquals(android, other.android);
   }
 
   @override
@@ -1489,29 +1539,32 @@ class _PigeonCodec extends StandardMessageCodec {
     } else if (value is AppleConnectionOptions) {
       buffer.putUint8(154);
       writeValue(buffer, value.encode());
-    } else if (value is ConnectionPlatformConfig) {
+    } else if (value is AndroidConnectionOptions) {
       buffer.putUint8(155);
       writeValue(buffer, value.encode());
-    } else if (value is PeripheralAndroidOptions) {
+    } else if (value is ConnectionPlatformConfig) {
       buffer.putUint8(156);
       writeValue(buffer, value.encode());
-    } else if (value is PeripheralPlatformConfig) {
+    } else if (value is PeripheralAndroidOptions) {
       buffer.putUint8(157);
       writeValue(buffer, value.encode());
-    } else if (value is PeripheralService) {
+    } else if (value is PeripheralPlatformConfig) {
       buffer.putUint8(158);
       writeValue(buffer, value.encode());
-    } else if (value is PeripheralCharacteristic) {
+    } else if (value is PeripheralService) {
       buffer.putUint8(159);
       writeValue(buffer, value.encode());
-    } else if (value is PeripheralDescriptor) {
+    } else if (value is PeripheralCharacteristic) {
       buffer.putUint8(160);
       writeValue(buffer, value.encode());
-    } else if (value is PeripheralReadRequestResult) {
+    } else if (value is PeripheralDescriptor) {
       buffer.putUint8(161);
       writeValue(buffer, value.encode());
-    } else if (value is PeripheralWriteRequestResult) {
+    } else if (value is PeripheralReadRequestResult) {
       buffer.putUint8(162);
+      writeValue(buffer, value.encode());
+    } else if (value is PeripheralWriteRequestResult) {
+      buffer.putUint8(163);
       writeValue(buffer, value.encode());
     } else {
       super.writeValue(buffer, value);
@@ -1591,20 +1644,22 @@ class _PigeonCodec extends StandardMessageCodec {
       case 154:
         return AppleConnectionOptions.decode(readValue(buffer)!);
       case 155:
-        return ConnectionPlatformConfig.decode(readValue(buffer)!);
+        return AndroidConnectionOptions.decode(readValue(buffer)!);
       case 156:
-        return PeripheralAndroidOptions.decode(readValue(buffer)!);
+        return ConnectionPlatformConfig.decode(readValue(buffer)!);
       case 157:
-        return PeripheralPlatformConfig.decode(readValue(buffer)!);
+        return PeripheralAndroidOptions.decode(readValue(buffer)!);
       case 158:
-        return PeripheralService.decode(readValue(buffer)!);
+        return PeripheralPlatformConfig.decode(readValue(buffer)!);
       case 159:
-        return PeripheralCharacteristic.decode(readValue(buffer)!);
+        return PeripheralService.decode(readValue(buffer)!);
       case 160:
-        return PeripheralDescriptor.decode(readValue(buffer)!);
+        return PeripheralCharacteristic.decode(readValue(buffer)!);
       case 161:
-        return PeripheralReadRequestResult.decode(readValue(buffer)!);
+        return PeripheralDescriptor.decode(readValue(buffer)!);
       case 162:
+        return PeripheralReadRequestResult.decode(readValue(buffer)!);
+      case 163:
         return PeripheralWriteRequestResult.decode(readValue(buffer)!);
       default:
         return super.readValueOfType(type, buffer);

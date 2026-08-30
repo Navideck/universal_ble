@@ -909,33 +909,71 @@ struct AppleConnectionOptions: Hashable {
 }
 
 /// Generated class from Pigeon that represents data sent in messages.
+struct AndroidConnectionOptions: Hashable {
+  /// Close the GATT client when the FlutterEngine is
+  /// detached (for example, when the app is "killed").
+  var closeGattOnDetach: Bool? = nil
+
+
+  // swift-format-ignore: AlwaysUseLowerCamelCase
+  static func fromList(_ pigeonVar_list: [Any?]) -> AndroidConnectionOptions? {
+    let closeGattOnDetach: Bool? = nilOrValue(pigeonVar_list[0])
+
+    return AndroidConnectionOptions(
+      closeGattOnDetach: closeGattOnDetach
+    )
+  }
+  func toList() -> [Any?] {
+    return [
+      closeGattOnDetach
+    ]
+  }
+  static func == (lhs: AndroidConnectionOptions, rhs: AndroidConnectionOptions) -> Bool {
+    if Swift.type(of: lhs) != Swift.type(of: rhs) {
+      return false
+    }
+    return deepEqualsUniversalBle(lhs.closeGattOnDetach, rhs.closeGattOnDetach)
+  }
+
+  func hash(into hasher: inout Hasher) {
+    hasher.combine("AndroidConnectionOptions")
+    deepHashUniversalBle(value: closeGattOnDetach, hasher: &hasher)
+  }
+}
+
+/// Generated class from Pigeon that represents data sent in messages.
 struct ConnectionPlatformConfig: Hashable {
   var apple: AppleConnectionOptions? = nil
+  var android: AndroidConnectionOptions? = nil
 
 
   // swift-format-ignore: AlwaysUseLowerCamelCase
   static func fromList(_ pigeonVar_list: [Any?]) -> ConnectionPlatformConfig? {
     let apple: AppleConnectionOptions? = nilOrValue(pigeonVar_list[0])
+    let android: AndroidConnectionOptions? = nilOrValue(pigeonVar_list[1])
 
     return ConnectionPlatformConfig(
-      apple: apple
+      apple: apple,
+      android: android
     )
   }
   func toList() -> [Any?] {
     return [
-      apple
+      apple,
+      android,
     ]
   }
   static func == (lhs: ConnectionPlatformConfig, rhs: ConnectionPlatformConfig) -> Bool {
     if Swift.type(of: lhs) != Swift.type(of: rhs) {
       return false
     }
-    return deepEqualsUniversalBle(lhs.apple, rhs.apple)
+    return deepEqualsUniversalBle(lhs.apple, rhs.apple) && deepEqualsUniversalBle(lhs.android, rhs.android)
   }
 
   func hash(into hasher: inout Hasher) {
     hasher.combine("ConnectionPlatformConfig")
     deepHashUniversalBle(value: apple, hasher: &hasher)
+    deepHashUniversalBle(value: android, hasher: &hasher)
   }
 }
 
@@ -1345,20 +1383,22 @@ private class UniversalBlePigeonCodecReader: FlutterStandardReader {
     case 154:
       return AppleConnectionOptions.fromList(self.readValue() as! [Any?])
     case 155:
-      return ConnectionPlatformConfig.fromList(self.readValue() as! [Any?])
+      return AndroidConnectionOptions.fromList(self.readValue() as! [Any?])
     case 156:
-      return PeripheralAndroidOptions.fromList(self.readValue() as! [Any?])
+      return ConnectionPlatformConfig.fromList(self.readValue() as! [Any?])
     case 157:
-      return PeripheralPlatformConfig.fromList(self.readValue() as! [Any?])
+      return PeripheralAndroidOptions.fromList(self.readValue() as! [Any?])
     case 158:
-      return PeripheralService.fromList(self.readValue() as! [Any?])
+      return PeripheralPlatformConfig.fromList(self.readValue() as! [Any?])
     case 159:
-      return PeripheralCharacteristic.fromList(self.readValue() as! [Any?])
+      return PeripheralService.fromList(self.readValue() as! [Any?])
     case 160:
-      return PeripheralDescriptor.fromList(self.readValue() as! [Any?])
+      return PeripheralCharacteristic.fromList(self.readValue() as! [Any?])
     case 161:
-      return PeripheralReadRequestResult.fromList(self.readValue() as! [Any?])
+      return PeripheralDescriptor.fromList(self.readValue() as! [Any?])
     case 162:
+      return PeripheralReadRequestResult.fromList(self.readValue() as! [Any?])
+    case 163:
       return PeripheralWriteRequestResult.fromList(self.readValue() as! [Any?])
     default:
       return super.readValue(ofType: type)
@@ -1446,29 +1486,32 @@ private class UniversalBlePigeonCodecWriter: FlutterStandardWriter {
     } else if let value = value as? AppleConnectionOptions {
       super.writeByte(154)
       super.writeValue(value.toList())
-    } else if let value = value as? ConnectionPlatformConfig {
+    } else if let value = value as? AndroidConnectionOptions {
       super.writeByte(155)
       super.writeValue(value.toList())
-    } else if let value = value as? PeripheralAndroidOptions {
+    } else if let value = value as? ConnectionPlatformConfig {
       super.writeByte(156)
       super.writeValue(value.toList())
-    } else if let value = value as? PeripheralPlatformConfig {
+    } else if let value = value as? PeripheralAndroidOptions {
       super.writeByte(157)
       super.writeValue(value.toList())
-    } else if let value = value as? PeripheralService {
+    } else if let value = value as? PeripheralPlatformConfig {
       super.writeByte(158)
       super.writeValue(value.toList())
-    } else if let value = value as? PeripheralCharacteristic {
+    } else if let value = value as? PeripheralService {
       super.writeByte(159)
       super.writeValue(value.toList())
-    } else if let value = value as? PeripheralDescriptor {
+    } else if let value = value as? PeripheralCharacteristic {
       super.writeByte(160)
       super.writeValue(value.toList())
-    } else if let value = value as? PeripheralReadRequestResult {
+    } else if let value = value as? PeripheralDescriptor {
       super.writeByte(161)
       super.writeValue(value.toList())
-    } else if let value = value as? PeripheralWriteRequestResult {
+    } else if let value = value as? PeripheralReadRequestResult {
       super.writeByte(162)
+      super.writeValue(value.toList())
+    } else if let value = value as? PeripheralWriteRequestResult {
+      super.writeByte(163)
       super.writeValue(value.toList())
     } else {
       super.writeValue(value)

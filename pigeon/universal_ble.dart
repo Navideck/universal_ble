@@ -295,9 +295,18 @@ class AppleConnectionOptions {
   });
 }
 
+class AndroidConnectionOptions {
+  /// Close the GATT client when the FlutterEngine is
+  /// detached (for example, when the app is "killed").
+  bool? closeGattOnDetach;
+
+  AndroidConnectionOptions({this.closeGattOnDetach});
+}
+
 class ConnectionPlatformConfig {
   AppleConnectionOptions? apple;
-  ConnectionPlatformConfig({this.apple});
+  AndroidConnectionOptions? android;
+  ConnectionPlatformConfig({this.apple, this.android});
 }
 
 class PeripheralAndroidOptions {

@@ -793,13 +793,48 @@ class AppleConnectionOptions {
 
 
 // Generated class from Pigeon that represents data sent in messages.
+class AndroidConnectionOptions {
+ public:
+  // Constructs an object setting all non-nullable fields.
+  AndroidConnectionOptions();
+
+  // Constructs an object setting all fields.
+  explicit AndroidConnectionOptions(const bool* close_gatt_on_detach);
+
+  // Close the GATT client when the FlutterEngine is
+  // detached (for example, when the app is "killed").
+  const bool* close_gatt_on_detach() const;
+  void set_close_gatt_on_detach(const bool* value_arg);
+  void set_close_gatt_on_detach(bool value_arg);
+
+  bool operator==(const AndroidConnectionOptions& other) const;
+  bool operator!=(const AndroidConnectionOptions& other) const;
+  /// Returns a hash code value for the object. This method is supported for the benefit of hash tables.
+  size_t Hash() const;
+ private:
+  static AndroidConnectionOptions FromEncodableList(const ::flutter::EncodableList& list);
+  ::flutter::EncodableList ToEncodableList() const;
+  friend class ConnectionPlatformConfig;
+  friend class UniversalBlePlatformChannel;
+  friend class UniversalBleCallbackChannel;
+  friend class UniversalBlePeripheralChannel;
+  friend class UniversalBleAndroidChannel;
+  friend class UniversalBlePeripheralCallback;
+  friend class PigeonInternalCodecSerializer;
+  std::optional<bool> close_gatt_on_detach_;
+};
+
+
+// Generated class from Pigeon that represents data sent in messages.
 class ConnectionPlatformConfig {
  public:
   // Constructs an object setting all non-nullable fields.
   ConnectionPlatformConfig();
 
   // Constructs an object setting all fields.
-  explicit ConnectionPlatformConfig(const AppleConnectionOptions* apple);
+  explicit ConnectionPlatformConfig(
+    const AppleConnectionOptions* apple,
+    const AndroidConnectionOptions* android);
 
   ~ConnectionPlatformConfig() = default;
   ConnectionPlatformConfig(const ConnectionPlatformConfig& other);
@@ -809,6 +844,10 @@ class ConnectionPlatformConfig {
   const AppleConnectionOptions* apple() const;
   void set_apple(const AppleConnectionOptions* value_arg);
   void set_apple(const AppleConnectionOptions& value_arg);
+
+  const AndroidConnectionOptions* android() const;
+  void set_android(const AndroidConnectionOptions* value_arg);
+  void set_android(const AndroidConnectionOptions& value_arg);
 
   bool operator==(const ConnectionPlatformConfig& other) const;
   bool operator!=(const ConnectionPlatformConfig& other) const;
@@ -824,6 +863,7 @@ class ConnectionPlatformConfig {
   friend class UniversalBlePeripheralCallback;
   friend class PigeonInternalCodecSerializer;
   std::unique_ptr<AppleConnectionOptions> apple_;
+  std::unique_ptr<AndroidConnectionOptions> android_;
 };
 
 
