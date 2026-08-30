@@ -1,3 +1,7 @@
+// These tests exercise the native Pigeon backend; web uses a separate backend.
+@TestOn('vm')
+library;
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
