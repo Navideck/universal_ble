@@ -801,8 +801,12 @@ class AndroidConnectionOptions {
   // Constructs an object setting all fields.
   explicit AndroidConnectionOptions(const bool* close_gatt_on_detach);
 
-  // Close the GATT client when the FlutterEngine is
-  // detached (for example, when the app is "killed").
+  // Close the GATT client when the FlutterEngine is detached (for
+  // example, when the app is "killed"). The plugin otherwise leaves the
+  // GATT open, keeping the peripheral occupied until its supervision
+  // timeout; with `autoConnect` it also stays open for reconnection.
+  //
+  // When `null`, the current process-wide value is kept.
   const bool* close_gatt_on_detach() const;
   void set_close_gatt_on_detach(const bool* value_arg);
   void set_close_gatt_on_detach(bool value_arg);

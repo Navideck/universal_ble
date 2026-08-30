@@ -1045,8 +1045,12 @@ data class AppleConnectionOptions (
 /** Generated class from Pigeon that represents data sent in messages. */
 data class AndroidConnectionOptions (
   /**
-   * Close the GATT client when the FlutterEngine is
-   * detached (for example, when the app is "killed").
+   * Close the GATT client when the FlutterEngine is detached (for
+   * example, when the app is "killed"). The plugin otherwise leaves the
+   * GATT open, keeping the peripheral occupied until its supervision
+   * timeout; with `autoConnect` it also stays open for reconnection.
+   *
+   * When `null`, the current process-wide value is kept.
    */
   val closeGattOnDetach: Boolean? = null
 )

@@ -73,8 +73,9 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
     private val autoConnectDevices = mutableSetOf<String>()
 
     /**
-     * Controls whether all known GATT clients are closed on engine detach
-     * so the peripheral is released immediately.
+     * When enabled, close every known GATT client on engine detach. The
+     * plugin otherwise leaves GATT open, so a killed app keeps the
+     * peripheral occupied until its supervision timeout.
      */
     private var closeGattOnDetach = false
 
@@ -271,9 +272,7 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
         autoConnect: Boolean?,
         platformConfig: ConnectionPlatformConfig?,
     ) {
-        if (platformConfig?.android?.closeGattOnDetach == true) {
-            closeGattOnDetach = true
-        }
+        platformConfig?.android?.closeGattOnDetach?.let { closeGattOnDetach = it }
 
         // Note: platformConfig carries platform-specific connection options
         // If already connected, send connected message,
