@@ -291,7 +291,7 @@ await bleDevice.connect(
 
 When the Android app is killed by the user (typically swiped away from recents), the OS tears down the FlutterEngine without ever delivering a "disconnect" — the peripheral keeps the link open until its connection supervision timeout (often 10–20 s), leaving the device occupied.
 
-Pass `AndroidConnectionOptions(closeGattOnDetach: true)` to have the plugin close every known GATT client as soon as the engine detaches, releasing the peripheral immediately. This applies regardless of `autoConnect` value, in both cases the link persists until the peripheral's supervision timeout.
+Pass `AndroidConnectionOptions(closeGattOnDetach: true)` to have the plugin close every known GATT client as soon as the engine detaches, releasing the peripheral immediately. Without the option, whatever the `autoConnect` value, the link persists until the peripheral's supervision timeout.
 
 ```dart
 await bleDevice.connect(
