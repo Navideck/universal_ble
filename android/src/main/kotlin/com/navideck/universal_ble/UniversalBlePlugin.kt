@@ -27,7 +27,9 @@ import io.flutter.embedding.engine.plugins.FlutterPlugin
 import io.flutter.embedding.engine.plugins.activity.ActivityAware
 import io.flutter.embedding.engine.plugins.activity.ActivityPluginBinding
 import io.flutter.plugin.common.PluginRegistry
+import java.util.Collections
 import java.util.UUID
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import androidx.core.content.edit
@@ -78,6 +80,11 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
      * peripheral occupied until its supervision timeout.
      */
     private var closeGattOnDetach = false
+
+    // Clients that disconnect() is tearing down; closed on STATE_DISCONNECTED or by the fallback timer.
+    private val closingGatts: MutableSet<BluetoothGatt> =
+        Collections.newSetFromMap(ConcurrentHashMap<BluetoothGatt, Boolean>())
+    private val gattCloseTimeoutMs = 1500L
 
     override fun onAttachedToEngine(flutterPluginBinding: FlutterPlugin.FlutterPluginBinding) {
         context = flutterPluginBinding.applicationContext
@@ -1437,21 +1444,21 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
     private fun cleanConnection(gatt: BluetoothGatt) {
         val deviceId = gatt.device.address
         gatt.removeCache()
-        gatt.disconnect()
-        // Release the GATT client interface. disconnect() tears down the link but never frees the
-        // client that connectGatt() registered - only close() does. When the connection was never
-        // established (still CONNECTING when the caller gives up, e.g. on a client-side connect
-        // timeout) Android delivers no STATE_DISCONNECTED callback at all, so the close() in
-        // onConnectionStateChange never runs and the client leaks for the lifetime of the process.
-        // Once the per-app pool is exhausted, registerClient fails and every subsequent
-        // connectGatt returns status 257 (GATT_FAILURE) for every device until the app restarts.
-        gatt.close()
         cleanUpConnection(deviceId)
-        // close() suppresses the STATE_DISCONNECTED callback that would otherwise report this,
-        // so surface the disconnect here - mirrors the gatt == null branch of disconnect().
-        mainThreadHandler?.post {
-            callbackChannel?.onConnectionChanged(deviceId, false, null) {}
-        }
+        closingGatts.add(gatt)
+        gatt.disconnect()
+        // close() runs from onConnectionStateChange once the link is down. A client that never
+        // reached CONNECTED gets no callback at all, so release it anyway after a while (#277).
+        mainThreadHandler?.postDelayed({
+            if (closingGatts.remove(gatt)) {
+                UniversalBleLogger.logDebug("No STATE_DISCONNECTED for $deviceId, closing gatt")
+                gatt.close()
+                // A newer connect() owns this address now; its state is not ours to report.
+                if (!deviceId.isKnownGatt()) {
+                    callbackChannel?.onConnectionChanged(deviceId, false, null) {}
+                }
+            }
+        }, gattCloseTimeoutMs)
     }
 
     private fun onBondStateUpdate(deviceId: String, bonded: Boolean, error: String? = null) {
@@ -1577,22 +1584,28 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
         } else if (newState == BluetoothGatt.STATE_DISCONNECTED) {
             val deviceId = gatt.device.address
             val shouldAutoConnect = autoConnectDevices.contains(deviceId)
+            val closingByRequest = closingGatts.remove(gatt)
+            // disconnect() already dropped this client from the cache, so a known gatt is a newer
+            // connect() whose pending operations and connection state must be left alone.
+            val superseded = closingByRequest && deviceId.isKnownGatt()
 
-            // Always clean up internal state (futures, etc.)
-            cleanUpConnection(deviceId)
+            if (!superseded) {
+                // Always clean up internal state (futures, etc.)
+                cleanUpConnection(deviceId)
 
-            // Send connection changed callback
-            mainThreadHandler?.post {
-                callbackChannel?.onConnectionChanged(
-                    deviceId, false, status.parseHciErrorCode()
-                ) {}
+                // Send connection changed callback
+                mainThreadHandler?.post {
+                    callbackChannel?.onConnectionChanged(
+                        deviceId, false, status.parseHciErrorCode()
+                    ) {}
+                }
             }
 
-            if (!shouldAutoConnect) {
-                // Only close GATT resources when autoConnect is disabled
+            if (closingByRequest || !shouldAutoConnect) {
+                // Only keep the client open when autoConnect should let Android reconnect it
                 gatt.removeCache()
                 gatt.disconnect()
-                UniversalBleLogger.logDebug("Closing gatt for ${gatt.device.name}")
+                UniversalBleLogger.logDebug("Closing gatt for $deviceId")
                 gatt.close()
             }
             // When autoConnect is enabled, keep GATT open for Android to reconnect

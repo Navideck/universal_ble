@@ -120,7 +120,8 @@ fun BluetoothGatt.saveCacheIfNeeded() {
 }
 
 fun BluetoothGatt.removeCache() {
-    knownGatts.remove(this.device.address)
+    // Only while still the registered client; a newer connect() may have replaced it.
+    knownGatts.remove(this.device.address, this)
 }
 
 
