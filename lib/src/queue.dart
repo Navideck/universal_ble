@@ -3,40 +3,20 @@ import 'dart:async';
 /// Original Author: Ryan Knell (https://github.com/rknell/dart_queue)
 
 /// Queue to execute Futures in order.
-/// It awaits each future before executing the next one unless consecutive
-/// commands opt into [addConcurrent].
+/// It awaits each future before executing the next one.
 class Queue {
-  final Map<int, bool> _activeItems = {};
+  final Set<int> _activeItems = {};
   int _lastProcessId = 0;
   bool _isCancelled = false;
   final List<_QueuedFuture> _nextCycle = [];
   Function(int)? onRemainingItemsUpdate;
 
-  Future<T> add<T>(Future<T> Function() closure, [Duration? timeout]) =>
-      _add(closure, timeout);
-
-  Future<T> addConcurrent<T>(
-    Future<T> Function() closure, [
-    Duration? timeout,
-  ]) => _add(closure, timeout, canRunConcurrently: true);
-
-  Future<T> _add<T>(
-    Future<T> Function() closure,
-    Duration? timeout, {
-    bool canRunConcurrently = false,
-  }) {
+  Future<T> add<T>(Future<T> Function() closure, [Duration? timeout]) {
     if (_isCancelled) throw Exception('Queue Cancelled');
     final completer = Completer<T>();
-    _nextCycle.add(
-      _QueuedFuture<T>(
-        closure,
-        completer,
-        timeout,
-        canRunConcurrently: canRunConcurrently,
-      ),
-    );
+    _nextCycle.add(_QueuedFuture<T>(closure, completer, timeout));
     _updateRemainingItems();
-    _queueUpNext();
+    if (_activeItems.isEmpty) _queueUpNext();
     return completer.future;
   }
 
@@ -49,11 +29,12 @@ class Queue {
   }
 
   void _queueUpNext() {
-    while (_nextCycle.isNotEmpty && !_isCancelled && _canRunNext()) {
+    if (_nextCycle.isNotEmpty && !_isCancelled && _activeItems.length <= 1) {
       final processId = _lastProcessId;
-      final item = _nextCycle.removeAt(0);
-      _activeItems[processId] = item.canRunConcurrently;
+      _activeItems.add(processId);
+      final item = _nextCycle.first;
       _lastProcessId++;
+      _nextCycle.remove(item);
       item.onComplete = () async {
         _activeItems.remove(processId);
         _updateRemainingItems();
@@ -61,12 +42,6 @@ class Queue {
       };
       unawaited(item.execute());
     }
-  }
-
-  bool _canRunNext() {
-    if (_activeItems.isEmpty) return true;
-    return _nextCycle.first.canRunConcurrently &&
-        _activeItems.values.every((canRunConcurrently) => canRunConcurrently);
   }
 
   void _updateRemainingItems() {
@@ -80,15 +55,8 @@ class _QueuedFuture<T> {
   final Future<T> Function() closure;
   Function? onComplete;
   final Duration? timeout;
-  final bool canRunConcurrently;
 
-  _QueuedFuture(
-    this.closure,
-    this.completer,
-    this.timeout, {
-    this.onComplete,
-    this.canRunConcurrently = false,
-  });
+  _QueuedFuture(this.closure, this.completer, this.timeout, {this.onComplete});
 
   Future<void> execute() async {
     try {

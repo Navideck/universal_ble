@@ -17,11 +17,6 @@ class UniversalBlePigeonChannel extends UniversalBlePlatform
   final _channel = UniversalBlePlatformChannel();
 
   @override
-  bool get supportsWritePipelining =>
-      defaultTargetPlatform == TargetPlatform.iOS ||
-      defaultTargetPlatform == TargetPlatform.macOS;
-
-  @override
   Future<AvailabilityState> getBluetoothAvailabilityState() =>
       _executeWithErrorHandling(() => _channel.getBluetoothAvailabilityState());
 

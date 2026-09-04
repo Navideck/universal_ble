@@ -621,8 +621,6 @@ UniversalBle.queueType = QueueType.none;
 
 Keep in mind that some platforms (e.g. Android) may not handle well devices that fail to process consecutive commands without a minimum interval. Therefore, it is not advised to set `queueType` to `none`.
 
-On iOS, macOS, and Chrome running on Apple platforms, consecutive writes are submitted to the native GATT queue ahead of completion so the platform can maintain throughput. Later queued non-write commands still wait for all preceding writes.
-
 Link-layer telemetry (`readRssi`) bypasses the command queue by default so periodic polling does not block or stall queued GATT commands. If desired, it can still be queued by passing an explicit `queueId`.
 
 You can get queue updates by setting:

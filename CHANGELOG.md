@@ -16,7 +16,7 @@
 * Android: instantly close the GATT client on disconnect
 * Android: complete only the oldest matching pending write on onCharacteristicWrite
 * iOS/macOS: Handle service discovery failure and timeout to prevent poisoning subsequent `discoverServices` calls
-* Apple: Prevent queued writes from degrading throughput by pipelining them through the native GATT queue
+* iOS/macOS: Handle write-without-response transmit buffer backpressure and ensure FIFO write completion
 * Decouple `readRssi` from the default command queue to prevent telemetry polling from blocking queued GATT commands
 
 ## 2.1.1

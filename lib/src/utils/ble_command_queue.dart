@@ -16,56 +16,20 @@ class BleCommandQueue {
     String? deviceId,
     Duration? timeout,
     String? queueId,
-  }) => _queueCommand(
-    command,
-    deviceId: deviceId,
-    timeout: timeout,
-    queueId: queueId,
-  );
-
-  Future<void> queueWrite(
-    Future<void> Function() command, {
-    String? deviceId,
-    Duration? timeout,
-    String? queueId,
-    bool pipelined = false,
-  }) => _queueCommand(
-    command,
-    deviceId: deviceId,
-    timeout: timeout,
-    queueId: queueId,
-    canRunConcurrently: pipelined,
-  );
-
-  Future<T> _queueCommand<T>(
-    Future<T> Function() command, {
-    String? deviceId,
-    Duration? timeout,
-    String? queueId,
-    bool canRunConcurrently = false,
   }) {
     Duration? timeoutDuration = timeout ?? this.timeout;
     if (timeoutDuration == null) {
-      return _queueCommandWithoutTimeout(
+      return queueCommandWithoutTimeout(
         command,
         deviceId: deviceId,
         queueId: queueId,
-        canRunConcurrently: canRunConcurrently,
       );
     }
     return switch (queueType) {
-      QueueType.global => _add(
-        _queue(queueId),
-        command,
-        timeoutDuration,
-        canRunConcurrently,
-      ),
-      QueueType.perDevice => _add(
-        _queue(queueId ?? deviceId),
-        command,
-        timeoutDuration,
-        canRunConcurrently,
-      ),
+      QueueType.global => _queue(queueId).add(command, timeoutDuration),
+      QueueType.perDevice => _queue(
+        queueId ?? deviceId,
+      ).add(command, timeoutDuration),
       QueueType.none => command().timeout(timeoutDuration),
     };
   }
@@ -74,43 +38,13 @@ class BleCommandQueue {
     Future<T> Function() command, {
     String? deviceId,
     String? queueId,
-  }) => _queueCommandWithoutTimeout(
-    command,
-    deviceId: deviceId,
-    queueId: queueId,
-  );
-
-  Future<T> _queueCommandWithoutTimeout<T>(
-    Future<T> Function() command, {
-    String? deviceId,
-    String? queueId,
-    bool canRunConcurrently = false,
   }) {
     return switch (queueType) {
-      QueueType.global => _add(
-        _queue(queueId),
-        command,
-        null,
-        canRunConcurrently,
-      ),
-      QueueType.perDevice => _add(
-        _queue(queueId ?? deviceId),
-        command,
-        null,
-        canRunConcurrently,
-      ),
+      QueueType.global => _queue(queueId).add(command),
+      QueueType.perDevice => _queue(queueId ?? deviceId).add(command),
       QueueType.none => command(),
     };
   }
-
-  Future<T> _add<T>(
-    Queue queue,
-    Future<T> Function() command,
-    Duration? timeout,
-    bool canRunConcurrently,
-  ) => canRunConcurrently
-      ? queue.addConcurrent(command, timeout)
-      : queue.add(command, timeout);
 
   Queue _queue(String? id) {
     final queueKey = id ?? globalQueueId;
