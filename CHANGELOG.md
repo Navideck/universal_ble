@@ -1,9 +1,9 @@
 ## 2.3.0
 * Windows: support connectionless manufacturer-data advertising without a GATT service, including state/error reporting and cleanup on stop/disposal.
-* Apple/Peripheral: Accurately report supportsManufacturerDataInAdvertisement as false (CoreBluetooth does not support advertising manufacturer data).
+* Apple: Accurately report manufacturer-data advertising capabilities.
 * Android: add `closeGattOnDetach` connection option to release GATT clients when the app is killed
 * Android: close the GATT client once the disconnect completes instead of right after `disconnect()`, and report the real disconnect status
-* Report manufacturer-data advertising capabilities accurately on iOS/macOS.
+
 
 ## 2.2.0
 * Expose microsecond scan timestamps captured before Flutter event dispatch
