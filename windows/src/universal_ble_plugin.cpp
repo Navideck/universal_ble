@@ -385,7 +385,7 @@ UniversalBlePlugin::Connect(const std::string &device_id,
                             const bool *auto_connect,
                             const ConnectionPlatformConfig *platform_config) {
   // Note: autoConnect is not directly supported on Windows platform
-  // Note: platformConfig only carries Apple-specific options
+  // Note: platformConfig carries platform-specific options
   const auto bluetooth_address = str_to_mac_address(device_id);
   std::shared_ptr<BluetoothDeviceAgent> stale_device;
   std::optional<uint64_t> connect_generation;
