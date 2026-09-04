@@ -5,6 +5,21 @@ on:
     branches: [main]
 
 jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+      - run: flutter pub get
+        working-directory: example
+      - run: flutter build windows
+        working-directory: example
+      - run: cmake -S windows/test -B build/windows-tests
+      - run: cmake --build build/windows-tests --config Debug
+      - run: ctest --test-dir build/windows-tests -C Debug --output-on-failure
+
   test:
     runs-on: ubuntu-latest
 

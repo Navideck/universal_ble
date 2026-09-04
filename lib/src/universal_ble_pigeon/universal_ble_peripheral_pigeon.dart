@@ -19,8 +19,8 @@ class UniversalBlePeripheralPigeon extends UniversalBlePeripheralPlatform
 
   UniversalBleAndroidChannel? get _androidChannel =>
       (kIsWeb || defaultTargetPlatform != TargetPlatform.android)
-      ? null
-      : _androidChannelRef ??= UniversalBleAndroidChannel();
+          ? null
+          : _androidChannelRef ??= UniversalBleAndroidChannel();
 
   OnPeripheralReadRequest? _readRequestHandler;
   OnPeripheralWriteRequest? _writeRequestHandler;
@@ -45,7 +45,9 @@ class UniversalBlePeripheralPigeon extends UniversalBlePeripheralPlatform
         defaultTargetPlatform == TargetPlatform.android;
     return BlePeripheralCapabilities(
       supportsPeripheralMode: supported,
-      supportsManufacturerDataInAdvertisement: supported,
+      supportsManufacturerDataInAdvertisement: supported &&
+          (defaultTargetPlatform == TargetPlatform.android ||
+              defaultTargetPlatform == TargetPlatform.windows),
       supportsManufacturerDataInScanResponse:
           supported && supportsManufacturerDataInScanResponse,
       supportsServiceDataInAdvertisement: false,
@@ -71,15 +73,15 @@ class UniversalBlePeripheralPigeon extends UniversalBlePeripheralPlatform
               BlePeripheralServiceAdded(serviceId, 'Service add timed out'),
         )
         .then((e) {
-          if (completer.isCompleted) return;
-          if (e.error != null) {
-            completer.completeError(
-              PlatformException(code: 'service-add-failed', message: e.error),
-            );
-          } else {
-            completer.complete();
-          }
-        });
+      if (completer.isCompleted) return;
+      if (e.error != null) {
+        completer.completeError(
+          PlatformException(code: 'service-add-failed', message: e.error),
+        );
+      } else {
+        completer.complete();
+      }
+    });
 
     await _channel.addService(service);
     await completer.future;
@@ -148,12 +150,14 @@ class UniversalBlePeripheralPigeon extends UniversalBlePeripheralPlatform
   @override
   void setDescriptorReadRequestHandler(
     OnPeripheralDescriptorReadRequest? handler,
-  ) => _descriptorReadRequestHandler = handler;
+  ) =>
+      _descriptorReadRequestHandler = handler;
 
   @override
   void setDescriptorWriteRequestHandler(
     OnPeripheralDescriptorWriteRequest? handler,
-  ) => _descriptorWriteRequestHandler = handler;
+  ) =>
+      _descriptorWriteRequestHandler = handler;
 
   @override
   void onAdvertisingStateChange(

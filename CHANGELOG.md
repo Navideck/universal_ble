@@ -1,6 +1,9 @@
-## 2.2.1
+## 2.3.0
+* Windows: support connectionless manufacturer-data advertising without a GATT service, including state/error reporting and cleanup on stop/disposal.
+* Apple: Accurately report manufacturer-data advertising capabilities.
 * Android: add `closeGattOnDetach` connection option to release GATT clients when the app is killed
 * Android: close the GATT client once the disconnect completes instead of right after `disconnect()`, and report the real disconnect status
+
 
 ## 2.2.0
 * Expose microsecond scan timestamps captured before Flutter event dispatch
