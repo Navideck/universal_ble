@@ -3121,9 +3121,12 @@ std::optional<FlutterError> UniversalBlePlugin::StartAdvertising(
       // Connectionless advertising does not need a registered GATT service.
       // Windows reserves local names and service UUID AD types for the system.
       DisposeAdvertisementPublisher();
-      for (const auto &[_, provider] : peripheral_service_provider_map_) {
-        provider->obj.StopAdvertising();
-      }
+for (const auto &[_, provider] : peripheral_service_provider_map_) {
+  try {
+    if (provider != nullptr) provider->obj.StopAdvertising();
+  } catch (...) {
+  }
+}
       peripheral_advertising_targets_lc_.clear();
       BluetoothLEAdvertisement advertisement;
       advertisement.ManufacturerData().Append(BluetoothLEManufacturerData(
