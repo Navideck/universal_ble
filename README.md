@@ -287,6 +287,25 @@ await bleDevice.connect(
 );
 ```
 
+#### Close GATT on app teardown (Android)
+
+When the Android app is killed by the user (typically swiped away from recents), the OS tears down the FlutterEngine without ever delivering a "disconnect" — the peripheral keeps the link open until its connection supervision timeout (often 10–20 s), leaving the device occupied.
+
+Pass `AndroidConnectionOptions(closeGattOnDetach: true)` to have the plugin close every known GATT client as soon as the engine detaches, releasing the peripheral immediately. Without the option, whatever the `autoConnect` value, the link persists until the peripheral's supervision timeout.
+
+```dart
+await bleDevice.connect(
+  autoConnect: true,
+  platformConfig: ConnectionPlatformConfig(
+    android: AndroidConnectionOptions(closeGattOnDetach: true),
+  ),
+);
+```
+
+Notes:
+- Once any connection opts in, the behavior is global for the running process — every current and future GATT client is released on engine teardown. It can be disabled at runtime by connecting with `closeGattOnDetach: false`; connecting without the option leaves the current value unchanged (a fresh app launch resets it).
+- Android-only. Explicit `disconnect()` calls and rotation are unaffected.
+
 ### Discovering Services
 
 After establishing a connection, services need to be discovered. This method will discover all services and their characteristics.

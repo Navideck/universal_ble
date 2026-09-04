@@ -71,6 +71,14 @@ fun String.findGatt(): BluetoothGatt? {
     return knownGatts[this]
 }
 
+/**
+ * Snapshot of every known GATT client. The snapshot avoids mutating the
+ * map while clients are released.
+ */
+fun connectedGatts(): List<BluetoothGatt> {
+    return knownGatts.values.toList()
+}
+
 fun BluetoothManager.isBluetoothEnabled(): Boolean {
     return adapter?.isEnabled == true
 }

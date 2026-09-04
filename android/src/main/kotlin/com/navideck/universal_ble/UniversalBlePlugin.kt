@@ -72,6 +72,13 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
     private val rssiResultFutureList = mutableListOf<RssiResultFuture>()
     private val autoConnectDevices = mutableSetOf<String>()
 
+    /**
+     * When enabled, close every known GATT client on engine detach. The
+     * plugin otherwise leaves GATT open, so a killed app keeps the
+     * peripheral occupied until its supervision timeout.
+     */
+    private var closeGattOnDetach = false
+
     override fun onAttachedToEngine(flutterPluginBinding: FlutterPlugin.FlutterPluginBinding) {
         context = flutterPluginBinding.applicationContext
         mainThreadHandler = Handler(Looper.getMainLooper())
@@ -101,6 +108,7 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
     }
 
     override fun onDetachedFromEngine(binding: FlutterPlugin.FlutterPluginBinding) {
+        if (closeGattOnDetach) connectedGatts().forEach(::cleanConnection)
         bluetoothManager.adapter.bluetoothLeScanner?.stopScan(scanCallback)
         context.unregisterReceiver(broadcastReceiver)
         peripheralPlugin.dispose()
@@ -264,7 +272,9 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
         autoConnect: Boolean?,
         platformConfig: ConnectionPlatformConfig?,
     ) {
-        // Note: platformConfig only carries Apple-specific options
+        platformConfig?.android?.closeGattOnDetach?.let { closeGattOnDetach = it }
+
+        // Note: platformConfig carries platform-specific connection options
         // If already connected, send connected message,
         // if connecting, do nothing
         deviceId.findGatt()?.let {

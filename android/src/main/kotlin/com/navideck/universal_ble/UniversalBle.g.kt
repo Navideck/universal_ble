@@ -1043,19 +1043,64 @@ data class AppleConnectionOptions (
 }
 
 /** Generated class from Pigeon that represents data sent in messages. */
+data class AndroidConnectionOptions (
+  /**
+   * Close the GATT client when the FlutterEngine is detached (for
+   * example, when the app is "killed"). The plugin otherwise leaves the
+   * GATT open, keeping the peripheral occupied until its supervision
+   * timeout; with `autoConnect` it also stays open for reconnection.
+   *
+   * When `null`, the current process-wide value is kept.
+   */
+  val closeGattOnDetach: Boolean? = null
+)
+ {
+  companion object {
+    fun fromList(pigeonVar_list: List<Any?>): AndroidConnectionOptions {
+      val closeGattOnDetach = pigeonVar_list[0] as Boolean?
+      return AndroidConnectionOptions(closeGattOnDetach)
+    }
+  }
+  fun toList(): List<Any?> {
+    return listOf(
+      closeGattOnDetach,
+    )
+  }
+  override fun equals(other: Any?): Boolean {
+    if (other == null || other.javaClass != javaClass) {
+      return false
+    }
+    if (this === other) {
+      return true
+    }
+    val other = other as AndroidConnectionOptions
+    return UniversalBlePigeonUtils.deepEquals(this.closeGattOnDetach, other.closeGattOnDetach)
+  }
+
+  override fun hashCode(): Int {
+    var result = javaClass.hashCode()
+    result = 31 * result + UniversalBlePigeonUtils.deepHash(this.closeGattOnDetach)
+    return result
+  }
+}
+
+/** Generated class from Pigeon that represents data sent in messages. */
 data class ConnectionPlatformConfig (
-  val apple: AppleConnectionOptions? = null
+  val apple: AppleConnectionOptions? = null,
+  val android: AndroidConnectionOptions? = null
 )
  {
   companion object {
     fun fromList(pigeonVar_list: List<Any?>): ConnectionPlatformConfig {
       val apple = pigeonVar_list[0] as AppleConnectionOptions?
-      return ConnectionPlatformConfig(apple)
+      val android = pigeonVar_list[1] as AndroidConnectionOptions?
+      return ConnectionPlatformConfig(apple, android)
     }
   }
   fun toList(): List<Any?> {
     return listOf(
       apple,
+      android,
     )
   }
   override fun equals(other: Any?): Boolean {
@@ -1066,12 +1111,13 @@ data class ConnectionPlatformConfig (
       return true
     }
     val other = other as ConnectionPlatformConfig
-    return UniversalBlePigeonUtils.deepEquals(this.apple, other.apple)
+    return UniversalBlePigeonUtils.deepEquals(this.apple, other.apple) && UniversalBlePigeonUtils.deepEquals(this.android, other.android)
   }
 
   override fun hashCode(): Int {
     var result = javaClass.hashCode()
     result = 31 * result + UniversalBlePigeonUtils.deepHash(this.apple)
+    result = 31 * result + UniversalBlePigeonUtils.deepHash(this.android)
     return result
   }
 }
@@ -1512,40 +1558,45 @@ private open class UniversalBlePigeonCodec : StandardMessageCodec() {
       }
       155.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          ConnectionPlatformConfig.fromList(it)
+          AndroidConnectionOptions.fromList(it)
         }
       }
       156.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          PeripheralAndroidOptions.fromList(it)
+          ConnectionPlatformConfig.fromList(it)
         }
       }
       157.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          PeripheralPlatformConfig.fromList(it)
+          PeripheralAndroidOptions.fromList(it)
         }
       }
       158.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          PeripheralService.fromList(it)
+          PeripheralPlatformConfig.fromList(it)
         }
       }
       159.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          PeripheralCharacteristic.fromList(it)
+          PeripheralService.fromList(it)
         }
       }
       160.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          PeripheralDescriptor.fromList(it)
+          PeripheralCharacteristic.fromList(it)
         }
       }
       161.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          PeripheralReadRequestResult.fromList(it)
+          PeripheralDescriptor.fromList(it)
         }
       }
       162.toByte() -> {
+        return (readValue(buffer) as? List<Any?>)?.let {
+          PeripheralReadRequestResult.fromList(it)
+        }
+      }
+      163.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
           PeripheralWriteRequestResult.fromList(it)
         }
@@ -1659,36 +1710,40 @@ private open class UniversalBlePigeonCodec : StandardMessageCodec() {
         stream.write(154)
         writeValue(stream, value.toList())
       }
-      is ConnectionPlatformConfig -> {
+      is AndroidConnectionOptions -> {
         stream.write(155)
         writeValue(stream, value.toList())
       }
-      is PeripheralAndroidOptions -> {
+      is ConnectionPlatformConfig -> {
         stream.write(156)
         writeValue(stream, value.toList())
       }
-      is PeripheralPlatformConfig -> {
+      is PeripheralAndroidOptions -> {
         stream.write(157)
         writeValue(stream, value.toList())
       }
-      is PeripheralService -> {
+      is PeripheralPlatformConfig -> {
         stream.write(158)
         writeValue(stream, value.toList())
       }
-      is PeripheralCharacteristic -> {
+      is PeripheralService -> {
         stream.write(159)
         writeValue(stream, value.toList())
       }
-      is PeripheralDescriptor -> {
+      is PeripheralCharacteristic -> {
         stream.write(160)
         writeValue(stream, value.toList())
       }
-      is PeripheralReadRequestResult -> {
+      is PeripheralDescriptor -> {
         stream.write(161)
         writeValue(stream, value.toList())
       }
-      is PeripheralWriteRequestResult -> {
+      is PeripheralReadRequestResult -> {
         stream.write(162)
+        writeValue(stream, value.toList())
+      }
+      is PeripheralWriteRequestResult -> {
+        stream.write(163)
         writeValue(stream, value.toList())
       }
       else -> super.writeValue(stream, value)

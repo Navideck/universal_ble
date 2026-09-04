@@ -1298,18 +1298,77 @@ size_t PigeonInternalDeepHash(const AppleConnectionOptions& v) {
   return v.Hash();
 }
 
+// AndroidConnectionOptions
+
+AndroidConnectionOptions::AndroidConnectionOptions() {}
+
+AndroidConnectionOptions::AndroidConnectionOptions(const bool* close_gatt_on_detach)
+ : close_gatt_on_detach_(close_gatt_on_detach ? std::optional<bool>(*close_gatt_on_detach) : std::nullopt) {}
+
+const bool* AndroidConnectionOptions::close_gatt_on_detach() const {
+  return close_gatt_on_detach_ ? &(*close_gatt_on_detach_) : nullptr;
+}
+
+void AndroidConnectionOptions::set_close_gatt_on_detach(const bool* value_arg) {
+  close_gatt_on_detach_ = value_arg ? std::optional<bool>(*value_arg) : std::nullopt;
+}
+
+void AndroidConnectionOptions::set_close_gatt_on_detach(bool value_arg) {
+  close_gatt_on_detach_ = value_arg;
+}
+
+
+EncodableList AndroidConnectionOptions::ToEncodableList() const {
+  EncodableList list;
+  list.reserve(1);
+  list.push_back(close_gatt_on_detach_ ? EncodableValue(*close_gatt_on_detach_) : EncodableValue());
+  return list;
+}
+
+AndroidConnectionOptions AndroidConnectionOptions::FromEncodableList(const EncodableList& list) {
+  AndroidConnectionOptions decoded;
+  auto& encodable_close_gatt_on_detach = list[0];
+  if (!encodable_close_gatt_on_detach.IsNull()) {
+    decoded.set_close_gatt_on_detach(std::get<bool>(encodable_close_gatt_on_detach));
+  }
+  return decoded;
+}
+
+bool AndroidConnectionOptions::operator==(const AndroidConnectionOptions& other) const {
+  return PigeonInternalDeepEquals(close_gatt_on_detach_, other.close_gatt_on_detach_);
+}
+
+bool AndroidConnectionOptions::operator!=(const AndroidConnectionOptions& other) const {
+  return !(*this == other);
+}
+
+size_t AndroidConnectionOptions::Hash() const {
+  size_t result = 1;
+  result = result * 31 + PigeonInternalDeepHash(close_gatt_on_detach_);
+  return result;
+}
+
+size_t PigeonInternalDeepHash(const AndroidConnectionOptions& v) {
+  return v.Hash();
+}
+
 // ConnectionPlatformConfig
 
 ConnectionPlatformConfig::ConnectionPlatformConfig() {}
 
-ConnectionPlatformConfig::ConnectionPlatformConfig(const AppleConnectionOptions* apple)
- : apple_(apple ? std::make_unique<AppleConnectionOptions>(*apple) : nullptr) {}
+ConnectionPlatformConfig::ConnectionPlatformConfig(
+  const AppleConnectionOptions* apple,
+  const AndroidConnectionOptions* android)
+ : apple_(apple ? std::make_unique<AppleConnectionOptions>(*apple) : nullptr),
+    android_(android ? std::make_unique<AndroidConnectionOptions>(*android) : nullptr) {}
 
 ConnectionPlatformConfig::ConnectionPlatformConfig(const ConnectionPlatformConfig& other)
- : apple_(other.apple_ ? std::make_unique<AppleConnectionOptions>(*other.apple_) : nullptr) {}
+ : apple_(other.apple_ ? std::make_unique<AppleConnectionOptions>(*other.apple_) : nullptr),
+    android_(other.android_ ? std::make_unique<AndroidConnectionOptions>(*other.android_) : nullptr) {}
 
 ConnectionPlatformConfig& ConnectionPlatformConfig::operator=(const ConnectionPlatformConfig& other) {
   apple_ = other.apple_ ? std::make_unique<AppleConnectionOptions>(*other.apple_) : nullptr;
+  android_ = other.android_ ? std::make_unique<AndroidConnectionOptions>(*other.android_) : nullptr;
   return *this;
 }
 
@@ -1326,10 +1385,24 @@ void ConnectionPlatformConfig::set_apple(const AppleConnectionOptions& value_arg
 }
 
 
+const AndroidConnectionOptions* ConnectionPlatformConfig::android() const {
+  return android_.get();
+}
+
+void ConnectionPlatformConfig::set_android(const AndroidConnectionOptions* value_arg) {
+  android_ = value_arg ? std::make_unique<AndroidConnectionOptions>(*value_arg) : nullptr;
+}
+
+void ConnectionPlatformConfig::set_android(const AndroidConnectionOptions& value_arg) {
+  android_ = std::make_unique<AndroidConnectionOptions>(value_arg);
+}
+
+
 EncodableList ConnectionPlatformConfig::ToEncodableList() const {
   EncodableList list;
-  list.reserve(1);
+  list.reserve(2);
   list.push_back(apple_ ? CustomEncodableValue(*apple_) : EncodableValue());
+  list.push_back(android_ ? CustomEncodableValue(*android_) : EncodableValue());
   return list;
 }
 
@@ -1339,11 +1412,15 @@ ConnectionPlatformConfig ConnectionPlatformConfig::FromEncodableList(const Encod
   if (!encodable_apple.IsNull()) {
     decoded.set_apple(std::any_cast<const AppleConnectionOptions&>(std::get<CustomEncodableValue>(encodable_apple)));
   }
+  auto& encodable_android = list[1];
+  if (!encodable_android.IsNull()) {
+    decoded.set_android(std::any_cast<const AndroidConnectionOptions&>(std::get<CustomEncodableValue>(encodable_android)));
+  }
   return decoded;
 }
 
 bool ConnectionPlatformConfig::operator==(const ConnectionPlatformConfig& other) const {
-  return PigeonInternalDeepEquals(apple_, other.apple_);
+  return PigeonInternalDeepEquals(apple_, other.apple_) && PigeonInternalDeepEquals(android_, other.android_);
 }
 
 bool ConnectionPlatformConfig::operator!=(const ConnectionPlatformConfig& other) const {
@@ -1353,6 +1430,7 @@ bool ConnectionPlatformConfig::operator!=(const ConnectionPlatformConfig& other)
 size_t ConnectionPlatformConfig::Hash() const {
   size_t result = 1;
   result = result * 31 + PigeonInternalDeepHash(apple_);
+  result = result * 31 + PigeonInternalDeepHash(android_);
   return result;
 }
 
@@ -2091,27 +2169,30 @@ EncodableValue PigeonInternalCodecSerializer::ReadValueOfType(
         return CustomEncodableValue(AppleConnectionOptions::FromEncodableList(std::get<EncodableList>(ReadValue(stream))));
       }
     case 155: {
-        return CustomEncodableValue(ConnectionPlatformConfig::FromEncodableList(std::get<EncodableList>(ReadValue(stream))));
+        return CustomEncodableValue(AndroidConnectionOptions::FromEncodableList(std::get<EncodableList>(ReadValue(stream))));
       }
     case 156: {
-        return CustomEncodableValue(PeripheralAndroidOptions::FromEncodableList(std::get<EncodableList>(ReadValue(stream))));
+        return CustomEncodableValue(ConnectionPlatformConfig::FromEncodableList(std::get<EncodableList>(ReadValue(stream))));
       }
     case 157: {
-        return CustomEncodableValue(PeripheralPlatformConfig::FromEncodableList(std::get<EncodableList>(ReadValue(stream))));
+        return CustomEncodableValue(PeripheralAndroidOptions::FromEncodableList(std::get<EncodableList>(ReadValue(stream))));
       }
     case 158: {
-        return CustomEncodableValue(PeripheralService::FromEncodableList(std::get<EncodableList>(ReadValue(stream))));
+        return CustomEncodableValue(PeripheralPlatformConfig::FromEncodableList(std::get<EncodableList>(ReadValue(stream))));
       }
     case 159: {
-        return CustomEncodableValue(PeripheralCharacteristic::FromEncodableList(std::get<EncodableList>(ReadValue(stream))));
+        return CustomEncodableValue(PeripheralService::FromEncodableList(std::get<EncodableList>(ReadValue(stream))));
       }
     case 160: {
-        return CustomEncodableValue(PeripheralDescriptor::FromEncodableList(std::get<EncodableList>(ReadValue(stream))));
+        return CustomEncodableValue(PeripheralCharacteristic::FromEncodableList(std::get<EncodableList>(ReadValue(stream))));
       }
     case 161: {
-        return CustomEncodableValue(PeripheralReadRequestResult::FromEncodableList(std::get<EncodableList>(ReadValue(stream))));
+        return CustomEncodableValue(PeripheralDescriptor::FromEncodableList(std::get<EncodableList>(ReadValue(stream))));
       }
     case 162: {
+        return CustomEncodableValue(PeripheralReadRequestResult::FromEncodableList(std::get<EncodableList>(ReadValue(stream))));
+      }
+    case 163: {
         return CustomEncodableValue(PeripheralWriteRequestResult::FromEncodableList(std::get<EncodableList>(ReadValue(stream))));
       }
     default:
@@ -2253,43 +2334,48 @@ void PigeonInternalCodecSerializer::WriteValue(
       WriteValue(EncodableValue(std::any_cast<AppleConnectionOptions>(*custom_value).ToEncodableList()), stream);
       return;
     }
-    if (custom_value->type() == typeid(ConnectionPlatformConfig)) {
+    if (custom_value->type() == typeid(AndroidConnectionOptions)) {
       stream->WriteByte(155);
+      WriteValue(EncodableValue(std::any_cast<AndroidConnectionOptions>(*custom_value).ToEncodableList()), stream);
+      return;
+    }
+    if (custom_value->type() == typeid(ConnectionPlatformConfig)) {
+      stream->WriteByte(156);
       WriteValue(EncodableValue(std::any_cast<ConnectionPlatformConfig>(*custom_value).ToEncodableList()), stream);
       return;
     }
     if (custom_value->type() == typeid(PeripheralAndroidOptions)) {
-      stream->WriteByte(156);
+      stream->WriteByte(157);
       WriteValue(EncodableValue(std::any_cast<PeripheralAndroidOptions>(*custom_value).ToEncodableList()), stream);
       return;
     }
     if (custom_value->type() == typeid(PeripheralPlatformConfig)) {
-      stream->WriteByte(157);
+      stream->WriteByte(158);
       WriteValue(EncodableValue(std::any_cast<PeripheralPlatformConfig>(*custom_value).ToEncodableList()), stream);
       return;
     }
     if (custom_value->type() == typeid(PeripheralService)) {
-      stream->WriteByte(158);
+      stream->WriteByte(159);
       WriteValue(EncodableValue(std::any_cast<PeripheralService>(*custom_value).ToEncodableList()), stream);
       return;
     }
     if (custom_value->type() == typeid(PeripheralCharacteristic)) {
-      stream->WriteByte(159);
+      stream->WriteByte(160);
       WriteValue(EncodableValue(std::any_cast<PeripheralCharacteristic>(*custom_value).ToEncodableList()), stream);
       return;
     }
     if (custom_value->type() == typeid(PeripheralDescriptor)) {
-      stream->WriteByte(160);
+      stream->WriteByte(161);
       WriteValue(EncodableValue(std::any_cast<PeripheralDescriptor>(*custom_value).ToEncodableList()), stream);
       return;
     }
     if (custom_value->type() == typeid(PeripheralReadRequestResult)) {
-      stream->WriteByte(161);
+      stream->WriteByte(162);
       WriteValue(EncodableValue(std::any_cast<PeripheralReadRequestResult>(*custom_value).ToEncodableList()), stream);
       return;
     }
     if (custom_value->type() == typeid(PeripheralWriteRequestResult)) {
-      stream->WriteByte(162);
+      stream->WriteByte(163);
       WriteValue(EncodableValue(std::any_cast<PeripheralWriteRequestResult>(*custom_value).ToEncodableList()), stream);
       return;
     }
