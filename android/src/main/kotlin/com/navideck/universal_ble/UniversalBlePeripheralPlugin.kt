@@ -28,7 +28,7 @@ import android.util.Log
 import io.flutter.plugin.common.BinaryMessenger
 
 private const val TAG = "UniversalBlePeripheral"
-private const val REQUEST_CODE_ENABLE_BLUETOOTH = 0xB1E
+private const val REQUEST_CODE_ENABLE_BLUETOOTH = 2342717
 
 @SuppressLint("MissingPermission")
 class UniversalBlePeripheralPlugin(
@@ -110,20 +110,33 @@ class UniversalBlePeripheralPlugin(
 
     override fun getAdvertisingState(): PeripheralAdvertisingState = advertisingState
 
-    private fun hasBluetoothAdvertisePermission(): Boolean {
+    private fun hasRequiredPermissions(): Boolean {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) return true
-        return ContextCompat.checkSelfPermission(
+        val hasAdvertise = ContextCompat.checkSelfPermission(
             applicationContext,
             Manifest.permission.BLUETOOTH_ADVERTISE,
         ) == PackageManager.PERMISSION_GRANTED
+        val hasConnect = ContextCompat.checkSelfPermission(
+            applicationContext,
+            Manifest.permission.BLUETOOTH_CONNECT,
+        ) == PackageManager.PERMISSION_GRANTED
+        return hasAdvertise && hasConnect
     }
 
     override fun getReadinessState(): PeripheralReadinessState {
         val adapter = bluetoothManager.adapter ?: return PeripheralReadinessState.UNSUPPORTED
-        if (!hasBluetoothAdvertisePermission()) return PeripheralReadinessState.UNAUTHORIZED
-        if (!adapter.isEnabled) return PeripheralReadinessState.BLUETOOTH_OFF
-        if (adapter.bluetoothLeAdvertiser == null) return PeripheralReadinessState.UNSUPPORTED
-        return PeripheralReadinessState.READY
+        if (!hasRequiredPermissions()) return PeripheralReadinessState.UNAUTHORIZED
+        return try {
+            if (!adapter.isEnabled) {
+                PeripheralReadinessState.BLUETOOTH_OFF
+            } else if (adapter.bluetoothLeAdvertiser == null) {
+                PeripheralReadinessState.UNSUPPORTED
+            } else {
+                PeripheralReadinessState.READY
+            }
+        } catch (e: SecurityException) {
+            PeripheralReadinessState.UNAUTHORIZED
+        }
     }
 
     override fun addService(service: PeripheralService) {
@@ -150,7 +163,25 @@ class UniversalBlePeripheralPlugin(
         manufacturerData: UniversalManufacturerData?,
         platformConfig: PeripheralPlatformConfig?,
     ) {
-        if (!bluetoothManager.isBluetoothEnabled()) {
+        if (!hasRequiredPermissions()) {
+            advertisingState = PeripheralAdvertisingState.ERROR
+            callback.onAdvertisingStateChange(
+                PeripheralAdvertisingState.ERROR,
+                "Bluetooth permission not granted",
+            ) {}
+            throw SecurityException("Bluetooth permission not granted")
+        }
+        val isEnabled = try {
+            bluetoothManager.isBluetoothEnabled()
+        } catch (e: SecurityException) {
+            advertisingState = PeripheralAdvertisingState.ERROR
+            callback.onAdvertisingStateChange(
+                PeripheralAdvertisingState.ERROR,
+                "Bluetooth permission not granted",
+            ) {}
+            throw e
+        }
+        if (!isEnabled) {
             advertisingState = PeripheralAdvertisingState.ERROR
             callback.onAdvertisingStateChange(
                 PeripheralAdvertisingState.ERROR,
