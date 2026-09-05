@@ -1,6 +1,10 @@
 package com.navideck.universal_ble
 
 import android.annotation.SuppressLint
+import android.Manifest
+import android.content.pm.PackageManager
+import android.os.Build
+import androidx.core.content.ContextCompat
 import android.app.Activity
 import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothDevice
@@ -42,6 +46,7 @@ class UniversalBlePeripheralPlugin(
     private var advertisingState: PeripheralAdvertisingState = PeripheralAdvertisingState.IDLE
     private var originalAdapterName: String? = null
     private var adapterNameOverridden = false
+    private var isEnableBluetoothPromptPending = false
 
 
     fun attachActivity(activity: Activity?) {
@@ -59,6 +64,15 @@ class UniversalBlePeripheralPlugin(
         }
         synchronized(mtuByDeviceId) { mtuByDeviceId.clear() }
         clearPeripheralCaches()
+        isEnableBluetoothPromptPending = false
+    }
+
+    fun handleActivityResult(requestCode: Int, resultCode: Int, data: Intent?): Boolean {
+        if (requestCode == 0xB1E) {
+            isEnableBluetoothPromptPending = false
+            return true
+        }
+        return false
     }
 
     /** Opens the LE advertiser and GATT server on first use (not in the constructor). */
@@ -81,10 +95,19 @@ class UniversalBlePeripheralPlugin(
 
     override fun getAdvertisingState(): PeripheralAdvertisingState = advertisingState
 
+    private fun hasBluetoothAdvertisePermission(): Boolean {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) return true
+        return ContextCompat.checkSelfPermission(
+            applicationContext,
+            Manifest.permission.BLUETOOTH_ADVERTISE,
+        ) == PackageManager.PERMISSION_GRANTED
+    }
+
     override fun getReadinessState(): PeripheralReadinessState {
         val adapter = bluetoothManager.adapter ?: return PeripheralReadinessState.UNSUPPORTED
-        if (!adapter.isMultipleAdvertisementSupported) return PeripheralReadinessState.UNSUPPORTED
+        if (!hasBluetoothAdvertisePermission()) return PeripheralReadinessState.UNAUTHORIZED
         if (!adapter.isEnabled) return PeripheralReadinessState.BLUETOOTH_OFF
+        if (adapter.bluetoothLeAdvertiser == null) return PeripheralReadinessState.UNSUPPORTED
         return PeripheralReadinessState.READY
     }
 
@@ -119,12 +142,16 @@ class UniversalBlePeripheralPlugin(
                 PeripheralAdvertisingState.ERROR,
                 "Bluetooth is not enabled",
             ) {}
-            activity?.startActivityForResult(
-                Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE),
-                0xB1E,
-            )
+            if (!isEnableBluetoothPromptPending) {
+                isEnableBluetoothPromptPending = true
+                activity?.startActivityForResult(
+                    Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE),
+                    0xB1E,
+                )
+            }
             throw Exception("Bluetooth is not enabled")
         }
+        isEnableBluetoothPromptPending = false
         advertisingState = PeripheralAdvertisingState.STARTING
         callback.onAdvertisingStateChange(PeripheralAdvertisingState.STARTING, null) {}
 
