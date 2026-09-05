@@ -1749,6 +1749,9 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
     }
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?): Boolean {
+        if (peripheralPlugin.handleActivityResult(requestCode, resultCode, data)) {
+            return true
+        }
         if (requestCode == bluetoothEnableRequestCode) {
             val future = bluetoothEnableRequestFuture ?: return false
             future(Result.success(resultCode == Activity.RESULT_OK))
