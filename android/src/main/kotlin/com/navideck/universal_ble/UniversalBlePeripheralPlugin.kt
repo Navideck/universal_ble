@@ -28,6 +28,7 @@ import android.util.Log
 import io.flutter.plugin.common.BinaryMessenger
 
 private const val TAG = "UniversalBlePeripheral"
+private const val REQUEST_CODE_ENABLE_BLUETOOTH = 0xB1E
 
 @SuppressLint("MissingPermission")
 class UniversalBlePeripheralPlugin(
@@ -68,11 +69,25 @@ class UniversalBlePeripheralPlugin(
     }
 
     fun handleActivityResult(requestCode: Int, resultCode: Int, data: Intent?): Boolean {
-        if (requestCode == 0xB1E) {
+        if (requestCode == REQUEST_CODE_ENABLE_BLUETOOTH) {
             isEnableBluetoothPromptPending = false
             return true
         }
         return false
+    }
+
+    private fun promptEnableBluetooth(activity: Activity) {
+        if (isEnableBluetoothPromptPending) return
+        isEnableBluetoothPromptPending = true
+        try {
+            activity.startActivityForResult(
+                Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE),
+                REQUEST_CODE_ENABLE_BLUETOOTH,
+            )
+        } catch (e: Exception) {
+            isEnableBluetoothPromptPending = false
+            Log.e(TAG, "Failed to start Bluetooth enable activity", e)
+        }
     }
 
     /** Opens the LE advertiser and GATT server on first use (not in the constructor). */
@@ -141,19 +156,7 @@ class UniversalBlePeripheralPlugin(
                 PeripheralAdvertisingState.ERROR,
                 "Bluetooth is not enabled",
             ) {}
-            val currentActivity = activity
-            if (!isEnableBluetoothPromptPending && currentActivity != null) {
-                isEnableBluetoothPromptPending = true
-                try {
-                    currentActivity.startActivityForResult(
-                        Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE),
-                        0xB1E,
-                    )
-                } catch (e: Exception) {
-                    isEnableBluetoothPromptPending = false
-                    Log.e(TAG, "Failed to start Bluetooth enable activity", e)
-                }
-            }
+            activity?.let { promptEnableBluetooth(it) }
             throw Exception("Bluetooth is not enabled")
         }
         isEnableBluetoothPromptPending = false
