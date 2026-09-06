@@ -4,6 +4,7 @@
 * Android: add `closeGattOnDetach` connection option to release GATT clients when the app is killed
 * Android: close the GATT client once the disconnect completes instead of right after `disconnect()`, and report the real disconnect status
 * Android: Fix peripheral `getReadinessState()` to check permissions and adapter power before advertising support, and throttle `startAdvertising` Bluetooth enable prompts to at most one dialog.
+* Add `isSubscribed` and `getSubscribedCharacteristics` to check characteristic notification/indication subscription status in Central mode.
 
 
 ## 2.2.0

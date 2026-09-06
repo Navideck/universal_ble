@@ -414,6 +414,23 @@ Unsubscribe from notifications and indications of this characteristic.
 await characteristic.unsubscribe();
 ```
 
+### Check Subscription Status
+
+Check if a characteristic is currently subscribed to:
+
+```dart
+// Via BleCharacteristic or CharacteristicSubscription
+bool isSubscribed = characteristic.isSubscribed;
+// or
+bool isSubscribed = characteristic.notifications.isSubscribed;
+
+// Or globally via UniversalBle
+bool isSubscribed = UniversalBle.isSubscribed(deviceId, characteristicId);
+
+// Get all subscribed characteristic UUIDs for a device
+List<String> subscribedChars = UniversalBle.getSubscribedCharacteristics(deviceId);
+```
+
 ### Pairing
 
 #### Trigger pairing
