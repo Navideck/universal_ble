@@ -470,6 +470,10 @@ class UniversalBle {
   ///
   /// **Note**: The device must be connected before reading RSSI.
   ///
+  /// By default, RSSI reads bypass the GATT command serialization queue so that periodic
+  /// telemetry polling does not block or get blocked by queued GATT operations.
+  /// If serialization is desired, an explicit [queueId] can be provided.
+  ///
   /// Throws [UniversalBleException] if:
   /// - The device is not connected
   /// - Reading RSSI fails
@@ -478,12 +482,17 @@ class UniversalBle {
     Duration? timeout,
     String? queueId,
   }) async {
-    return await _bleCommandQueue.queueCommand(
-      () => _platform.readRssi(deviceId),
-      timeout: timeout,
-      deviceId: deviceId,
-      queueId: queueId,
-    );
+    if (queueId != null) {
+      return await _bleCommandQueue.queueCommand(
+        () => _platform.readRssi(deviceId),
+        timeout: timeout,
+        deviceId: deviceId,
+        queueId: queueId,
+      );
+    }
+    final future = _platform.readRssi(deviceId);
+    final timeoutDuration = timeout ?? _bleCommandQueue.timeout;
+    return timeoutDuration != null ? await future.timeout(timeoutDuration) : await future;
   }
 
   /// Check if a device is paired.
