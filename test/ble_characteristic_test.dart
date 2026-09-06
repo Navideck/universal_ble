@@ -53,8 +53,30 @@ void main() {
     test("Subscription Test", () async {
       BleCharacteristic characteristic = mockBleCharacteristic;
 
+      expect(characteristic.isSubscribed, false);
+      expect(characteristic.notifications.isSubscribed, false);
+      expect(UniversalBle.isSubscribed(mockDeviceId, characteristicId), false);
+      expect(UniversalBle.getSubscribedCharacteristics(mockDeviceId), isEmpty);
+
       debugPrint("Subscribing to char");
       await characteristic.notifications.subscribe();
+
+      expect(characteristic.isSubscribed, true);
+      expect(characteristic.notifications.isSubscribed, true);
+      expect(UniversalBle.isSubscribed(mockDeviceId, characteristicId), true);
+      // Case-insensitivity check for deviceId and normalized UUID check
+      expect(
+        UniversalBle.isSubscribed(mockDeviceId.toUpperCase(), characteristicId),
+        true,
+      );
+      expect(
+        UniversalBle.isSubscribed(mockDeviceId, characteristic.uuid),
+        true,
+      );
+      expect(
+        UniversalBle.getSubscribedCharacteristics(mockDeviceId),
+        contains(characteristic.uuid),
+      );
 
       bool gotEvent = false;
       var subscription = characteristic.notifications.listen((data) {
@@ -66,8 +88,28 @@ void main() {
       await characteristic.notifications.unsubscribe();
       debugPrint("Unsubscribed from char");
 
+      expect(characteristic.isSubscribed, false);
+      expect(characteristic.notifications.isSubscribed, false);
+      expect(UniversalBle.isSubscribed(mockDeviceId, characteristicId), false);
+      expect(UniversalBle.getSubscribedCharacteristics(mockDeviceId), isEmpty);
+
       subscription.cancel();
       expect(gotEvent, true);
+    });
+
+    test("isSubscribed resets on device disconnect", () async {
+      BleCharacteristic characteristic = mockBleCharacteristic;
+      await characteristic.notifications.subscribe();
+      expect(characteristic.isSubscribed, true);
+      expect(UniversalBle.isSubscribed(mockDeviceId, characteristicId), true);
+
+      // Simulate device disconnect
+      platform.updateConnection(mockDeviceId, false);
+
+      expect(characteristic.isSubscribed, false);
+      expect(characteristic.notifications.isSubscribed, false);
+      expect(UniversalBle.isSubscribed(mockDeviceId, characteristicId), false);
+      expect(UniversalBle.getSubscribedCharacteristics(mockDeviceId), isEmpty);
     });
   });
 

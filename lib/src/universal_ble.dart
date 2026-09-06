@@ -1,10 +1,11 @@
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
-import 'package:universal_ble/src/utils/ble_command_queue.dart';
 import 'package:universal_ble/src/universal_ble_linux/universal_ble_linux_instance.dart';
 import 'package:universal_ble/src/universal_ble_pigeon/universal_ble_pigeon_channel.dart';
 import 'package:universal_ble/src/universal_ble_web/universal_ble_web.dart';
+import 'package:universal_ble/src/utils/ble_command_queue.dart';
+import 'package:universal_ble/src/utils/cache_handler.dart';
 import 'package:universal_ble/src/utils/universal_logger.dart';
 import 'package:universal_ble/universal_ble.dart';
 
@@ -310,6 +311,17 @@ class UniversalBle {
       queueId: queueId,
     );
   }
+
+  /// Returns whether this app is currently subscribed to notifications/indications for [characteristic].
+  ///
+  /// Subscription state is updated when [subscribeNotifications], [subscribeIndications],
+  /// or [unsubscribe] completes, and is automatically cleared when the device disconnects.
+  static bool isSubscribed(String deviceId, String characteristic) =>
+      CacheHandler.instance.isSubscribed(deviceId, characteristic);
+
+  /// Returns the list of characteristic UUIDs currently subscribed to on [deviceId].
+  static List<String> getSubscribedCharacteristics(String deviceId) =>
+      CacheHandler.instance.getSubscribedCharacteristics(deviceId);
 
   /// Read a characteristic value.
   /// On iOS and MacOS this command will also trigger [onValueChange] listener.
@@ -776,7 +788,7 @@ class UniversalBle {
     Duration? timeout,
     String? queueId,
   }) async {
-    return await _bleCommandQueue.queueCommand(
+    await _bleCommandQueue.queueCommand(
       () => _platform.setNotifiable(
         deviceId,
         BleUuidParser.string(service),
@@ -786,6 +798,11 @@ class UniversalBle {
       deviceId: deviceId,
       timeout: timeout,
       queueId: queueId,
+    );
+    CacheHandler.instance.updateSubscription(
+      deviceId,
+      characteristic,
+      bleInputProperty != BleInputProperty.disabled,
     );
   }
 

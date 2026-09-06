@@ -27,8 +27,45 @@ class CacheHandler {
   /// Retrieves the cached Bluetooth services for a specific device.
   List<BleService>? getServices(String deviceId) => _servicesCache[_key(deviceId)];
 
-  /// Resets the cache for a specific device, removing all stored services.
+  /// Internal cache to store subscribed characteristic UUIDs for each device.
+  final Map<String, Set<String>> _subscriptionsCache = {};
+
+  /// Updates the subscription state of a characteristic for a specific device.
+  void updateSubscription(
+    String deviceId,
+    String characteristicId,
+    bool isSubscribed,
+  ) {
+    final key = _key(deviceId);
+    final normalizedCharId = BleUuidParser.string(characteristicId);
+    if (isSubscribed) {
+      (_subscriptionsCache[key] ??= {}).add(normalizedCharId);
+    } else {
+      _subscriptionsCache[key]?.remove(normalizedCharId);
+      if (_subscriptionsCache[key]?.isEmpty ?? false) {
+        _subscriptionsCache.remove(key);
+      }
+    }
+  }
+
+  /// Checks if a characteristic is subscribed to on a specific device.
+  bool isSubscribed(String deviceId, String characteristicId) {
+    try {
+      final normalizedCharId = BleUuidParser.string(characteristicId);
+      return _subscriptionsCache[_key(deviceId)]?.contains(normalizedCharId) ??
+          false;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /// Retrieves the list of subscribed characteristic UUIDs for a specific device.
+  List<String> getSubscribedCharacteristics(String deviceId) =>
+      _subscriptionsCache[_key(deviceId)]?.toList() ?? [];
+
+  /// Resets the cache for a specific device, removing all stored services and subscriptions.
   void resetDeviceCache(String deviceId) {
     _servicesCache.remove(_key(deviceId));
+    _subscriptionsCache.remove(_key(deviceId));
   }
 }
