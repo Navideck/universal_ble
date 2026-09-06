@@ -100,6 +100,11 @@ void main() {
     test("isSubscribed resets on device disconnect", () async {
       BleCharacteristic characteristic = mockBleCharacteristic;
       await characteristic.notifications.subscribe();
+      addTearDown(() {
+        final mock = platform as _UniversalBleMock;
+        mock.notifierTimer?.cancel();
+        mock.notifierTimer = null;
+      });
       expect(characteristic.isSubscribed, true);
       expect(UniversalBle.isSubscribed(mockDeviceId, characteristicId), true);
 
