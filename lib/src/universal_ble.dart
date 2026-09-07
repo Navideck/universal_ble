@@ -58,7 +58,8 @@ class UniversalBle {
   static Stream<Uint8List> characteristicValueStream(
     String deviceId,
     String characteristicId,
-  ) => _platform.characteristicValueStream(deviceId, characteristicId);
+  ) =>
+      _platform.characteristicValueStream(deviceId, characteristicId);
 
   /// Pairing state stream
   static Stream<bool> pairingStateStream(String deviceId) =>
@@ -168,15 +169,15 @@ class UniversalBle {
 
     _platform
         .connect(
-          deviceId,
-          connectionTimeout: timeout,
-          autoConnect: autoConnect,
-          platformConfig: platformConfig,
-        )
+      deviceId,
+      connectionTimeout: timeout,
+      autoConnect: autoConnect,
+      platformConfig: platformConfig,
+    )
         .catchError((error) {
-          if (completer.isCompleted) return;
-          completer.completeError(ConnectionException(error));
-        });
+      if (completer.isCompleted) return;
+      completer.completeError(ConnectionException(error));
+    });
 
     if (!await completer.future.timeout(timeout)) {
       throw ConnectionException("Failed to connect");
@@ -206,15 +207,15 @@ class UniversalBle {
 
       await _bleCommandQueue
           .queueCommand(
-            () => _platform.disconnect(deviceId),
-            timeout: timeout,
-            deviceId: deviceId,
-            queueId: queueId,
-          )
+        () => _platform.disconnect(deviceId),
+        timeout: timeout,
+        deviceId: deviceId,
+        queueId: queueId,
+      )
           .catchError((error) {
-            if (completer.isCompleted) return;
-            completer.completeError(ConnectionException(error));
-          });
+        if (completer.isCompleted) return;
+        completer.completeError(ConnectionException(error));
+      });
 
       if (connectionState == BleConnectionState.disconnected ||
           connectionState == BleConnectionState.disconnecting) {
@@ -476,15 +477,11 @@ class UniversalBle {
   static Future<int> readRssi(
     String deviceId, {
     Duration? timeout,
-    String? queueId,
-  }) async {
-    return await _bleCommandQueue.queueCommand(
-      () => _platform.readRssi(deviceId),
-      timeout: timeout,
-      deviceId: deviceId,
-      queueId: queueId,
-    );
-  }
+  }) =>
+      _runWithTimeout(
+        () => _platform.readRssi(deviceId),
+        timeout: timeout,
+      );
 
   /// Check if a device is paired.
   ///
@@ -663,11 +660,9 @@ class UniversalBle {
   static set onAvailabilityChange(OnAvailabilityChange? onAvailabilityChange) {
     _platform.onAvailabilityChange = onAvailabilityChange;
     if (onAvailabilityChange != null) {
-      getBluetoothAvailabilityState()
-          .then((value) {
-            onAvailabilityChange(value);
-          })
-          .onError((error, stackTrace) => null);
+      getBluetoothAvailabilityState().then((value) {
+        onAvailabilityChange(value);
+      }).onError((error, stackTrace) => null);
     }
   }
 
@@ -738,32 +733,29 @@ class UniversalBle {
     }
 
     connectionSubscription = _platform
-        .bleConnectionUpdateStreamController
-        .stream
-        .where((e) => e.deviceId == deviceId || e.deviceId.toLowerCase() == target)
+        .bleConnectionUpdateStreamController.stream
+        .where(
+            (e) => e.deviceId == deviceId || e.deviceId.toLowerCase() == target)
         .listen(
-          (e) {
-            cancelSubscription();
-            if (e.error != null) {
-              handleError(e.error);
-            } else {
-              if (!completer.isCompleted) {
-                completer.complete(e.isConnected);
-              }
-            }
-          },
-          onError: handleError,
-          cancelOnError: true,
-        );
+      (e) {
+        cancelSubscription();
+        if (e.error != null) {
+          handleError(e.error);
+        } else {
+          if (!completer.isCompleted) {
+            completer.complete(e.isConnected);
+          }
+        }
+      },
+      onError: handleError,
+      cancelOnError: true,
+    );
 
-    completer.future
-        .timeout(timeout)
-        .then((_) {
-          cancelSubscription();
-        })
-        .catchError((_) {
-          cancelSubscription();
-        });
+    completer.future.timeout(timeout).then((_) {
+      cancelSubscription();
+    }).catchError((_) {
+      cancelSubscription();
+    });
 
     return completer;
   }
@@ -960,7 +952,8 @@ class UniversalBle {
   /// Connection parameter updates (Android API 26+).
   static set onConnectionParametersChange(
     OnConnectionParametersChange? onConnectionParametersChange,
-  ) => _platform.onConnectionParametersChange = onConnectionParametersChange;
+  ) =>
+      _platform.onConnectionParametersChange = onConnectionParametersChange;
 
   static UniversalBlePlatform _defaultPlatform() {
     if (kIsWeb) return UniversalBleWeb.instance;
@@ -968,5 +961,15 @@ class UniversalBle {
       return universalBleLinuxInstance;
     }
     return UniversalBlePigeonChannel.instance;
+  }
+
+  static Future<T> _runWithTimeout<T>(
+    Future<T> Function() action, {
+    Duration? timeout,
+  }) {
+    final timeoutDuration = timeout ?? _bleCommandQueue.timeout;
+    return timeoutDuration != null
+        ? action().timeout(timeoutDuration)
+        : action();
   }
 }

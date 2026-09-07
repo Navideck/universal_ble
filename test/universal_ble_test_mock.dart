@@ -76,6 +76,11 @@ abstract class UniversalBlePlatformMock extends UniversalBlePlatform {
   }
 
   @override
+  Future<int> readRssi(String deviceId) {
+    throw UnimplementedError();
+  }
+
+  @override
   Future<void> requestConnectionPriority(
     String deviceId,
     BleConnectionPriority priority,
