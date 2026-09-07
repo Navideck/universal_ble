@@ -476,11 +476,11 @@ class UniversalBle {
   static Future<int> readRssi(
     String deviceId, {
     Duration? timeout,
-  }) {
-    final future = _platform.readRssi(deviceId);
-    final timeoutDuration = timeout ?? _bleCommandQueue.timeout;
-    return timeoutDuration != null ? future.timeout(timeoutDuration) : future;
-  }
+  }) =>
+      _runWithTimeout(
+        () => _platform.readRssi(deviceId),
+        timeout: timeout,
+      );
 
   /// Check if a device is paired.
   ///
@@ -964,5 +964,14 @@ class UniversalBle {
       return universalBleLinuxInstance;
     }
     return UniversalBlePigeonChannel.instance;
+  }
+
+  static Future<T> _runWithTimeout<T>(
+    Future<T> Function() action, {
+    Duration? timeout,
+  }) {
+    final future = action();
+    final timeoutDuration = timeout ?? _bleCommandQueue.timeout;
+    return timeoutDuration != null ? future.timeout(timeoutDuration) : future;
   }
 }
