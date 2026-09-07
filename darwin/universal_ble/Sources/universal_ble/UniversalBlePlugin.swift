@@ -401,6 +401,10 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
       completion(Result.failure(createFlutterError(code: .characteristicNotFound, message: "Unknown characteristic:\(characteristic)")))
       return
     }
+    guard peripheral.state == .connected else {
+      completion(Result.failure(createFlutterError(code: .deviceDisconnected, message: "Device Disconnected")))
+      return
+    }
 
     let type = bleOutputProperty == .withoutResponse ? CBCharacteristicWriteType.withoutResponse : CBCharacteristicWriteType.withResponse
 
@@ -703,17 +707,20 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
   }
 
   public func peripheral(_ peripheral: CBPeripheral, didWriteValueFor characteristic: CBCharacteristic, error: Error?) {
-    characteristicWriteFutures.removeAll { future in
-      if future.deviceId == peripheral.uuid.uuidString && future.characteristicId == characteristic.uuid.uuidStr && future.serviceId == characteristic.service?.uuid.uuidStr {
-        if let flutterError = error?.toFlutterError() {
-          UniversalBleLogger.shared.logError("WRITE_FAILED <- \(peripheral.uuid.uuidString) \(characteristic.uuid.uuidStr): \(flutterError.message ?? "")")
-          future.result(Result.failure(flutterError))
-        } else {
-          future.result(Result.success({}()))
-        }
-        return true
-      }
-      return false
+    guard let index = characteristicWriteFutures.firstIndex(where: {
+      $0.deviceId == peripheral.uuid.uuidString &&
+        $0.characteristicId == characteristic.uuid.uuidStr &&
+        $0.serviceId == characteristic.service?.uuid.uuidStr
+    }) else {
+      return
+    }
+
+    let future = characteristicWriteFutures.remove(at: index)
+    if let flutterError = error?.toFlutterError() {
+      UniversalBleLogger.shared.logError("WRITE_FAILED <- \(peripheral.uuid.uuidString) \(characteristic.uuid.uuidStr): \(flutterError.message ?? "")")
+      future.result(Result.failure(flutterError))
+    } else {
+      future.result(Result.success(()))
     }
   }
 
