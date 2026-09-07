@@ -1,3 +1,6 @@
+## 3.0.0
+* **Breaking:** `queueType` now defaults to `QueueType.none` (commands run in parallel). Serialization is handled natively by each platform: Android serializes GATT operations per device (`PerDeviceGattQueue`), and Apple pipelines writes through CoreBluetooth. Set `UniversalBle.queueType = QueueType.global` (or `perDevice`) to restore the previous serialized behavior.
+
 ## 2.3.0
 * Android: serialize GATT operations per device natively (`PerDeviceGattQueue`) so `QueueType.none` and unqueued `readRssi` no longer collide on `mDeviceBusy` (fixes `GATT_ERROR`/status 133 crashes)
 * Windows: support connectionless manufacturer-data advertising without a GATT service, including state/error reporting and cleanup on stop/disposal.

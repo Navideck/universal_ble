@@ -6,8 +6,12 @@ import 'package:universal_ble/universal_ble.dart';
 
 void main() {
   group('BleCommandQueue', () {
+    test('default queue type is none', () {
+      expect(BleCommandQueue().queueType, QueueType.none);
+    });
+
     test('global queue executes commands sequentially', () async {
-      final commandQueue = BleCommandQueue();
+      final commandQueue = BleCommandQueue(queueType: QueueType.global);
       final order = <int>[];
 
       final firstStarted = Completer<void>();
@@ -36,7 +40,7 @@ void main() {
     });
 
     test('null queueId uses the global queue', () async {
-      final commandQueue = BleCommandQueue();
+      final commandQueue = BleCommandQueue(queueType: QueueType.global);
       final order = <int>[];
 
       final firstStarted = Completer<void>();
@@ -71,7 +75,7 @@ void main() {
     });
 
     test('custom queueId creates an independent queue in global mode', () async {
-      final commandQueue = BleCommandQueue();
+      final commandQueue = BleCommandQueue(queueType: QueueType.global);
       final order = <String>[];
 
       final releaseDefault = Completer<void>();
@@ -206,7 +210,7 @@ void main() {
     });
 
     test('queueCommandWithoutTimeout bypasses global timeout', () async {
-      final commandQueue = BleCommandQueue()
+      final commandQueue = BleCommandQueue(queueType: QueueType.global)
         ..timeout = const Duration(milliseconds: 10);
 
       await expectLater(
@@ -225,7 +229,7 @@ void main() {
     });
 
     test('onQueueUpdate reports remaining items per queue id', () async {
-      final commandQueue = BleCommandQueue();
+      final commandQueue = BleCommandQueue(queueType: QueueType.global);
       final updates = <String, List<int>>{};
 
       commandQueue.onQueueUpdate = (id, remaining) {
@@ -256,7 +260,7 @@ void main() {
     });
 
     test('clearQueue cancels pending commands for a specific queue id', () async {
-      final commandQueue = BleCommandQueue();
+      final commandQueue = BleCommandQueue(queueType: QueueType.global);
       final order = <String>[];
 
       final release = Completer<void>();
@@ -299,7 +303,7 @@ void main() {
     });
 
     test('clearQueue without id clears all queues', () async {
-      final commandQueue = BleCommandQueue();
+      final commandQueue = BleCommandQueue(queueType: QueueType.global);
       final releaseDefault = Completer<void>();
       final releaseCustom = Completer<void>();
       final defaultStarted = Completer<void>();
@@ -342,7 +346,7 @@ void main() {
     });
 
     test('new commands recreate a cleared queue id', () async {
-      final commandQueue = BleCommandQueue();
+      final commandQueue = BleCommandQueue(queueType: QueueType.global);
 
       commandQueue.clearQueue(BleCommandQueue.globalQueueId);
 

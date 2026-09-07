@@ -22,12 +22,13 @@ class UniversalBlePeripheral {
     _bleCommandQueue.timeout = duration;
   }
 
-  /// Set how peripheral commands will be executed. By default, all commands are executed in a global queue (`QueueType.global`),
-  /// with each command waiting for the previous one to finish.
+  /// Set how peripheral commands will be executed. By default, all commands are
+  /// executed in parallel (`QueueType.none`) and rely on each platform's
+  /// native serialization.
   ///
-  /// [QueueType.global] will execute commands in a single queue.
-  /// [QueueType.perDevice] will execute commands of each device in separate queues.
   /// [QueueType.none] will execute all commands in parallel.
+  /// [QueueType.perDevice] will execute commands of each device in separate queues.
+  /// [QueueType.global] will execute commands in a single queue.
   static set queueType(QueueType queueType) {
     _bleCommandQueue.queueType = queueType;
     UniversalLogger.logInfo('Peripheral Queue ${queueType.name}');

@@ -9,7 +9,7 @@ class BleCommandQueue {
   final Map<String, Queue> _queueMap = {};
   static const String globalQueueId = 'global';
 
-  BleCommandQueue({this.queueType = QueueType.global});
+  BleCommandQueue({this.queueType = QueueType.none});
 
   Future<T> queueCommand<T>(
     Future<T> Function() command, {
