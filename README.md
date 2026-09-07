@@ -613,9 +613,16 @@ int rssi = await bleDevice.readRssi();
 
 ## Command Queue
 
-By default, all commands are executed in a global queue (`QueueType.global`), with each command waiting for the previous one to finish. While this method is slower it is the safest to avoid command exceptions and therefore is the default.
+By default, all commands are executed in parallel (`QueueType.none`). Serialization is handled natively by each platform: Android serializes GATT operations per device (`PerDeviceGattQueue`), while Apple pipelines writes through CoreBluetooth. This gives maximum throughput with no configuration.
 
-If you want to parallelize commands between multiple devices, you can set:
+If you want to serialize commands between all devices, you can set:
+
+```dart
+// Execute all commands in a single queue, one after the other.
+UniversalBle.queueType = QueueType.global;
+```
+
+If you want to parallelize commands between multiple devices but serialize commands per device, you can set:
 
 ```dart
 // Create a separate queue for each device.
@@ -632,11 +639,11 @@ UniversalBle.write(deviceId, service, char, value2, queueId: '2');
 You can also completely disable the queue and batch all commands, even for the same device, by using:
 
 ```dart
-// Disable queue
+// Disable queue (this is the default)
 UniversalBle.queueType = QueueType.none;
 ```
 
-Keep in mind that some platforms (e.g. Android) may not handle well devices that fail to process consecutive commands without a minimum interval. Therefore, it is not advised to set `queueType` to `none`.
+Keep in mind that the Dart queue is an additional safety layer on top of native serialization. Most applications do not need it — each platform's native stack (Android `mDeviceBusy` handling, CoreBluetooth write pipelining) already prevents command collisions.
 
 You can get queue updates by setting:
 
@@ -668,7 +675,7 @@ UniversalBle.clearQueue();
 `UniversalBlePeripheral` supports the same queueing configuration (`queueType`, `timeout`, `clearQueue`, and `onQueueUpdate`) for peripheral commands (e.g. `addService`, `startAdvertising`, `updateCharacteristicValue`):
 
 ```dart
-// Configure peripheral command queue (defaults to QueueType.global)
+// Configure peripheral command queue (defaults to QueueType.none)
 UniversalBlePeripheral.queueType = QueueType.perDevice;
 
 // Clear peripheral queue

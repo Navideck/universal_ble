@@ -33,12 +33,14 @@ class UniversalBle {
     await _platform.setLogLevel(logLevel);
   }
 
-  /// Set how commands will be executed. By default, all commands are executed in a global queue (`QueueType.global`),
-  /// with each command waiting for the previous one to finish.
+  /// Set how commands will be executed. By default, all commands are executed
+  /// in parallel (`QueueType.none`) and rely on each platform's native
+  /// serialization (Android serializes GATT operations per device natively,
+  /// Apple pipelines writes through CoreBluetooth).
   ///
-  /// [QueueType.global] will execute commands of all devices in a single queue.
-  /// [QueueType.perDevice] will execute command of each device in separate queues.
   /// [QueueType.none] will execute all commands in parallel.
+  /// [QueueType.perDevice] will execute command of each device in separate queues.
+  /// [QueueType.global] will execute commands of all devices in a single queue.
   static set queueType(QueueType queueType) {
     _bleCommandQueue.queueType = queueType;
     UniversalLogger.logInfo('Queue ${queueType.name}');
