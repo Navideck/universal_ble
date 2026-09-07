@@ -1,4 +1,5 @@
 ## 2.3.0
+* Android: serialize GATT operations per device natively (`PerDeviceGattQueue`) so `QueueType.none` and unqueued `readRssi` no longer collide on `mDeviceBusy` (fixes `GATT_ERROR`/status 133 crashes)
 * Windows: support connectionless manufacturer-data advertising without a GATT service, including state/error reporting and cleanup on stop/disposal.
 * Apple: Accurately report manufacturer-data advertising capabilities.
 * Android: add `closeGattOnDetach` connection option to release GATT clients when the app is killed
