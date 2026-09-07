@@ -476,7 +476,6 @@ class UniversalBle {
   static Future<int> readRssi(
     String deviceId, {
     Duration? timeout,
-    String? queueId,
   }) {
     final future = _platform.readRssi(deviceId);
     final timeoutDuration = timeout ?? _bleCommandQueue.timeout;

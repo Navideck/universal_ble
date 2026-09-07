@@ -43,7 +43,7 @@ void main() {
     expect(platform.reads, 1);
 
     // readRssi should execute immediately without waiting for readFuture
-    final rssiFuture = UniversalBle.readRssi('device', queueId: 'custom');
+    final rssiFuture = UniversalBle.readRssi('device');
     await pumpEventQueue();
     expect(platform.rssiReads, 1);
 
