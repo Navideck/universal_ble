@@ -363,6 +363,31 @@ class UniversalBleWeb extends UniversalBlePlatform {
     );
   }
 
+  @override
+  Future<bool> isSubscribed(
+    String deviceId,
+    String service,
+    String characteristic,
+  ) async {
+    String characteristicKey = "${deviceId}_${service}_$characteristic";
+    return _characteristicStreamList.containsKey(characteristicKey);
+  }
+
+  @override
+  Future<List<String>> getSubscribedCharacteristics(String deviceId) async {
+    final prefix = "${deviceId}_";
+    final list = <String>[];
+    for (final key in _characteristicStreamList.keys) {
+      if (key.startsWith(prefix)) {
+        final parts = key.split('_');
+        if (parts.length >= 3) {
+          list.add(parts.sublist(2).join('_'));
+        }
+      }
+    }
+    return list;
+  }
+
   /// `Unimplemented`
   @override
   Future<int> readRssi(String deviceId) {

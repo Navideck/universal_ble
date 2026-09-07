@@ -270,8 +270,8 @@ void main() {
     ) async {
       final expected = Uint8List.fromList([0xde, 0xad, 0xbe, 0xef]);
       final callbackValue = Completer<Uint8List>();
-      UniversalBle
-          .onValueChange = (deviceId, characteristicId, value, timestamp) {
+      UniversalBle.onValueChange =
+          (deviceId, characteristicId, value, timestamp) {
         if (deviceId.toLowerCase() == peripheral.deviceId.toLowerCase() &&
             BleUuidParser.compareStrings(characteristicId, HilUuid.notify) &&
             !callbackValue.isCompleted) {

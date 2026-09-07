@@ -985,6 +985,35 @@ void UniversalBlePlugin::RequestConnectionPriority(
       "requestConnectionPriority is not supported on Windows platform"));
 }
 
+void UniversalBlePlugin::IsSubscribed(
+    const std::string &device_id, const std::string &service,
+    const std::string &characteristic,
+    std::function<void(ErrorOr<bool> reply)> result) {
+  const auto bluetooth_agent =
+      GetConnectedDevice(str_to_mac_address(device_id));
+  if (!bluetooth_agent) {
+    result(false);
+    return;
+  }
+  result(bluetooth_agent->IsSubscribed(service, characteristic));
+}
+
+void UniversalBlePlugin::GetSubscribedCharacteristics(
+    const std::string &device_id,
+    std::function<void(ErrorOr<flutter::EncodableList> reply)> result) {
+  const auto bluetooth_agent =
+      GetConnectedDevice(str_to_mac_address(device_id));
+  if (!bluetooth_agent) {
+    result(flutter::EncodableList{});
+    return;
+  }
+  flutter::EncodableList encodable_list;
+  for (const auto &char_uuid : bluetooth_agent->GetSubscribedCharacteristics()) {
+    encodable_list.push_back(flutter::EncodableValue(char_uuid));
+  }
+  result(encodable_list);
+}
+
 void UniversalBlePlugin::ReadRssi(
     const std::string &device_id,
     std::function<void(ErrorOr<int64_t> reply)> result) {

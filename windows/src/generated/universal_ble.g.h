@@ -1272,6 +1272,14 @@ class UniversalBlePlatformChannel {
     const std::string& device_id,
     const BleConnectionPriority& priority,
     std::function<void(std::optional<FlutterError> reply)> result) = 0;
+  virtual void IsSubscribed(
+    const std::string& device_id,
+    const std::string& service,
+    const std::string& characteristic,
+    std::function<void(ErrorOr<bool> reply)> result) = 0;
+  virtual void GetSubscribedCharacteristics(
+    const std::string& device_id,
+    std::function<void(ErrorOr<::flutter::EncodableList> reply)> result) = 0;
   virtual std::optional<FlutterError> SetLogLevel(const BleLogLevel& log_level) = 0;
 
   // The codec used by UniversalBlePlatformChannel.

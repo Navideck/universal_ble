@@ -3,7 +3,8 @@ import 'dart:typed_data';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:universal_ble/universal_ble.dart';
 
-class MockPeripheralPlatform extends Fake implements UniversalBlePeripheralPlatform {
+class MockPeripheralPlatform extends Fake
+    implements UniversalBlePeripheralPlatform {
   final List<String> callLog = [];
   Completer<void>? notifyCompleter;
 
@@ -85,10 +86,12 @@ void main() {
       await first;
       await second;
 
-      expect(mockPlatform.callLog, equals(['update:device-1:3', 'update:device-2:4']));
+      expect(mockPlatform.callLog,
+          equals(['update:device-1:3', 'update:device-2:4']));
     });
 
-    test('isolates updateCharacteristicValue by deviceId in perDevice mode', () async {
+    test('isolates updateCharacteristicValue by deviceId in perDevice mode',
+        () async {
       UniversalBlePeripheral.queueType = QueueType.perDevice;
       final releaseA = Completer<void>();
       mockPlatform.notifyCompleter = releaseA;
@@ -117,17 +120,20 @@ void main() {
 
       await firstB;
       // device-b executed independently while device-a was blocked
-      expect(mockPlatform.callLog, equals(['update:device-a:1', 'update:device-b:1']));
+      expect(mockPlatform.callLog,
+          equals(['update:device-a:1', 'update:device-b:1']));
 
       releaseA.complete();
       await firstA;
       await secondA;
 
-      expect(mockPlatform.callLog, equals([
-        'update:device-a:1',
-        'update:device-b:1',
-        'update:device-a:1',
-      ]));
+      expect(
+          mockPlatform.callLog,
+          equals([
+            'update:device-a:1',
+            'update:device-b:1',
+            'update:device-a:1',
+          ]));
     });
 
     test('clearQueue cancels pending peripheral commands', () async {

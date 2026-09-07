@@ -183,24 +183,25 @@ final class HilPeripheral {
       );
 
   Future<Uint8List> read(String characteristic) => UniversalBle.read(
-    deviceId,
-    HilUuid.service,
-    characteristic,
-    timeout: operationTimeout,
-  );
+        deviceId,
+        HilUuid.service,
+        characteristic,
+        timeout: operationTimeout,
+      );
 
   Future<void> write(
     String characteristic,
     List<int> value, {
     bool withoutResponse = false,
-  }) => UniversalBle.write(
-    deviceId,
-    HilUuid.service,
-    characteristic,
-    Uint8List.fromList(value),
-    withoutResponse: withoutResponse,
-    timeout: operationTimeout,
-  );
+  }) =>
+      UniversalBle.write(
+        deviceId,
+        HilUuid.service,
+        characteristic,
+        Uint8List.fromList(value),
+        withoutResponse: withoutResponse,
+        timeout: operationTimeout,
+      );
 
   Future<void> command(int opcode, [List<int> payload = const []]) =>
       write(HilUuid.control, [opcode, ...payload]);
@@ -231,11 +232,12 @@ final class HilPeripheral {
     required int count,
     required int size,
     required Duration interval,
-  }) => command(HilCommand.notifyBurst, [
-    ..._uint16(count),
-    ..._uint16(size),
-    ..._uint16(interval.inMilliseconds),
-  ]);
+  }) =>
+      command(HilCommand.notifyBurst, [
+        ..._uint16(count),
+        ..._uint16(size),
+        ..._uint16(interval.inMilliseconds),
+      ]);
 
   Future<void> requestNotificationScript({
     required List<int> sequenceNumbers,
@@ -269,76 +271,81 @@ final class HilPeripheral {
   Future<void> scheduleAuxiliaryService({
     required bool enabled,
     required Duration delay,
-  }) => command(HilCommand.scheduleAuxiliaryService, [
-    enabled ? 1 : 0,
-    ..._uint16(_durationMilliseconds(delay, 'delay')),
-  ]);
+  }) =>
+      command(HilCommand.scheduleAuxiliaryService, [
+        enabled ? 1 : 0,
+        ..._uint16(_durationMilliseconds(delay, 'delay')),
+      ]);
 
   Future<void> armCccDelay(Duration delay) => command(
-    HilCommand.armCccDelay,
-    _uint16(_durationMilliseconds(delay, 'delay')),
-  );
+        HilCommand.armCccDelay,
+        _uint16(_durationMilliseconds(delay, 'delay')),
+      );
 
   Future<Uint8List> readDescriptor() => UniversalBle.readDescriptor(
-    deviceId,
-    HilUuid.service,
-    HilUuid.read,
-    HilUuid.descriptor,
-    timeout: operationTimeout,
-  );
+        deviceId,
+        HilUuid.service,
+        HilUuid.read,
+        HilUuid.descriptor,
+        timeout: operationTimeout,
+      );
 
   Future<void> writeDescriptor(List<int> value) => UniversalBle.writeDescriptor(
-    deviceId,
-    HilUuid.service,
-    HilUuid.read,
-    HilUuid.descriptor,
-    Uint8List.fromList(value),
-    timeout: operationTimeout,
-  );
+        deviceId,
+        HilUuid.service,
+        HilUuid.read,
+        HilUuid.descriptor,
+        Uint8List.fromList(value),
+        timeout: operationTimeout,
+      );
 
   Future<void> armReadFault({
     int attError = 0,
     Duration delay = Duration.zero,
     Duration? disconnectAfter,
-  }) => _armOperationFault(
-    HilCommand.armReadFault,
-    attError: attError,
-    delay: delay,
-    disconnectAfter: disconnectAfter,
-  );
+  }) =>
+      _armOperationFault(
+        HilCommand.armReadFault,
+        attError: attError,
+        delay: delay,
+        disconnectAfter: disconnectAfter,
+      );
 
   Future<void> armWriteFault({
     int attError = 0,
     Duration delay = Duration.zero,
     Duration? disconnectAfter,
-  }) => _armOperationFault(
-    HilCommand.armWriteFault,
-    attError: attError,
-    delay: delay,
-    disconnectAfter: disconnectAfter,
-  );
+  }) =>
+      _armOperationFault(
+        HilCommand.armWriteFault,
+        attError: attError,
+        delay: delay,
+        disconnectAfter: disconnectAfter,
+      );
 
   Future<void> armDescriptorReadFault({
     int attError = 0,
     Duration delay = Duration.zero,
     Duration? disconnectAfter,
-  }) => _armOperationFault(
-    HilCommand.armDescriptorReadFault,
-    attError: attError,
-    delay: delay,
-    disconnectAfter: disconnectAfter,
-  );
+  }) =>
+      _armOperationFault(
+        HilCommand.armDescriptorReadFault,
+        attError: attError,
+        delay: delay,
+        disconnectAfter: disconnectAfter,
+      );
 
   Future<void> armDescriptorWriteFault({
     int attError = 0,
     Duration delay = Duration.zero,
     Duration? disconnectAfter,
-  }) => _armOperationFault(
-    HilCommand.armDescriptorWriteFault,
-    attError: attError,
-    delay: delay,
-    disconnectAfter: disconnectAfter,
-  );
+  }) =>
+      _armOperationFault(
+        HilCommand.armDescriptorWriteFault,
+        attError: attError,
+        delay: delay,
+        disconnectAfter: disconnectAfter,
+      );
 
   Future<void> _armOperationFault(
     int command, {
@@ -362,25 +369,25 @@ final class HilPeripheral {
 
   Future<void> subscribe(String characteristic, {bool indicate = false}) =>
       indicate
-      ? UniversalBle.subscribeIndications(
-          deviceId,
-          HilUuid.service,
-          characteristic,
-          timeout: operationTimeout,
-        )
-      : UniversalBle.subscribeNotifications(
-          deviceId,
-          HilUuid.service,
-          characteristic,
-          timeout: operationTimeout,
-        );
+          ? UniversalBle.subscribeIndications(
+              deviceId,
+              HilUuid.service,
+              characteristic,
+              timeout: operationTimeout,
+            )
+          : UniversalBle.subscribeNotifications(
+              deviceId,
+              HilUuid.service,
+              characteristic,
+              timeout: operationTimeout,
+            );
 
   Future<void> unsubscribe(String characteristic) => UniversalBle.unsubscribe(
-    deviceId,
-    HilUuid.service,
-    characteristic,
-    timeout: operationTimeout,
-  );
+        deviceId,
+        HilUuid.service,
+        characteristic,
+        timeout: operationTimeout,
+      );
 
   Stream<Uint8List> values(String characteristic) =>
       UniversalBle.characteristicValueStream(deviceId, characteristic);

@@ -465,6 +465,7 @@ class SubscriptionResultFuture(
     val deviceId: String,
     val characteristicId: String,
     val serviceId: String,
+    val enable: Boolean,
     val result: (Result<Unit>) -> Unit,
 )
 

@@ -70,7 +70,8 @@ void main() {
       expect(order, [1, 2]);
     });
 
-    test('custom queueId creates an independent queue in global mode', () async {
+    test('custom queueId creates an independent queue in global mode',
+        () async {
       final commandQueue = BleCommandQueue();
       final order = <String>[];
 
@@ -255,7 +256,8 @@ void main() {
       expect(updates['tilta']!.last, 0);
     });
 
-    test('clearQueue cancels pending commands for a specific queue id', () async {
+    test('clearQueue cancels pending commands for a specific queue id',
+        () async {
       final commandQueue = BleCommandQueue();
       final order = <String>[];
 
