@@ -477,10 +477,10 @@ class UniversalBle {
     String deviceId, {
     Duration? timeout,
     String? queueId,
-  }) async {
+  }) {
     final future = _platform.readRssi(deviceId);
     final timeoutDuration = timeout ?? _bleCommandQueue.timeout;
-    return timeoutDuration != null ? await future.timeout(timeoutDuration) : await future;
+    return timeoutDuration != null ? future.timeout(timeoutDuration) : future;
   }
 
   /// Check if a device is paired.
