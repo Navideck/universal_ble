@@ -76,6 +76,11 @@ abstract class UniversalBlePlatformMock extends UniversalBlePlatform {
   }
 
   @override
+  Future<int> readRssi(String deviceId) {
+    throw UnimplementedError();
+  }
+
+  @override
   Future<void> requestConnectionPriority(
     String deviceId,
     BleConnectionPriority priority,
@@ -146,6 +151,20 @@ abstract class UniversalBlePlatformMock extends UniversalBlePlatform {
 
   @override
   Future<bool> isScanning() {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<bool> isSubscribed(
+    String deviceId,
+    String service,
+    String characteristic,
+  ) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<List<String>> getSubscribedCharacteristics(String deviceId) {
     throw UnimplementedError();
   }
 }

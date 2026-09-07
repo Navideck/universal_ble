@@ -219,6 +219,33 @@ struct BluetoothDeviceAgent {
     return snapshot;
   }
 
+  bool IsSubscribed(const std::string &service,
+                    const std::string &characteristic) const {
+    std::lock_guard<std::mutex> lock(gatt_mutex);
+    if (!IsActive()) return false;
+    const auto service_it = gatt_map.find(service);
+    if (service_it == gatt_map.end()) return false;
+    const auto char_it =
+        service_it->second.characteristics.find(characteristic);
+    if (char_it == service_it->second.characteristics.end()) return false;
+    return char_it->second.subscription_token.has_value();
+  }
+
+  std::vector<std::string> GetSubscribedCharacteristics() const {
+    std::lock_guard<std::mutex> lock(gatt_mutex);
+    std::vector<std::string> result;
+    if (!IsActive()) return result;
+    for (const auto &[service_id, service] : gatt_map) {
+      for (const auto &[characteristic_id, characteristic] :
+           service.characteristics) {
+        if (characteristic.subscription_token.has_value()) {
+          result.push_back(characteristic_id);
+        }
+      }
+    }
+    return result;
+  }
+
   bool ReplaceGattMapIfUnchanged(
       std::unordered_map<std::string, GattServiceObject> &replacement,
       const uint64_t expected_revision,
@@ -591,6 +618,14 @@ private:
   void RequestConnectionPriority(
       const std::string &device_id, const BleConnectionPriority &priority,
       std::function<void(std::optional<FlutterError> reply)> result) override;
+  void IsSubscribed(
+      const std::string &device_id, const std::string &service,
+      const std::string &characteristic,
+      std::function<void(ErrorOr<bool> reply)> result) override;
+  void GetSubscribedCharacteristics(
+      const std::string &device_id,
+      std::function<void(ErrorOr<flutter::EncodableList> reply)> result)
+      override;
   void ReadRssi(const std::string &device_id,
                 std::function<void(ErrorOr<int64_t> reply)> result) override;
   void IsPaired(const std::string &device_id,

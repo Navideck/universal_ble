@@ -1568,6 +1568,8 @@ protocol UniversalBlePlatformChannel {
   func getConnectionState(deviceId: String) throws -> BleConnectionState
   func readRssi(deviceId: String, completion: @escaping (Result<Int64, Error>) -> Void)
   func requestConnectionPriority(deviceId: String, priority: BleConnectionPriority, completion: @escaping (Result<Void, Error>) -> Void)
+  func isSubscribed(deviceId: String, service: String, characteristic: String, completion: @escaping (Result<Bool, Error>) -> Void)
+  func getSubscribedCharacteristics(deviceId: String, completion: @escaping (Result<[String], Error>) -> Void)
   func setLogLevel(logLevel: BleLogLevel) throws
 }
 
@@ -1980,6 +1982,42 @@ class UniversalBlePlatformChannelSetup {
       }
     } else {
       requestConnectionPriorityChannel.setMessageHandler(nil)
+    }
+    let isSubscribedChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.universal_ble.UniversalBlePlatformChannel.isSubscribed\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    if let api = api {
+      isSubscribedChannel.setMessageHandler { message, reply in
+        let args = message as! [Any?]
+        let deviceIdArg = args[0] as! String
+        let serviceArg = args[1] as! String
+        let characteristicArg = args[2] as! String
+        api.isSubscribed(deviceId: deviceIdArg, service: serviceArg, characteristic: characteristicArg) { result in
+          switch result {
+          case .success(let res):
+            reply(wrapResult(res))
+          case .failure(let error):
+            reply(wrapError(error))
+          }
+        }
+      }
+    } else {
+      isSubscribedChannel.setMessageHandler(nil)
+    }
+    let getSubscribedCharacteristicsChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.universal_ble.UniversalBlePlatformChannel.getSubscribedCharacteristics\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    if let api = api {
+      getSubscribedCharacteristicsChannel.setMessageHandler { message, reply in
+        let args = message as! [Any?]
+        let deviceIdArg = args[0] as! String
+        api.getSubscribedCharacteristics(deviceId: deviceIdArg) { result in
+          switch result {
+          case .success(let res):
+            reply(wrapResult(res))
+          case .failure(let error):
+            reply(wrapError(error))
+          }
+        }
+      }
+    } else {
+      getSubscribedCharacteristicsChannel.setMessageHandler(nil)
     }
     let setLogLevelChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.universal_ble.UniversalBlePlatformChannel.setLogLevel\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
     if let api = api {

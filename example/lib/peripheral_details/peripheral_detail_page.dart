@@ -33,6 +33,7 @@ class _PeripheralDetailPageState extends State<PeripheralDetailPage> {
   BleService? selectedService;
   BleCharacteristic? selectedCharacteristic;
   BleDescriptor? selectedDescriptor;
+  bool? isCharacteristicSubscribed;
 
   @override
   void initState() {
@@ -227,6 +228,7 @@ class _PeripheralDetailPageState extends State<PeripheralDetailPage> {
       if (subscription == null) throw 'No notify or indicate property';
       await subscription.subscribe();
       _addLog('BleCharSubscription', 'Subscribed');
+      _checkIsSubscribed();
       // Updates can also be handled by
       // subscription.listen((data) {});
     } catch (e) {
@@ -238,8 +240,45 @@ class _PeripheralDetailPageState extends State<PeripheralDetailPage> {
     try {
       await selectedCharacteristic?.unsubscribe();
       _addLog('BleCharSubscription', 'UnSubscribed');
+      _checkIsSubscribed();
     } catch (e) {
       _addLog('NotifyError', e);
+    }
+  }
+
+  Future<void> _checkIsSubscribed() async {
+    BleCharacteristic? selectedCharacteristic = this.selectedCharacteristic;
+    if (selectedCharacteristic == null) return;
+    try {
+      bool isSubscribed = await selectedCharacteristic.isSubscribed();
+      setState(() {
+        isCharacteristicSubscribed = isSubscribed;
+      });
+      _addLog('isSubscribed', isSubscribed);
+    } catch (e) {
+      _addLog('isSubscribedError', e);
+    }
+  }
+
+  void _selectCharacteristic(
+    BleService service,
+    BleCharacteristic characteristic,
+    BleDescriptor? descriptor,
+  ) {
+    setState(() {
+      selectedService = service;
+      selectedCharacteristic = characteristic;
+      selectedDescriptor = descriptor ??
+          (characteristic.descriptors.isNotEmpty
+              ? characteristic.descriptors.first
+              : null);
+      isCharacteristicSubscribed = null;
+    });
+    if (_hasSelectedCharacteristicProperty([
+      CharacteristicProperty.notify,
+      CharacteristicProperty.indicate,
+    ])) {
+      _checkIsSubscribed();
     }
   }
 
@@ -299,16 +338,7 @@ class _PeripheralDetailPageState extends State<PeripheralDetailPage> {
                       : ServicesListWidget(
                           discoveredServices: discoveredServices,
                           scrollable: true,
-                          onTap: (service, characteristic, descriptor) {
-                            setState(() {
-                              selectedService = service;
-                              selectedCharacteristic = characteristic;
-                              selectedDescriptor = descriptor ??
-                                  (characteristic.descriptors.isNotEmpty
-                                      ? characteristic.descriptors.first
-                                      : null);
-                            });
-                          },
+                          onTap: _selectCharacteristic,
                         ),
                 ),
               ),
@@ -378,6 +408,35 @@ class _PeripheralDetailPageState extends State<PeripheralDetailPage> {
                                       Text(
                                         "Properties: ${selectedCharacteristic?.properties.map((e) => e.name)}",
                                       ),
+                                      if (_hasSelectedCharacteristicProperty([
+                                        CharacteristicProperty.notify,
+                                        CharacteristicProperty.indicate,
+                                      ])) ...[
+                                        const SizedBox(height: 4),
+                                        Row(
+                                          children: [
+                                            Text(
+                                              "Subscribed: ${isCharacteristicSubscribed == null ? 'Unknown' : (isCharacteristicSubscribed! ? 'Yes' : 'No')}",
+                                              style: TextStyle(
+                                                fontWeight: FontWeight.bold,
+                                                color: isCharacteristicSubscribed ==
+                                                        true
+                                                    ? Colors.green
+                                                    : (isCharacteristicSubscribed ==
+                                                            false
+                                                        ? Colors.red
+                                                        : null),
+                                              ),
+                                            ),
+                                            const SizedBox(width: 4),
+                                            InkWell(
+                                              onTap: _checkIsSubscribed,
+                                              child: const Icon(Icons.refresh,
+                                                  size: 16),
+                                            ),
+                                          ],
+                                        ),
+                                      ],
                                       if (selectedCharacteristic != null &&
                                           selectedCharacteristic!
                                               .descriptors.isNotEmpty) ...[
@@ -560,6 +619,32 @@ class _PeripheralDetailPageState extends State<PeripheralDetailPage> {
                               text: 'Unsubscribe',
                             ),
                             PlatformButton(
+                              enabled: isConnected &&
+                                  discoveredServices.isNotEmpty &&
+                                  _hasSelectedCharacteristicProperty([
+                                    CharacteristicProperty.notify,
+                                    CharacteristicProperty.indicate
+                                  ]),
+                              onPressed: _checkIsSubscribed,
+                              text: 'isSubscribed',
+                            ),
+                            PlatformButton(
+                              enabled:
+                                  isConnected && discoveredServices.isNotEmpty,
+                              onPressed: () async {
+                                try {
+                                  List<String> list = await UniversalBle
+                                      .getSubscribedCharacteristics(
+                                    bleDevice.deviceId,
+                                  );
+                                  _addLog('SubscribedCharacteristics', list);
+                                } catch (e) {
+                                  _addLog('SubscribedCharacteristicsError', e);
+                                }
+                              },
+                              text: 'Get Subscribed Chars',
+                            ),
+                            PlatformButton(
                               enabled: BleCapabilities.supportsAllPairingKinds,
                               onPressed: () async {
                                 try {
@@ -601,16 +686,7 @@ class _PeripheralDetailPageState extends State<PeripheralDetailPage> {
                       if (deviceType != DeviceType.desktop)
                         ServicesListWidget(
                           discoveredServices: discoveredServices,
-                          onTap: (service, characteristic, descriptor) {
-                            setState(() {
-                              selectedService = service;
-                              selectedCharacteristic = characteristic;
-                              selectedDescriptor = descriptor ??
-                                  (characteristic.descriptors.isNotEmpty
-                                      ? characteristic.descriptors.first
-                                      : null);
-                            });
-                          },
+                          onTap: _selectCharacteristic,
                         ),
                       const Divider(),
                       ResultWidget(

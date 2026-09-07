@@ -416,19 +416,19 @@ await characteristic.unsubscribe();
 
 ### Check Subscription Status
 
-Check if a characteristic is currently subscribed to:
+Check if a characteristic is currently subscribed to (queries native platform state, surviving Hot Restart):
 
 ```dart
 // Via BleCharacteristic or CharacteristicSubscription
-bool isSubscribed = characteristic.isSubscribed;
+bool isSubscribed = await characteristic.isSubscribed();
 // or
-bool isSubscribed = characteristic.notifications.isSubscribed;
+bool isSubscribed = await characteristic.notifications.isSubscribed();
 
 // Or globally via UniversalBle
-bool isSubscribed = UniversalBle.isSubscribed(deviceId, characteristicId);
+bool isSubscribed = await UniversalBle.isSubscribed(deviceId, characteristicId);
 
 // Get all subscribed characteristic UUIDs for a device
-List<String> subscribedChars = UniversalBle.getSubscribedCharacteristics(deviceId);
+List<String> subscribedChars = await UniversalBle.getSubscribedCharacteristics(deviceId);
 ```
 
 ### Pairing

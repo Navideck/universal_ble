@@ -204,6 +204,25 @@ class UniversalBlePigeonChannel extends UniversalBlePlatform
       );
 
   @override
+  Future<bool> isSubscribed(
+    String deviceId,
+    String service,
+    String characteristic,
+  ) =>
+      _executeWithErrorHandling(
+        () => _channel.isSubscribed(deviceId, service, characteristic),
+      );
+
+  @override
+  Future<List<String>> getSubscribedCharacteristics(String deviceId) =>
+      _executeWithErrorHandling(
+        () async {
+          final list = await _channel.getSubscribedCharacteristics(deviceId);
+          return list.cast<String>();
+        },
+      );
+
+  @override
   Future<bool> isPaired(String deviceId) =>
       _executeWithErrorHandling(() => _channel.isPaired(deviceId));
 

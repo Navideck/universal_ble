@@ -70,6 +70,7 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
     private val readDescriptorResultFutureList = mutableListOf<ReadDescriptorResultFuture>()
     private val writeDescriptorResultFutureList = mutableListOf<WriteDescriptorResultFuture>()
     private val subscriptionResultFutureList = mutableListOf<SubscriptionResultFuture>()
+    private val subscribedCharacteristics = ConcurrentHashMap<String, MutableSet<String>>()
     private val pairResultFutures = mutableMapOf<String, (Result<Boolean>) -> Unit>()
     private val rssiResultFutureList = mutableListOf<RssiResultFuture>()
     private val autoConnectDevices = mutableSetOf<String>()
@@ -568,10 +569,17 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
                             gatt.device.address,
                             gattCharacteristic.uuid.toString(),
                             gattCharacteristic.service.uuid.toString(),
+                            enable,
                             callback
                         )
                     )
                 } else {
+                    updateTrackedSubscription(
+                        gatt.device.address,
+                        gattCharacteristic.service.uuid.toString(),
+                        gattCharacteristic.uuid.toString(),
+                        enable,
+                    )
                     callback(Result.success(Unit))
                 }
             } else {
@@ -1099,6 +1107,44 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
         }
     }
 
+    override fun isSubscribed(
+        deviceId: String,
+        service: String,
+        characteristic: String,
+        callback: (Result<Boolean>) -> Unit,
+    ) {
+        val gatt = try {
+            deviceId.toBluetoothGatt()
+        } catch (e: Exception) {
+            null
+        }
+        val exists = gatt?.getCharacteristic(service, characteristic) != null
+        val isTracked = subscribedCharacteristics[deviceId.lowercase()]
+            ?.contains(subscriptionKey(service, characteristic)) == true
+
+        callback(Result.success(exists && isTracked))
+    }
+
+    override fun getSubscribedCharacteristics(
+        deviceId: String,
+        callback: (Result<List<String>>) -> Unit,
+    ) {
+        val gatt = try {
+            deviceId.toBluetoothGatt()
+        } catch (e: Exception) {
+            null
+        }
+        if (gatt == null) {
+            callback(Result.success(emptyList()))
+            return
+        }
+        val result = subscribedCharacteristics[deviceId.lowercase()]
+            ?.map { it.substringAfter('/') }
+            ?.distinct()
+            ?: emptyList()
+        callback(Result.success(result))
+    }
+
     // BluetoothGattCallback.onConnectionUpdated is @hide (not in public android.jar).
     // Same method name is required so the framework invokes it at runtime; no `override`.
     @Suppress("unused")
@@ -1415,6 +1461,7 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
                 false
             }
         }
+        subscribedCharacteristics.remove(deviceId.lowercase())
         mtuResultFutureList.removeAll {
             if (it.deviceId == deviceId) {
                 it.result(Result.failure(deviceDisconnectedError))
@@ -1698,11 +1745,34 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
                         )
                     )
                 } else {
+                    updateTrackedSubscription(deviceId, service, characteristic, it.enable)
                     it.result(Result.success(Unit))
                 }
                 true
             } else {
                 false
+            }
+        }
+    }
+
+    private fun subscriptionKey(service: String, characteristic: String) =
+        "${service.lowercase()}/${characteristic.lowercase()}"
+
+    private fun updateTrackedSubscription(
+        deviceId: String,
+        service: String,
+        characteristic: String,
+        enabled: Boolean,
+    ) {
+        val deviceKey = deviceId.lowercase()
+        val subscriptionKey = subscriptionKey(service, characteristic)
+        if (enabled) {
+            subscribedCharacteristics.computeIfAbsent(deviceKey) { ConcurrentHashMap.newKeySet() }
+                .add(subscriptionKey)
+        } else {
+            subscribedCharacteristics[deviceKey]?.let { subscriptions ->
+                subscriptions.remove(subscriptionKey)
+                if (subscriptions.isEmpty()) subscribedCharacteristics.remove(deviceKey, subscriptions)
             }
         }
     }

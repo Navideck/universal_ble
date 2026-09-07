@@ -1784,6 +1784,8 @@ interface UniversalBlePlatformChannel {
   fun getConnectionState(deviceId: String): BleConnectionState
   fun readRssi(deviceId: String, callback: (Result<Long>) -> Unit)
   fun requestConnectionPriority(deviceId: String, priority: BleConnectionPriority, callback: (Result<Unit>) -> Unit)
+  fun isSubscribed(deviceId: String, service: String, characteristic: String, callback: (Result<Boolean>) -> Unit)
+  fun getSubscribedCharacteristics(deviceId: String, callback: (Result<List<String>>) -> Unit)
   fun setLogLevel(logLevel: BleLogLevel)
 
   companion object {
@@ -2256,6 +2258,48 @@ interface UniversalBlePlatformChannel {
                 reply.reply(UniversalBlePigeonUtils.wrapError(error))
               } else {
                 reply.reply(UniversalBlePigeonUtils.wrapResult(null))
+              }
+            }
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.universal_ble.UniversalBlePlatformChannel.isSubscribed$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { message, reply ->
+            val args = message as List<Any?>
+            val deviceIdArg = args[0] as String
+            val serviceArg = args[1] as String
+            val characteristicArg = args[2] as String
+            api.isSubscribed(deviceIdArg, serviceArg, characteristicArg) { result: Result<Boolean> ->
+              val error = result.exceptionOrNull()
+              if (error != null) {
+                reply.reply(UniversalBlePigeonUtils.wrapError(error))
+              } else {
+                val data = result.getOrNull()
+                reply.reply(UniversalBlePigeonUtils.wrapResult(data))
+              }
+            }
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.universal_ble.UniversalBlePlatformChannel.getSubscribedCharacteristics$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { message, reply ->
+            val args = message as List<Any?>
+            val deviceIdArg = args[0] as String
+            api.getSubscribedCharacteristics(deviceIdArg) { result: Result<List<String>> ->
+              val error = result.exceptionOrNull()
+              if (error != null) {
+                reply.reply(UniversalBlePigeonUtils.wrapError(error))
+              } else {
+                val data = result.getOrNull()
+                reply.reply(UniversalBlePigeonUtils.wrapResult(data))
               }
             }
           }

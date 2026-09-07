@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:universal_ble/src/utils/cache_handler.dart';
 import 'package:universal_ble/universal_ble.dart';
 import 'universal_ble_test_mock.dart';
 
@@ -53,28 +54,32 @@ void main() {
     test("Subscription Test", () async {
       BleCharacteristic characteristic = mockBleCharacteristic;
 
-      expect(characteristic.isSubscribed, false);
-      expect(characteristic.notifications.isSubscribed, false);
-      expect(UniversalBle.isSubscribed(mockDeviceId, characteristicId), false);
-      expect(UniversalBle.getSubscribedCharacteristics(mockDeviceId), isEmpty);
+      expect(await characteristic.isSubscribed(), false);
+      expect(await characteristic.notifications.isSubscribed(), false);
+      expect(await UniversalBle.isSubscribed(mockDeviceId, characteristicId),
+          false);
+      expect(await UniversalBle.getSubscribedCharacteristics(mockDeviceId),
+          isEmpty);
 
       debugPrint("Subscribing to char");
       await characteristic.notifications.subscribe();
 
-      expect(characteristic.isSubscribed, true);
-      expect(characteristic.notifications.isSubscribed, true);
-      expect(UniversalBle.isSubscribed(mockDeviceId, characteristicId), true);
+      expect(await characteristic.isSubscribed(), true);
+      expect(await characteristic.notifications.isSubscribed(), true);
+      expect(await UniversalBle.isSubscribed(mockDeviceId, characteristicId),
+          true);
       // Case-insensitivity check for deviceId and normalized UUID check
       expect(
-        UniversalBle.isSubscribed(mockDeviceId.toUpperCase(), characteristicId),
+        await UniversalBle.isSubscribed(
+            mockDeviceId.toUpperCase(), characteristicId),
         true,
       );
       expect(
-        UniversalBle.isSubscribed(mockDeviceId, characteristic.uuid),
+        await UniversalBle.isSubscribed(mockDeviceId, characteristic.uuid),
         true,
       );
       expect(
-        UniversalBle.getSubscribedCharacteristics(mockDeviceId),
+        await UniversalBle.getSubscribedCharacteristics(mockDeviceId),
         contains(characteristic.uuid),
       );
 
@@ -88,10 +93,12 @@ void main() {
       await characteristic.notifications.unsubscribe();
       debugPrint("Unsubscribed from char");
 
-      expect(characteristic.isSubscribed, false);
-      expect(characteristic.notifications.isSubscribed, false);
-      expect(UniversalBle.isSubscribed(mockDeviceId, characteristicId), false);
-      expect(UniversalBle.getSubscribedCharacteristics(mockDeviceId), isEmpty);
+      expect(await characteristic.isSubscribed(), false);
+      expect(await characteristic.notifications.isSubscribed(), false);
+      expect(await UniversalBle.isSubscribed(mockDeviceId, characteristicId),
+          false);
+      expect(await UniversalBle.getSubscribedCharacteristics(mockDeviceId),
+          isEmpty);
 
       subscription.cancel();
       expect(gotEvent, true);
@@ -105,16 +112,54 @@ void main() {
         mock.notifierTimer?.cancel();
         mock.notifierTimer = null;
       });
-      expect(characteristic.isSubscribed, true);
-      expect(UniversalBle.isSubscribed(mockDeviceId, characteristicId), true);
+      expect(await characteristic.isSubscribed(), true);
+      expect(await UniversalBle.isSubscribed(mockDeviceId, characteristicId),
+          true);
 
       // Simulate device disconnect
       platform.updateConnection(mockDeviceId, false);
 
-      expect(characteristic.isSubscribed, false);
-      expect(characteristic.notifications.isSubscribed, false);
-      expect(UniversalBle.isSubscribed(mockDeviceId, characteristicId), false);
-      expect(UniversalBle.getSubscribedCharacteristics(mockDeviceId), isEmpty);
+      expect(await characteristic.isSubscribed(), false);
+      expect(await characteristic.notifications.isSubscribed(), false);
+      expect(await UniversalBle.isSubscribed(mockDeviceId, characteristicId),
+          false);
+      expect(await UniversalBle.getSubscribedCharacteristics(mockDeviceId),
+          isEmpty);
+    });
+
+    test("service-less isSubscribed checks every service", () async {
+      const otherServiceId = "180b";
+      final mock = platform as _UniversalBleMock;
+      CacheHandler.instance.saveServices(mockDeviceId, [
+        mockBleService,
+        BleService(otherServiceId, [
+          BleCharacteristic.withMetaData(
+            deviceId: mockDeviceId,
+            serviceId: otherServiceId,
+            uuid: characteristicId,
+            properties: CharacteristicProperty.values,
+            descriptors: [],
+          ),
+        ]),
+      ]);
+
+      await UniversalBle.subscribeNotifications(
+        mockDeviceId,
+        otherServiceId,
+        characteristicId,
+      );
+
+      expect(await UniversalBle.isSubscribed(mockDeviceId, characteristicId),
+          true);
+      expect(
+        await UniversalBle.isSubscribed(
+          mockDeviceId,
+          characteristicId,
+          service: serviceId,
+        ),
+        false,
+      );
+      addTearDown(() => mock.notifierTimer?.cancel());
     });
   });
 
@@ -173,6 +218,10 @@ class _UniversalBleMock extends UniversalBlePlatformMock {
   String? descriptorService;
   String? descriptorCharacteristic;
   String? descriptorId;
+  final Map<String, Set<String>> _subscriptions = {};
+
+  String _subscriptionKey(String service, String characteristic) =>
+      '${BleUuidParser.string(service)}/${BleUuidParser.string(characteristic)}';
 
   @override
   Future<List<BleService>> discoverServices(
@@ -189,11 +238,16 @@ class _UniversalBleMock extends UniversalBlePlatformMock {
     String characteristic,
     BleInputProperty bleInputProperty,
   ) async {
+    final devId = deviceId.toLowerCase();
+    final subscriptionKey = _subscriptionKey(service, characteristic);
     if (bleInputProperty == BleInputProperty.disabled) {
+      _subscriptions[devId]?.remove(subscriptionKey);
       notifierTimer?.cancel();
       notifierTimer = null;
       return;
     }
+
+    _subscriptions.putIfAbsent(devId, () => {}).add(subscriptionKey);
 
     notifierTimer ??= Timer.periodic(Duration(milliseconds: 500), (timer) {
       updateCharacteristicValue(
@@ -203,6 +257,35 @@ class _UniversalBleMock extends UniversalBlePlatformMock {
         DateTime.now().millisecondsSinceEpoch,
       );
     });
+  }
+
+  @override
+  void updateConnection(String deviceId, bool isConnected, [String? error]) {
+    if (!isConnected) {
+      _subscriptions.remove(deviceId.toLowerCase());
+    }
+    super.updateConnection(deviceId, isConnected, error);
+  }
+
+  @override
+  Future<bool> isSubscribed(
+    String deviceId,
+    String service,
+    String characteristic,
+  ) async {
+    final devId = deviceId.toLowerCase();
+    final subscriptionKey = _subscriptionKey(service, characteristic);
+    return _subscriptions[devId]?.contains(subscriptionKey) ?? false;
+  }
+
+  @override
+  Future<List<String>> getSubscribedCharacteristics(String deviceId) async {
+    final devId = deviceId.toLowerCase();
+    return _subscriptions[devId]
+            ?.map((key) => key.substring(key.indexOf('/') + 1))
+            .toSet()
+            .toList() ??
+        [];
   }
 
   @override

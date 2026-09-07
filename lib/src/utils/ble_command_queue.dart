@@ -28,8 +28,8 @@ class BleCommandQueue {
     return switch (queueType) {
       QueueType.global => _queue(queueId).add(command, timeoutDuration),
       QueueType.perDevice => _queue(
-        queueId ?? deviceId,
-      ).add(command, timeoutDuration),
+          queueId ?? deviceId,
+        ).add(command, timeoutDuration),
       QueueType.none => command().timeout(timeoutDuration),
     };
   }

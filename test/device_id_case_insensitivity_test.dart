@@ -32,14 +32,17 @@ void main() {
   const lower = 'aa:bb:cc:dd:ee:ff';
   const charId = '0000fff1-0000-1000-8000-00805f9b34fb';
 
-  test('connectionStream matches a device id reported in a different case', () async {
+  test('connectionStream matches a device id reported in a different case',
+      () async {
     final platform = _MockPlatform();
     final event = platform.connectionStream(upper).first;
     platform.updateConnection(lower, true);
     expect(await event, isTrue);
   });
 
-  test('characteristicValueStream matches a device id reported in a different case', () async {
+  test(
+      'characteristicValueStream matches a device id reported in a different case',
+      () async {
     final platform = _MockPlatform();
     final event = platform.characteristicValueStream(upper, charId).first;
     platform.updateCharacteristicValue(
@@ -63,9 +66,8 @@ void main() {
         5,
       ]);
       final decodedView = Uint8List.sublistView(backingBuffer, 4, 8);
-      final streamValue = platform
-          .characteristicValueStream(upper, charId)
-          .first;
+      final streamValue =
+          platform.characteristicValueStream(upper, charId).first;
       Uint8List? callbackValue;
       platform.onValueChange =
           (deviceId, characteristicId, value, error) => callbackValue = value;
@@ -86,9 +88,8 @@ void main() {
     () async {
       final platform = _MockPlatform();
       final original = Uint8List.fromList([1, 2, 3]);
-      final streamValue = platform
-          .characteristicValueStream(upper, charId)
-          .first;
+      final streamValue =
+          platform.characteristicValueStream(upper, charId).first;
 
       platform.updateCharacteristicValue(lower, charId, original, null);
 
@@ -96,14 +97,17 @@ void main() {
     },
   );
 
-  test('pairingStateStream matches a device id reported in a different case', () async {
+  test('pairingStateStream matches a device id reported in a different case',
+      () async {
     final platform = _MockPlatform();
     final event = platform.pairingStateStream(upper).first;
     platform.updatePairingState(lower, true);
     expect(await event, isTrue);
   });
 
-  test('connect() completes when the platform reports the id in a different case', () async {
+  test(
+      'connect() completes when the platform reports the id in a different case',
+      () async {
     UniversalBle.setInstance(_MockPlatform());
     // Must not throw / time out: connect(upper) awaits a lower-case connection update (the original hang).
     await UniversalBle.connect(upper, timeout: const Duration(seconds: 2));
@@ -114,26 +118,35 @@ void main() {
     final events = <bool>[];
     final sub = platform.pairingStateStream(upper).listen(events.add);
     platform.updatePairingState(lower, true); // first -> emits
-    platform.updatePairingState(upper, true); // same device+value, other case -> deduped, no second emit
+    platform.updatePairingState(upper,
+        true); // same device+value, other case -> deduped, no second emit
     await Future<void>.delayed(const Duration(milliseconds: 20));
     await sub.cancel();
     expect(events, [true]);
   });
 
-  test('connection-parameters dedup treats the two cases as one device', () async {
+  test('connection-parameters dedup treats the two cases as one device',
+      () async {
     final platform = _MockPlatform();
     final events = <String>[];
     platform.onConnectionParametersChange = (u) => events.add(u.deviceId);
     BleConnectionParametersUpdated params(String id) =>
         BleConnectionParametersUpdated(
-            deviceId: id, interval: 12, latency: 0, supervisionTimeout: 500, status: 0);
+            deviceId: id,
+            interval: 12,
+            latency: 0,
+            supervisionTimeout: 500,
+            status: 0);
     platform.updateConnectionParameters(params(lower)); // first -> fires
-    platform.updateConnectionParameters(params(upper)); // identical params, other case -> deduped
+    platform.updateConnectionParameters(
+        params(upper)); // identical params, other case -> deduped
     await Future<void>.delayed(const Duration(milliseconds: 20));
     expect(events, [lower]);
   });
 
-  test('service cache is keyed case-insensitively (save one case, get/clear another)', () {
+  test(
+      'service cache is keyed case-insensitively (save one case, get/clear another)',
+      () {
     final cache = CacheHandler.instance;
     cache.resetDeviceCache(upper); // clean slate
     cache.saveServices(upper, const []); // non-null -> cached

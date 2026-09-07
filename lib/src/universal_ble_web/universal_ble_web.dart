@@ -1,10 +1,13 @@
 import 'dart:async';
 import 'dart:collection';
+import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_web_bluetooth/flutter_web_bluetooth.dart';
 import 'package:universal_ble/src/utils/universal_logger.dart';
 import 'package:universal_ble/universal_ble.dart';
+
+import 'subscription_registry.dart';
 
 class UniversalBleWeb extends UniversalBlePlatform {
   static UniversalBleWeb? _instance;
@@ -191,12 +194,14 @@ class UniversalBleWeb extends UniversalBlePlatform {
     }
 
     String characteristicKey = "${deviceId}_${service}_$characteristic";
+    final subscriptionKey = _subscriptionKey(deviceId, service, characteristic);
 
     if (bleInputProperty != BleInputProperty.disabled) {
       if (_characteristicStreamList[characteristicKey] != null) {
         _characteristicStreamList[characteristicKey]?.cancel();
       }
       await bleCharacteristic.startNotifications();
+      setWebSubscriptions(getWebSubscriptions()..add(subscriptionKey));
       _characteristicStreamList[characteristicKey] =
           bleCharacteristic.value.listen((ByteData event) {
         final preview = event.buffer
@@ -217,6 +222,7 @@ class UniversalBleWeb extends UniversalBlePlatform {
       });
     } else {
       await bleCharacteristic.stopNotifications();
+      setWebSubscriptions(getWebSubscriptions()..remove(subscriptionKey));
       _characteristicStreamList.remove(characteristicKey)?.cancel();
     }
   }
@@ -363,6 +369,27 @@ class UniversalBleWeb extends UniversalBlePlatform {
     );
   }
 
+  @override
+  Future<bool> isSubscribed(
+    String deviceId,
+    String service,
+    String characteristic,
+  ) async {
+    return getWebSubscriptions().contains(
+      _subscriptionKey(deviceId, service, characteristic),
+    );
+  }
+
+  @override
+  Future<List<String>> getSubscribedCharacteristics(String deviceId) async {
+    return getWebSubscriptions()
+        .map((key) => jsonDecode(key) as List<dynamic>)
+        .where((parts) => parts[0] == deviceId)
+        .map((parts) => parts[2] as String)
+        .toSet()
+        .toList();
+  }
+
   /// `Unimplemented`
   @override
   Future<int> readRssi(String deviceId) {
@@ -431,8 +458,21 @@ class UniversalBleWeb extends UniversalBlePlatform {
     });
     _disposeAdvertisementWatcher(deviceId);
     _serviceCache.remove(deviceId);
+    setWebSubscriptions(
+      getWebSubscriptions()
+        ..removeWhere(
+          (key) => (jsonDecode(key) as List<dynamic>)[0] == deviceId,
+        ),
+    );
     // _bluetoothDeviceList.removeWhere((element) => element.id == deviceId);
   }
+
+  String _subscriptionKey(
+    String deviceId,
+    String service,
+    String characteristic,
+  ) =>
+      jsonEncode([deviceId, service, characteristic]);
 
   Future<BluetoothCharacteristic?> _getBleCharacteristic({
     required String deviceId,
