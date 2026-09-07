@@ -478,14 +478,6 @@ class UniversalBle {
     Duration? timeout,
     String? queueId,
   }) async {
-    if (queueId != null) {
-      return await _bleCommandQueue.queueCommand(
-        () => _platform.readRssi(deviceId),
-        timeout: timeout,
-        deviceId: deviceId,
-        queueId: queueId,
-      );
-    }
     final future = _platform.readRssi(deviceId);
     final timeoutDuration = timeout ?? _bleCommandQueue.timeout;
     return timeoutDuration != null ? await future.timeout(timeoutDuration) : await future;

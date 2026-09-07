@@ -35,25 +35,23 @@ void main() {
     expect(await rssiFuture, -65);
   });
 
-  test('readRssi respects explicit queueId', () async {
+  test('readRssi is not queued even when queue is blocked', () async {
     final platform = _PendingPlatform();
     UniversalBle.setInstance(platform);
 
-    final readFuture = UniversalBle.read('device', '180a', '202a', queueId: 'custom');
+    final readFuture = UniversalBle.read('device', '180a', '202a');
     expect(platform.reads, 1);
 
+    // readRssi should execute immediately without waiting for readFuture
     final rssiFuture = UniversalBle.readRssi('device', queueId: 'custom');
-    await pumpEventQueue();
-    // Because 'custom' queue is blocked by readFuture, readRssi should not have started
-    expect(platform.rssiReads, 0);
-
-    platform.readPending.complete(Uint8List(0));
-    await readFuture;
     await pumpEventQueue();
     expect(platform.rssiReads, 1);
 
     platform.rssiPending.complete(-70);
     expect(await rssiFuture, -70);
+
+    platform.readPending.complete(Uint8List(0));
+    await readFuture;
   });
 }
 
