@@ -848,9 +848,8 @@ void main() {
           await peripheral.subscribe(HilUuid.notify);
 
           final values = <List<int>>[];
-          final subscription = peripheral
-              .values(HilUuid.notify)
-              .listen(values.add);
+          final subscription =
+              peripheral.values(HilUuid.notify).listen(values.add);
           addTearDown(subscription.cancel);
           await peripheral.requestNotification([0x14]);
           await _waitUntil(() async => values.isNotEmpty);
@@ -896,9 +895,8 @@ void main() {
           await peripheral.subscribe(HilUuid.notify);
           await peripheral.unsubscribe(HilUuid.notify);
           final values = <List<int>>[];
-          final subscription = peripheral
-              .values(HilUuid.notify)
-              .listen(values.add);
+          final subscription =
+              peripheral.values(HilUuid.notify).listen(values.add);
           addTearDown(subscription.cancel);
 
           await expectLater(
@@ -924,7 +922,8 @@ void main() {
 
           final sequences = (await received.timeout(
             HilPeripheral.operationTimeout,
-          )).map((value) => _uint16(value, 0));
+          ))
+              .map((value) => _uint16(value, 0));
           expect(sequences, orderedEquals(expected));
           expect(sequences, isNot(contains(2)));
         },
@@ -944,7 +943,8 @@ void main() {
 
           final sequences = (await received.timeout(
             HilPeripheral.operationTimeout,
-          )).map((value) => _uint16(value, 0));
+          ))
+              .map((value) => _uint16(value, 0));
           expect(sequences, orderedEquals(expected));
           expect(sequences.where((sequence) => sequence == 1), hasLength(2));
         },
@@ -964,7 +964,8 @@ void main() {
 
           final sequences = (await received.timeout(
             HilPeripheral.operationTimeout,
-          )).map((value) => _uint16(value, 0));
+          ))
+              .map((value) => _uint16(value, 0));
           expect(sequences, orderedEquals(expected));
         },
       );
@@ -996,9 +997,8 @@ void main() {
         (_) async {
           await peripheral.subscribe(HilUuid.notify);
           final values = <List<int>>[];
-          final subscription = peripheral
-              .values(HilUuid.notify)
-              .listen(values.add);
+          final subscription =
+              peripheral.values(HilUuid.notify).listen(values.add);
           addTearDown(subscription.cancel);
           await peripheral.requestNotificationBurst(
             count: 100,
@@ -1052,9 +1052,8 @@ void main() {
         (_) async {
           await peripheral.subscribe(HilUuid.notify);
           final values = <List<int>>[];
-          final subscription = peripheral
-              .values(HilUuid.notify)
-              .listen(values.add);
+          final subscription =
+              peripheral.values(HilUuid.notify).listen(values.add);
           addTearDown(subscription.cancel);
           await peripheral.requestNotificationBurst(
             count: 500,

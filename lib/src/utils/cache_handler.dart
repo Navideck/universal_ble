@@ -25,7 +25,8 @@ class CacheHandler {
   }
 
   /// Retrieves the cached Bluetooth services for a specific device.
-  List<BleService>? getServices(String deviceId) => _servicesCache[_key(deviceId)];
+  List<BleService>? getServices(String deviceId) =>
+      _servicesCache[_key(deviceId)];
 
   /// Resets the cache for a specific device, removing all stored services.
   void resetDeviceCache(String deviceId) {

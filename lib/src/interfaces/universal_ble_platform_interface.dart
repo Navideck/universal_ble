@@ -15,19 +15,15 @@ abstract class UniversalBlePlatform {
   OnConnectionParametersChange? onConnectionParametersChange;
   final Map<String, bool> _pairStateMap = {};
   final Map<String, BleConnectionParametersUpdated>
-  _lastConnectionParametersMap = {};
+      _lastConnectionParametersMap = {};
 
   final _scanStreamController = UniversalBleStreamController<BleDevice>();
 
-  final bleConnectionUpdateStreamController =
-      UniversalBleStreamController<
-        ({String deviceId, bool isConnected, String? error})
-      >();
+  final bleConnectionUpdateStreamController = UniversalBleStreamController<
+      ({String deviceId, bool isConnected, String? error})>();
 
-  final _valueStreamController =
-      UniversalBleStreamController<
-        ({String deviceId, String characteristicId, Uint8List value})
-      >();
+  final _valueStreamController = UniversalBleStreamController<
+      ({String deviceId, String characteristicId, Uint8List value})>();
 
   final _pairStateStreamController =
       UniversalBleStreamController<({String deviceId, bool isPaired})>();
@@ -35,8 +31,8 @@ abstract class UniversalBlePlatform {
   /// Send latest availability state upon subscribing
   late final _availabilityStreamController =
       UniversalBleStreamController<AvailabilityState>(
-        initialEvent: getBluetoothAvailabilityState,
-      );
+    initialEvent: getBluetoothAvailabilityState,
+  );
 
   Future<AvailabilityState> getBluetoothAvailabilityState();
 
@@ -122,6 +118,14 @@ abstract class UniversalBlePlatform {
     BleConnectionPriority priority,
   );
 
+  Future<bool> isSubscribed(
+    String deviceId,
+    String service,
+    String characteristic,
+  );
+
+  Future<List<String>> getSubscribedCharacteristics(String deviceId);
+
   Future<bool> isPaired(String deviceId);
 
   Future<bool> pair(String deviceId);
@@ -153,7 +157,8 @@ abstract class UniversalBlePlatform {
   Stream<bool> connectionStream(String deviceId) {
     final target = deviceId.toLowerCase();
     return bleConnectionUpdateStreamController.stream
-        .where((e) => e.deviceId == deviceId || e.deviceId.toLowerCase() == target)
+        .where(
+            (e) => e.deviceId == deviceId || e.deviceId.toLowerCase() == target)
         .map((e) => e.isConnected);
   }
 
@@ -163,18 +168,17 @@ abstract class UniversalBlePlatform {
   ) {
     final target = deviceId.toLowerCase();
     characteristicId = BleUuidParser.string(characteristicId);
-    return _valueStreamController.stream
-        .where((e) {
-          return (e.deviceId == deviceId || e.deviceId.toLowerCase() == target) &&
-              e.characteristicId == characteristicId;
-        })
-        .map((e) => e.value);
+    return _valueStreamController.stream.where((e) {
+      return (e.deviceId == deviceId || e.deviceId.toLowerCase() == target) &&
+          e.characteristicId == characteristicId;
+    }).map((e) => e.value);
   }
 
   Stream<bool> pairingStateStream(String deviceId) {
     final target = deviceId.toLowerCase();
     return _pairStateStreamController.stream
-        .where((e) => e.deviceId == deviceId || e.deviceId.toLowerCase() == target)
+        .where(
+            (e) => e.deviceId == deviceId || e.deviceId.toLowerCase() == target)
         .map((e) => e.isPaired);
   }
 
@@ -217,8 +221,7 @@ abstract class UniversalBlePlatform {
     // platform-message buffer. Normalize that view before exposing it so
     // consumers which pass `value.buffer` to another binary API cannot
     // accidentally include Pigeon envelope bytes.
-    final normalizedValue =
-        value.offsetInBytes == 0 &&
+    final normalizedValue = value.offsetInBytes == 0 &&
             value.lengthInBytes == value.buffer.lengthInBytes
         ? value
         : Uint8List.fromList(value);

@@ -46,16 +46,16 @@ class UniversalBlePeripheral {
 
   /// Advertising state update stream.
   static Stream<BlePeripheralAdvertisingStateChanged>
-  get advertisingStateStream => _platform.advertisingStateStream;
+      get advertisingStateStream => _platform.advertisingStateStream;
 
   /// Characteristic subscription update stream.
   static Stream<BlePeripheralCharacteristicSubscriptionChanged>
-  get characteristicSubscriptionStream =>
-      _platform.characteristicSubscriptionStream;
+      get characteristicSubscriptionStream =>
+          _platform.characteristicSubscriptionStream;
 
   /// Connection state update stream.
   static Stream<BlePeripheralConnectionStateChanged>
-  get connectionStateStream => _platform.connectionStateStream;
+      get connectionStateStream => _platform.connectionStateStream;
 
   /// Service addition update stream.
   static Stream<BlePeripheralServiceAdded> get serviceAddedStream =>
@@ -73,11 +73,13 @@ class UniversalBlePeripheral {
 
   static void setDescriptorReadRequestHandlers(
     OnPeripheralDescriptorReadRequest? handlers,
-  ) => _platform.setDescriptorReadRequestHandler(handlers);
+  ) =>
+      _platform.setDescriptorReadRequestHandler(handlers);
 
   static void setDescriptorWriteRequestHandlers(
     OnPeripheralDescriptorWriteRequest? handlers,
-  ) => _platform.setDescriptorWriteRequestHandler(handlers);
+  ) =>
+      _platform.setDescriptorWriteRequestHandler(handlers);
 
   static Future<PeripheralReadinessState> getAvailabilityState() =>
       _platform.getAvailabilityState();
@@ -91,10 +93,12 @@ class UniversalBlePeripheral {
   static Future<void> addService(
     BlePeripheralService service, {
     Duration? timeout,
-  }) => _bleCommandQueue.queueCommand(
-    () => _platform.addService(service.toPeripheralService(), timeout: timeout),
-    timeout: timeout,
-  );
+  }) =>
+      _bleCommandQueue.queueCommand(
+        () => _platform.addService(service.toPeripheralService(),
+            timeout: timeout),
+        timeout: timeout,
+      );
 
   static Future<void> removeService(String serviceId) =>
       _bleCommandQueue.queueCommand(
@@ -102,12 +106,12 @@ class UniversalBlePeripheral {
       );
 
   static Future<void> clearServices() => _bleCommandQueue.queueCommand(
-    () => _platform.clearServices(),
-  );
+        () => _platform.clearServices(),
+      );
 
   static Future<List<String>> getServices() => _bleCommandQueue.queueCommand(
-    () => _platform.getServices(),
-  );
+        () => _platform.getServices(),
+      );
 
   static Future<void> startAdvertising({
     required List<String> services,
@@ -115,35 +119,37 @@ class UniversalBlePeripheral {
     Duration? timeout,
     ManufacturerData? manufacturerData,
     PeripheralPlatformConfig? platformConfig,
-  }) => _bleCommandQueue.queueCommand(
-    () => _platform.startAdvertising(
-      services: services.map(BleUuidParser.string).toList(),
-      localName: localName,
-      timeout: timeout,
-      manufacturerData: manufacturerData,
-      platformConfig: platformConfig,
-    ),
-    timeout: timeout,
-  );
+  }) =>
+      _bleCommandQueue.queueCommand(
+        () => _platform.startAdvertising(
+          services: services.map(BleUuidParser.string).toList(),
+          localName: localName,
+          timeout: timeout,
+          manufacturerData: manufacturerData,
+          platformConfig: platformConfig,
+        ),
+        timeout: timeout,
+      );
 
   static Future<void> stopAdvertising() => _bleCommandQueue.queueCommand(
-    () => _platform.stopAdvertising(),
-  );
+        () => _platform.stopAdvertising(),
+      );
 
   static Future<void> updateCharacteristicValue({
     required String characteristicId,
     required Uint8List value,
     String? deviceId,
     String? queueId,
-  }) => _bleCommandQueue.queueCommand(
-    () => _platform.updateCharacteristicValue(
-      characteristicId: BleUuidParser.string(characteristicId),
-      value: value,
-      deviceId: deviceId,
-    ),
-    deviceId: deviceId,
-    queueId: queueId,
-  );
+  }) =>
+      _bleCommandQueue.queueCommand(
+        () => _platform.updateCharacteristicValue(
+          characteristicId: BleUuidParser.string(characteristicId),
+          value: value,
+          deviceId: deviceId,
+        ),
+        deviceId: deviceId,
+        queueId: queueId,
+      );
 
   /// Returns client device ids currently subscribed to [characteristicId]
   /// (e.g. HID report characteristic). Used to restore in-app state after restart.

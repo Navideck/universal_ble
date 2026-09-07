@@ -23,9 +23,9 @@ extension BleCharacteristicExtension on BleCharacteristic {
 
   /// Get descriptor by uuid
   BleDescriptor descriptor(String descriptorUuid) => descriptors.firstWhere(
-    (e) => BleUuidParser.compareStrings(e.uuid, descriptorUuid),
-    orElse: () => throw NotFoundError.forDescriptor(descriptorUuid, uuid),
-  );
+        (e) => BleUuidParser.compareStrings(e.uuid, descriptorUuid),
+        orElse: () => throw NotFoundError.forDescriptor(descriptorUuid, uuid),
+      );
 
   /// Unsubscribes notifications/indications from this characteristic.
   Future<void> unsubscribe({Duration? timeout, String? queueId}) =>
@@ -35,6 +35,15 @@ extension BleCharacteristicExtension on BleCharacteristic {
         uuid,
         timeout: timeout,
         queueId: queueId,
+      );
+
+  /// Returns whether this characteristic is currently subscribed to.
+  Future<bool> isSubscribed() async =>
+      metaData?.deviceId != null &&
+      await UniversalBle.isSubscribed(
+        metaData!.deviceId,
+        uuid,
+        service: metaData!.serviceId,
       );
 
   /// Reads the current value of the characteristic.
@@ -79,14 +88,15 @@ extension BleCharacteristicExtension on BleCharacteristic {
     String descriptorUuid, {
     Duration? timeout,
     String? queueId,
-  }) => UniversalBle.readDescriptor(
-    _metaData.deviceId,
-    _metaData.serviceId,
-    uuid,
-    descriptorUuid,
-    timeout: timeout,
-    queueId: queueId,
-  );
+  }) =>
+      UniversalBle.readDescriptor(
+        _metaData.deviceId,
+        _metaData.serviceId,
+        uuid,
+        descriptorUuid,
+        timeout: timeout,
+        queueId: queueId,
+      );
 
   /// Writes a value to a descriptor of this characteristic.
   ///
@@ -99,15 +109,16 @@ extension BleCharacteristicExtension on BleCharacteristic {
     Uint8List value, {
     Duration? timeout,
     String? queueId,
-  }) => UniversalBle.writeDescriptor(
-    _metaData.deviceId,
-    _metaData.serviceId,
-    uuid,
-    descriptorUuid,
-    value,
-    timeout: timeout,
-    queueId: queueId,
-  );
+  }) =>
+      UniversalBle.writeDescriptor(
+        _metaData.deviceId,
+        _metaData.serviceId,
+        uuid,
+        descriptorUuid,
+        value,
+        timeout: timeout,
+        queueId: queueId,
+      );
 
   BleCharOperationMetadata get _metaData {
     BleCharOperationMetadata? metaData = this.metaData;
@@ -135,7 +146,7 @@ class CharacteristicSubscription {
   final bool isSupported;
 
   CharacteristicSubscription(this._characteristic, this._property)
-    : isSupported = _characteristic.properties.contains(_property);
+      : isSupported = _characteristic.properties.contains(_property);
 
   /// Registers a listener for incoming data from the characteristic.
   StreamSubscription listen(
@@ -186,6 +197,9 @@ class CharacteristicSubscription {
       queueId: queueId,
     );
   }
+
+  /// Returns whether this characteristic is currently subscribed to.
+  Future<bool> isSubscribed() => _characteristic.isSubscribed();
 
   @override
   String toString() =>

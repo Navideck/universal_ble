@@ -11,9 +11,8 @@ abstract class UniversalBlePeripheralPlatform {
       _blePeripheralStreamHandler.advertisingStateStreamController.stream;
 
   Stream<BlePeripheralCharacteristicSubscriptionChanged>
-  get characteristicSubscriptionStream => _blePeripheralStreamHandler
-      .characteristicSubscriptionStreamController
-      .stream;
+      get characteristicSubscriptionStream => _blePeripheralStreamHandler
+          .characteristicSubscriptionStreamController.stream;
 
   Stream<BlePeripheralConnectionStateChanged> get connectionStateStream =>
       _blePeripheralStreamHandler.connectionStateStreamController.stream;
@@ -216,8 +215,7 @@ class _BlePeripheralStreamHandler {
       UniversalBleStreamController<BlePeripheralAdvertisingStateChanged>();
   final characteristicSubscriptionStreamController =
       UniversalBleStreamController<
-        BlePeripheralCharacteristicSubscriptionChanged
-      >();
+          BlePeripheralCharacteristicSubscriptionChanged>();
   final connectionStateStreamController =
       UniversalBleStreamController<BlePeripheralConnectionStateChanged>();
   final serviceAddedStreamController =

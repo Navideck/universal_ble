@@ -507,6 +507,34 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
     completion(.failure(createFlutterError(code: .notSupported, message: "requestConnectionPriority is not supported on Apple platforms")))
   }
 
+  func isSubscribed(deviceId: String, service: String, characteristic: String, completion: @escaping (Result<Bool, Error>) -> Void) {
+    guard let peripheral = deviceId.findPeripheral(manager: manager) else {
+      completion(Result.failure(createFlutterError(code: .deviceNotFound, message: "Unknown deviceId:\(deviceId)")))
+      return
+    }
+    guard let gattCharacteristic = peripheral.getCharacteristic(characteristic, of: service) else {
+      completion(Result.failure(createFlutterError(code: .characteristicNotFound, message: "Unknown characteristic:\(characteristic)")))
+      return
+    }
+    completion(Result.success(gattCharacteristic.isNotifying))
+  }
+
+  func getSubscribedCharacteristics(deviceId: String, completion: @escaping (Result<[String], Error>) -> Void) {
+    guard let peripheral = deviceId.findPeripheral(manager: manager) else {
+      completion(Result.failure(createFlutterError(code: .deviceNotFound, message: "Unknown deviceId:\(deviceId)")))
+      return
+    }
+    var result = [String]()
+    for service in peripheral.services ?? [] {
+      for characteristic in service.characteristics ?? [] {
+        if characteristic.isNotifying {
+          result.append(characteristic.uuid.uuidStr)
+        }
+      }
+    }
+    completion(Result.success(result))
+  }
+
   func readRssi(deviceId: String, completion: @escaping (Result<Int64, Error>) -> Void) {
     UniversalBleLogger.shared.logDebug("READ_RSSI -> \(deviceId)")
     guard let peripheral = deviceId.findPeripheral(manager: manager) else {

@@ -481,6 +481,16 @@ abstract class UniversalBlePlatformChannel {
     BleConnectionPriority priority,
   );
 
+  @async
+  bool isSubscribed(
+    String deviceId,
+    String service,
+    String characteristic,
+  );
+
+  @async
+  List<String> getSubscribedCharacteristics(String deviceId);
+
   void setLogLevel(BleLogLevel logLevel);
 }
 

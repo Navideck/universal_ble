@@ -483,6 +483,38 @@ class UniversalBleLinux extends UniversalBlePlatform {
   }
 
   @override
+  Future<bool> isSubscribed(
+    String deviceId,
+    String service,
+    String characteristic,
+  ) async {
+    try {
+      final c = _getCharacteristic(deviceId, service, characteristic);
+      return c.notifying;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  @override
+  Future<List<String>> getSubscribedCharacteristics(String deviceId) async {
+    try {
+      BlueZDevice device = _findDeviceById(deviceId);
+      final list = <String>[];
+      for (final service in device.gattServices) {
+        for (final char in service.characteristics) {
+          if (char.notifying) {
+            list.add(BleUuidParser.string(char.uuid.toString()));
+          }
+        }
+      }
+      return list;
+    } catch (_) {
+      return [];
+    }
+  }
+
+  @override
   Future<int> readRssi(String deviceId) async {
     throw UniversalBleException(
       code: UniversalBleErrorCode.notImplemented,

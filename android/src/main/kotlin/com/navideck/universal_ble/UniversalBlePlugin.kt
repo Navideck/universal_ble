@@ -70,6 +70,7 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
     private val readDescriptorResultFutureList = mutableListOf<ReadDescriptorResultFuture>()
     private val writeDescriptorResultFutureList = mutableListOf<WriteDescriptorResultFuture>()
     private val subscriptionResultFutureList = mutableListOf<SubscriptionResultFuture>()
+    private val subscribedCharacteristics = mutableMapOf<String, MutableSet<String>>()
     private val pairResultFutures = mutableMapOf<String, (Result<Boolean>) -> Unit>()
     private val rssiResultFutureList = mutableListOf<RssiResultFuture>()
     private val autoConnectDevices = mutableSetOf<String>()
@@ -568,10 +569,18 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
                             gatt.device.address,
                             gattCharacteristic.uuid.toString(),
                             gattCharacteristic.service.uuid.toString(),
+                            enable,
                             callback
                         )
                     )
                 } else {
+                    if (enable) {
+                        subscribedCharacteristics.getOrPut(gatt.device.address.lowercase()) { mutableSetOf() }
+                            .add(gattCharacteristic.uuid.toString().lowercase())
+                    } else {
+                        subscribedCharacteristics[gatt.device.address.lowercase()]
+                            ?.remove(gattCharacteristic.uuid.toString().lowercase())
+                    }
                     callback(Result.success(Unit))
                 }
             } else {
@@ -1099,6 +1108,53 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
         }
     }
 
+    override fun isSubscribed(
+        deviceId: String,
+        service: String,
+        characteristic: String,
+        callback: (Result<Boolean>) -> Unit,
+    ) {
+        val gatt = try {
+            deviceId.toBluetoothGatt()
+        } catch (e: Exception) {
+            null
+        }
+        val charObj = gatt?.getCharacteristic(service, characteristic)
+        val cccdVal = charObj?.getDescriptor(ccdCharacteristic)?.value
+        val isNotifyingDesc = cccdVal?.contentEquals(BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE) == true ||
+                cccdVal?.contentEquals(BluetoothGattDescriptor.ENABLE_INDICATION_VALUE) == true
+        val isTracked = subscribedCharacteristics[deviceId.lowercase()]?.contains(characteristic.lowercase()) == true
+
+        callback(Result.success(isTracked || isNotifyingDesc))
+    }
+
+    override fun getSubscribedCharacteristics(
+        deviceId: String,
+        callback: (Result<List<String>>) -> Unit,
+    ) {
+        val gatt = try {
+            deviceId.toBluetoothGatt()
+        } catch (e: Exception) {
+            null
+        }
+        val tracked = subscribedCharacteristics[deviceId.lowercase()] ?: emptySet()
+        val result = mutableSetOf<String>()
+        result.addAll(tracked)
+        if (gatt != null) {
+            for (s in gatt.services ?: emptyList()) {
+                for (c in s.characteristics ?: emptyList()) {
+                    val cccdVal = c.getDescriptor(ccdCharacteristic)?.value
+                    if (cccdVal?.contentEquals(BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE) == true ||
+                        cccdVal?.contentEquals(BluetoothGattDescriptor.ENABLE_INDICATION_VALUE) == true
+                    ) {
+                        result.add(c.uuid.toString().lowercase())
+                    }
+                }
+            }
+        }
+        callback(Result.success(result.toList()))
+    }
+
     // BluetoothGattCallback.onConnectionUpdated is @hide (not in public android.jar).
     // Same method name is required so the framework invokes it at runtime; no `override`.
     @Suppress("unused")
@@ -1415,6 +1471,7 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
                 false
             }
         }
+        subscribedCharacteristics.remove(deviceId.lowercase())
         mtuResultFutureList.removeAll {
             if (it.deviceId == deviceId) {
                 it.result(Result.failure(deviceDisconnectedError))
@@ -1698,6 +1755,12 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
                         )
                     )
                 } else {
+                    if (it.enable) {
+                        subscribedCharacteristics.getOrPut(deviceId.lowercase()) { mutableSetOf() }
+                            .add(characteristic.lowercase())
+                    } else {
+                        subscribedCharacteristics[deviceId.lowercase()]?.remove(characteristic.lowercase())
+                    }
                     it.result(Result.success(Unit))
                 }
                 true

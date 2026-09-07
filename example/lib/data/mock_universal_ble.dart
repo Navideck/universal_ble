@@ -135,9 +135,31 @@ class MockUniversalBle extends UniversalBlePlatform {
     BleConnectionPriority priority,
   ) async {}
 
+  final Set<String> _subscribedCharacteristics = {};
+
   @override
   Future<void> setNotifiable(String deviceId, String service,
-      String characteristic, BleInputProperty bleInputProperty) async {}
+      String characteristic, BleInputProperty bleInputProperty) async {
+    if (bleInputProperty == BleInputProperty.disabled) {
+      _subscribedCharacteristics.remove(characteristic);
+    } else {
+      _subscribedCharacteristics.add(characteristic);
+    }
+  }
+
+  @override
+  Future<bool> isSubscribed(
+    String deviceId,
+    String service,
+    String characteristic,
+  ) async {
+    return _subscribedCharacteristics.contains(characteristic);
+  }
+
+  @override
+  Future<List<String>> getSubscribedCharacteristics(String deviceId) async {
+    return _subscribedCharacteristics.toList();
+  }
 
   @override
   Future<bool> isPaired(String deviceId) async {

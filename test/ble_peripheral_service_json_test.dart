@@ -85,12 +85,10 @@ void main() {
       );
 
       final json = service.toJson();
-      final characteristic =
-          (json['characteristics'] as List<dynamic>).single
-              as Map<String, dynamic>;
-      final descriptor =
-          (characteristic['descriptors'] as List<dynamic>).single
-              as Map<String, dynamic>;
+      final characteristic = (json['characteristics'] as List<dynamic>).single
+          as Map<String, dynamic>;
+      final descriptor = (characteristic['descriptors'] as List<dynamic>).single
+          as Map<String, dynamic>;
 
       expect(json['uuid'], BleUuidParser.string('180d'));
       expect(json['primary'], isTrue);

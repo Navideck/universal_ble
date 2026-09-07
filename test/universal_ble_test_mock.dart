@@ -148,4 +148,18 @@ abstract class UniversalBlePlatformMock extends UniversalBlePlatform {
   Future<bool> isScanning() {
     throw UnimplementedError();
   }
+
+  @override
+  Future<bool> isSubscribed(
+    String deviceId,
+    String service,
+    String characteristic,
+  ) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<List<String>> getSubscribedCharacteristics(String deviceId) {
+    throw UnimplementedError();
+  }
 }
