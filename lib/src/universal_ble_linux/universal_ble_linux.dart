@@ -148,7 +148,7 @@ class UniversalBleLinux extends UniversalBlePlatform {
     ConnectionPlatformConfig? platformConfig,
   }) async {
     // Note: autoConnect is not directly supported on Linux platform
-    // Note: platformConfig only carries Apple-specific options
+    // Note: platformConfig carries platform-specific options
     final device = _findDeviceById(deviceId);
     if (device.connected) {
       updateConnection(deviceId, true);

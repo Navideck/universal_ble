@@ -1,6 +1,19 @@
-## Unreleased (next major)
-* **BREAKING**: device IDs are now emitted in lower-case on every platform (scan results, connection/value/pairing/connection-parameter callbacks and streams). Previously each platform reported its native case — Android upper-cased MACs, Windows/WinRT lower-cased them. IDs are now canonicalised to lower-case throughout the Dart layer; the native side converts back to the case it requires at its boundary (Android's `getRemoteDevice` needs upper-case). Callers that stored or compared an emitted ID by exact case (e.g. an Android upper-case MAC) must now lower-case it, or compare case-insensitively. Follow-up to the case-insensitive matching in 2.1.1.
-* **BREAKING**: the same applies to peripheral mode — central device IDs in `UniversalBlePeripheral` streams, read/write request handlers, and `getSubscribedClients` results are emitted in lower-case, and IDs passed to `updateCharacteristicValue` / `getMaximumNotifyLength` are accepted in any case.
+## 3.0.0
+* **Breaking:** Add `QueueType.auto` which auto-selects the best queueing strategy per platform: Android uses a per-device queue, all other platforms run commands in parallel. It is now the default for both `UniversalBle` and `UniversalBlePeripheral`, replacing the previous `QueueType.global` default.
+* **Breaking:** device IDs are now emitted in lower-case on every platform (scan results, connection/value/pairing/connection-parameter callbacks and streams). Previously each platform reported its native case — Android upper-cased MACs, Windows/WinRT lower-cased them. IDs are now canonicalised to lower-case throughout the Dart layer; the native side converts back to the case it requires at its boundary (Android's `getRemoteDevice` needs upper-case). Callers that stored or compared an emitted ID by exact case (e.g. an Android upper-case MAC) must now lower-case it, or compare case-insensitively. Follow-up to the case-insensitive matching in 2.1.1.
+* **Breaking:** the same applies to peripheral mode — central device IDs in `UniversalBlePeripheral` streams, read/write request handlers, and `getSubscribedClients` results are emitted in lower-case, and IDs passed to `updateCharacteristicValue` / `getMaximumNotifyLength` are accepted in any case.
+* iOS/macOS: Handle write-without-response transmit buffer backpressure
+* iOS/macOS: complete concurrent reads, descriptor operations, notification changes, and RSSI reads one callback at a time.
+
+## 2.3.0
+* Windows: support connectionless manufacturer-data advertising without a GATT service, including state/error reporting and cleanup on stop/disposal.
+* Apple: Accurately report manufacturer-data advertising capabilities.
+* Android: add `closeGattOnDetach` connection option to release GATT clients when the app is killed
+* Android: close the GATT client once the disconnect completes instead of right after `disconnect()`, and report the real disconnect status
+* Android: Fix peripheral `getReadinessState()` to check permissions and adapter power before advertising support, and throttle `startAdvertising` Bluetooth enable prompts to at most one dialog.
+* Add `isSubscribed` and `getSubscribedCharacteristics` to check characteristic notification/indication subscription status in Central mode.
+* readRssi commands are not queued anymore
+* iOS/macOS: complete only the oldest matching pending write on didWriteValueFor
 
 ## 2.2.0
 * Expose microsecond scan timestamps captured before Flutter event dispatch

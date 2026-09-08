@@ -1,10 +1,11 @@
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
-import 'package:universal_ble/src/utils/ble_command_queue.dart';
 import 'package:universal_ble/src/universal_ble_linux/universal_ble_linux_instance.dart';
 import 'package:universal_ble/src/universal_ble_pigeon/universal_ble_pigeon_channel.dart';
 import 'package:universal_ble/src/universal_ble_web/universal_ble_web.dart';
+import 'package:universal_ble/src/utils/ble_command_queue.dart';
+import 'package:universal_ble/src/utils/cache_handler.dart';
 import 'package:universal_ble/src/utils/universal_logger.dart';
 import 'package:universal_ble/universal_ble.dart';
 
@@ -32,8 +33,10 @@ class UniversalBle {
     await _platform.setLogLevel(logLevel);
   }
 
-  /// Set how commands will be executed. By default, all commands are executed in a global queue (`QueueType.global`),
-  /// with each command waiting for the previous one to finish.
+  /// Set how commands will be executed. By default, [QueueType.auto] is used,
+  /// which automatically picks the best strategy for the current platform: Android uses a
+  /// per-device queue (its native stack rejects overlapping operations), while all other
+  /// platforms run commands in parallel (they pipeline natively).
   ///
   /// [QueueType.global] will execute commands of all devices in a single queue.
   /// [QueueType.perDevice] will execute command of each device in separate queues.
@@ -58,7 +61,8 @@ class UniversalBle {
   static Stream<Uint8List> characteristicValueStream(
     String deviceId,
     String characteristicId,
-  ) => _platform.characteristicValueStream(deviceId, characteristicId);
+  ) =>
+      _platform.characteristicValueStream(deviceId, characteristicId);
 
   /// Pairing state stream
   static Stream<bool> pairingStateStream(String deviceId) =>
@@ -168,15 +172,15 @@ class UniversalBle {
 
     _platform
         .connect(
-          deviceId,
-          connectionTimeout: timeout,
-          autoConnect: autoConnect,
-          platformConfig: platformConfig,
-        )
+      deviceId,
+      connectionTimeout: timeout,
+      autoConnect: autoConnect,
+      platformConfig: platformConfig,
+    )
         .catchError((error) {
-          if (completer.isCompleted) return;
-          completer.completeError(ConnectionException(error));
-        });
+      if (completer.isCompleted) return;
+      completer.completeError(ConnectionException(error));
+    });
 
     if (!await completer.future.timeout(timeout)) {
       throw ConnectionException("Failed to connect");
@@ -206,15 +210,15 @@ class UniversalBle {
 
       await _bleCommandQueue
           .queueCommand(
-            () => _platform.disconnect(deviceId),
-            timeout: timeout,
-            deviceId: deviceId,
-            queueId: queueId,
-          )
+        () => _platform.disconnect(deviceId),
+        timeout: timeout,
+        deviceId: deviceId,
+        queueId: queueId,
+      )
           .catchError((error) {
-            if (completer.isCompleted) return;
-            completer.completeError(ConnectionException(error));
-          });
+        if (completer.isCompleted) return;
+        completer.completeError(ConnectionException(error));
+      });
 
       if (connectionState == BleConnectionState.disconnected ||
           connectionState == BleConnectionState.disconnecting) {
@@ -310,6 +314,17 @@ class UniversalBle {
       queueId: queueId,
     );
   }
+
+  /// Returns whether this app is currently subscribed to notifications/indications for [characteristic].
+  ///
+  /// Subscription state is updated when [subscribeNotifications], [subscribeIndications],
+  /// or [unsubscribe] completes, and is automatically cleared when the device disconnects.
+  static bool isSubscribed(String deviceId, String characteristic) =>
+      CacheHandler.instance.isSubscribed(deviceId, characteristic);
+
+  /// Returns the list of characteristic UUIDs currently subscribed to on [deviceId].
+  static List<String> getSubscribedCharacteristics(String deviceId) =>
+      CacheHandler.instance.getSubscribedCharacteristics(deviceId);
 
   /// Read a characteristic value.
   /// On iOS and MacOS this command will also trigger [onValueChange] listener.
@@ -476,15 +491,11 @@ class UniversalBle {
   static Future<int> readRssi(
     String deviceId, {
     Duration? timeout,
-    String? queueId,
-  }) async {
-    return await _bleCommandQueue.queueCommand(
-      () => _platform.readRssi(deviceId),
-      timeout: timeout,
-      deviceId: deviceId,
-      queueId: queueId,
-    );
-  }
+  }) =>
+      _runWithTimeout(
+        () => _platform.readRssi(deviceId),
+        timeout: timeout,
+      );
 
   /// Check if a device is paired.
   ///
@@ -663,11 +674,9 @@ class UniversalBle {
   static set onAvailabilityChange(OnAvailabilityChange? onAvailabilityChange) {
     _platform.onAvailabilityChange = onAvailabilityChange;
     if (onAvailabilityChange != null) {
-      getBluetoothAvailabilityState()
-          .then((value) {
-            onAvailabilityChange(value);
-          })
-          .onError((error, stackTrace) => null);
+      getBluetoothAvailabilityState().then((value) {
+        onAvailabilityChange(value);
+      }).onError((error, stackTrace) => null);
     }
   }
 
@@ -738,32 +747,29 @@ class UniversalBle {
     }
 
     connectionSubscription = _platform
-        .bleConnectionUpdateStreamController
-        .stream
-        .where((e) => e.deviceId == deviceId || e.deviceId.toLowerCase() == target)
+        .bleConnectionUpdateStreamController.stream
+        .where(
+            (e) => e.deviceId == deviceId || e.deviceId.toLowerCase() == target)
         .listen(
-          (e) {
-            cancelSubscription();
-            if (e.error != null) {
-              handleError(e.error);
-            } else {
-              if (!completer.isCompleted) {
-                completer.complete(e.isConnected);
-              }
-            }
-          },
-          onError: handleError,
-          cancelOnError: true,
-        );
+      (e) {
+        cancelSubscription();
+        if (e.error != null) {
+          handleError(e.error);
+        } else {
+          if (!completer.isCompleted) {
+            completer.complete(e.isConnected);
+          }
+        }
+      },
+      onError: handleError,
+      cancelOnError: true,
+    );
 
-    completer.future
-        .timeout(timeout)
-        .then((_) {
-          cancelSubscription();
-        })
-        .catchError((_) {
-          cancelSubscription();
-        });
+    completer.future.timeout(timeout).then((_) {
+      cancelSubscription();
+    }).catchError((_) {
+      cancelSubscription();
+    });
 
     return completer;
   }
@@ -776,7 +782,7 @@ class UniversalBle {
     Duration? timeout,
     String? queueId,
   }) async {
-    return await _bleCommandQueue.queueCommand(
+    await _bleCommandQueue.queueCommand(
       () => _platform.setNotifiable(
         deviceId,
         BleUuidParser.string(service),
@@ -786,6 +792,11 @@ class UniversalBle {
       deviceId: deviceId,
       timeout: timeout,
       queueId: queueId,
+    );
+    CacheHandler.instance.updateSubscription(
+      deviceId,
+      characteristic,
+      bleInputProperty != BleInputProperty.disabled,
     );
   }
 
@@ -960,7 +971,8 @@ class UniversalBle {
   /// Connection parameter updates (Android API 26+).
   static set onConnectionParametersChange(
     OnConnectionParametersChange? onConnectionParametersChange,
-  ) => _platform.onConnectionParametersChange = onConnectionParametersChange;
+  ) =>
+      _platform.onConnectionParametersChange = onConnectionParametersChange;
 
   static UniversalBlePlatform _defaultPlatform() {
     if (kIsWeb) return UniversalBleWeb.instance;
@@ -968,5 +980,15 @@ class UniversalBle {
       return universalBleLinuxInstance;
     }
     return UniversalBlePigeonChannel.instance;
+  }
+
+  static Future<T> _runWithTimeout<T>(
+    Future<T> Function() action, {
+    Duration? timeout,
+  }) {
+    final timeoutDuration = timeout ?? _bleCommandQueue.timeout;
+    return timeoutDuration != null
+        ? action().timeout(timeoutDuration)
+        : action();
   }
 }

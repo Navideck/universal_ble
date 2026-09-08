@@ -11,6 +11,7 @@ export 'package:universal_ble/src/interfaces/universal_ble_peripheral_platform_i
 export 'package:universal_ble/src/universal_ble.g.dart'
     show
         AndroidOptions,
+        AndroidConnectionOptions,
         AppleConnectionOptions,
         ConnectionPlatformConfig,
         AndroidScanMode,

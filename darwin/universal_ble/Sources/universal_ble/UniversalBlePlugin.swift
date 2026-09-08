@@ -95,7 +95,7 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
   private var activeServiceDiscoveries: [String: UniversalBleAsyncServiceDiscovery] = [:]
   private var characteristicReadFutures = [CharacteristicReadFuture]()
   private var characteristicWriteFutures = [CharacteristicWriteFuture]()
-  private var characteristicWriteWithoutResponseFutures = [CharacteristicWriteFuture]()
+  private var pendingWriteWithoutResponse = [PendingWriteWithoutResponse]()
   private var characteristicNotifyFutures = [CharacteristicNotifyFuture]()
   private var descriptorReadFutures = [DescriptorReadFuture]()
   private var descriptorWriteFutures = [DescriptorWriteFuture]()
@@ -282,7 +282,7 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
 
     characteristicReadFutures.failAndRemoveAll(matching: deviceId, with: error)
     characteristicWriteFutures.failAndRemoveAll(matching: deviceId, with: error)
-    characteristicWriteWithoutResponseFutures.failAndRemoveAll(matching: deviceId, with: error)
+    pendingWriteWithoutResponse.failAndRemoveAll(matching: deviceId, with: error)
     characteristicNotifyFutures.failAndRemoveAll(matching: deviceId, with: error)
     descriptorReadFutures.failAndRemoveAll(matching: deviceId, with: error)
     descriptorWriteFutures.failAndRemoveAll(matching: deviceId, with: error)
@@ -401,28 +401,38 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
       completion(Result.failure(createFlutterError(code: .characteristicNotFound, message: "Unknown characteristic:\(characteristic)")))
       return
     }
+    guard peripheral.state == .connected else {
+      completion(Result.failure(createFlutterError(code: .deviceDisconnected, message: "Device Disconnected")))
+      return
+    }
 
-    let type = bleOutputProperty == .withoutResponse ? CBCharacteristicWriteType.withoutResponse : CBCharacteristicWriteType.withResponse
-
-    if type == CBCharacteristicWriteType.withResponse {
-      if !gattCharacteristic.properties.contains(.write) {
+    switch bleOutputProperty {
+    case .withResponse:
+      guard gattCharacteristic.properties.contains(.write) else {
         completion(Result.failure(createFlutterError(code: .characteristicDoesNotSupportWrite, message: "Characteristic does not support write withResponse")))
         return
       }
-    } else if type == CBCharacteristicWriteType.withoutResponse {
-      if !gattCharacteristic.properties.contains(.writeWithoutResponse) {
+      characteristicWriteFutures.append(CharacteristicWriteFuture(deviceId: deviceId, characteristicId: gattCharacteristic.uuid.uuidStr, serviceId: gattCharacteristic.service?.uuid.uuidStr, result: completion))
+      peripheral.writeValue(value.data, for: gattCharacteristic, type: .withResponse)
+    case .withoutResponse:
+      guard gattCharacteristic.properties.contains(.writeWithoutResponse) else {
         completion(Result.failure(createFlutterError(code: .characteristicDoesNotSupportWriteWithoutResponse, message: "Characteristic does not support write withoutResponse")))
         return
       }
-    }
-    peripheral.writeValue(value.data, for: gattCharacteristic, type: type)
 
-    // Wait for future response
-    let future = CharacteristicWriteFuture(deviceId: deviceId, characteristicId: gattCharacteristic.uuid.uuidStr, serviceId: gattCharacteristic.service?.uuid.uuidStr, result: completion)
-    if type == CBCharacteristicWriteType.withResponse {
-      characteristicWriteFutures.append(future)
-    } else {
-      characteristicWriteWithoutResponseFutures.append(future)
+      if peripheral.canSendWriteWithoutResponse {
+        peripheral.writeValue(value.data, for: gattCharacteristic, type: .withoutResponse)
+        completion(Result.success(()))
+      } else {
+        pendingWriteWithoutResponse.append(
+          PendingWriteWithoutResponse(
+            deviceId: deviceId,
+            characteristic: gattCharacteristic,
+            data: value.data,
+            result: completion
+          )
+        )
+      }
     }
   }
 
@@ -693,91 +703,96 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
   }
 
   public func peripheralIsReady(toSendWriteWithoutResponse peripheral: CBPeripheral) {
-    characteristicWriteWithoutResponseFutures.removeAll { future in
-      if future.deviceId == peripheral.uuid.uuidString {
-        future.result(Result.success({}()))
-        return true
+    let deviceId = peripheral.uuid.uuidString
+    while peripheral.state == .connected && peripheral.canSendWriteWithoutResponse {
+      guard let index = pendingWriteWithoutResponse.firstIndex(where: { $0.deviceId == deviceId }) else {
+        return
       }
-      return false
+      let pending = pendingWriteWithoutResponse.remove(at: index)
+      peripheral.writeValue(pending.data, for: pending.characteristic, type: .withoutResponse)
+      pending.result(Result.success(()))
     }
   }
 
   public func peripheral(_ peripheral: CBPeripheral, didWriteValueFor characteristic: CBCharacteristic, error: Error?) {
-    characteristicWriteFutures.removeAll { future in
-      if future.deviceId == peripheral.uuid.uuidString && future.characteristicId == characteristic.uuid.uuidStr && future.serviceId == characteristic.service?.uuid.uuidStr {
-        if let flutterError = error?.toFlutterError() {
-          UniversalBleLogger.shared.logError("WRITE_FAILED <- \(peripheral.uuid.uuidString) \(characteristic.uuid.uuidStr): \(flutterError.message ?? "")")
-          future.result(Result.failure(flutterError))
-        } else {
-          future.result(Result.success({}()))
-        }
-        return true
-      }
-      return false
+    guard let index = characteristicWriteFutures.firstIndex(where: {
+      $0.deviceId == peripheral.uuid.uuidString &&
+        $0.characteristicId == characteristic.uuid.uuidStr &&
+        $0.serviceId == characteristic.service?.uuid.uuidStr
+    }) else {
+      return
+    }
+
+    let future = characteristicWriteFutures.remove(at: index)
+    if let flutterError = error?.toFlutterError() {
+      UniversalBleLogger.shared.logError("WRITE_FAILED <- \(peripheral.uuid.uuidString) \(characteristic.uuid.uuidStr): \(flutterError.message ?? "")")
+      future.result(Result.failure(flutterError))
+    } else {
+      future.result(Result.success(()))
     }
   }
 
   public func peripheral(_ peripheral: CBPeripheral, didUpdateValueFor descriptor: CBDescriptor, error: Error?) {
-    descriptorReadFutures.removeAll { future in
-      if future.deviceId == peripheral.uuid.uuidString &&
-        future.descriptorId == descriptor.uuid.uuidStr &&
-        future.characteristicId == descriptor.characteristic?.uuid.uuidStr &&
-        future.serviceId == descriptor.characteristic?.service?.uuid.uuidStr {
-        if let flutterError = error?.toFlutterError() {
-          UniversalBleLogger.shared.logError("READ_DESCRIPTOR_FAILED <- \(peripheral.uuid.uuidString) \(descriptor.uuid.uuidStr): \(flutterError.message ?? "")")
-          future.result(Result.failure(flutterError))
-        } else {
-          if let valueData = descriptor.value as? Data {
-            future.result(Result.success(FlutterStandardTypedData(bytes: valueData)))
-          } else if let numberVal = descriptor.value as? NSNumber {
-            var val = numberVal.uint16Value
-            let data = Data(bytes: &val, count: MemoryLayout<UInt16>.size)
-            future.result(Result.success(FlutterStandardTypedData(bytes: data)))
-          } else if let stringVal = descriptor.value as? String {
-            let data = Data(stringVal.utf8)
-            future.result(Result.success(FlutterStandardTypedData(bytes: data)))
-          } else if let cbuuid = descriptor.value as? CBUUID {
-            future.result(Result.success(FlutterStandardTypedData(bytes: cbuuid.data)))
-          } else {
-            future.result(Result.success(FlutterStandardTypedData(bytes: Data())))
-          }
-        }
-        return true
-      }
-      return false
+    guard let future = descriptorReadFutures.popFirst(where: {
+      $0.deviceId == peripheral.uuid.uuidString &&
+        $0.descriptorId == descriptor.uuid.uuidStr &&
+        $0.characteristicId == descriptor.characteristic?.uuid.uuidStr &&
+        $0.serviceId == descriptor.characteristic?.service?.uuid.uuidStr
+    }) else {
+      return
+    }
+
+    if let flutterError = error?.toFlutterError() {
+      UniversalBleLogger.shared.logError("READ_DESCRIPTOR_FAILED <- \(peripheral.uuid.uuidString) \(descriptor.uuid.uuidStr): \(flutterError.message ?? "")")
+      future.result(Result.failure(flutterError))
+    } else if let valueData = descriptor.value as? Data {
+      future.result(Result.success(FlutterStandardTypedData(bytes: valueData)))
+    } else if let numberVal = descriptor.value as? NSNumber {
+      var val = numberVal.uint16Value
+      let data = Data(bytes: &val, count: MemoryLayout<UInt16>.size)
+      future.result(Result.success(FlutterStandardTypedData(bytes: data)))
+    } else if let stringVal = descriptor.value as? String {
+      let data = Data(stringVal.utf8)
+      future.result(Result.success(FlutterStandardTypedData(bytes: data)))
+    } else if let cbuuid = descriptor.value as? CBUUID {
+      future.result(Result.success(FlutterStandardTypedData(bytes: cbuuid.data)))
+    } else {
+      future.result(Result.success(FlutterStandardTypedData(bytes: Data())))
     }
   }
 
   public func peripheral(_ peripheral: CBPeripheral, didWriteValueFor descriptor: CBDescriptor, error: Error?) {
-    descriptorWriteFutures.removeAll { future in
-      if future.deviceId == peripheral.uuid.uuidString &&
-        future.descriptorId == descriptor.uuid.uuidStr &&
-        future.characteristicId == descriptor.characteristic?.uuid.uuidStr &&
-        future.serviceId == descriptor.characteristic?.service?.uuid.uuidStr {
-        if let flutterError = error?.toFlutterError() {
-          UniversalBleLogger.shared.logError("WRITE_DESCRIPTOR_FAILED <- \(peripheral.uuid.uuidString) \(descriptor.uuid.uuidStr): \(flutterError.message ?? "")")
-          future.result(Result.failure(flutterError))
-        } else {
-          future.result(Result.success({}()))
-        }
-        return true
-      }
-      return false
+    guard let future = descriptorWriteFutures.popFirst(where: {
+      $0.deviceId == peripheral.uuid.uuidString &&
+        $0.descriptorId == descriptor.uuid.uuidStr &&
+        $0.characteristicId == descriptor.characteristic?.uuid.uuidStr &&
+        $0.serviceId == descriptor.characteristic?.service?.uuid.uuidStr
+    }) else {
+      return
+    }
+
+    if let flutterError = error?.toFlutterError() {
+      UniversalBleLogger.shared.logError("WRITE_DESCRIPTOR_FAILED <- \(peripheral.uuid.uuidString) \(descriptor.uuid.uuidStr): \(flutterError.message ?? "")")
+      future.result(Result.failure(flutterError))
+    } else {
+      future.result(Result.success({}()))
     }
   }
 
   public func peripheral(_ peripheral: CBPeripheral, didUpdateNotificationStateFor characteristic: CBCharacteristic, error: Error?) {
-    characteristicNotifyFutures.removeAll { future in
-      if future.deviceId == peripheral.uuid.uuidString && future.characteristicId == characteristic.uuid.uuidStr && future.serviceId == characteristic.service?.uuid.uuidStr {
-        if let flutterError = error?.toFlutterError() {
-          UniversalBleLogger.shared.logError("SET_NOTIFY_FAILED <- \(peripheral.uuid.uuidString) \(characteristic.uuid.uuidStr): \(flutterError.message ?? "")")
-          future.result(Result.failure(flutterError))
-        } else {
-          future.result(Result.success({}()))
-        }
-        return true
-      }
-      return false
+    guard let future = characteristicNotifyFutures.popFirst(where: {
+      $0.deviceId == peripheral.uuid.uuidString &&
+        $0.characteristicId == characteristic.uuid.uuidStr &&
+        $0.serviceId == characteristic.service?.uuid.uuidStr
+    }) else {
+      return
+    }
+
+    if let flutterError = error?.toFlutterError() {
+      UniversalBleLogger.shared.logError("SET_NOTIFY_FAILED <- \(peripheral.uuid.uuidString) \(characteristic.uuid.uuidStr): \(flutterError.message ?? "")")
+      future.result(Result.failure(flutterError))
+    } else {
+      future.result(Result.success({}()))
     }
   }
 
@@ -819,37 +834,36 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
       return
     }
 
-    // Update futures for readValue
-    characteristicReadFutures.removeAll { future in
-      if future.deviceId == peripheral.uuid.uuidString && future.characteristicId == characteristic.uuid.uuidStr && future.serviceId == characteristic.service?.uuid.uuidStr {
-        if let flutterError = error?.toFlutterError() {
-          UniversalBleLogger.shared.logError("READ_FAILED <- \(peripheral.uuid.uuidString) \(characteristic.uuid.uuidStr): \(flutterError.message ?? "")")
-          future.result(Result.failure(flutterError))
-        } else {
-          if let characteristicValue = characteristic.value {
-            future.result(Result.success(FlutterStandardTypedData(bytes: characteristicValue)))
-          } else {
-            future.result(Result.failure(createFlutterError(code: .readFailed, message: "No value")))
-          }
-        }
-        return true
-      }
-      return false
+    guard let future = characteristicReadFutures.popFirst(where: {
+      $0.deviceId == peripheral.uuid.uuidString &&
+        $0.characteristicId == characteristic.uuid.uuidStr &&
+        $0.serviceId == characteristic.service?.uuid.uuidStr
+    }) else {
+      return
+    }
+
+    if let flutterError = error?.toFlutterError() {
+      UniversalBleLogger.shared.logError("READ_FAILED <- \(peripheral.uuid.uuidString) \(characteristic.uuid.uuidStr): \(flutterError.message ?? "")")
+      future.result(Result.failure(flutterError))
+    } else if let characteristicValue = characteristic.value {
+      future.result(Result.success(FlutterStandardTypedData(bytes: characteristicValue)))
+    } else {
+      future.result(Result.failure(createFlutterError(code: .readFailed, message: "No value")))
     }
   }
 
   public func peripheral(_ peripheral: CBPeripheral, didReadRSSI RSSI: NSNumber, error: Error?) {
-    rssiReadFutures.removeAll { future in
-      if future.deviceId == peripheral.uuid.uuidString {
-        if let flutterError = error?.toFlutterError() {
-          UniversalBleLogger.shared.logError("READ_RSSI_FAILED <- \(peripheral.uuid.uuidString): \(flutterError.message ?? "")")
-          future.result(Result.failure(flutterError))
-        } else {
-          future.result(Result.success(RSSI.int64Value))
-        }
-        return true
-      }
-      return false
+    guard let future = rssiReadFutures.popFirst(where: {
+      $0.deviceId == peripheral.uuid.uuidString
+    }) else {
+      return
+    }
+
+    if let flutterError = error?.toFlutterError() {
+      UniversalBleLogger.shared.logError("READ_RSSI_FAILED <- \(peripheral.uuid.uuidString): \(flutterError.message ?? "")")
+      future.result(Result.failure(flutterError))
+    } else {
+      future.result(Result.success(RSSI.int64Value))
     }
   }
 }

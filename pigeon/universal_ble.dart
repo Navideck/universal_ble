@@ -295,9 +295,22 @@ class AppleConnectionOptions {
   });
 }
 
+class AndroidConnectionOptions {
+  /// Close the GATT client when the FlutterEngine is detached (for
+  /// example, when the app is "killed"). The plugin otherwise leaves the
+  /// GATT open, keeping the peripheral occupied until its supervision
+  /// timeout; with `autoConnect` it also stays open for reconnection.
+  ///
+  /// When `null`, the current process-wide value is kept.
+  bool? closeGattOnDetach;
+
+  AndroidConnectionOptions({this.closeGattOnDetach});
+}
+
 class ConnectionPlatformConfig {
   AppleConnectionOptions? apple;
-  ConnectionPlatformConfig({this.apple});
+  AndroidConnectionOptions? android;
+  ConnectionPlatformConfig({this.apple, this.android});
 }
 
 class PeripheralAndroidOptions {

@@ -287,6 +287,25 @@ await bleDevice.connect(
 );
 ```
 
+#### Close GATT on app teardown (Android)
+
+When the Android app is killed by the user (typically swiped away from recents), the OS tears down the FlutterEngine without ever delivering a "disconnect" — the peripheral keeps the link open until its connection supervision timeout (often 10–20 s), leaving the device occupied.
+
+Pass `AndroidConnectionOptions(closeGattOnDetach: true)` to have the plugin close every known GATT client as soon as the engine detaches, releasing the peripheral immediately. Without the option, whatever the `autoConnect` value, the link persists until the peripheral's supervision timeout.
+
+```dart
+await bleDevice.connect(
+  autoConnect: true,
+  platformConfig: ConnectionPlatformConfig(
+    android: AndroidConnectionOptions(closeGattOnDetach: true),
+  ),
+);
+```
+
+Notes:
+- Once any connection opts in, the behavior is global for the running process — every current and future GATT client is released on engine teardown. It can be disabled at runtime by connecting with `closeGattOnDetach: false`; connecting without the option leaves the current value unchanged (a fresh app launch resets it).
+- Android-only. Explicit `disconnect()` calls and rotation are unaffected.
+
 ### Discovering Services
 
 After establishing a connection, services need to be discovered. This method will discover all services and their characteristics.
@@ -393,6 +412,23 @@ Unsubscribe from notifications and indications of this characteristic.
 
 ```dart
 await characteristic.unsubscribe();
+```
+
+### Check Subscription Status
+
+Check if a characteristic is currently subscribed to:
+
+```dart
+// Via BleCharacteristic or CharacteristicSubscription
+bool isSubscribed = characteristic.isSubscribed;
+// or
+bool isSubscribed = characteristic.notifications.isSubscribed;
+
+// Or globally via UniversalBle
+bool isSubscribed = UniversalBle.isSubscribed(deviceId, characteristicId);
+
+// Get all subscribed characteristic UUIDs for a device
+List<String> subscribedChars = UniversalBle.getSubscribedCharacteristics(deviceId);
 ```
 
 ### Pairing
@@ -577,13 +613,19 @@ int rssi = await bleDevice.readRssi();
 
 ## Command Queue
 
-By default, all commands are executed in a global queue (`QueueType.global`), with each command waiting for the previous one to finish. While this method is slower it is the safest to avoid command exceptions and therefore is the default.
+By default, commands use `QueueType.auto`, which automatically picks the best strategy for the current platform with zero configuration. Android uses a per-device queue (its native BLE stack rejects overlapping operations), while all other platforms run commands in parallel (they pipeline natively).
 
-If you want to parallelize commands between multiple devices, you can set:
+If you want explicit control over how commands are serialized, you can set `queueType`:
 
 ```dart
+// Run all commands in a single global queue (safest, but slower).
+UniversalBle.queueType = QueueType.global;
+
 // Create a separate queue for each device.
 UniversalBle.queueType = QueueType.perDevice;
+
+// Auto-decide per platform (default): Android queues per device, all others run in parallel.
+UniversalBle.queueType = QueueType.auto;
 ```
 
 You can have separate queues by passing an optional `queueId`. Commands with the same `queueId` are serialized together, but run in parallel with both `QueueType.perDevice` and `QueueType.global`:
@@ -632,7 +674,7 @@ UniversalBle.clearQueue();
 `UniversalBlePeripheral` supports the same queueing configuration (`queueType`, `timeout`, `clearQueue`, and `onQueueUpdate`) for peripheral commands (e.g. `addService`, `startAdvertising`, `updateCharacteristicValue`):
 
 ```dart
-// Configure peripheral command queue (defaults to QueueType.global)
+// Configure peripheral command queue (defaults to QueueType.auto)
 UniversalBlePeripheral.queueType = QueueType.perDevice;
 
 // Clear peripheral queue
@@ -792,7 +834,9 @@ await UniversalBlePeripheral.clearServices();
 
 On **Android**, passing `localName` may temporarily change the system Bluetooth device name (so it can appear in the advertisement). The plugin restores the previous name when advertising stops, if starting advertising fails, or when the plugin is disposed.
 
-On **Windows**, `GattServiceProvider`-based advertising does not support `localName`, manufacturer data, or a scan-response flag; pass `null` for those parameters or the call returns a not-supported error. Use `getCapabilities()` to check feature support before calling.
+On **Windows**, pass `services: []` and `manufacturerData` for connectionless advertising via `BluetoothLEAdvertisementPublisher`. No GATT service registration is needed. The company ID must fit 16 bits and the payload must be at most 27 bytes (legacy advertising). Stop advertising before changing the payload. Registered-service advertising still uses `GattServiceProvider`; combining service UUIDs with manufacturer data is not supported. Windows does not allow a custom `localName` in either mode. Unsupported combinations return `not-supported`. Advertising is best effort; listen to `advertisingStateStream` for asynchronous failures. See [Microsoft's publisher restrictions](https://learn.microsoft.com/en-us/uwp/api/windows.devices.bluetooth.advertisement.bluetoothleadvertisementpublisher).
+
+On **iOS/macOS**, CoreBluetooth supports local names and service UUIDs, not manufacturer data. `getCapabilities()` reflects this restriction. Use a local-name carrier when your protocol must also broadcast on Apple platforms.
 
 ```dart
 import 'dart:typed_data';

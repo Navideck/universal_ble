@@ -71,6 +71,14 @@ fun String.findGatt(): BluetoothGatt? {
     return knownGatts[this]
 }
 
+/**
+ * Snapshot of every known GATT client. The snapshot avoids mutating the
+ * map while clients are released.
+ */
+fun connectedGatts(): List<BluetoothGatt> {
+    return knownGatts.values.toList()
+}
+
 fun BluetoothManager.isBluetoothEnabled(): Boolean {
     return adapter?.isEnabled == true
 }
@@ -112,7 +120,8 @@ fun BluetoothGatt.saveCacheIfNeeded() {
 }
 
 fun BluetoothGatt.removeCache() {
-    knownGatts.remove(this.device.address)
+    // Only while still the registered client; a newer connect() may have replaced it.
+    knownGatts.remove(this.device.address, this)
 }
 
 

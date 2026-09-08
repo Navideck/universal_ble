@@ -49,7 +49,9 @@ class UniversalBlePeripheralPigeon extends UniversalBlePeripheralPlatform
         defaultTargetPlatform == TargetPlatform.android;
     return BlePeripheralCapabilities(
       supportsPeripheralMode: supported,
-      supportsManufacturerDataInAdvertisement: supported,
+      supportsManufacturerDataInAdvertisement: supported &&
+          (defaultTargetPlatform == TargetPlatform.android ||
+              defaultTargetPlatform == TargetPlatform.windows),
       supportsManufacturerDataInScanResponse:
           supported && supportsManufacturerDataInScanResponse,
       supportsServiceDataInAdvertisement: false,

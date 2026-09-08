@@ -38,7 +38,7 @@ class UniversalBleWeb extends UniversalBlePlatform {
     ConnectionPlatformConfig? platformConfig,
   }) async {
     // Note: autoConnect is not directly supported on Web platform
-    // Note: platformConfig only carries Apple-specific options
+    // Note: platformConfig carries platform-specific options
     var device = _getDeviceById(deviceId);
     if (device == null) {
       throw UniversalBleException(

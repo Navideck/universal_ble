@@ -198,6 +198,13 @@ protocol DeviceFuture {
     func fail(with error: Error)
 }
 
+extension Array {
+    mutating func popFirst(where predicate: (Element) throws -> Bool) rethrows -> Element? {
+        guard let index = try firstIndex(where: predicate) else { return nil }
+        return remove(at: index)
+    }
+}
+
 extension Array where Element: DeviceFuture {
     mutating func failAndRemoveAll(matching deviceId: String, with error: Error) {
         removeAll { future in
@@ -238,6 +245,24 @@ class CharacteristicWriteFuture: DeviceFuture {
         self.deviceId = deviceId
         self.characteristicId = characteristicId
         self.serviceId = serviceId
+        self.result = result
+    }
+
+    func fail(with error: Error) {
+        result(.failure(error))
+    }
+}
+
+class PendingWriteWithoutResponse: DeviceFuture {
+    let deviceId: String
+    let characteristic: CBCharacteristic
+    let data: Data
+    let result: (Result<Void, Error>) -> Void
+
+    init(deviceId: String, characteristic: CBCharacteristic, data: Data, result: @escaping (Result<Void, Error>) -> Void) {
+        self.deviceId = deviceId
+        self.characteristic = characteristic
+        self.data = data
         self.result = result
     }
 
