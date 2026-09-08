@@ -352,47 +352,52 @@ void main() {
       expect(await commandQueue.queueCommand(() async => 7), 7);
     });
 
-    test(
-      'auto queues per device on Android',
-      () async {
-        debugDefaultTargetPlatformOverride = TargetPlatform.android;
-        addTearDown(() => debugDefaultTargetPlatformOverride = null);
+    for (final platform in [
+      TargetPlatform.android,
+      TargetPlatform.linux,
+    ]) {
+      test(
+        'auto queues per device on ${platform.name}',
+        () async {
+          debugDefaultTargetPlatformOverride = platform;
+          addTearDown(() => debugDefaultTargetPlatformOverride = null);
 
-        final commandQueue = BleCommandQueue(queueType: QueueType.auto);
-        final order = <String>[];
+          final commandQueue = BleCommandQueue(queueType: QueueType.auto);
+          final order = <String>[];
 
-        final releaseA = Completer<void>();
-        final releaseB = Completer<void>();
-        final deviceBStarted = Completer<void>();
+          final releaseA = Completer<void>();
+          final releaseB = Completer<void>();
+          final deviceBStarted = Completer<void>();
 
-        commandQueue.queueCommand(
-          () async {
-            await releaseA.future;
-            order.add('device-a');
-          },
-          deviceId: 'device-a',
-        );
-        commandQueue.queueCommand(
-          () async {
-            deviceBStarted.complete();
-            await releaseB.future;
-            order.add('device-b');
-          },
-          deviceId: 'device-b',
-        );
+          commandQueue.queueCommand(
+            () async {
+              await releaseA.future;
+              order.add('device-a');
+            },
+            deviceId: 'device-a',
+          );
+          commandQueue.queueCommand(
+            () async {
+              deviceBStarted.complete();
+              await releaseB.future;
+              order.add('device-b');
+            },
+            deviceId: 'device-b',
+          );
 
-        await deviceBStarted.future;
-        expect(order, isEmpty);
+          await deviceBStarted.future;
+          expect(order, isEmpty);
 
-        releaseB.complete();
-        await pumpEventQueue();
-        expect(order, ['device-b']);
+          releaseB.complete();
+          await pumpEventQueue();
+          expect(order, ['device-b']);
 
-        releaseA.complete();
-        await pumpEventQueue();
-        expect(order, ['device-b', 'device-a']);
-      },
-    );
+          releaseA.complete();
+          await pumpEventQueue();
+          expect(order, ['device-b', 'device-a']);
+        },
+      );
+    }
 
     test('auto runs commands in parallel on non-Android', () async {
       debugDefaultTargetPlatformOverride = TargetPlatform.macOS;

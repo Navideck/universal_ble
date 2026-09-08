@@ -13,12 +13,15 @@ class BleCommandQueue {
   BleCommandQueue({this.queueType = QueueType.auto});
 
   /// Resolve [QueueType.auto] to a concrete queue type based on the
-  /// current platform. Android is the only platform whose native BLE stack
-  /// requires serialization (its `mDeviceBusy` GATT state machine rejects
-  /// overlapping operations), so it gets a per-device queue. All other
+  /// current platform. Android, Web and Linux BLE stacks require
+  /// serialization (Android's `mDeviceBusy` GATT state machine rejects
+  /// overlapping operations; Web Bluetooth and BlueZ reject or misbehave
+  /// on overlapping GATT calls), so they get a per-device queue. All other
   /// platforms pipeline natively and run commands in parallel.
   QueueType get _resolvedQueueType => queueType == QueueType.auto
-      ? (!kIsWeb && defaultTargetPlatform == TargetPlatform.android
+      ? (kIsWeb ||
+              defaultTargetPlatform == TargetPlatform.android ||
+              defaultTargetPlatform == TargetPlatform.linux
           ? QueueType.perDevice
           : QueueType.none)
       : queueType;
