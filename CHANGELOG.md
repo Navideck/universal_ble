@@ -1,5 +1,7 @@
+## 3.0.0
+* **Breaking:** Add `QueueType.defaultPlatform` which auto-selects the best queueing strategy per platform: Android uses a per-device queue, all other platforms run commands in parallel. It is now the default for both `UniversalBle` and `UniversalBlePeripheral`, replacing the previous `QueueType.global` default.
+
 ## 2.3.0
-* Add `QueueType.defaultPlatform` which auto-selects the best queueing strategy per platform: Android uses a per-device queue, all other platforms run commands in parallel. It is now the default for both `UniversalBle` and `UniversalBlePeripheral`.
 * Windows: support connectionless manufacturer-data advertising without a GATT service, including state/error reporting and cleanup on stop/disposal.
 * Apple: Accurately report manufacturer-data advertising capabilities.
 * Android: add `closeGattOnDetach` connection option to release GATT clients when the app is killed
