@@ -1,5 +1,6 @@
 ## 3.0.0
 * iOS/macOS: Handle write-without-response transmit buffer backpressure
+* iOS/macOS: complete concurrent reads, descriptor operations, notification changes, and RSSI reads one callback at a time.
 
 ## 2.3.0
 * Windows: support connectionless manufacturer-data advertising without a GATT service, including state/error reporting and cleanup on stop/disposal.
