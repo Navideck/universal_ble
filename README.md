@@ -1,7 +1,7 @@
 # Universal BLE
 
 <div align="center">
-  <img src="assets/universal_ble_icon.png" alt="Universal BLE Icon" width="128" height="128">
+  <img src="assets/universal_ble_banner.jpg" alt="Universal BLE — Cross-platform Bluetooth Low Energy for Flutter" width="100%">
 </div>
 
 [![pub package](https://img.shields.io/pub/v/universal_ble?label=universal_ble&color=blue)](https://pub.dev/packages/universal_ble)
