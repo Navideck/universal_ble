@@ -198,6 +198,13 @@ protocol DeviceFuture {
     func fail(with error: Error)
 }
 
+extension Array {
+    mutating func popFirst(where predicate: (Element) throws -> Bool) rethrows -> Element? {
+        guard let index = try firstIndex(where: predicate) else { return nil }
+        return remove(at: index)
+    }
+}
+
 extension Array where Element: DeviceFuture {
     mutating func failAndRemoveAll(matching deviceId: String, with error: Error) {
         removeAll { future in

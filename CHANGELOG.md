@@ -1,4 +1,5 @@
 ## 2.3.0
+* iOS/macOS: complete concurrent reads, descriptor operations, notification changes, and RSSI reads one callback at a time.
 * Windows: support connectionless manufacturer-data advertising without a GATT service, including state/error reporting and cleanup on stop/disposal.
 * Apple: Accurately report manufacturer-data advertising capabilities.
 * Android: add `closeGattOnDetach` connection option to release GATT clients when the app is killed
