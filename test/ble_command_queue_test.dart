@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:universal_ble/src/utils/ble_command_queue.dart';
 import 'package:universal_ble/universal_ble.dart';
@@ -7,7 +8,7 @@ import 'package:universal_ble/universal_ble.dart';
 void main() {
   group('BleCommandQueue', () {
     test('global queue executes commands sequentially', () async {
-      final commandQueue = BleCommandQueue();
+      final commandQueue = BleCommandQueue(queueType: QueueType.global);
       final order = <int>[];
 
       final firstStarted = Completer<void>();
@@ -36,7 +37,7 @@ void main() {
     });
 
     test('null queueId uses the global queue', () async {
-      final commandQueue = BleCommandQueue();
+      final commandQueue = BleCommandQueue(queueType: QueueType.global);
       final order = <int>[];
 
       final firstStarted = Completer<void>();
@@ -70,8 +71,9 @@ void main() {
       expect(order, [1, 2]);
     });
 
-    test('custom queueId creates an independent queue in global mode', () async {
-      final commandQueue = BleCommandQueue();
+    test('custom queueId creates an independent queue in global mode',
+        () async {
+      final commandQueue = BleCommandQueue(queueType: QueueType.global);
       final order = <String>[];
 
       final releaseDefault = Completer<void>();
@@ -206,7 +208,7 @@ void main() {
     });
 
     test('queueCommandWithoutTimeout bypasses global timeout', () async {
-      final commandQueue = BleCommandQueue()
+      final commandQueue = BleCommandQueue(queueType: QueueType.global)
         ..timeout = const Duration(milliseconds: 10);
 
       await expectLater(
@@ -225,7 +227,7 @@ void main() {
     });
 
     test('onQueueUpdate reports remaining items per queue id', () async {
-      final commandQueue = BleCommandQueue();
+      final commandQueue = BleCommandQueue(queueType: QueueType.global);
       final updates = <String, List<int>>{};
 
       commandQueue.onQueueUpdate = (id, remaining) {
@@ -255,8 +257,9 @@ void main() {
       expect(updates['tilta']!.last, 0);
     });
 
-    test('clearQueue cancels pending commands for a specific queue id', () async {
-      final commandQueue = BleCommandQueue();
+    test('clearQueue cancels pending commands for a specific queue id',
+        () async {
+      final commandQueue = BleCommandQueue(queueType: QueueType.global);
       final order = <String>[];
 
       final release = Completer<void>();
@@ -299,7 +302,7 @@ void main() {
     });
 
     test('clearQueue without id clears all queues', () async {
-      final commandQueue = BleCommandQueue();
+      final commandQueue = BleCommandQueue(queueType: QueueType.global);
       final releaseDefault = Completer<void>();
       final releaseCustom = Completer<void>();
       final defaultStarted = Completer<void>();
@@ -342,11 +345,90 @@ void main() {
     });
 
     test('new commands recreate a cleared queue id', () async {
-      final commandQueue = BleCommandQueue();
+      final commandQueue = BleCommandQueue(queueType: QueueType.global);
 
       commandQueue.clearQueue(BleCommandQueue.globalQueueId);
 
       expect(await commandQueue.queueCommand(() async => 7), 7);
+    });
+
+    test(
+      'auto queues per device on Android',
+      () async {
+        debugDefaultTargetPlatformOverride = TargetPlatform.android;
+        addTearDown(() => debugDefaultTargetPlatformOverride = null);
+
+        final commandQueue = BleCommandQueue(queueType: QueueType.auto);
+        final order = <String>[];
+
+        final releaseA = Completer<void>();
+        final releaseB = Completer<void>();
+        final deviceBStarted = Completer<void>();
+
+        commandQueue.queueCommand(
+          () async {
+            await releaseA.future;
+            order.add('device-a');
+          },
+          deviceId: 'device-a',
+        );
+        commandQueue.queueCommand(
+          () async {
+            deviceBStarted.complete();
+            await releaseB.future;
+            order.add('device-b');
+          },
+          deviceId: 'device-b',
+        );
+
+        await deviceBStarted.future;
+        expect(order, isEmpty);
+
+        releaseB.complete();
+        await pumpEventQueue();
+        expect(order, ['device-b']);
+
+        releaseA.complete();
+        await pumpEventQueue();
+        expect(order, ['device-b', 'device-a']);
+      },
+    );
+
+    test('auto runs commands in parallel on non-Android', () async {
+      debugDefaultTargetPlatformOverride = TargetPlatform.macOS;
+      addTearDown(() => debugDefaultTargetPlatformOverride = null);
+
+      final commandQueue = BleCommandQueue(queueType: QueueType.auto);
+      final order = <String>[];
+
+      final releaseA = Completer<void>();
+      final releaseB = Completer<void>();
+
+      commandQueue.queueCommand(
+        () async {
+          await releaseA.future;
+          order.add('device-a');
+        },
+        deviceId: 'device-a',
+      );
+      commandQueue.queueCommand(
+        () async {
+          await releaseB.future;
+          order.add('device-b');
+        },
+        deviceId: 'device-b',
+      );
+
+      await pumpEventQueue();
+      expect(order, isEmpty);
+
+      releaseB.complete();
+      await pumpEventQueue();
+      expect(order, ['device-b']);
+
+      releaseA.complete();
+      await pumpEventQueue();
+      expect(order, ['device-b', 'device-a']);
     });
   });
 }
