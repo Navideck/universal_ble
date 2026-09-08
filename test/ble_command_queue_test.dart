@@ -71,7 +71,8 @@ void main() {
       expect(order, [1, 2]);
     });
 
-    test('custom queueId creates an independent queue in global mode', () async {
+    test('custom queueId creates an independent queue in global mode',
+        () async {
       final commandQueue = BleCommandQueue(queueType: QueueType.global);
       final order = <String>[];
 
@@ -256,7 +257,8 @@ void main() {
       expect(updates['tilta']!.last, 0);
     });
 
-    test('clearQueue cancels pending commands for a specific queue id', () async {
+    test('clearQueue cancels pending commands for a specific queue id',
+        () async {
       final commandQueue = BleCommandQueue(queueType: QueueType.global);
       final order = <String>[];
 
@@ -351,12 +353,12 @@ void main() {
     });
 
     test(
-      'defaultPlatform queues per device on Android',
+      'auto queues per device on Android',
       () async {
         debugDefaultTargetPlatformOverride = TargetPlatform.android;
         addTearDown(() => debugDefaultTargetPlatformOverride = null);
 
-        final commandQueue = BleCommandQueue(queueType: QueueType.defaultPlatform);
+        final commandQueue = BleCommandQueue(queueType: QueueType.auto);
         final order = <String>[];
 
         final releaseA = Completer<void>();
@@ -392,11 +394,11 @@ void main() {
       },
     );
 
-    test('defaultPlatform runs commands in parallel on non-Android', () async {
+    test('auto runs commands in parallel on non-Android', () async {
       debugDefaultTargetPlatformOverride = TargetPlatform.macOS;
       addTearDown(() => debugDefaultTargetPlatformOverride = null);
 
-      final commandQueue = BleCommandQueue(queueType: QueueType.defaultPlatform);
+      final commandQueue = BleCommandQueue(queueType: QueueType.auto);
       final order = <String>[];
 
       final releaseA = Completer<void>();

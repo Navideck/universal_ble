@@ -613,7 +613,7 @@ int rssi = await bleDevice.readRssi();
 
 ## Command Queue
 
-By default, commands use `QueueType.defaultPlatform`, which automatically picks the best strategy for the current platform with zero configuration. Android uses a per-device queue (its native BLE stack rejects overlapping operations), while all other platforms run commands in parallel (they pipeline natively).
+By default, commands use `QueueType.auto`, which automatically picks the best strategy for the current platform with zero configuration. Android uses a per-device queue (its native BLE stack rejects overlapping operations), while all other platforms run commands in parallel (they pipeline natively).
 
 If you want explicit control over how commands are serialized, you can set `queueType`:
 
@@ -625,7 +625,7 @@ UniversalBle.queueType = QueueType.global;
 UniversalBle.queueType = QueueType.perDevice;
 
 // Auto-decide per platform (default): Android queues per device, all others run in parallel.
-UniversalBle.queueType = QueueType.defaultPlatform;
+UniversalBle.queueType = QueueType.auto;
 ```
 
 You can have separate queues by passing an optional `queueId`. Commands with the same `queueId` are serialized together, but run in parallel with both `QueueType.perDevice` and `QueueType.global`:
@@ -674,7 +674,7 @@ UniversalBle.clearQueue();
 `UniversalBlePeripheral` supports the same queueing configuration (`queueType`, `timeout`, `clearQueue`, and `onQueueUpdate`) for peripheral commands (e.g. `addService`, `startAdvertising`, `updateCharacteristicValue`):
 
 ```dart
-// Configure peripheral command queue (defaults to QueueType.defaultPlatform)
+// Configure peripheral command queue (defaults to QueueType.auto)
 UniversalBlePeripheral.queueType = QueueType.perDevice;
 
 // Clear peripheral queue

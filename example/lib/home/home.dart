@@ -24,7 +24,7 @@ class _CentralHomeState extends State<CentralHome> {
   final _bleDevices = <BleDevice>[];
   final _hiddenDevices = <BleDevice>[];
   bool _isScanning = false;
-  QueueType _queueType = QueueType.defaultPlatform;
+  QueueType _queueType = QueueType.auto;
   TextEditingController servicesFilterController = TextEditingController();
   TextEditingController namePrefixController = TextEditingController();
   TextEditingController manufacturerDataController = TextEditingController();
@@ -294,8 +294,8 @@ class _CentralHomeState extends State<CentralHome> {
                       _queueType = switch (_queueType) {
                         QueueType.global => QueueType.perDevice,
                         QueueType.perDevice => QueueType.none,
-                        QueueType.none => QueueType.defaultPlatform,
-                        QueueType.defaultPlatform => QueueType.global,
+                        QueueType.none => QueueType.auto,
+                        QueueType.auto => QueueType.global,
                       };
                       UniversalBle.queueType = _queueType;
                     });

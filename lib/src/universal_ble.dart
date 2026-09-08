@@ -33,7 +33,7 @@ class UniversalBle {
     await _platform.setLogLevel(logLevel);
   }
 
-  /// Set how commands will be executed. By default, [QueueType.defaultPlatform] is used,
+  /// Set how commands will be executed. By default, [QueueType.auto] is used,
   /// which automatically picks the best strategy for the current platform: Android uses a
   /// per-device queue (its native stack rejects overlapping operations), while all other
   /// platforms run commands in parallel (they pipeline natively).

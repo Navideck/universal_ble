@@ -10,19 +10,18 @@ class BleCommandQueue {
   final Map<String, Queue> _queueMap = {};
   static const String globalQueueId = 'global';
 
-  BleCommandQueue({this.queueType = QueueType.defaultPlatform});
+  BleCommandQueue({this.queueType = QueueType.auto});
 
-  /// Resolve [QueueType.defaultPlatform] to a concrete queue type based on the
+  /// Resolve [QueueType.auto] to a concrete queue type based on the
   /// current platform. Android is the only platform whose native BLE stack
   /// requires serialization (its `mDeviceBusy` GATT state machine rejects
   /// overlapping operations), so it gets a per-device queue. All other
   /// platforms pipeline natively and run commands in parallel.
-  QueueType get _resolvedQueueType =>
-      queueType == QueueType.defaultPlatform
-          ? (!kIsWeb && defaultTargetPlatform == TargetPlatform.android
-                ? QueueType.perDevice
-                : QueueType.none)
-          : queueType;
+  QueueType get _resolvedQueueType => queueType == QueueType.auto
+      ? (!kIsWeb && defaultTargetPlatform == TargetPlatform.android
+          ? QueueType.perDevice
+          : QueueType.none)
+      : queueType;
 
   Future<T> queueCommand<T>(
     Future<T> Function() command, {
@@ -41,10 +40,9 @@ class BleCommandQueue {
     return switch (_resolvedQueueType) {
       QueueType.global => _queue(queueId).add(command, timeoutDuration),
       QueueType.perDevice => _queue(
-        queueId ?? deviceId,
-      ).add(command, timeoutDuration),
-      QueueType.none || QueueType.defaultPlatform =>
-        command().timeout(timeoutDuration),
+          queueId ?? deviceId,
+        ).add(command, timeoutDuration),
+      QueueType.none || QueueType.auto => command().timeout(timeoutDuration),
     };
   }
 
@@ -56,7 +54,7 @@ class BleCommandQueue {
     return switch (_resolvedQueueType) {
       QueueType.global => _queue(queueId).add(command),
       QueueType.perDevice => _queue(queueId ?? deviceId).add(command),
-      QueueType.none || QueueType.defaultPlatform => command(),
+      QueueType.none || QueueType.auto => command(),
     };
   }
 

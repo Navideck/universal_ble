@@ -1,1 +1,1 @@
-enum QueueType { none, perDevice, global, defaultPlatform }
+enum QueueType { none, perDevice, global, auto }
