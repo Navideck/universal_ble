@@ -44,7 +44,6 @@ internal const val Q_SUBSCRIBE = "subscribe"
 internal const val Q_RSSI = "rssi"
 internal const val Q_MTU = "mtu"
 internal const val Q_DISCOVER = "discover"
-internal const val Q_CONNECTION_PRIORITY = "connection_priority"
 
 @SuppressLint("MissingPermission")
 class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(), FlutterPlugin,
@@ -394,7 +393,7 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
     }
 
     override fun readRssi(deviceId: String, callback: (Result<Long>) -> Unit) {
-        perDeviceQueue.submit(deviceId, Q_RSSI) {
+        perDeviceQueue.submit(deviceId, Q_RSSI, onCancel = queueCancellation(callback)) {
             try {
                 val gatt = deviceId.toBluetoothGatt()
                 if (gatt.readRemoteRssi()) {
@@ -448,7 +447,7 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
         withDescriptors: Boolean,
         callback: (Result<List<UniversalBleService>>) -> Unit,
     ) {
-        perDeviceQueue.submit(deviceId, Q_DISCOVER) {
+        perDeviceQueue.submit(deviceId, Q_DISCOVER, onCancel = queueCancellation(callback)) {
             try {
                 val gatt = deviceId.toBluetoothGatt()
                 if (gatt.discoverServices()) {
@@ -531,7 +530,7 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
         bleInputProperty: BleInputProperty,
         callback: (Result<Unit>) -> Unit,
     ) {
-        perDeviceQueue.submit(deviceId, Q_SUBSCRIBE) {
+        perDeviceQueue.submit(deviceId, Q_SUBSCRIBE, onCancel = queueCancellation(callback)) {
             try {
                 UniversalBleLogger.logDebug("SET_NOTIFY -> $deviceId $service $characteristic input=$bleInputProperty")
                 val gatt = deviceId.toBluetoothGatt()
@@ -646,7 +645,7 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
         characteristic: String,
         callback: (Result<ByteArray>) -> Unit,
     ) {
-        perDeviceQueue.submit(deviceId, Q_READ) {
+        perDeviceQueue.submit(deviceId, Q_READ, onCancel = queueCancellation(callback)) {
             try {
                 UniversalBleLogger.logDebug("READ -> $deviceId $service $characteristic")
                 val gatt = deviceId.toBluetoothGatt()
@@ -747,7 +746,7 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
         bleOutputProperty: BleOutputProperty,
         callback: (Result<Unit>) -> Unit,
     ) {
-        perDeviceQueue.submit(deviceId, Q_WRITE) {
+        perDeviceQueue.submit(deviceId, Q_WRITE, onCancel = queueCancellation(callback)) {
             try {
                 UniversalBleLogger.logDebug("WRITE -> $deviceId $service $characteristic len=${value.size} property=$bleOutputProperty")
                 val gatt = deviceId.toBluetoothGatt()
@@ -914,7 +913,7 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
         descriptor: String,
         callback: (Result<ByteArray>) -> Unit,
     ) {
-        perDeviceQueue.submit(deviceId, Q_READ_DESCRIPTOR) {
+        perDeviceQueue.submit(deviceId, Q_READ_DESCRIPTOR, onCancel = queueCancellation(callback)) {
             try {
                 UniversalBleLogger.logDebug("READ_DESCRIPTOR -> $deviceId $service $characteristic $descriptor")
                 val gatt = deviceId.toBluetoothGatt()
@@ -1040,7 +1039,7 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
         value: ByteArray,
         callback: (Result<Unit>) -> Unit,
     ) {
-        perDeviceQueue.submit(deviceId, Q_WRITE_DESCRIPTOR) {
+        perDeviceQueue.submit(deviceId, Q_WRITE_DESCRIPTOR, onCancel = queueCancellation(callback)) {
             try {
                 UniversalBleLogger.logDebug("WRITE_DESCRIPTOR -> $deviceId $service $characteristic $descriptor len=${value.size}")
                 val gatt = deviceId.toBluetoothGatt()
@@ -1127,7 +1126,7 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
 
     override fun requestMtu(deviceId: String, expectedMtu: Long, callback: (Result<Long>) -> Unit) {
         UniversalBleLogger.logDebug("REQUEST_MTU -> $deviceId expected=$expectedMtu")
-        perDeviceQueue.submit(deviceId, Q_MTU) {
+        perDeviceQueue.submit(deviceId, Q_MTU, onCancel = queueCancellation(callback)) {
             try {
                 val gatt = deviceId.toBluetoothGatt()
                 if (gatt.requestMtu(expectedMtu.toInt())) {
@@ -1155,23 +1154,6 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
         priority: BleConnectionPriority,
         callback: (Result<Unit>) -> Unit,
     ) {
-        // onConnectionUpdated (which clears mDeviceBusy) is only delivered on
-        // Android O+; on older devices we cannot observe completion, so run the
-        // request unqueued to avoid freezing the per-device queue.
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) {
-            requestConnectionPriorityDirect(deviceId, priority, callback)
-            return
-        }
-        perDeviceQueue.submit(deviceId, Q_CONNECTION_PRIORITY) {
-            requestConnectionPriorityDirect(deviceId, priority, callback)
-        }
-    }
-
-    private fun requestConnectionPriorityDirect(
-        deviceId: String,
-        priority: BleConnectionPriority,
-        callback: (Result<Unit>) -> Unit,
-    ) {
         try {
             val gatt = deviceId.toBluetoothGatt()
             val androidPriority = when (priority) {
@@ -1182,7 +1164,6 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
             val success = gatt.requestConnectionPriority(androidPriority)
             if (success) {
                 callback(Result.success(Unit))
-                // mDeviceBusy stays held until onConnectionUpdated fires (O+).
             } else {
                 callback(
                     Result.failure(
@@ -1192,15 +1173,9 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
                         ),
                     ),
                 )
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                    perDeviceQueue.onOperationComplete(deviceId, Q_CONNECTION_PRIORITY)
-                }
             }
         } catch (e: FlutterError) {
             callback(Result.failure(e))
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                perDeviceQueue.onOperationComplete(deviceId, Q_CONNECTION_PRIORITY)
-            }
         } catch (e: Exception) {
             callback(
                 Result.failure(
@@ -1211,9 +1186,6 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
                     )
                 )
             )
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                perDeviceQueue.onOperationComplete(deviceId, Q_CONNECTION_PRIORITY)
-            }
         }
     }
 
@@ -1230,7 +1202,6 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
         val deviceId = gatt?.device?.address ?: return
         if (!deviceId.isKnownGatt()) return
-        perDeviceQueue.onOperationComplete(deviceId, Q_CONNECTION_PRIORITY)
         UniversalBleLogger.logDebug(
             "onConnectionUpdated -> $deviceId interval=$interval latency=$latency timeout=$timeout status=$status"
         )
@@ -1419,7 +1390,11 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
                 return
             }
 
-            perDeviceQueue.submit(device.address, Q_DISCOVER) {
+            perDeviceQueue.submit(
+                device.address,
+                Q_DISCOVER,
+                onCancel = { updateCallback(null) },
+            ) {
                 if (gatt.discoverServices()) {
                     discoverServicesFutureList.add(
                         DiscoverServicesFuture(
@@ -1479,10 +1454,7 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
 
     private fun cleanUpConnection(deviceId: String) {
         perDeviceQueue.cancelAll(deviceId)
-        val deviceDisconnectedError: FlutterError = createFlutterError(
-            UniversalBleErrorCode.DEVICE_DISCONNECTED,
-            "Device Disconnected",
-        )
+        val deviceDisconnectedError = deviceDisconnectedError()
         readResultFutureList.removeAll {
             if (it.deviceId == deviceId) {
                 it.result(Result.failure(deviceDisconnectedError))
@@ -1565,6 +1537,15 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
                 false
             }
         }
+    }
+
+    private fun deviceDisconnectedError(): FlutterError = createFlutterError(
+        UniversalBleErrorCode.DEVICE_DISCONNECTED,
+        "Device Disconnected",
+    )
+
+    private fun <T> queueCancellation(callback: (Result<T>) -> Unit): () -> Unit = {
+        callback(Result.failure(deviceDisconnectedError()))
     }
 
     private fun cleanConnection(gatt: BluetoothGatt) {

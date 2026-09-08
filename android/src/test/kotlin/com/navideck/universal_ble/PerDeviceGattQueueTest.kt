@@ -71,19 +71,43 @@ internal class PerDeviceGattQueueTest {
     fun cancelAllDropsPendingOperations() {
         val queue = PerDeviceGattQueue()
         val order = mutableListOf<String>()
+        val cancelled = mutableListOf<String>()
 
         queue.submit("dev1", Q_WRITE) { order.add("write") }
-        queue.submit("dev1", Q_READ) { order.add("read") }
+        queue.submit("dev1", Q_READ, onCancel = { cancelled.add("read") }) {
+            order.add("read")
+        }
 
         queue.cancelAll("dev1")
 
         // The cancelled in-flight op must not advance to the queued read.
         queue.onOperationComplete("dev1", Q_WRITE)
         assertEquals(listOf("write"), order)
+        assertEquals(listOf("read"), cancelled)
 
         // New submissions for the device run immediately again.
         queue.submit("dev1", Q_WRITE) { order.add("write2") }
         assertEquals(listOf("write", "write2"), order)
+    }
+
+    @Test
+    fun cancelAllPreventsDispatchedOperationFromStarting() {
+        val dispatched = mutableListOf<() -> Unit>()
+        val queue = PerDeviceGattQueue(dispatch = { dispatched.add(it) })
+        val order = mutableListOf<String>()
+        val cancelled = mutableListOf<String>()
+
+        queue.submit("dev1", Q_WRITE) { order.add("write") }
+        queue.submit("dev1", Q_READ, onCancel = { cancelled.add("read") }) {
+            order.add("read")
+        }
+
+        queue.onOperationComplete("dev1", Q_WRITE)
+        queue.cancelAll("dev1")
+        dispatched.single().invoke()
+
+        assertEquals(listOf("write"), order)
+        assertEquals(listOf("read"), cancelled)
     }
 
     @Test
