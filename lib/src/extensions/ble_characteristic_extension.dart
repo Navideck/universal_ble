@@ -37,6 +37,11 @@ extension BleCharacteristicExtension on BleCharacteristic {
         queueId: queueId,
       );
 
+  /// Returns whether this characteristic is currently subscribed to.
+  bool get isSubscribed =>
+      metaData?.deviceId != null &&
+      UniversalBle.isSubscribed(metaData!.deviceId, uuid);
+
   /// Reads the current value of the characteristic.
   Future<Uint8List> read({Duration? timeout, String? queueId}) =>
       UniversalBle.read(
@@ -186,6 +191,9 @@ class CharacteristicSubscription {
       queueId: queueId,
     );
   }
+
+  /// Returns whether this characteristic is currently subscribed to.
+  bool get isSubscribed => _characteristic.isSubscribed;
 
   @override
   String toString() =>
