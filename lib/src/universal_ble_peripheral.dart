@@ -22,8 +22,10 @@ class UniversalBlePeripheral {
     _bleCommandQueue.timeout = duration;
   }
 
-  /// Set how peripheral commands will be executed. By default, all commands are executed in a global queue (`QueueType.global`),
-  /// with each command waiting for the previous one to finish.
+  /// Set how peripheral commands will be executed. By default, [QueueType.defaultPlatform] is used,
+  /// which automatically picks the best strategy for the current platform: Android uses a
+  /// per-device queue (its native stack rejects overlapping operations), while all other
+  /// platforms run commands in parallel (they pipeline natively).
   ///
   /// [QueueType.global] will execute commands in a single queue.
   /// [QueueType.perDevice] will execute commands of each device in separate queues.
