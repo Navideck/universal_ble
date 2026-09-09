@@ -1,6 +1,7 @@
 import CoreBluetooth
 
 #if os(iOS)
+  import AccessorySetupKit
   import Flutter
   import UIKit
 #elseif os(OSX)
@@ -103,6 +104,9 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
   private var rssiReadFutures = [RssiReadFuture]()
   private var isManageScanning = false
   private var autoConnectDevices = Set<String>()
+  #if os(iOS)
+    private var accessorySetupManager: AnyObject?
+  #endif
 
   init(callbackChannel: UniversalBleCallbackChannel) {
     self.callbackChannel = callbackChannel
@@ -202,6 +206,18 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
       return manager.isScanning
     }
     return isManageScanning
+  }
+
+  func setupAccessory(options: AppleAccessorySetupOptions, completion: @escaping (Result<String, Error>) -> Void) {
+    #if os(iOS)
+      guard #available(iOS 18.0, *) else {
+        completion(.failure(createFlutterError(code: .notSupported, message: "AccessorySetupKit requires iOS 18 or later")))
+        return
+      }
+      getAccessorySetupManager().showPicker(options: options, completion: completion)
+    #else
+      completion(.failure(createFlutterError(code: .notSupported, message: "AccessorySetupKit is only supported on iOS 18+")))
+    #endif
   }
 
   func setLogLevel(logLevel: BleLogLevel) throws {
@@ -535,9 +551,29 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
     completion(Result.failure(createFlutterError(code: .notImplemented)))
   }
 
-  func unPair(deviceId _: String) throws {
-    throw createFlutterError(code: .notSupported)
+  func unPair(deviceId: String, completion: @escaping (Result<Void, Error>) -> Void) {
+    #if os(iOS)
+      guard #available(iOS 18.0, *) else {
+        completion(.failure(createFlutterError(code: .notSupported, message: "AccessorySetupKit requires iOS 18 or later")))
+        return
+      }
+      getAccessorySetupManager().removeAccessory(deviceId: deviceId, completion: completion)
+    #else
+      completion(.failure(createFlutterError(code: .notSupported, message: "AccessorySetupKit is only supported on iOS 18+")))
+    #endif
   }
+
+  #if os(iOS)
+    @available(iOS 18.0, *)
+    private func getAccessorySetupManager() -> AccessorySetupManager {
+      if let manager = accessorySetupManager as? AccessorySetupManager {
+        return manager
+      }
+      let manager = AccessorySetupManager()
+      accessorySetupManager = manager
+      return manager
+    }
+  #endif
 
   func getSystemDevices(withServices: [String], completion: @escaping (Result<[UniversalBleScanResult], Error>) -> Void) {
     var servicesFilter = withServices
@@ -867,6 +903,113 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
     }
   }
 }
+
+#if os(iOS)
+  @available(iOS 18.0, *)
+  private final class AccessorySetupManager {
+    private let session = ASAccessorySession()
+    private var isActivated = false
+    private var activationActions: [() -> Void] = []
+    private var pickerCompletion: ((Result<String, Error>) -> Void)?
+    private var selectedIdentifier: UUID?
+
+    init() {
+      session.activate(on: .main) { [weak self] event in
+        self?.handle(event)
+      }
+    }
+
+    func showPicker(options: AppleAccessorySetupOptions, completion: @escaping (Result<String, Error>) -> Void) {
+      guard pickerCompletion == nil else {
+        completion(.failure(createFlutterError(code: .invalidAction, message: "The accessory picker is already open")))
+        return
+      }
+      guard let image = UIImage(named: options.imageAsset, in: Bundle.main, compatibleWith: nil) else {
+        completion(.failure(createFlutterError(code: .illegalArgument, message: "Image asset not found: \(options.imageAsset)")))
+        return
+      }
+
+      pickerCompletion = completion
+      selectedIdentifier = nil
+      whenActivated { [weak self] in
+        guard let self else { return }
+        let descriptor = ASDiscoveryDescriptor()
+        descriptor.bluetoothServiceUUID = CBUUID(string: options.serviceUuid)
+        descriptor.bluetoothNameSubstring = options.nameSubstring
+        if options.requiresImmediateRange == true {
+          descriptor.bluetoothRange = .immediate
+        }
+        if options.supportsBluetoothPairing == true {
+          descriptor.supportedOptions = .bluetoothPairingLE
+        }
+        let item = ASPickerDisplayItem(name: options.displayName, productImage: image, descriptor: descriptor)
+        session.showPicker(for: [item]) { [weak self] error in
+          if let error {
+            self?.completePicker(.failure(error.toFlutterError()))
+          }
+        }
+      }
+    }
+
+    func removeAccessory(deviceId: String, completion: @escaping (Result<Void, Error>) -> Void) {
+      guard let identifier = UUID(uuidString: deviceId) else {
+        completion(.failure(createFlutterError(code: .illegalArgument, message: "Invalid deviceId: \(deviceId)")))
+        return
+      }
+      whenActivated { [weak self] in
+        guard let self else { return }
+        guard let accessory = session.accessories.first(where: { $0.bluetoothIdentifier == identifier }) else {
+          completion(.failure(createFlutterError(code: .deviceNotFound, message: "Accessory is not managed by AccessorySetupKit: \(deviceId)")))
+          return
+        }
+        session.removeAccessory(accessory) { error in
+          if let error {
+            completion(.failure(error.toFlutterError()))
+          } else {
+            completion(.success(()))
+          }
+        }
+      }
+    }
+
+    private func whenActivated(_ action: @escaping () -> Void) {
+      if isActivated {
+        action()
+      } else {
+        activationActions.append(action)
+      }
+    }
+
+    private func handle(_ event: ASAccessoryEvent) {
+      switch event.eventType {
+      case .activated:
+        isActivated = true
+        let actions = activationActions
+        activationActions.removeAll()
+        actions.forEach { $0() }
+      case .accessoryAdded:
+        selectedIdentifier = event.accessory?.bluetoothIdentifier
+      case .pickerDidDismiss:
+        if let selectedIdentifier {
+          completePicker(.success(selectedIdentifier.uuidString))
+        } else {
+          completePicker(.failure(createFlutterError(code: .failed, message: "Accessory setup was cancelled")))
+        }
+      case .pickerSetupFailed, .invalidated:
+        completePicker(.failure(event.error?.toFlutterError() ?? createFlutterError(code: .failed, message: "Accessory setup failed")))
+      default:
+        break
+      }
+    }
+
+    private func completePicker(_ result: Result<String, Error>) {
+      guard let completion = pickerCompletion else { return }
+      pickerCompletion = nil
+      selectedIdentifier = nil
+      completion(result)
+    }
+  }
+#endif
 
 extension CBPeripheral {
   func saveCache() {

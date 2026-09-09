@@ -306,6 +306,48 @@ Notes:
 - Once any connection opts in, the behavior is global for the running process — every current and future GATT client is released on engine teardown. It can be disabled at runtime by connecting with `closeGattOnDetach: false`; connecting without the option leaves the current value unchanged (a fresh app launch resets it).
 - Android-only. Explicit `disconnect()` calls and rotation are unaffected.
 
+#### AccessorySetupKit (iOS 18+)
+
+Use `connectAccessory` to let the user select and authorize a nearby accessory
+with Apple's system picker, then connect through the normal CoreBluetooth path:
+
+```dart
+final deviceId = await UniversalBle.connectAccessory(
+  AppleAccessorySetupOptions(
+    displayName: 'My Device',
+    imageAsset: 'my_device', // Image in Runner/Assets.xcassets
+    serviceUuid: '12345678-1234-1234-1234-1234567890AB',
+    nameSubstring: 'MyDevice', // Optional
+  ),
+);
+
+// Removes an accessory authorized through AccessorySetupKit.
+await UniversalBle.unpair(deviceId);
+```
+
+The picker must be initiated while the app is in the foreground. Add matching
+values to the iOS app's `Info.plist`; Apple terminates apps that show the picker
+with undeclared discovery identifiers:
+
+```xml
+<key>NSAccessorySetupKitSupports</key>
+<array>
+  <string>Bluetooth</string>
+</array>
+<key>NSAccessorySetupBluetoothServices</key>
+<array>
+  <string>12345678-1234-1234-1234-1234567890AB</string>
+</array>
+<key>NSAccessorySetupBluetoothNames</key>
+<array>
+  <string>MyDevice</string>
+</array>
+```
+
+When the app uses AccessorySetupKit exclusively, it does not need
+`NSBluetoothAlwaysUsageDescription`. Keep that key if the app also uses regular
+BLE scanning or accesses devices outside AccessorySetupKit.
+
 ### Discovering Services
 
 After establishing a connection, services need to be discovered. This method will discover all services and their characteristics.
@@ -1099,6 +1141,9 @@ await UniversalBle.startScan();
 ### iOS / macOS
 
 For Bluetooth usage (including peripheral mode), add both keys to your app's `Info.plist`:
+
+> Apps using only the iOS 18+ AccessorySetupKit flow can omit these Bluetooth
+> usage descriptions; see [AccessorySetupKit (iOS 18+)](#accessorysetupkit-ios-18).
 
 - `NSBluetoothAlwaysUsageDescription`: message shown when the app requests Bluetooth access.
 - `NSBluetoothPeripheralUsageDescription`: message used for peripheral role access on Apple platforms.
