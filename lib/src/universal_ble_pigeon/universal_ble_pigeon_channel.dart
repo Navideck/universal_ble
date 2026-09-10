@@ -1,11 +1,11 @@
 import 'package:flutter/foundation.dart';
 import 'package:universal_ble/src/universal_ble.g.dart';
-import 'package:universal_ble/src/universal_ble_pigeon/native_device_id.dart';
+import 'package:universal_ble/src/utils/device_id.dart';
 import 'package:universal_ble/src/utils/universal_ble_filter_util.dart';
 import 'package:universal_ble/universal_ble.dart';
 
-// See native_device_id.dart for why Dart's lower-case ids are upper-cased at this boundary.
-String _nativeId(String deviceId) => nativeDeviceId(deviceId);
+// Native channel calls take the native form of the id; see DeviceId for both conversions.
+String _nativeId(String deviceId) => DeviceId.address(deviceId).native;
 
 class UniversalBlePigeonChannel extends UniversalBlePlatform
     implements UniversalBleCallbackChannel {
@@ -101,7 +101,7 @@ class UniversalBlePigeonChannel extends UniversalBlePlatform
       universalBleServices
           .where((e) => e != null)
           .map(
-            (e) => e!.toBleService(canonicalDeviceId(deviceId)),
+            (e) => e!.toBleService(DeviceId.address(deviceId).canonical),
           ) // emitted id stays lower-case
           .toList(),
     );

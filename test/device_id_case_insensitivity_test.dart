@@ -208,9 +208,9 @@ void main() {
     expect(emitted, lower);
   });
 
-  // A platform whose ids are NOT case-insensitive addresses (Web Bluetooth: opaque, case-sensitive
-  // browser tokens) overrides canonicalDeviceId to pass them through verbatim. Emission and matching
-  // both go through the override, so a scanned id round-trips byte-for-byte and still matches.
+  // A platform whose ids are NOT addresses (Web Bluetooth: opaque, case-sensitive browser tokens)
+  // reports hasAddressDeviceIds == false, so its ids pass through verbatim. Emission and matching
+  // both go through DeviceId, so a scanned id round-trips byte-for-byte and still matches.
 
   group('opaque (Web-style) device ids', () {
     const opaque = 'mHZbW+PZqBpUlZlVQrPzOQ==';
@@ -301,5 +301,5 @@ class _MockPeripheralPlatform extends UniversalBlePeripheralUnsupported {}
 /// Stands in for `UniversalBleWeb`, whose ids are opaque, case-sensitive browser tokens.
 class _OpaqueIdPlatform extends UniversalBlePlatformMock {
   @override
-  String canonicalDeviceId(String deviceId) => deviceId;
+  bool get hasAddressDeviceIds => false;
 }

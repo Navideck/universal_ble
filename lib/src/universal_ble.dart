@@ -6,6 +6,7 @@ import 'package:universal_ble/src/universal_ble_pigeon/universal_ble_pigeon_chan
 import 'package:universal_ble/src/universal_ble_web/universal_ble_web.dart';
 import 'package:universal_ble/src/utils/ble_command_queue.dart';
 import 'package:universal_ble/src/utils/cache_handler.dart';
+import 'package:universal_ble/src/utils/device_id.dart';
 import 'package:universal_ble/src/utils/universal_logger.dart';
 import 'package:universal_ble/universal_ble.dart';
 
@@ -731,7 +732,10 @@ class UniversalBle {
     Duration? timeout,
   }) {
     timeout ??= const Duration(seconds: 60);
-    final target = _platform.canonicalDeviceId(deviceId);
+    final target = DeviceId.of(
+      deviceId,
+      isAddress: _platform.hasAddressDeviceIds,
+    ).canonical;
     StreamSubscription? connectionSubscription;
     Completer<bool> completer = Completer();
 

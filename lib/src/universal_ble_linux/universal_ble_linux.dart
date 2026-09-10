@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:bluez/bluez.dart';
 import 'package:flutter/services.dart';
 import 'package:universal_ble/src/models/model_exports.dart';
+import 'package:universal_ble/src/utils/device_id.dart';
 import 'package:universal_ble/src/utils/universal_ble_error_parser.dart';
 import 'package:universal_ble/src/utils/universal_ble_filter_util.dart';
 import 'package:universal_ble/src/universal_ble.g.dart';
@@ -562,9 +563,9 @@ class UniversalBleLinux extends UniversalBlePlatform {
 
   /// Get device by id from cache or from client
   BlueZDevice? _getDeviceById(String deviceId) {
-    // Ids are lower-case in the Dart layer; BlueZ addresses are upper-case, so canonicalise the lookup here
-    // (every device resolution funnels through this). Emitted ids + cache keys keep the lower-case form.
-    deviceId = deviceId.toUpperCase();
+    // Every Linux device resolution funnels through here, so this is where the id becomes the
+    // native form BlueZ addresses use; emitted ids and cache keys keep the canonical form.
+    deviceId = DeviceId.address(deviceId).native;
     return _devices[deviceId] ??
         _client.devices.cast<BlueZDevice?>().firstWhere(
               (device) => device?.address == deviceId,

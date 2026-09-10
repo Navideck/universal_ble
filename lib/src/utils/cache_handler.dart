@@ -1,4 +1,5 @@
 import 'package:universal_ble/src/models/model_exports.dart';
+import 'package:universal_ble/src/utils/device_id.dart';
 
 /// Manages an in-memory cache for Bluetooth devices
 class CacheHandler {
@@ -10,10 +11,12 @@ class CacheHandler {
   final Map<String, List<BleService>> _servicesCache = {};
 
   // A device id is a case-insensitive identifier reported in different cases by different platforms (Android
-  // upper-cases MACs, Windows lower-cases them). Key the cache by a canonical lower-case id so services saved
-  // when subscribing with one case are still found/cleared when the platform reports another (e.g. on the
-  // disconnect cleanup) — otherwise stale services linger and a reconnect reuses them.
-  static String _key(String deviceId) => deviceId.toLowerCase();
+  // upper-cases MACs, Windows lower-cases them). Key the cache by the canonical id so services saved when
+  // subscribing with one case are still found/cleared when the platform reports another (e.g. on the
+  // disconnect cleanup) — otherwise stale services linger and a reconnect reuses them. This is an internal
+  // key applied symmetrically on read and write, so folding it costs nothing even for the opaque ids Web
+  // reports (see DeviceId); no cached value is ever handed back out under this key.
+  static String _key(String deviceId) => DeviceId.address(deviceId).canonical;
 
   /// Saves the discovered Bluetooth services for a specific device in the cache.
   void saveServices(String deviceId, List<BleService>? services) {
