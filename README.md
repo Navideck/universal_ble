@@ -14,6 +14,8 @@
 
 A cross-platform (Android/iOS/macOS/Windows/Linux/Web) Bluetooth Low Energy (BLE) plugin for Flutter.
 
+Looking for Bluetooth Classic? Check [universal_bluetooth_classic](https://pub.dev/packages/universal_bluetooth_classic).
+
 > **Free**: This package is free for commercial or personal use as long as you adhere to the [BSD 3-Clause License](LICENSE).
 
 [Try it online](https://navideck.github.io/universal-ble), provided your browser supports [Web Bluetooth](https://caniuse.com/web-bluetooth).
