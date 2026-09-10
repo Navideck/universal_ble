@@ -1,7 +1,7 @@
 # Universal BLE
 
 <div align="center">
-  <img src="assets/universal_ble_icon.png" alt="Universal BLE Icon" width="128" height="128">
+  <img src="assets/universal_ble_banner.jpg" alt="Universal BLE — Cross-platform Bluetooth Low Energy for Flutter" width="100%">
 </div>
 
 [![pub package](https://img.shields.io/pub/v/universal_ble?label=universal_ble&color=blue)](https://pub.dev/packages/universal_ble)
@@ -13,6 +13,8 @@
 [![Dart](https://img.shields.io/badge/Dart-%3E%3D3.3.0-blue.svg?logo=dart)](https://dart.dev)
 
 A cross-platform (Android/iOS/macOS/Windows/Linux/Web) Bluetooth Low Energy (BLE) plugin for Flutter.
+
+Looking for Bluetooth Classic? Check [universal_bluetooth_classic](https://pub.dev/packages/universal_bluetooth_classic).
 
 > **Free**: This package is free for commercial or personal use as long as you adhere to the [BSD 3-Clause License](LICENSE).
 
