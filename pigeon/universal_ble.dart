@@ -295,6 +295,37 @@ class AppleConnectionOptions {
   });
 }
 
+/// iOS 18+ options for discovering and authorizing a Bluetooth accessory with
+/// AccessorySetupKit before connecting to it.
+class AppleAccessorySetupOptions {
+  /// Name shown in the system accessory picker.
+  String displayName;
+
+  /// Name of the product image in the iOS app's asset catalog.
+  String imageAsset;
+
+  /// Advertised Bluetooth service UUID used to discover the accessory.
+  String serviceUuid;
+
+  /// Optional substring of the accessory's advertised Bluetooth name.
+  String? nameSubstring;
+
+  /// Limit discovery to accessories in the immediate vicinity.
+  bool? requiresImmediateRange;
+
+  /// Allow AccessorySetupKit to perform Bluetooth LE pairing when needed.
+  bool? supportsBluetoothPairing;
+
+  AppleAccessorySetupOptions({
+    required this.displayName,
+    required this.imageAsset,
+    required this.serviceUuid,
+    this.nameSubstring,
+    this.requiresImmediateRange,
+    this.supportsBluetoothPairing,
+  });
+}
+
 class AndroidConnectionOptions {
   /// Close the GATT client when the FlutterEngine is detached (for
   /// example, when the app is "killed"). The plugin otherwise leaves the
@@ -405,6 +436,11 @@ abstract class UniversalBlePlatformChannel {
 
   bool isScanning();
 
+  /// Shows the iOS AccessorySetupKit picker and returns the selected
+  /// peripheral identifier.
+  @async
+  String setupAccessory(AppleAccessorySetupOptions options);
+
   void connect(
     String deviceId, {
     bool? autoConnect,
@@ -465,6 +501,7 @@ abstract class UniversalBlePlatformChannel {
   @async
   bool pair(String deviceId);
 
+  @async
   void unPair(String deviceId);
 
   @async

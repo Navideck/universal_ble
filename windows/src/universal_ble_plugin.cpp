@@ -188,6 +188,13 @@ void UniversalBlePlugin::EnableBluetooth(
       });
 }
 
+void UniversalBlePlugin::SetupAccessory(
+    const AppleAccessorySetupOptions &,
+    std::function<void(ErrorOr<std::string> reply)> result) {
+  result(create_flutter_error(UniversalBleErrorCode::kNotSupported,
+                              "AccessorySetupKit is only supported on iOS 18+"));
+}
+
 void UniversalBlePlugin::DisableBluetooth(
     std::function<void(ErrorOr<bool> reply)> result) {
   if (!bluetooth_radio_) {
@@ -1012,20 +1019,23 @@ void UniversalBlePlugin::Pair(const std::string &device_id,
   }
 }
 
-std::optional<FlutterError>
-UniversalBlePlugin::UnPair(const std::string &device_id) {
+void UniversalBlePlugin::UnPair(
+    const std::string &device_id,
+    std::function<void(std::optional<FlutterError> reply)> result) {
   try {
     const auto device = async_get(BluetoothLEDevice::FromBluetoothAddressAsync(
         str_to_mac_address(device_id)));
     if (device == nullptr) {
-      return create_flutter_error(UniversalBleErrorCode::kDeviceNotFound,
-                                  "Unknown devicesId:" + device_id);
+      result(create_flutter_error(UniversalBleErrorCode::kDeviceNotFound,
+                                  "Unknown devicesId:" + device_id));
+      return;
     }
     const auto device_information = device.DeviceInformation();
 
     if (!device_information.Pairing().IsPaired()) {
-      return create_flutter_error(UniversalBleErrorCode::kNotPaired,
-                                  "Device is not paired");
+      result(create_flutter_error(UniversalBleErrorCode::kNotPaired,
+                                  "Device is not paired"));
+      return;
     }
 
     const auto device_unpairing_result =
@@ -1033,11 +1043,12 @@ UniversalBlePlugin::UnPair(const std::string &device_id) {
 
     const auto status = device_unpairing_result.Status();
     if (status != DeviceUnpairingResultStatus::Unpaired) {
-      return create_flutter_error_from_unpairing_status(status);
+      result(create_flutter_error_from_unpairing_status(status));
+      return;
     }
-    return std::nullopt;
+    result(std::nullopt);
   } catch (const FlutterError &err) {
-    return err;
+    result(err);
   }
 }
 
