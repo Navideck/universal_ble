@@ -208,6 +208,58 @@ void main() {
     expect(emitted, lower);
   });
 
+  // A platform whose ids are NOT case-insensitive addresses (Web Bluetooth: opaque, case-sensitive
+  // browser tokens) overrides canonicalDeviceId to pass them through verbatim. Emission and matching
+  // both go through the override, so a scanned id round-trips byte-for-byte and still matches.
+
+  group('opaque (Web-style) device ids', () {
+    const opaque = 'mHZbW+PZqBpUlZlVQrPzOQ==';
+
+    test('updateScanResult emits an opaque id unchanged', () {
+      final platform = _OpaqueIdPlatform();
+      String? emitted;
+      platform.onScanResultUpdate = (d) => emitted = d.deviceId;
+      platform.updateScanResult(BleDevice(deviceId: opaque, name: null));
+      expect(emitted, opaque);
+    });
+
+    test('updateConnection emits an opaque id unchanged', () {
+      final platform = _OpaqueIdPlatform();
+      String? emitted;
+      platform.onConnectionChange = (id, isConnected, error) => emitted = id;
+      platform.updateConnection(opaque, true);
+      expect(emitted, opaque);
+    });
+
+    test('connectionStream matches the id exactly as scanned', () async {
+      final platform = _OpaqueIdPlatform();
+      final event = platform.connectionStream(opaque).first;
+      platform.updateConnection(opaque, true);
+      expect(await event, isTrue);
+    });
+
+    test('characteristicValueStream matches the id exactly as scanned',
+        () async {
+      final platform = _OpaqueIdPlatform();
+      final event = platform.characteristicValueStream(opaque, charId).first;
+      platform.updateCharacteristicValue(
+          opaque, charId, Uint8List.fromList([1, 2, 3]), null);
+      expect(await event, Uint8List.fromList([1, 2, 3]));
+    });
+
+    test('a lower-cased id does NOT match, so lookups keep their own case',
+        () async {
+      final platform = _OpaqueIdPlatform();
+      final events = <bool>[];
+      final sub =
+          platform.connectionStream(opaque.toLowerCase()).listen(events.add);
+      platform.updateConnection(opaque, true);
+      await Future.delayed(Duration.zero);
+      await sub.cancel();
+      expect(events, isEmpty);
+    });
+  });
+
   // Peripheral mode canonicalises the same way: central ids in its streams are lower-case
   // regardless of the case the platform reports.
 
@@ -245,3 +297,9 @@ void main() {
 }
 
 class _MockPeripheralPlatform extends UniversalBlePeripheralUnsupported {}
+
+/// Stands in for `UniversalBleWeb`, whose ids are opaque, case-sensitive browser tokens.
+class _OpaqueIdPlatform extends UniversalBlePlatformMock {
+  @override
+  String canonicalDeviceId(String deviceId) => deviceId;
+}

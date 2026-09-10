@@ -139,7 +139,7 @@ class UniversalBlePeripheralPigeon extends UniversalBlePeripheralPlatform
   Future<List<String>> getSubscribedClients(String characteristicId) async {
     final clients = await _channel.getSubscribedClients(characteristicId);
     // Emitted ids are lower-case (see UniversalBlePeripheralPlatform).
-    return clients.map((e) => e.toLowerCase()).toList();
+    return clients.map(canonicalDeviceId).toList();
   }
 
   @override
@@ -211,7 +211,7 @@ class UniversalBlePeripheralPigeon extends UniversalBlePeripheralPlatform
     Uint8List? value,
   ) {
     final result = _readRequestHandler?.call(
-      deviceId.toLowerCase(),
+      canonicalDeviceId(deviceId),
       BleUuidParser.string(characteristicId),
       offset,
       value,
@@ -239,7 +239,7 @@ class UniversalBlePeripheralPigeon extends UniversalBlePeripheralPlatform
     Uint8List? value,
   ) {
     final result = _writeRequestHandler?.call(
-      deviceId.toLowerCase(),
+      canonicalDeviceId(deviceId),
       BleUuidParser.string(characteristicId),
       offset,
       value,
@@ -261,7 +261,7 @@ class UniversalBlePeripheralPigeon extends UniversalBlePeripheralPlatform
     Uint8List? value,
   ) {
     final result = _descriptorReadRequestHandler?.call(
-      deviceId.toLowerCase(),
+      canonicalDeviceId(deviceId),
       BleUuidParser.string(characteristicId),
       BleUuidParser.string(descriptorId),
       offset,
@@ -284,7 +284,7 @@ class UniversalBlePeripheralPigeon extends UniversalBlePeripheralPlatform
     Uint8List? value,
   ) {
     final result = _descriptorWriteRequestHandler?.call(
-      deviceId.toLowerCase(),
+      canonicalDeviceId(deviceId),
       BleUuidParser.string(characteristicId),
       BleUuidParser.string(descriptorId),
       offset,

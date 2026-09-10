@@ -143,16 +143,27 @@ abstract class UniversalBlePlatform {
   Stream<AvailabilityState> get availabilityStream =>
       _availabilityStreamController.stream;
 
-  // A BLE device id is a case-insensitive identifier (a MAC on Android/Windows/Linux, a UUID on Apple), but
-  // platforms report it in different cases — Android upper-cases MACs, Windows/WinRT lower-cases them
-  // (`mac_address_to_str` emits lower-case hex). For consistency, ids are canonicalised to LOWER-CASE
-  // throughout the Dart layer and emitted lower-case: the update* handlers below lower-case on ingestion, so
-  // every stream event, callback and per-device map key is lower-case. Native BLE calls want the upper-case
-  // form (Android's getRemoteDevice REQUIRES it), so the platform implementations convert back at the
-  // boundary (see `_nativeId` in the pigeon channel / Linux instance). Consumers may still pass an id in any
-  // case; we lower-case the query when matching.
+  /// Canonical form of [deviceId] as emitted and matched by the Dart layer.
+  ///
+  /// On every native platform a device id is a case-insensitive address (a MAC on
+  /// Android/Windows/Linux, a UUID on Apple) that platforms report in different cases — Android
+  /// upper-cases MACs, Windows/WinRT lower-cases them (`mac_address_to_str` emits lower-case hex).
+  /// So the default canonical form is LOWER-CASE: the update* handlers below canonicalise on
+  /// ingestion, making every stream event, callback and per-device map key lower-case, and the
+  /// stream filters canonicalise the query so consumers may still pass an id in any case. Native
+  /// BLE calls want the upper-case form (Android's getRemoteDevice REQUIRES it), so the platform
+  /// implementations convert back at their boundary (see `nativeDeviceId`).
+  ///
+  /// Platforms whose ids are NOT case-insensitive addresses override this. Web Bluetooth ids are
+  /// opaque, case-sensitive browser tokens (Chromium emits Base64 of a random value), so
+  /// `UniversalBleWeb` returns them unchanged — case-folding one would both corrupt the id the
+  /// caller sees and break the device lookup it is passed back to.
+  ///
+  /// Emission and matching both go through this method, so any override stays self-consistent.
+  String canonicalDeviceId(String deviceId) => deviceId.toLowerCase();
+
   Stream<bool> connectionStream(String deviceId) {
-    final target = deviceId.toLowerCase();
+    final target = canonicalDeviceId(deviceId);
     return bleConnectionUpdateStreamController.stream
         .where((e) => e.deviceId == target)
         .map((e) => e.isConnected);
@@ -162,7 +173,7 @@ abstract class UniversalBlePlatform {
     String deviceId,
     String characteristicId,
   ) {
-    final target = deviceId.toLowerCase();
+    final target = canonicalDeviceId(deviceId);
     characteristicId = BleUuidParser.string(characteristicId);
     return _valueStreamController.stream
         .where((e) => e.deviceId == target && e.characteristicId == characteristicId)
@@ -170,7 +181,7 @@ abstract class UniversalBlePlatform {
   }
 
   Stream<bool> pairingStateStream(String deviceId) {
-    final target = deviceId.toLowerCase();
+    final target = canonicalDeviceId(deviceId);
     return _pairStateStreamController.stream
         .where((e) => e.deviceId == target)
         .map((e) => e.isPaired);
@@ -178,7 +189,7 @@ abstract class UniversalBlePlatform {
 
   /// Update Handlers
   void updateScanResult(BleDevice bleDevice) {
-    bleDevice.deviceId = bleDevice.deviceId.toLowerCase(); // canonical lower-case id
+    bleDevice.deviceId = canonicalDeviceId(bleDevice.deviceId);
     _scanStreamController.add(bleDevice);
 
     try {
@@ -187,7 +198,7 @@ abstract class UniversalBlePlatform {
   }
 
   void updateConnection(String deviceId, bool isConnected, [String? error]) {
-    deviceId = deviceId.toLowerCase();
+    deviceId = canonicalDeviceId(deviceId);
     bleConnectionUpdateStreamController.add((
       deviceId: deviceId,
       isConnected: isConnected,
@@ -199,7 +210,7 @@ abstract class UniversalBlePlatform {
     } catch (_) {}
 
     if (!isConnected) {
-      // Clear per-device state (all keyed by the canonical lower-case id).
+      // Clear per-device state (all keyed by the canonical id).
       CacheHandler.instance.resetDeviceCache(deviceId);
       _lastConnectionParametersMap.remove(deviceId);
     }
@@ -211,7 +222,7 @@ abstract class UniversalBlePlatform {
     Uint8List value,
     int? timestamp,
   ) {
-    deviceId = deviceId.toLowerCase();
+    deviceId = canonicalDeviceId(deviceId);
     characteristicId = BleUuidParser.string(characteristicId);
     // StandardMessageCodec decodes typed data as a view into the complete
     // platform-message buffer. Normalize that view before exposing it so
@@ -246,7 +257,7 @@ abstract class UniversalBlePlatform {
   }
 
   void updatePairingState(String deviceId, bool isPaired) {
-    deviceId = deviceId.toLowerCase();
+    deviceId = canonicalDeviceId(deviceId);
     if (_pairStateMap[deviceId] == isPaired) return;
     _pairStateMap[deviceId] = isPaired;
 
@@ -258,7 +269,7 @@ abstract class UniversalBlePlatform {
   }
 
   void updateConnectionParameters(BleConnectionParametersUpdated update) {
-    update.deviceId = update.deviceId.toLowerCase();
+    update.deviceId = canonicalDeviceId(update.deviceId);
     final last = _lastConnectionParametersMap[update.deviceId];
     if (last != null &&
         last.interval == update.interval &&

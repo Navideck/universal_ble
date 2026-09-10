@@ -101,7 +101,7 @@ class UniversalBlePigeonChannel extends UniversalBlePlatform
       universalBleServices
           .where((e) => e != null)
           .map(
-            (e) => e!.toBleService(deviceId.toLowerCase()),
+            (e) => e!.toBleService(canonicalDeviceId(deviceId)),
           ) // emitted id stays lower-case
           .toList(),
     );

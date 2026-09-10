@@ -1,4 +1,5 @@
-// Device ids are lower-case throughout the Dart layer (see UniversalBlePlatform /
+// Device ids reach here in the canonical form the platform emits (lower-case for every
+// pigeon-backed platform — see UniversalBlePlatform.canonicalDeviceId /
 // UniversalBlePeripheralPlatform), but some native sides want the upper-case form —
 // Android's BluetoothAdapter.getRemoteDevice REQUIRES upper case, and Apple's peripheral
 // cache and Linux's BlueZ address are upper-case too. Windows formats MACs lower-case but

@@ -70,6 +70,12 @@ abstract class UniversalBlePeripheralPlatform {
 
   Future<int?> getMaximumNotifyLength(String deviceId);
 
+  /// Canonical form of a GATT-client device id, mirroring
+  /// [UniversalBlePlatform.canonicalDeviceId]: lower-case, since every peripheral-mode platform
+  /// reports a case-insensitive address (MAC on Android/Windows, UUID on Apple). Emission and the
+  /// pigeon-boundary conversion both go through it, so an override stays self-consistent.
+  String canonicalDeviceId(String deviceId) => deviceId.toLowerCase();
+
   /// Push advertising state update to stream listeners.
   void updateAdvertisingState(BlePeripheralAdvertisingStateChanged event) {
     _blePeripheralStreamHandler.advertisingStateStreamController.add(event);
@@ -81,7 +87,7 @@ abstract class UniversalBlePeripheralPlatform {
   ) {
     _blePeripheralStreamHandler.characteristicSubscriptionStreamController.add(
       BlePeripheralCharacteristicSubscriptionChanged(
-        deviceId: event.deviceId.toLowerCase(), // canonical lower-case id
+        deviceId: canonicalDeviceId(event.deviceId),
         characteristicId: event.characteristicId,
         isSubscribed: event.isSubscribed,
         name: event.name,
@@ -93,7 +99,7 @@ abstract class UniversalBlePeripheralPlatform {
   void updateConnectionState(BlePeripheralConnectionStateChanged event) {
     _blePeripheralStreamHandler.connectionStateStreamController.add(
       BlePeripheralConnectionStateChanged(
-        event.deviceId.toLowerCase(), // canonical lower-case id
+        canonicalDeviceId(event.deviceId),
         event.connected,
       ),
     );
@@ -108,7 +114,7 @@ abstract class UniversalBlePeripheralPlatform {
   void updateMtu(BlePeripheralMtuChanged event) {
     _blePeripheralStreamHandler.mtuChangedStreamController.add(
       BlePeripheralMtuChanged(
-        event.deviceId.toLowerCase(), // canonical lower-case id
+        canonicalDeviceId(event.deviceId),
         event.mtu,
       ),
     );
