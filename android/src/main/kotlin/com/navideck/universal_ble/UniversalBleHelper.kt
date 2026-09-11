@@ -444,6 +444,7 @@ class DiscoverServicesFuture(
 
 class MtuResultFuture(
     val deviceId: String,
+    val gatt: BluetoothGatt,
     val result: (Result<Long>) -> Unit,
 )
 
@@ -488,3 +489,8 @@ class WriteDescriptorResultFuture(
     val serviceId: String,
     val result: (Result<Unit>) -> Unit,
 )
+
+// Android 14+ negotiates once per connection. Older releases can request an
+// increase, but an MTU already meeting the requested size needs no new exchange.
+internal fun canReuseNegotiatedMtu(mtu: Int, requested: Int, sdkInt: Int): Boolean =
+    sdkInt >= 34 || mtu >= requested
