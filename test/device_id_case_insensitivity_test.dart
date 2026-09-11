@@ -147,12 +147,31 @@ void main() {
   test(
       'service cache is keyed case-insensitively (save one case, get/clear another)',
       () {
+    // Caller-supplied ids are canonicalised at the API boundary, so the cache itself sees canonical
+    // keys only — an address reaching it in either case lands on the same entry.
+    UniversalBle.setInstance(_MockPlatform());
     final cache = CacheHandler.instance;
-    cache.resetDeviceCache(upper); // clean slate
-    cache.saveServices(upper, const []); // non-null -> cached
-    expect(cache.getServices(lower), isNotNull); // found via the other case
-    cache.resetDeviceCache(lower); // cleared via the other case
-    expect(cache.getServices(upper), isNull);
+    final upperKey = UniversalBle.canonicalDeviceId(upper);
+    final lowerKey = UniversalBle.canonicalDeviceId(lower);
+    cache.resetDeviceCache(upperKey); // clean slate
+    cache.saveServices(upperKey, const []); // non-null -> cached
+    expect(cache.getServices(lowerKey), isNotNull); // found via the other case
+    cache.resetDeviceCache(lowerKey); // cleared via the other case
+    expect(cache.getServices(upperKey), isNull);
+  });
+
+  test('an opaque id is NOT folded into the cache key', () {
+    // Web's ids are case-sensitive, so two that differ only in case are two devices, not one.
+    UniversalBle.setInstance(_OpaqueIdPlatform());
+    const opaque = 'mHZbW+PZqBpUlZlVQrPzOQ==';
+    final cache = CacheHandler.instance;
+    final key = UniversalBle.canonicalDeviceId(opaque);
+    final foldedKey = UniversalBle.canonicalDeviceId(opaque.toLowerCase());
+    cache.resetDeviceCache(key);
+    cache.resetDeviceCache(foldedKey);
+    cache.saveServices(key, const []);
+    expect(cache.getServices(foldedKey), isNull);
+    cache.resetDeviceCache(key);
   });
 
   // Device ids are canonicalised to lower-case on the way OUT too: every callback/stream now emits the

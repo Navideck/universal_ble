@@ -316,16 +316,31 @@ class UniversalBle {
     );
   }
 
+  /// [deviceId] in the form the active platform emits, matches and keys per-device state by.
+  ///
+  /// The public API accepts an id in any case, so caller-supplied ids are canonicalised here —
+  /// at the boundary, where the platform's id kind is known — and everything downstream (the
+  /// service/subscription cache, stream matching) sees canonical ids only. All conversion lives
+  /// in [DeviceId].
+  @internal
+  static String canonicalDeviceId(String deviceId) =>
+      DeviceId.of(deviceId, isAddress: _platform.hasAddressDeviceIds).canonical;
+
   /// Returns whether this app is currently subscribed to notifications/indications for [characteristic].
   ///
   /// Subscription state is updated when [subscribeNotifications], [subscribeIndications],
   /// or [unsubscribe] completes, and is automatically cleared when the device disconnects.
   static bool isSubscribed(String deviceId, String characteristic) =>
-      CacheHandler.instance.isSubscribed(deviceId, characteristic);
+      CacheHandler.instance.isSubscribed(
+        canonicalDeviceId(deviceId),
+        characteristic,
+      );
 
   /// Returns the list of characteristic UUIDs currently subscribed to on [deviceId].
   static List<String> getSubscribedCharacteristics(String deviceId) =>
-      CacheHandler.instance.getSubscribedCharacteristics(deviceId);
+      CacheHandler.instance.getSubscribedCharacteristics(
+        canonicalDeviceId(deviceId),
+      );
 
   /// Read a characteristic value.
   /// On iOS and MacOS this command will also trigger [onValueChange] listener.
@@ -732,10 +747,7 @@ class UniversalBle {
     Duration? timeout,
   }) {
     timeout ??= const Duration(seconds: 60);
-    final target = DeviceId.of(
-      deviceId,
-      isAddress: _platform.hasAddressDeviceIds,
-    ).canonical;
+    final target = canonicalDeviceId(deviceId);
     StreamSubscription? connectionSubscription;
     Completer<bool> completer = Completer();
 
@@ -797,7 +809,7 @@ class UniversalBle {
       queueId: queueId,
     );
     CacheHandler.instance.updateSubscription(
-      deviceId,
+      canonicalDeviceId(deviceId),
       characteristic,
       bleInputProperty != BleInputProperty.disabled,
     );
