@@ -46,7 +46,18 @@ class UniversalBleWeb extends UniversalBlePlatform {
         message: "$deviceId Not Found",
       );
     }
-    await device.connect(timeout: connectionTimeout);
+
+    // Advertisement watching is independent from requestDevice and can remain
+    // active after the chooser closes. Wait for it to stop before starting the
+    // GATT handshake so the two browser operations cannot overlap.
+    await _stopAdvertisementWatcher(deviceId);
+    try {
+      await device.connect(timeout: connectionTimeout);
+    } catch (_) {
+      _serviceCache.remove(deviceId);
+      device.disconnect();
+      rethrow;
+    }
 
     // Subscribe to Connection Stream
     if (_connectedDeviceStreamList[deviceId] != null) {
@@ -103,7 +114,7 @@ class UniversalBleWeb extends UniversalBlePlatform {
       // Update Scan Result
       updateScanResult(device.toBleScanResult());
 
-      _watchDeviceAdvertisements(device);
+      await _watchDeviceAdvertisements(device);
     } catch (e) {
       String error = e.toString().replaceAll("DeviceNotFoundError:", "").trim();
       if (error.toLowerCase().contains("api globally disabled")) {
@@ -130,10 +141,7 @@ class UniversalBleWeb extends UniversalBlePlatform {
     try {
       if (!device.hasWatchAdvertisements()) return;
 
-      if (_deviceAdvertisementStreamList[device.id] != null) {
-        _deviceAdvertisementStreamList[device.id]?.cancel();
-        await device.unwatchAdvertisements();
-      }
+      await _stopAdvertisementWatcher(device.id);
 
       _deviceAdvertisementStreamList[device.id] = device.advertisements.listen((
         event,
@@ -159,7 +167,7 @@ class UniversalBleWeb extends UniversalBlePlatform {
 
   @override
   Future<void> stopScan() async {
-    _disposeAdvertisementWatcher();
+    await _stopAdvertisementWatcher();
   }
 
   @override
@@ -429,7 +437,7 @@ class UniversalBleWeb extends UniversalBlePlatform {
       if (key.contains(deviceId)) value.cancel();
       return key.contains(deviceId);
     });
-    _disposeAdvertisementWatcher(deviceId);
+    unawaited(_stopAdvertisementWatcher(deviceId));
     _serviceCache.remove(deviceId);
     // _bluetoothDeviceList.removeWhere((element) => element.id == deviceId);
   }
@@ -493,15 +501,22 @@ class UniversalBleWeb extends UniversalBlePlatform {
     return services;
   }
 
-  void _disposeAdvertisementWatcher([String? deviceId]) {
-    _deviceAdvertisementStreamList.removeWhere((key, value) {
-      if (deviceId != null && key != deviceId) return false;
-      value.cancel();
-      _getDeviceById(
-        deviceId ?? key,
-      )?.unwatchAdvertisements().onError((_, stackTrace) {});
-      return true;
-    });
+  Future<void> _stopAdvertisementWatcher([String? deviceId]) async {
+    final deviceIds = _deviceAdvertisementStreamList.keys
+        .where((key) => deviceId == null || key == deviceId)
+        .toList(growable: false);
+    for (final id in deviceIds) {
+      final subscription = _deviceAdvertisementStreamList.remove(id);
+      await subscription?.cancel();
+
+      final device = _getDeviceById(id);
+      if (device == null || !device.watchingAdvertisements) continue;
+      try {
+        await device.unwatchAdvertisements();
+      } catch (error) {
+        UniversalLogger.logError("WebUnwatchAdvertisementError: $error");
+      }
+    }
   }
 
   @override
