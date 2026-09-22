@@ -19,6 +19,7 @@ class UniversalBleWeb extends UniversalBlePlatform {
   final Map<String, StreamSubscription> _connectedDeviceStreamList = {};
   final Map<String, StreamSubscription> _characteristicStreamList = {};
   final Map<String, List<_UniversalWebBluetoothService>> _serviceCache = {};
+  final Set<String> _connectionAttemptedDevices = {};
   bool _isScanning = false;
 
   @override
@@ -47,10 +48,15 @@ class UniversalBleWeb extends UniversalBlePlatform {
       );
     }
 
+    final reconnecting = !_connectionAttemptedDevices.add(deviceId);
+
     // Advertisement watching is independent from requestDevice and can remain
     // active after the chooser closes. Wait for it to stop before starting the
     // GATT handshake so the two browser operations cannot overlap.
     await _stopAdvertisementWatcher(deviceId);
+    if (reconnecting) {
+      await _waitForFreshAdvertisement(device);
+    }
     try {
       await device.connect(timeout: connectionTimeout);
     } catch (_) {
@@ -60,9 +66,7 @@ class UniversalBleWeb extends UniversalBlePlatform {
     }
 
     // Subscribe to Connection Stream
-    if (_connectedDeviceStreamList[deviceId] != null) {
-      _connectedDeviceStreamList[deviceId]?.cancel();
-    }
+    await _connectedDeviceStreamList.remove(deviceId)?.cancel();
 
     _connectedDeviceStreamList[deviceId] = device.connected.listen((event) {
       if (!event) _cleanConnection(deviceId);
@@ -72,7 +76,25 @@ class UniversalBleWeb extends UniversalBlePlatform {
 
   @override
   Future<void> disconnect(String deviceId) async {
-    _getDeviceById(deviceId)?.disconnect();
+    final device = _getDeviceById(deviceId);
+    if (device == null) return;
+
+    // Remove listeners and cached GATT objects before disconnecting. This
+    // prevents a late event from the closing session being observed by a
+    // listener installed for an immediate reconnect.
+    await _connectedDeviceStreamList.remove(deviceId)?.cancel();
+    final characteristicPrefix = '${deviceId}_';
+    final characteristicKeys = _characteristicStreamList.keys
+        .where((key) => key.startsWith(characteristicPrefix))
+        .toList(growable: false);
+    for (final key in characteristicKeys) {
+      await _characteristicStreamList.remove(key)?.cancel();
+    }
+    await _stopAdvertisementWatcher(deviceId);
+    _serviceCache.remove(deviceId);
+
+    device.disconnect();
+    updateConnection(deviceId, false);
   }
 
   @override
@@ -110,6 +132,7 @@ class UniversalBleWeb extends UniversalBlePlatform {
 
       // Update local device list
       _bluetoothDeviceList[device.id] = device;
+      _connectionAttemptedDevices.remove(device.id);
 
       // Update Scan Result
       updateScanResult(device.toBleScanResult());
@@ -483,6 +506,32 @@ class UniversalBleWeb extends UniversalBlePlatform {
   }
 
   BluetoothDevice? _getDeviceById(String id) => _bluetoothDeviceList[id];
+
+  Future<void> _waitForFreshAdvertisement(BluetoothDevice device) async {
+    if (!device.hasWatchAdvertisements()) return;
+
+    final ready = Completer<void>();
+    var acceptAdvertisements = false;
+    final subscription = device.advertisements.listen((_) {
+      if (acceptAdvertisements && !ready.isCompleted) ready.complete();
+    });
+    try {
+      // The dependency's advertisement stream replays its last value. Give
+      // that cached event a turn before accepting packets from the new watch.
+      await Future<void>.delayed(Duration.zero);
+      await device.watchAdvertisements();
+      acceptAdvertisements = true;
+      await ready.future.timeout(const Duration(seconds: 3));
+    } catch (_) {
+      // Watching advertisements is optional. If it is unsupported or no
+      // packet arrives promptly, fall back to the normal GATT connection.
+    } finally {
+      await subscription.cancel();
+      try {
+        await device.unwatchAdvertisements();
+      } catch (_) {}
+    }
+  }
 
   /// Get services and their characteristics.
   /// Services and characteristics are cached.
