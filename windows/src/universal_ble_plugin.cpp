@@ -1847,7 +1847,25 @@ fire_and_forget UniversalBlePlugin::ConnectAsync(
     }
     UniversalBleLogger::LogInfo("ConnectionLog: Device found");
     auto services_result =
-        co_await device.GetGattServicesAsync((BluetoothCacheMode::Uncached));
+        co_await device.GetGattServicesAsync(BluetoothCacheMode::Uncached);
+    // Creating a BluetoothLEDevice does not itself establish a connection.
+    // The first uncached service query initiates it, but an immediate
+    // post-scan query can transiently return Unreachable. Retry only that
+    // status before reporting the connection attempt as failed.
+    constexpr int kGattReadinessRetries = 2;
+    for (int retry = 0;
+         services_result.Status() == GattCommunicationStatus::Unreachable &&
+         retry < kGattReadinessRetries;
+         ++retry) {
+      UniversalBleLogger::LogInfo(
+          "ConnectionLog: GATT services temporarily unreachable; retrying " +
+          std::to_string(retry + 1) + "/" +
+          std::to_string(kGattReadinessRetries));
+      co_await winrt::resume_after(
+          std::chrono::milliseconds(250 * (retry + 1)));
+      services_result =
+          co_await device.GetGattServicesAsync(BluetoothCacheMode::Uncached);
+    }
     auto services_result_error =
         gatt_communication_status_to_error(services_result.Status());
     if (services_result_error.has_value()) {

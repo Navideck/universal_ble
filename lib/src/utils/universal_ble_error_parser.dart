@@ -32,6 +32,13 @@ class UniversalBleErrorParser {
 
   static UniversalBleErrorCode? _parseStringErrorCode(String code) {
     switch (code.toLowerCase()) {
+      case 'failed to get device':
+      case 'failed to get services: unreachable':
+        return UniversalBleErrorCode.connectionFailed;
+      case 'failed to get services: accessdenied':
+        return UniversalBleErrorCode.bluetoothUnauthorized;
+      case 'failed to get services: protocolerror':
+        return UniversalBleErrorCode.failed;
       case 'notsupported':
       case 'not_supported':
         return UniversalBleErrorCode.notSupported;

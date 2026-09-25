@@ -254,6 +254,67 @@ void main() {
       _pending(
         '[FIT-CONN-014] does not emit a stale connection failure after a newer connection succeeds',
       );
+      testWidgets(
+        '[FIT-CONN-015] survives repeated immediate connections after discovery',
+        (_) async {
+          const cycles = int.fromEnvironment(
+            'HIL_COLD_CONNECT_CYCLES',
+            defaultValue: 20,
+          );
+
+          for (var cycle = 0; cycle < cycles; cycle++) {
+            try {
+              await UniversalBle.disconnect(
+                peripheral.deviceId,
+                timeout: HilPeripheral.operationTimeout,
+              );
+              final discovered = await _discoverHilPeripheral();
+
+              // Connect immediately after discovery. Do not use
+              // HilPeripheral.reconnect(), because its retry loop would hide a
+              // failed first connection attempt.
+              await UniversalBle.connect(
+                discovered.deviceId,
+                timeout: HilPeripheral.operationTimeout,
+              );
+
+              final services = await UniversalBle.discoverServices(
+                discovered.deviceId,
+                withDescriptors: false,
+                timeout: HilPeripheral.operationTimeout,
+              );
+              expect(
+                services.map((service) => service.uuid),
+                anyElement(_isHilService),
+                reason: 'HIL service missing after cold-connect cycle '
+                    '${cycle + 1}/$cycles',
+              );
+              expect(
+                utf8.decode(
+                  await UniversalBle.read(
+                    discovered.deviceId,
+                    HilUuid.service,
+                    HilUuid.read,
+                    timeout: HilPeripheral.operationTimeout,
+                  ),
+                ),
+                'HIL-READ-V1',
+                reason: 'GATT read failed after cold-connect cycle '
+                    '${cycle + 1}/$cycles',
+              );
+            } catch (error, stackTrace) {
+              Error.throwWithStackTrace(
+                StateError(
+                  'Cold-connect cycle ${cycle + 1}/$cycles failed: $error',
+                ),
+                stackTrace,
+              );
+            }
+          }
+        },
+        timeout: const Timeout(Duration(minutes: 5)),
+        skip: defaultTargetPlatform != TargetPlatform.windows,
+      );
     });
 
     group('service discovery and GATT database changes', () {
@@ -1186,6 +1247,33 @@ Future<void> _waitForDisconnect(HilPeripheral peripheral) async {
       .firstWhere((connected) => !connected)
       .timeout(HilPeripheral.operationTimeout);
 }
+
+Future<BleDevice> _discoverHilPeripheral() async {
+  final result = Completer<BleDevice>();
+  final subscription = UniversalBle.scanStream.listen((device) {
+    if (!result.isCompleted &&
+        (device.name == HilPeripheral.deviceName ||
+            device.services.any(_isHilService))) {
+      result.complete(device);
+    }
+  });
+
+  try {
+    await UniversalBle.startScan(
+      scanFilter: ScanFilter(
+        withServices: const [HilUuid.service],
+        withNamePrefix: const [HilPeripheral.deviceName],
+      ),
+    );
+    return await result.future.timeout(HilPeripheral.scanTimeout);
+  } finally {
+    await UniversalBle.stopScan();
+    await subscription.cancel();
+  }
+}
+
+bool _isHilService(String uuid) =>
+    BleUuidParser.compareStrings(uuid, HilUuid.service);
 
 Future<bool> _hasService(HilPeripheral peripheral, String serviceUuid) async {
   final services = await peripheral.discover(withDescriptors: false);
