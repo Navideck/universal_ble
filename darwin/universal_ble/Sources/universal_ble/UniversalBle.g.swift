@@ -693,34 +693,73 @@ struct AndroidOptions: Hashable {
   }
 }
 
+/// Windows options to scan devices
+///
+/// Generated class from Pigeon that represents data sent in messages.
+struct WindowsOptions: Hashable {
+  /// Hide advertisements that windows reports as non-connectable.
+  var hideNonConnectable: Bool
+
+
+  // swift-format-ignore: AlwaysUseLowerCamelCase
+  static func fromList(_ pigeonVar_list: [Any?]) -> WindowsOptions? {
+    let hideNonConnectable = pigeonVar_list[0] as! Bool
+
+    return WindowsOptions(
+      hideNonConnectable: hideNonConnectable
+    )
+  }
+  func toList() -> [Any?] {
+    return [
+      hideNonConnectable
+    ]
+  }
+  static func == (lhs: WindowsOptions, rhs: WindowsOptions) -> Bool {
+    if Swift.type(of: lhs) != Swift.type(of: rhs) {
+      return false
+    }
+    return deepEqualsUniversalBle(lhs.hideNonConnectable, rhs.hideNonConnectable)
+  }
+
+  func hash(into hasher: inout Hasher) {
+    hasher.combine("WindowsOptions")
+    deepHashUniversalBle(value: hideNonConnectable, hasher: &hasher)
+  }
+}
+
 /// Generated class from Pigeon that represents data sent in messages.
 struct UniversalScanConfig: Hashable {
   var android: AndroidOptions? = nil
+  var windows: WindowsOptions? = nil
 
 
   // swift-format-ignore: AlwaysUseLowerCamelCase
   static func fromList(_ pigeonVar_list: [Any?]) -> UniversalScanConfig? {
     let android: AndroidOptions? = nilOrValue(pigeonVar_list[0])
+    let windows: WindowsOptions? = nilOrValue(pigeonVar_list[1])
 
     return UniversalScanConfig(
-      android: android
+      android: android,
+      windows: windows
     )
   }
   func toList() -> [Any?] {
     return [
-      android
+      android,
+      windows,
     ]
   }
   static func == (lhs: UniversalScanConfig, rhs: UniversalScanConfig) -> Bool {
     if Swift.type(of: lhs) != Swift.type(of: rhs) {
       return false
     }
-    return deepEqualsUniversalBle(lhs.android, rhs.android)
+    return deepEqualsUniversalBle(lhs.android, rhs.android) && deepEqualsUniversalBle(lhs.windows, rhs.windows)
   }
 
   func hash(into hasher: inout Hasher) {
     hasher.combine("UniversalScanConfig")
     deepHashUniversalBle(value: android, hasher: &hasher)
+    deepHashUniversalBle(value: windows, hasher: &hasher)
   }
 }
 
@@ -1377,32 +1416,34 @@ private class UniversalBlePigeonCodecReader: FlutterStandardReader {
     case 149:
       return AndroidOptions.fromList(self.readValue() as! [Any?])
     case 150:
-      return UniversalScanConfig.fromList(self.readValue() as! [Any?])
+      return WindowsOptions.fromList(self.readValue() as! [Any?])
     case 151:
-      return UniversalScanFilter.fromList(self.readValue() as! [Any?])
+      return UniversalScanConfig.fromList(self.readValue() as! [Any?])
     case 152:
-      return ManufacturerDataFilter.fromList(self.readValue() as! [Any?])
+      return UniversalScanFilter.fromList(self.readValue() as! [Any?])
     case 153:
-      return UniversalManufacturerData.fromList(self.readValue() as! [Any?])
+      return ManufacturerDataFilter.fromList(self.readValue() as! [Any?])
     case 154:
-      return AppleConnectionOptions.fromList(self.readValue() as! [Any?])
+      return UniversalManufacturerData.fromList(self.readValue() as! [Any?])
     case 155:
-      return AndroidConnectionOptions.fromList(self.readValue() as! [Any?])
+      return AppleConnectionOptions.fromList(self.readValue() as! [Any?])
     case 156:
-      return ConnectionPlatformConfig.fromList(self.readValue() as! [Any?])
+      return AndroidConnectionOptions.fromList(self.readValue() as! [Any?])
     case 157:
-      return PeripheralAndroidOptions.fromList(self.readValue() as! [Any?])
+      return ConnectionPlatformConfig.fromList(self.readValue() as! [Any?])
     case 158:
-      return PeripheralPlatformConfig.fromList(self.readValue() as! [Any?])
+      return PeripheralAndroidOptions.fromList(self.readValue() as! [Any?])
     case 159:
-      return PeripheralService.fromList(self.readValue() as! [Any?])
+      return PeripheralPlatformConfig.fromList(self.readValue() as! [Any?])
     case 160:
-      return PeripheralCharacteristic.fromList(self.readValue() as! [Any?])
+      return PeripheralService.fromList(self.readValue() as! [Any?])
     case 161:
-      return PeripheralDescriptor.fromList(self.readValue() as! [Any?])
+      return PeripheralCharacteristic.fromList(self.readValue() as! [Any?])
     case 162:
-      return PeripheralReadRequestResult.fromList(self.readValue() as! [Any?])
+      return PeripheralDescriptor.fromList(self.readValue() as! [Any?])
     case 163:
+      return PeripheralReadRequestResult.fromList(self.readValue() as! [Any?])
+    case 164:
       return PeripheralWriteRequestResult.fromList(self.readValue() as! [Any?])
     default:
       return super.readValue(ofType: type)
@@ -1475,47 +1516,50 @@ private class UniversalBlePigeonCodecWriter: FlutterStandardWriter {
     } else if let value = value as? AndroidOptions {
       super.writeByte(149)
       super.writeValue(value.toList())
-    } else if let value = value as? UniversalScanConfig {
+    } else if let value = value as? WindowsOptions {
       super.writeByte(150)
       super.writeValue(value.toList())
-    } else if let value = value as? UniversalScanFilter {
+    } else if let value = value as? UniversalScanConfig {
       super.writeByte(151)
       super.writeValue(value.toList())
-    } else if let value = value as? ManufacturerDataFilter {
+    } else if let value = value as? UniversalScanFilter {
       super.writeByte(152)
       super.writeValue(value.toList())
-    } else if let value = value as? UniversalManufacturerData {
+    } else if let value = value as? ManufacturerDataFilter {
       super.writeByte(153)
       super.writeValue(value.toList())
-    } else if let value = value as? AppleConnectionOptions {
+    } else if let value = value as? UniversalManufacturerData {
       super.writeByte(154)
       super.writeValue(value.toList())
-    } else if let value = value as? AndroidConnectionOptions {
+    } else if let value = value as? AppleConnectionOptions {
       super.writeByte(155)
       super.writeValue(value.toList())
-    } else if let value = value as? ConnectionPlatformConfig {
+    } else if let value = value as? AndroidConnectionOptions {
       super.writeByte(156)
       super.writeValue(value.toList())
-    } else if let value = value as? PeripheralAndroidOptions {
+    } else if let value = value as? ConnectionPlatformConfig {
       super.writeByte(157)
       super.writeValue(value.toList())
-    } else if let value = value as? PeripheralPlatformConfig {
+    } else if let value = value as? PeripheralAndroidOptions {
       super.writeByte(158)
       super.writeValue(value.toList())
-    } else if let value = value as? PeripheralService {
+    } else if let value = value as? PeripheralPlatformConfig {
       super.writeByte(159)
       super.writeValue(value.toList())
-    } else if let value = value as? PeripheralCharacteristic {
+    } else if let value = value as? PeripheralService {
       super.writeByte(160)
       super.writeValue(value.toList())
-    } else if let value = value as? PeripheralDescriptor {
+    } else if let value = value as? PeripheralCharacteristic {
       super.writeByte(161)
       super.writeValue(value.toList())
-    } else if let value = value as? PeripheralReadRequestResult {
+    } else if let value = value as? PeripheralDescriptor {
       super.writeByte(162)
       super.writeValue(value.toList())
-    } else if let value = value as? PeripheralWriteRequestResult {
+    } else if let value = value as? PeripheralReadRequestResult {
       super.writeByte(163)
+      super.writeValue(value.toList())
+    } else if let value = value as? PeripheralWriteRequestResult {
+      super.writeByte(164)
       super.writeValue(value.toList())
     } else {
       super.writeValue(value)

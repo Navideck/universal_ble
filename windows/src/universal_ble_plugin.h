@@ -91,14 +91,11 @@ struct BluetoothDeviceAgent {
   AsyncOperationTracker gatt_operations;
 
   BluetoothDeviceAgent(
-      const BluetoothLEDevice &device,
-      const event_token connection_status_changed_token,
+      const BluetoothLEDevice &device, const event_token connection_status_changed_token,
       const event_token gatt_services_changed_token,
       std::unordered_map<std::string, GattServiceObject> gatt_map)
-      : device(device),
-        connection_status_changed_token(connection_status_changed_token),
-        gatt_services_changed_token(gatt_services_changed_token),
-        gatt_map(std::move(gatt_map)) {}
+      : device(device), connection_status_changed_token(connection_status_changed_token),
+        gatt_services_changed_token(gatt_services_changed_token), gatt_map(std::move(gatt_map)) {}
 
   ~BluetoothDeviceAgent() { device = nullptr; }
 
@@ -111,55 +108,44 @@ struct BluetoothDeviceAgent {
     return was_active;
   }
 
-  bool IsActive() const noexcept {
-    return active.load(std::memory_order_acquire);
-  }
+  bool IsActive() const noexcept { return active.load(std::memory_order_acquire); }
 
   GattCharacteristicObject
-  FetchCharacteristic(const std::string &service_uuid,
-                      const std::string &characteristic_uuid) {
+  FetchCharacteristic(const std::string &service_uuid, const std::string &characteristic_uuid) {
     std::lock_guard<std::mutex> lock(gatt_mutex);
     if (!IsActive()) {
-      throw create_flutter_error(UniversalBleErrorCode::kDeviceDisconnected,
-                                 "Device disconnected");
+      throw create_flutter_error(UniversalBleErrorCode::kDeviceDisconnected, "Device disconnected");
     }
     const auto service = gatt_map.find(service_uuid);
     if (service == gatt_map.end()) {
-      throw create_flutter_error(UniversalBleErrorCode::kServiceNotFound,
-                                 "Service not found");
+      throw create_flutter_error(UniversalBleErrorCode::kServiceNotFound, "Service not found");
     }
-    const auto characteristic =
-        service->second.characteristics.find(characteristic_uuid);
+    const auto characteristic = service->second.characteristics.find(characteristic_uuid);
     if (characteristic == service->second.characteristics.end()) {
-      throw create_flutter_error(UniversalBleErrorCode::kCharacteristicNotFound,
-                                 "Characteristic not found");
+      throw create_flutter_error(
+          UniversalBleErrorCode::kCharacteristicNotFound, "Characteristic not found");
     }
     return characteristic->second;
   }
 
   GattCharacteristicLease FetchCharacteristicForOperation(
-      const std::string &service_uuid,
-      const std::string &characteristic_uuid) {
+      const std::string &service_uuid, const std::string &characteristic_uuid) {
     std::lock_guard<std::mutex> lock(gatt_mutex);
     if (!IsActive()) {
-      throw create_flutter_error(UniversalBleErrorCode::kDeviceDisconnected,
-                                 "Device disconnected");
+      throw create_flutter_error(UniversalBleErrorCode::kDeviceDisconnected, "Device disconnected");
     }
     const auto service = gatt_map.find(service_uuid);
     if (service == gatt_map.end()) {
-      throw create_flutter_error(UniversalBleErrorCode::kServiceNotFound,
-                                 "Service not found");
+      throw create_flutter_error(UniversalBleErrorCode::kServiceNotFound, "Service not found");
     }
-    const auto characteristic =
-        service->second.characteristics.find(characteristic_uuid);
+    const auto characteristic = service->second.characteristics.find(characteristic_uuid);
     if (characteristic == service->second.characteristics.end()) {
-      throw create_flutter_error(UniversalBleErrorCode::kCharacteristicNotFound,
-                                 "Characteristic not found");
+      throw create_flutter_error(
+          UniversalBleErrorCode::kCharacteristicNotFound, "Characteristic not found");
     }
     const auto operation = gatt_operations.TryAcquire();
     if (!operation.has_value()) {
-      throw create_flutter_error(UniversalBleErrorCode::kDeviceDisconnected,
-                                 "Device disconnected");
+      throw create_flutter_error(UniversalBleErrorCode::kDeviceDisconnected, "Device disconnected");
     }
     return {characteristic->second, operation.value()};
   }
@@ -178,13 +164,11 @@ struct BluetoothDeviceAgent {
   GattMapLease SnapshotGattMapForOperation() {
     std::lock_guard<std::mutex> lock(gatt_mutex);
     if (!IsActive()) {
-      throw create_flutter_error(UniversalBleErrorCode::kDeviceDisconnected,
-                                 "Device disconnected");
+      throw create_flutter_error(UniversalBleErrorCode::kDeviceDisconnected, "Device disconnected");
     }
     const auto operation = gatt_operations.TryAcquire();
     if (!operation.has_value()) {
-      throw create_flutter_error(UniversalBleErrorCode::kDeviceDisconnected,
-                                 "Device disconnected");
+      throw create_flutter_error(UniversalBleErrorCode::kDeviceDisconnected, "Device disconnected");
     }
     return {gatt_map, operation.value()};
   }
@@ -205,14 +189,12 @@ struct BluetoothDeviceAgent {
     GattSubscriptionSnapshot snapshot;
     snapshot.revision = gatt_revision;
     for (const auto &[service_id, service] : gatt_map) {
-      for (const auto &[characteristic_id, characteristic] :
-           service.characteristics) {
+      for (const auto &[characteristic_id, characteristic] : service.characteristics) {
         if (characteristic.notification_operation_in_progress) {
           return std::nullopt;
         }
         if (characteristic.subscription_token.has_value()) {
-          snapshot.characteristics.emplace_back(service_id,
-                                                characteristic_id);
+          snapshot.characteristics.emplace_back(service_id, characteristic_id);
         }
       }
     }
@@ -224,14 +206,12 @@ struct BluetoothDeviceAgent {
       const uint64_t expected_revision,
       std::unordered_map<std::string, GattServiceObject> &previous) {
     std::lock_guard<std::mutex> lock(gatt_mutex);
-    if (!IsActive() || gatt_revision != expected_revision ||
-        !gatt_operations.IsIdle()) {
+    if (!IsActive() || gatt_revision != expected_revision || !gatt_operations.IsIdle()) {
       return false;
     }
     for (const auto &[service_id, service] : gatt_map) {
       (void)service_id;
-      for (const auto &[characteristic_id, characteristic] :
-           service.characteristics) {
+      for (const auto &[characteristic_id, characteristic] : service.characteristics) {
         (void)characteristic_id;
         if (characteristic.notification_operation_in_progress) {
           return false;
@@ -273,8 +253,7 @@ struct BluetoothDeviceAgent {
   }
 
   bool BeginNotificationOperation(
-      const std::string &service_uuid,
-      const std::string &characteristic_uuid,
+      const std::string &service_uuid, const std::string &characteristic_uuid,
       GattCharacteristicObject &characteristic) {
     std::lock_guard<std::mutex> lock(gatt_mutex);
     if (!IsActive()) {
@@ -284,8 +263,7 @@ struct BluetoothDeviceAgent {
     if (service == gatt_map.end()) {
       return false;
     }
-    const auto found =
-        service->second.characteristics.find(characteristic_uuid);
+    const auto found = service->second.characteristics.find(characteristic_uuid);
     if (found == service->second.characteristics.end() ||
         found->second.notification_operation_in_progress) {
       return false;
@@ -297,8 +275,7 @@ struct BluetoothDeviceAgent {
   }
 
   bool UpdateNotificationOperationToken(
-      const std::string &service_uuid,
-      const std::string &characteristic_uuid,
+      const std::string &service_uuid, const std::string &characteristic_uuid,
       const std::optional<event_token> &subscription_token) {
     std::lock_guard<std::mutex> lock(gatt_mutex);
     if (!IsActive()) {
@@ -308,8 +285,7 @@ struct BluetoothDeviceAgent {
     if (service == gatt_map.end()) {
       return false;
     }
-    const auto found =
-        service->second.characteristics.find(characteristic_uuid);
+    const auto found = service->second.characteristics.find(characteristic_uuid);
     if (found == service->second.characteristics.end() ||
         !found->second.notification_operation_in_progress) {
       return false;
@@ -320,8 +296,7 @@ struct BluetoothDeviceAgent {
   }
 
   bool FinishNotificationOperation(
-      const std::string &service_uuid,
-      const std::string &characteristic_uuid,
+      const std::string &service_uuid, const std::string &characteristic_uuid,
       const std::optional<event_token> &subscription_token) {
     std::lock_guard<std::mutex> lock(gatt_mutex);
     if (!IsActive()) {
@@ -331,8 +306,7 @@ struct BluetoothDeviceAgent {
     if (service == gatt_map.end()) {
       return false;
     }
-    const auto found =
-        service->second.characteristics.find(characteristic_uuid);
+    const auto found = service->second.characteristics.find(characteristic_uuid);
     if (found == service->second.characteristics.end() ||
         !found->second.notification_operation_in_progress) {
       return false;
@@ -342,16 +316,15 @@ struct BluetoothDeviceAgent {
     ++gatt_revision;
     return true;
   }
-
 };
 
 class UniversalBlePlugin : public flutter::Plugin,
                            public UniversalBlePlatformChannel,
                            public UniversalBlePeripheralChannel {
 public:
-  static void RegisterWithRegistrar(flutter::PluginRegistrarWindows *registrar);
+  static void RegisterWithRegistrar(flutter::PluginRegistrarWindows* registrar);
 
-  UniversalBlePlugin(flutter::PluginRegistrarWindows *registrar);
+  UniversalBlePlugin(flutter::PluginRegistrarWindows* registrar);
 
   ~UniversalBlePlugin();
 
@@ -364,8 +337,7 @@ private:
   static void ErrorCallback(const FlutterError &error) {
     // Ignore ChannelConnection Error, This might occur because of HotReload
     if (error.code() != "channel-error") {
-      std::cout << "ErrorCode: " << error.code()
-                << " Message: " << error.message() << std::endl;
+      std::cout << "ErrorCode: " << error.code() << " Message: " << error.message() << std::endl;
     }
   }
   static int64_t GetCurrentTimestampMillis() {
@@ -379,8 +351,9 @@ private:
         .count();
   }
 
-  flutter::PluginRegistrarWindows *registrar_;
+  flutter::PluginRegistrarWindows* registrar_;
   bool initialized_ = false;
+  std::atomic<bool> hide_non_connectable_{true};
 
   UniversalBleUiThreadHandler ui_thread_handler_;
   AsyncOperationTracker callback_operations_;
@@ -389,8 +362,7 @@ private:
   BluetoothLEAdvertisementWatcher bluetooth_le_watcher_{nullptr};
   DeviceWatcher device_watcher_{nullptr};
 
-  std::unordered_map<uint64_t, std::shared_ptr<BluetoothDeviceAgent>>
-      connected_devices_{};
+  std::unordered_map<uint64_t, std::shared_ptr<BluetoothDeviceAgent>> connected_devices_{};
   std::unordered_map<uint64_t, uint64_t> connect_generations_{};
   std::unordered_set<uint64_t> pending_connects_{};
   uint64_t next_connect_generation_ = 0;
@@ -410,57 +382,47 @@ private:
   event_revoker<IRadio> radio_state_changed_revoker_;
 
   fire_and_forget InitializeAsync();
-  fire_and_forget ConnectAsync(uint64_t bluetooth_address,
-                               uint64_t connect_generation);
+  fire_and_forget ConnectAsync(uint64_t bluetooth_address, uint64_t connect_generation);
   fire_and_forget RefreshGattServicesAsync(
-      uint64_t bluetooth_address,
-      std::shared_ptr<BluetoothDeviceAgent> device_agent);
+      uint64_t bluetooth_address, std::shared_ptr<BluetoothDeviceAgent> device_agent);
   fire_and_forget SetNotifiableAsync(
-      std::string device_id, std::string service,
-      std::string characteristic,
+      std::string device_id, std::string service, std::string characteristic,
       BleInputProperty ble_input_property,
       std::function<void(std::optional<FlutterError> reply)> result);
-  fire_and_forget PairAsync(const std::string &device_id,
-                            std::function<void(ErrorOr<bool> reply)> result);
   fire_and_forget
-  CustomPairAsync(const std::string &device_id,
-                  std::function<void(ErrorOr<bool> reply)> result);
+  PairAsync(const std::string &device_id, std::function<void(ErrorOr<bool> reply)> result);
+  fire_and_forget
+  CustomPairAsync(const std::string &device_id, std::function<void(ErrorOr<bool> reply)> result);
   static fire_and_forget GetSystemDevicesAsync(
       std::vector<std::string> with_services,
       std::function<void(ErrorOr<flutter::EncodableList> reply)> result);
   static fire_and_forget
-  IsPairedAsync(const std::string &device_id,
-                std::function<void(ErrorOr<bool> reply)> result);
+  IsPairedAsync(const std::string &device_id, std::function<void(ErrorOr<bool> reply)> result);
   fire_and_forget DiscoverServicesAsync(
       const std::string &device_id, bool with_descriptors,
       std::function<void(ErrorOr<flutter::EncodableList> reply)> result);
 
-  void
-  PairingRequestedHandler(DeviceInformationCustomPairing sender,
-                          const DevicePairingRequestedEventArgs &event_args);
+  void PairingRequestedHandler(
+      DeviceInformationCustomPairing sender, const DevicePairingRequestedEventArgs &event_args);
 
   void RadioStateChanged(const Radio &sender, const IInspectable &);
   void SetupDeviceWatcher();
   void DisposeDeviceWatcher();
-  void PushUniversalScanResult(UniversalBleScanResult scan_result,
-                               bool is_connectable);
-  static std::string ExpandServiceUuid(const std::vector<uint8_t>& uuid_bytes, 
-                                        uint8_t uuid_type);
+  void PushUniversalScanResult(UniversalBleScanResult scan_result, bool is_connectable);
+  static std::string ExpandServiceUuid(const std::vector<uint8_t> &uuid_bytes, uint8_t uuid_type);
   void BluetoothLeWatcherReceived(
       const BluetoothLEAdvertisementWatcher &sender,
       const BluetoothLEAdvertisementReceivedEventArgs &args);
   void OnDeviceInfoReceived(const DeviceInformation &device_info);
-  void BluetoothLeDeviceConnectionStatusChanged(const BluetoothLEDevice &sender,
-                                                const IInspectable &args);
-  void BluetoothLeDeviceGattServicesChanged(const BluetoothLEDevice &sender,
-                                             const IInspectable &args);
-  std::shared_ptr<BluetoothDeviceAgent>
-  GetConnectedDevice(uint64_t bluetooth_address);
+  void BluetoothLeDeviceConnectionStatusChanged(
+      const BluetoothLEDevice &sender, const IInspectable &args);
+  void
+  BluetoothLeDeviceGattServicesChanged(const BluetoothLEDevice &sender, const IInspectable &args);
+  std::shared_ptr<BluetoothDeviceAgent> GetConnectedDevice(uint64_t bluetooth_address);
   void InvalidateConnectAttempt(uint64_t bluetooth_address);
-  std::shared_ptr<BluetoothDeviceAgent>
-  RemoveConnectedDevice(uint64_t bluetooth_address,
-                        const BluetoothLEDevice *expected_device = nullptr,
-                        uint64_t *removed_generation = nullptr);
+  std::shared_ptr<BluetoothDeviceAgent> RemoveConnectedDevice(
+      uint64_t bluetooth_address, const BluetoothLEDevice* expected_device = nullptr,
+      uint64_t* removed_generation = nullptr);
   bool InstallConnectedDevice(
       uint64_t bluetooth_address, uint64_t connect_generation,
       std::shared_ptr<BluetoothDeviceAgent> device_agent,
@@ -471,36 +433,30 @@ private:
   void NotifyConnectFailureIfCurrent(
       uint64_t bluetooth_address, uint64_t connect_generation,
       const std::string &error_message) noexcept;
-  void NotifyConnectionChanged(uint64_t bluetooth_address, bool connected,
-                               std::optional<std::string> error = std::nullopt,
-                               std::optional<uint64_t> expected_generation =
-                                   std::nullopt);
-  void NotifyConnectionException(uint64_t bluetooth_address,
-                                 const std::string &error_message,
-                                 const BluetoothLEDevice *expected_device =
-                                     nullptr);
-  bool CleanConnection(uint64_t bluetooth_address,
-                       const BluetoothLEDevice *expected_device = nullptr,
-                       uint64_t *removed_generation = nullptr);
-  void DisposeConnection(
-      const std::shared_ptr<BluetoothDeviceAgent> &device_agent);
+  void NotifyConnectionChanged(
+      uint64_t bluetooth_address, bool connected, std::optional<std::string> error = std::nullopt,
+      std::optional<uint64_t> expected_generation = std::nullopt);
+  void NotifyConnectionException(
+      uint64_t bluetooth_address, const std::string &error_message,
+      const BluetoothLEDevice* expected_device = nullptr);
+  bool CleanConnection(
+      uint64_t bluetooth_address, const BluetoothLEDevice* expected_device = nullptr,
+      uint64_t* removed_generation = nullptr);
+  void DisposeConnection(const std::shared_ptr<BluetoothDeviceAgent> &device_agent);
   void ResetState();
-  void DisposeServices(
-      const std::shared_ptr<BluetoothDeviceAgent> &device_agent);
+  void DisposeServices(const std::shared_ptr<BluetoothDeviceAgent> &device_agent);
   void DisposeGattMap(
       std::unordered_map<std::string, GattServiceObject> gatt_map,
-      const std::vector<GattDeviceService> *retained_services = nullptr);
+      const std::vector<GattDeviceService>* retained_services = nullptr);
 
   event_token RegisterGattValueChangedHandler(
-      const std::shared_ptr<BluetoothDeviceAgent> &device_agent,
-      const std::string &device_id, const std::string &characteristic_id,
-      const GattCharacteristic &characteristic);
+      const std::shared_ptr<BluetoothDeviceAgent> &device_agent, const std::string &device_id,
+      const std::string &characteristic_id, const GattCharacteristic &characteristic);
   void GattCharacteristicValueChanged(
-      const std::weak_ptr<BluetoothDeviceAgent> &device_agent,
-      const std::string &device_id, const std::string &characteristic_id,
-      const GattValueChangedEventArgs &args);
+      const std::weak_ptr<BluetoothDeviceAgent> &device_agent, const std::string &device_id,
+      const std::string &characteristic_id, const GattValueChangedEventArgs &args);
   // Peripheral runtime state
-  std::map<std::string, PeripheralGattServiceProviderObject *> peripheral_service_provider_map_{};
+  std::map<std::string, PeripheralGattServiceProviderObject*> peripheral_service_provider_map_{};
   /// Lowercased service UUIDs from the last successful `StartAdvertising` call.
   /// Empty means all registered services were selected.
   std::vector<std::string> peripheral_advertising_targets_lc_{};
@@ -510,98 +466,86 @@ private:
   std::mutex peripheral_mutex_;
 
   // Peripheral helpers
-  void DisposeAdvertisementPublisher();  // Requires peripheral_mutex_.
+  void DisposeAdvertisementPublisher(); // Requires peripheral_mutex_.
   fire_and_forget PeripheralAddServiceAsync(const PeripheralService &service);
   fire_and_forget PeripheralReadRequestedAsync(
-      GattLocalCharacteristic const &local_char,
-      GattReadRequestedEventArgs args);
+      GattLocalCharacteristic const &local_char, GattReadRequestedEventArgs args);
   fire_and_forget PeripheralWriteRequestedAsync(
-      GattLocalCharacteristic const &local_char,
-      GattWriteRequestedEventArgs args);
+      GattLocalCharacteristic const &local_char, GattWriteRequestedEventArgs args);
   fire_and_forget PeripheralSubscribedClientsChanged(
       GattLocalCharacteristic const &local_char, IInspectable const &args);
   void PeripheralAdvertisementStatusChanged(
       GattServiceProvider const &sender,
       GattServiceProviderAdvertisementStatusChangedEventArgs const &args);
-  void DisposePeripheralServiceProvider(
-      PeripheralGattServiceProviderObject *service_provider_object);
-  PeripheralGattCharacteristicObject *FindPeripheralGattCharacteristicObject(
-      const std::string &characteristic_id,
-      bool *ambiguous_match = nullptr);
+  void
+  DisposePeripheralServiceProvider(PeripheralGattServiceProviderObject* service_provider_object);
+  PeripheralGattCharacteristicObject* FindPeripheralGattCharacteristicObject(
+      const std::string &characteristic_id, bool* ambiguous_match = nullptr);
   bool ArePeripheralAdvertisingTargetsStarted() const;
   static uint8_t ToGattProtocolError(int64_t status_code);
-  static GattCharacteristicProperties ToPeripheralGattCharacteristicProperties(
-      CharacteristicProperty property);
-  static std::string PeripheralAdvertisementStatusToString(
-      GattServiceProviderAdvertisementStatus status);
+  static GattCharacteristicProperties
+  ToPeripheralGattCharacteristicProperties(CharacteristicProperty property);
+  static std::string
+  PeripheralAdvertisementStatusToString(GattServiceProviderAdvertisementStatus status);
   static std::string ParsePeripheralBluetoothClientId(hstring client_id);
   static std::string ParsePeripheralBluetoothError(BluetoothError error);
 
   // UniversalBlePlatformChannel implementation.
   void GetBluetoothAvailabilityState(
       std::function<void(ErrorOr<AvailabilityState> reply)> result) override;
-  void
-  EnableBluetooth(std::function<void(ErrorOr<bool> reply)> result) override;
-  void
-  DisableBluetooth(std::function<void(ErrorOr<bool> reply)> result) override;
-  ErrorOr<BleConnectionState> GetConnectionState(
-      const std::string &device_id) override;
+  void EnableBluetooth(std::function<void(ErrorOr<bool> reply)> result) override;
+  void DisableBluetooth(std::function<void(ErrorOr<bool> reply)> result) override;
+  ErrorOr<BleConnectionState> GetConnectionState(const std::string &device_id) override;
+  std::optional<FlutterError> SetLogLevel(const BleLogLevel &log_level) override;
   std::optional<FlutterError>
-  SetLogLevel(const BleLogLevel &log_level) override;
-  std::optional<FlutterError>
-  StartScan(const UniversalScanFilter *filter, const UniversalScanConfig *config) override;
+  StartScan(const UniversalScanFilter* filter, const UniversalScanConfig* config) override;
   std::optional<FlutterError> StopScan() override;
   ErrorOr<bool> IsScanning() override;
-  std::optional<FlutterError> Connect(const std::string &device_id, const bool *auto_connect,
-                                      const ConnectionPlatformConfig *platform_config) override;
+  std::optional<FlutterError> Connect(
+      const std::string &device_id, const bool* auto_connect,
+      const ConnectionPlatformConfig* platform_config) override;
   std::optional<FlutterError> Disconnect(const std::string &device_id) override;
   ErrorOr<bool> HasPermissions(bool with_android_fine_location) override;
   void RequestPermissions(
       bool with_android_fine_location,
       std::function<void(std::optional<FlutterError> reply)> result) override;
-  void
-  DiscoverServices(const std::string &device_id, bool with_descriptors,
-                   std::function<void(ErrorOr<flutter::EncodableList> reply)>
-                       result) override;
+  void DiscoverServices(
+      const std::string &device_id, bool with_descriptors,
+      std::function<void(ErrorOr<flutter::EncodableList> reply)> result) override;
   void SetNotifiable(
-      const std::string &device_id, const std::string &service,
-      const std::string &characteristic,
+      const std::string &device_id, const std::string &service, const std::string &characteristic,
       const BleInputProperty &ble_input_property,
       std::function<void(std::optional<FlutterError> reply)> result) override;
   void ReadValue(
-      const std::string &device_id, const std::string &service,
-      const std::string &characteristic,
+      const std::string &device_id, const std::string &service, const std::string &characteristic,
       std::function<void(ErrorOr<std::vector<uint8_t>> reply)> result) override;
   void ReadDescriptorValue(
-      const std::string &device_id, const std::string &service,
-      const std::string &characteristic, const std::string &descriptor,
+      const std::string &device_id, const std::string &service, const std::string &characteristic,
+      const std::string &descriptor,
       std::function<void(ErrorOr<std::vector<uint8_t>> reply)> result) override;
   void WriteValue(
-      const std::string &device_id, const std::string &service,
-      const std::string &characteristic, const std::vector<uint8_t> &value,
-      const BleOutputProperty &ble_output_property,
+      const std::string &device_id, const std::string &service, const std::string &characteristic,
+      const std::vector<uint8_t> &value, const BleOutputProperty &ble_output_property,
       std::function<void(std::optional<FlutterError> reply)> result) override;
   void WriteDescriptorValue(
-      const std::string &device_id, const std::string &service,
-      const std::string &characteristic, const std::string &descriptor,
-      const std::vector<uint8_t> &value,
+      const std::string &device_id, const std::string &service, const std::string &characteristic,
+      const std::string &descriptor, const std::vector<uint8_t> &value,
       std::function<void(std::optional<FlutterError> reply)> result) override;
-  void RequestMtu(const std::string &device_id, int64_t expected_mtu,
-                  std::function<void(ErrorOr<int64_t> reply)> result) override;
+  void RequestMtu(
+      const std::string &device_id, int64_t expected_mtu,
+      std::function<void(ErrorOr<int64_t> reply)> result) override;
   void RequestConnectionPriority(
       const std::string &device_id, const BleConnectionPriority &priority,
       std::function<void(std::optional<FlutterError> reply)> result) override;
-  void ReadRssi(const std::string &device_id,
-                std::function<void(ErrorOr<int64_t> reply)> result) override;
-  void IsPaired(const std::string &device_id,
-                std::function<void(ErrorOr<bool> reply)> result) override;
-  void Pair(const std::string &device_id,
-            std::function<void(ErrorOr<bool> reply)> result) override;
-  std::optional<FlutterError> UnPair(const std::string &device_id) override;
+  void ReadRssi(
+      const std::string &device_id, std::function<void(ErrorOr<int64_t> reply)> result) override;
   void
-  GetSystemDevices(const flutter::EncodableList &with_services,
-                   std::function<void(ErrorOr<flutter::EncodableList> reply)>
-                       result) override;
+  IsPaired(const std::string &device_id, std::function<void(ErrorOr<bool> reply)> result) override;
+  void Pair(const std::string &device_id, std::function<void(ErrorOr<bool> reply)> result) override;
+  std::optional<FlutterError> UnPair(const std::string &device_id) override;
+  void GetSystemDevices(
+      const flutter::EncodableList &with_services,
+      std::function<void(ErrorOr<flutter::EncodableList> reply)> result) override;
 
   // UniversalBlePeripheralChannel implementation.
   ErrorOr<PeripheralAdvertisingState> GetAdvertisingState() override;
@@ -612,17 +556,15 @@ private:
   std::optional<FlutterError> ClearServices() override;
   ErrorOr<flutter::EncodableList> GetServices() override;
   std::optional<FlutterError> StartAdvertising(
-      const flutter::EncodableList &services, const std::string *local_name,
-      const int64_t *timeout,
-      const UniversalManufacturerData *manufacturer_data,
-      const PeripheralPlatformConfig *platform_config) override;
+      const flutter::EncodableList &services, const std::string* local_name, const int64_t* timeout,
+      const UniversalManufacturerData* manufacturer_data,
+      const PeripheralPlatformConfig* platform_config) override;
   std::optional<FlutterError> UpdateCharacteristic(
       const std::string &characteristic_id, const std::vector<uint8_t> &value,
-      const std::string *device_id) override;
-  ErrorOr<flutter::EncodableList> GetSubscribedClients(
-      const std::string &characteristic_id) override;
-  ErrorOr<std::optional<int64_t>> GetMaximumNotifyLength(
-      const std::string &device_id) override;
+      const std::string* device_id) override;
+  ErrorOr<flutter::EncodableList>
+  GetSubscribedClients(const std::string &characteristic_id) override;
+  ErrorOr<std::optional<int64_t>> GetMaximumNotifyLength(const std::string &device_id) override;
 };
 
 } // namespace universal_ble

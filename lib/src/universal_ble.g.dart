@@ -708,16 +708,63 @@ class AndroidOptions {
   int get hashCode => _deepHash(<Object?>[runtimeType, ..._toList()]);
 }
 
+/// Windows options to scan devices
+class WindowsOptions {
+  WindowsOptions({
+    required this.hideNonConnectable,
+  });
+
+  /// Hide advertisements that windows reports as non-connectable.
+  bool hideNonConnectable;
+
+  List<Object?> _toList() {
+    return <Object?>[
+      hideNonConnectable,
+    ];
+  }
+
+  Object encode() {
+    return _toList();
+  }
+
+  static WindowsOptions decode(Object result) {
+    result as List<Object?>;
+    return WindowsOptions(
+      hideNonConnectable: result[0]! as bool,
+    );
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  bool operator ==(Object other) {
+    if (other is! WindowsOptions || other.runtimeType != runtimeType) {
+      return false;
+    }
+    if (identical(this, other)) {
+      return true;
+    }
+    return _deepEquals(hideNonConnectable, other.hideNonConnectable);
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  int get hashCode => _deepHash(<Object?>[runtimeType, ..._toList()]);
+}
+
 class UniversalScanConfig {
   UniversalScanConfig({
     this.android,
+    this.windows,
   });
 
   AndroidOptions? android;
 
+  WindowsOptions? windows;
+
   List<Object?> _toList() {
     return <Object?>[
       android,
+      windows,
     ];
   }
 
@@ -729,6 +776,7 @@ class UniversalScanConfig {
     result as List<Object?>;
     return UniversalScanConfig(
       android: result[0] as AndroidOptions?,
+      windows: result[1] as WindowsOptions?,
     );
   }
 
@@ -741,7 +789,8 @@ class UniversalScanConfig {
     if (identical(this, other)) {
       return true;
     }
-    return _deepEquals(android, other.android);
+    return _deepEquals(android, other.android) &&
+        _deepEquals(windows, other.windows);
   }
 
   @override
@@ -1528,47 +1577,50 @@ class _PigeonCodec extends StandardMessageCodec {
     } else if (value is AndroidOptions) {
       buffer.putUint8(149);
       writeValue(buffer, value.encode());
-    } else if (value is UniversalScanConfig) {
+    } else if (value is WindowsOptions) {
       buffer.putUint8(150);
       writeValue(buffer, value.encode());
-    } else if (value is UniversalScanFilter) {
+    } else if (value is UniversalScanConfig) {
       buffer.putUint8(151);
       writeValue(buffer, value.encode());
-    } else if (value is ManufacturerDataFilter) {
+    } else if (value is UniversalScanFilter) {
       buffer.putUint8(152);
       writeValue(buffer, value.encode());
-    } else if (value is UniversalManufacturerData) {
+    } else if (value is ManufacturerDataFilter) {
       buffer.putUint8(153);
       writeValue(buffer, value.encode());
-    } else if (value is AppleConnectionOptions) {
+    } else if (value is UniversalManufacturerData) {
       buffer.putUint8(154);
       writeValue(buffer, value.encode());
-    } else if (value is AndroidConnectionOptions) {
+    } else if (value is AppleConnectionOptions) {
       buffer.putUint8(155);
       writeValue(buffer, value.encode());
-    } else if (value is ConnectionPlatformConfig) {
+    } else if (value is AndroidConnectionOptions) {
       buffer.putUint8(156);
       writeValue(buffer, value.encode());
-    } else if (value is PeripheralAndroidOptions) {
+    } else if (value is ConnectionPlatformConfig) {
       buffer.putUint8(157);
       writeValue(buffer, value.encode());
-    } else if (value is PeripheralPlatformConfig) {
+    } else if (value is PeripheralAndroidOptions) {
       buffer.putUint8(158);
       writeValue(buffer, value.encode());
-    } else if (value is PeripheralService) {
+    } else if (value is PeripheralPlatformConfig) {
       buffer.putUint8(159);
       writeValue(buffer, value.encode());
-    } else if (value is PeripheralCharacteristic) {
+    } else if (value is PeripheralService) {
       buffer.putUint8(160);
       writeValue(buffer, value.encode());
-    } else if (value is PeripheralDescriptor) {
+    } else if (value is PeripheralCharacteristic) {
       buffer.putUint8(161);
       writeValue(buffer, value.encode());
-    } else if (value is PeripheralReadRequestResult) {
+    } else if (value is PeripheralDescriptor) {
       buffer.putUint8(162);
       writeValue(buffer, value.encode());
-    } else if (value is PeripheralWriteRequestResult) {
+    } else if (value is PeripheralReadRequestResult) {
       buffer.putUint8(163);
+      writeValue(buffer, value.encode());
+    } else if (value is PeripheralWriteRequestResult) {
+      buffer.putUint8(164);
       writeValue(buffer, value.encode());
     } else {
       super.writeValue(buffer, value);
@@ -1638,32 +1690,34 @@ class _PigeonCodec extends StandardMessageCodec {
       case 149:
         return AndroidOptions.decode(readValue(buffer)!);
       case 150:
-        return UniversalScanConfig.decode(readValue(buffer)!);
+        return WindowsOptions.decode(readValue(buffer)!);
       case 151:
-        return UniversalScanFilter.decode(readValue(buffer)!);
+        return UniversalScanConfig.decode(readValue(buffer)!);
       case 152:
-        return ManufacturerDataFilter.decode(readValue(buffer)!);
+        return UniversalScanFilter.decode(readValue(buffer)!);
       case 153:
-        return UniversalManufacturerData.decode(readValue(buffer)!);
+        return ManufacturerDataFilter.decode(readValue(buffer)!);
       case 154:
-        return AppleConnectionOptions.decode(readValue(buffer)!);
+        return UniversalManufacturerData.decode(readValue(buffer)!);
       case 155:
-        return AndroidConnectionOptions.decode(readValue(buffer)!);
+        return AppleConnectionOptions.decode(readValue(buffer)!);
       case 156:
-        return ConnectionPlatformConfig.decode(readValue(buffer)!);
+        return AndroidConnectionOptions.decode(readValue(buffer)!);
       case 157:
-        return PeripheralAndroidOptions.decode(readValue(buffer)!);
+        return ConnectionPlatformConfig.decode(readValue(buffer)!);
       case 158:
-        return PeripheralPlatformConfig.decode(readValue(buffer)!);
+        return PeripheralAndroidOptions.decode(readValue(buffer)!);
       case 159:
-        return PeripheralService.decode(readValue(buffer)!);
+        return PeripheralPlatformConfig.decode(readValue(buffer)!);
       case 160:
-        return PeripheralCharacteristic.decode(readValue(buffer)!);
+        return PeripheralService.decode(readValue(buffer)!);
       case 161:
-        return PeripheralDescriptor.decode(readValue(buffer)!);
+        return PeripheralCharacteristic.decode(readValue(buffer)!);
       case 162:
-        return PeripheralReadRequestResult.decode(readValue(buffer)!);
+        return PeripheralDescriptor.decode(readValue(buffer)!);
       case 163:
+        return PeripheralReadRequestResult.decode(readValue(buffer)!);
+      case 164:
         return PeripheralWriteRequestResult.decode(readValue(buffer)!);
       default:
         return super.readValueOfType(type, buffer);

@@ -914,18 +914,68 @@ size_t PigeonInternalDeepHash(const AndroidOptions& v) {
   return v.Hash();
 }
 
+// WindowsOptions
+
+WindowsOptions::WindowsOptions(bool hide_non_connectable)
+ : hide_non_connectable_(hide_non_connectable) {}
+
+bool WindowsOptions::hide_non_connectable() const {
+  return hide_non_connectable_;
+}
+
+void WindowsOptions::set_hide_non_connectable(bool value_arg) {
+  hide_non_connectable_ = value_arg;
+}
+
+
+EncodableList WindowsOptions::ToEncodableList() const {
+  EncodableList list;
+  list.reserve(1);
+  list.push_back(EncodableValue(hide_non_connectable_));
+  return list;
+}
+
+WindowsOptions WindowsOptions::FromEncodableList(const EncodableList& list) {
+  WindowsOptions decoded(
+    std::get<bool>(list[0]));
+  return decoded;
+}
+
+bool WindowsOptions::operator==(const WindowsOptions& other) const {
+  return PigeonInternalDeepEquals(hide_non_connectable_, other.hide_non_connectable_);
+}
+
+bool WindowsOptions::operator!=(const WindowsOptions& other) const {
+  return !(*this == other);
+}
+
+size_t WindowsOptions::Hash() const {
+  size_t result = 1;
+  result = result * 31 + PigeonInternalDeepHash(hide_non_connectable_);
+  return result;
+}
+
+size_t PigeonInternalDeepHash(const WindowsOptions& v) {
+  return v.Hash();
+}
+
 // UniversalScanConfig
 
 UniversalScanConfig::UniversalScanConfig() {}
 
-UniversalScanConfig::UniversalScanConfig(const AndroidOptions* android)
- : android_(android ? std::make_unique<AndroidOptions>(*android) : nullptr) {}
+UniversalScanConfig::UniversalScanConfig(
+  const AndroidOptions* android,
+  const WindowsOptions* windows)
+ : android_(android ? std::make_unique<AndroidOptions>(*android) : nullptr),
+    windows_(windows ? std::make_unique<WindowsOptions>(*windows) : nullptr) {}
 
 UniversalScanConfig::UniversalScanConfig(const UniversalScanConfig& other)
- : android_(other.android_ ? std::make_unique<AndroidOptions>(*other.android_) : nullptr) {}
+ : android_(other.android_ ? std::make_unique<AndroidOptions>(*other.android_) : nullptr),
+    windows_(other.windows_ ? std::make_unique<WindowsOptions>(*other.windows_) : nullptr) {}
 
 UniversalScanConfig& UniversalScanConfig::operator=(const UniversalScanConfig& other) {
   android_ = other.android_ ? std::make_unique<AndroidOptions>(*other.android_) : nullptr;
+  windows_ = other.windows_ ? std::make_unique<WindowsOptions>(*other.windows_) : nullptr;
   return *this;
 }
 
@@ -942,10 +992,24 @@ void UniversalScanConfig::set_android(const AndroidOptions& value_arg) {
 }
 
 
+const WindowsOptions* UniversalScanConfig::windows() const {
+  return windows_.get();
+}
+
+void UniversalScanConfig::set_windows(const WindowsOptions* value_arg) {
+  windows_ = value_arg ? std::make_unique<WindowsOptions>(*value_arg) : nullptr;
+}
+
+void UniversalScanConfig::set_windows(const WindowsOptions& value_arg) {
+  windows_ = std::make_unique<WindowsOptions>(value_arg);
+}
+
+
 EncodableList UniversalScanConfig::ToEncodableList() const {
   EncodableList list;
-  list.reserve(1);
+  list.reserve(2);
   list.push_back(android_ ? CustomEncodableValue(*android_) : EncodableValue());
+  list.push_back(windows_ ? CustomEncodableValue(*windows_) : EncodableValue());
   return list;
 }
 
@@ -955,11 +1019,15 @@ UniversalScanConfig UniversalScanConfig::FromEncodableList(const EncodableList& 
   if (!encodable_android.IsNull()) {
     decoded.set_android(std::any_cast<const AndroidOptions&>(std::get<CustomEncodableValue>(encodable_android)));
   }
+  auto& encodable_windows = list[1];
+  if (!encodable_windows.IsNull()) {
+    decoded.set_windows(std::any_cast<const WindowsOptions&>(std::get<CustomEncodableValue>(encodable_windows)));
+  }
   return decoded;
 }
 
 bool UniversalScanConfig::operator==(const UniversalScanConfig& other) const {
-  return PigeonInternalDeepEquals(android_, other.android_);
+  return PigeonInternalDeepEquals(android_, other.android_) && PigeonInternalDeepEquals(windows_, other.windows_);
 }
 
 bool UniversalScanConfig::operator!=(const UniversalScanConfig& other) const {
@@ -969,6 +1037,7 @@ bool UniversalScanConfig::operator!=(const UniversalScanConfig& other) const {
 size_t UniversalScanConfig::Hash() const {
   size_t result = 1;
   result = result * 31 + PigeonInternalDeepHash(android_);
+  result = result * 31 + PigeonInternalDeepHash(windows_);
   return result;
 }
 
@@ -2154,45 +2223,48 @@ EncodableValue PigeonInternalCodecSerializer::ReadValueOfType(
         return CustomEncodableValue(AndroidOptions::FromEncodableList(std::get<EncodableList>(ReadValue(stream))));
       }
     case 150: {
-        return CustomEncodableValue(UniversalScanConfig::FromEncodableList(std::get<EncodableList>(ReadValue(stream))));
+        return CustomEncodableValue(WindowsOptions::FromEncodableList(std::get<EncodableList>(ReadValue(stream))));
       }
     case 151: {
-        return CustomEncodableValue(UniversalScanFilter::FromEncodableList(std::get<EncodableList>(ReadValue(stream))));
+        return CustomEncodableValue(UniversalScanConfig::FromEncodableList(std::get<EncodableList>(ReadValue(stream))));
       }
     case 152: {
-        return CustomEncodableValue(ManufacturerDataFilter::FromEncodableList(std::get<EncodableList>(ReadValue(stream))));
+        return CustomEncodableValue(UniversalScanFilter::FromEncodableList(std::get<EncodableList>(ReadValue(stream))));
       }
     case 153: {
-        return CustomEncodableValue(UniversalManufacturerData::FromEncodableList(std::get<EncodableList>(ReadValue(stream))));
+        return CustomEncodableValue(ManufacturerDataFilter::FromEncodableList(std::get<EncodableList>(ReadValue(stream))));
       }
     case 154: {
-        return CustomEncodableValue(AppleConnectionOptions::FromEncodableList(std::get<EncodableList>(ReadValue(stream))));
+        return CustomEncodableValue(UniversalManufacturerData::FromEncodableList(std::get<EncodableList>(ReadValue(stream))));
       }
     case 155: {
-        return CustomEncodableValue(AndroidConnectionOptions::FromEncodableList(std::get<EncodableList>(ReadValue(stream))));
+        return CustomEncodableValue(AppleConnectionOptions::FromEncodableList(std::get<EncodableList>(ReadValue(stream))));
       }
     case 156: {
-        return CustomEncodableValue(ConnectionPlatformConfig::FromEncodableList(std::get<EncodableList>(ReadValue(stream))));
+        return CustomEncodableValue(AndroidConnectionOptions::FromEncodableList(std::get<EncodableList>(ReadValue(stream))));
       }
     case 157: {
-        return CustomEncodableValue(PeripheralAndroidOptions::FromEncodableList(std::get<EncodableList>(ReadValue(stream))));
+        return CustomEncodableValue(ConnectionPlatformConfig::FromEncodableList(std::get<EncodableList>(ReadValue(stream))));
       }
     case 158: {
-        return CustomEncodableValue(PeripheralPlatformConfig::FromEncodableList(std::get<EncodableList>(ReadValue(stream))));
+        return CustomEncodableValue(PeripheralAndroidOptions::FromEncodableList(std::get<EncodableList>(ReadValue(stream))));
       }
     case 159: {
-        return CustomEncodableValue(PeripheralService::FromEncodableList(std::get<EncodableList>(ReadValue(stream))));
+        return CustomEncodableValue(PeripheralPlatformConfig::FromEncodableList(std::get<EncodableList>(ReadValue(stream))));
       }
     case 160: {
-        return CustomEncodableValue(PeripheralCharacteristic::FromEncodableList(std::get<EncodableList>(ReadValue(stream))));
+        return CustomEncodableValue(PeripheralService::FromEncodableList(std::get<EncodableList>(ReadValue(stream))));
       }
     case 161: {
-        return CustomEncodableValue(PeripheralDescriptor::FromEncodableList(std::get<EncodableList>(ReadValue(stream))));
+        return CustomEncodableValue(PeripheralCharacteristic::FromEncodableList(std::get<EncodableList>(ReadValue(stream))));
       }
     case 162: {
-        return CustomEncodableValue(PeripheralReadRequestResult::FromEncodableList(std::get<EncodableList>(ReadValue(stream))));
+        return CustomEncodableValue(PeripheralDescriptor::FromEncodableList(std::get<EncodableList>(ReadValue(stream))));
       }
     case 163: {
+        return CustomEncodableValue(PeripheralReadRequestResult::FromEncodableList(std::get<EncodableList>(ReadValue(stream))));
+      }
+    case 164: {
         return CustomEncodableValue(PeripheralWriteRequestResult::FromEncodableList(std::get<EncodableList>(ReadValue(stream))));
       }
     default:
@@ -2309,73 +2381,78 @@ void PigeonInternalCodecSerializer::WriteValue(
       WriteValue(EncodableValue(std::any_cast<AndroidOptions>(*custom_value).ToEncodableList()), stream);
       return;
     }
-    if (custom_value->type() == typeid(UniversalScanConfig)) {
+    if (custom_value->type() == typeid(WindowsOptions)) {
       stream->WriteByte(150);
+      WriteValue(EncodableValue(std::any_cast<WindowsOptions>(*custom_value).ToEncodableList()), stream);
+      return;
+    }
+    if (custom_value->type() == typeid(UniversalScanConfig)) {
+      stream->WriteByte(151);
       WriteValue(EncodableValue(std::any_cast<UniversalScanConfig>(*custom_value).ToEncodableList()), stream);
       return;
     }
     if (custom_value->type() == typeid(UniversalScanFilter)) {
-      stream->WriteByte(151);
+      stream->WriteByte(152);
       WriteValue(EncodableValue(std::any_cast<UniversalScanFilter>(*custom_value).ToEncodableList()), stream);
       return;
     }
     if (custom_value->type() == typeid(ManufacturerDataFilter)) {
-      stream->WriteByte(152);
+      stream->WriteByte(153);
       WriteValue(EncodableValue(std::any_cast<ManufacturerDataFilter>(*custom_value).ToEncodableList()), stream);
       return;
     }
     if (custom_value->type() == typeid(UniversalManufacturerData)) {
-      stream->WriteByte(153);
+      stream->WriteByte(154);
       WriteValue(EncodableValue(std::any_cast<UniversalManufacturerData>(*custom_value).ToEncodableList()), stream);
       return;
     }
     if (custom_value->type() == typeid(AppleConnectionOptions)) {
-      stream->WriteByte(154);
+      stream->WriteByte(155);
       WriteValue(EncodableValue(std::any_cast<AppleConnectionOptions>(*custom_value).ToEncodableList()), stream);
       return;
     }
     if (custom_value->type() == typeid(AndroidConnectionOptions)) {
-      stream->WriteByte(155);
+      stream->WriteByte(156);
       WriteValue(EncodableValue(std::any_cast<AndroidConnectionOptions>(*custom_value).ToEncodableList()), stream);
       return;
     }
     if (custom_value->type() == typeid(ConnectionPlatformConfig)) {
-      stream->WriteByte(156);
+      stream->WriteByte(157);
       WriteValue(EncodableValue(std::any_cast<ConnectionPlatformConfig>(*custom_value).ToEncodableList()), stream);
       return;
     }
     if (custom_value->type() == typeid(PeripheralAndroidOptions)) {
-      stream->WriteByte(157);
+      stream->WriteByte(158);
       WriteValue(EncodableValue(std::any_cast<PeripheralAndroidOptions>(*custom_value).ToEncodableList()), stream);
       return;
     }
     if (custom_value->type() == typeid(PeripheralPlatformConfig)) {
-      stream->WriteByte(158);
+      stream->WriteByte(159);
       WriteValue(EncodableValue(std::any_cast<PeripheralPlatformConfig>(*custom_value).ToEncodableList()), stream);
       return;
     }
     if (custom_value->type() == typeid(PeripheralService)) {
-      stream->WriteByte(159);
+      stream->WriteByte(160);
       WriteValue(EncodableValue(std::any_cast<PeripheralService>(*custom_value).ToEncodableList()), stream);
       return;
     }
     if (custom_value->type() == typeid(PeripheralCharacteristic)) {
-      stream->WriteByte(160);
+      stream->WriteByte(161);
       WriteValue(EncodableValue(std::any_cast<PeripheralCharacteristic>(*custom_value).ToEncodableList()), stream);
       return;
     }
     if (custom_value->type() == typeid(PeripheralDescriptor)) {
-      stream->WriteByte(161);
+      stream->WriteByte(162);
       WriteValue(EncodableValue(std::any_cast<PeripheralDescriptor>(*custom_value).ToEncodableList()), stream);
       return;
     }
     if (custom_value->type() == typeid(PeripheralReadRequestResult)) {
-      stream->WriteByte(162);
+      stream->WriteByte(163);
       WriteValue(EncodableValue(std::any_cast<PeripheralReadRequestResult>(*custom_value).ToEncodableList()), stream);
       return;
     }
     if (custom_value->type() == typeid(PeripheralWriteRequestResult)) {
-      stream->WriteByte(163);
+      stream->WriteByte(164);
       WriteValue(EncodableValue(std::any_cast<PeripheralWriteRequestResult>(*custom_value).ToEncodableList()), stream);
       return;
     }
