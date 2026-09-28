@@ -247,9 +247,9 @@ std::optional<FlutterError> UniversalBlePlugin::StartScan(
   }
 
   try {
-    const bool* hide_non_connectable =
-        (config && config->windows) ? config->windows->hide_non_connectable() : nullptr;
-    hide_non_connectable_.store(hide_non_connectable ? *hide_non_connectable : true);
+    const bool hide_non_connectable =
+        (config && config->windows()) ? config->windows()->hide_non_connectable() : true;
+    hide_non_connectable_.store(hide_non_connectable);
     SetupDeviceWatcher();
     scan_results_.clear();
     const DeviceWatcherStatus device_watcher_status = device_watcher_.Status();
