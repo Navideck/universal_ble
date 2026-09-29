@@ -3,6 +3,9 @@ import 'dart:collection';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_web_bluetooth/flutter_web_bluetooth.dart';
+import 'package:flutter_web_bluetooth/js_web_bluetooth.dart'
+    show WatchAdvertisementsOptions;
+import 'package:flutter_web_bluetooth/web/js/js.dart' show AbortController;
 import 'package:universal_ble/src/utils/universal_logger.dart';
 import 'package:universal_ble/universal_ble.dart';
 
@@ -16,10 +19,15 @@ class UniversalBleWeb extends UniversalBlePlatform {
 
   final Map<String, BluetoothDevice> _bluetoothDeviceList = {};
   final Map<String, StreamSubscription> _deviceAdvertisementStreamList = {};
+  final Map<String, Future<void>> _advertisementStartOperations = {};
+  final Map<String, AbortController> _advertisementControllers = {};
+  static const _advertisementTimeout = Duration(seconds: 5);
   final Map<String, StreamSubscription> _connectedDeviceStreamList = {};
   final Map<String, StreamSubscription> _characteristicStreamList = {};
   final Map<String, List<_UniversalWebBluetoothService>> _serviceCache = {};
-  final Set<String> _connectionAttemptedDevices = {};
+  final Map<String, Completer<void>> _connectCancellations = {};
+  final Map<String, Future<void>> _disconnectOperations = {};
+  final Map<String, int> _connectionGenerations = {};
   bool _isScanning = false;
 
   @override
@@ -38,63 +46,138 @@ class UniversalBleWeb extends UniversalBlePlatform {
     bool autoConnect = false,
     ConnectionPlatformConfig? platformConfig,
   }) async {
-    // Note: autoConnect is not directly supported on Web platform
-    // Note: platformConfig carries platform-specific options
-    var device = _getDeviceById(deviceId);
+    // autoConnect and platformConfig are not supported on Web.
+    final device = _getDeviceById(deviceId);
     if (device == null) {
       throw UniversalBleException(
         code: UniversalBleErrorCode.deviceNotFound,
         message: "$deviceId Not Found",
       );
     }
-
-    final reconnecting = !_connectionAttemptedDevices.add(deviceId);
-
-    // Advertisement watching is independent from requestDevice and can remain
-    // active after the chooser closes. Wait for it to stop before starting the
-    // GATT handshake so the two browser operations cannot overlap.
-    await _stopAdvertisementWatcher(deviceId);
-    if (reconnecting) {
-      await _waitForFreshAdvertisement(device);
+    if (_connectCancellations.containsKey(deviceId) ||
+        _disconnectOperations.containsKey(deviceId)) {
+      throw UniversalBleException(
+        code: UniversalBleErrorCode.connectionInProgress,
+        message: 'A connection operation is already in progress for $deviceId',
+      );
     }
+    final generation = (_connectionGenerations[deviceId] ?? 0) + 1;
+    _connectionGenerations[deviceId] = generation;
+    _serviceCache.remove(deviceId);
+    final cancellation = Completer<void>();
+    _connectCancellations[deviceId] = cancellation;
+    final clock = Stopwatch()..start();
+
+    // Keep the device reserved until setup has actually settled, even if the
+    // caller has already received a cancellation or timeout. A later attempt
+    // must not race cleanup or an unfinished native connect on the same device.
+    final setup = _connectDevice(device, generation, connectionTimeout, clock)
+        .whenComplete(() {
+      if (identical(_connectCancellations[deviceId], cancellation)) {
+        _connectCancellations.remove(deviceId);
+      }
+    });
+    final result = Future.any<void>([
+      setup,
+      cancellation.future.then<void>((_) => throw UniversalBleException(
+            code: UniversalBleErrorCode.deviceDisconnected,
+            message: 'Device $deviceId disconnected during connection setup',
+          )),
+    ]);
     try {
-      await device.connect(timeout: connectionTimeout);
-    } catch (_) {
-      _serviceCache.remove(deviceId);
-      device.disconnect();
+      if (connectionTimeout == null) {
+        await result;
+      } else {
+        await result.timeout(connectionTimeout);
+      }
+    } catch (error) {
+      // An old attempt must never disconnect or clear a newer session.
+      if (_connectionGenerations[deviceId] == generation) {
+        _cleanConnection(deviceId);
+        device.disconnect();
+      }
+      if (error is TimeoutException) {
+        throw UniversalBleException(
+          code: UniversalBleErrorCode.connectionTimeout,
+          message: 'Connection to $deviceId timed out',
+          details: error,
+        );
+      }
       rethrow;
     }
+  }
 
-    // Subscribe to Connection Stream
+  Future<void> _connectDevice(BluetoothDevice device, int generation,
+      Duration? timeout, Stopwatch clock) async {
+    final deviceId = device.id;
+    await _stopAdvertisementWatcher(deviceId);
+    _assertConnectionGeneration(deviceId, generation);
     await _connectedDeviceStreamList.remove(deviceId)?.cancel();
-
-    _connectedDeviceStreamList[deviceId] = device.connected.listen((event) {
-      if (!event) _cleanConnection(deviceId);
-      updateConnection(deviceId, event);
+    _assertConnectionGeneration(deviceId, generation);
+    final remaining = timeout == null ? null : timeout - clock.elapsed;
+    if (remaining != null && remaining <= Duration.zero) {
+      throw TimeoutException('Connection setup timed out');
+    }
+    // Stay on the dependency's supported API. It updates its connection stream
+    // on successful connect; native calls bypass that state and replay false.
+    await device.connect(timeout: remaining);
+    if (_connectionGenerations[deviceId] != generation) {
+      // Setup still owns the per-device reservation, so no later connect can
+      // have begun. Abort a native connection that completed after cancellation.
+      device.disconnect();
+    }
+    _assertConnectionGeneration(deviceId, generation);
+    _connectedDeviceStreamList[deviceId] = device.connected.listen((connected) {
+      if (_connectionGenerations[deviceId] != generation) return;
+      if (!connected) _cleanConnection(deviceId);
+      updateConnection(deviceId, connected);
     });
+  }
+
+  void _assertConnectionGeneration(String deviceId, int generation) {
+    if ((_connectionGenerations[deviceId] ?? 0) == generation) return;
+    throw UniversalBleException(
+      code: UniversalBleErrorCode.deviceDisconnected,
+      message: 'Device $deviceId disconnected during GATT setup',
+    );
   }
 
   @override
   Future<void> disconnect(String deviceId) async {
-    final device = _getDeviceById(deviceId);
-    if (device == null) return;
+    final existing = _disconnectOperations[deviceId];
+    if (existing != null) return existing;
+    final operation = _disconnectDevice(deviceId);
+    _disconnectOperations[deviceId] = operation;
+    try {
+      await operation;
+    } finally {
+      if (identical(_disconnectOperations[deviceId], operation)) {
+        _disconnectOperations.remove(deviceId);
+      }
+      // Cleanup has finished. Callbacks may now start another connection.
+      updateConnection(deviceId, false);
+    }
+  }
 
-    // Remove listeners and cached GATT objects before disconnecting. This
-    // prevents a late event from the closing session being observed by a
-    // listener installed for an immediate reconnect.
+  Future<void> _disconnectDevice(String deviceId) async {
+    _connectionGenerations[deviceId] =
+        (_connectionGenerations[deviceId] ?? 0) + 1;
+    final cancellation = _connectCancellations[deviceId];
+    if (cancellation != null && !cancellation.isCompleted) {
+      cancellation.complete();
+    }
+    // Abort native connect immediately, before waiting for subscription cleanup.
+    _getDeviceById(deviceId)?.disconnect();
+    _serviceCache.remove(deviceId);
     await _connectedDeviceStreamList.remove(deviceId)?.cancel();
-    final characteristicPrefix = '${deviceId}_';
-    final characteristicKeys = _characteristicStreamList.keys
-        .where((key) => key.startsWith(characteristicPrefix))
+    final prefix = '${deviceId}_';
+    final keys = _characteristicStreamList.keys
+        .where((key) => key.startsWith(prefix))
         .toList(growable: false);
-    for (final key in characteristicKeys) {
+    for (final key in keys) {
       await _characteristicStreamList.remove(key)?.cancel();
     }
     await _stopAdvertisementWatcher(deviceId);
-    _serviceCache.remove(deviceId);
-
-    device.disconnect();
-    updateConnection(deviceId, false);
   }
 
   @override
@@ -102,9 +185,11 @@ class UniversalBleWeb extends UniversalBlePlatform {
     String deviceId,
     bool withDescriptors,
   ) async {
+    final generation = _connectionGenerations[deviceId] ?? 0;
     List<BleService> services = [];
     for (var service in await _getServices(deviceId)) {
       services.add(await service._toBleService(deviceId, withDescriptors));
+      _assertConnectionGeneration(deviceId, generation);
     }
     return services;
   }
@@ -132,7 +217,6 @@ class UniversalBleWeb extends UniversalBlePlatform {
 
       // Update local device list
       _bluetoothDeviceList[device.id] = device;
-      _connectionAttemptedDevices.remove(device.id);
 
       // Update Scan Result
       updateScanResult(device.toBleScanResult());
@@ -163,8 +247,16 @@ class UniversalBleWeb extends UniversalBlePlatform {
   Future<void> _watchDeviceAdvertisements(BluetoothDevice device) async {
     try {
       if (!device.hasWatchAdvertisements()) return;
-
+      final generation = _connectionGenerations[device.id] ?? 0;
       await _stopAdvertisementWatcher(device.id);
+      // A scan callback may immediately start connecting or stop the scan.
+      // Do not restart advertisement watching after connection cleanup.
+      if (!_isScanning ||
+          (_connectionGenerations[device.id] ?? 0) != generation ||
+          _connectCancellations.containsKey(device.id) ||
+          _connectedDeviceStreamList.containsKey(device.id)) {
+        return;
+      }
 
       _deviceAdvertisementStreamList[device.id] = device.advertisements.listen((
         event,
@@ -182,7 +274,28 @@ class UniversalBleWeb extends UniversalBlePlatform {
         );
       });
       device.advertisementsUseMemory = true;
-      await device.watchAdvertisements();
+      // Own the abort signal: the dependency does not retain its controller
+      // when watchAdvertisements is called without a timeout. A lifetime
+      // timeout would also stop a successfully started scan after five seconds.
+      final controller = AbortController();
+      _advertisementControllers[device.id] = controller;
+      // The wrapper has no API accepting a caller-owned abort signal.
+      // ignore: deprecated_member_use
+      final operation = device.nativeDevice
+          .watchAdvertisements(
+              WatchAdvertisementsOptions(signal: controller.signal))
+          .timeout(_advertisementTimeout, onTimeout: () {
+        controller.abort();
+        throw TimeoutException('Advertisement startup timed out');
+      });
+      _advertisementStartOperations[device.id] = operation;
+      try {
+        await operation;
+      } finally {
+        if (identical(_advertisementStartOperations[device.id], operation)) {
+          _advertisementStartOperations.remove(device.id);
+        }
+      }
     } catch (e) {
       UniversalLogger.logError("WebWatchAdvertisementError: $e");
     }
@@ -190,6 +303,7 @@ class UniversalBleWeb extends UniversalBlePlatform {
 
   @override
   Future<void> stopScan() async {
+    _isScanning = false;
     await _stopAdvertisementWatcher();
   }
 
@@ -452,6 +566,12 @@ class UniversalBleWeb extends UniversalBlePlatform {
   }
 
   void _cleanConnection(String deviceId) {
+    _connectionGenerations[deviceId] =
+        (_connectionGenerations[deviceId] ?? 0) + 1;
+    final cancellation = _connectCancellations[deviceId];
+    if (cancellation != null && !cancellation.isCompleted) {
+      cancellation.complete();
+    }
     _connectedDeviceStreamList.removeWhere((key, value) {
       if (key == deviceId) value.cancel();
       return key == deviceId;
@@ -460,7 +580,9 @@ class UniversalBleWeb extends UniversalBlePlatform {
       if (key.contains(deviceId)) value.cancel();
       return key.contains(deviceId);
     });
-    unawaited(_stopAdvertisementWatcher(deviceId));
+    unawaited(_stopAdvertisementWatcher(deviceId).catchError((Object error) {
+      UniversalLogger.logError('WebUnwatchAdvertisementError: $error');
+    }));
     _serviceCache.remove(deviceId);
     // _bluetoothDeviceList.removeWhere((element) => element.id == deviceId);
   }
@@ -507,44 +629,23 @@ class UniversalBleWeb extends UniversalBlePlatform {
 
   BluetoothDevice? _getDeviceById(String id) => _bluetoothDeviceList[id];
 
-  Future<void> _waitForFreshAdvertisement(BluetoothDevice device) async {
-    if (!device.hasWatchAdvertisements()) return;
-
-    final ready = Completer<void>();
-    var acceptAdvertisements = false;
-    final subscription = device.advertisements.listen((_) {
-      if (acceptAdvertisements && !ready.isCompleted) ready.complete();
-    });
-    try {
-      // The dependency's advertisement stream replays its last value. Give
-      // that cached event a turn before accepting packets from the new watch.
-      await Future<void>.delayed(Duration.zero);
-      await device.watchAdvertisements();
-      acceptAdvertisements = true;
-      await ready.future.timeout(const Duration(seconds: 3));
-    } catch (_) {
-      // Watching advertisements is optional. If it is unsupported or no
-      // packet arrives promptly, fall back to the normal GATT connection.
-    } finally {
-      await subscription.cancel();
-      try {
-        await device.unwatchAdvertisements();
-      } catch (_) {}
-    }
-  }
-
   /// Get services and their characteristics.
   /// Services and characteristics are cached.
   /// Clears cache on disconnection.
   Future<List<_UniversalWebBluetoothService>> _getServices(
     String deviceId,
   ) async {
-    BluetoothDevice? device = _getDeviceById(deviceId);
+    final device = _getDeviceById(deviceId);
     if (device == null) return [];
-    var services = _serviceCache[deviceId] ?? [];
-    if (services.isNotEmpty) return services;
-    for (var service in await device.discoverServices()) {
+    final generation = _connectionGenerations[deviceId] ?? 0;
+    final cached = _serviceCache[deviceId];
+    if (cached != null && cached.isNotEmpty) return cached;
+    final services = <_UniversalWebBluetoothService>[];
+    final discovered = await device.discoverServices();
+    _assertConnectionGeneration(deviceId, generation);
+    for (final service in discovered) {
       services.add(await _UniversalWebBluetoothService.fromService(service));
+      _assertConnectionGeneration(deviceId, generation);
     }
     _serviceCache[deviceId] = services;
     return services;
@@ -555,15 +656,22 @@ class UniversalBleWeb extends UniversalBlePlatform {
         .where((key) => deviceId == null || key == deviceId)
         .toList(growable: false);
     for (final id in deviceIds) {
-      final subscription = _deviceAdvertisementStreamList.remove(id);
-      await subscription?.cancel();
-
+      final subscription = _deviceAdvertisementStreamList[id];
       final device = _getDeviceById(id);
-      if (device == null || !device.watchingAdvertisements) continue;
+      // Abort pending startup before waiting for it. An aborted signal also
+      // prevents a late native completion from restarting advertisements.
+      _advertisementControllers.remove(id)?.abort();
+      await subscription?.cancel();
       try {
-        await device.unwatchAdvertisements();
-      } catch (error) {
-        UniversalLogger.logError("WebUnwatchAdvertisementError: $error");
+        await _advertisementStartOperations[id];
+      } catch (_) {
+        // Advertisement startup reports its own error and is optional.
+      }
+      // Let unexpected stop failures propagate: connecting while the browser
+      // is still watching would recreate the scan/connect overlap.
+      await device?.unwatchAdvertisements().timeout(_advertisementTimeout);
+      if (identical(_deviceAdvertisementStreamList[id], subscription)) {
+        _deviceAdvertisementStreamList.remove(id);
       }
     }
   }
