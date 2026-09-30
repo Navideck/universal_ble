@@ -500,7 +500,15 @@ abstract class UniversalBleCallbackChannel {
     int? timestamp,
   );
 
-  void onConnectionChanged(String deviceId, bool connected, String? error);
+  /// [errorCode] is the platform's native code for a failed connection or an
+  /// unexpected disconnect: `CBError.Code` on Apple, the GATT `status` on
+  /// Android. `null` when there is no error or the platform has no code.
+  void onConnectionChanged(
+    String deviceId,
+    bool connected,
+    String? error,
+    int? errorCode,
+  );
 
   void onConnectionParametersUpdated(BleConnectionParametersUpdated update);
 }

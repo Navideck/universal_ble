@@ -271,8 +271,13 @@ class UniversalBlePigeonChannel extends UniversalBlePlatform
       updateAvailability(state);
 
   @override
-  void onConnectionChanged(String deviceId, bool connected, String? error) =>
-      updateConnection(deviceId, connected, error);
+  void onConnectionChanged(
+    String deviceId,
+    bool connected,
+    String? error,
+    int? errorCode,
+  ) =>
+      updateConnection(deviceId, connected, error, errorCode);
 
   @override
   void onScanResult(UniversalBleScanResult result) {

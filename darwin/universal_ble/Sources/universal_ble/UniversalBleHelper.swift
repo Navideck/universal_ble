@@ -146,6 +146,11 @@ extension Error {
         let mappedCode = mapErrorCodeToEnum(errorCode)
         return createFlutterError(code: mappedCode, message: errorDescription, details: errorCode)
     }
+
+    /// Numeric code of the underlying NSError (e.g. `CBError.Code` for CoreBluetooth errors).
+    var nativeCode: Int64 {
+        Int64((self as NSError).code)
+    }
 }
 
 public extension CBUUID {

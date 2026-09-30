@@ -1777,9 +1777,10 @@ void UniversalBlePlugin::NotifyConnectionChanged(
       }
     }
     const std::string *error_ptr = error.has_value() ? &error.value() : nullptr;
+    // WinRT reports no numeric code for connection failures.
     callback_channel->OnConnectionChanged(mac_address_to_str(bluetooth_address),
-                                          connected, error_ptr, SuccessCallback,
-                                          ErrorCallback);
+                                          connected, error_ptr, nullptr,
+                                          SuccessCallback, ErrorCallback);
   });
 }
 

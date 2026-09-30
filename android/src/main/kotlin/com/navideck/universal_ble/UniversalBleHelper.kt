@@ -359,6 +359,13 @@ fun Int.parseBluetoothStatusCodeError(): UniversalBleErrorCode? {
     }
 }
 
+/// Raw GATT status of a connection state change, `null` for GATT_SUCCESS.
+/// Unlike [parseHciErrorCode] it keeps values that have no HCI mapping
+/// (e.g. GATT_FAILURE 257, GATT_CONNECTION_TIMEOUT 147) so callers can act on them.
+fun Int.toGattErrorCode(): Long? {
+    return if (this == BluetoothGatt.GATT_SUCCESS) null else this.toLong()
+}
+
 fun Int.parseHciErrorCode(): String? {
     return when (this) {
         BluetoothGatt.GATT_SUCCESS -> null

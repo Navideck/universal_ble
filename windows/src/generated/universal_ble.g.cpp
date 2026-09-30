@@ -3344,6 +3344,7 @@ void UniversalBleCallbackChannel::OnConnectionChanged(
   const std::string& device_id_arg,
   bool connected_arg,
   const std::string* error_arg,
+  const int64_t* error_code_arg,
   std::function<void(void)>&& on_success,
   std::function<void(const FlutterError&)>&& on_error) {
   const std::string channel_name = "dev.flutter.pigeon.universal_ble.UniversalBleCallbackChannel.onConnectionChanged" + message_channel_suffix_;
@@ -3352,6 +3353,7 @@ void UniversalBleCallbackChannel::OnConnectionChanged(
     EncodableValue(device_id_arg),
     EncodableValue(connected_arg),
     error_arg ? EncodableValue(*error_arg) : EncodableValue(),
+    error_code_arg ? EncodableValue(*error_code_arg) : EncodableValue(),
   });
   channel.Send(encoded_api_arguments, [channel_name, on_success = std::move(on_success), on_error = std::move(on_error)](const uint8_t* reply, size_t reply_size) {
     std::unique_ptr<EncodableValue> response = GetCodec().DecodeMessage(reply, reply_size);

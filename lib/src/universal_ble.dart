@@ -57,6 +57,14 @@ class UniversalBle {
   static Stream<bool> connectionStream(String deviceId) =>
       _platform.connectionStream(deviceId);
 
+  /// Connection stream of a device with the platform's error details.
+  ///
+  /// Emits the same events as [connectionStream], each carrying the native
+  /// error message and [BleConnectionUpdate.errorCode] so the app can tell a
+  /// link loss from a disconnect initiated by the peripheral.
+  static Stream<BleConnectionUpdate> connectionUpdateStream(String deviceId) =>
+      _platform.connectionUpdateStream(deviceId);
+
   /// Characteristic value stream
   static Stream<Uint8List> characteristicValueStream(
     String deviceId,
@@ -959,6 +967,11 @@ class UniversalBle {
   /// Get connection state changes.
   static set onConnectionChange(OnConnectionChange? onConnectionChange) =>
       _platform.onConnectionChange = onConnectionChange;
+
+  /// Get connection state changes with the platform's error message and
+  /// [BleConnectionUpdate.errorCode]. Fires alongside [onConnectionChange].
+  static set onConnectionUpdate(OnConnectionUpdate? onConnectionUpdate) =>
+      _platform.onConnectionUpdate = onConnectionUpdate;
 
   /// Get characteristic value updates, after calling [subscribeNotifications] or [subscribeIndications]
   static set onValueChange(OnValueChange? onValueChange) =>
