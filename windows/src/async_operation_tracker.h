@@ -12,7 +12,7 @@ namespace universal_ble {
 // Keeps native objects alive while asynchronous work is using them and lets
 // teardown wait until callbacks which already entered the plugin have left.
 class AsyncOperationTracker {
- private:
+private:
   struct State {
     std::mutex mutex;
     std::condition_variable idle;
@@ -31,7 +31,7 @@ class AsyncOperationTracker {
     std::shared_ptr<State> state;
   };
 
- public:
+public:
   using Lease = std::shared_ptr<Token>;
 
   AsyncOperationTracker() : state_(std::make_shared<State>()) {}
@@ -59,14 +59,14 @@ class AsyncOperationTracker {
   }
 
   template <typename Rep, typename Period>
-  bool
-  WaitUntilIdleFor(const std::chrono::duration<Rep, Period> &timeout) const {
+  bool WaitUntilIdleFor(
+      const std::chrono::duration<Rep, Period> &timeout) const {
     std::unique_lock<std::mutex> lock(state_->mutex);
     return state_->idle.wait_for(lock, timeout,
                                  [this] { return state_->active == 0; });
   }
 
- private:
+private:
   std::shared_ptr<State> state_;
 };
 
