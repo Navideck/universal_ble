@@ -117,7 +117,10 @@ UniversalBlePlugin::~UniversalBlePlugin() {
   // lease finish while every member is still alive, then release owned state.
   callback_operations_.Close();
   initialization_operations_.Close();
-  // Enumeration completion only queues UI work; it never needs a COM pump.
+  // Invariant: the raw system-operation Completed handler finishes independently
+  // of this UI apartment and only queues publication. Do not replace it with an
+  // apartment-affine continuation: this drain deliberately does not pump.
+  // Teardown must wait for every acquired lease to avoid destroying live state.
   while (!initialization_operations_.WaitUntilIdleFor(
       std::chrono::milliseconds(10))) {
   }
@@ -1061,32 +1064,42 @@ void UniversalBlePlugin::GetSystemDevices(
 
 void UniversalBlePlugin::InitializeAsync() {
   const auto initialization_operations = initialization_operations_;
-  const auto publish_result = [this, initialization_operations](Radio radio) {
-    ui_thread_handler_.Post([this, initialization_operations, radio] {
-      const auto callback = initialization_operations.TryAcquire();
-      if (!callback.has_value()) return;
-      try {
-        if (radio) {
-          bluetooth_radio_ = radio;
-          const auto callback_operations = callback_operations_;
-          radio_state_changed_revoker_ = bluetooth_radio_.StateChanged(
-              auto_revoke,
-              [this, callback_operations](const auto &sender, const auto &args) {
-                const auto callback = callback_operations.TryAcquire();
-                if (!callback.has_value()) return;
-                RadioStateChanged(sender, args);
-              });
-          RadioStateChanged(bluetooth_radio_, nullptr);
-        } else {
-          UniversalBleLogger::LogError("Bluetooth is not available");
-          callback_channel->OnAvailabilityChanged(AvailabilityState::kUnsupported,
-                                                  SuccessCallback, ErrorCallback);
+  const auto publish_result =
+      [this, initialization_operations](const Radio &radio) noexcept {
+    try {
+      ui_thread_handler_.Post([this, initialization_operations, radio] {
+        const auto callback = initialization_operations.TryAcquire();
+        if (!callback.has_value()) return;
+        try {
+          if (radio) {
+            bluetooth_radio_ = radio;
+            const auto callback_operations = callback_operations_;
+            radio_state_changed_revoker_ = bluetooth_radio_.StateChanged(
+                auto_revoke,
+                [this, callback_operations](const auto &sender, const auto &args) {
+                  const auto callback = callback_operations.TryAcquire();
+                  if (!callback.has_value()) return;
+                  RadioStateChanged(sender, args);
+                });
+            RadioStateChanged(bluetooth_radio_, nullptr);
+          } else {
+            UniversalBleLogger::LogError("Bluetooth is not available");
+            callback_channel->OnAvailabilityChanged(
+                AvailabilityState::kUnsupported, SuccessCallback, ErrorCallback);
+          }
+        } catch (...) {
+          log_and_swallow_unknown("Bluetooth initialization publication");
         }
+        initialized_ = true;
+      });
+    } catch (...) {
+      // Queue construction can fail too. Never let an exception escape the
+      // WinRT completion delegate, including when diagnostic logging fails.
+      try {
+        log_and_swallow_unknown("Bluetooth initialization queue publication");
       } catch (...) {
-        log_and_swallow_unknown("Bluetooth initialization publication");
       }
-      initialized_ = true;
-    });
+    }
   };
 
   try {

@@ -77,6 +77,9 @@ class Initializer {
   }
 
   ~Initializer() {
+    // Intentionally mirrors UniversalBlePlugin's teardown ordering. Keep this
+    // model in sync with the production destructor; close_repro.py exercises
+    // the actual plugin in a Flutter runner.
     callback_operations_.Close();
     initialization_operations_.Close();
     while (!initialization_operations_.WaitUntilIdleFor(
