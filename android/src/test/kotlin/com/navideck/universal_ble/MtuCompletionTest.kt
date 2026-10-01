@@ -185,4 +185,37 @@ internal class MtuCompletionTest {
         assertEquals(185L, values.last().getOrThrow())
         Mockito.verify(gatt, Mockito.times(2)).requestMtu(247)
     }
+
+    @Test
+    fun unrequestedDisconnectOfOldGattKeepsNewGattMtuCache() {
+        val old = gatt()
+        plugin.onMtuChanged(old, 247, BluetoothGatt.GATT_SUCCESS)
+        val current = gatt()
+        plugin.onMtuChanged(current, 185, BluetoothGatt.GATT_SUCCESS)
+        plugin.onConnectionStateChange(
+            old, BluetoothGatt.GATT_SUCCESS, BluetoothGatt.STATE_DISCONNECTED
+        )
+        drainMain()
+        val values = mutableListOf<Result<Long>>()
+        plugin.requestMtu(address, 185L) { values.add(it) }
+        drainMain()
+        assertEquals(185L, values.single().getOrThrow())
+        Mockito.verify(current, Mockito.never()).requestMtu(Mockito.anyInt())
+    }
+
+    @Test
+    fun oldGattDisconnectDoesNotFailNewGattPendingMtu() {
+        val old = gatt()
+        val current = gatt()
+        val values = mutableListOf<Result<Long>>()
+        plugin.requestMtu(address, 247L) { values.add(it) }
+        plugin.onConnectionStateChange(
+            old, BluetoothGatt.GATT_SUCCESS, BluetoothGatt.STATE_DISCONNECTED
+        )
+        drainMain()
+        assertTrue(values.isEmpty())
+        plugin.onMtuChanged(current, 185, BluetoothGatt.GATT_SUCCESS)
+        drainMain()
+        assertEquals(185L, values.single().getOrThrow())
+    }
 }

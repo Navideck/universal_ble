@@ -1060,20 +1060,27 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
             postMtuResult(callback, Result.failure(e))
             return
         }
+        var reusedMtu: Int? = null
+        var shouldRequest = false
         synchronized(mtuResultFutureList) {
-            negotiatedMtus[gatt]?.let { mtu ->
-                // Android 14+ ignores subsequent negotiations. Earlier versions
-                // can still request an increase when the observed MTU is smaller.
-                if (canReuseNegotiatedMtu(mtu, expectedMtu.toInt(), Build.VERSION.SDK_INT)) {
-                    postMtuResult(callback, Result.success(mtu.toLong()))
-                    return
-                }
+            val cached = negotiatedMtus[gatt]
+            // Android 14+ ignores subsequent negotiations. Earlier versions
+            // can still request an increase when the observed MTU is smaller.
+            if (cached != null && canReuseNegotiatedMtu(cached, expectedMtu.toInt(), Build.VERSION.SDK_INT)) {
+                reusedMtu = cached
+            } else {
+                val alreadyPending = mtuResultFutureList.any { it.gatt === gatt }
+                // Register before requestMtu: its callback can arrive immediately.
+                mtuResultFutureList.add(MtuResultFuture(deviceId, gatt, callback))
+                shouldRequest = !alreadyPending
             }
-            val alreadyPending = mtuResultFutureList.any { it.gatt === gatt }
-            // Register before requestMtu: its callback can arrive immediately.
-            mtuResultFutureList.add(MtuResultFuture(deviceId, gatt, callback))
-            if (alreadyPending) return
         }
+        reusedMtu?.let {
+            // Deliver outside the lock, like every other completion path.
+            postMtuResult(callback, Result.success(it.toLong()))
+            return
+        }
+        if (!shouldRequest) return
         try {
             if (!gatt.requestMtu(expectedMtu.toInt())) {
                 completeMtu(gatt, Result.failure(createFlutterError(
@@ -1187,7 +1194,9 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
         val deviceId = gatt?.device?.address ?: return
         if (closingGatts.contains(gatt)) return
         val current = deviceId.findGatt()
-        if (current != null && current !== gatt) return
+        // Only the registered client may report or cache an MTU; a stale client
+        // that was already removed must not populate state for a new connection.
+        if (current !== gatt) return
         UniversalBleLogger.logDebug("MTU_CHANGED <- $deviceId mtu=$mtu status=$status")
         completeMtu(gatt, if (status == BluetoothGatt.GATT_SUCCESS) {
             Result.success(mtu.toLong())
@@ -1401,7 +1410,12 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
         }
     }
 
-    private fun cleanUpConnection(deviceId: String) {
+    /**
+     * Fails pending operations for [deviceId]. When [gatt] is provided (a
+     * disconnect of a specific client), only that client's MTU state is
+     * evicted so a newer client for the same address keeps its negotiation.
+     */
+    private fun cleanUpConnection(deviceId: String, gatt: BluetoothGatt? = null) {
         val deviceDisconnectedError: FlutterError = createFlutterError(
             UniversalBleErrorCode.DEVICE_DISCONNECTED,
             "Device Disconnected",
@@ -1466,9 +1480,15 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
         }
         val pendingMtus: List<MtuResultFuture>
         synchronized(mtuResultFutureList) {
-            pendingMtus = mtuResultFutureList.filter { it.deviceId == deviceId }
+            pendingMtus = mtuResultFutureList.filter {
+                if (gatt != null) it.gatt === gatt else it.deviceId == deviceId
+            }
             mtuResultFutureList.removeAll(pendingMtus)
-            negotiatedMtus.keys.removeAll { it.device.address == deviceId }
+            if (gatt != null) {
+                negotiatedMtus.remove(gatt)
+            } else {
+                negotiatedMtus.keys.removeAll { it.device.address == deviceId }
+            }
         }
         for (future in pendingMtus) {
             postMtuResult(future.result, Result.failure(deviceDisconnectedError))
@@ -1494,7 +1514,7 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
     private fun cleanConnection(gatt: BluetoothGatt) {
         val deviceId = gatt.device.address
         gatt.removeCache()
-        cleanUpConnection(deviceId)
+        cleanUpConnection(deviceId, gatt)
         closingGatts.add(gatt)
         gatt.disconnect()
         // close() runs from onConnectionStateChange once the link is down. A client that never
@@ -1641,7 +1661,7 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
 
             if (!superseded) {
                 // Always clean up internal state (futures, etc.)
-                cleanUpConnection(deviceId)
+                cleanUpConnection(deviceId, gatt)
 
                 // Send connection changed callback
                 mainThreadHandler?.post {
