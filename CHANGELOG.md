@@ -3,6 +3,7 @@
 * iOS/macOS: Handle write-without-response transmit buffer backpressure
 * iOS/macOS: complete concurrent reads, descriptor operations, notification changes, and RSSI reads one callback at a time.
 * Windows: retry transiently unreachable GATT service discovery during connection.
+* Windows: fix crashes when closing the app while Bluetooth initialization is still pending.
 
 ## 2.3.0
 * Windows: support connectionless manufacturer-data advertising without a GATT service, including state/error reporting and cleanup on stop/disposal.
