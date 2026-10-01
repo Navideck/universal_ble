@@ -10,16 +10,17 @@ bool Check(bool condition, const char *expression, int line) {
   if (condition) {
     return true;
   }
-  std::cerr << "CHECK failed at line " << line << ": " << expression << std::endl;
+  std::cerr << "CHECK failed at line " << line << ": " << expression
+            << std::endl;
   return false;
 }
-} // namespace
+}  // namespace
 
-#define CHECK(expression)                                                      \
-  do {                                                                         \
-    if (!Check((expression), #expression, __LINE__)) {                         \
-      return 1;                                                                \
-    }                                                                          \
+#define CHECK(expression)                              \
+  do {                                                 \
+    if (!Check((expression), #expression, __LINE__)) { \
+      return 1;                                        \
+    }                                                  \
   } while (false)
 
 int main() {

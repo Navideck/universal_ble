@@ -52,12 +52,12 @@ winrt::Windows::Foundation::IAsyncAction PendingEnumeration(
 // Model the plugin's initialization-only lifetime protocol with a controlled
 // WinRT operation. The real plugin is also exercised by close_repro.py.
 class Initializer {
- public:
+public:
   Initializer(std::shared_ptr<CompletionState> state) : state_(state) {
     const auto initialization_operations = initialization_operations_;
     PendingEnumeration(state).Completed(
         [this, state, initialization_operations](const auto &operation,
-                                                  const auto &) {
+                                                 const auto &) {
           const auto callback = initialization_operations.TryAcquire();
           if (!callback.has_value()) {
             ++state->ignored_completions;
@@ -70,7 +70,8 @@ class Initializer {
           std::lock_guard<std::mutex> lock(state->mutex);
           state->ui_work.push_back([this, initialization_operations] {
             const auto callback = initialization_operations.TryAcquire();
-            if (!callback.has_value()) return;
+            if (!callback.has_value())
+              return;
             ++state_->publications;
           });
         });
@@ -88,15 +89,17 @@ class Initializer {
     WaitForCallbacksWithMessagePump(callback_operations_);
   }
 
- private:
+private:
   std::shared_ptr<CompletionState> state_;
   AsyncOperationTracker callback_operations_;
   AsyncOperationTracker initialization_operations_;
 };
 
 bool Check(bool condition, const char *expression, int line) {
-  if (condition) return true;
-  std::cerr << "CHECK failed at line " << line << ": " << expression << std::endl;
+  if (condition)
+    return true;
+  std::cerr << "CHECK failed at line " << line << ": " << expression
+            << std::endl;
   return false;
 }
 
@@ -110,8 +113,11 @@ void RunUiWork(const std::shared_ptr<CompletionState> &state) {
 }
 }  // namespace
 
-#define CHECK(expression) \
-  do { if (!Check((expression), #expression, __LINE__)) return 1; } while (false)
+#define CHECK(expression)                            \
+  do {                                               \
+    if (!Check((expression), #expression, __LINE__)) \
+      return 1;                                      \
+  } while (false)
 
 int main() {
   winrt::init_apartment(winrt::apartment_type::single_threaded);
@@ -132,8 +138,9 @@ int main() {
   cls.hInstance = GetModuleHandleW(nullptr);
   cls.lpszClassName = L"UniversalBleInitializationLifetimeTest";
   CHECK(RegisterClassW(&cls) != 0);
-  HWND foreign_window = CreateWindowExW(0, cls.lpszClassName, L"", 0, 0, 0, 0, 0,
-      HWND_MESSAGE, nullptr, cls.hInstance, nullptr);
+  HWND foreign_window =
+      CreateWindowExW(0, cls.lpszClassName, L"", 0, 0, 0, 0, 0, HWND_MESSAGE,
+                      nullptr, cls.hInstance, nullptr);
   CHECK(foreign_window != nullptr);
   CHECK(PostMessageW(foreign_window, kForeignMessage, 0, 0));
   std::atomic<bool> sent = false;
@@ -161,7 +168,8 @@ int main() {
   RunUiWork(active);
   CHECK(active->publications == 0);
   MSG message{};
-  CHECK(PeekMessageW(&message, foreign_window, kForeignMessage, kForeignMessage, PM_REMOVE));
+  CHECK(PeekMessageW(&message, foreign_window, kForeignMessage, kForeignMessage,
+                     PM_REMOVE));
   CHECK(foreign_messages_dispatched == 1);
   CHECK(PeekMessageW(&message, nullptr, WM_QUIT, WM_QUIT, PM_REMOVE));
   CHECK(message.wParam == 37);
@@ -172,7 +180,8 @@ int main() {
   SetEvent(success->release_callback);
   SetEvent(success->release_operation);
   CHECK(WaitForSingleObject(success->callback_entered, 2000) == WAIT_OBJECT_0);
-  for (int attempt = 0; attempt < 200 && success->publications == 0; ++attempt) {
+  for (int attempt = 0; attempt < 200 && success->publications == 0;
+       ++attempt) {
     RunUiWork(success);
     std::this_thread::sleep_for(std::chrono::milliseconds(1));
   }
