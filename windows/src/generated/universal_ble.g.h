@@ -577,6 +577,36 @@ class AndroidOptions {
 };
 
 
+// Windows options to scan devices
+//
+// Generated class from Pigeon that represents data sent in messages.
+class WindowsOptions {
+ public:
+  // Constructs an object setting all fields.
+  explicit WindowsOptions(bool hide_non_connectable);
+
+  // Hide advertisements that windows reports as non-connectable.
+  bool hide_non_connectable() const;
+  void set_hide_non_connectable(bool value_arg);
+
+  bool operator==(const WindowsOptions& other) const;
+  bool operator!=(const WindowsOptions& other) const;
+  /// Returns a hash code value for the object. This method is supported for the benefit of hash tables.
+  size_t Hash() const;
+ private:
+  static WindowsOptions FromEncodableList(const ::flutter::EncodableList& list);
+  ::flutter::EncodableList ToEncodableList() const;
+  friend class UniversalScanConfig;
+  friend class UniversalBlePlatformChannel;
+  friend class UniversalBleCallbackChannel;
+  friend class UniversalBlePeripheralChannel;
+  friend class UniversalBleAndroidChannel;
+  friend class UniversalBlePeripheralCallback;
+  friend class PigeonInternalCodecSerializer;
+  bool hide_non_connectable_;
+};
+
+
 // Generated class from Pigeon that represents data sent in messages.
 class UniversalScanConfig {
  public:
@@ -584,7 +614,9 @@ class UniversalScanConfig {
   UniversalScanConfig();
 
   // Constructs an object setting all fields.
-  explicit UniversalScanConfig(const AndroidOptions* android);
+  explicit UniversalScanConfig(
+    const AndroidOptions* android,
+    const WindowsOptions* windows);
 
   ~UniversalScanConfig() = default;
   UniversalScanConfig(const UniversalScanConfig& other);
@@ -594,6 +626,10 @@ class UniversalScanConfig {
   const AndroidOptions* android() const;
   void set_android(const AndroidOptions* value_arg);
   void set_android(const AndroidOptions& value_arg);
+
+  const WindowsOptions* windows() const;
+  void set_windows(const WindowsOptions* value_arg);
+  void set_windows(const WindowsOptions& value_arg);
 
   bool operator==(const UniversalScanConfig& other) const;
   bool operator!=(const UniversalScanConfig& other) const;
@@ -609,6 +645,7 @@ class UniversalScanConfig {
   friend class UniversalBlePeripheralCallback;
   friend class PigeonInternalCodecSerializer;
   std::unique_ptr<AndroidOptions> android_;
+  std::unique_ptr<WindowsOptions> windows_;
 };
 
 

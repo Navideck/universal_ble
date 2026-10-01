@@ -6,8 +6,9 @@ import 'package:universal_ble/src/universal_ble.g.dart';
 class PlatformConfig {
   WebOptions? web;
   AndroidOptions? android;
+  WindowsOptions? windows;
 
-  PlatformConfig({this.web, this.android});
+  PlatformConfig({this.web, this.android, this.windows});
 }
 
 /// Web options to scan devices

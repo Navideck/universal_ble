@@ -6,8 +6,7 @@ import 'package:pigeon/pigeon.dart';
     dartPackageName: 'universal_ble',
     dartOut: 'lib/src/universal_ble.g.dart',
     dartOptions: DartOptions(),
-    kotlinOut:
-        'android/src/main/kotlin/com/navideck/universal_ble/UniversalBle.g.kt',
+    kotlinOut: 'android/src/main/kotlin/com/navideck/universal_ble/UniversalBle.g.kt',
     swiftOut: 'darwin/universal_ble/Sources/universal_ble/UniversalBle.g.swift',
     kotlinOptions: KotlinOptions(package: 'com.navideck.universal_ble'),
     swiftOptions: SwiftOptions(),
@@ -17,7 +16,6 @@ import 'package:pigeon/pigeon.dart';
     debugGenerators: true,
   ),
 )
-
 /// Shared models & enums
 /// ------------------------------------------------------------
 class UniversalBleScanResult {
@@ -46,14 +44,7 @@ class UniversalBleScanResult {
 
 enum BleLogLevel { none, error, warning, info, debug, verbose }
 
-enum AvailabilityState {
-  unknown,
-  resetting,
-  unsupported,
-  unauthorized,
-  poweredOff,
-  poweredOn,
-}
+enum AvailabilityState { unknown, resetting, unsupported, unauthorized, poweredOff, poweredOn }
 
 enum BleConnectionState { connected, disconnected, connecting, disconnecting }
 
@@ -89,12 +80,7 @@ enum AndroidScanMode { balanced, lowLatency, lowPower, opportunistic }
 ///   older devices.
 ///
 /// See https://developer.android.com/reference/android/bluetooth/le/ScanSettings
-enum AndroidScanCallbackType {
-  allMatches,
-  firstMatch,
-  matchLost,
-  allMatchesAutoBatch,
-}
+enum AndroidScanCallbackType { allMatches, firstMatch, matchLost, allMatchesAutoBatch }
 
 /// Mirrors `android.bluetooth.le.ScanSettings#setMatchMode`.
 enum AndroidScanMatchMode { aggressive, sticky }
@@ -113,20 +99,9 @@ enum CharacteristicProperty {
   extendedProperties,
 }
 
-enum PeripheralReadinessState {
-  unknown,
-  ready,
-  bluetoothOff,
-  unauthorized,
-  unsupported,
-}
+enum PeripheralReadinessState { unknown, ready, bluetoothOff, unauthorized, unsupported }
 
-enum PeripheralAttributePermission {
-  readable,
-  writeable,
-  readEncryptionRequired,
-  writeEncryptionRequired,
-}
+enum PeripheralAttributePermission { readable, writeable, readEncryptionRequired, writeEncryptionRequired }
 
 enum PeripheralAdvertisingState { idle, starting, advertising, stopping, error }
 
@@ -215,9 +190,18 @@ class AndroidOptions {
   });
 }
 
+/// Windows options to scan devices
+class WindowsOptions {
+  /// Hide advertisements that windows reports as non-connectable.
+  final bool hideNonConnectable;
+
+  WindowsOptions({this.hideNonConnectable = true});
+}
+
 class UniversalScanConfig {
   AndroidOptions? android;
-  UniversalScanConfig(this.android);
+  WindowsOptions? windows;
+  UniversalScanConfig(this.android, this.windows);
 }
 
 class UniversalScanFilter {
@@ -225,11 +209,7 @@ class UniversalScanFilter {
   final List<String> withNamePrefix;
   final List<ManufacturerDataFilter> withManufacturerData;
 
-  UniversalScanFilter(
-    this.withServices,
-    this.withNamePrefix,
-    this.withManufacturerData,
-  );
+  UniversalScanFilter(this.withServices, this.withNamePrefix, this.withManufacturerData);
 }
 
 class ManufacturerDataFilter {
@@ -245,21 +225,14 @@ class ManufacturerDataFilter {
   Uint8List? payloadMask;
 
   /// Filter manufacturer data by company identifier, payload prefix, or payload mask.
-  ManufacturerDataFilter({
-    required this.companyIdentifier,
-    this.payloadPrefix,
-    this.payloadMask,
-  });
+  ManufacturerDataFilter({required this.companyIdentifier, this.payloadPrefix, this.payloadMask});
 }
 
 class UniversalManufacturerData {
   final int companyIdentifier;
   final Uint8List data;
 
-  UniversalManufacturerData({
-    required this.companyIdentifier,
-    required this.data,
-  });
+  UniversalManufacturerData({required this.companyIdentifier, required this.data});
 }
 
 /// Apple options for `connect`.
@@ -288,11 +261,7 @@ class AppleConnectionOptions {
   /// suspended. Fires per notification.
   bool? notifyOnNotification;
 
-  AppleConnectionOptions({
-    this.notifyOnConnection,
-    this.notifyOnDisconnection,
-    this.notifyOnNotification,
-  });
+  AppleConnectionOptions({this.notifyOnConnection, this.notifyOnDisconnection, this.notifyOnNotification});
 }
 
 class AndroidConnectionOptions {
@@ -323,10 +292,7 @@ class PeripheralAndroidOptions {
   /// Note: If this is enabled with `addManufacturerDataInScanResponse`, ensure
   /// the combined data fits within the scan response's 31-byte limit.
   bool? addServicesInScanResponse;
-  PeripheralAndroidOptions({
-    this.addManufacturerDataInScanResponse,
-    this.addServicesInScanResponse,
-  });
+  PeripheralAndroidOptions({this.addManufacturerDataInScanResponse, this.addServicesInScanResponse});
 }
 
 class PeripheralPlatformConfig {
@@ -349,13 +315,7 @@ class PeripheralCharacteristic {
   List<PeripheralDescriptor>? descriptors;
   Uint8List? value;
 
-  PeripheralCharacteristic(
-    this.uuid,
-    this.properties,
-    this.permissions,
-    this.descriptors,
-    this.value,
-  );
+  PeripheralCharacteristic(this.uuid, this.properties, this.permissions, this.descriptors, this.value);
 }
 
 class PeripheralDescriptor {
@@ -405,38 +365,21 @@ abstract class UniversalBlePlatformChannel {
 
   bool isScanning();
 
-  void connect(
-    String deviceId, {
-    bool? autoConnect,
-    ConnectionPlatformConfig? platformConfig,
-  });
+  void connect(String deviceId, {bool? autoConnect, ConnectionPlatformConfig? platformConfig});
 
   void disconnect(String deviceId);
 
   @async
-  void setNotifiable(
-    String deviceId,
-    String service,
-    String characteristic,
-    BleInputProperty bleInputProperty,
-  );
+  void setNotifiable(String deviceId, String service, String characteristic, BleInputProperty bleInputProperty);
 
   @async
-  List<UniversalBleService> discoverServices(
-    String deviceId,
-    bool withDescriptors,
-  );
+  List<UniversalBleService> discoverServices(String deviceId, bool withDescriptors);
 
   @async
   Uint8List readValue(String deviceId, String service, String characteristic);
 
   @async
-  Uint8List readDescriptorValue(
-    String deviceId,
-    String service,
-    String characteristic,
-    String descriptor,
-  );
+  Uint8List readDescriptorValue(String deviceId, String service, String characteristic, String descriptor);
 
   @async
   int requestMtu(String deviceId, int expectedMtu);
@@ -451,13 +394,7 @@ abstract class UniversalBlePlatformChannel {
   );
 
   @async
-  void writeDescriptorValue(
-    String deviceId,
-    String service,
-    String characteristic,
-    String descriptor,
-    Uint8List value,
-  );
+  void writeDescriptorValue(String deviceId, String service, String characteristic, String descriptor, Uint8List value);
 
   @async
   bool isPaired(String deviceId);
@@ -476,10 +413,7 @@ abstract class UniversalBlePlatformChannel {
   int readRssi(String deviceId);
 
   @async
-  void requestConnectionPriority(
-    String deviceId,
-    BleConnectionPriority priority,
-  );
+  void requestConnectionPriority(String deviceId, BleConnectionPriority priority);
 
   void setLogLevel(BleLogLevel logLevel);
 }
@@ -493,12 +427,7 @@ abstract class UniversalBleCallbackChannel {
 
   void onScanResult(UniversalBleScanResult result);
 
-  void onValueChanged(
-    String deviceId,
-    String characteristicId,
-    Uint8List value,
-    int? timestamp,
-  );
+  void onValueChanged(String deviceId, String characteristicId, Uint8List value, int? timestamp);
 
   void onConnectionChanged(String deviceId, bool connected, String? error);
 
@@ -530,11 +459,7 @@ abstract class UniversalBlePeripheralChannel {
     PeripheralPlatformConfig? platformConfig,
   );
 
-  void updateCharacteristic(
-    String characteristicId,
-    Uint8List value,
-    String? deviceId,
-  );
+  void updateCharacteristic(String characteristicId, Uint8List value, String? deviceId);
 
   /// Returns peripheral-client device ids currently subscribed to [characteristicId]
   /// (e.g. HID report characteristic). Used to restore app state after restart.
@@ -556,19 +481,9 @@ abstract class UniversalBleAndroidChannel {
 /// Native -> Flutter (peripheral)
 @FlutterApi()
 abstract class UniversalBlePeripheralCallback {
-  PeripheralReadRequestResult? onReadRequest(
-    String deviceId,
-    String characteristicId,
-    int offset,
-    Uint8List? value,
-  );
+  PeripheralReadRequestResult? onReadRequest(String deviceId, String characteristicId, int offset, Uint8List? value);
 
-  PeripheralWriteRequestResult? onWriteRequest(
-    String deviceId,
-    String characteristicId,
-    int offset,
-    Uint8List? value,
-  );
+  PeripheralWriteRequestResult? onWriteRequest(String deviceId, String characteristicId, int offset, Uint8List? value);
 
   PeripheralReadRequestResult? onDescriptorReadRequest(
     String deviceId,
@@ -586,17 +501,9 @@ abstract class UniversalBlePeripheralCallback {
     Uint8List? value,
   );
 
-  void onCharacteristicSubscriptionChange(
-    String deviceId,
-    String characteristicId,
-    bool isSubscribed,
-    String? name,
-  );
+  void onCharacteristicSubscriptionChange(String deviceId, String characteristicId, bool isSubscribed, String? name);
 
-  void onAdvertisingStateChange(
-    PeripheralAdvertisingState state,
-    String? error,
-  );
+  void onAdvertisingStateChange(PeripheralAdvertisingState state, String? error);
 
   void onServiceAdded(String serviceId, String? error);
 

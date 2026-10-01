@@ -809,20 +809,62 @@ data class AndroidOptions (
   }
 }
 
+/**
+ * Windows options to scan devices
+ *
+ * Generated class from Pigeon that represents data sent in messages.
+ */
+data class WindowsOptions (
+  /** Hide advertisements that windows reports as non-connectable. */
+  val hideNonConnectable: Boolean
+)
+ {
+  companion object {
+    fun fromList(pigeonVar_list: List<Any?>): WindowsOptions {
+      val hideNonConnectable = pigeonVar_list[0] as Boolean
+      return WindowsOptions(hideNonConnectable)
+    }
+  }
+  fun toList(): List<Any?> {
+    return listOf(
+      hideNonConnectable,
+    )
+  }
+  override fun equals(other: Any?): Boolean {
+    if (other == null || other.javaClass != javaClass) {
+      return false
+    }
+    if (this === other) {
+      return true
+    }
+    val other = other as WindowsOptions
+    return UniversalBlePigeonUtils.deepEquals(this.hideNonConnectable, other.hideNonConnectable)
+  }
+
+  override fun hashCode(): Int {
+    var result = javaClass.hashCode()
+    result = 31 * result + UniversalBlePigeonUtils.deepHash(this.hideNonConnectable)
+    return result
+  }
+}
+
 /** Generated class from Pigeon that represents data sent in messages. */
 data class UniversalScanConfig (
-  val android: AndroidOptions? = null
+  val android: AndroidOptions? = null,
+  val windows: WindowsOptions? = null
 )
  {
   companion object {
     fun fromList(pigeonVar_list: List<Any?>): UniversalScanConfig {
       val android = pigeonVar_list[0] as AndroidOptions?
-      return UniversalScanConfig(android)
+      val windows = pigeonVar_list[1] as WindowsOptions?
+      return UniversalScanConfig(android, windows)
     }
   }
   fun toList(): List<Any?> {
     return listOf(
       android,
+      windows,
     )
   }
   override fun equals(other: Any?): Boolean {
@@ -833,12 +875,13 @@ data class UniversalScanConfig (
       return true
     }
     val other = other as UniversalScanConfig
-    return UniversalBlePigeonUtils.deepEquals(this.android, other.android)
+    return UniversalBlePigeonUtils.deepEquals(this.android, other.android) && UniversalBlePigeonUtils.deepEquals(this.windows, other.windows)
   }
 
   override fun hashCode(): Int {
     var result = javaClass.hashCode()
     result = 31 * result + UniversalBlePigeonUtils.deepHash(this.android)
+    result = 31 * result + UniversalBlePigeonUtils.deepHash(this.windows)
     return result
   }
 }
@@ -1533,70 +1576,75 @@ private open class UniversalBlePigeonCodec : StandardMessageCodec() {
       }
       150.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          UniversalScanConfig.fromList(it)
+          WindowsOptions.fromList(it)
         }
       }
       151.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          UniversalScanFilter.fromList(it)
+          UniversalScanConfig.fromList(it)
         }
       }
       152.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          ManufacturerDataFilter.fromList(it)
+          UniversalScanFilter.fromList(it)
         }
       }
       153.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          UniversalManufacturerData.fromList(it)
+          ManufacturerDataFilter.fromList(it)
         }
       }
       154.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          AppleConnectionOptions.fromList(it)
+          UniversalManufacturerData.fromList(it)
         }
       }
       155.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          AndroidConnectionOptions.fromList(it)
+          AppleConnectionOptions.fromList(it)
         }
       }
       156.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          ConnectionPlatformConfig.fromList(it)
+          AndroidConnectionOptions.fromList(it)
         }
       }
       157.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          PeripheralAndroidOptions.fromList(it)
+          ConnectionPlatformConfig.fromList(it)
         }
       }
       158.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          PeripheralPlatformConfig.fromList(it)
+          PeripheralAndroidOptions.fromList(it)
         }
       }
       159.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          PeripheralService.fromList(it)
+          PeripheralPlatformConfig.fromList(it)
         }
       }
       160.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          PeripheralCharacteristic.fromList(it)
+          PeripheralService.fromList(it)
         }
       }
       161.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          PeripheralDescriptor.fromList(it)
+          PeripheralCharacteristic.fromList(it)
         }
       }
       162.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          PeripheralReadRequestResult.fromList(it)
+          PeripheralDescriptor.fromList(it)
         }
       }
       163.toByte() -> {
+        return (readValue(buffer) as? List<Any?>)?.let {
+          PeripheralReadRequestResult.fromList(it)
+        }
+      }
+      164.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
           PeripheralWriteRequestResult.fromList(it)
         }
@@ -1690,60 +1738,64 @@ private open class UniversalBlePigeonCodec : StandardMessageCodec() {
         stream.write(149)
         writeValue(stream, value.toList())
       }
-      is UniversalScanConfig -> {
+      is WindowsOptions -> {
         stream.write(150)
         writeValue(stream, value.toList())
       }
-      is UniversalScanFilter -> {
+      is UniversalScanConfig -> {
         stream.write(151)
         writeValue(stream, value.toList())
       }
-      is ManufacturerDataFilter -> {
+      is UniversalScanFilter -> {
         stream.write(152)
         writeValue(stream, value.toList())
       }
-      is UniversalManufacturerData -> {
+      is ManufacturerDataFilter -> {
         stream.write(153)
         writeValue(stream, value.toList())
       }
-      is AppleConnectionOptions -> {
+      is UniversalManufacturerData -> {
         stream.write(154)
         writeValue(stream, value.toList())
       }
-      is AndroidConnectionOptions -> {
+      is AppleConnectionOptions -> {
         stream.write(155)
         writeValue(stream, value.toList())
       }
-      is ConnectionPlatformConfig -> {
+      is AndroidConnectionOptions -> {
         stream.write(156)
         writeValue(stream, value.toList())
       }
-      is PeripheralAndroidOptions -> {
+      is ConnectionPlatformConfig -> {
         stream.write(157)
         writeValue(stream, value.toList())
       }
-      is PeripheralPlatformConfig -> {
+      is PeripheralAndroidOptions -> {
         stream.write(158)
         writeValue(stream, value.toList())
       }
-      is PeripheralService -> {
+      is PeripheralPlatformConfig -> {
         stream.write(159)
         writeValue(stream, value.toList())
       }
-      is PeripheralCharacteristic -> {
+      is PeripheralService -> {
         stream.write(160)
         writeValue(stream, value.toList())
       }
-      is PeripheralDescriptor -> {
+      is PeripheralCharacteristic -> {
         stream.write(161)
         writeValue(stream, value.toList())
       }
-      is PeripheralReadRequestResult -> {
+      is PeripheralDescriptor -> {
         stream.write(162)
         writeValue(stream, value.toList())
       }
-      is PeripheralWriteRequestResult -> {
+      is PeripheralReadRequestResult -> {
         stream.write(163)
+        writeValue(stream, value.toList())
+      }
+      is PeripheralWriteRequestResult -> {
+        stream.write(164)
         writeValue(stream, value.toList())
       }
       else -> super.writeValue(stream, value)
