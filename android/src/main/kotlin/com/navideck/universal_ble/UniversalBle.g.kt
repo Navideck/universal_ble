@@ -1042,6 +1042,71 @@ data class AppleConnectionOptions (
   }
 }
 
+/**
+ * iOS 18+ options for discovering and authorizing a Bluetooth accessory with
+ * AccessorySetupKit before connecting to it.
+ *
+ * Generated class from Pigeon that represents data sent in messages.
+ */
+data class AppleAccessorySetupOptions (
+  /** Name shown in the system accessory picker. */
+  val displayName: String,
+  /** Name of the product image in the iOS app's asset catalog. */
+  val imageAsset: String,
+  /** Advertised Bluetooth service UUID used to discover the accessory. */
+  val serviceUuid: String,
+  /** Optional substring of the accessory's advertised Bluetooth name. */
+  val nameSubstring: String? = null,
+  /** Limit discovery to accessories in the immediate vicinity. */
+  val requiresImmediateRange: Boolean? = null,
+  /** Allow AccessorySetupKit to perform Bluetooth LE pairing when needed. */
+  val supportsBluetoothPairing: Boolean? = null
+)
+ {
+  companion object {
+    fun fromList(pigeonVar_list: List<Any?>): AppleAccessorySetupOptions {
+      val displayName = pigeonVar_list[0] as String
+      val imageAsset = pigeonVar_list[1] as String
+      val serviceUuid = pigeonVar_list[2] as String
+      val nameSubstring = pigeonVar_list[3] as String?
+      val requiresImmediateRange = pigeonVar_list[4] as Boolean?
+      val supportsBluetoothPairing = pigeonVar_list[5] as Boolean?
+      return AppleAccessorySetupOptions(displayName, imageAsset, serviceUuid, nameSubstring, requiresImmediateRange, supportsBluetoothPairing)
+    }
+  }
+  fun toList(): List<Any?> {
+    return listOf(
+      displayName,
+      imageAsset,
+      serviceUuid,
+      nameSubstring,
+      requiresImmediateRange,
+      supportsBluetoothPairing,
+    )
+  }
+  override fun equals(other: Any?): Boolean {
+    if (other == null || other.javaClass != javaClass) {
+      return false
+    }
+    if (this === other) {
+      return true
+    }
+    val other = other as AppleAccessorySetupOptions
+    return UniversalBlePigeonUtils.deepEquals(this.displayName, other.displayName) && UniversalBlePigeonUtils.deepEquals(this.imageAsset, other.imageAsset) && UniversalBlePigeonUtils.deepEquals(this.serviceUuid, other.serviceUuid) && UniversalBlePigeonUtils.deepEquals(this.nameSubstring, other.nameSubstring) && UniversalBlePigeonUtils.deepEquals(this.requiresImmediateRange, other.requiresImmediateRange) && UniversalBlePigeonUtils.deepEquals(this.supportsBluetoothPairing, other.supportsBluetoothPairing)
+  }
+
+  override fun hashCode(): Int {
+    var result = javaClass.hashCode()
+    result = 31 * result + UniversalBlePigeonUtils.deepHash(this.displayName)
+    result = 31 * result + UniversalBlePigeonUtils.deepHash(this.imageAsset)
+    result = 31 * result + UniversalBlePigeonUtils.deepHash(this.serviceUuid)
+    result = 31 * result + UniversalBlePigeonUtils.deepHash(this.nameSubstring)
+    result = 31 * result + UniversalBlePigeonUtils.deepHash(this.requiresImmediateRange)
+    result = 31 * result + UniversalBlePigeonUtils.deepHash(this.supportsBluetoothPairing)
+    return result
+  }
+}
+
 /** Generated class from Pigeon that represents data sent in messages. */
 data class AndroidConnectionOptions (
   /**
@@ -1558,45 +1623,50 @@ private open class UniversalBlePigeonCodec : StandardMessageCodec() {
       }
       155.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          AndroidConnectionOptions.fromList(it)
+          AppleAccessorySetupOptions.fromList(it)
         }
       }
       156.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          ConnectionPlatformConfig.fromList(it)
+          AndroidConnectionOptions.fromList(it)
         }
       }
       157.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          PeripheralAndroidOptions.fromList(it)
+          ConnectionPlatformConfig.fromList(it)
         }
       }
       158.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          PeripheralPlatformConfig.fromList(it)
+          PeripheralAndroidOptions.fromList(it)
         }
       }
       159.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          PeripheralService.fromList(it)
+          PeripheralPlatformConfig.fromList(it)
         }
       }
       160.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          PeripheralCharacteristic.fromList(it)
+          PeripheralService.fromList(it)
         }
       }
       161.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          PeripheralDescriptor.fromList(it)
+          PeripheralCharacteristic.fromList(it)
         }
       }
       162.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          PeripheralReadRequestResult.fromList(it)
+          PeripheralDescriptor.fromList(it)
         }
       }
       163.toByte() -> {
+        return (readValue(buffer) as? List<Any?>)?.let {
+          PeripheralReadRequestResult.fromList(it)
+        }
+      }
+      164.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
           PeripheralWriteRequestResult.fromList(it)
         }
@@ -1710,40 +1780,44 @@ private open class UniversalBlePigeonCodec : StandardMessageCodec() {
         stream.write(154)
         writeValue(stream, value.toList())
       }
-      is AndroidConnectionOptions -> {
+      is AppleAccessorySetupOptions -> {
         stream.write(155)
         writeValue(stream, value.toList())
       }
-      is ConnectionPlatformConfig -> {
+      is AndroidConnectionOptions -> {
         stream.write(156)
         writeValue(stream, value.toList())
       }
-      is PeripheralAndroidOptions -> {
+      is ConnectionPlatformConfig -> {
         stream.write(157)
         writeValue(stream, value.toList())
       }
-      is PeripheralPlatformConfig -> {
+      is PeripheralAndroidOptions -> {
         stream.write(158)
         writeValue(stream, value.toList())
       }
-      is PeripheralService -> {
+      is PeripheralPlatformConfig -> {
         stream.write(159)
         writeValue(stream, value.toList())
       }
-      is PeripheralCharacteristic -> {
+      is PeripheralService -> {
         stream.write(160)
         writeValue(stream, value.toList())
       }
-      is PeripheralDescriptor -> {
+      is PeripheralCharacteristic -> {
         stream.write(161)
         writeValue(stream, value.toList())
       }
-      is PeripheralReadRequestResult -> {
+      is PeripheralDescriptor -> {
         stream.write(162)
         writeValue(stream, value.toList())
       }
-      is PeripheralWriteRequestResult -> {
+      is PeripheralReadRequestResult -> {
         stream.write(163)
+        writeValue(stream, value.toList())
+      }
+      is PeripheralWriteRequestResult -> {
+        stream.write(164)
         writeValue(stream, value.toList())
       }
       else -> super.writeValue(stream, value)
@@ -1768,6 +1842,11 @@ interface UniversalBlePlatformChannel {
   fun startScan(filter: UniversalScanFilter?, config: UniversalScanConfig?)
   fun stopScan()
   fun isScanning(): Boolean
+  /**
+   * Shows the iOS AccessorySetupKit picker and returns the selected
+   * peripheral identifier.
+   */
+  fun setupAccessory(options: AppleAccessorySetupOptions, callback: (Result<String>) -> Unit)
   fun connect(deviceId: String, autoConnect: Boolean?, platformConfig: ConnectionPlatformConfig?)
   fun disconnect(deviceId: String)
   fun setNotifiable(deviceId: String, service: String, characteristic: String, bleInputProperty: BleInputProperty, callback: (Result<Unit>) -> Unit)
@@ -1779,7 +1858,7 @@ interface UniversalBlePlatformChannel {
   fun writeDescriptorValue(deviceId: String, service: String, characteristic: String, descriptor: String, value: ByteArray, callback: (Result<Unit>) -> Unit)
   fun isPaired(deviceId: String, callback: (Result<Boolean>) -> Unit)
   fun pair(deviceId: String, callback: (Result<Boolean>) -> Unit)
-  fun unPair(deviceId: String)
+  fun unPair(deviceId: String, callback: (Result<Unit>) -> Unit)
   fun getSystemDevices(withServices: List<String>, callback: (Result<List<UniversalBleScanResult>>) -> Unit)
   fun getConnectionState(deviceId: String): BleConnectionState
   fun readRssi(deviceId: String, callback: (Result<Long>) -> Unit)
@@ -1930,6 +2009,26 @@ interface UniversalBlePlatformChannel {
               UniversalBlePigeonUtils.wrapError(exception)
             }
             reply.reply(wrapped)
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.universal_ble.UniversalBlePlatformChannel.setupAccessory$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { message, reply ->
+            val args = message as List<Any?>
+            val optionsArg = args[0] as AppleAccessorySetupOptions
+            api.setupAccessory(optionsArg) { result: Result<String> ->
+              val error = result.exceptionOrNull()
+              if (error != null) {
+                reply.reply(UniversalBlePigeonUtils.wrapError(error))
+              } else {
+                val data = result.getOrNull()
+                reply.reply(UniversalBlePigeonUtils.wrapResult(data))
+              }
+            }
           }
         } else {
           channel.setMessageHandler(null)
@@ -2174,13 +2273,14 @@ interface UniversalBlePlatformChannel {
           channel.setMessageHandler { message, reply ->
             val args = message as List<Any?>
             val deviceIdArg = args[0] as String
-            val wrapped: List<Any?> = try {
-              api.unPair(deviceIdArg)
-              listOf(null)
-            } catch (exception: Throwable) {
-              UniversalBlePigeonUtils.wrapError(exception)
+            api.unPair(deviceIdArg) { result: Result<Unit> ->
+              val error = result.exceptionOrNull()
+              if (error != null) {
+                reply.reply(UniversalBlePigeonUtils.wrapError(error))
+              } else {
+                reply.reply(UniversalBlePigeonUtils.wrapResult(null))
+              }
             }
-            reply.reply(wrapped)
           }
         } else {
           channel.setMessageHandler(null)

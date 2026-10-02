@@ -13,6 +13,7 @@ export 'package:universal_ble/src/universal_ble.g.dart'
         AndroidOptions,
         AndroidConnectionOptions,
         AppleConnectionOptions,
+        AppleAccessorySetupOptions,
         ConnectionPlatformConfig,
         AndroidScanMode,
         AndroidScanCallbackType,

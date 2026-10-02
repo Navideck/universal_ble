@@ -142,6 +142,29 @@ class UniversalBle {
     );
   }
 
+  /// Shows the AccessorySetupKit picker and connects to the accessory selected
+  /// by the user. Returns its CoreBluetooth device identifier.
+  ///
+  /// Supported on iOS 18 and later. The host app must declare matching
+  /// AccessorySetupKit values in `Info.plist`, and [options.imageAsset] must
+  /// name an image in the iOS asset catalog. Unlike normal scanning, this flow
+  /// does not require broad Bluetooth permission.
+  static Future<String> connectAccessory(
+    AppleAccessorySetupOptions options, {
+    Duration? timeout,
+    bool autoConnect = false,
+    ConnectionPlatformConfig? platformConfig,
+  }) async {
+    final deviceId = await _platform.setupAccessory(options);
+    await connect(
+      deviceId,
+      timeout: timeout,
+      autoConnect: autoConnect,
+      platformConfig: platformConfig,
+    );
+    return deviceId;
+  }
+
   /// Connect to a device.
   /// It is advised to stop scanning before connecting.
   /// It throws error if device connection fails.

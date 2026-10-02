@@ -60,6 +60,10 @@ class UniversalBlePigeonChannel extends UniversalBlePlatform
       _executeWithErrorHandling(() => _channel.isScanning());
 
   @override
+  Future<String> setupAccessory(AppleAccessorySetupOptions options) =>
+      _executeWithErrorHandling(() => _channel.setupAccessory(options));
+
+  @override
   Future<BleConnectionState> getConnectionState(String deviceId) =>
       _executeWithErrorHandling(() => _channel.getConnectionState(deviceId));
 

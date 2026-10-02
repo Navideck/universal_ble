@@ -278,6 +278,20 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
         return safeScanner.isScanning()
     }
 
+    override fun setupAccessory(
+        options: AppleAccessorySetupOptions,
+        callback: (Result<String>) -> Unit,
+    ) {
+        callback(
+            Result.failure(
+                createFlutterError(
+                    UniversalBleErrorCode.NOT_SUPPORTED,
+                    "AccessorySetupKit is only supported on iOS 18+",
+                )
+            )
+        )
+    }
+
     override fun connect(
         deviceId: String,
         autoConnect: Boolean?,
@@ -1263,11 +1277,14 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
 
     }
 
-    override fun unPair(deviceId: String) {
-        val remoteDevice: BluetoothDevice =
-            bluetoothManager.adapter.getRemoteDevice(deviceId)
-        if (remoteDevice.isBonded()) {
-            remoteDevice.removeBond()
+    override fun unPair(deviceId: String, callback: (Result<Unit>) -> Unit) {
+        try {
+            val remoteDevice: BluetoothDevice =
+                bluetoothManager.adapter.getRemoteDevice(deviceId)
+            if (remoteDevice.isBonded()) remoteDevice.removeBond()
+            callback(Result.success(Unit))
+        } catch (e: Exception) {
+            callback(Result.failure(e))
         }
     }
 
