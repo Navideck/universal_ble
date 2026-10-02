@@ -460,6 +460,10 @@ class UniversalBle {
   ///
   /// **Best Practices:** Design for default ATT MTU (23 bytes), treat requests as
   /// opportunistic, and implement fragmentation for larger payloads.
+  ///
+  /// **Concurrency:** Concurrent requests for the same device share a single
+  /// negotiation. Every pending call resolves to the same negotiated value,
+  /// which may differ from each caller's `expectedMtu`.
   static Future<int> requestMtu(
     String deviceId,
     int expectedMtu, {

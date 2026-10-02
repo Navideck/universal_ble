@@ -5,6 +5,7 @@
 #include <flutter/plugin_registrar_windows.h>
 
 #include <algorithm>
+#include <atomic>
 #include <functional>
 #include <list>
 #include <mutex>
@@ -58,9 +59,10 @@ private:
 
     void Notify()
     {
-        if (hwnd_ != 0)
+        const HWND window = hwnd_.load();
+        if (window != nullptr)
         {
-            PostMessage(hwnd_, kWmCallQueuedFunctions, 0, reinterpret_cast<LPARAM>(this));
+            PostMessage(window, kWmCallQueuedFunctions, 0, reinterpret_cast<LPARAM>(this));
         }
     }
 
@@ -92,7 +94,7 @@ private:
 
     flutter::PluginRegistrarWindows *registrar_;
     int windowProcId_ = 0;
-    HWND hwnd_ = 0;
+    std::atomic<HWND> hwnd_{nullptr};
     std::list<std::function<void()>> queuedFuncs_;
     std::mutex mutex_;
     bool accepting_ = true;
