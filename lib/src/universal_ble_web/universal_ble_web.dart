@@ -14,6 +14,13 @@ class UniversalBleWeb extends UniversalBlePlatform {
     _setupListeners();
   }
 
+  /// Web Bluetooth device ids are opaque, case-sensitive browser tokens (Chromium emits Base64 of a
+  /// random value), not the case-insensitive addresses the other platforms report — so they are
+  /// emitted and matched verbatim. Case-folding one would corrupt the id the caller sees and break
+  /// `_bluetoothDeviceList`, which is keyed by the browser's own `BluetoothDevice.id`.
+  @override
+  bool get hasAddressDeviceIds => false;
+
   final Map<String, BluetoothDevice> _bluetoothDeviceList = {};
   final Map<String, StreamSubscription> _deviceAdvertisementStreamList = {};
   final Map<String, StreamSubscription> _connectedDeviceStreamList = {};
