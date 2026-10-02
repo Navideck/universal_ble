@@ -384,6 +384,7 @@ private:
 
   UniversalBleUiThreadHandler ui_thread_handler_;
   AsyncOperationTracker callback_operations_;
+  AsyncOperationTracker initialization_operations_;
   Radio bluetooth_radio_{nullptr};
   RadioState old_radio_state_ = RadioState::Unknown;
   BluetoothLEAdvertisementWatcher bluetooth_le_watcher_{nullptr};
@@ -409,7 +410,7 @@ private:
   event_token device_watcher_stopped_token_;
   event_revoker<IRadio> radio_state_changed_revoker_;
 
-  fire_and_forget InitializeAsync();
+  void InitializeAsync();
   fire_and_forget ConnectAsync(uint64_t bluetooth_address,
                                uint64_t connect_generation);
   fire_and_forget RefreshGattServicesAsync(

@@ -37,7 +37,8 @@ extension BleDeviceExtension on BleDevice {
   ///
   /// **⚠️ Note:** Requesting an MTU is a *best-effort* operation. The final MTU is
   /// often controlled by the OS and remote device. Returns the negotiated MTU value,
-  /// which may differ from `expectedMtu`.
+  /// which may differ from `expectedMtu`. Concurrent requests for the same device
+  /// share a single negotiation.
   ///
   /// See [UniversalBle.requestMtu] for platform limitations and best practices.
   Future<int> requestMtu(int expectedMtu, {String? queueId}) =>

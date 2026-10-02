@@ -1,10 +1,13 @@
 ## 3.0.0
+* Android: Register MTU waiters before the native request, serialize completions onto the main looper, and fail rejected requests immediately.
+* Android: Reuse an MTU already negotiated on the current GATT connection; isolate reconnects from late callbacks.
 * **Breaking:** Add `QueueType.auto` which auto-selects the best queueing strategy per platform: Android uses a per-device queue, all other platforms run commands in parallel. It is now the default for both `UniversalBle` and `UniversalBlePeripheral`, replacing the previous `QueueType.global` default.
 * iOS/macOS: Handle write-without-response transmit buffer backpressure
 * iOS/macOS: complete concurrent reads, descriptor operations, notification changes, and RSSI reads one callback at a time.
 * Windows: retry transiently unreachable GATT service discovery during connection.
 * Web: await advertisement cleanup before connecting, bound connection setup by its timeout, and prevent cancelled setup or stale GATT discovery from affecting a later connection.
 * Preserve typed BLE error codes when wrapping an existing BLE exception.
+* Windows: fix crashes when closing the app while Bluetooth initialization is still pending.
 
 ## 2.3.0
 * Windows: support connectionless manufacturer-data advertising without a GATT service, including state/error reporting and cleanup on stop/disposal.

@@ -1,0 +1,15 @@
+---
+Language: Cpp
+BasedOnStyle: Google
+Standard: c++20
+IndentWidth: 2
+TabWidth: 2
+UseTab: Never
+ColumnLimit: 80
+BreakBeforeBraces: Attach
+PointerAlignment: Right
+DerivePointerAlignment: false
+NamespaceIndentation: None
+SortIncludes: Never
+AccessModifierOffset: -2
+AllowShortIfStatementsOnASingleLine: false
