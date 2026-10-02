@@ -5,6 +5,8 @@
 * iOS/macOS: Handle write-without-response transmit buffer backpressure
 * iOS/macOS: complete concurrent reads, descriptor operations, notification changes, and RSSI reads one callback at a time.
 * Windows: retry transiently unreachable GATT service discovery during connection.
+* Web: await advertisement cleanup before connecting, bound connection setup by its timeout, and prevent cancelled setup or stale GATT discovery from affecting a later connection.
+* Preserve typed BLE error codes when wrapping an existing BLE exception.
 * Windows: fix crashes when closing the app while Bluetooth initialization is still pending.
 
 ## 2.3.0
