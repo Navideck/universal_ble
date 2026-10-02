@@ -132,9 +132,14 @@ class UniversalBleWeb extends UniversalBlePlatform {
     // cancelled attempt's reservation has expired.
     await device.connect(timeout: null);
     if (_connectionGenerations[deviceId] != generation) {
-      // Only abort while this attempt still owns the reservation. After the
-      // grace period, a retry may own the same native device.
-      if (identical(_connectCancellations[deviceId], cancellation)) {
+      // Protect a newer pending attempt or tracked connection. Failed and
+      // cancelled retries no longer own the link, even during their grace period.
+      final owner = _connectCancellations[deviceId];
+      final newerAttemptPending = owner != null &&
+          !identical(owner, cancellation) &&
+          !owner.isCompleted;
+      if (!newerAttemptPending &&
+          !_connectedDeviceStreamList.containsKey(deviceId)) {
         device.disconnect();
       }
     }
