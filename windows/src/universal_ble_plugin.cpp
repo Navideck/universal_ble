@@ -267,6 +267,7 @@ std::optional<FlutterError> UniversalBlePlugin::StartScan(
   try {
     SetupDeviceWatcher();
     scan_results_.clear();
+    connectable_heard_.clear();
     const DeviceWatcherStatus device_watcher_status = device_watcher_.Status();
     // std::cout << "DeviceWatcherState: " <<
     // DeviceWatcherStatusToString(deviceWatcherStatus) << std::endl;
@@ -336,6 +337,7 @@ std::optional<FlutterError> UniversalBlePlugin::StopScan() {
     bluetooth_le_watcher_ = nullptr;
     DisposeDeviceWatcher();
     scan_results_.clear();
+    connectable_heard_.clear();
     return std::nullopt;
   } catch (const hresult_error &err) {
     const int error_code = err.code();
@@ -1353,8 +1355,25 @@ std::string UniversalBlePlugin::ExpandServiceUuid(
 
 // Send device to callback channel
 // if device is already discovered in deviceWatcher then merge the scan result
+//
+// A scan response is not a stray broadcast: it is the answer to the scan
+// request the host itself sent, and it belongs to a device that has just
+// advertised. A peripheral may publish part of its data there - a 128-bit
+// service UUID that no longer fits in the advertisement next to its name, for
+// instance - and Windows reports that packet with `IsConnectable == false`, so
+// this gate used to drop it. The caller then never saw the service, while
+// Android, BlueZ, CoreBluetooth and bleak all merge the two packets of a
+// device into one result.
+//
+// The gate now also admits an answered scan request for an address that has
+// already been handed over as connectable, which leaves beacons and other
+// non-connectable advertisers out.
 void UniversalBlePlugin::PushUniversalScanResult(
-    UniversalBleScanResult scan_result, const bool is_connectable) {
+    UniversalBleScanResult scan_result, const bool is_connectable,
+    const bool is_scan_response) {
+  if (is_connectable) {
+    connectable_heard_.insert_or_assign(scan_result.device_id(), true);
+  }
   const std::optional<UniversalBleScanResult> it =
       scan_results_.get(scan_result.device_id());
   if (it.has_value()) {
@@ -1407,8 +1426,13 @@ void UniversalBlePlugin::PushUniversalScanResult(
   // Update cache
   scan_results_.insert_or_assign(scan_result.device_id(), scan_result);
 
-  // Filter final result before sending to Flutter
-  if (is_connectable && filterDevice(scan_result)) {
+  // Filter final result before sending to Flutter. An answered scan request
+  // counts when the same address has advertised connectably - see the note
+  // above this method.
+  const bool answers_a_scan_request =
+      is_scan_response &&
+      connectable_heard_.get(scan_result.device_id()).value_or(false);
+  if ((is_connectable || answers_a_scan_request) && filterDevice(scan_result)) {
     const auto timestamp_microseconds = GetCurrentTimestampMicros();
     scan_result.set_timestamp(timestamp_microseconds / 1000);
     scan_result.set_timestamp_microseconds(timestamp_microseconds);
@@ -1638,7 +1662,7 @@ void UniversalBlePlugin::OnDeviceInfoReceived(
       }
     }
 
-    PushUniversalScanResult(universal_scan_result, true);
+    PushUniversalScanResult(universal_scan_result, true, false);
   }
 }
 
@@ -1779,7 +1803,8 @@ void UniversalBlePlugin::BluetoothLeWatcherReceived(
     }
 
     // Filter Device
-    PushUniversalScanResult(universal_scan_result, args.IsConnectable());
+    PushUniversalScanResult(universal_scan_result, args.IsConnectable(),
+                            args.IsScanResponse());
   } catch (...) {
     UniversalBleLogger::LogError("ScanResultErrorInParsing");
   }
@@ -2500,6 +2525,7 @@ void UniversalBlePlugin::ResetState() {
     // Dispose device watcher and caches
     DisposeDeviceWatcher();
     scan_results_.clear();
+    connectable_heard_.clear();
     device_watcher_devices_.clear();
     device_watcher_id_to_mac_.clear();
 
