@@ -54,9 +54,10 @@ bool Check(bool condition, const char *expression, int line) {
 
 }  // namespace
 
-#define CHECK(expression)                                      \
-  do {                                                         \
-    if (!Check((expression), #expression, __LINE__)) return 1; \
+#define CHECK(expression)                            \
+  do {                                               \
+    if (!Check((expression), #expression, __LINE__)) \
+      return 1;                                      \
   } while (false)
 
 int main() {
