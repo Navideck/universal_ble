@@ -989,6 +989,12 @@ UniversalBlePeripheral.mtuChangedStream.listen(
 - Windows peripheral advertising does not expose all advertising payload customization options from Android/Apple stacks.
 - iOS/macOS setup (including required `Info.plist` keys for peripheral usage) is documented in [Permissions → iOS / macOS](#ios--macos).
 
+## Device ID Format
+
+A device ID is a case-insensitive address on every native platform — a MAC on Android/Windows/Linux, a UUID on Apple — but each platform reports it in its own case (Android upper-cases MACs, Windows lower-cases them). Universal BLE canonicalises them, so **device IDs are emitted in lower-case** in scan results and in every connection, value, pairing and connection-parameter callback or stream. You may pass an ID back in any case; conversion to whatever the native side requires happens internally.
+
+Web is the exception: Web Bluetooth IDs are opaque, case-sensitive browser tokens rather than addresses, so they are emitted exactly as the browser reports them and must be compared exactly.
+
 ## UUID Format Agnostic
 
 Universal BLE is agnostic to the UUID format of services and characteristics regardless of the platform the app runs on. When passing a UUID, you can pass it in any format (long/short) or character case (upper/lower case) you want. Universal BLE will take care of necessary conversions, across all platforms, so that you don't need to worry about underlying platform differences.
