@@ -60,8 +60,9 @@ class UniversalBle {
   /// Connection stream of a device with the platform's error details.
   ///
   /// Emits the same events as [connectionStream], each carrying the native
-  /// error message and [BleConnectionUpdate.errorCode] so the app can tell a
-  /// link loss from a disconnect initiated by the peripheral.
+  /// error message, a unified [BleConnectionUpdate.errorCode] and the raw
+  /// [BleConnectionUpdate.nativeErrorCode] so the app can tell a link loss
+  /// from a disconnect initiated by the peripheral.
   static Stream<BleConnectionUpdate> connectionUpdateStream(String deviceId) =>
       _platform.connectionUpdateStream(deviceId);
 

@@ -1,3 +1,5 @@
+import 'package:universal_ble/src/universal_ble.g.dart';
+
 /// A connection state change of a device, including the platform's error
 /// details when the change was not requested by the app.
 class BleConnectionUpdate {
@@ -14,28 +16,40 @@ class BleConnectionUpdate {
   /// [errorCode] when deciding how to react.
   final String? error;
 
-  /// Platform's numeric code for the error, `null` when there is no error or
-  /// the platform does not report one.
+  /// Classification of the error, `null` when there is no error or the
+  /// platform does not report one. Connection related values:
   ///
-  /// * Apple: `CBError.Code`, e.g. `6` (`connectionTimeout`, link lost) or
-  ///   `7` (`peripheralDisconnected`, the peripheral closed the link).
-  /// * Android: the GATT `status` of `onConnectionStateChange`, e.g. `8`
-  ///   (`GATT_CONN_TIMEOUT`), `19` (remote terminated), `133`
-  ///   (`GATT_ERROR`), `147` (`GATT_CONNECTION_TIMEOUT`) or `257`
-  ///   (`GATT_FAILURE`). Which value the stack reports depends on the OS
-  ///   version and vendor.
-  /// * Windows, Linux, Web: always `null`.
-  final int? errorCode;
+  /// * [UniversalBleErrorCode.deviceDisconnected]: the peripheral closed the
+  ///   link (Apple `peripheralDisconnected`; Android HCI 0x13, `GATT_FAILURE`)
+  /// * [UniversalBleErrorCode.connectionTimeout]: link lost, supervision
+  ///   timeout (Apple `connectionTimeout`; Android HCI 0x08,
+  ///   `GATT_CONNECTION_TIMEOUT`)
+  /// * [UniversalBleErrorCode.connectionFailed]: the attempt did not succeed
+  ///   (Apple `connectionFailed`; Android HCI 0x3E, `GATT_ERROR`,
+  ///   `GATT_CONNECTION_CONGESTED`)
+  /// * [UniversalBleErrorCode.connectionLimitExceeded]: Apple
+  ///   `connectionLimitReached`
+  /// * [UniversalBleErrorCode.connectionTerminated]: Android HCI 0x16
+  /// * [UniversalBleErrorCode.unknownError]: anything else
+  ///
+  /// Windows, Linux and Web always report `null`.
+  final UniversalBleErrorCode? errorCode;
+
+  /// The raw platform value behind [errorCode]: `CBError.Code` on Apple, the
+  /// GATT `status` of `onConnectionStateChange` on Android. Kept for
+  /// diagnostics; `null` where [errorCode] is `null`.
+  final int? nativeErrorCode;
 
   const BleConnectionUpdate({
     required this.deviceId,
     required this.isConnected,
     this.error,
     this.errorCode,
+    this.nativeErrorCode,
   });
 
   @override
   String toString() =>
       'BleConnectionUpdate(deviceId: $deviceId, isConnected: $isConnected, '
-      'error: $error, errorCode: $errorCode)';
+      'error: $error, errorCode: $errorCode, nativeErrorCode: $nativeErrorCode)';
 }

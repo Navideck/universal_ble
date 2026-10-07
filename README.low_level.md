@@ -20,9 +20,9 @@ UniversalBle.onConnectionChange = (String deviceId, bool isConnected, String? er
   debugPrint('Is device $deviceId connected?: $isConnected. Error: $error');
 }
 
-// Get the platform's numeric error code as well (CBError.Code on Apple, GATT status on Android)
+// Get a unified error code (UniversalBleErrorCode) and the raw platform code as well
 UniversalBle.onConnectionUpdate = (BleConnectionUpdate update) {
-  debugPrint('${update.deviceId} connected: ${update.isConnected}, error: ${update.error}, code: ${update.errorCode}');
+  debugPrint('${update.deviceId} connected: ${update.isConnected}, code: ${update.errorCode}, native: ${update.nativeErrorCode}');
 };
 // Or per device, as a stream
 UniversalBle.connectionUpdateStream(deviceId).listen((BleConnectionUpdate update) {

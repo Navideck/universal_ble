@@ -2365,16 +2365,18 @@ class UniversalBleCallbackChannel(private val binaryMessenger: BinaryMessenger, 
     }
   }
   /**
-   * [errorCode] is the platform's native code for a failed connection or an
-   * unexpected disconnect: `CBError.Code` on Apple, the GATT `status` on
-   * Android. `null` when there is no error or the platform has no code.
+   * [errorCode] classifies a failed connection or an unexpected disconnect
+   * (`deviceDisconnected`, `connectionTimeout`, `connectionFailed`, ...),
+   * mapped on the native side from `CBError.Code` (Apple) or the GATT
+   * `status` (Android). [nativeErrorCode] is that raw platform value.
+   * Both are `null` when there is no error or the platform has no code.
    */
-  fun onConnectionChanged(deviceIdArg: String, connectedArg: Boolean, errorArg: String?, errorCodeArg: Long?, callback: (Result<Unit>) -> Unit)
+  fun onConnectionChanged(deviceIdArg: String, connectedArg: Boolean, errorArg: String?, errorCodeArg: UniversalBleErrorCode?, nativeErrorCodeArg: Long?, callback: (Result<Unit>) -> Unit)
 {
     val separatedMessageChannelSuffix = if (messageChannelSuffix.isNotEmpty()) ".$messageChannelSuffix" else ""
     val channelName = "dev.flutter.pigeon.universal_ble.UniversalBleCallbackChannel.onConnectionChanged$separatedMessageChannelSuffix"
     val channel = BasicMessageChannel<Any?>(binaryMessenger, channelName, codec)
-    channel.send(listOf(deviceIdArg, connectedArg, errorArg, errorCodeArg)) {
+    channel.send(listOf(deviceIdArg, connectedArg, errorArg, errorCodeArg, nativeErrorCodeArg)) {
       if (it is List<*>) {
         if (it.size > 1) {
           callback(Result.failure(FlutterError(it[0] as String, it[1] as String, it[2] as String?)))

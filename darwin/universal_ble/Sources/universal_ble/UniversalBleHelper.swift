@@ -151,6 +151,21 @@ extension Error {
     var nativeCode: Int64 {
         Int64((self as NSError).code)
     }
+
+    /// Classification of a connection failure / unexpected disconnect from `CBError.Code`.
+    var connectionErrorCode: UniversalBleErrorCode {
+        let nsError = self as NSError
+        guard nsError.domain == CBErrorDomain, let code = CBError.Code(rawValue: nsError.code) else {
+            return .unknownError
+        }
+        switch code {
+        case .connectionTimeout: return .connectionTimeout
+        case .peripheralDisconnected: return .deviceDisconnected
+        case .connectionFailed: return .connectionFailed
+        case .connectionLimitReached: return .connectionLimitExceeded
+        default: return .unknownError
+        }
+    }
 }
 
 public extension CBUUID {

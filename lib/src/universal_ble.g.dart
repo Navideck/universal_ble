@@ -2205,11 +2205,13 @@ abstract class UniversalBleCallbackChannel {
   void onValueChanged(String deviceId, String characteristicId, Uint8List value,
       int? timestamp);
 
-  /// [errorCode] is the platform's native code for a failed connection or an
-  /// unexpected disconnect: `CBError.Code` on Apple, the GATT `status` on
-  /// Android. `null` when there is no error or the platform has no code.
-  void onConnectionChanged(
-      String deviceId, bool connected, String? error, int? errorCode);
+  /// [errorCode] classifies a failed connection or an unexpected disconnect
+  /// (`deviceDisconnected`, `connectionTimeout`, `connectionFailed`, ...),
+  /// mapped on the native side from `CBError.Code` (Apple) or the GATT
+  /// `status` (Android). [nativeErrorCode] is that raw platform value.
+  /// Both are `null` when there is no error or the platform has no code.
+  void onConnectionChanged(String deviceId, bool connected, String? error,
+      UniversalBleErrorCode? errorCode, int? nativeErrorCode);
 
   void onConnectionParametersUpdated(BleConnectionParametersUpdated update);
 
@@ -2332,10 +2334,12 @@ abstract class UniversalBleCallbackChannel {
           final String arg_deviceId = args[0]! as String;
           final bool arg_connected = args[1]! as bool;
           final String? arg_error = args[2] as String?;
-          final int? arg_errorCode = args[3] as int?;
+          final UniversalBleErrorCode? arg_errorCode =
+              args[3] as UniversalBleErrorCode?;
+          final int? arg_nativeErrorCode = args[4] as int?;
           try {
-            api.onConnectionChanged(
-                arg_deviceId, arg_connected, arg_error, arg_errorCode);
+            api.onConnectionChanged(arg_deviceId, arg_connected, arg_error,
+                arg_errorCode, arg_nativeErrorCode);
             return wrapResponse(empty: true);
           } on PlatformException catch (e) {
             return wrapResponse(error: e);

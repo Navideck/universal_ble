@@ -8,15 +8,18 @@ class _MockPlatform extends UniversalBlePlatformMock {}
 void main() {
   const deviceId = 'AA:BB:CC:DD:EE:FF';
 
-  test('connectionUpdateStream carries error message and code', () async {
+  test('connectionUpdateStream carries message, unified code and native code',
+      () async {
     final platform = _MockPlatform();
     final event = platform.connectionUpdateStream(deviceId).first;
-    platform.updateConnection(deviceId, false, 'Connection Timeout', 8);
+    platform.updateConnection(deviceId, false, 'Connection Timeout',
+        UniversalBleErrorCode.connectionTimeout, 8);
     final update = await event;
     expect(update.deviceId, deviceId);
     expect(update.isConnected, isFalse);
     expect(update.error, 'Connection Timeout');
-    expect(update.errorCode, 8);
+    expect(update.errorCode, UniversalBleErrorCode.connectionTimeout);
+    expect(update.nativeErrorCode, 8);
   });
 
   test('connectionUpdateStream has null error fields for app-requested changes',
@@ -27,6 +30,7 @@ void main() {
     final update = await event;
     expect(update.error, isNull);
     expect(update.errorCode, isNull);
+    expect(update.nativeErrorCode, isNull);
   });
 
   test('connectionStream still emits only the bool', () async {
@@ -34,7 +38,11 @@ void main() {
     final events = platform.connectionStream(deviceId).take(2).toList();
     platform.updateConnection(deviceId, true);
     platform.updateConnection(
-        deviceId, false, 'The connection has timed out unexpectedly.', 6);
+        deviceId,
+        false,
+        'The connection has timed out unexpectedly.',
+        UniversalBleErrorCode.connectionTimeout,
+        6);
     expect(await events, [true, false]);
   });
 
@@ -43,7 +51,8 @@ void main() {
     final received = <(String, bool, String?)>[];
     platform.onConnectionChange =
         (id, connected, error) => received.add((id, connected, error));
-    platform.updateConnection(deviceId, false, 'Unknown Error 257', 257);
+    platform.updateConnection(deviceId, false, 'Unknown Error 257',
+        UniversalBleErrorCode.deviceDisconnected, 257);
     expect(received, [(deviceId, false, 'Unknown Error 257')]);
   });
 
@@ -51,8 +60,10 @@ void main() {
     final platform = _MockPlatform();
     final received = <BleConnectionUpdate>[];
     platform.onConnectionUpdate = received.add;
-    platform.updateConnection(deviceId, false, 'Connection Timeout', 8);
-    expect(received.single.errorCode, 8);
+    platform.updateConnection(deviceId, false, 'Connection Timeout',
+        UniversalBleErrorCode.connectionTimeout, 8);
+    expect(received.single.errorCode, UniversalBleErrorCode.connectionTimeout);
+    expect(received.single.nativeErrorCode, 8);
     expect(received.single.error, 'Connection Timeout');
   });
 
@@ -61,7 +72,8 @@ void main() {
       () async {
     final platform = _MockPlatform();
     final event = platform.connectionUpdateStream(deviceId).first;
-    platform.updateConnection(deviceId.toLowerCase(), false, 'x', 147);
-    expect((await event).errorCode, 147);
+    platform.updateConnection(deviceId.toLowerCase(), false, 'x',
+        UniversalBleErrorCode.connectionTimeout, 147);
+    expect((await event).nativeErrorCode, 147);
   });
 }

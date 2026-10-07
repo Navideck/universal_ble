@@ -366,6 +366,26 @@ fun Int.toGattErrorCode(): Long? {
     return if (this == BluetoothGatt.GATT_SUCCESS) null else this.toLong()
 }
 
+/// Classification of the GATT status of a connection state change.
+/// `null` for GATT_SUCCESS. Values are HCI reason codes (0x01-0x3F) or
+/// `BluetoothGatt` constants, depending on the stack.
+fun Int.toConnectionErrorCode(): UniversalBleErrorCode? {
+    return when (this) {
+        BluetoothGatt.GATT_SUCCESS -> null
+        0x08, // HCI Connection Timeout
+        0x93 -> UniversalBleErrorCode.CONNECTION_TIMEOUT // GATT_CONNECTION_TIMEOUT (147), constant is API 36+
+        0x13, // HCI Remote User Terminated Connection
+        // GATT_FAILURE is generic in AOSP, but on Pixel 9a / Android 17 it is what a
+        // peer-initiated disconnect reports (measured against a BlueZ peripheral).
+        BluetoothGatt.GATT_FAILURE -> UniversalBleErrorCode.DEVICE_DISCONNECTED
+        0x16 -> UniversalBleErrorCode.CONNECTION_TERMINATED // HCI Terminated By Local Host
+        0x3E, // HCI Connection Failed to be Established
+        0x85, // GATT_ERROR
+        BluetoothGatt.GATT_CONNECTION_CONGESTED -> UniversalBleErrorCode.CONNECTION_FAILED
+        else -> UniversalBleErrorCode.UNKNOWN_ERROR
+    }
+}
+
 fun Int.parseHciErrorCode(): String? {
     return when (this) {
         BluetoothGatt.GATT_SUCCESS -> null

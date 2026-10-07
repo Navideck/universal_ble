@@ -193,13 +193,15 @@ abstract class UniversalBlePlatform {
     String deviceId,
     bool isConnected, [
     String? error,
-    int? errorCode,
+    UniversalBleErrorCode? errorCode,
+    int? nativeErrorCode,
   ]) {
     final update = BleConnectionUpdate(
       deviceId: deviceId,
       isConnected: isConnected,
       error: error,
       errorCode: errorCode,
+      nativeErrorCode: nativeErrorCode,
     );
     bleConnectionUpdateStreamController.add(update);
 

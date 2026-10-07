@@ -293,7 +293,7 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
             if (currentState == BluetoothGatt.STATE_CONNECTED) {
                 UniversalBleLogger.logError("$deviceId Already connected")
                 mainThreadHandler?.post {
-                    callbackChannel?.onConnectionChanged(deviceId, true, null, null) {}
+                    callbackChannel?.onConnectionChanged(deviceId, true, null, null, null) {}
                 }
                 return
             } else if (currentState == BluetoothGatt.STATE_CONNECTING) {
@@ -330,7 +330,7 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
         if (gatt == null) {
             cleanUpConnection(deviceId)
             mainThreadHandler?.post {
-                callbackChannel?.onConnectionChanged(deviceId, false, null, null) {}
+                callbackChannel?.onConnectionChanged(deviceId, false, null, null, null) {}
             }
         } else {
             cleanConnection(gatt)
@@ -1525,7 +1525,7 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
                 gatt.close()
                 // A newer connect() owns this address now; its state is not ours to report.
                 if (!deviceId.isKnownGatt()) {
-                    callbackChannel?.onConnectionChanged(deviceId, false, null, null) {}
+                    callbackChannel?.onConnectionChanged(deviceId, false, null, null, null) {}
                 }
             }
         }, gattCloseTimeoutMs)
@@ -1648,7 +1648,7 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
         if (newState == BluetoothGatt.STATE_CONNECTED) {
             mainThreadHandler?.post {
                 callbackChannel?.onConnectionChanged(
-                    gatt.device.address, true, status.parseHciErrorCode(), status.toGattErrorCode()
+                    gatt.device.address, true, status.parseHciErrorCode(), status.toConnectionErrorCode(), status.toGattErrorCode()
                 ) {}
             }
         } else if (newState == BluetoothGatt.STATE_DISCONNECTED) {
@@ -1666,7 +1666,7 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
                 // Send connection changed callback
                 mainThreadHandler?.post {
                     callbackChannel?.onConnectionChanged(
-                        deviceId, false, status.parseHciErrorCode(), status.toGattErrorCode()
+                        deviceId, false, status.parseHciErrorCode(), status.toConnectionErrorCode(), status.toGattErrorCode()
                     ) {}
                 }
             }
