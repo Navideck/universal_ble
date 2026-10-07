@@ -969,14 +969,12 @@ class UniversalBle {
   static set onScanResult(OnScanResult? onScanResult) =>
       _platform.onScanResultUpdate = onScanResult;
 
-  /// Get connection state changes.
+  /// Get connection state changes of all devices as [BleConnectionUpdate],
+  /// with the platform's error message, a unified
+  /// [BleConnectionUpdate.errorCode] and the raw
+  /// [BleConnectionUpdate.nativeErrorCode].
   static set onConnectionChange(OnConnectionChange? onConnectionChange) =>
       _platform.onConnectionChange = onConnectionChange;
-
-  /// Get connection state changes with the platform's error message and
-  /// [BleConnectionUpdate.errorCode]. Fires alongside [onConnectionChange].
-  static set onConnectionUpdate(OnConnectionUpdate? onConnectionUpdate) =>
-      _platform.onConnectionUpdate = onConnectionUpdate;
 
   /// Get characteristic value updates, after calling [subscribeNotifications] or [subscribeIndications]
   static set onValueChange(OnValueChange? onValueChange) =>

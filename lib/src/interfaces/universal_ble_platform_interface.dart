@@ -9,7 +9,6 @@ abstract class UniversalBlePlatform {
   // Do not use these directly to push updates
   OnScanResult? onScanResultUpdate;
   OnConnectionChange? onConnectionChange;
-  OnConnectionUpdate? onConnectionUpdate;
   OnValueChange? onValueChange;
   OnAvailabilityChange? onAvailabilityChange;
   OnPairingStateChange? onPairingStateChange;
@@ -206,11 +205,7 @@ abstract class UniversalBlePlatform {
     bleConnectionUpdateStreamController.add(update);
 
     try {
-      onConnectionChange?.call(deviceId, isConnected, error);
-    } catch (_) {}
-
-    try {
-      onConnectionUpdate?.call(update);
+      onConnectionChange?.call(update);
     } catch (_) {}
 
     if (!isConnected) {

@@ -21,12 +21,13 @@ import org.mockito.Mockito
 internal class DisconnectCloseTest {
     private val deviceAddress = "AA:BB:CC:DD:EE:FF"
 
-    // (deviceId, connected, error) of every onConnectionChanged delivered to Dart.
+    // (deviceId, connected, error, errorCode, nativeErrorCode) of every onConnectionChanged
+    // delivered to Dart.
     private val connectionChanges = mutableListOf<List<Any?>>()
     private val callbackChannel: UniversalBleCallbackChannel =
         Mockito.mock(UniversalBleCallbackChannel::class.java) { invocation ->
             if (invocation.method.name == "onConnectionChanged") {
-                connectionChanges.add(invocation.arguments.take(3))
+                connectionChanges.add(invocation.arguments.take(5))
             }
             null
         }
@@ -81,8 +82,32 @@ internal class DisconnectCloseTest {
         )
 
         Mockito.verify(gatt).close()
-        assertEquals(listOf(listOf<Any?>(deviceAddress, false, null)), connectionChanges)
+        assertEquals(listOf(listOf<Any?>(deviceAddress, false, null, null, null)), connectionChanges)
         assertTrue(closingGatts(plugin).isEmpty())
+    }
+
+    @Test
+    fun peerDisconnectReportsUnifiedAndNativeCode() {
+        val plugin = plugin()
+        val gatt = mockGatt()
+        gatt.saveCacheIfNeeded()
+
+        plugin.onConnectionStateChange(
+            gatt, BluetoothGatt.GATT_FAILURE, BluetoothGatt.STATE_DISCONNECTED
+        )
+
+        assertEquals(
+            listOf(
+                listOf<Any?>(
+                    deviceAddress,
+                    false,
+                    "Unknown Error 257",
+                    UniversalBleErrorCode.DEVICE_DISCONNECTED,
+                    257L,
+                )
+            ),
+            connectionChanges,
+        )
     }
 
     @Test

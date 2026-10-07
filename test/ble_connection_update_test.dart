@@ -46,25 +46,17 @@ void main() {
     expect(await events, [true, false]);
   });
 
-  test('onConnectionChange keeps its three-argument signature', () async {
-    final platform = _MockPlatform();
-    final received = <(String, bool, String?)>[];
-    platform.onConnectionChange =
-        (id, connected, error) => received.add((id, connected, error));
-    platform.updateConnection(deviceId, false, 'Unknown Error 257',
-        UniversalBleErrorCode.deviceDisconnected, 257);
-    expect(received, [(deviceId, false, 'Unknown Error 257')]);
-  });
-
-  test('onConnectionUpdate receives the same update as the stream', () async {
+  test('onConnectionChange receives the same update as the stream', () async {
     final platform = _MockPlatform();
     final received = <BleConnectionUpdate>[];
-    platform.onConnectionUpdate = received.add;
-    platform.updateConnection(deviceId, false, 'Connection Timeout',
-        UniversalBleErrorCode.connectionTimeout, 8);
-    expect(received.single.errorCode, UniversalBleErrorCode.connectionTimeout);
-    expect(received.single.nativeErrorCode, 8);
-    expect(received.single.error, 'Connection Timeout');
+    platform.onConnectionChange = received.add;
+    platform.updateConnection(deviceId, false, 'Unknown Error 257',
+        UniversalBleErrorCode.deviceDisconnected, 257);
+    expect(received.single.deviceId, deviceId);
+    expect(received.single.isConnected, isFalse);
+    expect(received.single.error, 'Unknown Error 257');
+    expect(received.single.errorCode, UniversalBleErrorCode.deviceDisconnected);
+    expect(received.single.nativeErrorCode, 257);
   });
 
   test(

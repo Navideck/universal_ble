@@ -15,15 +15,12 @@ UniversalBle.connectionStream(deviceId).listen((bool isConnected) {
   debugPrint('Is device $deviceId connected?: $isConnected');
 });
 
-// Or set a handler to get updates of all devices
-UniversalBle.onConnectionChange = (String deviceId, bool isConnected, String? error) {
-  debugPrint('Is device $deviceId connected?: $isConnected. Error: $error');
-}
-
-// Get a unified error code (UniversalBleErrorCode) and the raw platform code as well
-UniversalBle.onConnectionUpdate = (BleConnectionUpdate update) {
-  debugPrint('${update.deviceId} connected: ${update.isConnected}, code: ${update.errorCode}, native: ${update.nativeErrorCode}');
+// Or set a handler to get updates of all devices, with the error message,
+// a unified error code (UniversalBleErrorCode) and the raw platform code
+UniversalBle.onConnectionChange = (BleConnectionUpdate update) {
+  debugPrint('${update.deviceId} connected: ${update.isConnected}, error: ${update.error}, code: ${update.errorCode}, native: ${update.nativeErrorCode}');
 };
+
 // Or per device, as a stream
 UniversalBle.connectionUpdateStream(deviceId).listen((BleConnectionUpdate update) {
   debugPrint('Connected: ${update.isConnected}, code: ${update.errorCode}');

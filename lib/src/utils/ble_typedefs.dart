@@ -4,10 +4,7 @@ import 'package:universal_ble/universal_ble.dart';
 
 /// Central mode callbacks
 ///
-typedef OnConnectionChange =
-    void Function(String deviceId, bool isConnected, String? error);
-
-typedef OnConnectionUpdate = void Function(BleConnectionUpdate update);
+typedef OnConnectionChange = void Function(BleConnectionUpdate update);
 
 typedef OnValueChange =
     void Function(

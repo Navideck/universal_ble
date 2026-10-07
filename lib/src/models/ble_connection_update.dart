@@ -36,8 +36,10 @@ class BleConnectionUpdate {
   final UniversalBleErrorCode? errorCode;
 
   /// The raw platform value behind [errorCode]: `CBError.Code` on Apple, the
-  /// GATT `status` of `onConnectionStateChange` on Android. Kept for
-  /// diagnostics; `null` where [errorCode] is `null`.
+  /// GATT `status` of `onConnectionStateChange` on Android. The numeric
+  /// ranges overlap across platforms (6 is `connectionTimeout` on Apple and
+  /// an HCI reason on Android), so branch on [errorCode] and keep this for
+  /// diagnostics. `null` where [errorCode] is `null`.
   final int? nativeErrorCode;
 
   const BleConnectionUpdate({
