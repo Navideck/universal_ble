@@ -96,16 +96,19 @@ extension BleDeviceExtension on BleDevice {
   /// Discovers the services offered by the device.
   ///
   /// Returns cached services if already discovered after connection.
+  /// [platformConfig]: platform-specific options, e.g. Android's `clearGattCache`.
   Future<List<BleService>> discoverServices({
     Duration? timeout,
     bool withDescriptors = false,
     String? queueId,
+    DiscoverServicesPlatformConfig? platformConfig,
   }) async {
     List<BleService> servicesCache = await UniversalBle.discoverServices(
       deviceId,
       withDescriptors: withDescriptors,
       timeout: timeout,
       queueId: queueId,
+      platformConfig: platformConfig,
     );
     CacheHandler.instance.saveServices(deviceId, servicesCache);
     return servicesCache;

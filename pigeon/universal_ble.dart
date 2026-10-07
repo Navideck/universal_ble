@@ -313,6 +313,25 @@ class ConnectionPlatformConfig {
   ConnectionPlatformConfig({this.apple, this.android});
 }
 
+class AndroidDiscoverServicesOptions {
+  /// Clear the OS-level GATT cache of the connection (`BluetoothGatt.refresh()`)
+  /// before discovering, so a peripheral whose GATT layout changed while it
+  /// was disconnected is read again instead of served from the cache.
+  ///
+  /// `refresh()` is a hidden API invoked by reflection; discovery fails when
+  /// it is unavailable or returns `false`.
+  bool? clearGattCache;
+
+  AndroidDiscoverServicesOptions({this.clearGattCache});
+}
+
+/// Platform-specific options for `discoverServices`. Ignored on platforms
+/// that have no equivalent.
+class DiscoverServicesPlatformConfig {
+  AndroidDiscoverServicesOptions? android;
+  DiscoverServicesPlatformConfig({this.android});
+}
+
 class PeripheralAndroidOptions {
   bool? addManufacturerDataInScanResponse;
 
@@ -425,6 +444,7 @@ abstract class UniversalBlePlatformChannel {
   List<UniversalBleService> discoverServices(
     String deviceId,
     bool withDescriptors,
+    DiscoverServicesPlatformConfig? platformConfig,
   );
 
   @async

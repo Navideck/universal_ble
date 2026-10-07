@@ -1438,6 +1438,122 @@ size_t PigeonInternalDeepHash(const ConnectionPlatformConfig& v) {
   return v.Hash();
 }
 
+// AndroidDiscoverServicesOptions
+
+AndroidDiscoverServicesOptions::AndroidDiscoverServicesOptions() {}
+
+AndroidDiscoverServicesOptions::AndroidDiscoverServicesOptions(const bool* clear_gatt_cache)
+ : clear_gatt_cache_(clear_gatt_cache ? std::optional<bool>(*clear_gatt_cache) : std::nullopt) {}
+
+const bool* AndroidDiscoverServicesOptions::clear_gatt_cache() const {
+  return clear_gatt_cache_ ? &(*clear_gatt_cache_) : nullptr;
+}
+
+void AndroidDiscoverServicesOptions::set_clear_gatt_cache(const bool* value_arg) {
+  clear_gatt_cache_ = value_arg ? std::optional<bool>(*value_arg) : std::nullopt;
+}
+
+void AndroidDiscoverServicesOptions::set_clear_gatt_cache(bool value_arg) {
+  clear_gatt_cache_ = value_arg;
+}
+
+
+EncodableList AndroidDiscoverServicesOptions::ToEncodableList() const {
+  EncodableList list;
+  list.reserve(1);
+  list.push_back(clear_gatt_cache_ ? EncodableValue(*clear_gatt_cache_) : EncodableValue());
+  return list;
+}
+
+AndroidDiscoverServicesOptions AndroidDiscoverServicesOptions::FromEncodableList(const EncodableList& list) {
+  AndroidDiscoverServicesOptions decoded;
+  auto& encodable_clear_gatt_cache = list[0];
+  if (!encodable_clear_gatt_cache.IsNull()) {
+    decoded.set_clear_gatt_cache(std::get<bool>(encodable_clear_gatt_cache));
+  }
+  return decoded;
+}
+
+bool AndroidDiscoverServicesOptions::operator==(const AndroidDiscoverServicesOptions& other) const {
+  return PigeonInternalDeepEquals(clear_gatt_cache_, other.clear_gatt_cache_);
+}
+
+bool AndroidDiscoverServicesOptions::operator!=(const AndroidDiscoverServicesOptions& other) const {
+  return !(*this == other);
+}
+
+size_t AndroidDiscoverServicesOptions::Hash() const {
+  size_t result = 1;
+  result = result * 31 + PigeonInternalDeepHash(clear_gatt_cache_);
+  return result;
+}
+
+size_t PigeonInternalDeepHash(const AndroidDiscoverServicesOptions& v) {
+  return v.Hash();
+}
+
+// DiscoverServicesPlatformConfig
+
+DiscoverServicesPlatformConfig::DiscoverServicesPlatformConfig() {}
+
+DiscoverServicesPlatformConfig::DiscoverServicesPlatformConfig(const AndroidDiscoverServicesOptions* android)
+ : android_(android ? std::make_unique<AndroidDiscoverServicesOptions>(*android) : nullptr) {}
+
+DiscoverServicesPlatformConfig::DiscoverServicesPlatformConfig(const DiscoverServicesPlatformConfig& other)
+ : android_(other.android_ ? std::make_unique<AndroidDiscoverServicesOptions>(*other.android_) : nullptr) {}
+
+DiscoverServicesPlatformConfig& DiscoverServicesPlatformConfig::operator=(const DiscoverServicesPlatformConfig& other) {
+  android_ = other.android_ ? std::make_unique<AndroidDiscoverServicesOptions>(*other.android_) : nullptr;
+  return *this;
+}
+
+const AndroidDiscoverServicesOptions* DiscoverServicesPlatformConfig::android() const {
+  return android_.get();
+}
+
+void DiscoverServicesPlatformConfig::set_android(const AndroidDiscoverServicesOptions* value_arg) {
+  android_ = value_arg ? std::make_unique<AndroidDiscoverServicesOptions>(*value_arg) : nullptr;
+}
+
+void DiscoverServicesPlatformConfig::set_android(const AndroidDiscoverServicesOptions& value_arg) {
+  android_ = std::make_unique<AndroidDiscoverServicesOptions>(value_arg);
+}
+
+
+EncodableList DiscoverServicesPlatformConfig::ToEncodableList() const {
+  EncodableList list;
+  list.reserve(1);
+  list.push_back(android_ ? CustomEncodableValue(*android_) : EncodableValue());
+  return list;
+}
+
+DiscoverServicesPlatformConfig DiscoverServicesPlatformConfig::FromEncodableList(const EncodableList& list) {
+  DiscoverServicesPlatformConfig decoded;
+  auto& encodable_android = list[0];
+  if (!encodable_android.IsNull()) {
+    decoded.set_android(std::any_cast<const AndroidDiscoverServicesOptions&>(std::get<CustomEncodableValue>(encodable_android)));
+  }
+  return decoded;
+}
+
+bool DiscoverServicesPlatformConfig::operator==(const DiscoverServicesPlatformConfig& other) const {
+  return PigeonInternalDeepEquals(android_, other.android_);
+}
+
+bool DiscoverServicesPlatformConfig::operator!=(const DiscoverServicesPlatformConfig& other) const {
+  return !(*this == other);
+}
+
+size_t DiscoverServicesPlatformConfig::Hash() const {
+  size_t result = 1;
+  result = result * 31 + PigeonInternalDeepHash(android_);
+  return result;
+}
+
+size_t PigeonInternalDeepHash(const DiscoverServicesPlatformConfig& v) {
+  return v.Hash();
+}
+
 // PeripheralAndroidOptions
 
 PeripheralAndroidOptions::PeripheralAndroidOptions() {}
@@ -2175,24 +2291,30 @@ EncodableValue PigeonInternalCodecSerializer::ReadValueOfType(
         return CustomEncodableValue(ConnectionPlatformConfig::FromEncodableList(std::get<EncodableList>(ReadValue(stream))));
       }
     case 157: {
-        return CustomEncodableValue(PeripheralAndroidOptions::FromEncodableList(std::get<EncodableList>(ReadValue(stream))));
+        return CustomEncodableValue(AndroidDiscoverServicesOptions::FromEncodableList(std::get<EncodableList>(ReadValue(stream))));
       }
     case 158: {
-        return CustomEncodableValue(PeripheralPlatformConfig::FromEncodableList(std::get<EncodableList>(ReadValue(stream))));
+        return CustomEncodableValue(DiscoverServicesPlatformConfig::FromEncodableList(std::get<EncodableList>(ReadValue(stream))));
       }
     case 159: {
-        return CustomEncodableValue(PeripheralService::FromEncodableList(std::get<EncodableList>(ReadValue(stream))));
+        return CustomEncodableValue(PeripheralAndroidOptions::FromEncodableList(std::get<EncodableList>(ReadValue(stream))));
       }
     case 160: {
-        return CustomEncodableValue(PeripheralCharacteristic::FromEncodableList(std::get<EncodableList>(ReadValue(stream))));
+        return CustomEncodableValue(PeripheralPlatformConfig::FromEncodableList(std::get<EncodableList>(ReadValue(stream))));
       }
     case 161: {
-        return CustomEncodableValue(PeripheralDescriptor::FromEncodableList(std::get<EncodableList>(ReadValue(stream))));
+        return CustomEncodableValue(PeripheralService::FromEncodableList(std::get<EncodableList>(ReadValue(stream))));
       }
     case 162: {
-        return CustomEncodableValue(PeripheralReadRequestResult::FromEncodableList(std::get<EncodableList>(ReadValue(stream))));
+        return CustomEncodableValue(PeripheralCharacteristic::FromEncodableList(std::get<EncodableList>(ReadValue(stream))));
       }
     case 163: {
+        return CustomEncodableValue(PeripheralDescriptor::FromEncodableList(std::get<EncodableList>(ReadValue(stream))));
+      }
+    case 164: {
+        return CustomEncodableValue(PeripheralReadRequestResult::FromEncodableList(std::get<EncodableList>(ReadValue(stream))));
+      }
+    case 165: {
         return CustomEncodableValue(PeripheralWriteRequestResult::FromEncodableList(std::get<EncodableList>(ReadValue(stream))));
       }
     default:
@@ -2344,38 +2466,48 @@ void PigeonInternalCodecSerializer::WriteValue(
       WriteValue(EncodableValue(std::any_cast<ConnectionPlatformConfig>(*custom_value).ToEncodableList()), stream);
       return;
     }
-    if (custom_value->type() == typeid(PeripheralAndroidOptions)) {
+    if (custom_value->type() == typeid(AndroidDiscoverServicesOptions)) {
       stream->WriteByte(157);
+      WriteValue(EncodableValue(std::any_cast<AndroidDiscoverServicesOptions>(*custom_value).ToEncodableList()), stream);
+      return;
+    }
+    if (custom_value->type() == typeid(DiscoverServicesPlatformConfig)) {
+      stream->WriteByte(158);
+      WriteValue(EncodableValue(std::any_cast<DiscoverServicesPlatformConfig>(*custom_value).ToEncodableList()), stream);
+      return;
+    }
+    if (custom_value->type() == typeid(PeripheralAndroidOptions)) {
+      stream->WriteByte(159);
       WriteValue(EncodableValue(std::any_cast<PeripheralAndroidOptions>(*custom_value).ToEncodableList()), stream);
       return;
     }
     if (custom_value->type() == typeid(PeripheralPlatformConfig)) {
-      stream->WriteByte(158);
+      stream->WriteByte(160);
       WriteValue(EncodableValue(std::any_cast<PeripheralPlatformConfig>(*custom_value).ToEncodableList()), stream);
       return;
     }
     if (custom_value->type() == typeid(PeripheralService)) {
-      stream->WriteByte(159);
+      stream->WriteByte(161);
       WriteValue(EncodableValue(std::any_cast<PeripheralService>(*custom_value).ToEncodableList()), stream);
       return;
     }
     if (custom_value->type() == typeid(PeripheralCharacteristic)) {
-      stream->WriteByte(160);
+      stream->WriteByte(162);
       WriteValue(EncodableValue(std::any_cast<PeripheralCharacteristic>(*custom_value).ToEncodableList()), stream);
       return;
     }
     if (custom_value->type() == typeid(PeripheralDescriptor)) {
-      stream->WriteByte(161);
+      stream->WriteByte(163);
       WriteValue(EncodableValue(std::any_cast<PeripheralDescriptor>(*custom_value).ToEncodableList()), stream);
       return;
     }
     if (custom_value->type() == typeid(PeripheralReadRequestResult)) {
-      stream->WriteByte(162);
+      stream->WriteByte(164);
       WriteValue(EncodableValue(std::any_cast<PeripheralReadRequestResult>(*custom_value).ToEncodableList()), stream);
       return;
     }
     if (custom_value->type() == typeid(PeripheralWriteRequestResult)) {
-      stream->WriteByte(163);
+      stream->WriteByte(165);
       WriteValue(EncodableValue(std::any_cast<PeripheralWriteRequestResult>(*custom_value).ToEncodableList()), stream);
       return;
     }
@@ -2716,7 +2848,9 @@ void UniversalBlePlatformChannel::SetUp(
             return;
           }
           const auto& with_descriptors_arg = std::get<bool>(encodable_with_descriptors_arg);
-          api->DiscoverServices(device_id_arg, with_descriptors_arg, [reply](ErrorOr<EncodableList>&& output) {
+          const auto& encodable_platform_config_arg = args.at(2);
+          const auto* platform_config_arg = encodable_platform_config_arg.IsNull() ? nullptr : &(std::any_cast<const DiscoverServicesPlatformConfig&>(std::get<CustomEncodableValue>(encodable_platform_config_arg)));
+          api->DiscoverServices(device_id_arg, with_descriptors_arg, platform_config_arg, [reply](ErrorOr<EncodableList>&& output) {
             if (output.has_error()) {
               reply(WrapError(output.error()));
               return;
