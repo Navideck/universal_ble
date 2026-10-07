@@ -70,8 +70,9 @@ abstract class UniversalBlePlatform {
 
   Future<List<BleService>> discoverServices(
     String deviceId,
-    bool withDescriptors,
-  );
+    bool withDescriptors, {
+    DiscoverServicesPlatformConfig? platformConfig,
+  });
 
   Future<void> setNotifiable(
     String deviceId,

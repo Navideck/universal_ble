@@ -1,4 +1,5 @@
 ## 3.0.0
+* Add `platformConfig` to `discoverServices()`; `AndroidDiscoverServicesOptions(clearGattCache: true)` clears Android's GATT cache (`BluetoothGatt.refresh()`) before discovery. Ignored on other platforms.
 * Android: Register MTU waiters before the native request, serialize completions onto the main looper, and fail rejected requests immediately.
 * Android: Reuse an MTU already negotiated on the current GATT connection; isolate reconnects from late callbacks.
 * **Breaking:** Add `QueueType.auto` which auto-selects the best queueing strategy per platform: Android uses a per-device queue, all other platforms run commands in parallel. It is now the default for both `UniversalBle` and `UniversalBlePeripheral`, replacing the previous `QueueType.global` default.

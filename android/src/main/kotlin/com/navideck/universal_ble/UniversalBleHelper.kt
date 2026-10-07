@@ -1,5 +1,6 @@
 package com.navideck.universal_ble
 
+import android.annotation.SuppressLint
 import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothDevice
 import android.bluetooth.BluetoothGatt
@@ -383,6 +384,22 @@ fun Int.toConnectionErrorCode(): UniversalBleErrorCode? {
         0x85, // GATT_ERROR
         BluetoothGatt.GATT_CONNECTION_CONGESTED -> UniversalBleErrorCode.CONNECTION_FAILED
         else -> UniversalBleErrorCode.UNKNOWN_ERROR
+    }
+}
+
+/// Clears the OS-level GATT cache of this connection through the hidden
+/// `BluetoothGatt.refresh()`. Returns `false` when the method is unavailable,
+/// throws, or reports failure.
+@SuppressLint("DiscouragedPrivateApi")
+fun BluetoothGatt.refreshGattCache(): Boolean {
+    return try {
+        val refresh = javaClass.getMethod("refresh")
+        val cleared = refresh.invoke(this) as? Boolean ?: false
+        UniversalBleLogger.logDebug("BluetoothGatt.refresh() -> $cleared")
+        cleared
+    } catch (e: Exception) {
+        UniversalBleLogger.logError("BluetoothGatt.refresh() failed: $e")
+        false
     }
 }
 

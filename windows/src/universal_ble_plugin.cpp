@@ -457,7 +457,9 @@ std::optional<FlutterError> UniversalBlePlugin::Disconnect(
 
 void UniversalBlePlugin::DiscoverServices(
     const std::string &device_id, bool with_descriptors,
+    const DiscoverServicesPlatformConfig * /*platform_config*/,
     std::function<void(ErrorOr<flutter::EncodableList> reply)> result) {
+  // No GATT cache control on WinRT; platform_config is ignored.
   DiscoverServicesAsync(device_id, with_descriptors, result);
 }
 

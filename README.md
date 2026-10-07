@@ -339,6 +339,16 @@ for (var service in services) {
 }
 ```
 
+Android keeps its own GATT cache across connections. If the peripheral's GATT layout changed while it was disconnected (typical during firmware development) and it does not send a Service Changed indication, discovery keeps returning the old layout. Pass `AndroidDiscoverServicesOptions(clearGattCache: true)` to drop that cache (`BluetoothGatt.refresh()`) right before discovering. The option is ignored on other platforms, where the OS cache is only invalidated by Service Changed.
+
+```dart
+List<BleService> services = await bleDevice.discoverServices(
+  platformConfig: DiscoverServicesPlatformConfig(
+    android: AndroidDiscoverServicesOptions(clearGattCache: true),
+  ),
+);
+```
+
 #### GetService
 
 Retrieves a specific service. Returns a `Future<BleService>`.

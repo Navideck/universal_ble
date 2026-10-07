@@ -425,10 +425,22 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
     override fun discoverServices(
         deviceId: String,
         withDescriptors: Boolean,
+        platformConfig: DiscoverServicesPlatformConfig?,
         callback: (Result<List<UniversalBleService>>) -> Unit,
     ) {
         try {
             val gatt = deviceId.toBluetoothGatt()
+            if (platformConfig?.android?.clearGattCache == true && !gatt.refreshGattCache()) {
+                callback(
+                    Result.failure(
+                        createFlutterError(
+                            UniversalBleErrorCode.FAILED,
+                            "Failed to clear GATT cache"
+                        )
+                    )
+                )
+                return
+            }
             if (gatt.discoverServices()) {
                 discoverServicesFutureList.add(
                     DiscoverServicesFuture(

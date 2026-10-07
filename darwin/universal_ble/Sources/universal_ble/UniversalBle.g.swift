@@ -982,6 +982,77 @@ struct ConnectionPlatformConfig: Hashable {
 }
 
 /// Generated class from Pigeon that represents data sent in messages.
+struct AndroidDiscoverServicesOptions: Hashable {
+  /// Clear the OS-level GATT cache of the connection (`BluetoothGatt.refresh()`)
+  /// before discovering, so a peripheral whose GATT layout changed while it
+  /// was disconnected is read again instead of served from the cache.
+  ///
+  /// `refresh()` is a hidden API invoked by reflection; discovery fails when
+  /// it is unavailable or returns `false`.
+  var clearGattCache: Bool? = nil
+
+
+  // swift-format-ignore: AlwaysUseLowerCamelCase
+  static func fromList(_ pigeonVar_list: [Any?]) -> AndroidDiscoverServicesOptions? {
+    let clearGattCache: Bool? = nilOrValue(pigeonVar_list[0])
+
+    return AndroidDiscoverServicesOptions(
+      clearGattCache: clearGattCache
+    )
+  }
+  func toList() -> [Any?] {
+    return [
+      clearGattCache
+    ]
+  }
+  static func == (lhs: AndroidDiscoverServicesOptions, rhs: AndroidDiscoverServicesOptions) -> Bool {
+    if Swift.type(of: lhs) != Swift.type(of: rhs) {
+      return false
+    }
+    return deepEqualsUniversalBle(lhs.clearGattCache, rhs.clearGattCache)
+  }
+
+  func hash(into hasher: inout Hasher) {
+    hasher.combine("AndroidDiscoverServicesOptions")
+    deepHashUniversalBle(value: clearGattCache, hasher: &hasher)
+  }
+}
+
+/// Platform-specific options for `discoverServices`. Ignored on platforms
+/// that have no equivalent.
+///
+/// Generated class from Pigeon that represents data sent in messages.
+struct DiscoverServicesPlatformConfig: Hashable {
+  var android: AndroidDiscoverServicesOptions? = nil
+
+
+  // swift-format-ignore: AlwaysUseLowerCamelCase
+  static func fromList(_ pigeonVar_list: [Any?]) -> DiscoverServicesPlatformConfig? {
+    let android: AndroidDiscoverServicesOptions? = nilOrValue(pigeonVar_list[0])
+
+    return DiscoverServicesPlatformConfig(
+      android: android
+    )
+  }
+  func toList() -> [Any?] {
+    return [
+      android
+    ]
+  }
+  static func == (lhs: DiscoverServicesPlatformConfig, rhs: DiscoverServicesPlatformConfig) -> Bool {
+    if Swift.type(of: lhs) != Swift.type(of: rhs) {
+      return false
+    }
+    return deepEqualsUniversalBle(lhs.android, rhs.android)
+  }
+
+  func hash(into hasher: inout Hasher) {
+    hasher.combine("DiscoverServicesPlatformConfig")
+    deepHashUniversalBle(value: android, hasher: &hasher)
+  }
+}
+
+/// Generated class from Pigeon that represents data sent in messages.
 struct PeripheralAndroidOptions: Hashable {
   var addManufacturerDataInScanResponse: Bool? = nil
   /// Put advertised service UUIDs in the scan response instead of the primary
@@ -1391,18 +1462,22 @@ private class UniversalBlePigeonCodecReader: FlutterStandardReader {
     case 156:
       return ConnectionPlatformConfig.fromList(self.readValue() as! [Any?])
     case 157:
-      return PeripheralAndroidOptions.fromList(self.readValue() as! [Any?])
+      return AndroidDiscoverServicesOptions.fromList(self.readValue() as! [Any?])
     case 158:
-      return PeripheralPlatformConfig.fromList(self.readValue() as! [Any?])
+      return DiscoverServicesPlatformConfig.fromList(self.readValue() as! [Any?])
     case 159:
-      return PeripheralService.fromList(self.readValue() as! [Any?])
+      return PeripheralAndroidOptions.fromList(self.readValue() as! [Any?])
     case 160:
-      return PeripheralCharacteristic.fromList(self.readValue() as! [Any?])
+      return PeripheralPlatformConfig.fromList(self.readValue() as! [Any?])
     case 161:
-      return PeripheralDescriptor.fromList(self.readValue() as! [Any?])
+      return PeripheralService.fromList(self.readValue() as! [Any?])
     case 162:
-      return PeripheralReadRequestResult.fromList(self.readValue() as! [Any?])
+      return PeripheralCharacteristic.fromList(self.readValue() as! [Any?])
     case 163:
+      return PeripheralDescriptor.fromList(self.readValue() as! [Any?])
+    case 164:
+      return PeripheralReadRequestResult.fromList(self.readValue() as! [Any?])
+    case 165:
       return PeripheralWriteRequestResult.fromList(self.readValue() as! [Any?])
     default:
       return super.readValue(ofType: type)
@@ -1496,26 +1571,32 @@ private class UniversalBlePigeonCodecWriter: FlutterStandardWriter {
     } else if let value = value as? ConnectionPlatformConfig {
       super.writeByte(156)
       super.writeValue(value.toList())
-    } else if let value = value as? PeripheralAndroidOptions {
+    } else if let value = value as? AndroidDiscoverServicesOptions {
       super.writeByte(157)
       super.writeValue(value.toList())
-    } else if let value = value as? PeripheralPlatformConfig {
+    } else if let value = value as? DiscoverServicesPlatformConfig {
       super.writeByte(158)
       super.writeValue(value.toList())
-    } else if let value = value as? PeripheralService {
+    } else if let value = value as? PeripheralAndroidOptions {
       super.writeByte(159)
       super.writeValue(value.toList())
-    } else if let value = value as? PeripheralCharacteristic {
+    } else if let value = value as? PeripheralPlatformConfig {
       super.writeByte(160)
       super.writeValue(value.toList())
-    } else if let value = value as? PeripheralDescriptor {
+    } else if let value = value as? PeripheralService {
       super.writeByte(161)
       super.writeValue(value.toList())
-    } else if let value = value as? PeripheralReadRequestResult {
+    } else if let value = value as? PeripheralCharacteristic {
       super.writeByte(162)
       super.writeValue(value.toList())
-    } else if let value = value as? PeripheralWriteRequestResult {
+    } else if let value = value as? PeripheralDescriptor {
       super.writeByte(163)
+      super.writeValue(value.toList())
+    } else if let value = value as? PeripheralReadRequestResult {
+      super.writeByte(164)
+      super.writeValue(value.toList())
+    } else if let value = value as? PeripheralWriteRequestResult {
+      super.writeByte(165)
       super.writeValue(value.toList())
     } else {
       super.writeValue(value)
@@ -1555,7 +1636,7 @@ protocol UniversalBlePlatformChannel {
   func connect(deviceId: String, autoConnect: Bool?, platformConfig: ConnectionPlatformConfig?) throws
   func disconnect(deviceId: String) throws
   func setNotifiable(deviceId: String, service: String, characteristic: String, bleInputProperty: BleInputProperty, completion: @escaping (Result<Void, Error>) -> Void)
-  func discoverServices(deviceId: String, withDescriptors: Bool, completion: @escaping (Result<[UniversalBleService], Error>) -> Void)
+  func discoverServices(deviceId: String, withDescriptors: Bool, platformConfig: DiscoverServicesPlatformConfig?, completion: @escaping (Result<[UniversalBleService], Error>) -> Void)
   func readValue(deviceId: String, service: String, characteristic: String, completion: @escaping (Result<FlutterStandardTypedData, Error>) -> Void)
   func readDescriptorValue(deviceId: String, service: String, characteristic: String, descriptor: String, completion: @escaping (Result<FlutterStandardTypedData, Error>) -> Void)
   func requestMtu(deviceId: String, expectedMtu: Int64, completion: @escaping (Result<Int64, Error>) -> Void)
@@ -1754,7 +1835,8 @@ class UniversalBlePlatformChannelSetup {
         let args = message as! [Any?]
         let deviceIdArg = args[0] as! String
         let withDescriptorsArg = args[1] as! Bool
-        api.discoverServices(deviceId: deviceIdArg, withDescriptors: withDescriptorsArg) { result in
+        let platformConfigArg: DiscoverServicesPlatformConfig? = nilOrValue(args[2])
+        api.discoverServices(deviceId: deviceIdArg, withDescriptors: withDescriptorsArg, platformConfig: platformConfigArg) { result in
           switch result {
           case .success(let res):
             reply(wrapResult(res))

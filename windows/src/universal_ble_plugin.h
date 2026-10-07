@@ -555,6 +555,7 @@ private:
       std::function<void(std::optional<FlutterError> reply)> result) override;
   void DiscoverServices(
       const std::string &device_id, bool with_descriptors,
+      const DiscoverServicesPlatformConfig *platform_config,
       std::function<void(ErrorOr<flutter::EncodableList> reply)> result)
       override;
   void SetNotifiable(
