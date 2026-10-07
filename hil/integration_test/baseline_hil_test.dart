@@ -371,11 +371,12 @@ void main() {
           (connected) => !connected,
         );
         final callbackEvent = Completer<bool>();
-        UniversalBle.onConnectionChange = (deviceId, connected, error) {
-          if (deviceId.toLowerCase() == peripheral.deviceId.toLowerCase() &&
-              !connected &&
+        UniversalBle.onConnectionChange = (update) {
+          if (update.deviceId.toLowerCase() ==
+                  peripheral.deviceId.toLowerCase() &&
+              !update.isConnected &&
               !callbackEvent.isCompleted) {
-            callbackEvent.complete(connected);
+            callbackEvent.complete(update.isConnected);
           }
         };
 
