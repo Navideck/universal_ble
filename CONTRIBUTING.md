@@ -57,6 +57,7 @@ That runs `dart run pigeon --input pigeon/universal_ble.dart` and formats `lib/s
 
 - **Dart:** Follow effective Dart style, existing naming in `lib/`, and analyzer rules. Prefer extending existing patterns (platform interface → pigeon channel → native implementations) over new parallel abstractions unless discussed first.
 - **Native:** Match the style and structure of the surrounding file on each platform (Kotlin, Swift, C++). When a Pigeon API changes, update every generated implementation and any hand-written glue so all targets stay consistent.
+- **C++:** Format with the committed [.clang-format](.clang-format) rather than matching whitespace by eye. It follows the newer Windows layer style (`windows/src/universal_ble_plugin.*`), most notably `PointerAlignment: Right` (`std::string &id`, not `std::string& id`) and `NamespaceIndentation: None` (`namespace universal_ble {` at column 0, body not indented). Generated Pigeon output under `windows/src/generated/**` is excluded via [.clang-format-ignore](.clang-format-ignore). To keep a PR reviewable, format only your own changes with `git clang-format origin/main` instead of reformatting whole files.
 - **Tests:** Add or extend tests under `test/` when behavior is non-trivial or regression-prone. Use `flutter_test` like the existing suite.
 - **Example:** If the change affects how integrators use the plugin, consider updating the `example/` app so it stays a working reference.
 

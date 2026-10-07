@@ -9,17 +9,16 @@
 #include <winrt/Windows.Foundation.Collections.h>
 #include <winrt/Windows.Storage.Streams.h>
 
-namespace universal_ble
-{
-    using namespace winrt;
-    using namespace winrt::Windows;
-    using namespace winrt::Windows::Devices;
-    using namespace winrt::Windows::Foundation;
-    using namespace winrt::Windows::Foundation::Collections;
-    using namespace winrt::Windows::Storage::Streams;
-    using namespace winrt::Windows::Devices::Radios;
-    using namespace winrt::Windows::Devices::Bluetooth;
-    using namespace winrt::Windows::Devices::Bluetooth::Advertisement;
-    using namespace winrt::Windows::Devices::Bluetooth::GenericAttributeProfile;
-    using namespace Windows::Devices::Enumeration;
-}
+namespace universal_ble {
+using namespace winrt;
+using namespace winrt::Windows;
+using namespace winrt::Windows::Devices;
+using namespace winrt::Windows::Foundation;
+using namespace winrt::Windows::Foundation::Collections;
+using namespace winrt::Windows::Storage::Streams;
+using namespace winrt::Windows::Devices::Radios;
+using namespace winrt::Windows::Devices::Bluetooth;
+using namespace winrt::Windows::Devices::Bluetooth::Advertisement;
+using namespace winrt::Windows::Devices::Bluetooth::GenericAttributeProfile;
+using namespace Windows::Devices::Enumeration;
+}  // namespace universal_ble
