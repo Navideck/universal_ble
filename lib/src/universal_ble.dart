@@ -243,14 +243,22 @@ class UniversalBle {
 
   /// Discover services of a device.
   /// Set [withDescriptors] to `true` to discover characteristics with descriptors.
+  /// [platformConfig] carries platform-specific options, e.g.
+  /// `AndroidDiscoverServicesOptions(clearGattCache: true)` to drop Android's
+  /// GATT cache before discovering. Ignored where not applicable.
   static Future<List<BleService>> discoverServices(
     String deviceId, {
     bool withDescriptors = false,
     Duration? timeout,
     String? queueId,
+    DiscoverServicesPlatformConfig? platformConfig,
   }) async {
     return await _bleCommandQueue.queueCommand(
-      () => _platform.discoverServices(deviceId, withDescriptors),
+      () => _platform.discoverServices(
+        deviceId,
+        withDescriptors,
+        platformConfig: platformConfig,
+      ),
       timeout: timeout,
       deviceId: deviceId,
       queueId: queueId,

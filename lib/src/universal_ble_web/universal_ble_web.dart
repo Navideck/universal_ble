@@ -200,8 +200,10 @@ class UniversalBleWeb extends UniversalBlePlatform {
   @override
   Future<List<BleService>> discoverServices(
     String deviceId,
-    bool withDescriptors,
-  ) async {
+    bool withDescriptors, {
+    DiscoverServicesPlatformConfig? platformConfig,
+  }) async {
+    // platformConfig has no equivalent on this platform
     final generation = _connectionGenerations[deviceId] ?? 0;
     List<BleService> services = [];
     for (var service in await _getServices(deviceId)) {

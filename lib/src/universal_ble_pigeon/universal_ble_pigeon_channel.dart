@@ -85,11 +85,16 @@ class UniversalBlePigeonChannel extends UniversalBlePlatform
   @override
   Future<List<BleService>> discoverServices(
     String deviceId,
-    bool withDescriptors,
-  ) async {
+    bool withDescriptors, {
+    DiscoverServicesPlatformConfig? platformConfig,
+  }) async {
     List<UniversalBleService?> universalBleServices =
         await _executeWithErrorHandling(
-      () => _channel.discoverServices(deviceId, withDescriptors),
+      () => _channel.discoverServices(
+        deviceId,
+        withDescriptors,
+        platformConfig,
+      ),
     );
     return List<BleService>.from(
       universalBleServices

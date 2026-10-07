@@ -872,6 +872,81 @@ class ConnectionPlatformConfig {
 
 
 // Generated class from Pigeon that represents data sent in messages.
+class AndroidDiscoverServicesOptions {
+ public:
+  // Constructs an object setting all non-nullable fields.
+  AndroidDiscoverServicesOptions();
+
+  // Constructs an object setting all fields.
+  explicit AndroidDiscoverServicesOptions(const bool* clear_gatt_cache);
+
+  // Clear the OS-level GATT cache of the connection (`BluetoothGatt.refresh()`)
+  // before discovering, so a peripheral whose GATT layout changed while it
+  // was disconnected is read again instead of served from the cache.
+  //
+  // `refresh()` is a hidden API invoked by reflection; discovery fails when
+  // it is unavailable or returns `false`.
+  const bool* clear_gatt_cache() const;
+  void set_clear_gatt_cache(const bool* value_arg);
+  void set_clear_gatt_cache(bool value_arg);
+
+  bool operator==(const AndroidDiscoverServicesOptions& other) const;
+  bool operator!=(const AndroidDiscoverServicesOptions& other) const;
+  /// Returns a hash code value for the object. This method is supported for the benefit of hash tables.
+  size_t Hash() const;
+ private:
+  static AndroidDiscoverServicesOptions FromEncodableList(const ::flutter::EncodableList& list);
+  ::flutter::EncodableList ToEncodableList() const;
+  friend class DiscoverServicesPlatformConfig;
+  friend class UniversalBlePlatformChannel;
+  friend class UniversalBleCallbackChannel;
+  friend class UniversalBlePeripheralChannel;
+  friend class UniversalBleAndroidChannel;
+  friend class UniversalBlePeripheralCallback;
+  friend class PigeonInternalCodecSerializer;
+  std::optional<bool> clear_gatt_cache_;
+};
+
+
+// Platform-specific options for `discoverServices`. Ignored on platforms
+// that have no equivalent.
+//
+// Generated class from Pigeon that represents data sent in messages.
+class DiscoverServicesPlatformConfig {
+ public:
+  // Constructs an object setting all non-nullable fields.
+  DiscoverServicesPlatformConfig();
+
+  // Constructs an object setting all fields.
+  explicit DiscoverServicesPlatformConfig(const AndroidDiscoverServicesOptions* android);
+
+  ~DiscoverServicesPlatformConfig() = default;
+  DiscoverServicesPlatformConfig(const DiscoverServicesPlatformConfig& other);
+  DiscoverServicesPlatformConfig& operator=(const DiscoverServicesPlatformConfig& other);
+  DiscoverServicesPlatformConfig(DiscoverServicesPlatformConfig&& other) = default;
+  DiscoverServicesPlatformConfig& operator=(DiscoverServicesPlatformConfig&& other) noexcept = default;
+  const AndroidDiscoverServicesOptions* android() const;
+  void set_android(const AndroidDiscoverServicesOptions* value_arg);
+  void set_android(const AndroidDiscoverServicesOptions& value_arg);
+
+  bool operator==(const DiscoverServicesPlatformConfig& other) const;
+  bool operator!=(const DiscoverServicesPlatformConfig& other) const;
+  /// Returns a hash code value for the object. This method is supported for the benefit of hash tables.
+  size_t Hash() const;
+ private:
+  static DiscoverServicesPlatformConfig FromEncodableList(const ::flutter::EncodableList& list);
+  ::flutter::EncodableList ToEncodableList() const;
+  friend class UniversalBlePlatformChannel;
+  friend class UniversalBleCallbackChannel;
+  friend class UniversalBlePeripheralChannel;
+  friend class UniversalBleAndroidChannel;
+  friend class UniversalBlePeripheralCallback;
+  friend class PigeonInternalCodecSerializer;
+  std::unique_ptr<AndroidDiscoverServicesOptions> android_;
+};
+
+
+// Generated class from Pigeon that represents data sent in messages.
 class PeripheralAndroidOptions {
  public:
   // Constructs an object setting all non-nullable fields.
@@ -1224,6 +1299,7 @@ class UniversalBlePlatformChannel {
   virtual void DiscoverServices(
     const std::string& device_id,
     bool with_descriptors,
+    const DiscoverServicesPlatformConfig* platform_config,
     std::function<void(ErrorOr<::flutter::EncodableList> reply)> result) = 0;
   virtual void ReadValue(
     const std::string& device_id,
