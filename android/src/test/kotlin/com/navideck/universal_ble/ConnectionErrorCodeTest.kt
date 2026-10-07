@@ -54,6 +54,15 @@ internal class ConnectionErrorCodeTest {
     }
 
     @Test
+    fun hciLimitExistsAndRejectedReasonsMapToTheirEnumValues() {
+        assertEquals(UniversalBleErrorCode.CONNECTION_LIMIT_EXCEEDED, 0x09.toConnectionErrorCode())
+        assertEquals(UniversalBleErrorCode.CONNECTION_ALREADY_EXISTS, 0x0B.toConnectionErrorCode())
+        assertEquals(UniversalBleErrorCode.CONNECTION_REJECTED, 0x0D.toConnectionErrorCode())
+        assertEquals(UniversalBleErrorCode.CONNECTION_REJECTED, 0x0E.toConnectionErrorCode())
+        assertEquals(UniversalBleErrorCode.CONNECTION_REJECTED, 0x0F.toConnectionErrorCode())
+    }
+
+    @Test
     fun otherCodesMapToUnknownError() {
         assertEquals(UniversalBleErrorCode.UNKNOWN_ERROR, 0x22.toConnectionErrorCode())
         assertEquals(UniversalBleErrorCode.UNKNOWN_ERROR, 0x3B.toConnectionErrorCode())

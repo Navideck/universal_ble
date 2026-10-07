@@ -16,8 +16,11 @@ class BleConnectionUpdate {
   /// [errorCode] when deciding how to react.
   final String? error;
 
-  /// Classification of the error, `null` when there is no error or the
-  /// platform does not report one. Connection related values:
+  /// Classification of the error. `null` on success and where the platform
+  /// reports no code at all: Windows, Linux and Web, and (usually) a
+  /// disconnect requested by the app. A code the plugin does not recognise
+  /// is [UniversalBleErrorCode.unknownError], not `null`. Connection related
+  /// values:
   ///
   /// * [UniversalBleErrorCode.deviceDisconnected]: the peripheral closed the
   ///   link (Apple `peripheralDisconnected`; Android HCI 0x13, `GATT_FAILURE`)
@@ -28,11 +31,16 @@ class BleConnectionUpdate {
   ///   (Apple `connectionFailed`; Android HCI 0x3E, `GATT_ERROR`,
   ///   `GATT_CONNECTION_CONGESTED`)
   /// * [UniversalBleErrorCode.connectionLimitExceeded]: Apple
-  ///   `connectionLimitReached`
+  ///   `connectionLimitReached`; Android HCI 0x09
+  /// * [UniversalBleErrorCode.connectionAlreadyExists]: Android HCI 0x0B
+  /// * [UniversalBleErrorCode.connectionRejected]: Android HCI 0x0D-0x0F
   /// * [UniversalBleErrorCode.connectionTerminated]: Android HCI 0x16
   /// * [UniversalBleErrorCode.unknownError]: anything else
   ///
-  /// Windows, Linux and Web always report `null`.
+  /// On Android a failed connection attempt also arrives as a disconnect, and
+  /// `GATT_FAILURE` is a generic status, so `deviceDisconnected` there is a
+  /// best-effort classification. Apple reports a failed attempt separately as
+  /// `connectionFailed`.
   final UniversalBleErrorCode? errorCode;
 
   /// The raw platform value behind [errorCode]: `CBError.Code` on Apple, the

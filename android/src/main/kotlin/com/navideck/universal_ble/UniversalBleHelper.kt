@@ -375,6 +375,11 @@ fun Int.toConnectionErrorCode(): UniversalBleErrorCode? {
         BluetoothGatt.GATT_SUCCESS -> null
         0x08, // HCI Connection Timeout
         0x93 -> UniversalBleErrorCode.CONNECTION_TIMEOUT // GATT_CONNECTION_TIMEOUT (147), constant is API 36+
+        0x09 -> UniversalBleErrorCode.CONNECTION_LIMIT_EXCEEDED // HCI Connection Limit Exceeded
+        0x0B -> UniversalBleErrorCode.CONNECTION_ALREADY_EXISTS // HCI Connection Already Exists
+        0x0D, // HCI Connection Rejected due to Limited Resources
+        0x0E, // HCI Connection Rejected due to Security Reasons
+        0x0F -> UniversalBleErrorCode.CONNECTION_REJECTED // HCI Connection Rejected due to Unacceptable BD_ADDR
         0x13, // HCI Remote User Terminated Connection
         // GATT_FAILURE is generic in AOSP, but on Pixel 9a / Android 17 it is what a
         // peer-initiated disconnect reports (measured against a BlueZ peripheral).
