@@ -1396,10 +1396,17 @@ class UniversalBleCallbackChannel {
     const int64_t* timestamp,
     std::function<void(void)>&& on_success,
     std::function<void(const FlutterError&)>&& on_error);
+  // [errorCode] classifies a failed connection or an unexpected disconnect
+  // (`deviceDisconnected`, `connectionTimeout`, `connectionFailed`, ...),
+  // mapped on the native side from `CBError.Code` (Apple) or the GATT
+  // `status` (Android). [nativeErrorCode] is that raw platform value.
+  // Both are `null` when there is no error or the platform has no code.
   void OnConnectionChanged(
     const std::string& device_id,
     bool connected,
     const std::string* error,
+    const UniversalBleErrorCode* error_code,
+    const int64_t* native_error_code,
     std::function<void(void)>&& on_success,
     std::function<void(const FlutterError&)>&& on_error);
   void OnConnectionParametersUpdated(

@@ -20,9 +20,7 @@ abstract class UniversalBlePlatform {
   final _scanStreamController = UniversalBleStreamController<BleDevice>();
 
   final bleConnectionUpdateStreamController =
-      UniversalBleStreamController<
-        ({String deviceId, bool isConnected, String? error})
-      >();
+      UniversalBleStreamController<BleConnectionUpdate>();
 
   final _valueStreamController =
       UniversalBleStreamController<
@@ -151,11 +149,14 @@ abstract class UniversalBlePlatform {
   // updateConnectionParameters / CacheHandler) so a device reported in two cases can't split across map
   // entries. Emitted device ids are left AS the platform reports them, so this is non-breaking for consumers.
   // Hot paths short-circuit on an exact match before lower-casing.
-  Stream<bool> connectionStream(String deviceId) {
+  Stream<bool> connectionStream(String deviceId) =>
+      connectionUpdateStream(deviceId).map((e) => e.isConnected);
+
+  Stream<BleConnectionUpdate> connectionUpdateStream(String deviceId) {
     final target = deviceId.toLowerCase();
-    return bleConnectionUpdateStreamController.stream
-        .where((e) => e.deviceId == deviceId || e.deviceId.toLowerCase() == target)
-        .map((e) => e.isConnected);
+    return bleConnectionUpdateStreamController.stream.where(
+      (e) => e.deviceId == deviceId || e.deviceId.toLowerCase() == target,
+    );
   }
 
   Stream<Uint8List> characteristicValueStream(
@@ -188,15 +189,24 @@ abstract class UniversalBlePlatform {
     } catch (_) {}
   }
 
-  void updateConnection(String deviceId, bool isConnected, [String? error]) {
-    bleConnectionUpdateStreamController.add((
+  void updateConnection(
+    String deviceId,
+    bool isConnected, [
+    String? error,
+    UniversalBleErrorCode? errorCode,
+    int? nativeErrorCode,
+  ]) {
+    final update = BleConnectionUpdate(
       deviceId: deviceId,
       isConnected: isConnected,
       error: error,
-    ));
+      errorCode: errorCode,
+      nativeErrorCode: nativeErrorCode,
+    );
+    bleConnectionUpdateStreamController.add(update);
 
     try {
-      onConnectionChange?.call(deviceId, isConnected, error);
+      onConnectionChange?.call(update);
     } catch (_) {}
 
     if (!isConnected) {

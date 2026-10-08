@@ -260,7 +260,7 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
   func disconnect(deviceId: String) throws {
     autoConnectDevices.remove(deviceId)
     guard let peripheral = deviceId.findPeripheral(manager: manager) else {
-      callbackChannel.onConnectionChanged(deviceId: deviceId, connected: false, error: nil) { _ in }
+      callbackChannel.onConnectionChanged(deviceId: deviceId, connected: false, error: nil, errorCode: nil, nativeErrorCode: nil) { _ in }
       cleanUpConnection(deviceId: deviceId)
       return
     }
@@ -578,7 +578,7 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
         // Notify Dart if already connected; on a cold relaunch the Dart layer
         // re-subscribes on resume using the cached peripheral.
         if peripheral.state == .connected {
-          callbackChannel.onConnectionChanged(deviceId: deviceId, connected: true, error: nil) { _ in }
+          callbackChannel.onConnectionChanged(deviceId: deviceId, connected: true, error: nil, errorCode: nil, nativeErrorCode: nil) { _ in }
         }
       }
     }
@@ -649,12 +649,14 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
   }
 
   public func centralManager(_: CBCentralManager, didConnect peripheral: CBPeripheral) {
-    callbackChannel.onConnectionChanged(deviceId: peripheral.uuid.uuidString, connected: true, error: nil) { _ in }
+    callbackChannel.onConnectionChanged(deviceId: peripheral.uuid.uuidString, connected: true, error: nil, errorCode: nil, nativeErrorCode: nil) { _ in }
   }
 
   private func handlePeripheralDisconnection(deviceId: String, error: Error?) {
     autoConnectDevices.remove(deviceId)
-    callbackChannel.onConnectionChanged(deviceId: deviceId, connected: false, error: error?.localizedDescription) { _ in }
+    callbackChannel.onConnectionChanged(
+      deviceId: deviceId, connected: false, error: error?.localizedDescription, errorCode: error?.connectionErrorCode, nativeErrorCode: error?.nativeCode
+    ) { _ in }
     cleanUpConnection(deviceId: deviceId)
   }
 
@@ -683,7 +685,9 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
   }
 
   public func centralManager(_: CBCentralManager, didFailToConnect peripheral: CBPeripheral, error: Error?) {
-    callbackChannel.onConnectionChanged(deviceId: peripheral.uuid.uuidString, connected: false, error: error?.localizedDescription) { _ in }
+    callbackChannel.onConnectionChanged(
+      deviceId: peripheral.uuid.uuidString, connected: false, error: error?.localizedDescription, errorCode: error?.connectionErrorCode, nativeErrorCode: error?.nativeCode
+    ) { _ in }
     cleanUpConnection(deviceId: peripheral.uuid.uuidString)
   }
 

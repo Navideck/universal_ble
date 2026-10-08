@@ -9,6 +9,7 @@
 * Web: await advertisement cleanup before connecting, bound connection setup by its timeout, and prevent cancelled setup or stale GATT discovery from affecting a later connection.
 * Preserve typed BLE error codes when wrapping an existing BLE exception.
 * Windows: fix crashes when closing the app while Bluetooth initialization is still pending.
+* **Breaking:** `onConnectionChange` now receives a single `BleConnectionUpdate` (`deviceId`, `isConnected`, `error`) instead of three positional arguments. It also carries a unified `errorCode` (`UniversalBleErrorCode.deviceDisconnected`, `connectionTimeout`, `connectionFailed`, ...) and the raw `nativeErrorCode` (`CBError.Code` on Apple, GATT status on Android); a connection attempt that never succeeds is `connectionFailed` on both. Add `connectionUpdateStream` and `BleDevice.connectionUpdateStream` emitting the same updates per device; `connectionStream` is unchanged. `UniversalBlePlatform.bleConnectionUpdateStreamController` (internal) now carries `BleConnectionUpdate` instead of a record.
 
 ## 2.3.0
 * Windows: support connectionless manufacturer-data advertising without a GATT service, including state/error reporting and cleanup on stop/disposal.

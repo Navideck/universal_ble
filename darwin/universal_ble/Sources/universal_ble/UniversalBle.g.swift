@@ -2088,7 +2088,12 @@ protocol UniversalBleCallbackChannelProtocol {
   func onPairStateChange(deviceId deviceIdArg: String, isPaired isPairedArg: Bool, error errorArg: String?, completion: @escaping (Result<Void, PigeonError>) -> Void)
   func onScanResult(result resultArg: UniversalBleScanResult, completion: @escaping (Result<Void, PigeonError>) -> Void)
   func onValueChanged(deviceId deviceIdArg: String, characteristicId characteristicIdArg: String, value valueArg: FlutterStandardTypedData, timestamp timestampArg: Int64?, completion: @escaping (Result<Void, PigeonError>) -> Void)
-  func onConnectionChanged(deviceId deviceIdArg: String, connected connectedArg: Bool, error errorArg: String?, completion: @escaping (Result<Void, PigeonError>) -> Void)
+  /// [errorCode] classifies a failed connection or an unexpected disconnect
+  /// (`deviceDisconnected`, `connectionTimeout`, `connectionFailed`, ...),
+  /// mapped on the native side from `CBError.Code` (Apple) or the GATT
+  /// `status` (Android). [nativeErrorCode] is that raw platform value.
+  /// Both are `null` when there is no error or the platform has no code.
+  func onConnectionChanged(deviceId deviceIdArg: String, connected connectedArg: Bool, error errorArg: String?, errorCode errorCodeArg: UniversalBleErrorCode?, nativeErrorCode nativeErrorCodeArg: Int64?, completion: @escaping (Result<Void, PigeonError>) -> Void)
   func onConnectionParametersUpdated(update updateArg: BleConnectionParametersUpdated, completion: @escaping (Result<Void, PigeonError>) -> Void)
 }
 class UniversalBleCallbackChannel: UniversalBleCallbackChannelProtocol {
@@ -2173,10 +2178,15 @@ class UniversalBleCallbackChannel: UniversalBleCallbackChannelProtocol {
       }
     }
   }
-  func onConnectionChanged(deviceId deviceIdArg: String, connected connectedArg: Bool, error errorArg: String?, completion: @escaping (Result<Void, PigeonError>) -> Void) {
+  /// [errorCode] classifies a failed connection or an unexpected disconnect
+  /// (`deviceDisconnected`, `connectionTimeout`, `connectionFailed`, ...),
+  /// mapped on the native side from `CBError.Code` (Apple) or the GATT
+  /// `status` (Android). [nativeErrorCode] is that raw platform value.
+  /// Both are `null` when there is no error or the platform has no code.
+  func onConnectionChanged(deviceId deviceIdArg: String, connected connectedArg: Bool, error errorArg: String?, errorCode errorCodeArg: UniversalBleErrorCode?, nativeErrorCode nativeErrorCodeArg: Int64?, completion: @escaping (Result<Void, PigeonError>) -> Void) {
     let channelName: String = "dev.flutter.pigeon.universal_ble.UniversalBleCallbackChannel.onConnectionChanged\(messageChannelSuffix)"
     let channel = FlutterBasicMessageChannel(name: channelName, binaryMessenger: binaryMessenger, codec: codec)
-    channel.sendMessage([deviceIdArg, connectedArg, errorArg] as [Any?]) { response in
+    channel.sendMessage([deviceIdArg, connectedArg, errorArg, errorCodeArg, nativeErrorCodeArg] as [Any?]) { response in
       guard let listResponse = response as? [Any?] else {
         completion(.failure(createConnectionError(withChannelName: channelName)))
         return

@@ -78,6 +78,11 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
     private val rssiResultFutureList = mutableListOf<RssiResultFuture>()
     private val autoConnectDevices = mutableSetOf<String>()
 
+    // GATT clients that reached STATE_CONNECTED, so a later STATE_DISCONNECTED can be told
+    // apart from a failed connection attempt (Android reports both the same way).
+    private val connectedGatts: MutableSet<BluetoothGatt> =
+        Collections.newSetFromMap(ConcurrentHashMap<BluetoothGatt, Boolean>())
+
     /**
      * When enabled, close every known GATT client on engine detach. The
      * plugin otherwise leaves GATT open, so a killed app keeps the
@@ -293,7 +298,7 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
             if (currentState == BluetoothGatt.STATE_CONNECTED) {
                 UniversalBleLogger.logError("$deviceId Already connected")
                 mainThreadHandler?.post {
-                    callbackChannel?.onConnectionChanged(deviceId, true, null) {}
+                    callbackChannel?.onConnectionChanged(deviceId, true, null, null, null) {}
                 }
                 return
             } else if (currentState == BluetoothGatt.STATE_CONNECTING) {
@@ -330,7 +335,7 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
         if (gatt == null) {
             cleanUpConnection(deviceId)
             mainThreadHandler?.post {
-                callbackChannel?.onConnectionChanged(deviceId, false, null) {}
+                callbackChannel?.onConnectionChanged(deviceId, false, null, null, null) {}
             }
         } else {
             cleanConnection(gatt)
@@ -1537,7 +1542,7 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
                 gatt.close()
                 // A newer connect() owns this address now; its state is not ours to report.
                 if (!deviceId.isKnownGatt()) {
-                    callbackChannel?.onConnectionChanged(deviceId, false, null) {}
+                    callbackChannel?.onConnectionChanged(deviceId, false, null, null, null) {}
                 }
             }
         }, gattCloseTimeoutMs)
@@ -1658,13 +1663,15 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
         )
 
         if (newState == BluetoothGatt.STATE_CONNECTED) {
+            connectedGatts.add(gatt)
             mainThreadHandler?.post {
                 callbackChannel?.onConnectionChanged(
-                    gatt.device.address, true, status.parseHciErrorCode()
+                    gatt.device.address, true, status.parseHciErrorCode(), status.toConnectionErrorCode(), status.toGattErrorCode()
                 ) {}
             }
         } else if (newState == BluetoothGatt.STATE_DISCONNECTED) {
             val deviceId = gatt.device.address
+            val wasConnected = connectedGatts.remove(gatt)
             val shouldAutoConnect = autoConnectDevices.contains(deviceId)
             val closingByRequest = closingGatts.remove(gatt)
             // disconnect() already dropped this client from the cache, so a known gatt is a newer
@@ -1678,7 +1685,11 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
                 // Send connection changed callback
                 mainThreadHandler?.post {
                     callbackChannel?.onConnectionChanged(
-                        deviceId, false, status.parseHciErrorCode()
+                        deviceId,
+                        false,
+                        status.parseHciErrorCode(),
+                        status.toConnectionErrorCode(wasConnected),
+                        status.toGattErrorCode(),
                     ) {}
                 }
             }

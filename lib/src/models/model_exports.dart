@@ -8,5 +8,6 @@ export 'package:universal_ble/src/models/ble_device.dart';
 export 'package:universal_ble/src/models/ble_command.dart';
 export 'package:universal_ble/src/models/ble_capabilities.dart';
 export 'package:universal_ble/src/models/ble_connection_parameters_updated.dart';
+export 'package:universal_ble/src/models/ble_connection_update.dart';
 export 'package:universal_ble/src/models/ble_peripheral_event.dart';
 export 'package:universal_ble/src/models/ble_peripheral_capabilities.dart';
