@@ -37,10 +37,10 @@ class BleConnectionUpdate {
   /// * [UniversalBleErrorCode.connectionTerminated]: Android HCI 0x16
   /// * [UniversalBleErrorCode.unknownError]: anything else
   ///
-  /// On Android a failed connection attempt also arrives as a disconnect, and
-  /// `GATT_FAILURE` is a generic status, so `deviceDisconnected` there is a
-  /// best-effort classification. Apple reports a failed attempt separately as
-  /// `connectionFailed`.
+  /// A connection attempt that never succeeds is always
+  /// [UniversalBleErrorCode.connectionFailed]: Apple reports it through
+  /// `didFailToConnect`; on Android it arrives as a disconnect, and the plugin
+  /// classifies it by whether the link had reached `STATE_CONNECTED`.
   final UniversalBleErrorCode? errorCode;
 
   /// The raw platform value behind [errorCode]: `CBError.Code` on Apple, the

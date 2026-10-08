@@ -87,7 +87,35 @@ internal class DisconnectCloseTest {
     }
 
     @Test
-    fun peerDisconnectReportsUnifiedAndNativeCode() {
+    fun peerDisconnectAfterConnectReportsDeviceDisconnected() {
+        val plugin = plugin()
+        val gatt = mockGatt()
+        gatt.saveCacheIfNeeded()
+
+        plugin.onConnectionStateChange(
+            gatt, BluetoothGatt.GATT_SUCCESS, BluetoothGatt.STATE_CONNECTED
+        )
+        plugin.onConnectionStateChange(
+            gatt, BluetoothGatt.GATT_FAILURE, BluetoothGatt.STATE_DISCONNECTED
+        )
+
+        assertEquals(
+            listOf(
+                listOf<Any?>(deviceAddress, true, null, null, null),
+                listOf<Any?>(
+                    deviceAddress,
+                    false,
+                    "Unknown Error 257",
+                    UniversalBleErrorCode.DEVICE_DISCONNECTED,
+                    257L,
+                ),
+            ),
+            connectionChanges,
+        )
+    }
+
+    @Test
+    fun disconnectBeforeConnectReportsConnectionFailed() {
         val plugin = plugin()
         val gatt = mockGatt()
         gatt.saveCacheIfNeeded()
@@ -102,7 +130,7 @@ internal class DisconnectCloseTest {
                     deviceAddress,
                     false,
                     "Unknown Error 257",
-                    UniversalBleErrorCode.DEVICE_DISCONNECTED,
+                    UniversalBleErrorCode.CONNECTION_FAILED,
                     257L,
                 )
             ),

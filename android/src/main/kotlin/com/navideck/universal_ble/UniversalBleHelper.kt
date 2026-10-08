@@ -408,6 +408,18 @@ fun BluetoothGatt.refreshGattCache(): Boolean {
     }
 }
 
+/// Android has no separate failed-attempt callback: a connection that never
+/// reached STATE_CONNECTED also ends in onConnectionStateChange(STATE_DISCONNECTED).
+/// Report it as CONNECTION_FAILED, like Apple's didFailToConnect, instead of
+/// classifying the (often generic) status as a disconnect.
+fun Int.toConnectionErrorCode(wasConnected: Boolean): UniversalBleErrorCode? {
+    return if (wasConnected || this == BluetoothGatt.GATT_SUCCESS) {
+        toConnectionErrorCode()
+    } else {
+        UniversalBleErrorCode.CONNECTION_FAILED
+    }
+}
+
 fun Int.parseHciErrorCode(): String? {
     return when (this) {
         BluetoothGatt.GATT_SUCCESS -> null

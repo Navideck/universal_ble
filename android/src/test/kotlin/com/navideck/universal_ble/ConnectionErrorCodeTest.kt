@@ -63,6 +63,14 @@ internal class ConnectionErrorCodeTest {
     }
 
     @Test
+    fun anyFailureBeforeConnectIsConnectionFailed() {
+        assertEquals(UniversalBleErrorCode.CONNECTION_FAILED, BluetoothGatt.GATT_FAILURE.toConnectionErrorCode(wasConnected = false))
+        assertEquals(UniversalBleErrorCode.CONNECTION_FAILED, 0x08.toConnectionErrorCode(wasConnected = false))
+        assertNull(BluetoothGatt.GATT_SUCCESS.toConnectionErrorCode(wasConnected = false))
+        assertEquals(UniversalBleErrorCode.DEVICE_DISCONNECTED, BluetoothGatt.GATT_FAILURE.toConnectionErrorCode(wasConnected = true))
+    }
+
+    @Test
     fun otherCodesMapToUnknownError() {
         assertEquals(UniversalBleErrorCode.UNKNOWN_ERROR, 0x22.toConnectionErrorCode())
         assertEquals(UniversalBleErrorCode.UNKNOWN_ERROR, 0x3B.toConnectionErrorCode())
