@@ -36,6 +36,7 @@ Looking for Bluetooth Classic? Check [universal_bluetooth_classic](https://pub.d
 - [UUID Format Agnostic](#uuid-format-agnostic)
 - [Platform-specific setup](#platform-specific-setup)
 - [Peripheral Mode](#peripheral-mode)
+- [AI agent skills](#ai-agent-skills)
 
 ## API Support
 
@@ -1349,6 +1350,19 @@ This repo includes an [example app](example/) with two tabs:
 - `Peripheral`: peripheral server and advertising workflows.
 
 For a full-blown app, check [Universal-BLE](https://github.com/Navideck/Universal-BLE).
+
+## AI agent skills
+
+Universal BLE ships [package skills](https://dart.dev/ai/package-skills) that give AI coding agents authoritative, version-matched guidance for this package. Install them into your project with:
+
+```sh
+dart run skills@ get -p universal_ble
+```
+
+- `universal-ble-setup` — add `universal_ble` to an app from scratch: scanning, connecting, service discovery, read/write, subscriptions, and platform permissions.
+- `universal-ble-migrate-from-flutter-blue-plus` — migrate an existing app from `flutter_blue_plus` to `universal_ble`.
+
+Select the skills you want when prompted.
 
 ## Low level API
 
