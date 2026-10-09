@@ -1417,6 +1417,16 @@ void UniversalBlePlugin::PushUniversalScanResult(
       should_update = true;
     }
 
+    // A scan response is an update in itself: it is the answer to the scan
+    // request the host sent for this very address, so whatever it carries is
+    // newer than the cache - even when no cached field could be copied into
+    // it (a service UUID list the advertisement does not have, for instance).
+    // Without this the early return below drops the answer before the gate
+    // and a service-filtered scan never sees the device.
+    if (is_scan_response) {
+      should_update = true;
+    }
+
     // if nothing to update then return
     if (!should_update) {
       return;
@@ -1802,9 +1812,18 @@ void UniversalBlePlugin::BluetoothLeWatcherReceived(
         universal_scan_result.set_name(to_string(device_info.Name()));
     }
 
+    // The scan-response flag comes from the advertisement type and not from
+    // BluetoothLEAdvertisementReceivedEventArgs::IsScanResponse: the property
+    // exists only since Windows 10 2004 (UniversalApiContract v10), so on
+    // older releases - including supported LTSC builds - projecting it inside
+    // this callback can throw, and the catch around this block would then drop
+    // every advertisement. BluetoothLEAdvertisementType::ScanResponse has
+    // shipped with every Windows 10.
+    const bool is_scan_response =
+        args.AdvertisementType() == BluetoothLEAdvertisementType::ScanResponse;
     // Filter Device
     PushUniversalScanResult(universal_scan_result, args.IsConnectable(),
-                            args.IsScanResponse());
+                            is_scan_response);
   } catch (...) {
     UniversalBleLogger::LogError("ScanResultErrorInParsing");
   }
