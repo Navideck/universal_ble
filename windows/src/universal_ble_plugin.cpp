@@ -1411,8 +1411,14 @@ void UniversalBlePlugin::PushUniversalScanResult(
       should_update = true;
     }
 
-    if (scan_result.services() == nullptr &&
-        current_scan_result.services() != nullptr) {
+    // An empty list is as good as none: the advertisement watcher sets the
+    // list unconditionally, so `nullptr` alone never fires here, and a sparse
+    // scan response would evict the cached service list (mirror of the
+    // manufacturer-data branch above). Per review of the upstream PR.
+    if ((scan_result.services() == nullptr ||
+         scan_result.services()->empty()) &&
+        current_scan_result.services() != nullptr &&
+        !current_scan_result.services()->empty()) {
       scan_result.set_services(current_scan_result.services());
       should_update = true;
     }
