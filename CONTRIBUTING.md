@@ -63,12 +63,12 @@ That runs `dart run pigeon --input pigeon/universal_ble.dart` and formats `lib/s
 
 ## Callback payloads: positional arguments vs. model objects
 
-Event callbacks (`onXxx` / `onXxxChange`) standardize on a single model object whenever the payload carries more than one field about one entity.
+Event callbacks (`onXxx` / `onXxxChange`) accept up to **three positional values**; beyond that, group the payload into a model object.
 
 Rule of thumb:
 
-- **Use a model object** when a callback delivers two or more related values for a single entity (a device, a characteristic, a queue item), or when the payload is expected to gain fields. New callbacks must follow this. Examples: `onScanResult(BleDevice)`, `onConnectionChange(BleConnectionChange)`.
-- **Keep positional arguments** only when the payload is a single value or enum (`onAvailabilityChange(AvailabilityState)`), or is internal plumbing not tied to a device event.
+- **Keep positional arguments** when the payload is three values or fewer (`onAvailabilityChange(AvailabilityState)`, `onPairingStateChange(deviceId, isPaired)`), or is internal plumbing not tied to a device event.
+- **Use a model object** when a callback delivers four or more related values for a single entity (a device, a characteristic, a queue item), or when a payload of three or fewer is expected to grow past three. New callbacks must follow this. Examples: `onScanResult(BleDevice)`, `onConnectionChange(BleConnectionChange)`.
 - Name the model for the event and document it field-by-field. Where the callback reports a state change, name the model `…Change` (for example `BleConnectionChange`), matching the `onXxxChange` callback family.
 
 Converting an existing positional callback to a model object is a **breaking change**, so it happens only:
@@ -76,9 +76,10 @@ Converting an existing positional callback to a model object is a **breaking cha
 1. on a major release, and
 2. in a PR whose explicit purpose is that API change — never bundled into a feature, fix, or refactor PR.
 
-Known deviations, kept positional on purpose for now:
+Known deviations, kept as they are for now:
 
-- `onValueChange`, `onPairingStateChange`, `onQueueUpdate` — stable public API since 2.x. Migrate on the next major release that already touches them.
+- `onPairingStateChange` and `onQueueUpdate` — two values each, within the limit, so they stay positional.
+- `onValueChange` currently takes four values (device ID, characteristic ID, value, timestamp), so it is over the limit; migrate it on the next major release that already touches it.
 - `onConnectionParametersChange` already delivers a model (`BleConnectionParametersUpdated`); its `…Updated` vs `…Change` naming mismatch is a separate, Pigeon-generated concern tracked on its own.
 
 ## Platform-specific APIs and parameters
