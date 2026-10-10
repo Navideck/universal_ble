@@ -9,6 +9,12 @@ target_include_directories(async_operation_tracker_test PRIVATE ../src)
 
 add_test(NAME async_operation_tracker_test COMMAND async_operation_tracker_test)
 
+add_executable(scan_result_merge_test scan_result_merge_test.cpp)
+target_compile_features(scan_result_merge_test PRIVATE cxx_std_20)
+target_include_directories(scan_result_merge_test PRIVATE ../src)
+
+add_test(NAME scan_result_merge_test COMMAND scan_result_merge_test)
+
 if(WIN32)
   add_executable(callback_drain_test callback_drain_test.cpp)
   target_compile_features(callback_drain_test PRIVATE cxx_std_20)

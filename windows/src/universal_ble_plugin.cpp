@@ -22,6 +22,7 @@
 #include "helper/universal_enum.h"
 #include "helper/utils.h"
 #include "pin_entry.h"
+#include "scan_result_merge.h"
 #include "universal_ble_filter_util.h"
 
 namespace universal_ble {
@@ -1374,77 +1375,64 @@ void UniversalBlePlugin::PushUniversalScanResult(
   if (is_connectable) {
     connectable_heard_.insert_or_assign(scan_result.device_id(), true);
   }
+
+  // Presence is derived from emptiness, not nullness: the advertisement
+  // watcher sets `services` unconditionally, so an empty non-null list means
+  // "carries nothing" just like a null one.
+  auto has_items = [](const auto *value) {
+    return value != nullptr && !value->empty();
+  };
+  ScanFieldPresence incoming;
+  incoming.name = scan_result.name() != nullptr && !scan_result.name()->empty();
+  incoming.is_paired = scan_result.is_paired() != nullptr;
+  incoming.manufacturer_data = has_items(scan_result.manufacturer_data_list());
+  incoming.services = has_items(scan_result.services());
+  incoming.service_data = has_items(scan_result.service_data());
+
   const std::optional<UniversalBleScanResult> it =
       scan_results_.get(scan_result.device_id());
   if (it.has_value()) {
     const UniversalBleScanResult &current_scan_result = it.value();
-    bool should_update = false;
 
     // Check if current scanResult name is longer than the received scanResult
     // name
-    if (scan_result.name() != nullptr && !scan_result.name()->empty() &&
-        current_scan_result.name() != nullptr &&
-        !current_scan_result.name()->empty()) {
-      if (current_scan_result.name()->size() > scan_result.name()->size()) {
-        scan_result.set_name(*current_scan_result.name());
-      }
-    }
-
-    if ((scan_result.name() == nullptr || scan_result.name()->empty()) &&
-        (current_scan_result.name() != nullptr &&
-         !current_scan_result.name()->empty())) {
+    if (incoming.name && current_scan_result.name() != nullptr &&
+        !current_scan_result.name()->empty() &&
+        current_scan_result.name()->size() > scan_result.name()->size()) {
       scan_result.set_name(*current_scan_result.name());
-      should_update = true;
     }
 
-    if (scan_result.is_paired() == nullptr &&
-        current_scan_result.is_paired() != nullptr) {
+    ScanFieldPresence cached;
+    cached.name = current_scan_result.name() != nullptr &&
+                  !current_scan_result.name()->empty();
+    cached.is_paired = current_scan_result.is_paired() != nullptr;
+    cached.manufacturer_data =
+        has_items(current_scan_result.manufacturer_data_list());
+    cached.services = has_items(current_scan_result.services());
+    cached.service_data = has_items(current_scan_result.service_data());
+
+    // Backfill cached fields the incoming packet does not carry, so a sparse
+    // scan response cannot evict data the advertisement already supplied.
+    const ScanBackfillPlan plan = PlanScanBackfill(incoming, cached);
+    if (plan.name) {
+      scan_result.set_name(*current_scan_result.name());
+    }
+    if (plan.is_paired) {
       scan_result.set_is_paired(current_scan_result.is_paired());
-      should_update = true;
     }
-
-    if ((scan_result.manufacturer_data_list() == nullptr ||
-         scan_result.manufacturer_data_list()->empty()) &&
-        current_scan_result.manufacturer_data_list() != nullptr) {
+    if (plan.manufacturer_data) {
       scan_result.set_manufacturer_data_list(
           current_scan_result.manufacturer_data_list());
-      should_update = true;
     }
-
-    // An empty list is as good as none: the advertisement watcher sets the
-    // list unconditionally, so `nullptr` alone never fires here, and a sparse
-    // scan response would evict the cached service list (mirror of the
-    // manufacturer-data branch above). Per review of the upstream PR.
-    if ((scan_result.services() == nullptr ||
-         scan_result.services()->empty()) &&
-        current_scan_result.services() != nullptr &&
-        !current_scan_result.services()->empty()) {
+    if (plan.services) {
       scan_result.set_services(current_scan_result.services());
-      should_update = true;
     }
-    // serviceData had no merge branch at all: with every scan response
-    // updating the cache, it was lost as soon as the first response arrived.
-    // Backfill it from the cache like the other fields.
-    if ((scan_result.service_data() == nullptr ||
-         scan_result.service_data()->empty()) &&
-        current_scan_result.service_data() != nullptr &&
-        !current_scan_result.service_data()->empty()) {
+    if (plan.service_data) {
       scan_result.set_service_data(current_scan_result.service_data());
-      should_update = true;
-    }
-
-    // A scan response is an update in itself: it is the answer to the scan
-    // request the host sent for this very address, so whatever it carries is
-    // newer than the cache - even when no cached field could be copied into
-    // it (a service UUID list the advertisement does not have, for instance).
-    // Without this the early return below drops the answer before the gate
-    // and a service-filtered scan never sees the device.
-    if (is_scan_response) {
-      should_update = true;
     }
 
     // if nothing to update then return
-    if (!should_update) {
+    if (!ShouldUpdateScanResult(plan, is_scan_response)) {
       return;
     }
   }
@@ -1455,10 +1443,11 @@ void UniversalBlePlugin::PushUniversalScanResult(
   // Filter final result before sending to Flutter. An answered scan request
   // counts when the same address has advertised connectably - see the note
   // above this method.
-  const bool answers_a_scan_request =
-      is_scan_response &&
+  const bool address_heard_connectable =
       connectable_heard_.get(scan_result.device_id()).value_or(false);
-  if ((is_connectable || answers_a_scan_request) && filterDevice(scan_result)) {
+  if (ShouldDeliverScanResult(is_connectable, is_scan_response,
+                              address_heard_connectable) &&
+      filterDevice(scan_result)) {
     const auto timestamp_microseconds = GetCurrentTimestampMicros();
     scan_result.set_timestamp(timestamp_microseconds / 1000);
     scan_result.set_timestamp_microseconds(timestamp_microseconds);
