@@ -981,8 +981,19 @@ class UniversalBle {
   /// with the platform's error message, a unified
   /// [BleConnectionUpdate.errorCode] and the raw
   /// [BleConnectionUpdate.nativeErrorCode].
-  static set onConnectionChange(OnConnectionChange? onConnectionChange) =>
+  static set onConnectionChange(dynamic onConnectionChange) {
+    if (onConnectionChange == null) {
+      _platform.onConnectionChange = null;
+    } else if (onConnectionChange is void Function(BleConnectionUpdate)) {
       _platform.onConnectionChange = onConnectionChange;
+    } else if (onConnectionChange is void Function(String, bool, String?)) {
+      _platform.onConnectionChange = (update) {
+        onConnectionChange(update.deviceId, update.isConnected, update.error);
+      };
+    } else {
+      _platform.onConnectionChange = onConnectionChange as OnConnectionChange;
+    }
+  }
 
   /// Get characteristic value updates, after calling [subscribeNotifications] or [subscribeIndications]
   static set onValueChange(OnValueChange? onValueChange) =>
