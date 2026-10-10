@@ -76,10 +76,6 @@ Converting an existing positional callback to a model object is a **breaking cha
 1. on a major release, and
 2. in a PR whose explicit purpose is that API change — never bundled into a feature, fix, or refactor PR.
 
-Known deviations:
-
-- `onConnectionParametersChange` already delivers a model, so its shape follows this rule; only its name (`BleConnectionParametersUpdated` rather than `…Change`) deviates. The model is Pigeon-generated across five platforms, so the rename is tracked separately.
-
 ## Platform-specific APIs and parameters
 
 - **Single-platform features:** Prefer not adding a new public API when only one platform can implement it, unless none of the existing APIs can be extended or adapted to cover the behavior. For example, something like Android-only `requestConnectionPriority` should only become its own method if `connect`, `platformConfig`, or another existing entry point cannot reasonably subsume it.

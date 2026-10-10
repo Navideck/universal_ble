@@ -15,7 +15,7 @@ typedef OnAvailabilityChange = void Function(AvailabilityState state);
 typedef OnPairingStateChange = void Function(String deviceId, bool isPaired);
 
 typedef OnConnectionParametersChange =
-    void Function(BleConnectionParametersUpdated update);
+    void Function(BleConnectionParametersChange update);
 
 typedef OnQueueUpdate = void Function(String id, int remainingQueueItems);
 

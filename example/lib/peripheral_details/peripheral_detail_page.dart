@@ -102,7 +102,7 @@ class _PeripheralDetailPageState extends State<PeripheralDetailPage> {
   }
 
   void _handleConnectionParametersChange(
-    BleConnectionParametersUpdated update,
+    BleConnectionParametersChange update,
   ) {
     debugPrint('ConnectionParametersChange $update');
     _addLog(

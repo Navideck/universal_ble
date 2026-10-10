@@ -1,10 +1,10 @@
 import 'package:universal_ble/src/universal_ble.g.dart';
 
 export 'package:universal_ble/src/universal_ble.g.dart'
-    show BleConnectionParametersUpdated;
+    show BleConnectionParametersChange;
 
-/// Helpers for [BleConnectionParametersUpdated] reported on Android.
-extension BleConnectionParametersUpdatedX on BleConnectionParametersUpdated {
+/// Helpers for [BleConnectionParametersChange] reported on Android.
+extension BleConnectionParametersChangeX on BleConnectionParametersChange {
   /// Connection interval in milliseconds (interval × 1.25).
   double get intervalMs => interval * 1.25;
 

@@ -308,7 +308,7 @@ class UniversalBlePigeonChannel extends UniversalBlePlatform
       updatePairingState(deviceId, isPaired);
 
   @override
-  void onConnectionParametersUpdated(BleConnectionParametersUpdated update) =>
+  void onConnectionParametersUpdated(BleConnectionParametersChange update) =>
       updateConnectionParameters(update);
 }
 

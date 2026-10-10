@@ -123,8 +123,8 @@ void main() {
     final platform = _MockPlatform();
     final events = <String>[];
     platform.onConnectionParametersChange = (u) => events.add(u.deviceId);
-    BleConnectionParametersUpdated params(String id) =>
-        BleConnectionParametersUpdated(
+    BleConnectionParametersChange params(String id) =>
+        BleConnectionParametersChange(
             deviceId: id, interval: 12, latency: 0, supervisionTimeout: 500, status: 0);
     platform.updateConnectionParameters(params(lower)); // first -> fires
     platform.updateConnectionParameters(params(upper)); // identical params, other case -> deduped

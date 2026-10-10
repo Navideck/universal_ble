@@ -14,7 +14,7 @@ abstract class UniversalBlePlatform {
   OnPairingStateChange? onPairingStateChange;
   OnConnectionParametersChange? onConnectionParametersChange;
   final Map<String, bool> _pairStateMap = {};
-  final Map<String, BleConnectionParametersUpdated>
+  final Map<String, BleConnectionParametersChange>
   _lastConnectionParametersMap = {};
 
   final _scanStreamController = UniversalBleStreamController<BleDevice>();
@@ -265,7 +265,7 @@ abstract class UniversalBlePlatform {
     } catch (_) {}
   }
 
-  void updateConnectionParameters(BleConnectionParametersUpdated update) {
+  void updateConnectionParameters(BleConnectionParametersChange update) {
     // Key by the canonical id (dropping the now-redundant last.deviceId == update.deviceId check, which would
     // itself have failed across cases and broken dedup for a device reported in two cases).
     final key = update.deviceId.toLowerCase();
