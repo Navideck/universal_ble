@@ -1422,6 +1422,16 @@ void UniversalBlePlugin::PushUniversalScanResult(
       scan_result.set_services(current_scan_result.services());
       should_update = true;
     }
+    // serviceData had no merge branch at all: with every scan response
+    // updating the cache, it was lost as soon as the first response arrived.
+    // Backfill it from the cache like the other fields.
+    if ((scan_result.service_data() == nullptr ||
+         scan_result.service_data()->empty()) &&
+        current_scan_result.service_data() != nullptr &&
+        !current_scan_result.service_data()->empty()) {
+      scan_result.set_service_data(current_scan_result.service_data());
+      should_update = true;
+    }
 
     // A scan response is an update in itself: it is the answer to the scan
     // request the host sent for this very address, so whatever it carries is
