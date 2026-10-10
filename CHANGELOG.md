@@ -1,4 +1,5 @@
 ## 3.0.0
+* Windows: deliver scan responses as scan results. A peripheral that publishes its 128-bit service UUID in the scan response (it does not fit in the advertisement next to the name) was invisible to `startScan`: Windows reports that packet with `IsConnectable == false` and it was dropped before reaching the caller.
 * Add `platformConfig` to `discoverServices()`; `AndroidDiscoverServicesOptions(clearGattCache: true)` clears Android's GATT cache (`BluetoothGatt.refresh()`) before discovery. Ignored on other platforms.
 * Android: Register MTU waiters before the native request, serialize completions onto the main looper, and fail rejected requests immediately.
 * Android: Reuse an MTU already negotiated on the current GATT connection; isolate reconnects from late callbacks.

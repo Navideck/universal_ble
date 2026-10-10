@@ -391,6 +391,11 @@ private:
   std::mutex connected_devices_mutex_;
   ThreadSafeMap<std::string, DeviceInformation> device_watcher_devices_{};
   ThreadSafeMap<std::string, UniversalBleScanResult> scan_results_{};
+  // Addresses Windows has already handed over as a *connectable* packet. A scan
+  // response arrives as its own, non-connectable event; the gate below admits
+  // such an answer only for an address seen here, so a device that never
+  // advertised connectably cannot creep in.
+  ThreadSafeMap<std::string, bool> connectable_heard_{};
   // Maps DeviceInformation.Id() -> MAC address string used as key in
   // device_watcher_devices_
   ThreadSafeMap<std::string, std::string> device_watcher_id_to_mac_{};
@@ -436,7 +441,7 @@ private:
   void SetupDeviceWatcher();
   void DisposeDeviceWatcher();
   void PushUniversalScanResult(UniversalBleScanResult scan_result,
-                               bool is_connectable);
+                               bool is_connectable, bool is_scan_response);
   static std::string ExpandServiceUuid(const std::vector<uint8_t> &uuid_bytes,
                                        uint8_t uuid_type);
   void BluetoothLeWatcherReceived(
