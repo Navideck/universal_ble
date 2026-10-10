@@ -1360,6 +1360,7 @@ dart run skills@ get -p universal_ble
 ```
 
 - `universal-ble-setup` — add `universal_ble` to an app from scratch: scanning, connecting, service discovery, read/write, subscriptions, and platform permissions.
+- `universal-ble-migrate-2-to-3` — upgrade an app from `universal_ble` 2.x to 3.0, covering the breaking changes.
 - `universal-ble-migrate-from-flutter-blue-plus` — migrate an existing app from `flutter_blue_plus` to `universal_ble`.
 
 Select the skills you want when prompted.

@@ -2,7 +2,7 @@
 * Add `platformConfig` to `discoverServices()`; `AndroidDiscoverServicesOptions(clearGattCache: true)` clears Android's GATT cache (`BluetoothGatt.refresh()`) before discovery. Ignored on other platforms.
 * Android: Register MTU waiters before the native request, serialize completions onto the main looper, and fail rejected requests immediately.
 * Android: Reuse an MTU already negotiated on the current GATT connection; isolate reconnects from late callbacks.
-* **Breaking:** Add `QueueType.auto` which auto-selects the best queueing strategy per platform: Android uses a per-device queue, all other platforms run commands in parallel. It is now the default for both `UniversalBle` and `UniversalBlePeripheral`, replacing the previous `QueueType.global` default.
+* **Breaking:** Add `QueueType.auto` which auto-selects the best queueing strategy per platform: Android, Web, and Linux use a per-device queue (their BLE stacks reject or misbehave on overlapping operations), while all other platforms run commands in parallel. It is now the default for both `UniversalBle` and `UniversalBlePeripheral`, replacing the previous `QueueType.global` default. Any exhaustive `switch` over `QueueType` must handle the new `auto` value.
 * iOS/macOS: Handle write-without-response transmit buffer backpressure
 * iOS/macOS: complete concurrent reads, descriptor operations, notification changes, and RSSI reads one callback at a time.
 * Windows: retry transiently unreachable GATT service discovery during connection.
@@ -10,7 +10,8 @@
 * Preserve typed BLE error codes when wrapping an existing BLE exception.
 * Windows: fix crashes when closing the app while Bluetooth initialization is still pending.
 * **Breaking:** `onConnectionChange` now receives a single `BleConnectionUpdate` (`deviceId`, `isConnected`, `error`) instead of three positional arguments. It also carries a unified `errorCode` (`UniversalBleErrorCode.deviceDisconnected`, `connectionTimeout`, `connectionFailed`, ...) and the raw `nativeErrorCode` (`CBError.Code` on Apple, GATT status on Android); a connection attempt that never succeeds is `connectionFailed` on both. Add `connectionUpdateStream` and `BleDevice.connectionUpdateStream` emitting the same updates per device; `connectionStream` is unchanged. `UniversalBlePlatform.bleConnectionUpdateStreamController` (internal) now carries `BleConnectionUpdate` instead of a record.
-* Add `universal_ble` package skills installable with `dart run skills@ get`: `universal-ble-setup` (add BLE to an app from scratch) and `universal-ble-migrate-from-flutter-blue-plus` (migrate from `flutter_blue_plus`).
+* **Breaking:** Custom `UniversalBlePlatform` implementations must update their overrides: `discoverServices` now takes an optional named `DiscoverServicesPlatformConfig platformConfig`, `updateConnection` takes optional `errorCode` / `nativeErrorCode`, and `onConnectionChange` is now `void Function(BleConnectionUpdate)`.
+* Add `universal_ble` package skills installable with `dart run skills@ get`: `universal-ble-setup` (add BLE to an app from scratch), `universal-ble-migrate-2-to-3` (upgrade from 2.x), and `universal-ble-migrate-from-flutter-blue-plus` (migrate from `flutter_blue_plus`).
 
 ## 2.3.0
 * Windows: support connectionless manufacturer-data advertising without a GATT service, including state/error reporting and cleanup on stop/disposal.
