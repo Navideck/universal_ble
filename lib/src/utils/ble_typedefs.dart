@@ -6,13 +6,7 @@ import 'package:universal_ble/universal_ble.dart';
 ///
 typedef OnConnectionChange = void Function(BleConnectionChange change);
 
-typedef OnValueChange =
-    void Function(
-      String deviceId,
-      String characteristicId,
-      Uint8List value,
-      int? timestamp,
-    );
+typedef OnValueChange = void Function(BleCharacteristicValue value);
 
 typedef OnScanResult = void Function(BleDevice scanResult);
 

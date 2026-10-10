@@ -59,8 +59,8 @@ UniversalBle.characteristicValueStream(deviceId, characteristicId).listen((Uint8
 });
 
 // Or set a handler to get updates of all characteristics
-UniversalBle.onValueChange = (String deviceId, String characteristicId, Uint8List value) {
-  debugPrint('onValueChange $deviceId, $characteristicId, ${hex.encode(value)}');
+UniversalBle.onValueChange = (BleCharacteristicValue update) {
+  debugPrint('onValueChange ${update.deviceId}, ${update.characteristicId}, ${hex.encode(update.value)}');
 }
 
 // Unsubscribe from notifications/indications

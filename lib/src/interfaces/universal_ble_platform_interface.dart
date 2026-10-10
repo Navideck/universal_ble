@@ -23,9 +23,7 @@ abstract class UniversalBlePlatform {
       UniversalBleStreamController<BleConnectionChange>();
 
   final _valueStreamController =
-      UniversalBleStreamController<
-        ({String deviceId, String characteristicId, Uint8List value})
-      >();
+      UniversalBleStreamController<BleCharacteristicValue>();
 
   final _pairStateStreamController =
       UniversalBleStreamController<({String deviceId, bool isPaired})>();
@@ -233,18 +231,15 @@ abstract class UniversalBlePlatform {
             value.lengthInBytes == value.buffer.lengthInBytes
         ? value
         : Uint8List.fromList(value);
-    _valueStreamController.add((
+    final update = BleCharacteristicValue(
       deviceId: deviceId,
       characteristicId: characteristicId,
       value: normalizedValue,
-    ));
+      timestamp: timestamp,
+    );
+    _valueStreamController.add(update);
     try {
-      onValueChange?.call(
-        deviceId,
-        characteristicId,
-        normalizedValue,
-        timestamp,
-      );
+      onValueChange?.call(update);
     } catch (_) {}
   }
 

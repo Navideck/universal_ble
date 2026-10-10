@@ -11,6 +11,7 @@
 * Preserve typed BLE error codes when wrapping an existing BLE exception.
 * Windows: fix crashes when closing the app while Bluetooth initialization is still pending.
 * **Breaking:** `onConnectionChange` now receives a single `BleConnectionChange` (`deviceId`, `isConnected`, `error`) instead of three positional arguments. It also carries a unified `errorCode` (`UniversalBleErrorCode.deviceDisconnected`, `connectionTimeout`, `connectionFailed`, ...) and the raw `nativeErrorCode` (`CBError.Code` on Apple, GATT status on Android); a connection attempt that never succeeds is `connectionFailed` on both. Add `connectionChangeStream` and `BleDevice.connectionChangeStream` emitting the same updates per device; `connectionStream` is unchanged. `UniversalBlePlatform.bleConnectionChangeStreamController` (internal) now carries `BleConnectionChange` instead of a record.
+* **Breaking:** `onValueChange` now receives a single `BleCharacteristicValue` (`deviceId`, `characteristicId`, `value`, `timestamp`) instead of four positional arguments.
 
 ## 2.3.0
 * Windows: support connectionless manufacturer-data advertising without a GATT service, including state/error reporting and cleanup on stop/disposal.
