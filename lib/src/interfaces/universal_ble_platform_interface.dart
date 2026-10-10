@@ -19,8 +19,8 @@ abstract class UniversalBlePlatform {
 
   final _scanStreamController = UniversalBleStreamController<BleDevice>();
 
-  final bleConnectionUpdateStreamController =
-      UniversalBleStreamController<BleConnectionUpdate>();
+  final bleConnectionChangeStreamController =
+      UniversalBleStreamController<BleConnectionChange>();
 
   final _valueStreamController =
       UniversalBleStreamController<
@@ -150,11 +150,11 @@ abstract class UniversalBlePlatform {
   // entries. Emitted device ids are left AS the platform reports them, so this is non-breaking for consumers.
   // Hot paths short-circuit on an exact match before lower-casing.
   Stream<bool> connectionStream(String deviceId) =>
-      connectionUpdateStream(deviceId).map((e) => e.isConnected);
+      connectionChangeStream(deviceId).map((e) => e.isConnected);
 
-  Stream<BleConnectionUpdate> connectionUpdateStream(String deviceId) {
+  Stream<BleConnectionChange> connectionChangeStream(String deviceId) {
     final target = deviceId.toLowerCase();
-    return bleConnectionUpdateStreamController.stream.where(
+    return bleConnectionChangeStreamController.stream.where(
       (e) => e.deviceId == deviceId || e.deviceId.toLowerCase() == target,
     );
   }
@@ -196,14 +196,14 @@ abstract class UniversalBlePlatform {
     UniversalBleErrorCode? errorCode,
     int? nativeErrorCode,
   ]) {
-    final update = BleConnectionUpdate(
+    final update = BleConnectionChange(
       deviceId: deviceId,
       isConnected: isConnected,
       error: error,
       errorCode: errorCode,
       nativeErrorCode: nativeErrorCode,
     );
-    bleConnectionUpdateStreamController.add(update);
+    bleConnectionChangeStreamController.add(update);
 
     try {
       onConnectionChange?.call(update);

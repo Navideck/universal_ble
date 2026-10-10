@@ -4,7 +4,7 @@ import 'package:universal_ble/universal_ble.dart';
 
 /// Central mode callbacks
 ///
-typedef OnConnectionChange = void Function(BleConnectionUpdate update);
+typedef OnConnectionChange = void Function(BleConnectionChange change);
 
 typedef OnValueChange =
     void Function(

@@ -8,10 +8,10 @@ class _MockPlatform extends UniversalBlePlatformMock {}
 void main() {
   const deviceId = 'AA:BB:CC:DD:EE:FF';
 
-  test('connectionUpdateStream carries message, unified code and native code',
+  test('connectionChangeStream carries message, unified code and native code',
       () async {
     final platform = _MockPlatform();
-    final event = platform.connectionUpdateStream(deviceId).first;
+    final event = platform.connectionChangeStream(deviceId).first;
     platform.updateConnection(deviceId, false, 'Connection Timeout',
         UniversalBleErrorCode.connectionTimeout, 8);
     final update = await event;
@@ -22,10 +22,10 @@ void main() {
     expect(update.nativeErrorCode, 8);
   });
 
-  test('connectionUpdateStream has null error fields for app-requested changes',
+  test('connectionChangeStream has null error fields for app-requested changes',
       () async {
     final platform = _MockPlatform();
-    final event = platform.connectionUpdateStream(deviceId).first;
+    final event = platform.connectionChangeStream(deviceId).first;
     platform.updateConnection(deviceId, false);
     final update = await event;
     expect(update.error, isNull);
@@ -48,7 +48,7 @@ void main() {
 
   test('onConnectionChange receives the same update as the stream', () async {
     final platform = _MockPlatform();
-    final received = <BleConnectionUpdate>[];
+    final received = <BleConnectionChange>[];
     platform.onConnectionChange = received.add;
     platform.updateConnection(deviceId, false, 'Unknown Error 257',
         UniversalBleErrorCode.deviceDisconnected, 257);
@@ -60,10 +60,10 @@ void main() {
   });
 
   test(
-      'connectionUpdateStream matches a device id reported in a different case',
+      'connectionChangeStream matches a device id reported in a different case',
       () async {
     final platform = _MockPlatform();
-    final event = platform.connectionUpdateStream(deviceId).first;
+    final event = platform.connectionChangeStream(deviceId).first;
     platform.updateConnection(deviceId.toLowerCase(), false, 'x',
         UniversalBleErrorCode.connectionTimeout, 147);
     expect((await event).nativeErrorCode, 147);
