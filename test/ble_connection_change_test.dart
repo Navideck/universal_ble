@@ -46,7 +46,7 @@ void main() {
     expect(await events, [true, false]);
   });
 
-  test('onConnectionChange receives the same update as the stream', () async {
+  test('onConnectionChange receives the same change as the stream', () async {
     final platform = _MockPlatform();
     final received = <BleConnectionChange>[];
     platform.onConnectionChange = received.add;

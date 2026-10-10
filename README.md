@@ -252,13 +252,13 @@ bleDevice.connectionStream.listen((isConnected) {
 To react to *why* a device disconnected, use `connectionChangeStream`. Each event carries the platform's error message, a unified `errorCode` (`UniversalBleErrorCode.deviceDisconnected` when the peripheral closed the link, `connectionTimeout` when the link was lost, `connectionFailed`, ...) and the raw `nativeErrorCode` (`CBError.Code` on Apple, the GATT status on Android; the numeric ranges overlap across platforms, so branch on `errorCode` and keep `nativeErrorCode` for logs). All three are usually `null` when the app requested the disconnect. Windows reports only the message; Linux and Web report `null` for all three.
 
 ```dart
-bleDevice.connectionChangeStream.listen((update) {
-  if (update.isConnected) return;
-  switch (update.errorCode) {
+bleDevice.connectionChangeStream.listen((change) {
+  if (change.isConnected) return;
+  switch (change.errorCode) {
     case UniversalBleErrorCode.deviceDisconnected: // peripheral closed the link
     case UniversalBleErrorCode.connectionTimeout:  // out of range / powered off
     default:
-      debugPrint('Disconnected: ${update.errorCode} (native ${update.nativeErrorCode}) ${update.error}');
+      debugPrint('Disconnected: ${change.errorCode} (native ${change.nativeErrorCode}) ${change.error}');
   }
 });
 ```
