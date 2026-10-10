@@ -640,7 +640,7 @@ int rssi = await bleDevice.readRssi();
 
 ## Command Queue
 
-By default, commands use `QueueType.auto`, which automatically picks the best strategy for the current platform with zero configuration. Android uses a per-device queue (its native BLE stack rejects overlapping operations), while all other platforms run commands in parallel (they pipeline natively).
+By default, commands use `QueueType.auto`, which automatically picks the best strategy for the current platform with zero configuration. Android, Web, and Linux use a per-device queue (their BLE stacks reject or misbehave on overlapping operations), while all other platforms run commands in parallel (they pipeline natively).
 
 If you want explicit control over how commands are serialized, you can set `queueType`:
 
@@ -651,7 +651,7 @@ UniversalBle.queueType = QueueType.global;
 // Create a separate queue for each device.
 UniversalBle.queueType = QueueType.perDevice;
 
-// Auto-decide per platform (default): Android queues per device, all others run in parallel.
+// Auto-decide per platform (default): Android, Web and Linux queue per device, others run in parallel.
 UniversalBle.queueType = QueueType.auto;
 ```
 
