@@ -74,7 +74,7 @@ Rule of thumb:
 Converting an existing positional callback to a model object is a **breaking change**, so it happens only:
 
 1. on a major release, and
-2. in a PR whose explicit purpose is that API change — never bundled into a feature, fix, or refactor PR.
+2. in a PR whose explicit purpose includes that API change — never bundled into an unrelated feature, fix, or refactor PR.
 
 ## Platform-specific APIs and parameters
 

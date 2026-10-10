@@ -66,7 +66,11 @@ class UniversalBle {
   static Stream<BleConnectionChange> connectionChangeStream(String deviceId) =>
       _platform.connectionChangeStream(deviceId);
 
-  /// Characteristic value stream
+  /// Characteristic value stream.
+  ///
+  /// Emits the raw characteristic bytes for each update. The platform
+  /// timestamp is not surfaced here; set [onValueChange] to receive a
+  /// [BleCharacteristicValue] that also carries it.
   static Stream<Uint8List> characteristicValueStream(
     String deviceId,
     String characteristicId,
