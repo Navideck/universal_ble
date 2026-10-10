@@ -435,10 +435,10 @@ class UniversalBleDescriptor {
 // (multiply interval by 1.25 for ms; supervisionTimeout by 10 for ms).
 //
 // Generated class from Pigeon that represents data sent in messages.
-class BleConnectionParametersUpdated {
+class BleConnectionParametersChange {
  public:
   // Constructs an object setting all fields.
-  explicit BleConnectionParametersUpdated(
+  explicit BleConnectionParametersChange(
     const std::string& device_id,
     int64_t interval,
     int64_t latency,
@@ -460,12 +460,12 @@ class BleConnectionParametersUpdated {
   int64_t status() const;
   void set_status(int64_t value_arg);
 
-  bool operator==(const BleConnectionParametersUpdated& other) const;
-  bool operator!=(const BleConnectionParametersUpdated& other) const;
+  bool operator==(const BleConnectionParametersChange& other) const;
+  bool operator!=(const BleConnectionParametersChange& other) const;
   /// Returns a hash code value for the object. This method is supported for the benefit of hash tables.
   size_t Hash() const;
  private:
-  static BleConnectionParametersUpdated FromEncodableList(const ::flutter::EncodableList& list);
+  static BleConnectionParametersChange FromEncodableList(const ::flutter::EncodableList& list);
   ::flutter::EncodableList ToEncodableList() const;
   friend class UniversalBlePlatformChannel;
   friend class UniversalBleCallbackChannel;
@@ -1410,7 +1410,7 @@ class UniversalBleCallbackChannel {
     std::function<void(void)>&& on_success,
     std::function<void(const FlutterError&)>&& on_error);
   void OnConnectionParametersUpdated(
-    const BleConnectionParametersUpdated& update,
+    const BleConnectionParametersChange& update,
     std::function<void(void)>&& on_success,
     std::function<void(const FlutterError&)>&& on_error);
  private:

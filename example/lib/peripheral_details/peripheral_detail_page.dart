@@ -85,14 +85,14 @@ class _PeripheralDetailPageState extends State<PeripheralDetailPage> {
     }
   }
 
-  void _handleValueChange(String deviceId, String characteristicId,
-      Uint8List value, int? timestamp) {
-    String s = String.fromCharCodes(value);
-    String data = '$s\nraw :  ${value.toString()}';
-    DateTime? timestampDateTime = timestamp != null
-        ? DateTime.fromMillisecondsSinceEpoch(timestamp)
+  void _handleValueChange(BleCharacteristicValue update) {
+    String s = String.fromCharCodes(update.value);
+    String data = '$s\nraw :  ${update.value.toString()}';
+    DateTime? timestampDateTime = update.timestamp != null
+        ? DateTime.fromMillisecondsSinceEpoch(update.timestamp!)
         : null;
-    debugPrint('_handleValueChange ($timestampDateTime) $characteristicId, $s');
+    debugPrint(
+        '_handleValueChange ($timestampDateTime) ${update.characteristicId}, $s');
     _addLog("Value", data);
   }
 
@@ -102,7 +102,7 @@ class _PeripheralDetailPageState extends State<PeripheralDetailPage> {
   }
 
   void _handleConnectionParametersChange(
-    BleConnectionParametersUpdated update,
+    BleConnectionParametersChange update,
   ) {
     debugPrint('ConnectionParametersChange $update');
     _addLog(

@@ -536,8 +536,8 @@ class UniversalBleDescriptor {
 ///
 /// [interval] and [supervisionTimeout] use BLE connection parameter units
 /// (multiply interval by 1.25 for ms; supervisionTimeout by 10 for ms).
-class BleConnectionParametersUpdated {
-  BleConnectionParametersUpdated({
+class BleConnectionParametersChange {
+  BleConnectionParametersChange({
     required this.deviceId,
     required this.interval,
     required this.latency,
@@ -569,9 +569,9 @@ class BleConnectionParametersUpdated {
     return _toList();
   }
 
-  static BleConnectionParametersUpdated decode(Object result) {
+  static BleConnectionParametersChange decode(Object result) {
     result as List<Object?>;
-    return BleConnectionParametersUpdated(
+    return BleConnectionParametersChange(
       deviceId: result[0]! as String,
       interval: result[1]! as int,
       latency: result[2]! as int,
@@ -583,7 +583,7 @@ class BleConnectionParametersUpdated {
   @override
   // ignore: avoid_equals_and_hash_code_on_mutable_classes
   bool operator ==(Object other) {
-    if (other is! BleConnectionParametersUpdated ||
+    if (other is! BleConnectionParametersChange ||
         other.runtimeType != runtimeType) {
       return false;
     }
@@ -1614,7 +1614,7 @@ class _PigeonCodec extends StandardMessageCodec {
     } else if (value is UniversalBleDescriptor) {
       buffer.putUint8(147);
       writeValue(buffer, value.encode());
-    } else if (value is BleConnectionParametersUpdated) {
+    } else if (value is BleConnectionParametersChange) {
       buffer.putUint8(148);
       writeValue(buffer, value.encode());
     } else if (value is AndroidOptions) {
@@ -1732,7 +1732,7 @@ class _PigeonCodec extends StandardMessageCodec {
       case 147:
         return UniversalBleDescriptor.decode(readValue(buffer)!);
       case 148:
-        return BleConnectionParametersUpdated.decode(readValue(buffer)!);
+        return BleConnectionParametersChange.decode(readValue(buffer)!);
       case 149:
         return AndroidOptions.decode(readValue(buffer)!);
       case 150:
@@ -2317,7 +2317,7 @@ abstract class UniversalBleCallbackChannel {
   void onConnectionChanged(String deviceId, bool connected, String? error,
       UniversalBleErrorCode? errorCode, int? nativeErrorCode);
 
-  void onConnectionParametersUpdated(BleConnectionParametersUpdated update);
+  void onConnectionParametersUpdated(BleConnectionParametersChange update);
 
   static void setUp(
     UniversalBleCallbackChannel? api, {
@@ -2464,8 +2464,8 @@ abstract class UniversalBleCallbackChannel {
       } else {
         pigeonVar_channel.setMessageHandler((Object? message) async {
           final List<Object?> args = message! as List<Object?>;
-          final BleConnectionParametersUpdated arg_update =
-              args[0]! as BleConnectionParametersUpdated;
+          final BleConnectionParametersChange arg_update =
+              args[0]! as BleConnectionParametersChange;
           try {
             api.onConnectionParametersUpdated(arg_update);
             return wrapResponse(empty: true);

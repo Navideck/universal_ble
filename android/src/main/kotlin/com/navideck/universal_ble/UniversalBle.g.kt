@@ -672,7 +672,7 @@ data class UniversalBleDescriptor (
  *
  * Generated class from Pigeon that represents data sent in messages.
  */
-data class BleConnectionParametersUpdated (
+data class BleConnectionParametersChange (
   val deviceId: String,
   val interval: Long,
   val latency: Long,
@@ -681,13 +681,13 @@ data class BleConnectionParametersUpdated (
 )
  {
   companion object {
-    fun fromList(pigeonVar_list: List<Any?>): BleConnectionParametersUpdated {
+    fun fromList(pigeonVar_list: List<Any?>): BleConnectionParametersChange {
       val deviceId = pigeonVar_list[0] as String
       val interval = pigeonVar_list[1] as Long
       val latency = pigeonVar_list[2] as Long
       val supervisionTimeout = pigeonVar_list[3] as Long
       val status = pigeonVar_list[4] as Long
-      return BleConnectionParametersUpdated(deviceId, interval, latency, supervisionTimeout, status)
+      return BleConnectionParametersChange(deviceId, interval, latency, supervisionTimeout, status)
     }
   }
   fun toList(): List<Any?> {
@@ -706,7 +706,7 @@ data class BleConnectionParametersUpdated (
     if (this === other) {
       return true
     }
-    val other = other as BleConnectionParametersUpdated
+    val other = other as BleConnectionParametersChange
     return UniversalBlePigeonUtils.deepEquals(this.deviceId, other.deviceId) && UniversalBlePigeonUtils.deepEquals(this.interval, other.interval) && UniversalBlePigeonUtils.deepEquals(this.latency, other.latency) && UniversalBlePigeonUtils.deepEquals(this.supervisionTimeout, other.supervisionTimeout) && UniversalBlePigeonUtils.deepEquals(this.status, other.status)
   }
 
@@ -1604,7 +1604,7 @@ private open class UniversalBlePigeonCodec : StandardMessageCodec() {
       }
       148.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          BleConnectionParametersUpdated.fromList(it)
+          BleConnectionParametersChange.fromList(it)
         }
       }
       149.toByte() -> {
@@ -1773,7 +1773,7 @@ private open class UniversalBlePigeonCodec : StandardMessageCodec() {
         stream.write(147)
         writeValue(stream, value.toList())
       }
-      is BleConnectionParametersUpdated -> {
+      is BleConnectionParametersChange -> {
         stream.write(148)
         writeValue(stream, value.toList())
       }
@@ -2488,7 +2488,7 @@ class UniversalBleCallbackChannel(private val binaryMessenger: BinaryMessenger, 
       } 
     }
   }
-  fun onConnectionParametersUpdated(updateArg: BleConnectionParametersUpdated, callback: (Result<Unit>) -> Unit)
+  fun onConnectionParametersUpdated(updateArg: BleConnectionParametersChange, callback: (Result<Unit>) -> Unit)
 {
     val separatedMessageChannelSuffix = if (messageChannelSuffix.isNotEmpty()) ".$messageChannelSuffix" else ""
     val channelName = "dev.flutter.pigeon.universal_ble.UniversalBleCallbackChannel.onConnectionParametersUpdated$separatedMessageChannelSuffix"

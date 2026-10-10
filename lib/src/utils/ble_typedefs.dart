@@ -4,15 +4,9 @@ import 'package:universal_ble/universal_ble.dart';
 
 /// Central mode callbacks
 ///
-typedef OnConnectionChange = void Function(BleConnectionUpdate update);
+typedef OnConnectionChange = void Function(BleConnectionChange change);
 
-typedef OnValueChange =
-    void Function(
-      String deviceId,
-      String characteristicId,
-      Uint8List value,
-      int? timestamp,
-    );
+typedef OnValueChange = void Function(BleCharacteristicValue value);
 
 typedef OnScanResult = void Function(BleDevice scanResult);
 
@@ -21,7 +15,7 @@ typedef OnAvailabilityChange = void Function(AvailabilityState state);
 typedef OnPairingStateChange = void Function(String deviceId, bool isPaired);
 
 typedef OnConnectionParametersChange =
-    void Function(BleConnectionParametersUpdated update);
+    void Function(BleConnectionParametersChange update);
 
 typedef OnQueueUpdate = void Function(String id, int remainingQueueItems);
 

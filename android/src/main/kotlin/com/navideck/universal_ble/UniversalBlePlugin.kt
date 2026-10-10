@@ -1196,7 +1196,7 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
         )
         mainThreadHandler?.post {
             callbackChannel?.onConnectionParametersUpdated(
-                BleConnectionParametersUpdated(
+                BleConnectionParametersChange(
                     deviceId = deviceId,
                     interval = interval.toLong(),
                     latency = latency.toLong(),
