@@ -76,11 +76,10 @@ Converting an existing positional callback to a model object is a **breaking cha
 1. on a major release, and
 2. in a PR whose explicit purpose is that API change — never bundled into a feature, fix, or refactor PR.
 
-Known deviations, kept as they are for now:
+Known deviations:
 
-- `onPairingStateChange` and `onQueueUpdate` — two values each, within the limit, so they stay positional.
-- `onValueChange` currently takes four values (device ID, characteristic ID, value, timestamp), so it is over the limit; migrate it on the next major release that already touches it.
-- `onConnectionParametersChange` already delivers a model (`BleConnectionParametersUpdated`); its `…Updated` vs `…Change` naming mismatch is a separate, Pigeon-generated concern tracked on its own.
+- `onValueChange` takes four values (device ID, characteristic ID, value, timestamp), one over the limit. It is stable public API, so it is migrated on the next major release that already touches it.
+- `onConnectionParametersChange` already delivers a model, so its shape follows this rule; only its name (`BleConnectionParametersUpdated` rather than `…Change`) deviates. The model is Pigeon-generated across five platforms, so the rename is tracked separately.
 
 ## Platform-specific APIs and parameters
 
