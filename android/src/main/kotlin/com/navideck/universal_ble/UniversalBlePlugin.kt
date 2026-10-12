@@ -75,6 +75,11 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
     private val writeDescriptorResultFutureList = mutableListOf<WriteDescriptorResultFuture>()
     private val subscriptionResultFutureList = mutableListOf<SubscriptionResultFuture>()
     private val pairResultFutures = mutableMapOf<String, (Result<Boolean>) -> Unit>()
+
+    // Addresses seen go through BOND_BONDING. A return to BOND_NONE while an address is in here is a
+    // failed/declined bond (an event), not a steady BOND_NONE, so onBondStateUpdate() marks it as a failure
+    // instead of letting Dart's pairing-state dedup swallow it (#325).
+    private val bondingAttempts = mutableSetOf<String>()
     private val rssiResultFutureList = mutableListOf<RssiResultFuture>()
     private val autoConnectDevices = mutableSetOf<String>()
 
@@ -288,6 +293,20 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
 
     override fun isScanning(): Boolean {
         return safeScanner.isScanning()
+    }
+
+    override fun requestDevice(
+        options: AppleAccessorySetupOptions,
+        callback: (Result<UniversalDevicePickerResult>) -> Unit,
+    ) {
+        callback(
+            Result.failure(
+                createFlutterError(
+                    UniversalBleErrorCode.NOT_SUPPORTED,
+                    "AccessorySetupKit is only supported on iOS 18+",
+                )
+            )
+        )
     }
 
     override fun connect(
@@ -1287,11 +1306,14 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
 
     }
 
-    override fun unPair(deviceId: String) {
-        val remoteDevice: BluetoothDevice =
-            bluetoothManager.adapter.getRemoteDevice(deviceId)
-        if (remoteDevice.isBonded()) {
-            remoteDevice.removeBond()
+    override fun unPair(deviceId: String, callback: (Result<Unit>) -> Unit) {
+        try {
+            val remoteDevice: BluetoothDevice =
+                bluetoothManager.adapter.getRemoteDevice(deviceId)
+            if (remoteDevice.isBonded()) remoteDevice.removeBond()
+            callback(Result.success(Unit))
+        } catch (e: Exception) {
+            callback(Result.failure(e))
         }
     }
 
@@ -1555,11 +1577,11 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
         }, gattCloseTimeoutMs)
     }
 
-    private fun onBondStateUpdate(deviceId: String, bonded: Boolean, error: String? = null) {
+    private fun onBondStateUpdate(deviceId: String, bonded: Boolean, isFailure: Boolean = false) {
         val future = pairResultFutures.remove(deviceId)
         future?.let { it(Result.success(bonded)) }
         mainThreadHandler?.post {
-            callbackChannel?.onPairStateChange(deviceId, bonded, error) {}
+            callbackChannel?.onPairStateChange(deviceId, bonded, isFailure) {}
         }
     }
 
@@ -1581,20 +1603,26 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
                 // get pairing failed error
                 when (bondStateChange.state) {
                     BluetoothDevice.BOND_BONDING -> {
+                        bondingAttempts.add(bondStateChange.device.address)
                         UniversalBleLogger.logVerbose("${bondStateChange.device.address} BOND_BONDING")
                     }
 
                     BluetoothDevice.BOND_BONDED -> {
+                        bondingAttempts.remove(bondStateChange.device.address)
                         onBondStateUpdate(bondStateChange.device.address, true)
                     }
 
                     BluetoothDevice.ERROR -> {
-                        onBondStateUpdate(bondStateChange.device.address, false, "Failed to Pair")
+                        bondingAttempts.remove(bondStateChange.device.address)
+                        onBondStateUpdate(bondStateChange.device.address, false, isFailure = true)
                     }
 
                     BluetoothDevice.BOND_NONE -> {
                         UniversalBleLogger.logError("${bondStateChange.device.address} BOND_NONE")
-                        onBondStateUpdate(bondStateChange.device.address, false)
+                        // A BOND_NONE that ends a bonding attempt we saw start is a failed/declined bond,
+                        // not a steady BOND_NONE; report it as a failure so it isn't deduped away.
+                        val failed = bondingAttempts.remove(bondStateChange.device.address)
+                        onBondStateUpdate(bondStateChange.device.address, false, isFailure = failed)
                     }
                 }
             }
@@ -1648,7 +1676,8 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
                         rssi = result.rssi.toLong(),
                         services = serviceUuids.map { it.toString() }.toList(),
                         timestamp = timestampMicroseconds / 1000,
-                        timestampMicroseconds = timestampMicroseconds
+                        timestampMicroseconds = timestampMicroseconds,
+                        connectable = result.isConnectable
                     )
                 ) {}
             }

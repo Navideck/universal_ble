@@ -20,4 +20,27 @@ void main() {
       1787597612345000,
     );
   });
+
+  test('exposes connectable property', () {
+    final connectableDevice = BleDevice(
+      deviceId: 'device-1',
+      name: 'Connectable Device',
+      connectable: true,
+    );
+    expect(connectableDevice.connectable, isTrue);
+
+    final nonConnectableDevice = BleDevice(
+      deviceId: 'device-2',
+      name: 'Beacon',
+      connectable: false,
+    );
+    expect(nonConnectableDevice.connectable, isFalse);
+
+    final unknownDevice = BleDevice(
+      deviceId: 'device-3',
+      name: null,
+    );
+    expect(unknownDevice.connectable, isNull);
+  });
 }
+

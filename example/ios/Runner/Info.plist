@@ -30,6 +30,29 @@
 	<string>Discover Bluetooth devices</string>
 	<key>NSBluetoothPeripheralUsageDescription</key>
 	<string>Discover Bluetooth devices</string>
+	<key>NSAccessorySetupKitSupports</key>
+	<array>
+		<string>Bluetooth</string>
+	</array>
+	<key>NSAccessorySetupBluetoothServices</key>
+	<array>
+		<string>180D</string>
+		<string>180F</string>
+		<string>180A</string>
+		<string>1800</string>
+		<string>FFE0</string>
+		<string>FFF0</string>
+		<string>00000001-0000-1000-8000-00805F9B34FB</string>
+		<string>12345678-1234-1234-1234-1234567890AB</string>
+	</array>
+	<key>NSAccessorySetupBluetoothNames</key>
+	<array>
+		<string>Test</string>
+		<string>BLE</string>
+		<string>Device</string>
+		<string>HIL</string>
+		<string>Polar</string>
+	</array>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

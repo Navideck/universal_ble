@@ -216,6 +216,13 @@ void UniversalBlePlugin::EnableBluetooth(
       });
 }
 
+void UniversalBlePlugin::RequestDevice(
+    const AppleAccessorySetupOptions &,
+    std::function<void(ErrorOr<UniversalDevicePickerResult> reply)> result) {
+  result(create_flutter_error(UniversalBleErrorCode::kNotSupported,
+                              "AccessorySetupKit is only supported on iOS 18+"));
+}
+
 void UniversalBlePlugin::DisableBluetooth(
     std::function<void(ErrorOr<bool> reply)> result) {
   if (!bluetooth_radio_) {
@@ -1053,20 +1060,23 @@ void UniversalBlePlugin::Pair(const std::string &device_id,
   }
 }
 
-std::optional<FlutterError> UniversalBlePlugin::UnPair(
-    const std::string &device_id) {
+void UniversalBlePlugin::UnPair(
+    const std::string &device_id,
+    std::function<void(std::optional<FlutterError> reply)> result) {
   try {
     const auto device = async_get(BluetoothLEDevice::FromBluetoothAddressAsync(
         str_to_mac_address(device_id)));
     if (device == nullptr) {
-      return create_flutter_error(UniversalBleErrorCode::kDeviceNotFound,
-                                  "Unknown devicesId:" + device_id);
+      result(create_flutter_error(UniversalBleErrorCode::kDeviceNotFound,
+                                  "Unknown devicesId:" + device_id));
+      return;
     }
     const auto device_information = device.DeviceInformation();
 
     if (!device_information.Pairing().IsPaired()) {
-      return create_flutter_error(UniversalBleErrorCode::kNotPaired,
-                                  "Device is not paired");
+      result(create_flutter_error(UniversalBleErrorCode::kNotPaired,
+                                  "Device is not paired"));
+      return;
     }
 
     const auto device_unpairing_result =
@@ -1074,11 +1084,12 @@ std::optional<FlutterError> UniversalBlePlugin::UnPair(
 
     const auto status = device_unpairing_result.Status();
     if (status != DeviceUnpairingResultStatus::Unpaired) {
-      return create_flutter_error_from_unpairing_status(status);
+      result(create_flutter_error_from_unpairing_status(status));
+      return;
     }
-    return std::nullopt;
+    result(std::nullopt);
   } catch (const FlutterError &err) {
-    return err;
+    result(err);
   }
 }
 
@@ -1386,10 +1397,6 @@ std::string UniversalBlePlugin::ExpandServiceUuid(
 // this gate used to drop it. The caller then never saw the service, while
 // Android, BlueZ, CoreBluetooth and bleak all merge the two packets of a
 // device into one result.
-//
-// The gate now also admits an answered scan request for an address that has
-// already been handed over as connectable, which leaves beacons and other
-// non-connectable advertisers out.
 void UniversalBlePlugin::PushUniversalScanResult(
     UniversalBleScanResult scan_result, const bool is_connectable,
     const bool is_scan_response) {
@@ -1398,6 +1405,14 @@ void UniversalBlePlugin::PushUniversalScanResult(
   }
   const std::optional<UniversalBleScanResult> it =
       scan_results_.get(scan_result.device_id());
+  const bool answers_a_scan_request =
+      is_scan_response &&
+      (connectable_heard_.get(scan_result.device_id()).value_or(false) ||
+       (it.has_value() && it.value().connectable() != nullptr &&
+        *it.value().connectable()));
+  const bool device_is_connectable = is_connectable || answers_a_scan_request;
+  scan_result.set_connectable(device_is_connectable);
+
   if (it.has_value()) {
     const UniversalBleScanResult &current_scan_result = it.value();
     bool should_update = false;
@@ -1455,6 +1470,11 @@ void UniversalBlePlugin::PushUniversalScanResult(
       should_update = true;
     }
 
+    if (current_scan_result.connectable() == nullptr ||
+        *scan_result.connectable() != *current_scan_result.connectable()) {
+      should_update = true;
+    }
+
     // A scan response is an update in itself: it is the answer to the scan
     // request the host sent for this very address, so whatever it carries is
     // newer than the cache - even when no cached field could be copied into
@@ -1474,13 +1494,8 @@ void UniversalBlePlugin::PushUniversalScanResult(
   // Update cache
   scan_results_.insert_or_assign(scan_result.device_id(), scan_result);
 
-  // Filter final result before sending to Flutter. An answered scan request
-  // counts when the same address has advertised connectably - see the note
-  // above this method.
-  const bool answers_a_scan_request =
-      is_scan_response &&
-      connectable_heard_.get(scan_result.device_id()).value_or(false);
-  if ((is_connectable || answers_a_scan_request) && filterDevice(scan_result)) {
+  // Filter final result before sending to Flutter
+  if (filterDevice(scan_result)) {
     const auto timestamp_microseconds = GetCurrentTimestampMicros();
     scan_result.set_timestamp(timestamp_microseconds / 1000);
     scan_result.set_timestamp_microseconds(timestamp_microseconds);
@@ -1660,16 +1675,8 @@ void UniversalBlePlugin::OnDeviceInfoReceived(
     const DeviceInformation &device_info) {
   const auto properties = device_info.Properties();
 
-  // Avoid devices if not connectable or if deviceAddressKey is not present
-  if (!properties.HasKey(is_connectable_key) ||
-      !properties.HasKey(device_address_key)) {
-    return;
-  }
-
-  const auto is_connectable_property_value = lookup_i_property_value(
-      properties, is_connectable_key, "IsConnectable", "OnDeviceInfoReceived");
-  if (!is_connectable_property_value ||
-      !is_connectable_property_value.GetBoolean()) {
+  // Avoid devices if deviceAddressKey is not present
+  if (!properties.HasKey(device_address_key)) {
     return;
   }
 
@@ -1683,7 +1690,18 @@ void UniversalBlePlugin::OnDeviceInfoReceived(
       to_string(bluetooth_address_property_value.GetString());
 
   // Update device info if already discovered in advertisementWatcher
-  if (scan_results_.get(device_address).has_value()) {
+  const auto it = scan_results_.get(device_address);
+  if (it.has_value()) {
+    bool is_connectable = it.value().connectable() != nullptr
+                              ? *it.value().connectable()
+                              : true;
+    if (properties.HasKey(is_connectable_key)) {
+      const auto is_connectable_property_value = lookup_i_property_value(
+          properties, is_connectable_key, "IsConnectable", "OnDeviceInfoReceived");
+      if (is_connectable_property_value) {
+        is_connectable = is_connectable_property_value.GetBoolean();
+      }
+    }
     bool is_paired = device_info.Pairing().IsPaired();
     if (properties.HasKey(is_paired_key)) {
       const auto is_paired_property_value = lookup_i_property_value(
@@ -1695,6 +1713,7 @@ void UniversalBlePlugin::OnDeviceInfoReceived(
 
     UniversalBleScanResult universal_scan_result(device_address);
     universal_scan_result.set_is_paired(is_paired);
+    universal_scan_result.set_connectable(is_connectable);
 
     if (!device_info.Name().empty())
       universal_scan_result.set_name(to_string(device_info.Name()));
@@ -1709,7 +1728,7 @@ void UniversalBlePlugin::OnDeviceInfoReceived(
       }
     }
 
-    PushUniversalScanResult(universal_scan_result, true, false);
+    PushUniversalScanResult(universal_scan_result, is_connectable, false);
   }
 }
 
@@ -1858,6 +1877,9 @@ void UniversalBlePlugin::BluetoothLeWatcherReceived(
     // shipped with every Windows 10.
     const bool is_scan_response =
         args.AdvertisementType() == BluetoothLEAdvertisementType::ScanResponse;
+    if (!is_scan_response) {
+      universal_scan_result.set_connectable(args.IsConnectable());
+    }
     // Filter Device
     PushUniversalScanResult(universal_scan_result, args.IsConnectable(),
                             is_scan_response);
@@ -2730,6 +2752,7 @@ fire_and_forget UniversalBlePlugin::GetSystemDevicesAsync(
           auto universal_scan_result = UniversalBleScanResult(device_id);
           universal_scan_result.set_name(to_string(device_info.Name()));
           universal_scan_result.set_is_paired(device_info.Pairing().IsPaired());
+          universal_scan_result.set_connectable(true);
           results.push_back(
               flutter::CustomEncodableValue(universal_scan_result));
         }

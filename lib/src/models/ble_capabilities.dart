@@ -49,6 +49,10 @@ class BleCapabilities {
   /// Whether connection parameter update events are reported (Android API 26+).
   static bool supportsConnectionParametersUpdates =
       !_Platform.isWeb && defaultTargetPlatform == TargetPlatform.android;
+
+  /// Whether the platform has a native device picker (`UniversalBle.requestDevice`).
+  /// Web uses the browser Bluetooth chooser; iOS uses AccessorySetupKit.
+  static bool supportsRequestDeviceApi = _Platform.isWeb || _Platform.isIOS;
 }
 
 class _Platform {
