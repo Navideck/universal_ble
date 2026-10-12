@@ -554,7 +554,7 @@ struct UniversalBleDescriptor: Hashable {
 /// (multiply interval by 1.25 for ms; supervisionTimeout by 10 for ms).
 ///
 /// Generated class from Pigeon that represents data sent in messages.
-struct BleConnectionParametersUpdated: Hashable {
+struct BleConnectionParametersChange: Hashable {
   var deviceId: String
   var interval: Int64
   var latency: Int64
@@ -563,14 +563,14 @@ struct BleConnectionParametersUpdated: Hashable {
 
 
   // swift-format-ignore: AlwaysUseLowerCamelCase
-  static func fromList(_ pigeonVar_list: [Any?]) -> BleConnectionParametersUpdated? {
+  static func fromList(_ pigeonVar_list: [Any?]) -> BleConnectionParametersChange? {
     let deviceId = pigeonVar_list[0] as! String
     let interval = pigeonVar_list[1] as! Int64
     let latency = pigeonVar_list[2] as! Int64
     let supervisionTimeout = pigeonVar_list[3] as! Int64
     let status = pigeonVar_list[4] as! Int64
 
-    return BleConnectionParametersUpdated(
+    return BleConnectionParametersChange(
       deviceId: deviceId,
       interval: interval,
       latency: latency,
@@ -587,7 +587,7 @@ struct BleConnectionParametersUpdated: Hashable {
       status,
     ]
   }
-  static func == (lhs: BleConnectionParametersUpdated, rhs: BleConnectionParametersUpdated) -> Bool {
+  static func == (lhs: BleConnectionParametersChange, rhs: BleConnectionParametersChange) -> Bool {
     if Swift.type(of: lhs) != Swift.type(of: rhs) {
       return false
     }
@@ -595,7 +595,7 @@ struct BleConnectionParametersUpdated: Hashable {
   }
 
   func hash(into hasher: inout Hasher) {
-    hasher.combine("BleConnectionParametersUpdated")
+    hasher.combine("BleConnectionParametersChange")
     deepHashUniversalBle(value: deviceId, hasher: &hasher)
     deepHashUniversalBle(value: interval, hasher: &hasher)
     deepHashUniversalBle(value: latency, hasher: &hasher)
@@ -1444,7 +1444,7 @@ private class UniversalBlePigeonCodecReader: FlutterStandardReader {
     case 147:
       return UniversalBleDescriptor.fromList(self.readValue() as! [Any?])
     case 148:
-      return BleConnectionParametersUpdated.fromList(self.readValue() as! [Any?])
+      return BleConnectionParametersChange.fromList(self.readValue() as! [Any?])
     case 149:
       return AndroidOptions.fromList(self.readValue() as! [Any?])
     case 150:
@@ -1544,7 +1544,7 @@ private class UniversalBlePigeonCodecWriter: FlutterStandardWriter {
     } else if let value = value as? UniversalBleDescriptor {
       super.writeByte(147)
       super.writeValue(value.toList())
-    } else if let value = value as? BleConnectionParametersUpdated {
+    } else if let value = value as? BleConnectionParametersChange {
       super.writeByte(148)
       super.writeValue(value.toList())
     } else if let value = value as? AndroidOptions {
@@ -2094,7 +2094,7 @@ protocol UniversalBleCallbackChannelProtocol {
   /// `status` (Android). [nativeErrorCode] is that raw platform value.
   /// Both are `null` when there is no error or the platform has no code.
   func onConnectionChanged(deviceId deviceIdArg: String, connected connectedArg: Bool, error errorArg: String?, errorCode errorCodeArg: UniversalBleErrorCode?, nativeErrorCode nativeErrorCodeArg: Int64?, completion: @escaping (Result<Void, PigeonError>) -> Void)
-  func onConnectionParametersUpdated(update updateArg: BleConnectionParametersUpdated, completion: @escaping (Result<Void, PigeonError>) -> Void)
+  func onConnectionParametersUpdated(update updateArg: BleConnectionParametersChange, completion: @escaping (Result<Void, PigeonError>) -> Void)
 }
 class UniversalBleCallbackChannel: UniversalBleCallbackChannelProtocol {
   private let binaryMessenger: FlutterBinaryMessenger
@@ -2201,7 +2201,7 @@ class UniversalBleCallbackChannel: UniversalBleCallbackChannelProtocol {
       }
     }
   }
-  func onConnectionParametersUpdated(update updateArg: BleConnectionParametersUpdated, completion: @escaping (Result<Void, PigeonError>) -> Void) {
+  func onConnectionParametersUpdated(update updateArg: BleConnectionParametersChange, completion: @escaping (Result<Void, PigeonError>) -> Void) {
     let channelName: String = "dev.flutter.pigeon.universal_ble.UniversalBleCallbackChannel.onConnectionParametersUpdated\(messageChannelSuffix)"
     let channel = FlutterBasicMessageChannel(name: channelName, binaryMessenger: binaryMessenger, codec: codec)
     channel.sendMessage([updateArg] as [Any?]) { response in

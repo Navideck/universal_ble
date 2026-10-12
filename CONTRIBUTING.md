@@ -61,6 +61,21 @@ That runs `dart run pigeon --input pigeon/universal_ble.dart` and formats `lib/s
 - **Tests:** Add or extend tests under `test/` when behavior is non-trivial or regression-prone. Use `flutter_test` like the existing suite.
 - **Example:** If the change affects how integrators use the plugin, consider updating the `example/` app so it stays a working reference.
 
+## Callback payloads: positional arguments vs. model objects
+
+Event callbacks (`onXxx` / `onXxxChange`) accept up to **three positional values**; beyond that, group the payload into a model object.
+
+Rule of thumb:
+
+- **Keep positional arguments** when the payload is three values or fewer (`onAvailabilityChange(AvailabilityState)`, `onPairingStateChange(deviceId, isPaired)`), or is internal plumbing not tied to a device event.
+- **Use a model object** when a callback delivers four or more related values for a single entity (a device, a characteristic, a queue item), or when a payload of three or fewer is expected to grow past three. New callbacks must follow this. Examples: `onScanResult(BleDevice)`, `onConnectionChange(BleConnectionChange)`.
+- Name the model for the event and document it field-by-field. Where the callback reports a state change, name the model `…Change` (for example `BleConnectionChange`), matching the `onXxxChange` callback family.
+
+Converting an existing positional callback to a model object is a **breaking change**, so it happens only:
+
+1. on a major release, and
+2. in a PR whose explicit purpose includes that API change — never bundled into an unrelated feature, fix, or refactor PR.
+
 ## Platform-specific APIs and parameters
 
 - **Single-platform features:** Prefer not adding a new public API when only one platform can implement it, unless none of the existing APIs can be extended or adapted to cover the behavior. For example, something like Android-only `requestConnectionPriority` should only become its own method if `connect`, `platformConfig`, or another existing entry point cannot reasonably subsume it.

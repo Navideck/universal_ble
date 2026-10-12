@@ -153,14 +153,14 @@ class UniversalBleDescriptor {
 ///
 /// [interval] and [supervisionTimeout] use BLE connection parameter units
 /// (multiply interval by 1.25 for ms; supervisionTimeout by 10 for ms).
-class BleConnectionParametersUpdated {
+class BleConnectionParametersChange {
   final String deviceId;
   final int interval;
   final int latency;
   final int supervisionTimeout;
   final int status;
 
-  BleConnectionParametersUpdated({
+  BleConnectionParametersChange({
     required this.deviceId,
     required this.interval,
     required this.latency,
@@ -533,7 +533,7 @@ abstract class UniversalBleCallbackChannel {
     int? nativeErrorCode,
   );
 
-  void onConnectionParametersUpdated(BleConnectionParametersUpdated update);
+  void onConnectionParametersUpdated(BleConnectionParametersChange update);
 }
 
 /// Flutter -> Native (peripheral)

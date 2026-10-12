@@ -14,18 +14,16 @@ abstract class UniversalBlePlatform {
   OnPairingStateChange? onPairingStateChange;
   OnConnectionParametersChange? onConnectionParametersChange;
   final Map<String, bool> _pairStateMap = {};
-  final Map<String, BleConnectionParametersUpdated>
+  final Map<String, BleConnectionParametersChange>
   _lastConnectionParametersMap = {};
 
   final _scanStreamController = UniversalBleStreamController<BleDevice>();
 
-  final bleConnectionUpdateStreamController =
-      UniversalBleStreamController<BleConnectionUpdate>();
+  final bleConnectionChangeStreamController =
+      UniversalBleStreamController<BleConnectionChange>();
 
   final _valueStreamController =
-      UniversalBleStreamController<
-        ({String deviceId, String characteristicId, Uint8List value})
-      >();
+      UniversalBleStreamController<BleCharacteristicValue>();
 
   final _pairStateStreamController =
       UniversalBleStreamController<({String deviceId, bool isPaired})>();
@@ -150,11 +148,11 @@ abstract class UniversalBlePlatform {
   // entries. Emitted device ids are left AS the platform reports them, so this is non-breaking for consumers.
   // Hot paths short-circuit on an exact match before lower-casing.
   Stream<bool> connectionStream(String deviceId) =>
-      connectionUpdateStream(deviceId).map((e) => e.isConnected);
+      connectionChangeStream(deviceId).map((e) => e.isConnected);
 
-  Stream<BleConnectionUpdate> connectionUpdateStream(String deviceId) {
+  Stream<BleConnectionChange> connectionChangeStream(String deviceId) {
     final target = deviceId.toLowerCase();
-    return bleConnectionUpdateStreamController.stream.where(
+    return bleConnectionChangeStreamController.stream.where(
       (e) => e.deviceId == deviceId || e.deviceId.toLowerCase() == target,
     );
   }
@@ -196,14 +194,14 @@ abstract class UniversalBlePlatform {
     UniversalBleErrorCode? errorCode,
     int? nativeErrorCode,
   ]) {
-    final update = BleConnectionUpdate(
+    final update = BleConnectionChange(
       deviceId: deviceId,
       isConnected: isConnected,
       error: error,
       errorCode: errorCode,
       nativeErrorCode: nativeErrorCode,
     );
-    bleConnectionUpdateStreamController.add(update);
+    bleConnectionChangeStreamController.add(update);
 
     try {
       onConnectionChange?.call(update);
@@ -233,18 +231,15 @@ abstract class UniversalBlePlatform {
             value.lengthInBytes == value.buffer.lengthInBytes
         ? value
         : Uint8List.fromList(value);
-    _valueStreamController.add((
+    final update = BleCharacteristicValue(
       deviceId: deviceId,
       characteristicId: characteristicId,
       value: normalizedValue,
-    ));
+      timestamp: timestamp,
+    );
+    _valueStreamController.add(update);
     try {
-      onValueChange?.call(
-        deviceId,
-        characteristicId,
-        normalizedValue,
-        timestamp,
-      );
+      onValueChange?.call(update);
     } catch (_) {}
   }
 
@@ -270,7 +265,7 @@ abstract class UniversalBlePlatform {
     } catch (_) {}
   }
 
-  void updateConnectionParameters(BleConnectionParametersUpdated update) {
+  void updateConnectionParameters(BleConnectionParametersChange update) {
     // Key by the canonical id (dropping the now-redundant last.deviceId == update.deviceId check, which would
     // itself have failed across cases and broken dedup for a device reported in two cases).
     final key = update.deviceId.toLowerCase();

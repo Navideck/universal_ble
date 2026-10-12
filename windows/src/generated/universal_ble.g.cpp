@@ -631,9 +631,9 @@ size_t PigeonInternalDeepHash(const UniversalBleDescriptor& v) {
   return v.Hash();
 }
 
-// BleConnectionParametersUpdated
+// BleConnectionParametersChange
 
-BleConnectionParametersUpdated::BleConnectionParametersUpdated(
+BleConnectionParametersChange::BleConnectionParametersChange(
   const std::string& device_id,
   int64_t interval,
   int64_t latency,
@@ -645,52 +645,52 @@ BleConnectionParametersUpdated::BleConnectionParametersUpdated(
     supervision_timeout_(supervision_timeout),
     status_(status) {}
 
-const std::string& BleConnectionParametersUpdated::device_id() const {
+const std::string& BleConnectionParametersChange::device_id() const {
   return device_id_;
 }
 
-void BleConnectionParametersUpdated::set_device_id(std::string_view value_arg) {
+void BleConnectionParametersChange::set_device_id(std::string_view value_arg) {
   device_id_ = value_arg;
 }
 
 
-int64_t BleConnectionParametersUpdated::interval() const {
+int64_t BleConnectionParametersChange::interval() const {
   return interval_;
 }
 
-void BleConnectionParametersUpdated::set_interval(int64_t value_arg) {
+void BleConnectionParametersChange::set_interval(int64_t value_arg) {
   interval_ = value_arg;
 }
 
 
-int64_t BleConnectionParametersUpdated::latency() const {
+int64_t BleConnectionParametersChange::latency() const {
   return latency_;
 }
 
-void BleConnectionParametersUpdated::set_latency(int64_t value_arg) {
+void BleConnectionParametersChange::set_latency(int64_t value_arg) {
   latency_ = value_arg;
 }
 
 
-int64_t BleConnectionParametersUpdated::supervision_timeout() const {
+int64_t BleConnectionParametersChange::supervision_timeout() const {
   return supervision_timeout_;
 }
 
-void BleConnectionParametersUpdated::set_supervision_timeout(int64_t value_arg) {
+void BleConnectionParametersChange::set_supervision_timeout(int64_t value_arg) {
   supervision_timeout_ = value_arg;
 }
 
 
-int64_t BleConnectionParametersUpdated::status() const {
+int64_t BleConnectionParametersChange::status() const {
   return status_;
 }
 
-void BleConnectionParametersUpdated::set_status(int64_t value_arg) {
+void BleConnectionParametersChange::set_status(int64_t value_arg) {
   status_ = value_arg;
 }
 
 
-EncodableList BleConnectionParametersUpdated::ToEncodableList() const {
+EncodableList BleConnectionParametersChange::ToEncodableList() const {
   EncodableList list;
   list.reserve(5);
   list.push_back(EncodableValue(device_id_));
@@ -701,8 +701,8 @@ EncodableList BleConnectionParametersUpdated::ToEncodableList() const {
   return list;
 }
 
-BleConnectionParametersUpdated BleConnectionParametersUpdated::FromEncodableList(const EncodableList& list) {
-  BleConnectionParametersUpdated decoded(
+BleConnectionParametersChange BleConnectionParametersChange::FromEncodableList(const EncodableList& list) {
+  BleConnectionParametersChange decoded(
     std::get<std::string>(list[0]),
     std::get<int64_t>(list[1]),
     std::get<int64_t>(list[2]),
@@ -711,15 +711,15 @@ BleConnectionParametersUpdated BleConnectionParametersUpdated::FromEncodableList
   return decoded;
 }
 
-bool BleConnectionParametersUpdated::operator==(const BleConnectionParametersUpdated& other) const {
+bool BleConnectionParametersChange::operator==(const BleConnectionParametersChange& other) const {
   return PigeonInternalDeepEquals(device_id_, other.device_id_) && PigeonInternalDeepEquals(interval_, other.interval_) && PigeonInternalDeepEquals(latency_, other.latency_) && PigeonInternalDeepEquals(supervision_timeout_, other.supervision_timeout_) && PigeonInternalDeepEquals(status_, other.status_);
 }
 
-bool BleConnectionParametersUpdated::operator!=(const BleConnectionParametersUpdated& other) const {
+bool BleConnectionParametersChange::operator!=(const BleConnectionParametersChange& other) const {
   return !(*this == other);
 }
 
-size_t BleConnectionParametersUpdated::Hash() const {
+size_t BleConnectionParametersChange::Hash() const {
   size_t result = 1;
   result = result * 31 + PigeonInternalDeepHash(device_id_);
   result = result * 31 + PigeonInternalDeepHash(interval_);
@@ -729,7 +729,7 @@ size_t BleConnectionParametersUpdated::Hash() const {
   return result;
 }
 
-size_t PigeonInternalDeepHash(const BleConnectionParametersUpdated& v) {
+size_t PigeonInternalDeepHash(const BleConnectionParametersChange& v) {
   return v.Hash();
 }
 
@@ -2264,7 +2264,7 @@ EncodableValue PigeonInternalCodecSerializer::ReadValueOfType(
         return CustomEncodableValue(UniversalBleDescriptor::FromEncodableList(std::get<EncodableList>(ReadValue(stream))));
       }
     case 148: {
-        return CustomEncodableValue(BleConnectionParametersUpdated::FromEncodableList(std::get<EncodableList>(ReadValue(stream))));
+        return CustomEncodableValue(BleConnectionParametersChange::FromEncodableList(std::get<EncodableList>(ReadValue(stream))));
       }
     case 149: {
         return CustomEncodableValue(AndroidOptions::FromEncodableList(std::get<EncodableList>(ReadValue(stream))));
@@ -2421,9 +2421,9 @@ void PigeonInternalCodecSerializer::WriteValue(
       WriteValue(EncodableValue(std::any_cast<UniversalBleDescriptor>(*custom_value).ToEncodableList()), stream);
       return;
     }
-    if (custom_value->type() == typeid(BleConnectionParametersUpdated)) {
+    if (custom_value->type() == typeid(BleConnectionParametersChange)) {
       stream->WriteByte(148);
-      WriteValue(EncodableValue(std::any_cast<BleConnectionParametersUpdated>(*custom_value).ToEncodableList()), stream);
+      WriteValue(EncodableValue(std::any_cast<BleConnectionParametersChange>(*custom_value).ToEncodableList()), stream);
       return;
     }
     if (custom_value->type() == typeid(AndroidOptions)) {
@@ -3508,7 +3508,7 @@ void UniversalBleCallbackChannel::OnConnectionChanged(
 }
 
 void UniversalBleCallbackChannel::OnConnectionParametersUpdated(
-  const BleConnectionParametersUpdated& update_arg,
+  const BleConnectionParametersChange& update_arg,
   std::function<void(void)>&& on_success,
   std::function<void(const FlutterError&)>&& on_error) {
   const std::string channel_name = "dev.flutter.pigeon.universal_ble.UniversalBleCallbackChannel.onConnectionParametersUpdated" + message_channel_suffix_;
