@@ -166,6 +166,11 @@ class UniversalBle {
   ///   must exist in the iOS asset catalog. Unlike [startScan], this flow does
   ///   not require broad Bluetooth permission.
   ///
+  /// [scanFilter] only applies to Web and is ignored on iOS, where discovery is
+  /// described by [AppleAccessoryPickerItem]. On Apple platforms
+  /// [PickerPlatformConfig.apple] is required; omitting it throws
+  /// [UniversalBleException] with code [UniversalBleErrorCode.notSupported].
+  ///
   /// The picker is user-driven UI rather than a BLE command, so it runs outside
   /// the command queue and is unaffected by [timeout] or [clearQueue].
   ///

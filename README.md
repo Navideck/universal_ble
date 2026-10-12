@@ -327,9 +327,12 @@ Notes:
 `requestDevice` presents the platform's native device picker and returns the
 device the user selected. Connect it through the normal path:
 
-- **Web:** opens the browser's Bluetooth device chooser.
+- **Web:** opens the browser's Bluetooth device chooser, honoring the scan
+  filter. Call `requestDevice` from a user gesture (for example a button tap);
+  browsers reject the chooser otherwise.
 - **iOS 18+:** shows Apple's AccessorySetupKit picker to select and authorize a
-  nearby accessory.
+  nearby accessory. The scan filter is ignored here; discovery is described by
+  the Apple options below.
 
 ```dart
 final device = await UniversalBle.requestDevice(

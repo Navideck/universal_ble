@@ -1007,14 +1007,28 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
         let actions = activationActions
         activationActions.removeAll()
         actions.forEach { $0.run() }
-      // `.accessoryAdded` is the documented event for a pick. Some iOS 18 builds
-      // have been reported to deliver the pick as `.accessoryChanged` instead, so
-      // both are accepted while a picker is open. Events seen outside a picker are
-      // ignored: `showPicker` resets the selection before each session.
-      case .accessoryAdded, .accessoryChanged:
-        guard pickerCompletion != nil else { break }
-        selectedIdentifier = event.accessory?.bluetoothIdentifier
-        selectedName = event.accessory?.displayName
+      // `.accessoryAdded` is the documented event for a pick. It's the only
+      // event that carries the accessory the person selected, so capture it
+      // there. Events seen outside a picker are ignored: `showPicker` resets the
+      // selection before each session.
+      case .accessoryAdded:
+        guard pickerCompletion != nil,
+          let accessory = event.accessory,
+          let identifier = accessory.bluetoothIdentifier
+        else { break }
+        selectedIdentifier = identifier
+        selectedName = accessory.displayName
+      // A fallback for iOS 18 builds that have been reported to deliver the pick
+      // as `.accessoryChanged` instead. That event is also emitted for unrelated
+      // state changes, so only use it while no selection has been captured, and
+      // never let it clear an existing selection.
+      case .accessoryChanged:
+        guard pickerCompletion != nil, selectedIdentifier == nil,
+          let accessory = event.accessory,
+          let identifier = accessory.bluetoothIdentifier
+        else { break }
+        selectedIdentifier = identifier
+        selectedName = accessory.displayName
       case .pickerDidDismiss:
         if let selectedIdentifier {
           completePicker(.success(UniversalDevicePickerResult(deviceId: selectedIdentifier.uuidString, name: selectedName)))
