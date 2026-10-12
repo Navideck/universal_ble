@@ -20,9 +20,7 @@ internal class MtuCompletionTest {
             posted.add(call.getArgument<Runnable>(0))
             true
         }.`when`(handler).post(Mockito.any())
-        val field = UniversalBlePlugin::class.java.getDeclaredField("mainThreadHandler")
-        field.isAccessible = true
-        field.set(it, handler)
+        it.setField("mainThreadHandler", handler)
     }
 
     private fun gatt(id: String = address): BluetoothGatt {
@@ -31,7 +29,7 @@ internal class MtuCompletionTest {
         return Mockito.mock(BluetoothGatt::class.java).also {
             Mockito.`when`(it.device).thenReturn(device)
             Mockito.`when`(it.requestMtu(Mockito.anyInt())).thenReturn(true)
-            it.saveCacheIfNeeded()
+            plugin.gattRegistry().put(it)
         }
     }
 
@@ -41,7 +39,7 @@ internal class MtuCompletionTest {
 
     @AfterTest
     fun clearConnections() {
-        connectedGatts().forEach { it.removeCache() }
+        plugin.gattRegistry().snapshot().forEach { plugin.gattRegistry().remove(it) }
     }
 
     @Test

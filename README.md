@@ -307,7 +307,7 @@ await bleDevice.connect(
 
 When the Android app is killed by the user (typically swiped away from recents), the OS tears down the FlutterEngine without ever delivering a "disconnect" — the peripheral keeps the link open until its connection supervision timeout (often 10–20 s), leaving the device occupied.
 
-Pass `AndroidConnectionOptions(closeGattOnDetach: true)` to have the plugin close every known GATT client as soon as the engine detaches, releasing the peripheral immediately. Without the option, whatever the `autoConnect` value, the link persists until the peripheral's supervision timeout.
+Pass `AndroidConnectionOptions(closeGattOnDetach: true)` to have the plugin close every GATT client this engine owns as soon as the engine detaches, releasing the peripheral immediately. Without the option, whatever the `autoConnect` value, the link persists until the peripheral's supervision timeout.
 
 ```dart
 await bleDevice.connect(
@@ -319,7 +319,7 @@ await bleDevice.connect(
 ```
 
 Notes:
-- Once any connection opts in, the behavior is global for the running process — every current and future GATT client is released on engine teardown. It can be disabled at runtime by connecting with `closeGattOnDetach: false`; connecting without the option leaves the current value unchanged (a fresh app launch resets it).
+- The option is scoped to the engine that sets it: on teardown, that engine releases the clients it created, leaving clients owned by other engines (for example a background engine's live link) untouched. To have a background engine release the peripherals it connected, that engine must connect with `closeGattOnDetach: true` as well — setting the option on the UI engine does not cover the background engine's clients. It can be disabled at runtime by connecting with `closeGattOnDetach: false`; connecting without the option leaves the engine's current value unchanged (a fresh app launch resets it).
 - Android-only. Explicit `disconnect()` calls and rotation are unaffected.
 
 ### Discovering Services

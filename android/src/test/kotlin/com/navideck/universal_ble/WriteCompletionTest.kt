@@ -36,18 +36,12 @@ internal class WriteCompletionTest {
             invocation.getArgument<Runnable>(0).run()
             true
         }.`when`(handler).post(Mockito.any())
-        val handlerField = UniversalBlePlugin::class.java.getDeclaredField("mainThreadHandler")
-        handlerField.isAccessible = true
-        handlerField.set(plugin, handler)
+        plugin.setField("mainThreadHandler", handler)
         return plugin
     }
 
-    @Suppress("UNCHECKED_CAST")
-    private fun pendingWrites(plugin: UniversalBlePlugin): MutableList<WriteResultFuture> {
-        val listField = UniversalBlePlugin::class.java.getDeclaredField("writeResultFutureList")
-        listField.isAccessible = true
-        return listField.get(plugin) as MutableList<WriteResultFuture>
-    }
+    private fun pendingWrites(plugin: UniversalBlePlugin): MutableList<WriteResultFuture> =
+        plugin.getField("writeResultFutureList")
 
     private fun mockGatt(): BluetoothGatt {
         val device = Mockito.mock(BluetoothDevice::class.java)
