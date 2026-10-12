@@ -10,7 +10,8 @@ class ScanFilter {
   /// Whether to discover only connectable devices.
   ///
   /// When set to `true`, non-connectable devices (such as beacons) are filtered out.
-  /// Only applies when a [BleDevice] provides a non-null [BleDevice.connectable] status.
+  /// Devices with unknown (`null`) [BleDevice.connectable] status pass this filter,
+  /// so this option is a no-op on platforms that do not report connectability (e.g. Linux and Web).
   bool? connectableOnly;
 
   ScanFilter({

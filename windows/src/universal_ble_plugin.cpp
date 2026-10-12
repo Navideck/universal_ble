@@ -1453,14 +1453,8 @@ void UniversalBlePlugin::PushUniversalScanResult(
       should_update = true;
     }
 
-    if (scan_result.connectable() == nullptr &&
-        current_scan_result.connectable() != nullptr) {
-      scan_result.set_connectable(current_scan_result.connectable());
-      should_update = true;
-    } else if (scan_result.connectable() != nullptr &&
-               (current_scan_result.connectable() == nullptr ||
-                *scan_result.connectable() !=
-                    *current_scan_result.connectable())) {
+    if (current_scan_result.connectable() == nullptr ||
+        *scan_result.connectable() != *current_scan_result.connectable()) {
       should_update = true;
     }
 

@@ -10,6 +10,10 @@ class BleDevice {
   bool? paired;
   int? timestamp;
   int? timestampMicroseconds;
+  /// Whether the device is connectable based on its advertising flags.
+  ///
+  /// Can be `null` if the platform or advertising packet does not indicate
+  /// connectability (e.g. Linux and Web always report `null`).
   bool? connectable;
 
   /// List of services advertised by the device.

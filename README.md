@@ -209,6 +209,14 @@ Use the `withNamePrefix` parameter to filter devices by names (case sensitive). 
 List<String> withNamePrefix;
 ```
 
+##### Connectable Only
+
+Use the `connectableOnly` parameter to filter out non-connectable devices (such as beacons). When set to `true`, only connectable devices are included. Devices with unknown (`null`) connectability also pass this filter, so this option is a no-op on platforms that do not report connectability (Linux and Web, which always report `null`).
+
+```dart
+bool? connectableOnly;
+```
+
 ##### Exclusion Filter
 
 Use exclusion filters to exclude specific devices from scan results:

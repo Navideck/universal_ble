@@ -368,7 +368,7 @@ class _PeripheralDetailPageState extends State<PeripheralDetailPage> {
                             ),
                             PlatformButton(
                               text: 'Disconnect',
-                              enabled: isConnected && bleDevice.connectable != false,
+                              enabled: isConnected,
                               onPressed: () async {
                                 try {
                                   await bleDevice.disconnect();
