@@ -1,4 +1,6 @@
 ## 3.0.0
+* Extend Windows HIL/FIT coverage for indications, long values, resource pressure, and deterministic timing sweeps using fixture v2.
+* Windows: dispose disconnected WinRT GATT objects on a background MTA thread to avoid blocking the UI during teardown.
 * Android/iOS/macOS/Windows: keep the GATT client cache per plugin instance (one per FlutterEngine). It was process-wide, so a `connect()` from one engine could short-circuit on a client created by a destroyed engine — returning a connection that reported as connected but whose service discovery came back empty. Each engine now sees only its own clients, and `closeGattOnDetach` releases only the clients the detaching engine created instead of every client in the process.
 * Windows: deliver scan responses as scan results. A peripheral that publishes its 128-bit service UUID in the scan response (it does not fit in the advertisement next to the name) was invisible to `startScan`: Windows reports that packet with `IsConnectable == false` and it was dropped before reaching the caller.
 * Add `platformConfig` to `discoverServices()`; `AndroidDiscoverServicesOptions(clearGattCache: true)` clears Android's GATT cache (`BluetoothGatt.refresh()`) before discovery. Ignored on other platforms.

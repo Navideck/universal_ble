@@ -113,6 +113,7 @@ void main() {
           HilUuid.notify,
           HilUuid.indicate,
           HilUuid.multi,
+          HilUuid.telemetry,
         ]),
       );
       _expectProperties(service, HilUuid.control, [

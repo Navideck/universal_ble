@@ -390,6 +390,7 @@ private:
   UniversalBleUiThreadHandler ui_thread_handler_;
   AsyncOperationTracker callback_operations_;
   AsyncOperationTracker initialization_operations_;
+  AsyncOperationTracker cleanup_operations_;
   Radio bluetooth_radio_{nullptr};
   RadioState old_radio_state_ = RadioState::Unknown;
   BluetoothLEAdvertisementWatcher bluetooth_le_watcher_{nullptr};
@@ -502,10 +503,13 @@ private:
                        uint64_t *removed_generation = nullptr);
   void DisposeConnection(
       const std::shared_ptr<BluetoothDeviceAgent> &device_agent);
+  static fire_and_forget DisposeConnectionAsync(
+      std::shared_ptr<BluetoothDeviceAgent> device_agent,
+      AsyncOperationTracker::Lease cleanup_lease);
   void ResetState();
-  void DisposeServices(
+  static void DisposeServices(
       const std::shared_ptr<BluetoothDeviceAgent> &device_agent);
-  void DisposeGattMap(
+  static void DisposeGattMap(
       std::unordered_map<std::string, GattServiceObject> gatt_map,
       const std::vector<GattDeviceService> *retained_services = nullptr);
 

@@ -147,6 +147,8 @@ UniversalBlePlugin::~UniversalBlePlugin() {
   }
   ResetState();
   ClearServices();
+  cleanup_operations_.Close();
+  WaitForCallbacksWithMessagePump(cleanup_operations_);
   ui_thread_handler_.Shutdown();
   callback_channel_.reset();
   peripheral_callback_channel_.reset();
@@ -2466,9 +2468,25 @@ bool UniversalBlePlugin::CleanConnection(
 
 void UniversalBlePlugin::DisposeConnection(
     const std::shared_ptr<BluetoothDeviceAgent> &device_agent) {
-  if (!device_agent || !device_agent->Deactivate()) {
+  if (!device_agent) {
     return;
   }
+  const auto cleanup = cleanup_operations_.TryAcquire();
+  if (!cleanup.has_value() || !device_agent->Deactivate()) {
+    return;
+  }
+  // WinRT GATT Close can synchronously wait for COM teardown. Calling it on
+  // Flutter's STA can deadlock when a peripheral disconnect arrives during
+  // that wait. Invalidate the agent now, but dispose its owned objects on MTA.
+  DisposeConnectionAsync(device_agent, cleanup.value());
+}
+
+fire_and_forget UniversalBlePlugin::DisposeConnectionAsync(
+    std::shared_ptr<BluetoothDeviceAgent> device_agent,
+    AsyncOperationTracker::Lease cleanup_lease) {
+  // Both arguments are owned by the coroutine frame. No plugin pointer is
+  // captured, and shutdown drains this lease before releasing plugin state.
+  co_await winrt::resume_background();
   try {
     device_agent->device.ConnectionStatusChanged(
         device_agent->connection_status_changed_token);
