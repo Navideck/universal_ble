@@ -36,6 +36,7 @@ Looking for Bluetooth Classic? Check [universal_bluetooth_classic](https://pub.d
 - [UUID Format Agnostic](#uuid-format-agnostic)
 - [Platform-specific setup](#platform-specific-setup)
 - [Peripheral Mode](#peripheral-mode)
+- [AI agent skills](#ai-agent-skills)
 
 ## API Support
 
@@ -639,7 +640,7 @@ int rssi = await bleDevice.readRssi();
 
 ## Command Queue
 
-By default, commands use `QueueType.auto`, which automatically picks the best strategy for the current platform with zero configuration. Android uses a per-device queue (its native BLE stack rejects overlapping operations), while all other platforms run commands in parallel (they pipeline natively).
+By default, commands use `QueueType.auto`, which automatically picks the best strategy for the current platform with zero configuration. Android, Web, and Linux use a per-device queue (their BLE stacks reject or misbehave on overlapping operations), while all other platforms run commands in parallel (they pipeline natively).
 
 If you want explicit control over how commands are serialized, you can set `queueType`:
 
@@ -650,7 +651,7 @@ UniversalBle.queueType = QueueType.global;
 // Create a separate queue for each device.
 UniversalBle.queueType = QueueType.perDevice;
 
-// Auto-decide per platform (default): Android queues per device, all others run in parallel.
+// Auto-decide per platform (default): Android, Web and Linux queue per device, others run in parallel.
 UniversalBle.queueType = QueueType.auto;
 ```
 
@@ -1349,6 +1350,20 @@ This repo includes an [example app](example/) with two tabs:
 - `Peripheral`: peripheral server and advertising workflows.
 
 For a full-blown app, check [Universal-BLE](https://github.com/Navideck/Universal-BLE).
+
+## AI agent skills
+
+Universal BLE ships [package skills](https://dart.dev/ai/package-skills) that give AI coding agents authoritative, version-matched guidance for this package. Install them into your project with:
+
+```sh
+dart run skills@ get -p universal_ble
+```
+
+- `universal-ble-setup` — add `universal_ble` to an app from scratch: scanning, connecting, service discovery, read/write, subscriptions, and platform permissions.
+- `universal-ble-migrate-2-to-3` — upgrade an app from `universal_ble` 2.x to 3.0, covering the breaking changes.
+- `universal-ble-migrate-from-flutter-blue-plus` — migrate an existing app from `flutter_blue_plus` to `universal_ble`.
+
+Select the skills you want when prompted.
 
 ## Low level API
 

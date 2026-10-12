@@ -34,9 +34,9 @@ class UniversalBle {
   }
 
   /// Set how commands will be executed. By default, [QueueType.auto] is used,
-  /// which automatically picks the best strategy for the current platform: Android uses a
-  /// per-device queue (its native stack rejects overlapping operations), while all other
-  /// platforms run commands in parallel (they pipeline natively).
+  /// which automatically picks the best strategy for the current platform: Android, Web
+  /// and Linux use a per-device queue (their BLE stacks reject or misbehave on overlapping
+  /// operations), while all other platforms run commands in parallel (they pipeline natively).
   ///
   /// [QueueType.global] will execute commands of all devices in a single queue.
   /// [QueueType.perDevice] will execute command of each device in separate queues.
