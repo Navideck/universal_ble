@@ -1050,7 +1050,8 @@ data class AndroidConnectionOptions (
    * GATT open, keeping the peripheral occupied until its supervision
    * timeout; with `autoConnect` it also stays open for reconnection.
    *
-   * When `null`, the current process-wide value is kept.
+   * When `null`, the value set by a previous `connect()` on this engine
+   * is kept.
    */
   val closeGattOnDetach: Boolean? = null
 )
