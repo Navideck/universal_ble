@@ -90,6 +90,14 @@ abstract class UniversalBlePlatformMock extends UniversalBlePlatform {
   }
 
   @override
+  Future<BleDevice> requestDevice({
+    ScanFilter? scanFilter,
+    PickerPlatformConfig? platformConfig,
+  }) {
+    throw UnimplementedError();
+  }
+
+  @override
   Future<void> setNotifiable(
     String deviceId,
     String service,

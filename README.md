@@ -323,6 +323,66 @@ Notes:
 - The option is scoped to the engine that sets it: on teardown, that engine releases the clients it created, leaving clients owned by other engines (for example a background engine's live link) untouched. To have a background engine release the peripherals it connected, that engine must connect with `closeGattOnDetach: true` as well — setting the option on the UI engine does not cover the background engine's clients. It can be disabled at runtime by connecting with `closeGattOnDetach: false`; connecting without the option leaves the engine's current value unchanged (a fresh app launch resets it).
 - Android-only. Explicit `disconnect()` calls and rotation are unaffected.
 
+#### Native device picker (Web, iOS 18+)
+
+`requestDevice` presents the platform's native device picker and returns the
+device the user selected. Connect it through the normal path:
+
+- **Web:** opens the browser's Bluetooth device chooser, honoring the scan
+  filter. Call `requestDevice` from a user gesture (for example a button tap);
+  browsers reject the chooser otherwise.
+- **iOS 18+:** shows Apple's AccessorySetupKit picker to select and authorize a
+  nearby accessory. The scan filter is ignored here; discovery is described by
+  the Apple options below.
+
+```dart
+final device = await UniversalBle.requestDevice(
+  // Web: the browser chooser honors the scan filter.
+  scanFilter: ScanFilter(withServices: ['180D']),
+  platformConfig: PickerPlatformConfig(
+    // iOS 18+.
+    apple: AppleAccessorySetupOptions(
+      items: [
+        AppleAccessoryPickerItem(
+          displayName: 'My Device',
+          imageAsset: 'my_device', // Image in Runner/Assets.xcassets
+          serviceUuid: '12345678-1234-1234-1234-1234567890AB',
+          nameSubstring: 'MyDevice', // Optional
+        ),
+      ],
+    ),
+  ),
+);
+
+await UniversalBle.connect(device.deviceId);
+
+// iOS: removes an accessory authorized through AccessorySetupKit.
+await UniversalBle.unpair(device.deviceId);
+```
+
+The AccessorySetupKit picker must be initiated while the app is in the
+foreground. Add matching values to the iOS app's `Info.plist`; Apple terminates
+apps that show the picker with undeclared discovery identifiers:
+
+```xml
+<key>NSAccessorySetupKitSupports</key>
+<array>
+  <string>Bluetooth</string>
+</array>
+<key>NSAccessorySetupBluetoothServices</key>
+<array>
+  <string>12345678-1234-1234-1234-1234567890AB</string>
+</array>
+<key>NSAccessorySetupBluetoothNames</key>
+<array>
+  <string>MyDevice</string>
+</array>
+```
+
+When the app uses AccessorySetupKit exclusively, it does not need
+`NSBluetoothAlwaysUsageDescription`. Keep that key if the app also uses regular
+BLE scanning or accesses devices outside AccessorySetupKit.
+
 ### Discovering Services
 
 After establishing a connection, services need to be discovered. This method will discover all services and their characteristics.
@@ -1126,6 +1186,9 @@ await UniversalBle.startScan();
 ### iOS / macOS
 
 For Bluetooth usage (including peripheral mode), add both keys to your app's `Info.plist`:
+
+> Apps using only the iOS 18+ AccessorySetupKit flow can omit these Bluetooth
+> usage descriptions; see [Native device picker (Web, iOS 18+)](#native-device-picker-web-ios-18).
 
 - `NSBluetoothAlwaysUsageDescription`: message shown when the app requests Bluetooth access.
 - `NSBluetoothPeripheralUsageDescription`: message used for peripheral role access on Apple platforms.

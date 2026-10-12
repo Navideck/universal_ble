@@ -155,6 +155,37 @@ class UniversalBle {
     );
   }
 
+  /// Presents the platform's native device picker and returns the device the
+  /// user selected. Pass its `deviceId` to [connect].
+  ///
+  /// - **Web:** opens the browser's Bluetooth device chooser, honoring
+  ///   [scanFilter] and [PickerPlatformConfig.web].
+  /// - **iOS 18+:** shows the AccessorySetupKit picker, configured through
+  ///   [PickerPlatformConfig.apple] ([AppleAccessorySetupOptions]). The host app
+  ///   must declare matching values in `Info.plist`, and each item's image asset
+  ///   must exist in the iOS asset catalog. Unlike [startScan], this flow does
+  ///   not require broad Bluetooth permission.
+  ///
+  /// [scanFilter] only applies to Web and is ignored on iOS, where discovery is
+  /// described by [AppleAccessoryPickerItem]. On Apple platforms
+  /// [PickerPlatformConfig.apple] is required; omitting it throws
+  /// [UniversalBleException] with code [UniversalBleErrorCode.notSupported].
+  ///
+  /// The picker is user-driven UI rather than a BLE command, so it runs outside
+  /// the command queue and is unaffected by [timeout] or [clearQueue].
+  ///
+  /// On platforms without a native picker this throws [UniversalBleException]
+  /// with code [UniversalBleErrorCode.notSupported].
+  static Future<BleDevice> requestDevice({
+    ScanFilter? scanFilter,
+    PickerPlatformConfig? platformConfig,
+  }) {
+    return _platform.requestDevice(
+      scanFilter: scanFilter,
+      platformConfig: platformConfig,
+    );
+  }
+
   /// Connect to a device.
   /// It is advised to stop scanning before connecting.
   /// It throws error if device connection fails.
@@ -605,6 +636,11 @@ class UniversalBle {
 
   /// Unpair a device.
   /// It might throw an error if device is not paired.
+  ///
+  /// On `iOS 18+`, removes an accessory authorized through AccessorySetupKit;
+  /// [deviceId] is the accessory's Bluetooth identifier returned by
+  /// [requestDevice] (or system devices). Devices not managed by
+  /// AccessorySetupKit fail with [UniversalBleErrorCode.deviceNotFound].
   static Future<void> unpair(
     String deviceId, {
     Duration? timeout,

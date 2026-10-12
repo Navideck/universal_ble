@@ -223,6 +223,22 @@ class UniversalBleWeb extends UniversalBlePlatform {
   }
 
   @override
+  Future<BleDevice> requestDevice({
+    ScanFilter? scanFilter,
+    PickerPlatformConfig? platformConfig,
+  }) async {
+    try {
+      final (bleDevice, _) =
+          await _openChooser(scanFilter, platformConfig?.web);
+      return bleDevice;
+    } catch (e) {
+      final mapped = _chooserError(e);
+      if (mapped != null) throw mapped;
+      rethrow;
+    }
+  }
+
+  @override
   Future<void> startScan({
     ScanFilter? scanFilter,
     PlatformConfig? platformConfig,
@@ -230,27 +246,47 @@ class UniversalBleWeb extends UniversalBlePlatform {
     final scanGeneration = ++_scanGeneration;
     try {
       _isScanning = true;
-      FlutterWebBluetooth.instance.isAvailable;
-      BluetoothDevice device = await FlutterWebBluetooth.instance.requestDevice(
-        _getRequestOptionBuilder(scanFilter, platformConfig?.web),
+      final (bleDevice, device) = await _openChooser(
+        scanFilter,
+        platformConfig?.web,
       );
 
-      // Update local device list
-      _bluetoothDeviceList[device.id] = device;
-
       // Update Scan Result
-      updateScanResult(device.toBleScanResult());
+      updateScanResult(bleDevice);
 
       unawaited(_watchDeviceAdvertisements(device, scanGeneration));
     } catch (e) {
-      String error = e.toString().replaceAll("DeviceNotFoundError:", "").trim();
-      if (error.toLowerCase().contains("api globally disabled")) {
-        throw WebBluetoothGloballyDisabled(message: error);
-      }
+      final mapped = _chooserError(e);
+      if (mapped != null) throw mapped;
       rethrow;
     } finally {
       _isScanning = false;
     }
+  }
+
+  /// Maps errors thrown while opening the browser's device chooser to the typed
+  /// exceptions this package exposes. Returns `null` when the original error
+  /// should be rethrown unchanged. Shared by [startScan] and [requestDevice].
+  WebBluetoothGloballyDisabled? _chooserError(Object error) {
+    final message =
+        error.toString().replaceAll("DeviceNotFoundError:", "").trim();
+    if (message.toLowerCase().contains("api globally disabled")) {
+      return WebBluetoothGloballyDisabled(message: message);
+    }
+    return null;
+  }
+
+  /// Opens the browser's device chooser and returns the selected device both as
+  /// a [BleDevice] and as the native [BluetoothDevice] (kept for `connect`).
+  Future<(BleDevice, BluetoothDevice)> _openChooser(
+    ScanFilter? scanFilter,
+    WebOptions? webOptions,
+  ) async {
+    final device = await FlutterWebBluetooth.instance.requestDevice(
+      _getRequestOptionBuilder(scanFilter, webOptions),
+    );
+    _bluetoothDeviceList[device.id] = device;
+    return (device.toBleScanResult(), device);
   }
 
   @override
