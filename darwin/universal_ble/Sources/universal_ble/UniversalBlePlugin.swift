@@ -552,7 +552,7 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
     }
     let filterCBUUID = servicesFilter.map { CBUUID(string: $0) }
     let bleDevices = manager.retrieveConnectedPeripherals(withServices: filterCBUUID)
-    bleDevices.forEach { saveCache($0) }
+    bleDevices.forEach { cachePeripheral($0) }
     completion(Result.success(bleDevices.map { peripheral in
       let id = peripheral.uuid.uuidString
       let name = advertisementNameCache[id] ?? discoveredPeripherals[id]?.name ?? peripheral.name ?? ""
@@ -576,7 +576,7 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
       // lookup cache so the existing connection stays usable.
       for peripheral in peripherals {
         peripheral.delegate = self
-        saveCache(peripheral)
+        cachePeripheral(peripheral)
         let deviceId = peripheral.uuid.uuidString
         // Notify Dart if already connected; on a cold relaunch the Dart layer
         // re-subscribes on resume using the cached peripheral.
@@ -604,7 +604,7 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
 
   public func centralManager(_: CBCentralManager, didDiscover peripheral: CBPeripheral, advertisementData: [String: Any], rssi RSSI: NSNumber) {
     // Store the discovered peripheral using its UUID as the key
-    saveCache(peripheral)
+    cachePeripheral(peripheral)
 
     // Extract manufacturer data and service UUIDs from the advertisement data
     let manufacturerData = advertisementData[CBAdvertisementDataManufacturerDataKey] as? Data
@@ -874,7 +874,7 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
     }
   }
 
-  private func saveCache(_ peripheral: CBPeripheral) {
+  private func cachePeripheral(_ peripheral: CBPeripheral) {
     discoveredPeripherals[peripheral.uuid.uuidString] = peripheral
   }
 

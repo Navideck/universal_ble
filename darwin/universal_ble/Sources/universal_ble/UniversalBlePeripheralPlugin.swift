@@ -17,10 +17,9 @@ final class UniversalBlePeripheralPlugin: NSObject, UniversalBlePeripheralChanne
   private var centralsById = [String: CBCentral]()
   private var centralCharacteristicSubscriptions = [String: Set<String>]()
   // Per-engine advertised state. Each FlutterEngine gets its own peripheral plugin,
-  // so these live on the instance: tearing one engine down (or clearing its
+  // so this lives on the instance: tearing one engine down (or clearing its
   // services) must not wipe another engine's advertising state.
-  private var peripheralServicesList = [CBMutableService]()
-  private var peripheralCharacteristicsList = [CBMutableCharacteristic]()
+  private let serviceRegistry = PeripheralServiceRegistry()
 
   init(callbackChannel: UniversalBlePeripheralCallback) {
     self.callbackChannel = callbackChannel
@@ -95,49 +94,24 @@ final class UniversalBlePeripheralPlugin: NSObject, UniversalBlePeripheralChanne
 
   func addService(service: PeripheralService) throws {
     let cbService = service.toCBService()
-    peripheralServicesList.removeAll {
-      $0.uuid.uuidString.lowercased() == cbService.uuid.uuidString.lowercased()
-    }
-    peripheralServicesList.append(cbService)
-    for case let characteristic as CBMutableCharacteristic in cbService.characteristics ?? [] {
-      peripheralCharacteristicsList.removeAll {
-        $0.uuid.uuidString.lowercased() == characteristic.uuid.uuidString.lowercased()
-      }
-      peripheralCharacteristicsList.append(characteristic)
-    }
+    serviceRegistry.register(cbService)
     ensurePeripheralManager().add(cbService)
   }
 
   func removeService(serviceId: String) throws {
-    if let service = findPeripheralService(serviceId) {
+    if let service = serviceRegistry.service(serviceId) {
       ensurePeripheralManager().remove(service)
-      peripheralServicesList.removeAll {
-        $0.uuid.uuidString.lowercased() == service.uuid.uuidString.lowercased()
-      }
+      serviceRegistry.remove(service)
     }
   }
 
   func clearServices() throws {
     peripheralManager?.removeAllServices()
-    peripheralServicesList.removeAll()
+    serviceRegistry.clear()
   }
 
   func getServices() throws -> [String] {
-    peripheralServicesList.map { $0.uuid.uuidString }
-  }
-
-  private func findPeripheralService(_ serviceId: String) -> CBMutableService? {
-    let target = serviceId.lowercased()
-    return peripheralServicesList.first {
-      $0.uuid.uuidString.lowercased() == target
-    }
-  }
-
-  private func findPeripheralCharacteristic(_ characteristicId: String) -> CBMutableCharacteristic? {
-    let target = characteristicId.lowercased()
-    return peripheralCharacteristicsList.first {
-      $0.uuid.uuidString.lowercased() == target
-    }
+    serviceRegistry.serviceIds
   }
 
   func startAdvertising(
@@ -179,7 +153,7 @@ final class UniversalBlePeripheralPlugin: NSObject, UniversalBlePeripheralChanne
     value: FlutterStandardTypedData,
     deviceId: String?
   ) throws {
-    guard let characteristic = findPeripheralCharacteristic(characteristicId) else {
+    guard let characteristic = serviceRegistry.characteristic(characteristicId) else {
       throw UniversalBlePeripheralError.notFound("\(characteristicId) characteristic not found")
     }
     let centrals: [CBCentral]?
@@ -380,4 +354,52 @@ final class UniversalBlePeripheralPlugin: NSObject, UniversalBlePeripheralChanne
     }
     return Int64(central.maximumUpdateValueLength)
   }
+}
+
+/// Services and characteristics this peripheral advertises. Ownership is per
+/// [UniversalBlePeripheralPlugin] (one per FlutterEngine), so registering or
+/// clearing here never touches another engine's advertised state. Characteristics
+/// are dropped together with the service that introduced them, so a removed (or
+/// cleared) service cannot be updated through a stale characteristic.
+private final class PeripheralServiceRegistry {
+  private var services = [CBMutableService]()
+  private var characteristics = [CBMutableCharacteristic]()
+
+  func register(_ service: CBMutableService) {
+    services.removeAll {
+      $0.uuid.uuidString.lowercased() == service.uuid.uuidString.lowercased()
+    }
+    services.append(service)
+    for case let characteristic as CBMutableCharacteristic in service.characteristics ?? [] {
+      characteristics.removeAll {
+        $0.uuid.uuidString.lowercased() == characteristic.uuid.uuidString.lowercased()
+      }
+      characteristics.append(characteristic)
+    }
+  }
+
+  func remove(_ service: CBMutableService) {
+    services.removeAll {
+      $0.uuid.uuidString.lowercased() == service.uuid.uuidString.lowercased()
+    }
+    let removedIds = Set((service.characteristics ?? []).map { $0.uuid.uuidString.lowercased() })
+    characteristics.removeAll { removedIds.contains($0.uuid.uuidString.lowercased()) }
+  }
+
+  func clear() {
+    services.removeAll()
+    characteristics.removeAll()
+  }
+
+  func service(_ serviceId: String) -> CBMutableService? {
+    let target = serviceId.lowercased()
+    return services.first { $0.uuid.uuidString.lowercased() == target }
+  }
+
+  func characteristic(_ characteristicId: String) -> CBMutableCharacteristic? {
+    let target = characteristicId.lowercased()
+    return characteristics.first { $0.uuid.uuidString.lowercased() == target }
+  }
+
+  var serviceIds: [String] { services.map { $0.uuid.uuidString } }
 }
