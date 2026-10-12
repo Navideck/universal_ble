@@ -60,7 +60,7 @@ abstract class UniversalBlePlatform {
   Future<BleDevice> requestDevice({
     ScanFilter? scanFilter,
     PickerPlatformConfig? platformConfig,
-  }) {
+  }) async {
     throw UniversalBleException(
       code: UniversalBleErrorCode.notSupported,
       message: 'requestDevice is not supported on this platform',

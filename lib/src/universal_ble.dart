@@ -631,6 +631,11 @@ class UniversalBle {
 
   /// Unpair a device.
   /// It might throw an error if device is not paired.
+  ///
+  /// On `iOS 18+`, removes an accessory authorized through AccessorySetupKit;
+  /// [deviceId] is the accessory's Bluetooth identifier returned by
+  /// [requestDevice] (or system devices). Devices not managed by
+  /// AccessorySetupKit fail with [UniversalBleErrorCode.deviceNotFound].
   static Future<void> unpair(
     String deviceId, {
     Duration? timeout,

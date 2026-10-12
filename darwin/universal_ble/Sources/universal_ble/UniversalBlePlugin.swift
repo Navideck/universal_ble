@@ -566,7 +566,7 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
   #if os(iOS)
     @available(iOS 18.0, *)
     private func getAccessorySetupManager() -> AccessorySetupManager {
-      if let manager = accessorySetupManager as? AccessorySetupManager {
+      if let manager = accessorySetupManager as? AccessorySetupManager, !manager.isInvalidated {
         return manager
       }
       let manager = AccessorySetupManager()
@@ -915,7 +915,10 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
   private final class AccessorySetupManager {
     private let session = ASAccessorySession()
     private var isActivated = false
-    private var activationActions: [() -> Void] = []
+    /// `true` once the system invalidates the session. A session cannot be reused
+    /// after that, so the owner drops this manager and builds a fresh one.
+    private(set) var isInvalidated = false
+    private var activationActions: [(run: () -> Void, cancel: () -> Void)] = []
     private var pickerCompletion: ((Result<UniversalDevicePickerResult, Error>) -> Void)?
     private var selectedIdentifier: UUID?
     private var selectedName: String?
@@ -959,9 +962,8 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
       whenActivated { [weak self] in
         guard let self else { return }
         session.showPicker(for: items) { [weak self] error in
-          if let error {
-            self?.completePicker(.failure(error.toFlutterError()))
-          }
+          guard let self, let error else { return }
+          self.completePicker(.failure(self.pickerError(error)))
         }
       }
     }
@@ -971,7 +973,8 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
         completion(.failure(createFlutterError(code: .illegalArgument, message: "Invalid deviceId: \(deviceId)")))
         return
       }
-      whenActivated { [weak self] in
+      whenActivated({
+        [weak self] in
         guard let self else { return }
         guard let accessory = session.accessories.first(where: { $0.bluetoothIdentifier == identifier }) else {
           completion(.failure(createFlutterError(code: .deviceNotFound, message: "Accessory is not managed by AccessorySetupKit: \(deviceId)")))
@@ -984,14 +987,16 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
             completion(.success(()))
           }
         }
-      }
+      }, onCancel: {
+        completion(.failure(createFlutterError(code: .failed, message: "Accessory setup session was invalidated")))
+      })
     }
 
-    private func whenActivated(_ action: @escaping () -> Void) {
+    private func whenActivated(_ action: @escaping () -> Void, onCancel: @escaping () -> Void = {}) {
       if isActivated {
         action()
       } else {
-        activationActions.append(action)
+        activationActions.append((run: action, cancel: onCancel))
       }
     }
 
@@ -1001,21 +1006,46 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
         isActivated = true
         let actions = activationActions
         activationActions.removeAll()
-        actions.forEach { $0() }
-      case .accessoryAdded:
+        actions.forEach { $0.run() }
+      // `.accessoryAdded` is the documented event for a pick. Some iOS 18 builds
+      // have been reported to deliver the pick as `.accessoryChanged` instead, so
+      // both are accepted while a picker is open. Events seen outside a picker are
+      // ignored: `showPicker` resets the selection before each session.
+      case .accessoryAdded, .accessoryChanged:
+        guard pickerCompletion != nil else { break }
         selectedIdentifier = event.accessory?.bluetoothIdentifier
         selectedName = event.accessory?.displayName
       case .pickerDidDismiss:
         if let selectedIdentifier {
           completePicker(.success(UniversalDevicePickerResult(deviceId: selectedIdentifier.uuidString, name: selectedName)))
         } else {
-          completePicker(.failure(createFlutterError(code: .failed, message: "Accessory setup was cancelled")))
+          completePicker(.failure(createFlutterError(code: .operationCancelled, message: "Accessory setup was cancelled")))
         }
-      case .pickerSetupFailed, .invalidated:
+      case .pickerSetupFailed:
         completePicker(.failure(event.error?.toFlutterError() ?? createFlutterError(code: .failed, message: "Accessory setup failed")))
+      case .invalidated:
+        // The session can't be used again. Fail any action that was still waiting
+        // for activation, then flag this manager so the owner discards it and
+        // creates a new session on the next request.
+        isInvalidated = true
+        isActivated = false
+        let pending = activationActions
+        activationActions.removeAll()
+        pending.forEach { $0.cancel() }
+        completePicker(.failure(event.error?.toFlutterError() ?? createFlutterError(code: .failed, message: "Accessory setup session was invalidated")))
       default:
         break
       }
+    }
+
+    /// AccessorySetupKit reports the person dismissing the picker as `NSError`
+    /// code 700, which has no mapping in `mapErrorCodeToEnum`. Translate it to a
+    /// cancellation so callers don't see a generic `unknownError`.
+    private func pickerError(_ error: Error) -> Error {
+      if (error as NSError).code == 700 {
+        return createFlutterError(code: .operationCancelled, message: "Accessory setup was cancelled")
+      }
+      return error.toFlutterError()
     }
 
     private func completePicker(_ result: Result<UniversalDevicePickerResult, Error>) {

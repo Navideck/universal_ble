@@ -227,8 +227,15 @@ class UniversalBleWeb extends UniversalBlePlatform {
     ScanFilter? scanFilter,
     PickerPlatformConfig? platformConfig,
   }) async {
-    final (bleDevice, _) = await _openChooser(scanFilter, platformConfig?.web);
-    return bleDevice;
+    try {
+      final (bleDevice, _) =
+          await _openChooser(scanFilter, platformConfig?.web);
+      return bleDevice;
+    } catch (e) {
+      final mapped = _chooserError(e);
+      if (mapped != null) throw mapped;
+      rethrow;
+    }
   }
 
   @override
@@ -249,14 +256,24 @@ class UniversalBleWeb extends UniversalBlePlatform {
 
       unawaited(_watchDeviceAdvertisements(device, scanGeneration));
     } catch (e) {
-      String error = e.toString().replaceAll("DeviceNotFoundError:", "").trim();
-      if (error.toLowerCase().contains("api globally disabled")) {
-        throw WebBluetoothGloballyDisabled(message: error);
-      }
+      final mapped = _chooserError(e);
+      if (mapped != null) throw mapped;
       rethrow;
     } finally {
       _isScanning = false;
     }
+  }
+
+  /// Maps errors thrown while opening the browser's device chooser to the typed
+  /// exceptions this package exposes. Returns `null` when the original error
+  /// should be rethrown unchanged. Shared by [startScan] and [requestDevice].
+  WebBluetoothGloballyDisabled? _chooserError(Object error) {
+    final message =
+        error.toString().replaceAll("DeviceNotFoundError:", "").trim();
+    if (message.toLowerCase().contains("api globally disabled")) {
+      return WebBluetoothGloballyDisabled(message: message);
+    }
+    return null;
   }
 
   /// Opens the browser's device chooser and returns the selected device both as
