@@ -148,7 +148,9 @@ UniversalBlePlugin::~UniversalBlePlugin() {
   ResetState();
   ClearServices();
   cleanup_operations_.Close();
-  WaitForCallbacksWithMessagePump(cleanup_operations_);
+  // Disposal owns its agent/lease and finishes on MTA without a UI continuation.
+  // Pumping here would re-enter application code during engine teardown.
+  WaitForCallbacksWithoutMessagePump(cleanup_operations_);
   ui_thread_handler_.Shutdown();
   callback_channel_.reset();
   peripheral_callback_channel_.reset();

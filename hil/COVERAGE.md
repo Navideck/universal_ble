@@ -136,7 +136,7 @@ the original write error is rethrown.
 
 ### 2.8. Indications, MTU/resource pressure, and timing sweeps
 
-+These tests use the public BLE API and real fixture callbacks. Firmware telemetry
+These tests use the public BLE API and real fixture callbacks. Firmware telemetry
 proves faults were triggered; successful API calls alone do not count as proof.
 
 | Cases | Fixture behavior and assertions |
@@ -192,6 +192,7 @@ This sweep reproduced a Windows UI-thread freeze inside synchronous
 `GattDeviceService.Close()`. Connection disposal now marks the old agent
 inactive immediately and closes its WinRT objects on a background MTA thread.
 Shutdown drains the tracked cleanup operations before releasing plugin state.
+That MTA cleanup drain does not pump application messages during teardown.
 
 The full FIT catalog also contains 58 pending scenarios. Together with the 11
 explicit limitations above, these account for 69 skips; none are counted among

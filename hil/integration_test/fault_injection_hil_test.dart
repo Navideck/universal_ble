@@ -1247,6 +1247,8 @@ void main() {
           await _waitUntil(() async =>
               (await peripheral.readTelemetry()).indicationsCompleted == 1);
           expect((await peripheral.readTelemetry()).indicationsRejected, 1);
+          // ATT confirmation can precede delivery through the platform channel.
+          await _waitUntil(() async => values.length == 1);
           expect(values, [utf8.encode('IND-FIRST')]);
           await peripheral.requestIndication(utf8.encode('AFTER-BUSY'));
           await _waitUntil(() async => values.length == 2);
@@ -1609,8 +1611,15 @@ Future<void> _runTimingScenarioOnce(
     expect(result.error, isA<UniversalBleException>());
   }
   await peripheral.reconnect();
+  // Read before reset clears the counters. Link loss alone does not prove that
+  // the armed fixture callback ran and its scheduled disconnect executed.
+  final telemetry = await peripheral.readTelemetry();
+  expect(telemetry.disconnectTimersArmed, 1);
+  expect(telemetry.disconnectTimersAttempted, 1);
+  expect(telemetry.disconnectTimersCancelled, 0);
+  expect(telemetry.physicalDisconnects, 1);
   if (operation == 'enable' || operation == 'disable') {
-    expect((await peripheral.readTelemetry()).cccFaultsTriggered, 1);
+    expect(telemetry.cccFaultsTriggered, 1);
   }
   await peripheral.reset();
   await _verifyRecovery(peripheral);
