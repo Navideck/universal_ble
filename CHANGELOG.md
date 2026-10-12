@@ -1,5 +1,5 @@
 ## 3.0.0
-* iOS/macOS: keep the central peripheral cache and the peripheral advertising state per plugin instance (one per FlutterEngine). They were process-global, so a `connect()` could adopt a `CBPeripheral` created by another engine, and tearing one engine down cleared another engine's advertised services.
+* iOS/macOS: keep the central peripheral cache and the advertised peripheral services per plugin instance (one per FlutterEngine). They were process-global, so a `connect()` could adopt a `CBPeripheral` created by another engine, and tearing one engine down cleared another engine's advertised services.
 * Windows: deliver scan responses as scan results. A peripheral that publishes its 128-bit service UUID in the scan response (it does not fit in the advertisement next to the name) was invisible to `startScan`: Windows reports that packet with `IsConnectable == false` and it was dropped before reaching the caller.
 * Add `platformConfig` to `discoverServices()`; `AndroidDiscoverServicesOptions(clearGattCache: true)` clears Android's GATT cache (`BluetoothGatt.refresh()`) before discovery. Ignored on other platforms.
 * Android: Register MTU waiters before the native request, serialize completions onto the main looper, and fail rejected requests immediately.

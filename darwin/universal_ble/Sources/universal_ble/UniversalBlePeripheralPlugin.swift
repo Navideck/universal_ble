@@ -16,9 +16,9 @@ final class UniversalBlePeripheralPlugin: NSObject, UniversalBlePeripheralChanne
   private let centralsLock = NSLock()
   private var centralsById = [String: CBCentral]()
   private var centralCharacteristicSubscriptions = [String: Set<String>]()
-  // Per-engine advertised state. Each FlutterEngine gets its own peripheral plugin,
-  // so this lives on the instance: tearing one engine down (or clearing its
-  // services) must not wipe another engine's advertising state.
+  // Per plugin instance (one per FlutterEngine): the services this peripheral
+  // advertises. Tearing one engine down (or clearing its services) must not wipe
+  // another engine's advertising state.
   private let serviceRegistry = PeripheralServiceRegistry()
 
   init(callbackChannel: UniversalBlePeripheralCallback) {
@@ -357,8 +357,8 @@ final class UniversalBlePeripheralPlugin: NSObject, UniversalBlePeripheralChanne
 }
 
 /// Services and characteristics this peripheral advertises. Ownership is per
-/// [UniversalBlePeripheralPlugin] (one per FlutterEngine), so registering or
-/// clearing here never touches another engine's advertised state. Characteristics
+/// plugin instance (one per FlutterEngine), so registering or clearing here never
+/// touches another engine's advertised state. Characteristics
 /// are dropped together with the service that introduced them, so a removed (or
 /// cleared) service cannot be updated through a stale characteristic.
 private final class PeripheralServiceRegistry {
