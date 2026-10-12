@@ -806,7 +806,8 @@ class AndroidConnectionOptions {
   // GATT open, keeping the peripheral occupied until its supervision
   // timeout; with `autoConnect` it also stays open for reconnection.
   //
-  // When `null`, the current process-wide value is kept.
+  // When `null`, the value set by a previous `connect()` on this engine
+  // is kept.
   const bool* close_gatt_on_detach() const;
   void set_close_gatt_on_detach(const bool* value_arg);
   void set_close_gatt_on_detach(bool value_arg);
