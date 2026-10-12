@@ -8,6 +8,7 @@ import android.bluetooth.BluetoothProfile
 import android.os.Handler
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
 import kotlin.test.assertNull
 import kotlin.test.assertSame
@@ -16,10 +17,10 @@ import org.mockito.ArgumentMatchers.any
 import org.mockito.Mockito
 
 /*
- * Each FlutterEngine gets its own UniversalBlePlugin, so GATT client ownership
- * must be per instance. A background engine's client must not be visible to the
- * UI engine: a stale cache hit would make connect() short-circuit onto a client
- * whose callbacks are wired to an engine that no longer exists (#309).
+ * Each FlutterEngine gets its own UniversalBlePlugin, so GATT clients must be owned
+ * per instance: a background engine's client must not be visible to the UI engine,
+ * or connect() would short-circuit onto a client whose callbacks are wired to an
+ * engine that no longer exists (#309).
  */
 internal class GattOwnershipTest {
     private val address = "AA:BB:CC:DD:EE:FF"
@@ -56,6 +57,12 @@ internal class GattOwnershipTest {
         field.set(plugin, value)
     }
 
+    private fun registry(plugin: UniversalBlePlugin): GattRegistry {
+        val field = UniversalBlePlugin::class.java.getDeclaredField("gattRegistry")
+        field.isAccessible = true
+        return field.get(plugin) as GattRegistry
+    }
+
     private fun mockGatt(): BluetoothGatt {
         val device = Mockito.mock(BluetoothDevice::class.java)
         Mockito.`when`(device.address).thenReturn(address)
@@ -65,28 +72,23 @@ internal class GattOwnershipTest {
     }
 
     @Test
-    fun anotherEnginesClientIsNotKnownToThisEngine() {
-        val backgroundEngine = plugin()
-        val uiEngine = plugin()
+    fun aClientRegisteredInOneRegistryIsUnknownToAnother() {
+        val background = GattRegistry()
+        val ui = GattRegistry()
         val gatt = mockGatt()
-        with(backgroundEngine) { gatt.saveCacheIfNeeded() }
+        background.put(gatt)
 
-        with(backgroundEngine) {
-            assertTrue(address.isKnownGatt())
-            assertSame(gatt, address.findGatt())
-        }
-        with(uiEngine) {
-            assertFalse(address.isKnownGatt())
-            assertNull(address.findGatt())
-        }
+        assertTrue(background.isKnown(address))
+        assertSame(gatt, background.find(address))
+        assertFalse(ui.isKnown(address))
+        assertNull(ui.find(address))
     }
 
     @Test
     fun connectionStateIgnoresAClientOwnedByAnotherEngine() {
         val backgroundEngine = plugin()
         val uiEngine = plugin()
-        val gatt = mockGatt()
-        with(backgroundEngine) { gatt.saveCacheIfNeeded() }
+        registry(backgroundEngine).put(mockGatt())
 
         // The OS reports CONNECTED for both, but only the owning engine may
         // claim it; the other reports DISCONNECTED instead of a dead client.
@@ -95,17 +97,37 @@ internal class GattOwnershipTest {
     }
 
     @Test
-    fun releasingOneEnginesClientsLeavesAnotherEnginesUntouched() {
-        val firstEngine = plugin()
-        val secondEngine = plugin()
+    fun releasingOneRegistrysClientLeavesAnothersUntouched() {
+        val first = GattRegistry()
+        val second = GattRegistry()
         val firstGatt = mockGatt()
         val secondGatt = mockGatt()
-        with(firstEngine) { firstGatt.saveCacheIfNeeded() }
-        with(secondEngine) { secondGatt.saveCacheIfNeeded() }
+        first.put(firstGatt)
+        second.put(secondGatt)
 
-        with(firstEngine) { firstGatt.removeCache() }
+        first.remove(firstGatt)
 
-        assertNull(firstEngine.knownGatts[address])
-        assertSame(secondGatt, secondEngine.knownGatts[address])
+        assertNull(first.find(address))
+        assertSame(secondGatt, second.find(address))
+    }
+
+    @Test
+    fun removingAReplacedClientDoesNotEvictTheNewerOne() {
+        val registry = GattRegistry()
+        val oldGatt = mockGatt()
+        val newGatt = mockGatt()
+        registry.put(oldGatt)
+        registry.put(newGatt)
+
+        registry.remove(oldGatt)
+
+        assertSame(newGatt, registry.find(address))
+    }
+
+    @Test
+    fun getFailsForAnUnknownDevice() {
+        val error = assertFailsWith<FlutterError> { GattRegistry().get(address) }
+
+        assertEquals(UniversalBleErrorCode.DEVICE_NOT_FOUND.raw.toString(), error.code)
     }
 }
