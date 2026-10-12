@@ -4,10 +4,10 @@ import android.bluetooth.BluetoothGatt
 import java.util.concurrent.ConcurrentHashMap
 
 /**
- * GATT clients owned by one [UniversalBlePlugin]. Each FlutterEngine gets its own
- * plugin, so this must stay per instance rather than process-wide: a `connect()`
- * must not reuse a client whose callbacks are wired to another (possibly
- * destroyed) engine, and detaching one engine must release only its own clients.
+ * GATT clients owned by one [UniversalBlePlugin]. This must stay per plugin
+ * instance (one per FlutterEngine) rather than process-wide: a `connect()` must
+ * not reuse a client whose callbacks are wired to another (possibly destroyed)
+ * engine, and detaching one engine must release only its own clients.
  */
 internal class GattRegistry {
     private val clients = ConcurrentHashMap<String, BluetoothGatt>()

@@ -83,9 +83,9 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
     private val connectedGatts: MutableSet<BluetoothGatt> =
         Collections.newSetFromMap(ConcurrentHashMap<BluetoothGatt, Boolean>())
 
-    // GATT clients owned by this engine. Kept per instance (see [GattRegistry]) so a
-    // connect() here never reuses a client from another engine and detach releases
-    // only this engine's clients.
+    // Per plugin instance (one per FlutterEngine): the GATT clients this engine
+    // owns (see [GattRegistry]). A connect() here never reuses a client from
+    // another engine, and detach releases only this engine's clients.
     private val gattRegistry = GattRegistry()
 
     /**
