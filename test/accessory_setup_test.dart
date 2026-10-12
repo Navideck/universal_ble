@@ -3,31 +3,25 @@ import 'package:universal_ble/universal_ble.dart';
 
 import 'universal_ble_test_mock.dart';
 
-class _AccessorySetupPlatform extends UniversalBlePlatformMock {
-  AppleAccessorySetupOptions? receivedOptions;
-  String? connectedDeviceId;
+class _DevicePickerPlatform extends UniversalBlePlatformMock {
+  PlatformConfig? receivedConfig;
+  ScanFilter? receivedFilter;
 
   @override
-  Future<String> setupAccessory(AppleAccessorySetupOptions options) async {
-    receivedOptions = options;
-    return 'selected-device';
-  }
-
-  @override
-  Future<void> connect(
-    String deviceId, {
-    bool autoConnect = false,
-    Duration? connectionTimeout,
-    ConnectionPlatformConfig? platformConfig,
+  Future<BleDevice> requestDevice({
+    ScanFilter? scanFilter,
+    PlatformConfig? platformConfig,
   }) async {
-    connectedDeviceId = deviceId;
-    updateConnection(deviceId, true);
+    receivedFilter = scanFilter;
+    receivedConfig = platformConfig;
+    return BleDevice(deviceId: 'picked-device', name: 'Picked device');
   }
 }
 
 void main() {
-  test('connectAccessory connects the device selected by the picker', () async {
-    final platform = _AccessorySetupPlatform();
+  test('requestDevice returns the device selected by the native picker',
+      () async {
+    final platform = _DevicePickerPlatform();
     final options = AppleAccessorySetupOptions(
       displayName: 'My device',
       imageAsset: 'my_device',
@@ -35,10 +29,24 @@ void main() {
     );
     UniversalBle.setInstance(platform);
 
-    final deviceId = await UniversalBle.connectAccessory(options);
+    final device = await UniversalBle.requestDevice(
+      scanFilter: ScanFilter(withServices: ['180D']),
+      platformConfig: PlatformConfig(apple: options),
+    );
 
-    expect(deviceId, 'selected-device');
-    expect(platform.connectedDeviceId, deviceId);
-    expect(platform.receivedOptions, same(options));
+    expect(device.deviceId, 'picked-device');
+    expect(device.name, 'Picked device');
+    expect(platform.receivedConfig?.apple, same(options));
+    expect(platform.receivedFilter?.withServices, ['180D']);
+  });
+
+  test('requestDevice without platformConfig forwards null', () async {
+    final platform = _DevicePickerPlatform();
+    UniversalBle.setInstance(platform);
+
+    await UniversalBle.requestDevice();
+
+    expect(platform.receivedConfig, isNull);
+    expect(platform.receivedFilter, isNull);
   });
 }

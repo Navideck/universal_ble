@@ -155,27 +155,31 @@ class UniversalBle {
     );
   }
 
-  /// Shows the AccessorySetupKit picker and connects to the accessory selected
-  /// by the user. Returns its CoreBluetooth device identifier.
+  /// Presents the platform's native device picker and returns the device the
+  /// user selected. Pass its `deviceId` to [connect].
   ///
-  /// Supported on iOS 18 and later. The host app must declare matching
-  /// AccessorySetupKit values in `Info.plist`, and [options.imageAsset] must
-  /// name an image in the iOS asset catalog. Unlike normal scanning, this flow
-  /// does not require broad Bluetooth permission.
-  static Future<String> connectAccessory(
-    AppleAccessorySetupOptions options, {
-    Duration? timeout,
-    bool autoConnect = false,
-    ConnectionPlatformConfig? platformConfig,
+  /// - **Web:** opens the browser's Bluetooth device chooser, honoring
+  ///   [scanFilter] and [PlatformConfig.web].
+  /// - **iOS 18+:** shows the AccessorySetupKit picker, configured through
+  ///   [PlatformConfig.apple] ([AppleAccessorySetupOptions]). The host app must
+  ///   declare matching values in `Info.plist`, and the configured image asset
+  ///   must exist in the iOS asset catalog. Unlike [startScan], this flow does
+  ///   not require broad Bluetooth permission.
+  ///
+  /// On platforms without a native picker this throws [UniversalBleException]
+  /// with code [UniversalBleErrorCode.notSupported].
+  static Future<BleDevice> requestDevice({
+    ScanFilter? scanFilter,
+    PlatformConfig? platformConfig,
+    String? queueId,
   }) async {
-    final deviceId = await _platform.setupAccessory(options);
-    await connect(
-      deviceId,
-      timeout: timeout,
-      autoConnect: autoConnect,
-      platformConfig: platformConfig,
+    return await _bleCommandQueue.queueCommandWithoutTimeout(
+      () => _platform.requestDevice(
+        scanFilter: scanFilter,
+        platformConfig: platformConfig,
+      ),
+      queueId: queueId,
     );
-    return deviceId;
   }
 
   /// Connect to a device.

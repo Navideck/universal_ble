@@ -60,8 +60,27 @@ class UniversalBlePigeonChannel extends UniversalBlePlatform
       _executeWithErrorHandling(() => _channel.isScanning());
 
   @override
-  Future<String> setupAccessory(AppleAccessorySetupOptions options) =>
-      _executeWithErrorHandling(() => _channel.setupAccessory(options));
+  Future<BleDevice> requestDevice({
+    ScanFilter? scanFilter,
+    PlatformConfig? platformConfig,
+  }) async {
+    final options = platformConfig?.apple;
+    if (options == null) {
+      throw UniversalBleException(
+        code: UniversalBleErrorCode.notSupported,
+        message:
+            'requestDevice requires PlatformConfig.apple on Apple platforms',
+      );
+    }
+    final deviceId = await _executeWithErrorHandling(
+      () => _channel.setupAccessory(options),
+    );
+    return BleDevice(
+      deviceId: deviceId,
+      name: options.displayName,
+      services: [options.serviceUuid],
+    );
+  }
 
   @override
   Future<BleConnectionState> getConnectionState(String deviceId) =>

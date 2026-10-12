@@ -57,8 +57,14 @@ abstract class UniversalBlePlatform {
 
   Future<bool> isScanning();
 
-  Future<String> setupAccessory(AppleAccessorySetupOptions options) {
-    throw UnsupportedError('AccessorySetupKit is only supported on iOS 18+');
+  Future<BleDevice> requestDevice({
+    ScanFilter? scanFilter,
+    PlatformConfig? platformConfig,
+  }) {
+    throw UniversalBleException(
+      code: UniversalBleErrorCode.notSupported,
+      message: 'requestDevice is not supported on this platform',
+    );
   }
 
   Future<void> connect(

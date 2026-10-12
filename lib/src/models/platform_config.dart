@@ -1,13 +1,17 @@
 import 'package:universal_ble/src/universal_ble.g.dart';
 
-/// Platform specific config to scan devices
+/// Platform specific config for scan and device-picker operations.
 ///
 /// If more than 1 platform supports a certain parameter then it should be in the high level APIs instead of platform specific options.
 class PlatformConfig {
   WebOptions? web;
   AndroidOptions? android;
 
-  PlatformConfig({this.web, this.android});
+  /// iOS 18+ options for the AccessorySetupKit picker shown by
+  /// `UniversalBle.requestDevice`.
+  AppleAccessorySetupOptions? apple;
+
+  PlatformConfig({this.web, this.android, this.apple});
 }
 
 /// Web options to scan devices

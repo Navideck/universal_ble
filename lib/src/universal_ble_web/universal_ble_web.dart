@@ -223,6 +223,21 @@ class UniversalBleWeb extends UniversalBlePlatform {
   }
 
   @override
+  Future<BleDevice> requestDevice({
+    ScanFilter? scanFilter,
+    PlatformConfig? platformConfig,
+  }) async {
+    final device = await FlutterWebBluetooth.instance.requestDevice(
+      _getRequestOptionBuilder(scanFilter, platformConfig?.web),
+    );
+
+    // Keep the native device so a following `connect(device.id)` can find it.
+    _bluetoothDeviceList[device.id] = device;
+
+    return device.toBleScanResult();
+  }
+
+  @override
   Future<void> startScan({
     ScanFilter? scanFilter,
     PlatformConfig? platformConfig,
@@ -231,17 +246,18 @@ class UniversalBleWeb extends UniversalBlePlatform {
     try {
       _isScanning = true;
       FlutterWebBluetooth.instance.isAvailable;
-      BluetoothDevice device = await FlutterWebBluetooth.instance.requestDevice(
-        _getRequestOptionBuilder(scanFilter, platformConfig?.web),
+      final bleDevice = await requestDevice(
+        scanFilter: scanFilter,
+        platformConfig: platformConfig,
       );
 
-      // Update local device list
-      _bluetoothDeviceList[device.id] = device;
-
       // Update Scan Result
-      updateScanResult(device.toBleScanResult());
+      updateScanResult(bleDevice);
 
-      unawaited(_watchDeviceAdvertisements(device, scanGeneration));
+      final device = _getDeviceById(bleDevice.deviceId);
+      if (device != null) {
+        unawaited(_watchDeviceAdvertisements(device, scanGeneration));
+      }
     } catch (e) {
       String error = e.toString().replaceAll("DeviceNotFoundError:", "").trim();
       if (error.toLowerCase().contains("api globally disabled")) {
