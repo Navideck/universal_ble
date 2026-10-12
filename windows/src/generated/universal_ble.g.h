@@ -1533,10 +1533,13 @@ class UniversalBleCallbackChannel {
     const AvailabilityState& state,
     std::function<void(void)>&& on_success,
     std::function<void(const FlutterError&)>&& on_error);
+  // [isFailure] marks a failed bond attempt — an event rather than a steady
+  // pairing state — so the Dart side can bypass its state de-duplication
+  // instead of swallowing every failure after the first (#325).
   void OnPairStateChange(
     const std::string& device_id,
     bool is_paired,
-    const std::string* error,
+    bool is_failure,
     std::function<void(void)>&& on_success,
     std::function<void(const FlutterError&)>&& on_error);
   void OnScanResult(

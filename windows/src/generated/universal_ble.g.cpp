@@ -3727,7 +3727,7 @@ void UniversalBleCallbackChannel::OnAvailabilityChanged(
 void UniversalBleCallbackChannel::OnPairStateChange(
   const std::string& device_id_arg,
   bool is_paired_arg,
-  const std::string* error_arg,
+  bool is_failure_arg,
   std::function<void(void)>&& on_success,
   std::function<void(const FlutterError&)>&& on_error) {
   const std::string channel_name = "dev.flutter.pigeon.universal_ble.UniversalBleCallbackChannel.onPairStateChange" + message_channel_suffix_;
@@ -3735,7 +3735,7 @@ void UniversalBleCallbackChannel::OnPairStateChange(
   EncodableValue encoded_api_arguments = EncodableValue(EncodableList{
     EncodableValue(device_id_arg),
     EncodableValue(is_paired_arg),
-    error_arg ? EncodableValue(*error_arg) : EncodableValue(),
+    EncodableValue(is_failure_arg),
   });
   channel.Send(encoded_api_arguments, [channel_name, on_success = std::move(on_success), on_error = std::move(on_error)](const uint8_t* reply, size_t reply_size) {
     std::unique_ptr<EncodableValue> response = GetCodec().DecodeMessage(reply, reply_size);

@@ -2270,7 +2270,10 @@ class UniversalBlePlatformChannelSetup {
 /// Generated protocol from Pigeon that represents Flutter messages that can be called from Swift.
 protocol UniversalBleCallbackChannelProtocol {
   func onAvailabilityChanged(state stateArg: AvailabilityState, completion: @escaping (Result<Void, PigeonError>) -> Void)
-  func onPairStateChange(deviceId deviceIdArg: String, isPaired isPairedArg: Bool, error errorArg: String?, completion: @escaping (Result<Void, PigeonError>) -> Void)
+  /// [isFailure] marks a failed bond attempt — an event rather than a steady
+  /// pairing state — so the Dart side can bypass its state de-duplication
+  /// instead of swallowing every failure after the first (#325).
+  func onPairStateChange(deviceId deviceIdArg: String, isPaired isPairedArg: Bool, isFailure isFailureArg: Bool, completion: @escaping (Result<Void, PigeonError>) -> Void)
   func onScanResult(result resultArg: UniversalBleScanResult, completion: @escaping (Result<Void, PigeonError>) -> Void)
   func onValueChanged(deviceId deviceIdArg: String, characteristicId characteristicIdArg: String, value valueArg: FlutterStandardTypedData, timestamp timestampArg: Int64?, completion: @escaping (Result<Void, PigeonError>) -> Void)
   /// [errorCode] classifies a failed connection or an unexpected disconnect
@@ -2309,10 +2312,13 @@ class UniversalBleCallbackChannel: UniversalBleCallbackChannelProtocol {
       }
     }
   }
-  func onPairStateChange(deviceId deviceIdArg: String, isPaired isPairedArg: Bool, error errorArg: String?, completion: @escaping (Result<Void, PigeonError>) -> Void) {
+  /// [isFailure] marks a failed bond attempt — an event rather than a steady
+  /// pairing state — so the Dart side can bypass its state de-duplication
+  /// instead of swallowing every failure after the first (#325).
+  func onPairStateChange(deviceId deviceIdArg: String, isPaired isPairedArg: Bool, isFailure isFailureArg: Bool, completion: @escaping (Result<Void, PigeonError>) -> Void) {
     let channelName: String = "dev.flutter.pigeon.universal_ble.UniversalBleCallbackChannel.onPairStateChange\(messageChannelSuffix)"
     let channel = FlutterBasicMessageChannel(name: channelName, binaryMessenger: binaryMessenger, codec: codec)
-    channel.sendMessage([deviceIdArg, isPairedArg, errorArg] as [Any?]) { response in
+    channel.sendMessage([deviceIdArg, isPairedArg, isFailureArg] as [Any?]) { response in
       guard let listResponse = response as? [Any?] else {
         completion(.failure(createConnectionError(withChannelName: channelName)))
         return

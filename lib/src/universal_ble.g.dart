@@ -2523,7 +2523,10 @@ abstract class UniversalBleCallbackChannel {
 
   void onAvailabilityChanged(AvailabilityState state);
 
-  void onPairStateChange(String deviceId, bool isPaired, String? error);
+  /// [isFailure] marks a failed bond attempt — an event rather than a steady
+  /// pairing state — so the Dart side can bypass its state de-duplication
+  /// instead of swallowing every failure after the first (#325).
+  void onPairStateChange(String deviceId, bool isPaired, bool isFailure);
 
   void onScanResult(UniversalBleScanResult result);
 
@@ -2582,9 +2585,9 @@ abstract class UniversalBleCallbackChannel {
           final List<Object?> args = message! as List<Object?>;
           final String arg_deviceId = args[0]! as String;
           final bool arg_isPaired = args[1]! as bool;
-          final String? arg_error = args[2] as String?;
+          final bool arg_isFailure = args[2]! as bool;
           try {
-            api.onPairStateChange(arg_deviceId, arg_isPaired, arg_error);
+            api.onPairStateChange(arg_deviceId, arg_isPaired, arg_isFailure);
             return wrapResponse(empty: true);
           } on PlatformException catch (e) {
             return wrapResponse(error: e);

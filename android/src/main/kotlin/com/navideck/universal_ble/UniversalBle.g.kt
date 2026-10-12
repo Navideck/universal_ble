@@ -2620,12 +2620,17 @@ class UniversalBleCallbackChannel(private val binaryMessenger: BinaryMessenger, 
       } 
     }
   }
-  fun onPairStateChange(deviceIdArg: String, isPairedArg: Boolean, errorArg: String?, callback: (Result<Unit>) -> Unit)
+  /**
+   * [isFailure] marks a failed bond attempt — an event rather than a steady
+   * pairing state — so the Dart side can bypass its state de-duplication
+   * instead of swallowing every failure after the first (#325).
+   */
+  fun onPairStateChange(deviceIdArg: String, isPairedArg: Boolean, isFailureArg: Boolean, callback: (Result<Unit>) -> Unit)
 {
     val separatedMessageChannelSuffix = if (messageChannelSuffix.isNotEmpty()) ".$messageChannelSuffix" else ""
     val channelName = "dev.flutter.pigeon.universal_ble.UniversalBleCallbackChannel.onPairStateChange$separatedMessageChannelSuffix"
     val channel = BasicMessageChannel<Any?>(binaryMessenger, channelName, codec)
-    channel.send(listOf(deviceIdArg, isPairedArg, errorArg)) {
+    channel.send(listOf(deviceIdArg, isPairedArg, isFailureArg)) {
       if (it is List<*>) {
         if (it.size > 1) {
           callback(Result.failure(FlutterError(it[0] as String, it[1] as String, it[2] as String?)))
