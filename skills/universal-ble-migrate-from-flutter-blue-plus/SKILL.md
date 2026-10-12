@@ -146,7 +146,7 @@ Notable differences:
 | `device.isDisconnected` | `!await bleDevice.isConnected` |
 | `device.connectionState` (Stream enum) | `bleDevice.connectionStream` (Stream<`bool`>) |
 | `device.connectionState` snapshot | `await bleDevice.connectionState` returns `BleConnectionState` |
-| `device.disconnectReason` | `BleConnectionUpdate.errorCode` / `.error` from `bleDevice.connectionUpdateStream` |
+| `device.disconnectReason` | `BleConnectionChange.errorCode` / `.error` from `bleDevice.connectionChangeStream` |
 | `device.discoverServices()` | `await bleDevice.discoverServices()` |
 | `device.servicesList` | No equivalent; the list returned by `discoverServices()` is cached — use `getService()`/`getCharacteristic()` |
 | `device.onServicesReset` | No equivalent |
@@ -193,12 +193,12 @@ FBP's global `FlutterBluePlus.events.*` streams map to UB streams/handlers:
 
 | flutter_blue_plus | universal_ble |
 | --- | --- |
-| `events.onConnectionStateChanged` | `UniversalBle.onConnectionChange = (BleConnectionUpdate update) {}` or `UniversalBle.connectionUpdateStream(deviceId)` |
+| `events.onConnectionStateChanged` | `UniversalBle.onConnectionChange = (BleConnectionChange change) {}` or `UniversalBle.connectionChangeStream(deviceId)` |
 | `events.onMtuChanged` | No equivalent stream |
 | `events.onReadRssi` | `UniversalBle.readRssi(deviceId)` |
 | `events.onServicesReset` | No equivalent |
 | `events.onDiscoveredServices` | No equivalent |
-| `events.onCharacteristicReceived` | `UniversalBle.onValueChange = (deviceId, characteristicId, value, timestamp) {}` |
+| `events.onCharacteristicReceived` | `UniversalBle.onValueChange = (BleCharacteristicValue value) {}` |
 | `events.onCharacteristicWritten` | No equivalent |
 | `events.onDescriptorRead` / `onDescriptorWritten` | No equivalent |
 | `events.onBondStateChanged` | `UniversalBle.onPairingStateChange = (deviceId, isPaired) {}` |
@@ -342,7 +342,7 @@ try {
   is optional but recommended.
 - **Connection stream semantics.** `connectionStream` emits `bool` (not an enum).
   Use `await device.connectionState` when you need `connecting`/`disconnecting`.
-  `connectionUpdateStream` / `onConnectionChange` carry a `BleConnectionUpdate`
+  `connectionChangeStream` / `onConnectionChange` carry a `BleConnectionChange`
   with `errorCode` and `nativeErrorCode` for unrequested disconnects.
 - **Call `disconnect()` to stop auto-reconnect.** With `autoConnect: true`, UB
   reconnects while available; an explicit `disconnect()` clears it.
