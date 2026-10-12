@@ -27,12 +27,10 @@ import android.util.SparseArray
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.util.UUID
-import java.util.concurrent.ConcurrentHashMap
 import androidx.core.util.size
 
 private const val TAG = "UniversalBlePlugin"
 
-private val knownGatts = ConcurrentHashMap<String, BluetoothGatt>()
 val ccdCharacteristic: UUID = UUID.fromString("00002902-0000-1000-8000-00805f9b34fb")
 
 data class BondStateChange(
@@ -55,30 +53,6 @@ fun List<String>.toUUIDList(): List<UUID> {
     return this.map { UUID.fromString(it) }
 }
 
-
-fun String.toBluetoothGatt(): BluetoothGatt {
-    return this.findGatt()
-        ?: throw createFlutterError(
-            UniversalBleErrorCode.DEVICE_NOT_FOUND,
-            "Unknown deviceId: $this",
-        )
-}
-
-fun String.isKnownGatt(): Boolean {
-    return this.findGatt() != null
-}
-
-fun String.findGatt(): BluetoothGatt? {
-    return knownGatts[this]
-}
-
-/**
- * Snapshot of every known GATT client. The snapshot avoids mutating the
- * map while clients are released.
- */
-fun connectedGatts(): List<BluetoothGatt> {
-    return knownGatts.values.toList()
-}
 
 fun BluetoothManager.isBluetoothEnabled(): Boolean {
     return adapter?.isEnabled == true
@@ -115,16 +89,6 @@ fun Context.registerReceiverCompat(
         registerReceiver(receiver, filter)
     }
 }
-
-fun BluetoothGatt.saveCacheIfNeeded() {
-    knownGatts[this.device.address] = this
-}
-
-fun BluetoothGatt.removeCache() {
-    // Only while still the registered client; a newer connect() may have replaced it.
-    knownGatts.remove(this.device.address, this)
-}
-
 
 fun Int.toAvailabilityState(): AvailabilityState {
     return when (this) {

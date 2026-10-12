@@ -34,12 +34,6 @@ public class UniversalBlePlugin: NSObject, FlutterPlugin {
   }
 }
 
-private var discoveredPeripherals = [String: CBPeripheral]()
-
-// Cache last advertised local name for peripherals
-// since iOS and MacOS don't do that for system devices
-private var advertisementNameCache = [String: String]()
-
 private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentralManagerDelegate, CBPeripheralDelegate {
   // Identifier CoreBluetooth uses to restore this central across relaunches.
   static let stateRestorationIdentifier = "com.universalble.central.restoration"
@@ -103,6 +97,12 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
   private var rssiReadFutures = [RssiReadFuture]()
   private var isManageScanning = false
   private var autoConnectDevices = Set<String>()
+
+  // Per plugin instance (one per FlutterEngine): the peripheral lookup and the
+  // last advertised names seen by this central. Keeping them here rather than at
+  // file scope means a `connect()` never adopts a `CBPeripheral` created by
+  // another engine, whose delegate is wired to an engine that may already be gone.
+  private let peripheralCache = PeripheralCache()
 
   init(callbackChannel: UniversalBleCallbackChannel) {
     self.callbackChannel = callbackChannel
@@ -209,7 +209,7 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
   }
 
   func connect(deviceId: String, autoConnect: Bool?, platformConfig: ConnectionPlatformConfig?) throws {
-    let peripheral = try deviceId.getPeripheral(manager: manager)
+    let peripheral = try peripheralCache.get(deviceId, manager: manager)
     peripheral.delegate = self
     let shouldAutoConnect = autoConnect ?? false
 
@@ -259,7 +259,7 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
 
   func disconnect(deviceId: String) throws {
     autoConnectDevices.remove(deviceId)
-    guard let peripheral = deviceId.findPeripheral(manager: manager) else {
+    guard let peripheral = peripheralCache.find(deviceId, manager: manager) else {
       callbackChannel.onConnectionChanged(deviceId: deviceId, connected: false, error: nil, errorCode: nil, nativeErrorCode: nil) { _ in }
       cleanUpConnection(deviceId: deviceId)
       return
@@ -271,7 +271,7 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
   }
 
   func getConnectionState(deviceId: String) throws -> BleConnectionState {
-    guard let peripheral = deviceId.findPeripheral(manager: manager) else {
+    guard let peripheral = peripheralCache.find(deviceId, manager: manager) else {
       return .disconnected
     }
     return peripheral.state.toBleConnectionState
@@ -299,7 +299,7 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
   }
 
   func discoverServices(deviceId: String, withDescriptors: Bool, platformConfig _: DiscoverServicesPlatformConfig?, completion: @escaping (Result<[UniversalBleService], Error>) -> Void) {
-    guard let peripheral = deviceId.findPeripheral(manager: manager) else {
+    guard let peripheral = peripheralCache.find(deviceId, manager: manager) else {
       completion(
         Result.failure(createFlutterError(code: .deviceNotFound, message: "Unknown deviceId:\(deviceId)"))
       )
@@ -348,7 +348,7 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
 
   func setNotifiable(deviceId: String, service: String, characteristic: String, bleInputProperty: BleInputProperty, completion: @escaping (Result<Void, any Error>) -> Void) {
     UniversalBleLogger.shared.logDebug("SET_NOTIFY -> \(deviceId) \(service) \(characteristic) input=\(bleInputProperty)")
-    guard let peripheral = deviceId.findPeripheral(manager: manager) else {
+    guard let peripheral = peripheralCache.find(deviceId, manager: manager) else {
       completion(Result.failure(createFlutterError(code: .deviceNotFound, message: "Unknown deviceId:\(deviceId)")))
       return
     }
@@ -375,7 +375,7 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
 
   func readValue(deviceId: String, service: String, characteristic: String, completion: @escaping (Result<FlutterStandardTypedData, Error>) -> Void) {
     UniversalBleLogger.shared.logDebug("READ -> \(deviceId) \(service) \(characteristic)")
-    guard let peripheral = deviceId.findPeripheral(manager: manager) else {
+    guard let peripheral = peripheralCache.find(deviceId, manager: manager) else {
       completion(Result.failure(createFlutterError(code: .deviceNotFound, message: "Unknown deviceId:\(self)")))
       return
     }
@@ -393,7 +393,7 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
 
   func writeValue(deviceId: String, service: String, characteristic: String, value: FlutterStandardTypedData, bleOutputProperty: BleOutputProperty, completion: @escaping (Result<Void, Error>) -> Void) {
     UniversalBleLogger.shared.logDebug("WRITE -> \(deviceId) \(service) \(characteristic) len=\(value.data.count) property=\(bleOutputProperty)")
-    guard let peripheral = deviceId.findPeripheral(manager: manager) else {
+    guard let peripheral = peripheralCache.find(deviceId, manager: manager) else {
       completion(Result.failure(createFlutterError(code: .deviceNotFound, message: "Unknown deviceId:\(self)")))
       return
     }
@@ -438,7 +438,7 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
 
   func readDescriptorValue(deviceId: String, service: String, characteristic: String, descriptor: String, completion: @escaping (Result<FlutterStandardTypedData, Error>) -> Void) {
     UniversalBleLogger.shared.logDebug("READ_DESCRIPTOR -> \(deviceId) \(service) \(characteristic) \(descriptor)")
-    guard let peripheral = deviceId.findPeripheral(manager: manager) else {
+    guard let peripheral = peripheralCache.find(deviceId, manager: manager) else {
       completion(Result.failure(createFlutterError(code: .deviceNotFound, message: "Unknown deviceId:\(deviceId)")))
       return
     }
@@ -458,7 +458,7 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
 
   func writeDescriptorValue(deviceId: String, service: String, characteristic: String, descriptor: String, value: FlutterStandardTypedData, completion: @escaping (Result<Void, Error>) -> Void) {
     UniversalBleLogger.shared.logDebug("WRITE_DESCRIPTOR -> \(deviceId) \(service) \(characteristic) \(descriptor) len=\(value.data.count)")
-    guard let peripheral = deviceId.findPeripheral(manager: manager) else {
+    guard let peripheral = peripheralCache.find(deviceId, manager: manager) else {
       completion(Result.failure(createFlutterError(code: .deviceNotFound, message: "Unknown deviceId:\(deviceId)")))
       return
     }
@@ -499,7 +499,7 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
 
   func requestMtu(deviceId: String, expectedMtu _: Int64, completion: @escaping (Result<Int64, Error>) -> Void) {
     UniversalBleLogger.shared.logDebug("REQUEST_MTU -> \(deviceId)")
-    guard let peripheral = deviceId.findPeripheral(manager: manager) else {
+    guard let peripheral = peripheralCache.find(deviceId, manager: manager) else {
       completion(Result.failure(createFlutterError(code: .deviceNotFound, message: "Unknown deviceId:\(self)")))
       return
     }
@@ -519,7 +519,7 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
 
   func readRssi(deviceId: String, completion: @escaping (Result<Int64, Error>) -> Void) {
     UniversalBleLogger.shared.logDebug("READ_RSSI -> \(deviceId)")
-    guard let peripheral = deviceId.findPeripheral(manager: manager) else {
+    guard let peripheral = peripheralCache.find(deviceId, manager: manager) else {
       completion(Result.failure(createFlutterError(code: .deviceNotFound, message: "Unknown deviceId:\(deviceId)")))
       return
     }
@@ -549,10 +549,11 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
     }
     let filterCBUUID = servicesFilter.map { CBUUID(string: $0) }
     let bleDevices = manager.retrieveConnectedPeripherals(withServices: filterCBUUID)
-    bleDevices.forEach { $0.saveCache() }
+    bleDevices.forEach { peripheralCache.remember($0) }
     completion(Result.success(bleDevices.map { peripheral in
       let id = peripheral.uuid.uuidString
-      let name = advertisementNameCache[id] ?? discoveredPeripherals[id]?.name ?? peripheral.name ?? ""
+      let name = peripheralCache.advertisedName(for: id)
+        ?? peripheralCache.cached(id)?.name ?? peripheral.name ?? ""
       let timestampMicroseconds = Int64(Date().timeIntervalSince1970 * 1_000_000)
       return UniversalBleScanResult(
         deviceId: id,
@@ -573,7 +574,7 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
       // lookup cache so the existing connection stays usable.
       for peripheral in peripherals {
         peripheral.delegate = self
-        peripheral.saveCache()
+        peripheralCache.remember(peripheral)
         let deviceId = peripheral.uuid.uuidString
         // Notify Dart if already connected; on a cold relaunch the Dart layer
         // re-subscribes on resume using the cached peripheral.
@@ -601,7 +602,7 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
 
   public func centralManager(_: CBCentralManager, didDiscover peripheral: CBPeripheral, advertisementData: [String: Any], rssi RSSI: NSNumber) {
     // Store the discovered peripheral using its UUID as the key
-    peripheral.saveCache()
+    peripheralCache.remember(peripheral)
 
     // Extract manufacturer data and service UUIDs from the advertisement data
     let manufacturerData = advertisementData[CBAdvertisementDataManufacturerDataKey] as? Data
@@ -627,7 +628,7 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
 
     let advertisedName = advertisementData[CBAdvertisementDataLocalNameKey] as? String
     let displayName = advertisedName ?? peripheral.name
-    advertisementNameCache[peripheral.uuid.uuidString] = displayName
+    peripheralCache.rememberAdvertisedName(displayName, for: peripheral.uuid.uuidString)
 
     // Apply custom filters and return early if the peripheral doesn't match
     if !universalBleFilterUtil.filterDevice(name: displayName, manufacturerData: universalManufacturerData, services: services) {
@@ -870,34 +871,53 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
       future.result(Result.success(RSSI.int64Value))
     }
   }
+
 }
 
-extension CBPeripheral {
-  func saveCache() {
-    discoveredPeripherals[uuid.uuidString] = self
-  }
-}
+/// Lookup of the `CBPeripheral`s this central has seen, plus the last advertised
+/// local name for each (iOS/macOS don't expose advertised names on system
+/// devices). One instance per `BleCentralDarwin`, i.e. per FlutterEngine.
+private final class PeripheralCache {
+  private var discovered = [String: CBPeripheral]()
+  private var advertisedNames = [String: String]()
 
-extension String {
-  func getPeripheral(manager: CBCentralManager) throws -> CBPeripheral {
-    guard let peripheral = findPeripheral(manager: manager) else {
-      throw createFlutterError(code: .deviceNotFound, message: "Unknown deviceId:\(self)")
-    }
-    return peripheral
+  func remember(_ peripheral: CBPeripheral) {
+    discovered[peripheral.uuid.uuidString] = peripheral
   }
 
-  func findPeripheral(manager: CBCentralManager) -> CBPeripheral? {
-    if let peripheral = discoveredPeripherals[self] {
+  func rememberAdvertisedName(_ name: String?, for deviceId: String) {
+    // A nil name removes any previous entry, like the dictionary assignment did.
+    advertisedNames[deviceId] = name
+  }
+
+  func advertisedName(for deviceId: String) -> String? {
+    advertisedNames[deviceId]
+  }
+
+  /// Only the peripherals this cache already holds, without asking the system.
+  func cached(_ deviceId: String) -> CBPeripheral? {
+    discovered[deviceId]
+  }
+
+  func find(_ deviceId: String, manager: CBCentralManager) -> CBPeripheral? {
+    if let peripheral = discovered[deviceId] {
       return peripheral
     }
-    if let uuid = UUID(uuidString: self) {
+    if let uuid = UUID(uuidString: deviceId) {
       let peripherals = manager.retrievePeripherals(withIdentifiers: [uuid])
       if let peripheral = peripherals.first {
-        discoveredPeripherals[self] = peripheral
+        discovered[deviceId] = peripheral
         return peripheral
       }
     }
     return nil
+  }
+
+  func get(_ deviceId: String, manager: CBCentralManager) throws -> CBPeripheral {
+    guard let peripheral = find(deviceId, manager: manager) else {
+      throw createFlutterError(code: .deviceNotFound, message: "Unknown deviceId:\(deviceId)")
+    }
+    return peripheral
   }
 }
 
