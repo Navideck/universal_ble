@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:math';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -131,28 +132,82 @@ void main() {
         timeout: const Timeout(Duration(minutes: 2)),
         skip: defaultTargetPlatform != TargetPlatform.windows,
       );
-      // Android's BLE stack has longer write-acknowledgement latency than
-      // Windows/WinRT. The 25 ms peripheral-disconnect delay is too tight for
-      // the write ACK to reliably arrive before both sides disconnect, causing
-      // intermittent GATT_ERROR (133) failures. The test passes consistently on
-      // Windows where the round-trip is faster.
       testWidgets(
         '[FIT-CONN-007] handles a host disconnect racing a peripheral disconnect',
         (_) async {
-          await peripheral.requestDisconnect(const Duration(milliseconds: 25));
-          await Future.wait<void>([
-            UniversalBle.disconnect(
+          final events = <bool>[];
+          final subscription = peripheral.connections.listen(events.add);
+          addTearDown(subscription.cancel);
+
+          var attempted = 0;
+          var hostFirst = 0;
+          var peripheralFirst = 0;
+          // The peripheral deadline starts inside the control-write callback.
+          // Sweep host teardown before, around, and after that deadline. These
+          // are fault offsets, not an ACK grace period. Counters prove that
+          // the peripheral plan executed or was cancelled. Event ordering
+          // proves which side began teardown first; WinRT may retain the
+          // physical link after the application's disconnect returns.
+          for (final hostDelayMs in [0, 100, 250, 500]) {
+            await peripheral.reset();
+            events.clear();
+            final disconnected = peripheral.connections
+                .firstWhere((connected) => !connected)
+                .timeout(HilPeripheral.operationTimeout);
+            final disconnectResult = _captureResult(disconnected);
+            final clock = Stopwatch()..start();
+            debugPrint('FIT-CONN-007 hostDelayMs=$hostDelayMs arming');
+            final armResult = await _captureResult(peripheral.requestDisconnect(
+              const Duration(milliseconds: 250),
+            ));
+            if (armResult is _AsyncFailure) {
+              expect(armResult.error, isA<UniversalBleException>());
+            }
+            debugPrint(
+                'FIT-CONN-007 armCompletedMs=${clock.elapsedMilliseconds}');
+            await Future<void>.delayed(Duration(milliseconds: hostDelayMs));
+            if (events.contains(false)) {
+              peripheralFirst++;
+            } else {
+              hostFirst++;
+            }
+            debugPrint(
+                'FIT-CONN-007 hostDisconnectMs=${clock.elapsedMilliseconds}');
+            await UniversalBle.disconnect(
               peripheral.deviceId,
               timeout: HilPeripheral.operationTimeout,
-            ).catchError((_) {}),
-            _waitForDisconnect(peripheral),
-          ]);
-
-          await peripheral.reconnect();
-          expect(
-            (await peripheral.readState()).contractRevision,
-            HilPeripheral.contractRevision,
-          );
+            );
+            debugPrint(
+                'FIT-CONN-007 hostCompletedMs=${clock.elapsedMilliseconds}');
+            expect(await disconnectResult, isFalse);
+            expect(events, isNotEmpty);
+            expect(events.last, isFalse);
+            debugPrint('FIT-CONN-007 reconnecting');
+            await peripheral.reconnect();
+            final telemetry = await peripheral.readTelemetry();
+            expect(telemetry.disconnectTimersArmed, 1);
+            expect(
+                telemetry.disconnectTimersAttempted +
+                    telemetry.disconnectTimersCancelled,
+                1);
+            expect(telemetry.physicalDisconnects, 1);
+            attempted += telemetry.disconnectTimersAttempted;
+            debugPrint('FIT-CONN-007 hostDelayMs=$hostDelayMs '
+                'attempted=${telemetry.disconnectTimersAttempted} '
+                'cancelled=${telemetry.disconnectTimersCancelled}');
+            events.clear();
+            // Observe beyond the original timer deadline to catch old work
+            // disconnecting the replacement link. This is an assertion window.
+            await Future<void>.delayed(const Duration(milliseconds: 300));
+            expect(events.where((connected) => !connected), isEmpty);
+            await _verifyRecovery(peripheral);
+          }
+          expect(attempted, greaterThan(0),
+              reason: 'The peripheral disconnect must actually execute');
+          expect(hostFirst, greaterThan(0),
+              reason: 'Host teardown must start before the peripheral event');
+          expect(peripheralFirst, greaterThan(0),
+              reason: 'Peripheral teardown must also precede a host request');
         },
         timeout: const Timeout(Duration(minutes: 2)),
         skip: defaultTargetPlatform == TargetPlatform.android,
@@ -909,9 +964,8 @@ void main() {
           await peripheral.subscribe(HilUuid.notify);
 
           final values = <List<int>>[];
-          final subscription = peripheral
-              .values(HilUuid.notify)
-              .listen(values.add);
+          final subscription =
+              peripheral.values(HilUuid.notify).listen(values.add);
           addTearDown(subscription.cancel);
           await peripheral.requestNotification([0x14]);
           await _waitUntil(() async => values.isNotEmpty);
@@ -957,9 +1011,8 @@ void main() {
           await peripheral.subscribe(HilUuid.notify);
           await peripheral.unsubscribe(HilUuid.notify);
           final values = <List<int>>[];
-          final subscription = peripheral
-              .values(HilUuid.notify)
-              .listen(values.add);
+          final subscription =
+              peripheral.values(HilUuid.notify).listen(values.add);
           addTearDown(subscription.cancel);
 
           await expectLater(
@@ -985,7 +1038,8 @@ void main() {
 
           final sequences = (await received.timeout(
             HilPeripheral.operationTimeout,
-          )).map((value) => _uint16(value, 0));
+          ))
+              .map((value) => _uint16(value, 0));
           expect(sequences, orderedEquals(expected));
           expect(sequences, isNot(contains(2)));
         },
@@ -1005,7 +1059,8 @@ void main() {
 
           final sequences = (await received.timeout(
             HilPeripheral.operationTimeout,
-          )).map((value) => _uint16(value, 0));
+          ))
+              .map((value) => _uint16(value, 0));
           expect(sequences, orderedEquals(expected));
           expect(sequences.where((sequence) => sequence == 1), hasLength(2));
         },
@@ -1025,7 +1080,8 @@ void main() {
 
           final sequences = (await received.timeout(
             HilPeripheral.operationTimeout,
-          )).map((value) => _uint16(value, 0));
+          ))
+              .map((value) => _uint16(value, 0));
           expect(sequences, orderedEquals(expected));
         },
       );
@@ -1057,9 +1113,8 @@ void main() {
         (_) async {
           await peripheral.subscribe(HilUuid.notify);
           final values = <List<int>>[];
-          final subscription = peripheral
-              .values(HilUuid.notify)
-              .listen(values.add);
+          final subscription =
+              peripheral.values(HilUuid.notify).listen(values.add);
           addTearDown(subscription.cancel);
           await peripheral.requestNotificationBurst(
             count: 100,
@@ -1113,9 +1168,8 @@ void main() {
         (_) async {
           await peripheral.subscribe(HilUuid.notify);
           final values = <List<int>>[];
-          final subscription = peripheral
-              .values(HilUuid.notify)
-              .listen(values.add);
+          final subscription =
+              peripheral.values(HilUuid.notify).listen(values.add);
           addTearDown(subscription.cancel);
           await peripheral.requestNotificationBurst(
             count: 500,
@@ -1139,92 +1193,347 @@ void main() {
     });
 
     group('indication delivery faults', () {
-      _pending(
+      testWidgets(
         '[FIT-IND-001] receives an indication emitted immediately after CCC enable',
+        (_) async {
+          final values = <List<int>>[];
+          final subscription =
+              peripheral.values(HilUuid.indicate).listen(values.add);
+          addTearDown(subscription.cancel);
+          await peripheral.armIndicationOnSubscribe();
+          await peripheral.subscribe(HilUuid.indicate, indicate: true);
+          await _waitUntil(() async => values.isNotEmpty);
+          expect(values, [utf8.encode('IND-CCC-ENABLED')]);
+          await _waitUntil(() async =>
+              (await peripheral.readTelemetry()).indicationsCompleted == 1);
+        },
       );
-      _pending(
-        '[FIT-IND-002] handles peripheral disconnect while an indication is outstanding',
-      );
-      _pending(
-        '[FIT-IND-003] handles peripheral reboot while an indication is outstanding',
-      );
-      _pending(
+      for (final reboot in [false, true]) {
+        testWidgets(
+          reboot
+              ? '[FIT-IND-003] handles peripheral reboot while an indication is outstanding'
+              : '[FIT-IND-002] handles peripheral disconnect while an indication is outstanding',
+          (_) async {
+            await peripheral.subscribe(HilUuid.indicate, indicate: true);
+            final before = await peripheral.readTelemetry();
+            final disconnected = _captureResult(_waitForDisconnect(peripheral));
+            final result = await _captureResult(
+                peripheral.requestIndicationScenario(reboot ? 2 : 1));
+            expect(await disconnected, isNot(isA<_AsyncFailure>()));
+            if (result is _AsyncFailure) {
+              expect(result.error, isA<UniversalBleException>());
+            }
+            await peripheral.reconnect();
+            final after = await peripheral.readTelemetry();
+            if (reboot) {
+              expect(after.bootCount, greaterThan(before.bootCount));
+            } else {
+              expect(after.indicationFaultsTriggered, 1);
+            }
+            expect(utf8.decode(await peripheral.read(HilUuid.read)),
+                'HIL-READ-V1');
+          },
+        );
+      }
+      testWidgets(
         '[FIT-IND-004] prevents a second indication from corrupting an outstanding indication',
+        (_) async {
+          final values = <List<int>>[];
+          final subscription =
+              peripheral.values(HilUuid.indicate).listen(values.add);
+          addTearDown(subscription.cancel);
+          await peripheral.subscribe(HilUuid.indicate, indicate: true);
+          await peripheral.requestIndicationScenario(3);
+          await _waitUntil(() async =>
+              (await peripheral.readTelemetry()).indicationsCompleted == 1);
+          expect((await peripheral.readTelemetry()).indicationsRejected, 1);
+          // ATT confirmation can precede delivery through the platform channel.
+          await _waitUntil(() async => values.length == 1);
+          expect(values, [utf8.encode('IND-FIRST')]);
+          await peripheral.requestIndication(utf8.encode('AFTER-BUSY'));
+          await _waitUntil(() async => values.length == 2);
+          expect(values.last, utf8.encode('AFTER-BUSY'));
+        },
       );
-      _pending(
+      testWidgets(
         '[FIT-IND-005] resumes indication delivery after reconnect and resubscribe',
+        (_) async {
+          final values = <List<int>>[];
+          final subscription =
+              peripheral.values(HilUuid.indicate).listen(values.add);
+          addTearDown(subscription.cancel);
+          await peripheral.subscribe(HilUuid.indicate, indicate: true);
+          await peripheral.requestIndication([1, 2, 3]);
+          await _waitUntil(() async => values.length == 1);
+          await _requestImmediateDisconnect(peripheral);
+          await peripheral.reconnect();
+          await peripheral.subscribe(HilUuid.indicate, indicate: true);
+          await peripheral.requestIndication([4, 5, 6]);
+          await _waitUntil(() async => values.length == 2);
+          expect(values, [
+            [1, 2, 3],
+            [4, 5, 6]
+          ]);
+        },
       );
-      _pending(
+      testWidgets(
         '[FIT-IND-006] keeps indication and notification characteristics independent',
+        (_) async {
+          final indications = <List<int>>[];
+          final notifications = <List<int>>[];
+          final first =
+              peripheral.values(HilUuid.indicate).listen(indications.add);
+          final second =
+              peripheral.values(HilUuid.notify).listen(notifications.add);
+          addTearDown(first.cancel);
+          addTearDown(second.cancel);
+          await peripheral.subscribe(HilUuid.indicate, indicate: true);
+          await peripheral.subscribe(HilUuid.notify);
+          for (var index = 0; index < 5; index++) {
+            await peripheral.requestIndication([0x49, index]);
+            await peripheral.requestNotification([0x4e, index]);
+            await _waitUntil(() async =>
+                indications.length == index + 1 &&
+                notifications.length == index + 1);
+            await _waitUntil(() async =>
+                !(await peripheral.readTelemetry()).indicationPending);
+          }
+          expect(indications, List.generate(5, (index) => [0x49, index]));
+          expect(notifications, List.generate(5, (index) => [0x4e, index]));
+        },
       );
     });
 
     group('MTU, long values, and resource pressure', () {
-      _pending(
+      _unsupported(
         '[FIT-MTU-001] handles disconnect while querying the negotiated MTU',
+        'Windows reads local MTU metadata; no fixture-side query callback to interrupt.',
       );
-      _pending(
+      _unsupported(
         '[FIT-MTU-002] handles reboot while querying the negotiated MTU',
+        'Windows reads local MTU metadata; no fixture-side query callback to interrupt.',
       );
-      _pending(
+      testWidgets(
         '[FIT-MTU-003] reads and writes at MTU minus ATT header boundaries',
+        (_) async {
+          final mtu = (await peripheral.readState()).mtu;
+          expect(mtu, inInclusiveRange(23, 247));
+          for (final length in [mtu - 4, mtu - 3]) {
+            final value = List.generate(length, (index) => index & 0xff);
+            await peripheral.write(HilUuid.write, value);
+            expect(await peripheral.read(HilUuid.writeMirror), value);
+            await peripheral.setLongValue(length);
+            expect(await peripheral.read(HilUuid.read), value);
+          }
+        },
       );
-      _pending(
+      testWidgets(
         '[FIT-MTU-004] handles values larger than one ATT payload through supported long operations',
+        (_) async {
+          final mtu = (await peripheral.readState()).mtu;
+          for (final length in [mtu + 1, HilPeripheral.maxWriteLength]) {
+            final value = List.generate(length, (index) => index & 0xff);
+            await peripheral.setLongValue(length);
+            expect(await peripheral.read(HilUuid.read), value);
+            await peripheral.write(HilUuid.write, value);
+            expect(await peripheral.read(HilUuid.writeMirror), value);
+          }
+          await peripheral.setLongValue(512);
+          expect(await peripheral.read(HilUuid.read),
+              List.generate(512, (index) => index & 0xff));
+        },
       );
-      _pending(
+      testWidgets(
         '[FIT-MTU-005] reports an oversized value rejected by the peripheral',
+        (_) async {
+          await peripheral.write(HilUuid.write, [1, 2, 3]);
+          await expectLater(
+              peripheral.write(HilUuid.write,
+                  List.filled(HilPeripheral.maxWriteLength + 1, 0x55)),
+              throwsA(isA<UniversalBleException>()));
+          // Prove that an oversized prepare was never committed.
+          expect((await peripheral.readTelemetry()).oversizedWritesRejected,
+              greaterThan(0));
+          expect(await peripheral.read(HilUuid.writeMirror), [1, 2, 3]);
+          await peripheral.write(HilUuid.write, [4, 5, 6]);
+          expect(await peripheral.read(HilUuid.writeMirror), [4, 5, 6]);
+        },
       );
-      _pending(
+      testWidgets(
         '[FIT-MTU-006] recovers after peripheral notification-buffer exhaustion',
+        (_) async {
+          final values = <List<int>>[];
+          final subscription =
+              peripheral.values(HilUuid.notify).listen(values.add);
+          addTearDown(subscription.cancel);
+          await peripheral.subscribe(HilUuid.notify);
+          await peripheral.requestNotificationPressure();
+          await _waitUntil(() async {
+            final state = await peripheral.readTelemetry();
+            return state.pressureAccepted +
+                        state.pressureRejected +
+                        state.pressureErrors ==
+                    128 &&
+                state.pressureCompleted == state.pressureAccepted &&
+                values.length == state.pressureAccepted;
+          });
+          final telemetry = await peripheral.readTelemetry();
+          expect(telemetry.pressureAccepted, greaterThan(0));
+          expect(telemetry.pressureRejected, greaterThan(0));
+          expect(telemetry.pressureErrors, 0);
+          expect(values, everyElement(utf8.encode('PRESSURE')));
+          await peripheral.requestNotification(utf8.encode('AFTER-PRESSURE'));
+          await _waitUntil(
+              () async => values.length == telemetry.pressureAccepted + 1);
+          expect(values.last, utf8.encode('AFTER-PRESSURE'));
+          await _verifyRecovery(peripheral);
+        },
       );
-      _pending(
+      _unsupported(
         '[FIT-MTU-007] recovers after peripheral prepare-write queue exhaustion',
+        'The public BLE API cannot queue raw Prepare Writes without executing them.',
       );
-      _pending(
+      testWidgets(
         '[FIT-MTU-008] remains stable while payload sizes alternate around the negotiated boundary',
+        (_) async {
+          final boundary = (await peripheral.readState()).mtu - 3;
+          for (var cycle = 0; cycle < 3; cycle++) {
+            for (final length in [boundary - 1, boundary, boundary + 1]) {
+              final value =
+                  List.generate(length, (index) => (index + cycle) & 0xff);
+              await peripheral.write(HilUuid.write, value);
+              expect(await peripheral.read(HilUuid.writeMirror), value);
+            }
+          }
+        },
       );
     });
 
     group('pairing, bonding, and encrypted attributes', () {
-      _pending(
+      _unsupportedPairing(
         '[FIT-SMP-001] triggers pairing when an encrypted read is attempted',
       );
-      _pending(
+      _unsupportedPairing(
         '[FIT-SMP-002] triggers pairing when an encrypted write is attempted',
       );
-      _pending('[FIT-SMP-003] reports a rejected passkey pairing attempt');
-      _pending('[FIT-SMP-004] reports a peripheral-cancelled pairing attempt');
-      _pending(
+      _unsupportedPairing(
+          '[FIT-SMP-003] reports a rejected passkey pairing attempt');
+      _unsupportedPairing(
+          '[FIT-SMP-004] reports a peripheral-cancelled pairing attempt');
+      _unsupportedPairing(
         '[FIT-SMP-005] reports disconnect during pairing without hanging',
       );
-      _pending(
+      _unsupportedPairing(
         '[FIT-SMP-006] reconnects and accesses encrypted attributes with a valid bond',
       );
-      _pending(
+      _unsupportedPairing(
         '[FIT-SMP-007] reports access failure after the peripheral deletes its bond',
       );
-      _pending(
+      _unsupportedPairing(
         '[FIT-SMP-008] repairs successfully after both sides remove the bond',
       );
     });
 
     group('deterministic timing sweeps and recovery', () {
-      _pending(
+      testWidgets(
         '[FIT-RACE-001] sweeps disconnect timing across connection establishment',
+        (_) async {
+          for (final milliseconds in [0, 25, 100, 350]) {
+            await peripheral.reset();
+            await peripheral
+                .armConnectFault(Duration(milliseconds: milliseconds));
+            await peripheral.close();
+            await _discoverHilPeripheral();
+            // The one-shot plan survives the host disconnect and starts at
+            // the next firmware connection callback. A sufficiently early
+            // failure may prevent Windows from emitting any "connected" event.
+            await _connectThroughFixtureFault(peripheral);
+            await peripheral.reconnect();
+            final telemetry = await peripheral.readTelemetry();
+            expect(telemetry.connectFaultsTriggered, 1);
+            expect(telemetry.physicalDisconnects, greaterThanOrEqualTo(2));
+            await peripheral.reset();
+            await _verifyRecovery(peripheral);
+          }
+        },
+        timeout: const Timeout(Duration(minutes: 4)),
       );
-      _pending(
+      testWidgets(
         '[FIT-RACE-002] sweeps disconnect timing across service discovery',
+        (_) async {
+          for (final milliseconds in [0, 25, 100, 350]) {
+            await peripheral.reset();
+            await peripheral.armDiscoveryFault(
+                delay: const Duration(milliseconds: 300),
+                disconnectAfter: Duration(milliseconds: milliseconds));
+            await peripheral.close();
+            await _discoverHilPeripheral();
+            // Connect performs uncached discovery. discoverServices() alone
+            // can return Windows' cached map without reaching the fixture.
+            await _connectThroughFixtureFault(peripheral);
+            await peripheral.reconnect();
+            final telemetry = await peripheral.readTelemetry();
+            expect(telemetry.discoveryFaultsTriggered, 1);
+            expect(telemetry.physicalDisconnects, greaterThanOrEqualTo(2));
+            await peripheral.reset();
+            await _verifyRecovery(peripheral);
+          }
+        },
+        timeout: const Timeout(Duration(minutes: 4)),
       );
-      _pending('[FIT-RACE-003] sweeps disconnect timing across reads');
-      _pending('[FIT-RACE-004] sweeps disconnect timing across writes');
-      _pending('[FIT-RACE-005] sweeps disconnect timing across CCC enable');
-      _pending('[FIT-RACE-006] sweeps disconnect timing across CCC disable');
-      _pending(
+      for (final operation in ['read', 'write', 'enable', 'disable']) {
+        final id = {
+          'read': '003',
+          'write': '004',
+          'enable': '005',
+          'disable': '006'
+        }[operation];
+        testWidgets('[FIT-RACE-$id] sweeps disconnect timing across $operation',
+            (_) async {
+          for (final milliseconds in [0, 25, 100, 350]) {
+            await _runTimingScenario(peripheral, operation, milliseconds);
+          }
+        }, timeout: const Timeout(Duration(minutes: 4)));
+      }
+      testWidgets(
         '[FIT-RACE-007] repeats each injected fault with a clean recovery probe',
+        (_) async {
+          for (var repetition = 0; repetition < 2; repetition++) {
+            for (final operation in ['read', 'write']) {
+              if (operation == 'read') {
+                await peripheral.armReadFault(attError: 0x0e);
+                await expectLater(peripheral.read(HilUuid.read),
+                    throwsA(isA<UniversalBleException>()));
+              } else {
+                await peripheral.armWriteFault(attError: 0x0e);
+                await expectLater(peripheral.write(HilUuid.write, [0xff]),
+                    throwsA(isA<UniversalBleException>()));
+              }
+              await _verifyRecovery(peripheral);
+              await _runTimingScenario(peripheral, operation, 25);
+            }
+          }
+        },
+        timeout: const Timeout(Duration(minutes: 4)),
       );
-      _pending(
+      testWidgets(
         '[FIT-RACE-008] replays a timing sweep from a recorded scenario seed',
+        (_) async {
+          const seed =
+              int.fromEnvironment('HIL_SCENARIO_SEED', defaultValue: 316);
+          final random = Random(seed);
+          const operations = ['read', 'write', 'enable', 'disable'];
+          const delays = [0, 25, 100, 350];
+          for (var step = 0; step < 6; step++) {
+            final operation = operations[random.nextInt(operations.length)];
+            final delay = delays[random.nextInt(delays.length)];
+            // Copy the seed and trace from the test log to replay this scenario.
+            debugPrint(
+                'HIL_SCENARIO_SEED=$seed step=$step operation=$operation disconnectAfterMs=$delay callbackDelayMs=300');
+            await _runTimingScenario(peripheral, operation, delay);
+          }
+        },
+        timeout: const Timeout(Duration(minutes: 6)),
       );
     });
   });
@@ -1236,6 +1545,84 @@ void _pending(String description) {
       'Remove skip only after the matching firmware scenario and assertions exist.',
     );
   }, skip: true);
+}
+
+void _unsupported(String description, String reason) {
+  test(description, () {}, skip: reason);
+}
+
+void _unsupportedPairing(String description) => _unsupported(description,
+    'The fixture has no SMP/encrypted-attribute profile. UniversalBle has pair/unpair, but no unattended Windows consent or passkey control.');
+
+Future<void> _connectThroughFixtureFault(HilPeripheral peripheral) async {
+  final result = await _captureResult(UniversalBle.connect(peripheral.deviceId,
+      timeout: HilPeripheral.operationTimeout));
+  if (result is _AsyncFailure) {
+    expect(result.error, isA<UniversalBleException>());
+  }
+}
+
+Future<void> _verifyRecovery(HilPeripheral peripheral) async {
+  expect(utf8.decode(await peripheral.read(HilUuid.read)), 'HIL-READ-V1');
+  await peripheral.write(HilUuid.write, [0x52, 0x45, 0x43]);
+  expect(await peripheral.read(HilUuid.writeMirror), [0x52, 0x45, 0x43]);
+}
+
+Future<void> _runTimingScenario(
+        HilPeripheral peripheral, String operation, int milliseconds) =>
+    _runTimingScenarioOnce(peripheral, operation, milliseconds).timeout(
+        const Duration(seconds: 45),
+        onTimeout: () => throw TimeoutException(
+            'Timing scenario did not finish: $operation disconnectAfterMs=$milliseconds callbackDelayMs=300'));
+
+Future<void> _runTimingScenarioOnce(
+    HilPeripheral peripheral, String operation, int milliseconds) async {
+  await peripheral.reset();
+  if (operation == 'disable') await peripheral.subscribe(HilUuid.notify);
+  const callbackDelay = Duration(milliseconds: 300);
+  final disconnectAfter = Duration(milliseconds: milliseconds);
+  if (operation == 'read') {
+    await peripheral.armReadFault(
+        delay: callbackDelay, disconnectAfter: disconnectAfter);
+  } else if (operation == 'write') {
+    await peripheral.armWriteFault(
+        delay: callbackDelay, disconnectAfter: disconnectAfter);
+  } else {
+    await peripheral.armCccFault(
+        disconnectAfter: disconnectAfter, callbackDelay: callbackDelay);
+  }
+  final disconnected = _captureResult(_waitForDisconnect(peripheral));
+  final Future<Object?> action = switch (operation) {
+    'read' => peripheral.read(HilUuid.read),
+    'write' => peripheral.write(HilUuid.write, [0x41, 0x42]),
+    'enable' => peripheral.subscribe(HilUuid.notify),
+    'disable' => peripheral.unsubscribe(HilUuid.notify),
+    _ => throw ArgumentError.value(operation),
+  };
+  final result = await _captureResult(action);
+  expect(await disconnected, isNot(isA<_AsyncFailure>()));
+  if (milliseconds < callbackDelay.inMilliseconds) {
+    expect(result, isA<_AsyncFailure>(),
+        reason:
+            '$operation must not succeed before its blocked callback returns');
+    expect((result as _AsyncFailure).error, isA<UniversalBleException>());
+  } else if (result is _AsyncFailure) {
+    // A later disconnect can still precede delivery of the ATT response to Windows.
+    expect(result.error, isA<UniversalBleException>());
+  }
+  await peripheral.reconnect();
+  // Read before reset clears the counters. Link loss alone does not prove that
+  // the armed fixture callback ran and its scheduled disconnect executed.
+  final telemetry = await peripheral.readTelemetry();
+  expect(telemetry.disconnectTimersArmed, 1);
+  expect(telemetry.disconnectTimersAttempted, 1);
+  expect(telemetry.disconnectTimersCancelled, 0);
+  expect(telemetry.physicalDisconnects, 1);
+  if (operation == 'enable' || operation == 'disable') {
+    expect(telemetry.cccFaultsTriggered, 1);
+  }
+  await peripheral.reset();
+  await _verifyRecovery(peripheral);
 }
 
 Future<void> _waitForDisconnect(HilPeripheral peripheral) async {
