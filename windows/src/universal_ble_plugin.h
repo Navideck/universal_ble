@@ -79,6 +79,10 @@ enum class PeripheralBlePermission {
 };
 
 struct BluetoothDeviceAgent {
+  const uint64_t bluetooth_address;
+  // Assigned under connected_devices_mutex_ before removal, then moved into
+  // the disposal coroutine by the caller that wins Deactivate().
+  AsyncOperationTracker::Lease cleanup_reservation;
   BluetoothLEDevice device;
   event_token connection_status_changed_token;
   event_token gatt_services_changed_token;
@@ -91,11 +95,12 @@ struct BluetoothDeviceAgent {
   AsyncOperationTracker gatt_operations;
 
   BluetoothDeviceAgent(
-      const BluetoothLEDevice &device,
+      uint64_t bluetooth_address, const BluetoothLEDevice &device,
       const event_token connection_status_changed_token,
       const event_token gatt_services_changed_token,
       std::unordered_map<std::string, GattServiceObject> gatt_map)
-      : device(device),
+      : bluetooth_address(bluetooth_address),
+        device(device),
         connection_status_changed_token(connection_status_changed_token),
         gatt_services_changed_token(gatt_services_changed_token),
         gatt_map(std::move(gatt_map)) {}
@@ -391,6 +396,8 @@ private:
   AsyncOperationTracker callback_operations_;
   AsyncOperationTracker initialization_operations_;
   AsyncOperationTracker cleanup_operations_;
+  // Protected by connected_devices_mutex_; leases outlive map removal.
+  std::unordered_map<uint64_t, AsyncOperationTracker> connection_cleanup_;
   Radio bluetooth_radio_{nullptr};
   RadioState old_radio_state_ = RadioState::Unknown;
   BluetoothLEAdvertisementWatcher bluetooth_le_watcher_{nullptr};
@@ -503,9 +510,13 @@ private:
                        uint64_t *removed_generation = nullptr);
   void DisposeConnection(
       const std::shared_ptr<BluetoothDeviceAgent> &device_agent);
+  // Requires connected_devices_mutex_. Does not deactivate or close objects.
+  void ReserveConnectionCleanupLocked(
+      const std::shared_ptr<BluetoothDeviceAgent> &device_agent);
   static fire_and_forget DisposeConnectionAsync(
       std::shared_ptr<BluetoothDeviceAgent> device_agent,
-      AsyncOperationTracker::Lease cleanup_lease);
+      AsyncOperationTracker::Lease cleanup_lease,
+      AsyncOperationTracker::Lease connection_cleanup_lease);
   void ResetState();
   static void DisposeServices(
       const std::shared_ptr<BluetoothDeviceAgent> &device_agent);
