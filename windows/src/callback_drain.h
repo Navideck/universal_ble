@@ -9,7 +9,8 @@
 namespace universal_ble {
 
 // Only for operations whose completion is independent of the calling apartment.
-// Do not dispatch COM calls or application messages while draining these leases.
+// Do not dispatch COM calls or application messages while draining these
+// leases.
 inline void WaitForCallbacksWithoutMessagePump(
     const AsyncOperationTracker &operations) noexcept {
   while (!operations.WaitUntilIdleFor(std::chrono::milliseconds(10))) {

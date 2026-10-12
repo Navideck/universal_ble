@@ -18,12 +18,12 @@ LRESULT CALLBACK ForeignWindowProc(HWND window, UINT message, WPARAM wparam,
 }
 }  // namespace
 
-#define CHECK(expression)                                           \
-  do {                                                              \
-    if (!(expression)) {                                            \
-      std::cerr << "CHECK failed: " << #expression << std::endl;     \
-      return 1;                                                     \
-    }                                                               \
+#define CHECK(expression)                                        \
+  do {                                                           \
+    if (!(expression)) {                                         \
+      std::cerr << "CHECK failed: " << #expression << std::endl; \
+      return 1;                                                  \
+    }                                                            \
   } while (false)
 
 int main() {
@@ -34,7 +34,7 @@ int main() {
   cls.lpszClassName = L"UniversalBleCleanupDrainTest";
   CHECK(RegisterClassW(&cls));
   HWND window = CreateWindowExW(0, cls.lpszClassName, L"", 0, 0, 0, 0, 0,
-                               HWND_MESSAGE, nullptr, cls.hInstance, nullptr);
+                                HWND_MESSAGE, nullptr, cls.hInstance, nullptr);
   CHECK(window);
   CHECK(PostMessageW(window, kForeignMessage, 0, 0));
   std::atomic<bool> sent = false;
