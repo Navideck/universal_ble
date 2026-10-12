@@ -1,10 +1,15 @@
 ## 3.0.0
+* Windows: Expose non-connectable devices during scanning to match other platforms.
+* Add `connectable` property to `BleDevice`.
+* Add `connectableOnly` to `ScanFilter` to filter for connectable devices during scanning.
+* Add `requestDevice`, a single entry point for the platform's native device picker: the browser's Bluetooth chooser on Web and the iOS 18+ AccessorySetupKit picker on Apple (configured via `PickerPlatformConfig.apple`), returning the selected `BleDevice`. Connect it with the existing `connect(device.deviceId)`. `AppleAccessorySetupOptions` holds a list of `AppleAccessoryPickerItem`s, so the picker can offer several accessories. Platforms without a native picker throw `notSupported`.
+* **Breaking:** On iOS 18+ `unpair` now removes an accessory authorized through AccessorySetupKit (it previously threw `notSupported` on iOS). Devices not managed by AccessorySetupKit fail with `deviceNotFound`.
 * Android/iOS/macOS/Windows: keep the GATT client cache per plugin instance (one per FlutterEngine). It was process-wide, so a `connect()` from one engine could short-circuit on a client created by a destroyed engine — returning a connection that reported as connected but whose service discovery came back empty. Each engine now sees only its own clients, and `closeGattOnDetach` releases only the clients the detaching engine created instead of every client in the process.
 * Windows: deliver scan responses as scan results. A peripheral that publishes its 128-bit service UUID in the scan response (it does not fit in the advertisement next to the name) was invisible to `startScan`: Windows reports that packet with `IsConnectable == false` and it was dropped before reaching the caller.
 * Add `platformConfig` to `discoverServices()`; `AndroidDiscoverServicesOptions(clearGattCache: true)` clears Android's GATT cache (`BluetoothGatt.refresh()`) before discovery. Ignored on other platforms.
 * Android: Register MTU waiters before the native request, serialize completions onto the main looper, and fail rejected requests immediately.
 * Android: Reuse an MTU already negotiated on the current GATT connection; isolate reconnects from late callbacks.
-* **Breaking:** Add `QueueType.auto` which auto-selects the best queueing strategy per platform: Android uses a per-device queue, all other platforms run commands in parallel. It is now the default for both `UniversalBle` and `UniversalBlePeripheral`, replacing the previous `QueueType.global` default.
+* **Breaking:** Add `QueueType.auto` which auto-selects the best queueing strategy per platform: Android, Web, and Linux use a per-device queue (their BLE stacks reject or misbehave on overlapping operations), while all other platforms run commands in parallel. It is now the default for both `UniversalBle` and `UniversalBlePeripheral`, replacing the previous `QueueType.global` default. Any exhaustive `switch` over `QueueType` must handle the new `auto` value.
 * iOS/macOS: Handle write-without-response transmit buffer backpressure
 * iOS/macOS: complete concurrent reads, descriptor operations, notification changes, and RSSI reads one callback at a time.
 * Windows: retry transiently unreachable GATT service discovery during connection.
@@ -15,6 +20,7 @@
 * **Breaking:** `onValueChange` now receives a single `BleCharacteristicValue` (`deviceId`, `characteristicId`, `value`, `timestamp`) instead of four positional arguments.
 * **Breaking:** Rename `BleConnectionParametersUpdated` to `BleConnectionParametersChange`, aligning the payload with the `…Change` event naming. The `onConnectionParametersChange` callback and the model's fields are unchanged.
 * Android: report every failed bond — including a declined system-initiated bond that ends in `BOND_NONE` — not only the first per process. A failed pairing attempt is an event rather than a state, so `onPairingStateChange` no longer de-duplicates it against the cached pairing state (#325).
+* Add `universal_ble` package skills installable with `dart run skills@ get`: `universal-ble-setup` (add BLE to an app from scratch), `universal-ble-migrate-2-to-3` (upgrade from 2.x), and `universal-ble-migrate-from-flutter-blue-plus` (migrate from `flutter_blue_plus`).
 
 ## 2.3.0
 * Windows: support connectionless manufacturer-data advertising without a GATT service, including state/error reporting and cleanup on stop/disposal.
