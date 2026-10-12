@@ -1,5 +1,5 @@
 ## 3.0.0
-* Windows: route event callbacks through per-plugin-instance channels instead of process-global ones. In an app with more than one FlutterEngine, a registration no longer overwrites the channel used by another engine, and destroying one engine no longer drops the surviving engine's callbacks.
+* Windows: keep the event callback channels per plugin instance (one per FlutterEngine). They were process-global, so a registration overwrote the channel used by another engine, and destroying one engine dropped the surviving engine's callbacks.
 * Windows: deliver scan responses as scan results. A peripheral that publishes its 128-bit service UUID in the scan response (it does not fit in the advertisement next to the name) was invisible to `startScan`: Windows reports that packet with `IsConnectable == false` and it was dropped before reaching the caller.
 * Add `platformConfig` to `discoverServices()`; `AndroidDiscoverServicesOptions(clearGattCache: true)` clears Android's GATT cache (`BluetoothGatt.refresh()`) before discovery. Ignored on other platforms.
 * Android: Register MTU waiters before the native request, serialize completions onto the main looper, and fail rejected requests immediately.

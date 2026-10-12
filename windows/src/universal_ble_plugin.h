@@ -375,18 +375,18 @@ private:
   flutter::PluginRegistrarWindows *registrar_;
   bool initialized_ = false;
 
-  // Per-plugin-instance callback channels. One plugin is created per
-  // FlutterEngine, so events must go through this instance's messenger; a
-  // process-global channel would be overwritten by the next engine's
-  // registration and reset on any engine's teardown, dropping the surviving
-  // engine's callbacks.
+  // Per plugin instance (one per FlutterEngine): the callback channels. Events
+  // must go through this instance's messenger; a process-global channel would
+  // be overwritten by the next engine's registration and reset on any engine's
+  // teardown, dropping the surviving engine's callbacks.
   std::unique_ptr<UniversalBleCallbackChannel> callback_channel_;
   std::unique_ptr<UniversalBlePeripheralCallback> peripheral_callback_channel_;
 
-  // Posted callbacks capture either a channel pointer or `this` to reach the
-  // per-instance state above. That is safe because the destructor shuts this
-  // handler down before it resets the channels, and Shutdown drops still-queued
-  // callbacks instead of running them.
+  // PostCentralReport/PostPeripheralReport post callbacks that capture this
+  // instance's channel; the few posted directly capture `this` for other state.
+  // Both are safe because the destructor shuts this handler down before it
+  // resets the channels, and Shutdown drops still-queued callbacks instead of
+  // running them.
   UniversalBleUiThreadHandler ui_thread_handler_;
   AsyncOperationTracker callback_operations_;
   AsyncOperationTracker initialization_operations_;
@@ -421,6 +421,13 @@ private:
   event_revoker<IRadio> radio_state_changed_revoker_;
 
   void InitializeAsync();
+  // Post `report` to the UI thread with this instance's callback channel. Keeps
+  // channel access in one place, and the callback never needs to capture
+  // `this`.
+  void PostCentralReport(
+      std::function<void(UniversalBleCallbackChannel *)> &&report);
+  void PostPeripheralReport(
+      std::function<void(UniversalBlePeripheralCallback *)> &&report);
   fire_and_forget ConnectAsync(uint64_t bluetooth_address,
                                uint64_t connect_generation);
   fire_and_forget RefreshGattServicesAsync(
