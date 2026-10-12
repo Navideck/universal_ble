@@ -3,7 +3,6 @@ package com.navideck.universal_ble
 import android.bluetooth.BluetoothDevice
 import android.bluetooth.BluetoothGatt
 import android.os.Handler
-import kotlin.test.AfterTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertSame
@@ -31,11 +30,6 @@ internal class DisconnectCloseTest {
             }
             null
         }
-
-    @AfterTest
-    fun clearCache() {
-        deviceAddress.findGatt()?.removeCache()
-    }
 
     private fun plugin(): UniversalBlePlugin {
         val plugin = UniversalBlePlugin()
@@ -90,7 +84,7 @@ internal class DisconnectCloseTest {
     fun peerDisconnectAfterConnectReportsDeviceDisconnected() {
         val plugin = plugin()
         val gatt = mockGatt()
-        gatt.saveCacheIfNeeded()
+        with(plugin) { gatt.saveCacheIfNeeded() }
 
         plugin.onConnectionStateChange(
             gatt, BluetoothGatt.GATT_SUCCESS, BluetoothGatt.STATE_CONNECTED
@@ -118,7 +112,7 @@ internal class DisconnectCloseTest {
     fun disconnectBeforeConnectReportsConnectionFailed() {
         val plugin = plugin()
         val gatt = mockGatt()
-        gatt.saveCacheIfNeeded()
+        with(plugin) { gatt.saveCacheIfNeeded() }
 
         plugin.onConnectionStateChange(
             gatt, BluetoothGatt.GATT_FAILURE, BluetoothGatt.STATE_DISCONNECTED
@@ -144,7 +138,7 @@ internal class DisconnectCloseTest {
         val oldGatt = mockGatt()
         val newGatt = mockGatt()
         closingGatts(plugin).add(oldGatt)
-        newGatt.saveCacheIfNeeded()
+        with(plugin) { newGatt.saveCacheIfNeeded() }
 
         plugin.onConnectionStateChange(
             oldGatt, BluetoothGatt.GATT_SUCCESS, BluetoothGatt.STATE_DISCONNECTED
@@ -152,6 +146,6 @@ internal class DisconnectCloseTest {
 
         Mockito.verify(oldGatt).close()
         assertTrue(connectionChanges.isEmpty())
-        assertSame(newGatt, deviceAddress.findGatt())
+        with(plugin) { assertSame(newGatt, deviceAddress.findGatt()) }
     }
 }

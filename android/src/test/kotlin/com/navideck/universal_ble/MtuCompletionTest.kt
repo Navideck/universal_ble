@@ -31,7 +31,7 @@ internal class MtuCompletionTest {
         return Mockito.mock(BluetoothGatt::class.java).also {
             Mockito.`when`(it.device).thenReturn(device)
             Mockito.`when`(it.requestMtu(Mockito.anyInt())).thenReturn(true)
-            it.saveCacheIfNeeded()
+            with(plugin) { it.saveCacheIfNeeded() }
         }
     }
 
@@ -41,7 +41,9 @@ internal class MtuCompletionTest {
 
     @AfterTest
     fun clearConnections() {
-        connectedGatts().forEach { it.removeCache() }
+        with(plugin) {
+            knownGatts.values.toList().forEach { it.removeCache() }
+        }
     }
 
     @Test

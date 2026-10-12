@@ -83,6 +83,13 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
     private val connectedGatts: MutableSet<BluetoothGatt> =
         Collections.newSetFromMap(ConcurrentHashMap<BluetoothGatt, Boolean>())
 
+    // GATT clients created by this plugin instance. Each FlutterEngine gets its own
+    // plugin, so ownership must be per instance: a connect() here must not reuse a
+    // client whose callbacks are wired to an engine that may already be gone, and
+    // detach must release only the clients this engine created. Instance-scoped state
+    // is also what keeps a destroyed engine's clients from leaking into a live one.
+    internal val knownGatts = ConcurrentHashMap<String, BluetoothGatt>()
+
     /**
      * When enabled, close every known GATT client on engine detach. The
      * plugin otherwise leaves GATT open, so a killed app keeps the
@@ -124,7 +131,9 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
     }
 
     override fun onDetachedFromEngine(binding: FlutterPlugin.FlutterPluginBinding) {
-        if (closeGattOnDetach) connectedGatts().forEach(::cleanConnection)
+        // Release only the clients this engine created. The snapshot avoids mutating
+        // the map while clients are released.
+        if (closeGattOnDetach) knownGatts.values.toList().forEach(::cleanConnection)
         bluetoothManager.adapter.bluetoothLeScanner?.stopScan(scanCallback)
         context.unregisterReceiver(broadcastReceiver)
         peripheralPlugin.dispose()
@@ -1425,6 +1434,33 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
         } else {
             device.connectGatt(context, false, callbackHandler)
         }
+    }
+
+    // Cache helpers scoped to this instance's clients (see [knownGatts]). Internal
+    // rather than private so the unit tests can exercise ownership per engine.
+    internal fun String.findGatt(): BluetoothGatt? {
+        return knownGatts[this]
+    }
+
+    internal fun String.isKnownGatt(): Boolean {
+        return findGatt() != null
+    }
+
+    internal fun String.toBluetoothGatt(): BluetoothGatt {
+        return findGatt()
+            ?: throw createFlutterError(
+                UniversalBleErrorCode.DEVICE_NOT_FOUND,
+                "Unknown deviceId: $this",
+            )
+    }
+
+    internal fun BluetoothGatt.saveCacheIfNeeded() {
+        knownGatts[this.device.address] = this
+    }
+
+    internal fun BluetoothGatt.removeCache() {
+        // Only while still the registered client; a newer connect() may have replaced it.
+        knownGatts.remove(this.device.address, this)
     }
 
     /**
