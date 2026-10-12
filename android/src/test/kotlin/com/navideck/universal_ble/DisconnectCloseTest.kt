@@ -39,29 +39,13 @@ internal class DisconnectCloseTest {
             invocation.getArgument<Runnable>(0).run()
             true
         }.`when`(handler).post(any())
-        setField(plugin, "mainThreadHandler", handler)
-        setField(plugin, "callbackChannel", callbackChannel)
+        plugin.setField("mainThreadHandler", handler)
+        plugin.setField("callbackChannel", callbackChannel)
         return plugin
     }
 
-    private fun setField(plugin: UniversalBlePlugin, name: String, value: Any) {
-        val field = UniversalBlePlugin::class.java.getDeclaredField(name)
-        field.isAccessible = true
-        field.set(plugin, value)
-    }
-
-    @Suppress("UNCHECKED_CAST")
-    private fun closingGatts(plugin: UniversalBlePlugin): MutableSet<BluetoothGatt> {
-        val field = UniversalBlePlugin::class.java.getDeclaredField("closingGatts")
-        field.isAccessible = true
-        return field.get(plugin) as MutableSet<BluetoothGatt>
-    }
-
-    private fun registry(plugin: UniversalBlePlugin): GattRegistry {
-        val field = UniversalBlePlugin::class.java.getDeclaredField("gattRegistry")
-        field.isAccessible = true
-        return field.get(plugin) as GattRegistry
-    }
+    private fun closingGatts(plugin: UniversalBlePlugin): MutableSet<BluetoothGatt> =
+        plugin.getField("closingGatts")
 
     private fun mockGatt(): BluetoothGatt {
         val device = Mockito.mock(BluetoothDevice::class.java)
@@ -90,7 +74,7 @@ internal class DisconnectCloseTest {
     fun peerDisconnectAfterConnectReportsDeviceDisconnected() {
         val plugin = plugin()
         val gatt = mockGatt()
-        registry(plugin).put(gatt)
+        plugin.gattRegistry().put(gatt)
 
         plugin.onConnectionStateChange(
             gatt, BluetoothGatt.GATT_SUCCESS, BluetoothGatt.STATE_CONNECTED
@@ -118,7 +102,7 @@ internal class DisconnectCloseTest {
     fun disconnectBeforeConnectReportsConnectionFailed() {
         val plugin = plugin()
         val gatt = mockGatt()
-        registry(plugin).put(gatt)
+        plugin.gattRegistry().put(gatt)
 
         plugin.onConnectionStateChange(
             gatt, BluetoothGatt.GATT_FAILURE, BluetoothGatt.STATE_DISCONNECTED
@@ -144,7 +128,7 @@ internal class DisconnectCloseTest {
         val oldGatt = mockGatt()
         val newGatt = mockGatt()
         closingGatts(plugin).add(oldGatt)
-        registry(plugin).put(newGatt)
+        plugin.gattRegistry().put(newGatt)
 
         plugin.onConnectionStateChange(
             oldGatt, BluetoothGatt.GATT_SUCCESS, BluetoothGatt.STATE_DISCONNECTED
@@ -152,6 +136,6 @@ internal class DisconnectCloseTest {
 
         Mockito.verify(oldGatt).close()
         assertTrue(connectionChanges.isEmpty())
-        assertSame(newGatt, registry(plugin).find(deviceAddress))
+        assertSame(newGatt, plugin.gattRegistry().find(deviceAddress))
     }
 }

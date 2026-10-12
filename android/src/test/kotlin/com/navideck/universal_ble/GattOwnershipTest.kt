@@ -33,8 +33,8 @@ internal class GattOwnershipTest {
             invocation.getArgument<Runnable>(0).run()
             true
         }.`when`(handler).post(any())
-        setField(plugin, "mainThreadHandler", handler)
-        setField(plugin, "bluetoothManager", bluetoothManager())
+        plugin.setField("mainThreadHandler", handler)
+        plugin.setField("bluetoothManager", bluetoothManager())
         return plugin
     }
 
@@ -49,18 +49,6 @@ internal class GattOwnershipTest {
         Mockito.`when`(manager.getConnectionState(device, BluetoothProfile.GATT))
             .thenReturn(BluetoothGatt.STATE_CONNECTED)
         return manager
-    }
-
-    private fun setField(plugin: UniversalBlePlugin, name: String, value: Any) {
-        val field = UniversalBlePlugin::class.java.getDeclaredField(name)
-        field.isAccessible = true
-        field.set(plugin, value)
-    }
-
-    private fun registry(plugin: UniversalBlePlugin): GattRegistry {
-        val field = UniversalBlePlugin::class.java.getDeclaredField("gattRegistry")
-        field.isAccessible = true
-        return field.get(plugin) as GattRegistry
     }
 
     private fun mockGatt(): BluetoothGatt {
@@ -88,7 +76,7 @@ internal class GattOwnershipTest {
     fun connectionStateIgnoresAClientOwnedByAnotherEngine() {
         val backgroundEngine = plugin()
         val uiEngine = plugin()
-        registry(backgroundEngine).put(mockGatt())
+        backgroundEngine.gattRegistry().put(mockGatt())
 
         // The OS reports CONNECTED for both, but only the owning engine may
         // claim it; the other reports DISCONNECTED instead of a dead client.
