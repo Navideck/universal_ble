@@ -153,14 +153,14 @@ class UniversalBleDescriptor {
 ///
 /// [interval] and [supervisionTimeout] use BLE connection parameter units
 /// (multiply interval by 1.25 for ms; supervisionTimeout by 10 for ms).
-class BleConnectionParametersUpdated {
+class BleConnectionParametersChange {
   final String deviceId;
   final int interval;
   final int latency;
   final int supervisionTimeout;
   final int status;
 
-  BleConnectionParametersUpdated({
+  BleConnectionParametersChange({
     required this.deviceId,
     required this.interval,
     required this.latency,
@@ -332,7 +332,8 @@ class AndroidConnectionOptions {
   /// GATT open, keeping the peripheral occupied until its supervision
   /// timeout; with `autoConnect` it also stays open for reconnection.
   ///
-  /// When `null`, the current process-wide value is kept.
+  /// When `null`, the value set by a previous `connect()` on this engine
+  /// is kept.
   bool? closeGattOnDetach;
 
   AndroidConnectionOptions({this.closeGattOnDetach});
@@ -342,6 +343,25 @@ class ConnectionPlatformConfig {
   AppleConnectionOptions? apple;
   AndroidConnectionOptions? android;
   ConnectionPlatformConfig({this.apple, this.android});
+}
+
+class AndroidDiscoverServicesOptions {
+  /// Clear the OS-level GATT cache of the connection (`BluetoothGatt.refresh()`)
+  /// before discovering, so a peripheral whose GATT layout changed while it
+  /// was disconnected is read again instead of served from the cache.
+  ///
+  /// `refresh()` is a hidden API invoked by reflection; discovery fails when
+  /// it is unavailable or returns `false`.
+  bool? clearGattCache;
+
+  AndroidDiscoverServicesOptions({this.clearGattCache});
+}
+
+/// Platform-specific options for `discoverServices`. Ignored on platforms
+/// that have no equivalent.
+class DiscoverServicesPlatformConfig {
+  AndroidDiscoverServicesOptions? android;
+  DiscoverServicesPlatformConfig({this.android});
 }
 
 class PeripheralAndroidOptions {
@@ -461,6 +481,7 @@ abstract class UniversalBlePlatformChannel {
   List<UniversalBleService> discoverServices(
     String deviceId,
     bool withDescriptors,
+    DiscoverServicesPlatformConfig? platformConfig,
   );
 
   @async
@@ -537,9 +558,20 @@ abstract class UniversalBleCallbackChannel {
     int? timestamp,
   );
 
-  void onConnectionChanged(String deviceId, bool connected, String? error);
+  /// [errorCode] classifies a failed connection or an unexpected disconnect
+  /// (`deviceDisconnected`, `connectionTimeout`, `connectionFailed`, ...),
+  /// mapped on the native side from `CBError.Code` (Apple) or the GATT
+  /// `status` (Android). [nativeErrorCode] is that raw platform value.
+  /// Both are `null` when there is no error or the platform has no code.
+  void onConnectionChanged(
+    String deviceId,
+    bool connected,
+    String? error,
+    UniversalBleErrorCode? errorCode,
+    int? nativeErrorCode,
+  );
 
-  void onConnectionParametersUpdated(BleConnectionParametersUpdated update);
+  void onConnectionParametersUpdated(BleConnectionParametersChange update);
 }
 
 /// Flutter -> Native (peripheral)

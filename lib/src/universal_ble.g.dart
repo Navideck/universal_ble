@@ -536,8 +536,8 @@ class UniversalBleDescriptor {
 ///
 /// [interval] and [supervisionTimeout] use BLE connection parameter units
 /// (multiply interval by 1.25 for ms; supervisionTimeout by 10 for ms).
-class BleConnectionParametersUpdated {
-  BleConnectionParametersUpdated({
+class BleConnectionParametersChange {
+  BleConnectionParametersChange({
     required this.deviceId,
     required this.interval,
     required this.latency,
@@ -569,9 +569,9 @@ class BleConnectionParametersUpdated {
     return _toList();
   }
 
-  static BleConnectionParametersUpdated decode(Object result) {
+  static BleConnectionParametersChange decode(Object result) {
     result as List<Object?>;
-    return BleConnectionParametersUpdated(
+    return BleConnectionParametersChange(
       deviceId: result[0]! as String,
       interval: result[1]! as int,
       latency: result[2]! as int,
@@ -583,7 +583,7 @@ class BleConnectionParametersUpdated {
   @override
   // ignore: avoid_equals_and_hash_code_on_mutable_classes
   bool operator ==(Object other) {
-    if (other is! BleConnectionParametersUpdated ||
+    if (other is! BleConnectionParametersChange ||
         other.runtimeType != runtimeType) {
       return false;
     }
@@ -1071,7 +1071,8 @@ class AndroidConnectionOptions {
   /// GATT open, keeping the peripheral occupied until its supervision
   /// timeout; with `autoConnect` it also stays open for reconnection.
   ///
-  /// When `null`, the current process-wide value is kept.
+  /// When `null`, the value set by a previous `connect()` on this engine
+  /// is kept.
   bool? closeGattOnDetach;
 
   List<Object?> _toList() {
@@ -1150,6 +1151,98 @@ class ConnectionPlatformConfig {
     }
     return _deepEquals(apple, other.apple) &&
         _deepEquals(android, other.android);
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  int get hashCode => _deepHash(<Object?>[runtimeType, ..._toList()]);
+}
+
+class AndroidDiscoverServicesOptions {
+  AndroidDiscoverServicesOptions({
+    this.clearGattCache,
+  });
+
+  /// Clear the OS-level GATT cache of the connection (`BluetoothGatt.refresh()`)
+  /// before discovering, so a peripheral whose GATT layout changed while it
+  /// was disconnected is read again instead of served from the cache.
+  ///
+  /// `refresh()` is a hidden API invoked by reflection; discovery fails when
+  /// it is unavailable or returns `false`.
+  bool? clearGattCache;
+
+  List<Object?> _toList() {
+    return <Object?>[
+      clearGattCache,
+    ];
+  }
+
+  Object encode() {
+    return _toList();
+  }
+
+  static AndroidDiscoverServicesOptions decode(Object result) {
+    result as List<Object?>;
+    return AndroidDiscoverServicesOptions(
+      clearGattCache: result[0] as bool?,
+    );
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  bool operator ==(Object other) {
+    if (other is! AndroidDiscoverServicesOptions ||
+        other.runtimeType != runtimeType) {
+      return false;
+    }
+    if (identical(this, other)) {
+      return true;
+    }
+    return _deepEquals(clearGattCache, other.clearGattCache);
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  int get hashCode => _deepHash(<Object?>[runtimeType, ..._toList()]);
+}
+
+/// Platform-specific options for `discoverServices`. Ignored on platforms
+/// that have no equivalent.
+class DiscoverServicesPlatformConfig {
+  DiscoverServicesPlatformConfig({
+    this.android,
+  });
+
+  AndroidDiscoverServicesOptions? android;
+
+  List<Object?> _toList() {
+    return <Object?>[
+      android,
+    ];
+  }
+
+  Object encode() {
+    return _toList();
+  }
+
+  static DiscoverServicesPlatformConfig decode(Object result) {
+    result as List<Object?>;
+    return DiscoverServicesPlatformConfig(
+      android: result[0] as AndroidDiscoverServicesOptions?,
+    );
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  bool operator ==(Object other) {
+    if (other is! DiscoverServicesPlatformConfig ||
+        other.runtimeType != runtimeType) {
+      return false;
+    }
+    if (identical(this, other)) {
+      return true;
+    }
+    return _deepEquals(android, other.android);
   }
 
   @override
@@ -1602,7 +1695,7 @@ class _PigeonCodec extends StandardMessageCodec {
     } else if (value is UniversalBleDescriptor) {
       buffer.putUint8(147);
       writeValue(buffer, value.encode());
-    } else if (value is BleConnectionParametersUpdated) {
+    } else if (value is BleConnectionParametersChange) {
       buffer.putUint8(148);
       writeValue(buffer, value.encode());
     } else if (value is AndroidOptions) {
@@ -1632,26 +1725,32 @@ class _PigeonCodec extends StandardMessageCodec {
     } else if (value is ConnectionPlatformConfig) {
       buffer.putUint8(157);
       writeValue(buffer, value.encode());
-    } else if (value is PeripheralAndroidOptions) {
+    } else if (value is AndroidDiscoverServicesOptions) {
       buffer.putUint8(158);
       writeValue(buffer, value.encode());
-    } else if (value is PeripheralPlatformConfig) {
+    } else if (value is DiscoverServicesPlatformConfig) {
       buffer.putUint8(159);
       writeValue(buffer, value.encode());
-    } else if (value is PeripheralService) {
+    } else if (value is PeripheralAndroidOptions) {
       buffer.putUint8(160);
       writeValue(buffer, value.encode());
-    } else if (value is PeripheralCharacteristic) {
+    } else if (value is PeripheralPlatformConfig) {
       buffer.putUint8(161);
       writeValue(buffer, value.encode());
-    } else if (value is PeripheralDescriptor) {
+    } else if (value is PeripheralService) {
       buffer.putUint8(162);
       writeValue(buffer, value.encode());
-    } else if (value is PeripheralReadRequestResult) {
+    } else if (value is PeripheralCharacteristic) {
       buffer.putUint8(163);
       writeValue(buffer, value.encode());
-    } else if (value is PeripheralWriteRequestResult) {
+    } else if (value is PeripheralDescriptor) {
       buffer.putUint8(164);
+      writeValue(buffer, value.encode());
+    } else if (value is PeripheralReadRequestResult) {
+      buffer.putUint8(165);
+      writeValue(buffer, value.encode());
+    } else if (value is PeripheralWriteRequestResult) {
+      buffer.putUint8(166);
       writeValue(buffer, value.encode());
     } else {
       super.writeValue(buffer, value);
@@ -1717,7 +1816,7 @@ class _PigeonCodec extends StandardMessageCodec {
       case 147:
         return UniversalBleDescriptor.decode(readValue(buffer)!);
       case 148:
-        return BleConnectionParametersUpdated.decode(readValue(buffer)!);
+        return BleConnectionParametersChange.decode(readValue(buffer)!);
       case 149:
         return AndroidOptions.decode(readValue(buffer)!);
       case 150:
@@ -1737,18 +1836,22 @@ class _PigeonCodec extends StandardMessageCodec {
       case 157:
         return ConnectionPlatformConfig.decode(readValue(buffer)!);
       case 158:
-        return PeripheralAndroidOptions.decode(readValue(buffer)!);
+        return AndroidDiscoverServicesOptions.decode(readValue(buffer)!);
       case 159:
-        return PeripheralPlatformConfig.decode(readValue(buffer)!);
+        return DiscoverServicesPlatformConfig.decode(readValue(buffer)!);
       case 160:
-        return PeripheralService.decode(readValue(buffer)!);
+        return PeripheralAndroidOptions.decode(readValue(buffer)!);
       case 161:
-        return PeripheralCharacteristic.decode(readValue(buffer)!);
+        return PeripheralPlatformConfig.decode(readValue(buffer)!);
       case 162:
-        return PeripheralDescriptor.decode(readValue(buffer)!);
+        return PeripheralService.decode(readValue(buffer)!);
       case 163:
-        return PeripheralReadRequestResult.decode(readValue(buffer)!);
+        return PeripheralCharacteristic.decode(readValue(buffer)!);
       case 164:
+        return PeripheralDescriptor.decode(readValue(buffer)!);
+      case 165:
+        return PeripheralReadRequestResult.decode(readValue(buffer)!);
+      case 166:
         return PeripheralWriteRequestResult.decode(readValue(buffer)!);
       default:
         return super.readValueOfType(type, buffer);
@@ -2012,7 +2115,9 @@ class UniversalBlePlatformChannel {
   }
 
   Future<List<UniversalBleService>> discoverServices(
-      String deviceId, bool withDescriptors) async {
+      String deviceId,
+      bool withDescriptors,
+      DiscoverServicesPlatformConfig? platformConfig) async {
     final pigeonVar_channelName =
         'dev.flutter.pigeon.universal_ble.UniversalBlePlatformChannel.discoverServices$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
@@ -2020,8 +2125,8 @@ class UniversalBlePlatformChannel {
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture =
-        pigeonVar_channel.send(<Object?>[deviceId, withDescriptors]);
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel
+        .send(<Object?>[deviceId, withDescriptors, platformConfig]);
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
@@ -2312,9 +2417,15 @@ abstract class UniversalBleCallbackChannel {
   void onValueChanged(String deviceId, String characteristicId, Uint8List value,
       int? timestamp);
 
-  void onConnectionChanged(String deviceId, bool connected, String? error);
+  /// [errorCode] classifies a failed connection or an unexpected disconnect
+  /// (`deviceDisconnected`, `connectionTimeout`, `connectionFailed`, ...),
+  /// mapped on the native side from `CBError.Code` (Apple) or the GATT
+  /// `status` (Android). [nativeErrorCode] is that raw platform value.
+  /// Both are `null` when there is no error or the platform has no code.
+  void onConnectionChanged(String deviceId, bool connected, String? error,
+      UniversalBleErrorCode? errorCode, int? nativeErrorCode);
 
-  void onConnectionParametersUpdated(BleConnectionParametersUpdated update);
+  void onConnectionParametersUpdated(BleConnectionParametersChange update);
 
   static void setUp(
     UniversalBleCallbackChannel? api, {
@@ -2435,8 +2546,12 @@ abstract class UniversalBleCallbackChannel {
           final String arg_deviceId = args[0]! as String;
           final bool arg_connected = args[1]! as bool;
           final String? arg_error = args[2] as String?;
+          final UniversalBleErrorCode? arg_errorCode =
+              args[3] as UniversalBleErrorCode?;
+          final int? arg_nativeErrorCode = args[4] as int?;
           try {
-            api.onConnectionChanged(arg_deviceId, arg_connected, arg_error);
+            api.onConnectionChanged(arg_deviceId, arg_connected, arg_error,
+                arg_errorCode, arg_nativeErrorCode);
             return wrapResponse(empty: true);
           } on PlatformException catch (e) {
             return wrapResponse(error: e);
@@ -2457,8 +2572,8 @@ abstract class UniversalBleCallbackChannel {
       } else {
         pigeonVar_channel.setMessageHandler((Object? message) async {
           final List<Object?> args = message! as List<Object?>;
-          final BleConnectionParametersUpdated arg_update =
-              args[0]! as BleConnectionParametersUpdated;
+          final BleConnectionParametersChange arg_update =
+              args[0]! as BleConnectionParametersChange;
           try {
             api.onConnectionParametersUpdated(arg_update);
             return wrapResponse(empty: true);

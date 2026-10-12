@@ -15,6 +15,8 @@ export 'package:universal_ble/src/universal_ble.g.dart'
         AppleConnectionOptions,
         AppleAccessorySetupOptions,
         ConnectionPlatformConfig,
+        DiscoverServicesPlatformConfig,
+        AndroidDiscoverServicesOptions,
         AndroidScanMode,
         AndroidScanCallbackType,
         AndroidScanMatchMode,

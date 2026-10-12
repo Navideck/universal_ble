@@ -78,6 +78,16 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
     private val rssiResultFutureList = mutableListOf<RssiResultFuture>()
     private val autoConnectDevices = mutableSetOf<String>()
 
+    // GATT clients that reached STATE_CONNECTED, so a later STATE_DISCONNECTED can be told
+    // apart from a failed connection attempt (Android reports both the same way).
+    private val connectedGatts: MutableSet<BluetoothGatt> =
+        Collections.newSetFromMap(ConcurrentHashMap<BluetoothGatt, Boolean>())
+
+    // Per plugin instance (one per FlutterEngine): the GATT clients this engine
+    // owns (see [GattRegistry]). A connect() here never reuses a client from
+    // another engine, and detach releases only this engine's clients.
+    private val gattRegistry = GattRegistry()
+
     /**
      * When enabled, close every known GATT client on engine detach. The
      * plugin otherwise leaves GATT open, so a killed app keeps the
@@ -119,7 +129,9 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
     }
 
     override fun onDetachedFromEngine(binding: FlutterPlugin.FlutterPluginBinding) {
-        if (closeGattOnDetach) connectedGatts().forEach(::cleanConnection)
+        // Release only the clients this engine created. The snapshot avoids mutating
+        // the map while clients are released.
+        if (closeGattOnDetach) gattRegistry.snapshot().forEach(::cleanConnection)
         bluetoothManager.adapter.bluetoothLeScanner?.stopScan(scanCallback)
         context.unregisterReceiver(broadcastReceiver)
         peripheralPlugin.dispose()
@@ -302,12 +314,12 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
         // Note: platformConfig carries platform-specific connection options
         // If already connected, send connected message,
         // if connecting, do nothing
-        deviceId.findGatt()?.let {
+        gattRegistry.find(deviceId)?.let {
             val currentState = bluetoothManager.getConnectionState(it.device, BluetoothProfile.GATT)
             if (currentState == BluetoothGatt.STATE_CONNECTED) {
                 UniversalBleLogger.logError("$deviceId Already connected")
                 mainThreadHandler?.post {
-                    callbackChannel?.onConnectionChanged(deviceId, true, null) {}
+                    callbackChannel?.onConnectionChanged(deviceId, true, null, null, null) {}
                 }
                 return
             } else if (currentState == BluetoothGatt.STATE_CONNECTING) {
@@ -335,16 +347,16 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
         } else {
             remoteDevice.connectGatt(context, shouldAutoConnect, this)
         }
-        gatt.saveCacheIfNeeded()
+        gattRegistry.put(gatt)
     }
 
     override fun disconnect(deviceId: String) {
         autoConnectDevices.remove(deviceId)
-        val gatt = deviceId.findGatt()
+        val gatt = gattRegistry.find(deviceId)
         if (gatt == null) {
             cleanUpConnection(deviceId)
             mainThreadHandler?.post {
-                callbackChannel?.onConnectionChanged(deviceId, false, null) {}
+                callbackChannel?.onConnectionChanged(deviceId, false, null, null, null) {}
             }
         } else {
             cleanConnection(gatt)
@@ -357,7 +369,7 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
                 bluetoothManager.adapter.getRemoteDevice(deviceId),
                 BluetoothProfile.GATT
             )
-            return if (deviceId.isKnownGatt() || connectionState == BluetoothGatt.STATE_DISCONNECTED || connectionState == BluetoothGatt.STATE_DISCONNECTING) {
+            return if (gattRegistry.isKnown(deviceId) || connectionState == BluetoothGatt.STATE_DISCONNECTED || connectionState == BluetoothGatt.STATE_DISCONNECTING) {
                 connectionState.toBleConnectionState()
             } else {
                 // Might be connected with device, but not with app
@@ -395,7 +407,7 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
 
     override fun readRssi(deviceId: String, callback: (Result<Long>) -> Unit) {
         try {
-            val gatt = deviceId.toBluetoothGatt()
+            val gatt = gattRegistry.get(deviceId)
             if (gatt.readRemoteRssi()) {
                 rssiResultFutureList.add(RssiResultFuture(deviceId, callback))
             } else {
@@ -439,10 +451,22 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
     override fun discoverServices(
         deviceId: String,
         withDescriptors: Boolean,
+        platformConfig: DiscoverServicesPlatformConfig?,
         callback: (Result<List<UniversalBleService>>) -> Unit,
     ) {
         try {
-            val gatt = deviceId.toBluetoothGatt()
+            val gatt = gattRegistry.get(deviceId)
+            if (platformConfig?.android?.clearGattCache == true && !gatt.refreshGattCache()) {
+                callback(
+                    Result.failure(
+                        createFlutterError(
+                            UniversalBleErrorCode.FAILED,
+                            "Failed to clear GATT cache"
+                        )
+                    )
+                )
+                return
+            }
             if (gatt.discoverServices()) {
                 discoverServicesFutureList.add(
                     DiscoverServicesFuture(
@@ -519,7 +543,7 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
     ) {
         try {
             UniversalBleLogger.logDebug("SET_NOTIFY -> $deviceId $service $characteristic input=$bleInputProperty")
-            val gatt = deviceId.toBluetoothGatt()
+            val gatt = gattRegistry.get(deviceId)
             val gattCharacteristic: BluetoothGattCharacteristic? =
                 gatt.getCharacteristic(service, characteristic)
 
@@ -625,7 +649,7 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
     ) {
         try {
             UniversalBleLogger.logDebug("READ -> $deviceId $service $characteristic")
-            val gatt = deviceId.toBluetoothGatt()
+            val gatt = gattRegistry.get(deviceId)
             val gattCharacteristic = gatt.getCharacteristic(service, characteristic)
             if (gattCharacteristic == null) {
                 callback(
@@ -717,7 +741,7 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
     ) {
         try {
             UniversalBleLogger.logDebug("WRITE -> $deviceId $service $characteristic len=${value.size} property=$bleOutputProperty")
-            val gatt = deviceId.toBluetoothGatt()
+            val gatt = gattRegistry.get(deviceId)
             val gattCharacteristic = gatt.getCharacteristic(service, characteristic)
             if (gattCharacteristic == null) {
                 callback(
@@ -874,7 +898,7 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
     ) {
         try {
             UniversalBleLogger.logDebug("READ_DESCRIPTOR -> $deviceId $service $characteristic $descriptor")
-            val gatt = deviceId.toBluetoothGatt()
+            val gatt = gattRegistry.get(deviceId)
             val gattCharacteristic = gatt.getCharacteristic(service, characteristic)
             if (gattCharacteristic == null) {
                 callback(
@@ -990,7 +1014,7 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
     ) {
         try {
             UniversalBleLogger.logDebug("WRITE_DESCRIPTOR -> $deviceId $service $characteristic $descriptor len=${value.size}")
-            val gatt = deviceId.toBluetoothGatt()
+            val gatt = gattRegistry.get(deviceId)
             val gattCharacteristic = gatt.getCharacteristic(service, characteristic)
             if (gattCharacteristic == null) {
                 callback(
@@ -1069,7 +1093,7 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
     override fun requestMtu(deviceId: String, expectedMtu: Long, callback: (Result<Long>) -> Unit) {
         UniversalBleLogger.logDebug("REQUEST_MTU -> $deviceId expected=$expectedMtu")
         val gatt = try {
-            deviceId.toBluetoothGatt()
+            gattRegistry.get(deviceId)
         } catch (e: FlutterError) {
             postMtuResult(callback, Result.failure(e))
             return
@@ -1141,7 +1165,7 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
         callback: (Result<Unit>) -> Unit,
     ) {
         try {
-            val gatt = deviceId.toBluetoothGatt()
+            val gatt = gattRegistry.get(deviceId)
             val androidPriority = when (priority) {
                 BleConnectionPriority.BALANCED -> BluetoothGatt.CONNECTION_PRIORITY_BALANCED
                 BleConnectionPriority.HIGH_PERFORMANCE -> BluetoothGatt.CONNECTION_PRIORITY_HIGH
@@ -1187,13 +1211,13 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
     ) {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
         val deviceId = gatt?.device?.address ?: return
-        if (!deviceId.isKnownGatt()) return
+        if (!gattRegistry.isKnown(deviceId)) return
         UniversalBleLogger.logDebug(
             "onConnectionUpdated -> $deviceId interval=$interval latency=$latency timeout=$timeout status=$status"
         )
         mainThreadHandler?.post {
             callbackChannel?.onConnectionParametersUpdated(
-                BleConnectionParametersUpdated(
+                BleConnectionParametersChange(
                     deviceId = deviceId,
                     interval = interval.toLong(),
                     latency = latency.toLong(),
@@ -1207,7 +1231,7 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
     override fun onMtuChanged(gatt: BluetoothGatt?, mtu: Int, status: Int) {
         val deviceId = gatt?.device?.address ?: return
         if (closingGatts.contains(gatt)) return
-        val current = deviceId.findGatt()
+        val current = gattRegistry.find(deviceId)
         // Only the registered client may report or cache an MTU; a stale client
         // that was already removed must not populate state for a new connection.
         if (current !== gatt) return
@@ -1368,7 +1392,7 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
         }
 
         // If its a known gatt, just discover services
-        device.address.findGatt()?.let { gatt ->
+        gattRegistry.find(device.address)?.let { gatt ->
             gatt.services?.let { services ->
                 updateCallback(services.map { service -> service.uuid.toString() })
                 return
@@ -1397,7 +1421,7 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
                 if (status == BluetoothGatt.GATT_SUCCESS && newState == BluetoothGatt.STATE_CONNECTED) {
                     if (gatt?.discoverServices() != true) {
                         updateCallback(null)
-                        if (!device.address.isKnownGatt()) {
+                        if (!gattRegistry.isKnown(device.address)) {
                             gatt?.disconnect()
                         }
                     }
@@ -1414,7 +1438,7 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
                     }
                     updateCallback(uuids)
                 }
-                if (!device.address.isKnownGatt()) {
+                if (!gattRegistry.isKnown(device.address)) {
                     gatt?.disconnect()
                 }
             }
@@ -1530,7 +1554,7 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
 
     private fun cleanConnection(gatt: BluetoothGatt) {
         val deviceId = gatt.device.address
-        gatt.removeCache()
+        gattRegistry.remove(gatt)
         cleanUpConnection(deviceId, gatt)
         closingGatts.add(gatt)
         gatt.disconnect()
@@ -1541,8 +1565,8 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
                 UniversalBleLogger.logDebug("No STATE_DISCONNECTED for $deviceId, closing gatt")
                 gatt.close()
                 // A newer connect() owns this address now; its state is not ours to report.
-                if (!deviceId.isKnownGatt()) {
-                    callbackChannel?.onConnectionChanged(deviceId, false, null) {}
+                if (!gattRegistry.isKnown(deviceId)) {
+                    callbackChannel?.onConnectionChanged(deviceId, false, null, null, null) {}
                 }
             }
         }, gattCloseTimeoutMs)
@@ -1663,18 +1687,20 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
         )
 
         if (newState == BluetoothGatt.STATE_CONNECTED) {
+            connectedGatts.add(gatt)
             mainThreadHandler?.post {
                 callbackChannel?.onConnectionChanged(
-                    gatt.device.address, true, status.parseHciErrorCode()
+                    gatt.device.address, true, status.parseHciErrorCode(), status.toConnectionErrorCode(), status.toGattErrorCode()
                 ) {}
             }
         } else if (newState == BluetoothGatt.STATE_DISCONNECTED) {
             val deviceId = gatt.device.address
+            val wasConnected = connectedGatts.remove(gatt)
             val shouldAutoConnect = autoConnectDevices.contains(deviceId)
             val closingByRequest = closingGatts.remove(gatt)
             // disconnect() already dropped this client from the cache, so a known gatt is a newer
             // connect() whose pending operations and connection state must be left alone.
-            val superseded = closingByRequest && deviceId.isKnownGatt()
+            val superseded = closingByRequest && gattRegistry.isKnown(deviceId)
 
             if (!superseded) {
                 // Always clean up internal state (futures, etc.)
@@ -1683,14 +1709,18 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
                 // Send connection changed callback
                 mainThreadHandler?.post {
                     callbackChannel?.onConnectionChanged(
-                        deviceId, false, status.parseHciErrorCode()
+                        deviceId,
+                        false,
+                        status.parseHciErrorCode(),
+                        status.toConnectionErrorCode(wasConnected),
+                        status.toGattErrorCode(),
                     ) {}
                 }
             }
 
             if (closingByRequest || !shouldAutoConnect) {
                 // Only keep the client open when autoConnect should let Android reconnect it
-                gatt.removeCache()
+                gattRegistry.remove(gatt)
                 gatt.disconnect()
                 UniversalBleLogger.logDebug("Closing gatt for $deviceId")
                 gatt.close()

@@ -14,20 +14,16 @@ abstract class UniversalBlePlatform {
   OnPairingStateChange? onPairingStateChange;
   OnConnectionParametersChange? onConnectionParametersChange;
   final Map<String, bool> _pairStateMap = {};
-  final Map<String, BleConnectionParametersUpdated>
+  final Map<String, BleConnectionParametersChange>
   _lastConnectionParametersMap = {};
 
   final _scanStreamController = UniversalBleStreamController<BleDevice>();
 
-  final bleConnectionUpdateStreamController =
-      UniversalBleStreamController<
-        ({String deviceId, bool isConnected, String? error})
-      >();
+  final bleConnectionChangeStreamController =
+      UniversalBleStreamController<BleConnectionChange>();
 
   final _valueStreamController =
-      UniversalBleStreamController<
-        ({String deviceId, String characteristicId, Uint8List value})
-      >();
+      UniversalBleStreamController<BleCharacteristicValue>();
 
   final _pairStateStreamController =
       UniversalBleStreamController<({String deviceId, bool isPaired})>();
@@ -76,8 +72,9 @@ abstract class UniversalBlePlatform {
 
   Future<List<BleService>> discoverServices(
     String deviceId,
-    bool withDescriptors,
-  );
+    bool withDescriptors, {
+    DiscoverServicesPlatformConfig? platformConfig,
+  });
 
   Future<void> setNotifiable(
     String deviceId,
@@ -154,11 +151,14 @@ abstract class UniversalBlePlatform {
   // updateConnectionParameters / CacheHandler) so a device reported in two cases can't split across map
   // entries. Emitted device ids are left AS the platform reports them, so this is non-breaking for consumers.
   // Hot paths short-circuit on an exact match before lower-casing.
-  Stream<bool> connectionStream(String deviceId) {
+  Stream<bool> connectionStream(String deviceId) =>
+      connectionChangeStream(deviceId).map((e) => e.isConnected);
+
+  Stream<BleConnectionChange> connectionChangeStream(String deviceId) {
     final target = deviceId.toLowerCase();
-    return bleConnectionUpdateStreamController.stream
-        .where((e) => e.deviceId == deviceId || e.deviceId.toLowerCase() == target)
-        .map((e) => e.isConnected);
+    return bleConnectionChangeStreamController.stream.where(
+      (e) => e.deviceId == deviceId || e.deviceId.toLowerCase() == target,
+    );
   }
 
   Stream<Uint8List> characteristicValueStream(
@@ -191,15 +191,24 @@ abstract class UniversalBlePlatform {
     } catch (_) {}
   }
 
-  void updateConnection(String deviceId, bool isConnected, [String? error]) {
-    bleConnectionUpdateStreamController.add((
+  void updateConnection(
+    String deviceId,
+    bool isConnected, [
+    String? error,
+    UniversalBleErrorCode? errorCode,
+    int? nativeErrorCode,
+  ]) {
+    final update = BleConnectionChange(
       deviceId: deviceId,
       isConnected: isConnected,
       error: error,
-    ));
+      errorCode: errorCode,
+      nativeErrorCode: nativeErrorCode,
+    );
+    bleConnectionChangeStreamController.add(update);
 
     try {
-      onConnectionChange?.call(deviceId, isConnected, error);
+      onConnectionChange?.call(update);
     } catch (_) {}
 
     if (!isConnected) {
@@ -226,18 +235,15 @@ abstract class UniversalBlePlatform {
             value.lengthInBytes == value.buffer.lengthInBytes
         ? value
         : Uint8List.fromList(value);
-    _valueStreamController.add((
+    final update = BleCharacteristicValue(
       deviceId: deviceId,
       characteristicId: characteristicId,
       value: normalizedValue,
-    ));
+      timestamp: timestamp,
+    );
+    _valueStreamController.add(update);
     try {
-      onValueChange?.call(
-        deviceId,
-        characteristicId,
-        normalizedValue,
-        timestamp,
-      );
+      onValueChange?.call(update);
     } catch (_) {}
   }
 
@@ -263,7 +269,7 @@ abstract class UniversalBlePlatform {
     } catch (_) {}
   }
 
-  void updateConnectionParameters(BleConnectionParametersUpdated update) {
+  void updateConnectionParameters(BleConnectionParametersChange update) {
     // Key by the canonical id (dropping the now-redundant last.deviceId == update.deviceId check, which would
     // itself have failed across cases and broken dedup for a device reported in two cases).
     final key = update.deviceId.toLowerCase();

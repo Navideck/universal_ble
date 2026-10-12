@@ -1,5 +1,6 @@
 package com.navideck.universal_ble
 
+import android.annotation.SuppressLint
 import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothDevice
 import android.bluetooth.BluetoothGatt
@@ -26,12 +27,10 @@ import android.util.SparseArray
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.util.UUID
-import java.util.concurrent.ConcurrentHashMap
 import androidx.core.util.size
 
 private const val TAG = "UniversalBlePlugin"
 
-private val knownGatts = ConcurrentHashMap<String, BluetoothGatt>()
 val ccdCharacteristic: UUID = UUID.fromString("00002902-0000-1000-8000-00805f9b34fb")
 
 data class BondStateChange(
@@ -54,30 +53,6 @@ fun List<String>.toUUIDList(): List<UUID> {
     return this.map { UUID.fromString(it) }
 }
 
-
-fun String.toBluetoothGatt(): BluetoothGatt {
-    return this.findGatt()
-        ?: throw createFlutterError(
-            UniversalBleErrorCode.DEVICE_NOT_FOUND,
-            "Unknown deviceId: $this",
-        )
-}
-
-fun String.isKnownGatt(): Boolean {
-    return this.findGatt() != null
-}
-
-fun String.findGatt(): BluetoothGatt? {
-    return knownGatts[this]
-}
-
-/**
- * Snapshot of every known GATT client. The snapshot avoids mutating the
- * map while clients are released.
- */
-fun connectedGatts(): List<BluetoothGatt> {
-    return knownGatts.values.toList()
-}
 
 fun BluetoothManager.isBluetoothEnabled(): Boolean {
     return adapter?.isEnabled == true
@@ -114,16 +89,6 @@ fun Context.registerReceiverCompat(
         registerReceiver(receiver, filter)
     }
 }
-
-fun BluetoothGatt.saveCacheIfNeeded() {
-    knownGatts[this.device.address] = this
-}
-
-fun BluetoothGatt.removeCache() {
-    // Only while still the registered client; a newer connect() may have replaced it.
-    knownGatts.remove(this.device.address, this)
-}
-
 
 fun Int.toAvailabilityState(): AvailabilityState {
     return when (this) {
@@ -356,6 +321,66 @@ fun Int.parseBluetoothStatusCodeError(): UniversalBleErrorCode? {
         BluetoothStatusCodes.FEATURE_NOT_CONFIGURED -> UniversalBleErrorCode.NOT_IMPLEMENTED
         BluetoothStatusCodes.FEATURE_NOT_SUPPORTED -> UniversalBleErrorCode.NOT_SUPPORTED
         else -> null
+    }
+}
+
+/// Raw GATT status of a connection state change, `null` for GATT_SUCCESS.
+/// Unlike [parseHciErrorCode] it keeps values that have no HCI mapping
+/// (e.g. GATT_FAILURE 257, GATT_CONNECTION_TIMEOUT 147) so callers can act on them.
+fun Int.toGattErrorCode(): Long? {
+    return if (this == BluetoothGatt.GATT_SUCCESS) null else this.toLong()
+}
+
+/// Classification of the GATT status of a connection state change.
+/// `null` for GATT_SUCCESS. Values are HCI reason codes (0x01-0x3F) or
+/// `BluetoothGatt` constants, depending on the stack.
+fun Int.toConnectionErrorCode(): UniversalBleErrorCode? {
+    return when (this) {
+        BluetoothGatt.GATT_SUCCESS -> null
+        0x08, // HCI Connection Timeout
+        0x93 -> UniversalBleErrorCode.CONNECTION_TIMEOUT // GATT_CONNECTION_TIMEOUT (147), constant is API 36+
+        0x09 -> UniversalBleErrorCode.CONNECTION_LIMIT_EXCEEDED // HCI Connection Limit Exceeded
+        0x0B -> UniversalBleErrorCode.CONNECTION_ALREADY_EXISTS // HCI Connection Already Exists
+        0x0D, // HCI Connection Rejected due to Limited Resources
+        0x0E, // HCI Connection Rejected due to Security Reasons
+        0x0F -> UniversalBleErrorCode.CONNECTION_REJECTED // HCI Connection Rejected due to Unacceptable BD_ADDR
+        0x13, // HCI Remote User Terminated Connection
+        // GATT_FAILURE is generic in AOSP, but on Pixel 9a / Android 17 it is what a
+        // peer-initiated disconnect reports (measured against a BlueZ peripheral).
+        BluetoothGatt.GATT_FAILURE -> UniversalBleErrorCode.DEVICE_DISCONNECTED
+        0x16 -> UniversalBleErrorCode.CONNECTION_TERMINATED // HCI Terminated By Local Host
+        0x3E, // HCI Connection Failed to be Established
+        0x85, // GATT_ERROR
+        BluetoothGatt.GATT_CONNECTION_CONGESTED -> UniversalBleErrorCode.CONNECTION_FAILED
+        else -> UniversalBleErrorCode.UNKNOWN_ERROR
+    }
+}
+
+/// Clears the OS-level GATT cache of this connection through the hidden
+/// `BluetoothGatt.refresh()`. Returns `false` when the method is unavailable,
+/// throws, or reports failure.
+@SuppressLint("DiscouragedPrivateApi")
+fun BluetoothGatt.refreshGattCache(): Boolean {
+    return try {
+        val refresh = javaClass.getMethod("refresh")
+        val cleared = refresh.invoke(this) as? Boolean ?: false
+        UniversalBleLogger.logDebug("BluetoothGatt.refresh() -> $cleared")
+        cleared
+    } catch (e: Exception) {
+        UniversalBleLogger.logError("BluetoothGatt.refresh() failed: $e")
+        false
+    }
+}
+
+/// Android has no separate failed-attempt callback: a connection that never
+/// reached STATE_CONNECTED also ends in onConnectionStateChange(STATE_DISCONNECTED).
+/// Report it as CONNECTION_FAILED, like Apple's didFailToConnect, instead of
+/// classifying the (often generic) status as a disconnect.
+fun Int.toConnectionErrorCode(wasConnected: Boolean): UniversalBleErrorCode? {
+    return if (wasConnected || this == BluetoothGatt.GATT_SUCCESS) {
+        toConnectionErrorCode()
+    } else {
+        UniversalBleErrorCode.CONNECTION_FAILED
     }
 }
 

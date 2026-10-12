@@ -6,6 +6,11 @@ extension BleDeviceExtension on BleDevice {
   /// A stream of [bool] that emits connection status changes for the device.
   Stream<bool> get connectionStream => UniversalBle.connectionStream(deviceId);
 
+  /// A stream of [BleConnectionChange] that emits connection status changes
+  /// together with the platform's error message and code.
+  Stream<BleConnectionChange> get connectionChangeStream =>
+      UniversalBle.connectionChangeStream(deviceId);
+
   /// A stream of [bool] that emits pairing status changes for the device.
   Stream<bool> get pairingStateStream =>
       UniversalBle.pairingStateStream(deviceId);
@@ -96,16 +101,19 @@ extension BleDeviceExtension on BleDevice {
   /// Discovers the services offered by the device.
   ///
   /// Returns cached services if already discovered after connection.
+  /// [platformConfig]: platform-specific options, e.g. Android's `clearGattCache`.
   Future<List<BleService>> discoverServices({
     Duration? timeout,
     bool withDescriptors = false,
     String? queueId,
+    DiscoverServicesPlatformConfig? platformConfig,
   }) async {
     List<BleService> servicesCache = await UniversalBle.discoverServices(
       deviceId,
       withDescriptors: withDescriptors,
       timeout: timeout,
       queueId: queueId,
+      platformConfig: platformConfig,
     );
     CacheHandler.instance.saveServices(deviceId, servicesCache);
     return servicesCache;

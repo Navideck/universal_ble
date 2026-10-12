@@ -169,8 +169,10 @@ class UniversalBleLinux extends UniversalBlePlatform {
   @override
   Future<List<BleService>> discoverServices(
     String deviceId,
-    bool withDescriptors,
-  ) async {
+    bool withDescriptors, {
+    DiscoverServicesPlatformConfig? platformConfig,
+  }) async {
+    // platformConfig has no equivalent on this platform
     final device = _findDeviceById(deviceId);
     if (device.gattServices.isEmpty && !device.servicesResolved) {
       await device.propertiesChanged.firstWhere((element) {

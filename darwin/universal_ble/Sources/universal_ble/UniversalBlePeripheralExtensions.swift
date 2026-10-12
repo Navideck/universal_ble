@@ -13,14 +13,6 @@ enum UniversalBlePeripheralError: Error {
   case failed(String)
 }
 
-var peripheralCharacteristicsList = [CBMutableCharacteristic]()
-var peripheralServicesList = [CBMutableService]()
-
-func clearPeripheralCaches() {
-  peripheralCharacteristicsList.removeAll()
-  peripheralServicesList.removeAll()
-}
-
 extension PeripheralService {
   func toCBService() -> CBMutableService {
     let service = CBMutableService(type: CBUUID(string: uuid), primary: primary)
@@ -28,10 +20,6 @@ extension PeripheralService {
     if !chars.isEmpty {
       service.characteristics = chars
     }
-    peripheralServicesList.removeAll {
-      $0.uuid.uuidString.lowercased() == service.uuid.uuidString.lowercased()
-    }
-    peripheralServicesList.append(service)
     return service
   }
 }
@@ -55,27 +43,7 @@ extension PeripheralCharacteristic {
       permissions: combinedPermissions
     )
     characteristic.descriptors = descriptors?.compactMap { $0.toCBMutableDescriptor() }
-    peripheralCharacteristicsList.removeAll {
-      $0.uuid.uuidString.lowercased() == characteristic.uuid.uuidString.lowercased()
-    }
-    peripheralCharacteristicsList.append(characteristic)
     return characteristic
-  }
-}
-
-extension String {
-  func findPeripheralCharacteristic() -> CBMutableCharacteristic? {
-    let target = lowercased()
-    return peripheralCharacteristicsList.first {
-      $0.uuid.uuidString.lowercased() == target
-    }
-  }
-
-  func findPeripheralService() -> CBMutableService? {
-    let target = lowercased()
-    return peripheralServicesList.first {
-      $0.uuid.uuidString.lowercased() == target
-    }
   }
 }
 

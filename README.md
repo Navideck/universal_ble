@@ -249,6 +249,20 @@ bleDevice.connectionStream.listen((isConnected) {
 });
 ```
 
+To react to *why* a device disconnected, use `connectionChangeStream`. Each event carries the platform's error message, a unified `errorCode` (`UniversalBleErrorCode.deviceDisconnected` when the peripheral closed the link, `connectionTimeout` when the link was lost, `connectionFailed`, ...) and the raw `nativeErrorCode` (`CBError.Code` on Apple, the GATT status on Android; the numeric ranges overlap across platforms, so branch on `errorCode` and keep `nativeErrorCode` for logs). All three are usually `null` when the app requested the disconnect. Windows reports only the message; Linux and Web report `null` for all three.
+
+```dart
+bleDevice.connectionChangeStream.listen((change) {
+  if (change.isConnected) return;
+  switch (change.errorCode) {
+    case UniversalBleErrorCode.deviceDisconnected: // peripheral closed the link
+    case UniversalBleErrorCode.connectionTimeout:  // out of range / powered off
+    default:
+      debugPrint('Disconnected: ${change.errorCode} (native ${change.nativeErrorCode}) ${change.error}');
+  }
+});
+```
+
 #### IsConnected
 
 ```dart
@@ -293,7 +307,7 @@ await bleDevice.connect(
 
 When the Android app is killed by the user (typically swiped away from recents), the OS tears down the FlutterEngine without ever delivering a "disconnect" — the peripheral keeps the link open until its connection supervision timeout (often 10–20 s), leaving the device occupied.
 
-Pass `AndroidConnectionOptions(closeGattOnDetach: true)` to have the plugin close every known GATT client as soon as the engine detaches, releasing the peripheral immediately. Without the option, whatever the `autoConnect` value, the link persists until the peripheral's supervision timeout.
+Pass `AndroidConnectionOptions(closeGattOnDetach: true)` to have the plugin close every GATT client this engine owns as soon as the engine detaches, releasing the peripheral immediately. Without the option, whatever the `autoConnect` value, the link persists until the peripheral's supervision timeout.
 
 ```dart
 await bleDevice.connect(
@@ -305,7 +319,7 @@ await bleDevice.connect(
 ```
 
 Notes:
-- Once any connection opts in, the behavior is global for the running process — every current and future GATT client is released on engine teardown. It can be disabled at runtime by connecting with `closeGattOnDetach: false`; connecting without the option leaves the current value unchanged (a fresh app launch resets it).
+- The option is scoped to the engine that sets it: on teardown, that engine releases the clients it created, leaving clients owned by other engines (for example a background engine's live link) untouched. To have a background engine release the peripherals it connected, that engine must connect with `closeGattOnDetach: true` as well — setting the option on the UI engine does not cover the background engine's clients. It can be disabled at runtime by connecting with `closeGattOnDetach: false`; connecting without the option leaves the engine's current value unchanged (a fresh app launch resets it).
 - Android-only. Explicit `disconnect()` calls and rotation are unaffected.
 
 #### AccessorySetupKit (iOS 18+)
@@ -365,6 +379,16 @@ List<BleService> services = await bleDevice.discoverServices();
 for (var service in services) {
   debugPrint('Service UUID: ${service.uuid}');
 }
+```
+
+Android keeps its own GATT cache across connections. If the peripheral's GATT layout changed while it was disconnected (typical during firmware development) and it does not send a Service Changed indication, discovery keeps returning the old layout. Pass `AndroidDiscoverServicesOptions(clearGattCache: true)` to drop that cache (`BluetoothGatt.refresh()`) right before discovering. The option is ignored on other platforms, where the OS cache is only invalidated by Service Changed.
+
+```dart
+List<BleService> services = await bleDevice.discoverServices(
+  platformConfig: DiscoverServicesPlatformConfig(
+    android: AndroidDiscoverServicesOptions(clearGattCache: true),
+  ),
+);
 ```
 
 #### GetService

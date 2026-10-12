@@ -57,7 +57,20 @@ class UniversalBle {
   static Stream<bool> connectionStream(String deviceId) =>
       _platform.connectionStream(deviceId);
 
-  /// Characteristic value stream
+  /// Connection stream of a device with the platform's error details.
+  ///
+  /// Emits the same events as [connectionStream], each carrying the native
+  /// error message, a unified [BleConnectionChange.errorCode] and the raw
+  /// [BleConnectionChange.nativeErrorCode] so the app can tell a link loss
+  /// from a disconnect initiated by the peripheral.
+  static Stream<BleConnectionChange> connectionChangeStream(String deviceId) =>
+      _platform.connectionChangeStream(deviceId);
+
+  /// Characteristic value stream.
+  ///
+  /// Emits the raw characteristic bytes for each update. The platform
+  /// timestamp is not surfaced here; set [onValueChange] to receive a
+  /// [BleCharacteristicValue] that also carries it.
   static Stream<Uint8List> characteristicValueStream(
     String deviceId,
     String characteristicId,
@@ -266,14 +279,22 @@ class UniversalBle {
 
   /// Discover services of a device.
   /// Set [withDescriptors] to `true` to discover characteristics with descriptors.
+  /// [platformConfig] carries platform-specific options, e.g.
+  /// `AndroidDiscoverServicesOptions(clearGattCache: true)` to drop Android's
+  /// GATT cache before discovering. Ignored where not applicable.
   static Future<List<BleService>> discoverServices(
     String deviceId, {
     bool withDescriptors = false,
     Duration? timeout,
     String? queueId,
+    DiscoverServicesPlatformConfig? platformConfig,
   }) async {
     return await _bleCommandQueue.queueCommand(
-      () => _platform.discoverServices(deviceId, withDescriptors),
+      () => _platform.discoverServices(
+        deviceId,
+        withDescriptors,
+        platformConfig: platformConfig,
+      ),
       timeout: timeout,
       deviceId: deviceId,
       queueId: queueId,
@@ -774,7 +795,7 @@ class UniversalBle {
     }
 
     connectionSubscription = _platform
-        .bleConnectionUpdateStreamController.stream
+        .bleConnectionChangeStreamController.stream
         .where(
             (e) => e.deviceId == deviceId || e.deviceId.toLowerCase() == target)
         .listen(
@@ -983,7 +1004,10 @@ class UniversalBle {
   static set onScanResult(OnScanResult? onScanResult) =>
       _platform.onScanResultUpdate = onScanResult;
 
-  /// Get connection state changes.
+  /// Get connection state changes of all devices as [BleConnectionChange],
+  /// with the platform's error message, a unified
+  /// [BleConnectionChange.errorCode] and the raw
+  /// [BleConnectionChange.nativeErrorCode].
   static set onConnectionChange(OnConnectionChange? onConnectionChange) =>
       _platform.onConnectionChange = onConnectionChange;
 

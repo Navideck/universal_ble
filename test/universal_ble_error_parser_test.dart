@@ -1,10 +1,24 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:universal_ble/src/universal_ble.g.dart';
+import 'package:universal_ble/src/universal_ble_exceptions.dart';
 import 'package:universal_ble/src/utils/universal_ble_error_parser.dart';
 
 void main() {
   group(UniversalBleErrorParser, () {
     group('getCode', () {
+      test('preserves web connection failure codes through wrapping', () {
+        final error = UniversalBleException(
+          code: UniversalBleErrorCode.connectionFailed,
+          message:
+              'Web GATT connection failed: NetworkError: Connection failed',
+          details: 'NetworkError: Connection failed',
+        );
+        final wrapped = ConnectionException(error);
+        expect(wrapped.code, UniversalBleErrorCode.connectionFailed);
+        expect(wrapped.message, contains('NetworkError: Connection failed'));
+        expect(wrapped.details, same(error));
+      });
+
       test('classifies a Windows unreachable callback as connection failed',
           () {
         expect(

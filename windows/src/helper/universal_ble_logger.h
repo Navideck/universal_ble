@@ -26,4 +26,4 @@ private:
   static bool Allows(BleLogLevel level);
 };
 
-} // namespace universal_ble
+}  // namespace universal_ble

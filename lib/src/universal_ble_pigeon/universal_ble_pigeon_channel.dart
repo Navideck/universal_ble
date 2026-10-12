@@ -89,11 +89,16 @@ class UniversalBlePigeonChannel extends UniversalBlePlatform
   @override
   Future<List<BleService>> discoverServices(
     String deviceId,
-    bool withDescriptors,
-  ) async {
+    bool withDescriptors, {
+    DiscoverServicesPlatformConfig? platformConfig,
+  }) async {
     List<UniversalBleService?> universalBleServices =
         await _executeWithErrorHandling(
-      () => _channel.discoverServices(deviceId, withDescriptors),
+      () => _channel.discoverServices(
+        deviceId,
+        withDescriptors,
+        platformConfig,
+      ),
     );
     return List<BleService>.from(
       universalBleServices
@@ -275,8 +280,14 @@ class UniversalBlePigeonChannel extends UniversalBlePlatform
       updateAvailability(state);
 
   @override
-  void onConnectionChanged(String deviceId, bool connected, String? error) =>
-      updateConnection(deviceId, connected, error);
+  void onConnectionChanged(
+    String deviceId,
+    bool connected,
+    String? error,
+    UniversalBleErrorCode? errorCode,
+    int? nativeErrorCode,
+  ) =>
+      updateConnection(deviceId, connected, error, errorCode, nativeErrorCode);
 
   @override
   void onScanResult(UniversalBleScanResult result) {
@@ -301,7 +312,7 @@ class UniversalBlePigeonChannel extends UniversalBlePlatform
       updatePairingState(deviceId, isPaired);
 
   @override
-  void onConnectionParametersUpdated(BleConnectionParametersUpdated update) =>
+  void onConnectionParametersUpdated(BleConnectionParametersChange update) =>
       updateConnectionParameters(update);
 }
 

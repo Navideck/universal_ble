@@ -177,8 +177,9 @@ class _UniversalBleMock extends UniversalBlePlatformMock {
   @override
   Future<List<BleService>> discoverServices(
     String deviceId,
-    bool withDescriptors,
-  ) async {
+    bool withDescriptors, {
+    DiscoverServicesPlatformConfig? platformConfig,
+  }) async {
     return <BleService>[mockBleService];
   }
 
