@@ -3463,8 +3463,12 @@ fire_and_forget UniversalBlePlugin::PeripheralAddServiceAsync(
       std::string err = "Failed to create service provider: " + serviceUuid +
                         ", errorCode: " + bleError;
       std::cout << err << std::endl;
-      peripheral_callback_channel_->OnServiceAdded(
-          serviceUuid, &err, SuccessCallback, ErrorCallback);
+      PostPeripheralReport(
+          [serviceUuid,
+           err](UniversalBlePeripheralCallback *peripheral_channel) {
+            peripheral_channel->OnServiceAdded(serviceUuid, &err,
+                                               SuccessCallback, ErrorCallback);
+          });
       co_return;
     }
 

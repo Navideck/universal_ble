@@ -423,7 +423,9 @@ private:
   void InitializeAsync();
   // Post `report` to the UI thread with this instance's callback channel. Keeps
   // channel access in one place, and the callback never needs to capture
-  // `this`.
+  // `this`. The caller must hold a `callback_operations_` lease: the channel
+  // pointer is read here, on the caller's thread, and the destructor only
+  // resets the channels once every lease has been released.
   void PostCentralReport(
       std::function<void(UniversalBleCallbackChannel *)> &&report);
   void PostPeripheralReport(
