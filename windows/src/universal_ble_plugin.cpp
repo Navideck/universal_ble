@@ -1199,15 +1199,16 @@ fire_and_forget UniversalBlePlugin::PairAsync(
       if (error_str.has_value()) {
         captured_error = error_str.value();
       }
-      ui_thread_handler_.Post([this, device_id, is_paired, captured_error] {
+      auto *channel = callback_channel_.get();
+      ui_thread_handler_.Post([channel, device_id, is_paired, captured_error] {
         const std::string *error_msg = nullptr;
         std::string error_string;
         if (captured_error.has_value()) {
           error_string = captured_error.value();
           error_msg = &error_string;
         }
-        callback_channel_->OnPairStateChange(device_id, is_paired, error_msg,
-                                             SuccessCallback, ErrorCallback);
+        channel->OnPairStateChange(device_id, is_paired, error_msg,
+                                   SuccessCallback, ErrorCallback);
       });
     }
   } catch (...) {
@@ -1258,15 +1259,16 @@ fire_and_forget UniversalBlePlugin::CustomPairAsync(
       if (error_str.has_value()) {
         captured_error = error_str.value();
       }
-      ui_thread_handler_.Post([this, device_id, is_paired, captured_error] {
+      auto *channel = callback_channel_.get();
+      ui_thread_handler_.Post([channel, device_id, is_paired, captured_error] {
         const std::string *error_msg = nullptr;
         std::string error_string;
         if (captured_error.has_value()) {
           error_string = captured_error.value();
           error_msg = &error_string;
         }
-        callback_channel_->OnPairStateChange(device_id, is_paired, error_msg,
-                                             SuccessCallback, ErrorCallback);
+        channel->OnPairStateChange(device_id, is_paired, error_msg,
+                                   SuccessCallback, ErrorCallback);
       });
     }
   } catch (...) {
@@ -1462,9 +1464,9 @@ void UniversalBlePlugin::PushUniversalScanResult(
     const auto timestamp_microseconds = GetCurrentTimestampMicros();
     scan_result.set_timestamp(timestamp_microseconds / 1000);
     scan_result.set_timestamp_microseconds(timestamp_microseconds);
-    ui_thread_handler_.Post([this, scan_result] {
-      callback_channel_->OnScanResult(scan_result, SuccessCallback,
-                                      ErrorCallback);
+    auto *channel = callback_channel_.get();
+    ui_thread_handler_.Post([channel, scan_result] {
+      channel->OnScanResult(scan_result, SuccessCallback, ErrorCallback);
     });
   }
 }
@@ -1855,9 +1857,9 @@ void UniversalBlePlugin::RadioStateChanged(const Radio &sender,
     old_radio_state_ = radio_state;
     auto state = get_availability_state_from_radio(radio_state);
 
-    ui_thread_handler_.Post([this, state] {
-      callback_channel_->OnAvailabilityChanged(state, SuccessCallback,
-                                               ErrorCallback);
+    auto *channel = callback_channel_.get();
+    ui_thread_handler_.Post([channel, state] {
+      channel->OnAvailabilityChanged(state, SuccessCallback, ErrorCallback);
     });
   } catch (const hresult_error &err) {
     UniversalBleLogger::LogError(
@@ -3071,15 +3073,15 @@ void UniversalBlePlugin::GattCharacteristicValueChanged(
         " len=" + std::to_string(bytes.size()));
 
     const auto timestamp = GetCurrentTimestampMillis();
-    ui_thread_handler_.Post([this, weak_device_agent, device_id,
+    auto *channel = callback_channel_.get();
+    ui_thread_handler_.Post([channel, weak_device_agent, device_id,
                              characteristic_id, bytes, timestamp] {
       const auto current_device_agent = weak_device_agent.lock();
       if (!current_device_agent || !current_device_agent->IsActive()) {
         return;
       }
-      callback_channel_->OnValueChanged(device_id, characteristic_id, bytes,
-                                        &timestamp, SuccessCallback,
-                                        ErrorCallback);
+      channel->OnValueChanged(device_id, characteristic_id, bytes, &timestamp,
+                              SuccessCallback, ErrorCallback);
     });
   } catch (const hresult_error &err) {
     UniversalBleLogger::LogError(
@@ -3129,10 +3131,10 @@ std::optional<FlutterError> UniversalBlePlugin::StopAdvertising() {
     } catch (...) {
     }
   }
-  ui_thread_handler_.Post([this] {
-    peripheral_callback_channel_->OnAdvertisingStateChange(
-        PeripheralAdvertisingState::kIdle, nullptr, SuccessCallback,
-        ErrorCallback);
+  auto *channel = peripheral_callback_channel_.get();
+  ui_thread_handler_.Post([channel] {
+    channel->OnAdvertisingStateChange(PeripheralAdvertisingState::kIdle,
+                                      nullptr, SuccessCallback, ErrorCallback);
   });
   return std::nullopt;
 }
@@ -3437,6 +3439,7 @@ fire_and_forget UniversalBlePlugin::PeripheralAddServiceAsync(
   if (!callback.has_value())
     co_return;
   auto serviceUuid = service.uuid();
+  auto *peripheral_channel = peripheral_callback_channel_.get();
   try {
     // Build Service
     auto characteristics = service.characteristics();
@@ -3624,33 +3627,33 @@ fire_and_forget UniversalBlePlugin::PeripheralAddServiceAsync(
         guid_to_uuid(serviceProvider.Service().Uuid()),
         gattServiceProviderObject);
 
-    ui_thread_handler_.Post([this, serviceUuid] {
-      peripheral_callback_channel_->OnServiceAdded(
-          serviceUuid, nullptr, SuccessCallback, ErrorCallback);
+    ui_thread_handler_.Post([peripheral_channel, serviceUuid] {
+      peripheral_channel->OnServiceAdded(serviceUuid, nullptr, SuccessCallback,
+                                         ErrorCallback);
     });
   } catch (const winrt::hresult_error &e) {
     std::wcerr << "Failed with error: Code: " << e.code()
                << "Message: " << e.message().c_str() << std::endl;
     std::string errorMessage = winrt::to_string(e.message());
 
-    ui_thread_handler_.Post([this, serviceUuid, errorMessage] {
-      peripheral_callback_channel_->OnServiceAdded(
-          serviceUuid, &errorMessage, SuccessCallback, ErrorCallback);
+    ui_thread_handler_.Post([peripheral_channel, serviceUuid, errorMessage] {
+      peripheral_channel->OnServiceAdded(serviceUuid, &errorMessage,
+                                         SuccessCallback, ErrorCallback);
     });
   } catch (const std::exception &e) {
     std::cout << "Error: " << e.what() << std::endl;
     std::wstring errorMessage = winrt::to_hstring(e.what()).c_str();
     std::string *err = new std::string(winrt::to_string(errorMessage));
-    ui_thread_handler_.Post([this, serviceUuid, err] {
-      peripheral_callback_channel_->OnServiceAdded(
-          serviceUuid, err, SuccessCallback, ErrorCallback);
+    ui_thread_handler_.Post([peripheral_channel, serviceUuid, err] {
+      peripheral_channel->OnServiceAdded(serviceUuid, err, SuccessCallback,
+                                         ErrorCallback);
     });
   } catch (...) {
     std::cout << "Error: Unknown error" << std::endl;
     std::string *err = new std::string(winrt::to_string(L"Unknown error"));
-    ui_thread_handler_.Post([this, serviceUuid, err] {
-      peripheral_callback_channel_->OnServiceAdded(
-          serviceUuid, err, SuccessCallback, ErrorCallback);
+    ui_thread_handler_.Post([peripheral_channel, serviceUuid, err] {
+      peripheral_channel->OnServiceAdded(serviceUuid, err, SuccessCallback,
+                                         ErrorCallback);
     });
   }
 }
@@ -3660,6 +3663,7 @@ fire_and_forget UniversalBlePlugin::PeripheralSubscribedClientsChanged(
   const auto callback = callback_operations_.TryAcquire();
   if (!callback.has_value())
     co_return;
+  auto *peripheral_channel = peripheral_callback_channel_.get();
   const auto characteristic_id = guid_to_uuid(local_char.Uuid());
   IVectorView<GattSubscribedClient> current_clients = nullptr;
   IVectorView<GattSubscribedClient> old_clients = nullptr;
@@ -3695,17 +3699,17 @@ fire_and_forget UniversalBlePlugin::PeripheralSubscribedClientsChanged(
       } catch (...) {
       }
       ui_thread_handler_.Post(
-          [this, device_id, characteristic_id, device_name] {
+          [peripheral_channel, device_id, characteristic_id, device_name] {
             const std::string *name_ptr =
                 device_name.empty() ? nullptr : &device_name;
-            peripheral_callback_channel_->OnCharacteristicSubscriptionChange(
+            peripheral_channel->OnCharacteristicSubscriptionChange(
                 device_id, characteristic_id, true, name_ptr, SuccessCallback,
                 ErrorCallback);
           });
       const int64_t mtu = client.Session().MaxPduSize();
-      ui_thread_handler_.Post([this, device_id, mtu] {
-        peripheral_callback_channel_->OnMtuChange(
-            device_id, mtu, SuccessCallback, ErrorCallback);
+      ui_thread_handler_.Post([peripheral_channel, device_id, mtu] {
+        peripheral_channel->OnMtuChange(device_id, mtu, SuccessCallback,
+                                        ErrorCallback);
       });
     }
   }
@@ -3722,11 +3726,12 @@ fire_and_forget UniversalBlePlugin::PeripheralSubscribedClientsChanged(
     if (!found) {
       const auto device_id =
           ParsePeripheralBluetoothClientId(client.Session().DeviceId().Id());
-      ui_thread_handler_.Post([this, device_id, characteristic_id] {
-        peripheral_callback_channel_->OnCharacteristicSubscriptionChange(
-            device_id, characteristic_id, false, nullptr, SuccessCallback,
-            ErrorCallback);
-      });
+      ui_thread_handler_.Post(
+          [peripheral_channel, device_id, characteristic_id] {
+            peripheral_channel->OnCharacteristicSubscriptionChange(
+                device_id, characteristic_id, false, nullptr, SuccessCallback,
+                ErrorCallback);
+          });
     }
   }
 }
@@ -3758,9 +3763,11 @@ fire_and_forget UniversalBlePlugin::PeripheralReadRequestedAsync(
     const auto device_id =
         ParsePeripheralBluetoothClientId(args.Session().DeviceId().Id());
     const int64_t offset = request.Offset();
-    ui_thread_handler_.Post([this, device_id, characteristicId, offset,
-                             value_arg, value_holder, deferral, request] {
-      peripheral_callback_channel_->OnReadRequest(
+    auto *peripheral_channel = peripheral_callback_channel_.get();
+    ui_thread_handler_.Post([peripheral_channel, device_id, characteristicId,
+                             offset, value_arg, value_holder, deferral,
+                             request] {
+      peripheral_channel->OnReadRequest(
           device_id, characteristicId, offset, value_arg,
           // SuccessCallback
           [request, deferral](const PeripheralReadRequestResult *result) {
@@ -3848,9 +3855,11 @@ fire_and_forget UniversalBlePlugin::PeripheralWriteRequestedAsync(
           "PERIPHERAL_WRITE_REQ failed value extraction unknown");
     }
 
-    ui_thread_handler_.Post([this, characteristicId, offset, value_holder,
-                             request, deferral, deviceId, with_response] {
-      peripheral_callback_channel_->OnWriteRequest(
+    auto *peripheral_channel = peripheral_callback_channel_.get();
+    ui_thread_handler_.Post([peripheral_channel, characteristicId, offset,
+                             value_holder, request, deferral, deviceId,
+                             with_response] {
+      peripheral_channel->OnWriteRequest(
           deviceId, characteristicId, offset, value_holder.get(),
           [deferral, request, deviceId, characteristicId,
            with_response](const PeripheralWriteRequestResult *writeResult) {
@@ -3907,10 +3916,11 @@ fire_and_forget UniversalBlePlugin::PeripheralWriteRequestedAsync(
 void UniversalBlePlugin::PeripheralAdvertisementStatusChanged(
     GattServiceProvider const &sender,
     GattServiceProviderAdvertisementStatusChangedEventArgs const &args) {
+  auto *peripheral_channel = peripheral_callback_channel_.get();
   if (args.Error() != BluetoothError::Success) {
     auto error_str = ParsePeripheralBluetoothError(args.Error());
-    ui_thread_handler_.Post([this, error_str] {
-      peripheral_callback_channel_->OnAdvertisingStateChange(
+    ui_thread_handler_.Post([peripheral_channel, error_str] {
+      peripheral_channel->OnAdvertisingStateChange(
           PeripheralAdvertisingState::kError, &error_str, SuccessCallback,
           ErrorCallback);
     });
@@ -3918,8 +3928,8 @@ void UniversalBlePlugin::PeripheralAdvertisementStatusChanged(
   }
   std::lock_guard<std::mutex> lock(peripheral_mutex_);
   if (ArePeripheralAdvertisingTargetsStarted()) {
-    ui_thread_handler_.Post([this] {
-      peripheral_callback_channel_->OnAdvertisingStateChange(
+    ui_thread_handler_.Post([peripheral_channel] {
+      peripheral_channel->OnAdvertisingStateChange(
           PeripheralAdvertisingState::kAdvertising, nullptr, SuccessCallback,
           ErrorCallback);
     });

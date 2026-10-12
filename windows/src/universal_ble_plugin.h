@@ -383,10 +383,10 @@ private:
   std::unique_ptr<UniversalBleCallbackChannel> callback_channel_;
   std::unique_ptr<UniversalBlePeripheralCallback> peripheral_callback_channel_;
 
-  // Posted callbacks may capture `this` to reach the per-instance state above.
-  // That is safe because the destructor shuts this handler down before it
-  // resets the channels, and Shutdown drops still-queued callbacks instead of
-  // running them.
+  // Posted callbacks capture either a channel pointer or `this` to reach the
+  // per-instance state above. That is safe because the destructor shuts this
+  // handler down before it resets the channels, and Shutdown drops still-queued
+  // callbacks instead of running them.
   UniversalBleUiThreadHandler ui_thread_handler_;
   AsyncOperationTracker callback_operations_;
   AsyncOperationTracker initialization_operations_;
