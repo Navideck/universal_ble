@@ -16,6 +16,10 @@ final class UniversalBlePeripheralPlugin: NSObject, UniversalBlePeripheralChanne
   private let centralsLock = NSLock()
   private var centralsById = [String: CBCentral]()
   private var centralCharacteristicSubscriptions = [String: Set<String>]()
+  // Per plugin instance (one per FlutterEngine): the services this peripheral
+  // advertises. Tearing one engine down (or clearing its services) must not wipe
+  // another engine's advertising state.
+  private let serviceRegistry = PeripheralServiceRegistry()
 
   init(callbackChannel: UniversalBlePeripheralCallback) {
     self.callbackChannel = callbackChannel
@@ -25,7 +29,6 @@ final class UniversalBlePeripheralPlugin: NSObject, UniversalBlePeripheralChanne
   deinit {
     peripheralManager?.stopAdvertising()
     peripheralManager?.removeAllServices()
-    clearPeripheralCaches()
     clearCentrals()
   }
 
@@ -90,25 +93,25 @@ final class UniversalBlePeripheralPlugin: NSObject, UniversalBlePeripheralChanne
   }
 
   func addService(service: PeripheralService) throws {
-    ensurePeripheralManager().add(service.toCBService())
+    let cbService = service.toCBService()
+    serviceRegistry.register(cbService)
+    ensurePeripheralManager().add(cbService)
   }
 
   func removeService(serviceId: String) throws {
-    if let service = serviceId.findPeripheralService() {
+    if let service = serviceRegistry.service(serviceId) {
       ensurePeripheralManager().remove(service)
-      peripheralServicesList.removeAll {
-        $0.uuid.uuidString.lowercased() == service.uuid.uuidString.lowercased()
-      }
+      serviceRegistry.remove(service)
     }
   }
 
   func clearServices() throws {
     peripheralManager?.removeAllServices()
-    peripheralServicesList.removeAll()
+    serviceRegistry.clear()
   }
 
   func getServices() throws -> [String] {
-    peripheralServicesList.map { $0.uuid.uuidString }
+    serviceRegistry.serviceIds
   }
 
   func startAdvertising(
@@ -150,7 +153,7 @@ final class UniversalBlePeripheralPlugin: NSObject, UniversalBlePeripheralChanne
     value: FlutterStandardTypedData,
     deviceId: String?
   ) throws {
-    guard let characteristic = characteristicId.findPeripheralCharacteristic() else {
+    guard let characteristic = serviceRegistry.characteristic(characteristicId) else {
       throw UniversalBlePeripheralError.notFound("\(characteristicId) characteristic not found")
     }
     let centrals: [CBCentral]?
@@ -351,4 +354,51 @@ final class UniversalBlePeripheralPlugin: NSObject, UniversalBlePeripheralChanne
     }
     return Int64(central.maximumUpdateValueLength)
   }
+}
+
+/// Services this peripheral advertises, and the characteristics they expose.
+/// Ownership is per plugin instance (one per FlutterEngine), so registering or
+/// clearing here never touches another engine's advertised state. Characteristics
+/// are always derived from the currently registered services, so a replaced,
+/// removed, or cleared service cannot be updated through a stale characteristic,
+/// and removing one service never drops a characteristic another service still
+/// exposes.
+private final class PeripheralServiceRegistry {
+  private var services = [CBMutableService]()
+
+  func register(_ service: CBMutableService) {
+    services.removeAll {
+      $0.uuid.uuidString.lowercased() == service.uuid.uuidString.lowercased()
+    }
+    services.append(service)
+  }
+
+  func remove(_ service: CBMutableService) {
+    services.removeAll {
+      $0.uuid.uuidString.lowercased() == service.uuid.uuidString.lowercased()
+    }
+  }
+
+  func clear() {
+    services.removeAll()
+  }
+
+  func service(_ serviceId: String) -> CBMutableService? {
+    let target = serviceId.lowercased()
+    return services.first { $0.uuid.uuidString.lowercased() == target }
+  }
+
+  func characteristic(_ characteristicId: String) -> CBMutableCharacteristic? {
+    let target = characteristicId.lowercased()
+    for service in services {
+      for case let characteristic as CBMutableCharacteristic in service.characteristics ?? [] {
+        if characteristic.uuid.uuidString.lowercased() == target {
+          return characteristic
+        }
+      }
+    }
+    return nil
+  }
+
+  var serviceIds: [String] { services.map { $0.uuid.uuidString } }
 }
