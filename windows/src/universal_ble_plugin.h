@@ -375,6 +375,14 @@ private:
   flutter::PluginRegistrarWindows *registrar_;
   bool initialized_ = false;
 
+  // Per-plugin-instance callback channels. One plugin is created per
+  // FlutterEngine, so events must go through this instance's messenger; a
+  // process-global channel would be overwritten by the next engine's
+  // registration and reset on any engine's teardown, dropping the surviving
+  // engine's callbacks.
+  std::unique_ptr<UniversalBleCallbackChannel> callback_channel_;
+  std::unique_ptr<UniversalBlePeripheralCallback> peripheral_callback_channel_;
+
   UniversalBleUiThreadHandler ui_thread_handler_;
   AsyncOperationTracker callback_operations_;
   AsyncOperationTracker initialization_operations_;
