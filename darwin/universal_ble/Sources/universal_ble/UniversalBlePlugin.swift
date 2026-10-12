@@ -1,6 +1,7 @@
 import CoreBluetooth
 
 #if os(iOS)
+  import AccessorySetupKit
   import Flutter
   import UIKit
 #elseif os(OSX)
@@ -97,6 +98,9 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
   private var rssiReadFutures = [RssiReadFuture]()
   private var isManageScanning = false
   private var autoConnectDevices = Set<String>()
+  #if os(iOS)
+    private var accessorySetupManager: AnyObject?
+  #endif
 
   // Per plugin instance (one per FlutterEngine): the peripheral lookup and the
   // last advertised names seen by this central. Keeping them here rather than at
@@ -202,6 +206,18 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
       return manager.isScanning
     }
     return isManageScanning
+  }
+
+  func requestDevice(options: AppleAccessorySetupOptions, completion: @escaping (Result<UniversalDevicePickerResult, Error>) -> Void) {
+    #if os(iOS)
+      guard #available(iOS 18.0, *) else {
+        completion(.failure(createFlutterError(code: .notSupported, message: "AccessorySetupKit requires iOS 18 or later")))
+        return
+      }
+      getAccessorySetupManager().showPicker(options: options, completion: completion)
+    #else
+      completion(.failure(createFlutterError(code: .notSupported, message: "AccessorySetupKit is only supported on iOS 18+")))
+    #endif
   }
 
   func setLogLevel(logLevel: BleLogLevel) throws {
@@ -535,9 +551,29 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
     completion(Result.failure(createFlutterError(code: .notImplemented)))
   }
 
-  func unPair(deviceId _: String) throws {
-    throw createFlutterError(code: .notSupported)
+  func unPair(deviceId: String, completion: @escaping (Result<Void, Error>) -> Void) {
+    #if os(iOS)
+      guard #available(iOS 18.0, *) else {
+        completion(.failure(createFlutterError(code: .notSupported, message: "AccessorySetupKit requires iOS 18 or later")))
+        return
+      }
+      getAccessorySetupManager().removeAccessory(deviceId: deviceId, completion: completion)
+    #else
+      completion(.failure(createFlutterError(code: .notSupported, message: "AccessorySetupKit is only supported on iOS 18+")))
+    #endif
   }
+
+  #if os(iOS)
+    @available(iOS 18.0, *)
+    private func getAccessorySetupManager() -> AccessorySetupManager {
+      if let manager = accessorySetupManager as? AccessorySetupManager, !manager.isInvalidated {
+        return manager
+      }
+      let manager = AccessorySetupManager()
+      accessorySetupManager = manager
+      return manager
+    }
+  #endif
 
   func getSystemDevices(withServices: [String], completion: @escaping (Result<[UniversalBleScanResult], Error>) -> Void) {
     var servicesFilter = withServices
@@ -875,6 +911,168 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
   }
 
 }
+
+#if os(iOS)
+  @available(iOS 18.0, *)
+  private final class AccessorySetupManager {
+    private let session = ASAccessorySession()
+    private var isActivated = false
+    /// `true` once the system invalidates the session. A session cannot be reused
+    /// after that, so the owner drops this manager and builds a fresh one.
+    private(set) var isInvalidated = false
+    private var activationActions: [(run: () -> Void, cancel: () -> Void)] = []
+    private var pickerCompletion: ((Result<UniversalDevicePickerResult, Error>) -> Void)?
+    private var selectedIdentifier: UUID?
+    private var selectedName: String?
+
+    init() {
+      session.activate(on: .main) { [weak self] event in
+        self?.handle(event)
+      }
+    }
+
+    func showPicker(options: AppleAccessorySetupOptions, completion: @escaping (Result<UniversalDevicePickerResult, Error>) -> Void) {
+      guard pickerCompletion == nil else {
+        completion(.failure(createFlutterError(code: .invalidAction, message: "The accessory picker is already open")))
+        return
+      }
+      var items: [ASPickerDisplayItem] = []
+      for item in options.items {
+        guard let image = UIImage(named: item.imageAsset, in: Bundle.main, compatibleWith: nil) else {
+          completion(.failure(createFlutterError(code: .illegalArgument, message: "Image asset not found: \(item.imageAsset)")))
+          return
+        }
+        let descriptor = ASDiscoveryDescriptor()
+        descriptor.bluetoothServiceUUID = CBUUID(string: item.serviceUuid)
+        descriptor.bluetoothNameSubstring = item.nameSubstring
+        if item.requiresImmediateRange == true {
+          descriptor.bluetoothRange = .immediate
+        }
+        if item.supportsBluetoothPairing == true {
+          descriptor.supportedOptions = .bluetoothPairingLE
+        }
+        items.append(ASPickerDisplayItem(name: item.displayName, productImage: image, descriptor: descriptor))
+      }
+      guard !items.isEmpty else {
+        completion(.failure(createFlutterError(code: .illegalArgument, message: "At least one picker item is required")))
+        return
+      }
+
+      pickerCompletion = completion
+      selectedIdentifier = nil
+      selectedName = nil
+      whenActivated { [weak self] in
+        guard let self else { return }
+        session.showPicker(for: items) { [weak self] error in
+          guard let self, let error else { return }
+          self.completePicker(.failure(self.pickerError(error)))
+        }
+      }
+    }
+
+    func removeAccessory(deviceId: String, completion: @escaping (Result<Void, Error>) -> Void) {
+      guard let identifier = UUID(uuidString: deviceId) else {
+        completion(.failure(createFlutterError(code: .illegalArgument, message: "Invalid deviceId: \(deviceId)")))
+        return
+      }
+      whenActivated({
+        [weak self] in
+        guard let self else { return }
+        guard let accessory = session.accessories.first(where: { $0.bluetoothIdentifier == identifier }) else {
+          completion(.failure(createFlutterError(code: .deviceNotFound, message: "Accessory is not managed by AccessorySetupKit: \(deviceId)")))
+          return
+        }
+        session.removeAccessory(accessory) { error in
+          if let error {
+            completion(.failure(error.toFlutterError()))
+          } else {
+            completion(.success(()))
+          }
+        }
+      }, onCancel: {
+        completion(.failure(createFlutterError(code: .failed, message: "Accessory setup session was invalidated")))
+      })
+    }
+
+    private func whenActivated(_ action: @escaping () -> Void, onCancel: @escaping () -> Void = {}) {
+      if isActivated {
+        action()
+      } else {
+        activationActions.append((run: action, cancel: onCancel))
+      }
+    }
+
+    private func handle(_ event: ASAccessoryEvent) {
+      switch event.eventType {
+      case .activated:
+        isActivated = true
+        let actions = activationActions
+        activationActions.removeAll()
+        actions.forEach { $0.run() }
+      // `.accessoryAdded` is the documented event for a pick. It's the only
+      // event that carries the accessory the person selected, so capture it
+      // there. Events seen outside a picker are ignored: `showPicker` resets the
+      // selection before each session.
+      case .accessoryAdded:
+        guard pickerCompletion != nil,
+          let accessory = event.accessory,
+          let identifier = accessory.bluetoothIdentifier
+        else { break }
+        selectedIdentifier = identifier
+        selectedName = accessory.displayName
+      // A fallback for iOS 18 builds that have been reported to deliver the pick
+      // as `.accessoryChanged` instead. That event is also emitted for unrelated
+      // state changes, so only use it while no selection has been captured, and
+      // never let it clear an existing selection.
+      case .accessoryChanged:
+        guard pickerCompletion != nil, selectedIdentifier == nil,
+          let accessory = event.accessory,
+          let identifier = accessory.bluetoothIdentifier
+        else { break }
+        selectedIdentifier = identifier
+        selectedName = accessory.displayName
+      case .pickerDidDismiss:
+        if let selectedIdentifier {
+          completePicker(.success(UniversalDevicePickerResult(deviceId: selectedIdentifier.uuidString, name: selectedName)))
+        } else {
+          completePicker(.failure(createFlutterError(code: .operationCancelled, message: "Accessory setup was cancelled")))
+        }
+      case .pickerSetupFailed:
+        completePicker(.failure(event.error?.toFlutterError() ?? createFlutterError(code: .failed, message: "Accessory setup failed")))
+      case .invalidated:
+        // The session can't be used again. Fail any action that was still waiting
+        // for activation, then flag this manager so the owner discards it and
+        // creates a new session on the next request.
+        isInvalidated = true
+        isActivated = false
+        let pending = activationActions
+        activationActions.removeAll()
+        pending.forEach { $0.cancel() }
+        completePicker(.failure(event.error?.toFlutterError() ?? createFlutterError(code: .failed, message: "Accessory setup session was invalidated")))
+      default:
+        break
+      }
+    }
+
+    /// AccessorySetupKit reports the person dismissing the picker as `NSError`
+    /// code 700, which has no mapping in `mapErrorCodeToEnum`. Translate it to a
+    /// cancellation so callers don't see a generic `unknownError`.
+    private func pickerError(_ error: Error) -> Error {
+      if (error as NSError).code == 700 {
+        return createFlutterError(code: .operationCancelled, message: "Accessory setup was cancelled")
+      }
+      return error.toFlutterError()
+    }
+
+    private func completePicker(_ result: Result<UniversalDevicePickerResult, Error>) {
+      guard let completion = pickerCompletion else { return }
+      pickerCompletion = nil
+      selectedIdentifier = nil
+      selectedName = nil
+      completion(result)
+    }
+  }
+#endif
 
 /// Lookup of the `CBPeripheral`s this central has seen, plus the last advertised
 /// local name for each (iOS/macOS don't expose advertised names on system

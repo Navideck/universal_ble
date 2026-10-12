@@ -571,6 +571,10 @@ private:
       const UniversalScanConfig *config) override;
   std::optional<FlutterError> StopScan() override;
   ErrorOr<bool> IsScanning() override;
+  void RequestDevice(
+      const AppleAccessorySetupOptions &options,
+      std::function<void(ErrorOr<UniversalDevicePickerResult> reply)> result)
+      override;
   std::optional<FlutterError> Connect(
       const std::string &device_id, const bool *auto_connect,
       const ConnectionPlatformConfig *platform_config) override;
@@ -618,7 +622,9 @@ private:
                 std::function<void(ErrorOr<bool> reply)> result) override;
   void Pair(const std::string &device_id,
             std::function<void(ErrorOr<bool> reply)> result) override;
-  std::optional<FlutterError> UnPair(const std::string &device_id) override;
+  void UnPair(
+      const std::string &device_id,
+      std::function<void(std::optional<FlutterError> reply)> result) override;
   void GetSystemDevices(
       const flutter::EncodableList &with_services,
       std::function<void(ErrorOr<flutter::EncodableList> reply)> result)

@@ -46,6 +46,17 @@ class UniversalBleScanResult {
   });
 }
 
+/// The device a platform's native picker returned.
+class UniversalDevicePickerResult {
+  /// Identifier to pass to `connect`.
+  String deviceId;
+
+  /// Name the platform reported for the selected device, if any.
+  String? name;
+
+  UniversalDevicePickerResult({required this.deviceId, this.name});
+}
+
 enum BleLogLevel { none, error, warning, info, debug, verbose }
 
 enum AvailabilityState {
@@ -297,6 +308,46 @@ class AppleConnectionOptions {
   });
 }
 
+/// One accessory the AccessorySetupKit picker can offer. Each item is shown as
+/// a separate entry in the system picker.
+class AppleAccessoryPickerItem {
+  /// Name shown in the system accessory picker.
+  String displayName;
+
+  /// Name of the product image in the iOS app's asset catalog.
+  String imageAsset;
+
+  /// Advertised Bluetooth service UUID used to discover the accessory.
+  String serviceUuid;
+
+  /// Optional substring of the accessory's advertised Bluetooth name.
+  String? nameSubstring;
+
+  /// Limit discovery to accessories in the immediate vicinity.
+  bool? requiresImmediateRange;
+
+  /// Allow AccessorySetupKit to perform Bluetooth LE pairing when needed.
+  bool? supportsBluetoothPairing;
+
+  AppleAccessoryPickerItem({
+    required this.displayName,
+    required this.imageAsset,
+    required this.serviceUuid,
+    this.nameSubstring,
+    this.requiresImmediateRange,
+    this.supportsBluetoothPairing,
+  });
+}
+
+/// iOS 18+ options for discovering and authorizing Bluetooth accessories with
+/// AccessorySetupKit before connecting to them.
+class AppleAccessorySetupOptions {
+  /// Accessories the picker offers. At least one item is required.
+  List<AppleAccessoryPickerItem> items;
+
+  AppleAccessorySetupOptions({required this.items});
+}
+
 class AndroidConnectionOptions {
   /// Close the GATT client when the FlutterEngine is detached (for
   /// example, when the app is "killed"). The plugin otherwise leaves the
@@ -427,6 +478,11 @@ abstract class UniversalBlePlatformChannel {
 
   bool isScanning();
 
+  /// Shows the platform's native device picker (iOS 18+ AccessorySetupKit) and
+  /// returns the selected device.
+  @async
+  UniversalDevicePickerResult requestDevice(AppleAccessorySetupOptions options);
+
   void connect(
     String deviceId, {
     bool? autoConnect,
@@ -488,6 +544,7 @@ abstract class UniversalBlePlatformChannel {
   @async
   bool pair(String deviceId);
 
+  @async
   void unPair(String deviceId);
 
   @async
