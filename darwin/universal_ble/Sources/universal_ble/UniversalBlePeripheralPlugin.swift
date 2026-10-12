@@ -16,6 +16,11 @@ final class UniversalBlePeripheralPlugin: NSObject, UniversalBlePeripheralChanne
   private let centralsLock = NSLock()
   private var centralsById = [String: CBCentral]()
   private var centralCharacteristicSubscriptions = [String: Set<String>]()
+  // Per-engine advertised state. Each FlutterEngine gets its own peripheral plugin,
+  // so these live on the instance: tearing one engine down (or clearing its
+  // services) must not wipe another engine's advertising state.
+  private var peripheralServicesList = [CBMutableService]()
+  private var peripheralCharacteristicsList = [CBMutableCharacteristic]()
 
   init(callbackChannel: UniversalBlePeripheralCallback) {
     self.callbackChannel = callbackChannel
@@ -25,7 +30,6 @@ final class UniversalBlePeripheralPlugin: NSObject, UniversalBlePeripheralChanne
   deinit {
     peripheralManager?.stopAdvertising()
     peripheralManager?.removeAllServices()
-    clearPeripheralCaches()
     clearCentrals()
   }
 
@@ -90,11 +94,22 @@ final class UniversalBlePeripheralPlugin: NSObject, UniversalBlePeripheralChanne
   }
 
   func addService(service: PeripheralService) throws {
-    ensurePeripheralManager().add(service.toCBService())
+    let cbService = service.toCBService()
+    peripheralServicesList.removeAll {
+      $0.uuid.uuidString.lowercased() == cbService.uuid.uuidString.lowercased()
+    }
+    peripheralServicesList.append(cbService)
+    for case let characteristic as CBMutableCharacteristic in cbService.characteristics ?? [] {
+      peripheralCharacteristicsList.removeAll {
+        $0.uuid.uuidString.lowercased() == characteristic.uuid.uuidString.lowercased()
+      }
+      peripheralCharacteristicsList.append(characteristic)
+    }
+    ensurePeripheralManager().add(cbService)
   }
 
   func removeService(serviceId: String) throws {
-    if let service = serviceId.findPeripheralService() {
+    if let service = findPeripheralService(serviceId) {
       ensurePeripheralManager().remove(service)
       peripheralServicesList.removeAll {
         $0.uuid.uuidString.lowercased() == service.uuid.uuidString.lowercased()
@@ -109,6 +124,20 @@ final class UniversalBlePeripheralPlugin: NSObject, UniversalBlePeripheralChanne
 
   func getServices() throws -> [String] {
     peripheralServicesList.map { $0.uuid.uuidString }
+  }
+
+  private func findPeripheralService(_ serviceId: String) -> CBMutableService? {
+    let target = serviceId.lowercased()
+    return peripheralServicesList.first {
+      $0.uuid.uuidString.lowercased() == target
+    }
+  }
+
+  private func findPeripheralCharacteristic(_ characteristicId: String) -> CBMutableCharacteristic? {
+    let target = characteristicId.lowercased()
+    return peripheralCharacteristicsList.first {
+      $0.uuid.uuidString.lowercased() == target
+    }
   }
 
   func startAdvertising(
@@ -150,7 +179,7 @@ final class UniversalBlePeripheralPlugin: NSObject, UniversalBlePeripheralChanne
     value: FlutterStandardTypedData,
     deviceId: String?
   ) throws {
-    guard let characteristic = characteristicId.findPeripheralCharacteristic() else {
+    guard let characteristic = findPeripheralCharacteristic(characteristicId) else {
       throw UniversalBlePeripheralError.notFound("\(characteristicId) characteristic not found")
     }
     let centrals: [CBCentral]?
