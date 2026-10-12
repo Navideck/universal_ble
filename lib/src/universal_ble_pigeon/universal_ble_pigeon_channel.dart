@@ -304,8 +304,14 @@ class UniversalBlePigeonChannel extends UniversalBlePlatform
       updateCharacteristicValue(deviceId, characteristicId, value, timestamp);
 
   @override
-  void onPairStateChange(String deviceId, bool isPaired, String? error) =>
+  void onPairStateChange(String deviceId, bool isPaired, bool isFailure) {
+    // A failed bond is an event, not a state: route it around the pairing-state dedup (#325).
+    if (isFailure) {
+      updatePairingFailure(deviceId);
+    } else {
       updatePairingState(deviceId, isPaired);
+    }
+  }
 
   @override
   void onConnectionParametersUpdated(BleConnectionParametersChange update) =>

@@ -14,6 +14,7 @@
 * **Breaking:** `onConnectionChange` now receives a single `BleConnectionChange` (`deviceId`, `isConnected`, `error`) instead of three positional arguments. It also carries a unified `errorCode` (`UniversalBleErrorCode.deviceDisconnected`, `connectionTimeout`, `connectionFailed`, ...) and the raw `nativeErrorCode` (`CBError.Code` on Apple, GATT status on Android); a connection attempt that never succeeds is `connectionFailed` on both. Add `connectionChangeStream` and `BleDevice.connectionChangeStream` emitting the same updates per device; `connectionStream` is unchanged. `UniversalBlePlatform.bleConnectionChangeStreamController` (internal) now carries `BleConnectionChange` instead of a record.
 * **Breaking:** `onValueChange` now receives a single `BleCharacteristicValue` (`deviceId`, `characteristicId`, `value`, `timestamp`) instead of four positional arguments.
 * **Breaking:** Rename `BleConnectionParametersUpdated` to `BleConnectionParametersChange`, aligning the payload with the `…Change` event naming. The `onConnectionParametersChange` callback and the model's fields are unchanged.
+* Android: report every failed bond — including a declined system-initiated bond that ends in `BOND_NONE` — not only the first per process. A failed pairing attempt is an event rather than a state, so `onPairingStateChange` no longer de-duplicates it against the cached pairing state (#325).
 
 ## 2.3.0
 * Windows: support connectionless manufacturer-data advertising without a GATT service, including state/error reporting and cleanup on stop/disposal.
