@@ -9,14 +9,22 @@ repository. Test commands go over BLE. USB serial is only used for Zephyr logs.
 
 ## 1. Current coverage
 
-The Windows suite contains 65 implemented hardware tests:
+The Windows suite contains 85 implemented hardware tests:
 
 - 25 baseline tests for ordinary BLE behavior;
-- 40 fault injection tests for hostile peripheral behavior, timing, and
+- 60 fault injection tests for hostile peripheral behavior, timing, and
   lifecycle races.
+
+The fixture requires contract revision 2 (v2, following the original v1). Of the 30 indication, MTU/resource,
+pairing, and timing scenarios, 19 are implemented and 11 have explicit
+unattended/API limitation reasons. Those skips are not counted as coverage.
 
 [`COVERAGE.md`](COVERAGE.md) lists every implemented test, what it does, and
 the bugs it is meant to catch.
+
+The indication, MTU/resource, timing-sweep assertions, and explicit limitations
+are documented in the corresponding sections of `COVERAGE.md`. Build and flash
+the v2 firmware before running this harness; the v1 contract is incompatible.
 
 [`lib/main.dart`](lib/main.dart) also provides an interactive Web Bluetooth
 runner for the portable baseline path.
@@ -124,3 +132,14 @@ These tests do not run in normal pull-request CI. Run them manually when a
 change touches native BLE lifecycle, GATT operations, subscriptions, queueing,
 or the platform channel. A native crash can kill the test runner. Use
 `--plain-name` to rerun the failing case on its own.
+
+Replay the seeded timing scenario with:
+
+```powershell
+flutter test integration_test/fault_injection_hil_test.dart -d windows `
+  --plain-name "[FIT-RACE-008]" --dart-define=HIL_SCENARIO_SEED=316
+```
+
+The log records the seed, operation, callback delay and disconnect offset for
+each step. Keep the same Dart SDK when replaying a sequence: `Random` does not
+promise identical sequences across SDK versions.

@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:universal_ble/universal_ble.dart';
 import 'package:universal_ble_example/data/mock_universal_ble.dart';
 import 'package:universal_ble_example/home/widgets/android_scan_options_widget.dart';
+import 'package:universal_ble_example/home/widgets/request_device_widget.dart';
 import 'package:universal_ble_example/home/widgets/scan_filter_widget.dart';
 import 'package:universal_ble_example/home/widgets/scanned_devices_placeholder_widget.dart';
 import 'package:universal_ble_example/home/widgets/scanned_item_widget.dart';
@@ -131,10 +132,17 @@ class _CentralHomeState extends State<CentralHome> {
           servicesFilterController: servicesFilterController,
           namePrefixController: namePrefixController,
           manufacturerDataController: manufacturerDataController,
-          onScanFilter: (ScanFilter? filter) {
+          initialConnectableOnly: scanFilter?.connectableOnly ?? false,
+          onScanFilter: (ScanFilter? filter) async {
             setState(() {
               scanFilter = filter;
+              if (filter?.connectableOnly == true) {
+                _bleDevices.removeWhere((d) => d.connectable == false);
+              }
             });
+            if (_isScanning) {
+              await startScan();
+            }
           },
         );
       },
@@ -152,6 +160,34 @@ class _CentralHomeState extends State<CentralHome> {
             setState(() {
               _androidOptions = options;
             });
+          },
+        );
+      },
+    );
+  }
+
+  void _showRequestDeviceBottomSheet() {
+    showModalBottomSheet(
+      isScrollControlled: true,
+      context: context,
+      builder: (context) {
+        return RequestDeviceWidget(
+          onDeviceSelected: (BleDevice device) {
+            int index =
+                _bleDevices.indexWhere((e) => e.deviceId == device.deviceId);
+            if (index == -1) {
+              _bleDevices.add(device);
+            } else {
+              _bleDevices[index] = device;
+            }
+            setState(() {});
+            showSnackbar('Picked device: ${device.name ?? device.deviceId}');
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => PeripheralDetailPage(device),
+              ),
+            );
           },
         );
       },
@@ -287,6 +323,11 @@ class _CentralHomeState extends State<CentralHome> {
                     text: 'System Devices',
                     onPressed: _getSystemDevices,
                   ),
+                if (BleCapabilities.supportsRequestDeviceApi)
+                  PlatformButton(
+                    text: 'Request Device (Picker)',
+                    onPressed: _showRequestDeviceBottomSheet,
+                  ),
                 PlatformButton(
                   text: 'Queue: ${_queueType.name}',
                   onPressed: () {
@@ -302,7 +343,7 @@ class _CentralHomeState extends State<CentralHome> {
                   },
                 ),
                 PlatformButton(
-                  text: 'Scan Filters',
+                  text: scanFilter == null ? 'Scan Filters' : 'Scan Filters •',
                   onPressed: _showScanFilterBottomSheet,
                 ),
                 PlatformButton(
@@ -360,6 +401,7 @@ class _CentralHomeState extends State<CentralHome> {
             ],
           ),
           const Divider(color: Colors.blue),
+          if (_isScanning) const LinearProgressIndicator(),
           Expanded(
             child: _isScanning && _bleDevices.isEmpty
                 ? const Center(child: CircularProgressIndicator.adaptive())

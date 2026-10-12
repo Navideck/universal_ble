@@ -2,7 +2,7 @@ import 'package:universal_ble/src/universal_ble.g.dart';
 
 /// A connection state change of a device, including the platform's error
 /// details when the change was not requested by the app.
-class BleConnectionUpdate {
+class BleConnectionChange {
   /// Device id as reported by the platform.
   final String deviceId;
 
@@ -50,7 +50,7 @@ class BleConnectionUpdate {
   /// diagnostics. `null` where [errorCode] is `null`.
   final int? nativeErrorCode;
 
-  const BleConnectionUpdate({
+  const BleConnectionChange({
     required this.deviceId,
     required this.isConnected,
     this.error,
@@ -60,6 +60,6 @@ class BleConnectionUpdate {
 
   @override
   String toString() =>
-      'BleConnectionUpdate(deviceId: $deviceId, isConnected: $isConnected, '
+      'BleConnectionChange(deviceId: $deviceId, isConnected: $isConnected, '
       'error: $error, errorCode: $errorCode, nativeErrorCode: $nativeErrorCode)';
 }

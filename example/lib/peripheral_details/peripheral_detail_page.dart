@@ -85,14 +85,14 @@ class _PeripheralDetailPageState extends State<PeripheralDetailPage> {
     }
   }
 
-  void _handleValueChange(String deviceId, String characteristicId,
-      Uint8List value, int? timestamp) {
-    String s = String.fromCharCodes(value);
-    String data = '$s\nraw :  ${value.toString()}';
-    DateTime? timestampDateTime = timestamp != null
-        ? DateTime.fromMillisecondsSinceEpoch(timestamp)
+  void _handleValueChange(BleCharacteristicValue update) {
+    String s = String.fromCharCodes(update.value);
+    String data = '$s\nraw :  ${update.value.toString()}';
+    DateTime? timestampDateTime = update.timestamp != null
+        ? DateTime.fromMillisecondsSinceEpoch(update.timestamp!)
         : null;
-    debugPrint('_handleValueChange ($timestampDateTime) $characteristicId, $s');
+    debugPrint(
+        '_handleValueChange ($timestampDateTime) ${update.characteristicId}, $s');
     _addLog("Value", data);
   }
 
@@ -102,7 +102,7 @@ class _PeripheralDetailPageState extends State<PeripheralDetailPage> {
   }
 
   void _handleConnectionParametersChange(
-    BleConnectionParametersUpdated update,
+    BleConnectionParametersChange update,
   ) {
     debugPrint('ConnectionParametersChange $update');
     _addLog(
@@ -319,6 +319,35 @@ class _PeripheralDetailPageState extends State<PeripheralDetailPage> {
                 child: SingleChildScrollView(
                   child: Column(
                     children: [
+                      if (bleDevice.connectable == false)
+                        Container(
+                          width: double.infinity,
+                          margin: const EdgeInsets.symmetric(
+                            horizontal: 16.0,
+                            vertical: 8.0,
+                          ),
+                          padding: const EdgeInsets.all(12.0),
+                          decoration: BoxDecoration(
+                            color: Colors.red.shade50,
+                            borderRadius: BorderRadius.circular(8.0),
+                            border: Border.all(color: Colors.red.shade300),
+                          ),
+                          child: const Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(Icons.warning_amber_rounded,
+                                  color: Colors.red),
+                              SizedBox(width: 8),
+                              Text(
+                                "This device is not connectable",
+                                style: TextStyle(
+                                  color: Colors.red,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
                       // Top buttons
                       Padding(
                         padding: const EdgeInsets.all(8.0),
@@ -327,7 +356,7 @@ class _PeripheralDetailPageState extends State<PeripheralDetailPage> {
                           children: <Widget>[
                             PlatformButton(
                               text: 'Connect',
-                              enabled: !isConnected,
+                              enabled: !isConnected && bleDevice.connectable != false,
                               onPressed: () async {
                                 try {
                                   await bleDevice.connect();

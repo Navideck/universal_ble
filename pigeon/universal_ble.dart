@@ -30,6 +30,7 @@ class UniversalBleScanResult {
   final List<String>? services;
   final int? timestamp;
   final int? timestampMicroseconds;
+  final bool? connectable;
 
   UniversalBleScanResult({
     required this.name,
@@ -41,7 +42,19 @@ class UniversalBleScanResult {
     required this.services,
     required this.timestamp,
     required this.timestampMicroseconds,
+    required this.connectable,
   });
+}
+
+/// The device a platform's native picker returned.
+class UniversalDevicePickerResult {
+  /// Identifier to pass to `connect`.
+  String deviceId;
+
+  /// Name the platform reported for the selected device, if any.
+  String? name;
+
+  UniversalDevicePickerResult({required this.deviceId, this.name});
 }
 
 enum BleLogLevel { none, error, warning, info, debug, verbose }
@@ -153,14 +166,14 @@ class UniversalBleDescriptor {
 ///
 /// [interval] and [supervisionTimeout] use BLE connection parameter units
 /// (multiply interval by 1.25 for ms; supervisionTimeout by 10 for ms).
-class BleConnectionParametersUpdated {
+class BleConnectionParametersChange {
   final String deviceId;
   final int interval;
   final int latency;
   final int supervisionTimeout;
   final int status;
 
-  BleConnectionParametersUpdated({
+  BleConnectionParametersChange({
     required this.deviceId,
     required this.interval,
     required this.latency,
@@ -295,13 +308,54 @@ class AppleConnectionOptions {
   });
 }
 
+/// One accessory the AccessorySetupKit picker can offer. Each item is shown as
+/// a separate entry in the system picker.
+class AppleAccessoryPickerItem {
+  /// Name shown in the system accessory picker.
+  String displayName;
+
+  /// Name of the product image in the iOS app's asset catalog.
+  String imageAsset;
+
+  /// Advertised Bluetooth service UUID used to discover the accessory.
+  String serviceUuid;
+
+  /// Optional substring of the accessory's advertised Bluetooth name.
+  String? nameSubstring;
+
+  /// Limit discovery to accessories in the immediate vicinity.
+  bool? requiresImmediateRange;
+
+  /// Allow AccessorySetupKit to perform Bluetooth LE pairing when needed.
+  bool? supportsBluetoothPairing;
+
+  AppleAccessoryPickerItem({
+    required this.displayName,
+    required this.imageAsset,
+    required this.serviceUuid,
+    this.nameSubstring,
+    this.requiresImmediateRange,
+    this.supportsBluetoothPairing,
+  });
+}
+
+/// iOS 18+ options for discovering and authorizing Bluetooth accessories with
+/// AccessorySetupKit before connecting to them.
+class AppleAccessorySetupOptions {
+  /// Accessories the picker offers. At least one item is required.
+  List<AppleAccessoryPickerItem> items;
+
+  AppleAccessorySetupOptions({required this.items});
+}
+
 class AndroidConnectionOptions {
   /// Close the GATT client when the FlutterEngine is detached (for
   /// example, when the app is "killed"). The plugin otherwise leaves the
   /// GATT open, keeping the peripheral occupied until its supervision
   /// timeout; with `autoConnect` it also stays open for reconnection.
   ///
-  /// When `null`, the current process-wide value is kept.
+  /// When `null`, the value set by a previous `connect()` on this engine
+  /// is kept.
   bool? closeGattOnDetach;
 
   AndroidConnectionOptions({this.closeGattOnDetach});
@@ -424,6 +478,11 @@ abstract class UniversalBlePlatformChannel {
 
   bool isScanning();
 
+  /// Shows the platform's native device picker (iOS 18+ AccessorySetupKit) and
+  /// returns the selected device.
+  @async
+  UniversalDevicePickerResult requestDevice(AppleAccessorySetupOptions options);
+
   void connect(
     String deviceId, {
     bool? autoConnect,
@@ -485,6 +544,7 @@ abstract class UniversalBlePlatformChannel {
   @async
   bool pair(String deviceId);
 
+  @async
   void unPair(String deviceId);
 
   @async
@@ -509,7 +569,10 @@ abstract class UniversalBlePlatformChannel {
 abstract class UniversalBleCallbackChannel {
   void onAvailabilityChanged(AvailabilityState state);
 
-  void onPairStateChange(String deviceId, bool isPaired, String? error);
+  /// [isFailure] marks a failed bond attempt — an event rather than a steady
+  /// pairing state — so the Dart side can bypass its state de-duplication
+  /// instead of swallowing every failure after the first (#325).
+  void onPairStateChange(String deviceId, bool isPaired, bool isFailure);
 
   void onScanResult(UniversalBleScanResult result);
 
@@ -533,7 +596,7 @@ abstract class UniversalBleCallbackChannel {
     int? nativeErrorCode,
   );
 
-  void onConnectionParametersUpdated(BleConnectionParametersUpdated update);
+  void onConnectionParametersUpdated(BleConnectionParametersChange update);
 }
 
 /// Flutter -> Native (peripheral)

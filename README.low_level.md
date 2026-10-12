@@ -17,13 +17,13 @@ UniversalBle.connectionStream(deviceId).listen((bool isConnected) {
 
 // Or set a handler to get updates of all devices, with the error message,
 // a unified error code (UniversalBleErrorCode) and the raw platform code
-UniversalBle.onConnectionChange = (BleConnectionUpdate update) {
-  debugPrint('${update.deviceId} connected: ${update.isConnected}, error: ${update.error}, code: ${update.errorCode}, native: ${update.nativeErrorCode}');
+UniversalBle.onConnectionChange = (BleConnectionChange change) {
+  debugPrint('${change.deviceId} connected: ${change.isConnected}, error: ${change.error}, code: ${change.errorCode}, native: ${change.nativeErrorCode}');
 };
 
 // Or per device, as a stream
-UniversalBle.connectionUpdateStream(deviceId).listen((BleConnectionUpdate update) {
-  debugPrint('Connected: ${update.isConnected}, code: ${update.errorCode}');
+UniversalBle.connectionChangeStream(deviceId).listen((BleConnectionChange change) {
+  debugPrint('Connected: ${change.isConnected}, code: ${change.errorCode}');
 });
 ```
 
@@ -59,8 +59,8 @@ UniversalBle.characteristicValueStream(deviceId, characteristicId).listen((Uint8
 });
 
 // Or set a handler to get updates of all characteristics
-UniversalBle.onValueChange = (String deviceId, String characteristicId, Uint8List value) {
-  debugPrint('onValueChange $deviceId, $characteristicId, ${hex.encode(value)}');
+UniversalBle.onValueChange = (BleCharacteristicValue update) {
+  debugPrint('onValueChange ${update.deviceId}, ${update.characteristicId}, ${hex.encode(update.value)}');
 }
 
 // Unsubscribe from notifications/indications

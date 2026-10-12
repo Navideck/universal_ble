@@ -8,12 +8,15 @@ class ScanFilterWidget extends StatefulWidget {
   final TextEditingController namePrefixController;
   final TextEditingController manufacturerDataController;
 
+  final bool initialConnectableOnly;
+
   const ScanFilterWidget({
     super.key,
     required this.onScanFilter,
     required this.servicesFilterController,
     required this.namePrefixController,
     required this.manufacturerDataController,
+    this.initialConnectableOnly = false,
   });
 
   @override
@@ -22,6 +25,13 @@ class ScanFilterWidget extends StatefulWidget {
 
 class _ScanFilterWidgetState extends State<ScanFilterWidget> {
   String? error;
+  late bool _connectableOnly;
+
+  @override
+  void initState() {
+    super.initState();
+    _connectableOnly = widget.initialConnectableOnly;
+  }
 
   void applyFilter() {
     setState(() {
@@ -66,7 +76,8 @@ class _ScanFilterWidgetState extends State<ScanFilterWidget> {
 
       if (serviceUUids.isEmpty &&
           namePrefixes.isEmpty &&
-          manufacturerDataFilters.isEmpty) {
+          manufacturerDataFilters.isEmpty &&
+          !_connectableOnly) {
         widget.onScanFilter(null);
       } else {
         widget.onScanFilter(
@@ -74,6 +85,7 @@ class _ScanFilterWidgetState extends State<ScanFilterWidget> {
             withServices: serviceUUids,
             withNamePrefix: namePrefixes,
             withManufacturerData: manufacturerDataFilters,
+            connectableOnly: _connectableOnly ? true : null,
           ),
         );
         ScaffoldMessenger.of(context).showSnackBar(
@@ -92,6 +104,9 @@ class _ScanFilterWidgetState extends State<ScanFilterWidget> {
     widget.servicesFilterController.clear();
     widget.namePrefixController.clear();
     widget.manufacturerDataController.clear();
+    setState(() {
+      _connectableOnly = false;
+    });
     widget.onScanFilter(null);
     Navigator.pop(context);
   }
@@ -138,6 +153,18 @@ class _ScanFilterWidgetState extends State<ScanFilterWidget> {
               labelText: "Manufacturer Data Company IDs",
               border: OutlineInputBorder(),
             ),
+          ),
+          const SizedBox(height: 10),
+          CheckboxListTile(
+            title: const Text("Connectable Only"),
+            value: _connectableOnly,
+            controlAffinity: ListTileControlAffinity.leading,
+            contentPadding: EdgeInsets.zero,
+            onChanged: (bool? value) {
+              setState(() {
+                _connectableOnly = value ?? false;
+              });
+            },
           ),
           const SizedBox(height: 10),
           Row(

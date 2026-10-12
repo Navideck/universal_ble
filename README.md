@@ -36,6 +36,7 @@ Looking for Bluetooth Classic? Check [universal_bluetooth_classic](https://pub.d
 - [UUID Format Agnostic](#uuid-format-agnostic)
 - [Platform-specific setup](#platform-specific-setup)
 - [Peripheral Mode](#peripheral-mode)
+- [AI agent skills](#ai-agent-skills)
 
 ## API Support
 
@@ -209,6 +210,14 @@ Use the `withNamePrefix` parameter to filter devices by names (case sensitive). 
 List<String> withNamePrefix;
 ```
 
+##### Connectable Only
+
+Use the `connectableOnly` parameter to filter out non-connectable devices (such as beacons). When set to `true`, only connectable devices are included. Devices with unknown (`null`) connectability also pass this filter, so this option is a no-op on platforms that do not report connectability (Linux and Web, which always report `null`).
+
+```dart
+bool? connectableOnly;
+```
+
 ##### Exclusion Filter
 
 Use exclusion filters to exclude specific devices from scan results:
@@ -249,16 +258,16 @@ bleDevice.connectionStream.listen((isConnected) {
 });
 ```
 
-To react to *why* a device disconnected, use `connectionUpdateStream`. Each event carries the platform's error message, a unified `errorCode` (`UniversalBleErrorCode.deviceDisconnected` when the peripheral closed the link, `connectionTimeout` when the link was lost, `connectionFailed`, ...) and the raw `nativeErrorCode` (`CBError.Code` on Apple, the GATT status on Android; the numeric ranges overlap across platforms, so branch on `errorCode` and keep `nativeErrorCode` for logs). All three are usually `null` when the app requested the disconnect. Windows reports only the message; Linux and Web report `null` for all three.
+To react to *why* a device disconnected, use `connectionChangeStream`. Each event carries the platform's error message, a unified `errorCode` (`UniversalBleErrorCode.deviceDisconnected` when the peripheral closed the link, `connectionTimeout` when the link was lost, `connectionFailed`, ...) and the raw `nativeErrorCode` (`CBError.Code` on Apple, the GATT status on Android; the numeric ranges overlap across platforms, so branch on `errorCode` and keep `nativeErrorCode` for logs). All three are usually `null` when the app requested the disconnect. Windows reports only the message; Linux and Web report `null` for all three.
 
 ```dart
-bleDevice.connectionUpdateStream.listen((update) {
-  if (update.isConnected) return;
-  switch (update.errorCode) {
+bleDevice.connectionChangeStream.listen((change) {
+  if (change.isConnected) return;
+  switch (change.errorCode) {
     case UniversalBleErrorCode.deviceDisconnected: // peripheral closed the link
     case UniversalBleErrorCode.connectionTimeout:  // out of range / powered off
     default:
-      debugPrint('Disconnected: ${update.errorCode} (native ${update.nativeErrorCode}) ${update.error}');
+      debugPrint('Disconnected: ${change.errorCode} (native ${change.nativeErrorCode}) ${change.error}');
   }
 });
 ```
@@ -307,7 +316,7 @@ await bleDevice.connect(
 
 When the Android app is killed by the user (typically swiped away from recents), the OS tears down the FlutterEngine without ever delivering a "disconnect" — the peripheral keeps the link open until its connection supervision timeout (often 10–20 s), leaving the device occupied.
 
-Pass `AndroidConnectionOptions(closeGattOnDetach: true)` to have the plugin close every known GATT client as soon as the engine detaches, releasing the peripheral immediately. Without the option, whatever the `autoConnect` value, the link persists until the peripheral's supervision timeout.
+Pass `AndroidConnectionOptions(closeGattOnDetach: true)` to have the plugin close every GATT client this engine owns as soon as the engine detaches, releasing the peripheral immediately. Without the option, whatever the `autoConnect` value, the link persists until the peripheral's supervision timeout.
 
 ```dart
 await bleDevice.connect(
@@ -319,8 +328,68 @@ await bleDevice.connect(
 ```
 
 Notes:
-- Once any connection opts in, the behavior is global for the running process — every current and future GATT client is released on engine teardown. It can be disabled at runtime by connecting with `closeGattOnDetach: false`; connecting without the option leaves the current value unchanged (a fresh app launch resets it).
+- The option is scoped to the engine that sets it: on teardown, that engine releases the clients it created, leaving clients owned by other engines (for example a background engine's live link) untouched. To have a background engine release the peripherals it connected, that engine must connect with `closeGattOnDetach: true` as well — setting the option on the UI engine does not cover the background engine's clients. It can be disabled at runtime by connecting with `closeGattOnDetach: false`; connecting without the option leaves the engine's current value unchanged (a fresh app launch resets it).
 - Android-only. Explicit `disconnect()` calls and rotation are unaffected.
+
+#### Native device picker (Web, iOS 18+)
+
+`requestDevice` presents the platform's native device picker and returns the
+device the user selected. Connect it through the normal path:
+
+- **Web:** opens the browser's Bluetooth device chooser, honoring the scan
+  filter. Call `requestDevice` from a user gesture (for example a button tap);
+  browsers reject the chooser otherwise.
+- **iOS 18+:** shows Apple's AccessorySetupKit picker to select and authorize a
+  nearby accessory. The scan filter is ignored here; discovery is described by
+  the Apple options below.
+
+```dart
+final device = await UniversalBle.requestDevice(
+  // Web: the browser chooser honors the scan filter.
+  scanFilter: ScanFilter(withServices: ['180D']),
+  platformConfig: PickerPlatformConfig(
+    // iOS 18+.
+    apple: AppleAccessorySetupOptions(
+      items: [
+        AppleAccessoryPickerItem(
+          displayName: 'My Device',
+          imageAsset: 'my_device', // Image in Runner/Assets.xcassets
+          serviceUuid: '12345678-1234-1234-1234-1234567890AB',
+          nameSubstring: 'MyDevice', // Optional
+        ),
+      ],
+    ),
+  ),
+);
+
+await UniversalBle.connect(device.deviceId);
+
+// iOS: removes an accessory authorized through AccessorySetupKit.
+await UniversalBle.unpair(device.deviceId);
+```
+
+The AccessorySetupKit picker must be initiated while the app is in the
+foreground. Add matching values to the iOS app's `Info.plist`; Apple terminates
+apps that show the picker with undeclared discovery identifiers:
+
+```xml
+<key>NSAccessorySetupKitSupports</key>
+<array>
+  <string>Bluetooth</string>
+</array>
+<key>NSAccessorySetupBluetoothServices</key>
+<array>
+  <string>12345678-1234-1234-1234-1234567890AB</string>
+</array>
+<key>NSAccessorySetupBluetoothNames</key>
+<array>
+  <string>MyDevice</string>
+</array>
+```
+
+When the app uses AccessorySetupKit exclusively, it does not need
+`NSBluetoothAlwaysUsageDescription`. Keep that key if the app also uses regular
+BLE scanning or accesses devices outside AccessorySetupKit.
 
 ### Discovering Services
 
@@ -639,7 +708,7 @@ int rssi = await bleDevice.readRssi();
 
 ## Command Queue
 
-By default, commands use `QueueType.auto`, which automatically picks the best strategy for the current platform with zero configuration. Android uses a per-device queue (its native BLE stack rejects overlapping operations), while all other platforms run commands in parallel (they pipeline natively).
+By default, commands use `QueueType.auto`, which automatically picks the best strategy for the current platform with zero configuration. Android, Web, and Linux use a per-device queue (their BLE stacks reject or misbehave on overlapping operations), while all other platforms run commands in parallel (they pipeline natively).
 
 If you want explicit control over how commands are serialized, you can set `queueType`:
 
@@ -650,7 +719,7 @@ UniversalBle.queueType = QueueType.global;
 // Create a separate queue for each device.
 UniversalBle.queueType = QueueType.perDevice;
 
-// Auto-decide per platform (default): Android queues per device, all others run in parallel.
+// Auto-decide per platform (default): Android, Web and Linux queue per device, others run in parallel.
 UniversalBle.queueType = QueueType.auto;
 ```
 
@@ -1126,6 +1195,9 @@ await UniversalBle.startScan();
 
 For Bluetooth usage (including peripheral mode), add both keys to your app's `Info.plist`:
 
+> Apps using only the iOS 18+ AccessorySetupKit flow can omit these Bluetooth
+> usage descriptions; see [Native device picker (Web, iOS 18+)](#native-device-picker-web-ios-18).
+
 - `NSBluetoothAlwaysUsageDescription`: message shown when the app requests Bluetooth access.
 - `NSBluetoothPeripheralUsageDescription`: message used for peripheral role access on Apple platforms.
 
@@ -1349,6 +1421,20 @@ This repo includes an [example app](example/) with two tabs:
 - `Peripheral`: peripheral server and advertising workflows.
 
 For a full-blown app, check [Universal-BLE](https://github.com/Navideck/Universal-BLE).
+
+## AI agent skills
+
+Universal BLE ships [package skills](https://dart.dev/ai/package-skills) that give AI coding agents authoritative, version-matched guidance for this package. Install them into your project with:
+
+```sh
+dart run skills@ get -p universal_ble
+```
+
+- `universal-ble-setup` — add `universal_ble` to an app from scratch: scanning, connecting, service discovery, read/write, subscriptions, and platform permissions.
+- `universal-ble-migrate-2-to-3` — upgrade an app from `universal_ble` 2.x to 3.0, covering the breaking changes.
+- `universal-ble-migrate-from-flutter-blue-plus` — migrate an existing app from `flutter_blue_plus` to `universal_ble`.
+
+Select the skills you want when prompted.
 
 ## Low level API
 

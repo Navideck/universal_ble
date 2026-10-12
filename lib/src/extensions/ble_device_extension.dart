@@ -6,10 +6,10 @@ extension BleDeviceExtension on BleDevice {
   /// A stream of [bool] that emits connection status changes for the device.
   Stream<bool> get connectionStream => UniversalBle.connectionStream(deviceId);
 
-  /// A stream of [BleConnectionUpdate] that emits connection status changes
+  /// A stream of [BleConnectionChange] that emits connection status changes
   /// together with the platform's error message and code.
-  Stream<BleConnectionUpdate> get connectionUpdateStream =>
-      UniversalBle.connectionUpdateStream(deviceId);
+  Stream<BleConnectionChange> get connectionChangeStream =>
+      UniversalBle.connectionChangeStream(deviceId);
 
   /// A stream of [bool] that emits pairing status changes for the device.
   Stream<bool> get pairingStateStream =>

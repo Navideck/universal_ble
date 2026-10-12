@@ -291,5 +291,45 @@ void main() {
         isFalse,
       );
     });
+
+    test('Test connectableOnly filter', () {
+      final connectableDevice = BleDevice(
+        deviceId: 'c1',
+        name: 'connectable',
+        connectable: true,
+      );
+      final nonConnectableDevice = BleDevice(
+        deviceId: 'c2',
+        name: 'beacon',
+        connectable: false,
+      );
+      final unknownDevice = BleDevice(
+        deviceId: 'c3',
+        name: 'unknown',
+        connectable: null,
+      );
+
+      // When connectableOnly is true, non-connectable is rejected
+      universalBleFilter.scanFilter = ScanFilter(connectableOnly: true);
+      expect(universalBleFilter.matchedScanFilter(connectableDevice), isTrue);
+      expect(universalBleFilter.matchedScanFilter(nonConnectableDevice), isFalse);
+      expect(universalBleFilter.matchedScanFilter(unknownDevice), isTrue);
+      expect(universalBleFilter.matchesConnectableFilter(connectableDevice), isTrue);
+      expect(universalBleFilter.matchesConnectableFilter(nonConnectableDevice), isFalse);
+      expect(universalBleFilter.matchesConnectableFilter(unknownDevice), isTrue);
+
+      // When connectableOnly is null or false, non-connectable is allowed
+      universalBleFilter.scanFilter = ScanFilter(connectableOnly: null);
+      expect(universalBleFilter.matchedScanFilter(connectableDevice), isTrue);
+      expect(universalBleFilter.matchedScanFilter(nonConnectableDevice), isTrue);
+      expect(universalBleFilter.matchedScanFilter(unknownDevice), isTrue);
+      expect(universalBleFilter.matchesConnectableFilter(nonConnectableDevice), isTrue);
+
+      universalBleFilter.scanFilter = ScanFilter(connectableOnly: false);
+      expect(universalBleFilter.matchedScanFilter(connectableDevice), isTrue);
+      expect(universalBleFilter.matchedScanFilter(nonConnectableDevice), isTrue);
+      expect(universalBleFilter.matchedScanFilter(unknownDevice), isTrue);
+      expect(universalBleFilter.matchesConnectableFilter(nonConnectableDevice), isTrue);
+    });
   });
 }

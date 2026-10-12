@@ -41,10 +41,22 @@ class UniversalBleFilterUtil {
     return false;
   }
 
+  bool matchesConnectableFilter(BleDevice device) {
+    final filter = scanFilter;
+    if (filter == null || filter.connectableOnly != true) return true;
+    if (device.connectable == null) return true;
+    return device.connectable!;
+  }
+
   /// Returns true if the device matches the filter
   bool matchedScanFilter(BleDevice device) {
     final filter = scanFilter;
     if (filter == null) return true;
+
+    // Check if connectable
+    if (!matchesConnectableFilter(device)) {
+      return false;
+    }
 
     final hasNamePrefixFilter = filter.withNamePrefix.isNotEmpty;
     final hasServiceFilter = filter.withServices.isNotEmpty;

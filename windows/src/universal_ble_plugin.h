@@ -79,6 +79,10 @@ enum class PeripheralBlePermission {
 };
 
 struct BluetoothDeviceAgent {
+  const uint64_t bluetooth_address;
+  // Assigned under connected_devices_mutex_ before removal, then moved into
+  // the disposal coroutine by the caller that wins Deactivate().
+  AsyncOperationTracker::Lease cleanup_reservation;
   BluetoothLEDevice device;
   event_token connection_status_changed_token;
   event_token gatt_services_changed_token;
@@ -91,11 +95,12 @@ struct BluetoothDeviceAgent {
   AsyncOperationTracker gatt_operations;
 
   BluetoothDeviceAgent(
-      const BluetoothLEDevice &device,
+      uint64_t bluetooth_address, const BluetoothLEDevice &device,
       const event_token connection_status_changed_token,
       const event_token gatt_services_changed_token,
       std::unordered_map<std::string, GattServiceObject> gatt_map)
-      : device(device),
+      : bluetooth_address(bluetooth_address),
+        device(device),
         connection_status_changed_token(connection_status_changed_token),
         gatt_services_changed_token(gatt_services_changed_token),
         gatt_map(std::move(gatt_map)) {}
@@ -375,9 +380,24 @@ private:
   flutter::PluginRegistrarWindows *registrar_;
   bool initialized_ = false;
 
+  // Per plugin instance (one per FlutterEngine): the callback channels. Events
+  // must go through this instance's messenger; a process-global channel would
+  // be overwritten by the next engine's registration and reset on any engine's
+  // teardown, dropping the surviving engine's callbacks.
+  std::unique_ptr<UniversalBleCallbackChannel> callback_channel_;
+  std::unique_ptr<UniversalBlePeripheralCallback> peripheral_callback_channel_;
+
+  // PostCentralReport/PostPeripheralReport post callbacks that capture this
+  // instance's channel; the few posted directly capture `this` for other state.
+  // Both are safe because the destructor shuts this handler down before it
+  // resets the channels, and Shutdown drops still-queued callbacks instead of
+  // running them.
   UniversalBleUiThreadHandler ui_thread_handler_;
   AsyncOperationTracker callback_operations_;
   AsyncOperationTracker initialization_operations_;
+  AsyncOperationTracker cleanup_operations_;
+  // Protected by connected_devices_mutex_; leases outlive map removal.
+  std::unordered_map<uint64_t, AsyncOperationTracker> connection_cleanup_;
   Radio bluetooth_radio_{nullptr};
   RadioState old_radio_state_ = RadioState::Unknown;
   BluetoothLEAdvertisementWatcher bluetooth_le_watcher_{nullptr};
@@ -394,7 +414,8 @@ private:
   // Addresses Windows has already handed over as a *connectable* packet. A scan
   // response arrives as its own, non-connectable event; the gate below admits
   // such an answer only for an address seen here, so a device that never
-  // advertised connectably cannot creep in.
+  // advertised connectably cannot creep in. It also lets a scan response keep
+  // the connectable state the advertisement already reported.
   ThreadSafeMap<std::string, bool> connectable_heard_{};
   // Maps DeviceInformation.Id() -> MAC address string used as key in
   // device_watcher_devices_
@@ -409,6 +430,15 @@ private:
   event_revoker<IRadio> radio_state_changed_revoker_;
 
   void InitializeAsync();
+  // Post `report` to the UI thread with this instance's callback channel. Keeps
+  // channel access in one place, and the callback never needs to capture
+  // `this`. The caller must hold a `callback_operations_` lease: the channel
+  // pointer is read here, on the caller's thread, and the destructor only
+  // resets the channels once every lease has been released.
+  void PostCentralReport(
+      std::function<void(UniversalBleCallbackChannel *)> &&report);
+  void PostPeripheralReport(
+      std::function<void(UniversalBlePeripheralCallback *)> &&report);
   fire_and_forget ConnectAsync(uint64_t bluetooth_address,
                                uint64_t connect_generation);
   fire_and_forget RefreshGattServicesAsync(
@@ -481,10 +511,17 @@ private:
                        uint64_t *removed_generation = nullptr);
   void DisposeConnection(
       const std::shared_ptr<BluetoothDeviceAgent> &device_agent);
-  void ResetState();
-  void DisposeServices(
+  // Requires connected_devices_mutex_. Does not deactivate or close objects.
+  void ReserveConnectionCleanupLocked(
       const std::shared_ptr<BluetoothDeviceAgent> &device_agent);
-  void DisposeGattMap(
+  static fire_and_forget DisposeConnectionAsync(
+      std::shared_ptr<BluetoothDeviceAgent> device_agent,
+      AsyncOperationTracker::Lease cleanup_lease,
+      AsyncOperationTracker::Lease connection_cleanup_lease);
+  void ResetState();
+  static void DisposeServices(
+      const std::shared_ptr<BluetoothDeviceAgent> &device_agent);
+  static void DisposeGattMap(
       std::unordered_map<std::string, GattServiceObject> gatt_map,
       const std::vector<GattDeviceService> *retained_services = nullptr);
 
@@ -550,6 +587,10 @@ private:
       const UniversalScanConfig *config) override;
   std::optional<FlutterError> StopScan() override;
   ErrorOr<bool> IsScanning() override;
+  void RequestDevice(
+      const AppleAccessorySetupOptions &options,
+      std::function<void(ErrorOr<UniversalDevicePickerResult> reply)> result)
+      override;
   std::optional<FlutterError> Connect(
       const std::string &device_id, const bool *auto_connect,
       const ConnectionPlatformConfig *platform_config) override;
@@ -597,7 +638,9 @@ private:
                 std::function<void(ErrorOr<bool> reply)> result) override;
   void Pair(const std::string &device_id,
             std::function<void(ErrorOr<bool> reply)> result) override;
-  std::optional<FlutterError> UnPair(const std::string &device_id) override;
+  void UnPair(
+      const std::string &device_id,
+      std::function<void(std::optional<FlutterError> reply)> result) override;
   void GetSystemDevices(
       const flutter::EncodableList &with_services,
       std::function<void(ErrorOr<flutter::EncodableList> reply)> result)

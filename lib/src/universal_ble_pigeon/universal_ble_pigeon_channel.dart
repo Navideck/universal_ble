@@ -60,6 +60,31 @@ class UniversalBlePigeonChannel extends UniversalBlePlatform
       _executeWithErrorHandling(() => _channel.isScanning());
 
   @override
+  Future<BleDevice> requestDevice({
+    ScanFilter? scanFilter,
+    PickerPlatformConfig? platformConfig,
+  }) async {
+    final options = platformConfig?.apple;
+    if (options == null) {
+      // Only the Apple implementation routes the picker through this channel.
+      // Everywhere else `requestDevice` is unsupported regardless of the
+      // config, so don't point callers at Apple-specific options there.
+      final isApplePlatform = defaultTargetPlatform == TargetPlatform.iOS ||
+          defaultTargetPlatform == TargetPlatform.macOS;
+      throw UniversalBleException(
+        code: UniversalBleErrorCode.notSupported,
+        message: isApplePlatform
+            ? 'requestDevice requires PickerPlatformConfig.apple on Apple platforms'
+            : 'requestDevice is not supported on this platform',
+      );
+    }
+    final result = await _executeWithErrorHandling(
+      () => _channel.requestDevice(options),
+    );
+    return result.toBleDevice();
+  }
+
+  @override
   Future<BleConnectionState> getConnectionState(String deviceId) =>
       _executeWithErrorHandling(() => _channel.getConnectionState(deviceId));
 
@@ -287,10 +312,12 @@ class UniversalBlePigeonChannel extends UniversalBlePlatform
 
   @override
   void onScanResult(UniversalBleScanResult result) {
-    // Only check for exclusion filter here,
-    // scan filter handled natively on platform side
+    // Exclusion filter and connectableOnly are handled on Dart side;
+    // other scan filters (services, manufacturerData, namePrefix)
+    // are handled natively by the platform.
     final bleDevice = result.toBleDevice();
     if (_bleFilter.matchesExclusionFilter(bleDevice)) return;
+    if (!_bleFilter.matchesConnectableFilter(bleDevice)) return;
     updateScanResult(bleDevice);
   }
 
@@ -304,11 +331,17 @@ class UniversalBlePigeonChannel extends UniversalBlePlatform
       updateCharacteristicValue(deviceId, characteristicId, value, timestamp);
 
   @override
-  void onPairStateChange(String deviceId, bool isPaired, String? error) =>
+  void onPairStateChange(String deviceId, bool isPaired, bool isFailure) {
+    // A failed bond is an event, not a state: route it around the pairing-state dedup (#325).
+    if (isFailure) {
+      updatePairingFailure(deviceId);
+    } else {
       updatePairingState(deviceId, isPaired);
+    }
+  }
 
   @override
-  void onConnectionParametersUpdated(BleConnectionParametersUpdated update) =>
+  void onConnectionParametersUpdated(BleConnectionParametersChange update) =>
       updateConnectionParameters(update);
 }
 
@@ -349,8 +382,13 @@ extension _UniversalBleScanResultExtension on UniversalBleScanResult {
               .toList() ??
           [],
       serviceData: serviceData ?? {},
+      connectable: connectable,
     );
   }
+}
+
+extension _UniversalDevicePickerResultExtension on UniversalDevicePickerResult {
+  BleDevice toBleDevice() => BleDevice(deviceId: deviceId, name: name);
 }
 
 extension _ScanFilterExtension on ScanFilter? {
