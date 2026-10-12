@@ -319,6 +319,35 @@ class _PeripheralDetailPageState extends State<PeripheralDetailPage> {
                 child: SingleChildScrollView(
                   child: Column(
                     children: [
+                      if (bleDevice.connectable == false)
+                        Container(
+                          width: double.infinity,
+                          margin: const EdgeInsets.symmetric(
+                            horizontal: 16.0,
+                            vertical: 8.0,
+                          ),
+                          padding: const EdgeInsets.all(12.0),
+                          decoration: BoxDecoration(
+                            color: Colors.red.shade50,
+                            borderRadius: BorderRadius.circular(8.0),
+                            border: Border.all(color: Colors.red.shade300),
+                          ),
+                          child: const Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(Icons.warning_amber_rounded,
+                                  color: Colors.red),
+                              SizedBox(width: 8),
+                              Text(
+                                "This device is not connectable",
+                                style: TextStyle(
+                                  color: Colors.red,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
                       // Top buttons
                       Padding(
                         padding: const EdgeInsets.all(8.0),
@@ -327,7 +356,7 @@ class _PeripheralDetailPageState extends State<PeripheralDetailPage> {
                           children: <Widget>[
                             PlatformButton(
                               text: 'Connect',
-                              enabled: !isConnected,
+                              enabled: !isConnected && bleDevice.connectable != false,
                               onPressed: () async {
                                 try {
                                   await bleDevice.connect();

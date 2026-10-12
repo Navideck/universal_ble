@@ -1,4 +1,7 @@
 ## 3.0.0
+* Windows: Expose non-connectable devices during scanning to match other platforms.
+* Add `connectable` property to `BleDevice`.
+* Add `connectableOnly` to `ScanFilter` to filter for connectable devices during scanning.
 * Add `requestDevice`, a single entry point for the platform's native device picker: the browser's Bluetooth chooser on Web and the iOS 18+ AccessorySetupKit picker on Apple (configured via `PickerPlatformConfig.apple`), returning the selected `BleDevice`. Connect it with the existing `connect(device.deviceId)`. `AppleAccessorySetupOptions` holds a list of `AppleAccessoryPickerItem`s, so the picker can offer several accessories. Platforms without a native picker throw `notSupported`.
 * **Breaking:** On iOS 18+ `unpair` now removes an accessory authorized through AccessorySetupKit (it previously threw `notSupported` on iOS). Devices not managed by AccessorySetupKit fail with `deviceNotFound`.
 * Android/iOS/macOS/Windows: keep the GATT client cache per plugin instance (one per FlutterEngine). It was process-wide, so a `connect()` from one engine could short-circuit on a client created by a destroyed engine — returning a connection that reported as connected but whose service discovery came back empty. Each engine now sees only its own clients, and `closeGattOnDetach` releases only the clients the detaching engine created instead of every client in the process.

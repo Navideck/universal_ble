@@ -30,6 +30,7 @@ class UniversalBleScanResult {
   final List<String>? services;
   final int? timestamp;
   final int? timestampMicroseconds;
+  final bool? connectable;
 
   UniversalBleScanResult({
     required this.name,
@@ -41,6 +42,7 @@ class UniversalBleScanResult {
     required this.services,
     required this.timestamp,
     required this.timestampMicroseconds,
+    required this.connectable,
   });
 }
 

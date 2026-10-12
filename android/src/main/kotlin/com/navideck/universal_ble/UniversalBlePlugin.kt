@@ -1665,7 +1665,8 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
                         rssi = result.rssi.toLong(),
                         services = serviceUuids.map { it.toString() }.toList(),
                         timestamp = timestampMicroseconds / 1000,
-                        timestampMicroseconds = timestampMicroseconds
+                        timestampMicroseconds = timestampMicroseconds,
+                        connectable = result.isConnectable
                     )
                 ) {}
             }

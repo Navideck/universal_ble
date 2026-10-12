@@ -312,10 +312,12 @@ class UniversalBlePigeonChannel extends UniversalBlePlatform
 
   @override
   void onScanResult(UniversalBleScanResult result) {
-    // Only check for exclusion filter here,
-    // scan filter handled natively on platform side
+    // Exclusion filter and connectableOnly are handled on Dart side;
+    // other scan filters (services, manufacturerData, namePrefix)
+    // are handled natively by the platform.
     final bleDevice = result.toBleDevice();
     if (_bleFilter.matchesExclusionFilter(bleDevice)) return;
+    if (!_bleFilter.matchesConnectableFilter(bleDevice)) return;
     updateScanResult(bleDevice);
   }
 
@@ -374,6 +376,7 @@ extension _UniversalBleScanResultExtension on UniversalBleScanResult {
               .toList() ??
           [],
       serviceData: serviceData ?? {},
+      connectable: connectable,
     );
   }
 }

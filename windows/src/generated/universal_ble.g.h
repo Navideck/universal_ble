@@ -266,7 +266,8 @@ class UniversalBleScanResult {
     const ::flutter::EncodableMap* service_data,
     const ::flutter::EncodableList* services,
     const int64_t* timestamp,
-    const int64_t* timestamp_microseconds);
+    const int64_t* timestamp_microseconds,
+    const bool* connectable);
 
   const std::string& device_id() const;
   void set_device_id(std::string_view value_arg);
@@ -303,6 +304,10 @@ class UniversalBleScanResult {
   void set_timestamp_microseconds(const int64_t* value_arg);
   void set_timestamp_microseconds(int64_t value_arg);
 
+  const bool* connectable() const;
+  void set_connectable(const bool* value_arg);
+  void set_connectable(bool value_arg);
+
   bool operator==(const UniversalBleScanResult& other) const;
   bool operator!=(const UniversalBleScanResult& other) const;
   /// Returns a hash code value for the object. This method is supported for the benefit of hash tables.
@@ -325,6 +330,7 @@ class UniversalBleScanResult {
   std::optional<::flutter::EncodableList> services_;
   std::optional<int64_t> timestamp_;
   std::optional<int64_t> timestamp_microseconds_;
+  std::optional<bool> connectable_;
 };
 
 

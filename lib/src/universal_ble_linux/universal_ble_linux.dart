@@ -823,6 +823,8 @@ extension BlueZDeviceExtension on BlueZDevice {
       serviceData: serviceDataMap,
       timestamp: timestampMicroseconds ~/ Duration.microsecondsPerMillisecond,
       timestampMicroseconds: timestampMicroseconds,
+      // TODO: Expose `Connectable` on bluez
+      connectable: null,
     );
   }
 }

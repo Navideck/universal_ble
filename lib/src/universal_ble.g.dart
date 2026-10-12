@@ -308,6 +308,7 @@ class UniversalBleScanResult {
     this.services,
     this.timestamp,
     this.timestampMicroseconds,
+    this.connectable,
   });
 
   String deviceId;
@@ -328,6 +329,8 @@ class UniversalBleScanResult {
 
   int? timestampMicroseconds;
 
+  bool? connectable;
+
   List<Object?> _toList() {
     return <Object?>[
       deviceId,
@@ -339,6 +342,7 @@ class UniversalBleScanResult {
       services,
       timestamp,
       timestampMicroseconds,
+      connectable,
     ];
   }
 
@@ -360,6 +364,7 @@ class UniversalBleScanResult {
       services: (result[6] as List<Object?>?)?.cast<String>(),
       timestamp: result[7] as int?,
       timestampMicroseconds: result[8] as int?,
+      connectable: result[9] as bool?,
     );
   }
 
@@ -380,7 +385,8 @@ class UniversalBleScanResult {
         _deepEquals(serviceData, other.serviceData) &&
         _deepEquals(services, other.services) &&
         _deepEquals(timestamp, other.timestamp) &&
-        _deepEquals(timestampMicroseconds, other.timestampMicroseconds);
+        _deepEquals(timestampMicroseconds, other.timestampMicroseconds) &&
+        _deepEquals(connectable, other.connectable);
   }
 
   @override

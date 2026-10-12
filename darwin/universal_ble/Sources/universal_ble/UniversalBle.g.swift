@@ -378,6 +378,7 @@ struct UniversalBleScanResult: Hashable {
   var services: [String]? = nil
   var timestamp: Int64? = nil
   var timestampMicroseconds: Int64? = nil
+  var connectable: Bool? = nil
 
 
   // swift-format-ignore: AlwaysUseLowerCamelCase
@@ -391,6 +392,7 @@ struct UniversalBleScanResult: Hashable {
     let services: [String]? = nilOrValue(pigeonVar_list[6])
     let timestamp: Int64? = nilOrValue(pigeonVar_list[7])
     let timestampMicroseconds: Int64? = nilOrValue(pigeonVar_list[8])
+    let connectable: Bool? = nilOrValue(pigeonVar_list[9])
 
     return UniversalBleScanResult(
       deviceId: deviceId,
@@ -401,7 +403,8 @@ struct UniversalBleScanResult: Hashable {
       serviceData: serviceData,
       services: services,
       timestamp: timestamp,
-      timestampMicroseconds: timestampMicroseconds
+      timestampMicroseconds: timestampMicroseconds,
+      connectable: connectable
     )
   }
   func toList() -> [Any?] {
@@ -415,13 +418,14 @@ struct UniversalBleScanResult: Hashable {
       services,
       timestamp,
       timestampMicroseconds,
+      connectable,
     ]
   }
   static func == (lhs: UniversalBleScanResult, rhs: UniversalBleScanResult) -> Bool {
     if Swift.type(of: lhs) != Swift.type(of: rhs) {
       return false
     }
-    return deepEqualsUniversalBle(lhs.deviceId, rhs.deviceId) && deepEqualsUniversalBle(lhs.name, rhs.name) && deepEqualsUniversalBle(lhs.isPaired, rhs.isPaired) && deepEqualsUniversalBle(lhs.rssi, rhs.rssi) && deepEqualsUniversalBle(lhs.manufacturerDataList, rhs.manufacturerDataList) && deepEqualsUniversalBle(lhs.serviceData, rhs.serviceData) && deepEqualsUniversalBle(lhs.services, rhs.services) && deepEqualsUniversalBle(lhs.timestamp, rhs.timestamp) && deepEqualsUniversalBle(lhs.timestampMicroseconds, rhs.timestampMicroseconds)
+    return deepEqualsUniversalBle(lhs.deviceId, rhs.deviceId) && deepEqualsUniversalBle(lhs.name, rhs.name) && deepEqualsUniversalBle(lhs.isPaired, rhs.isPaired) && deepEqualsUniversalBle(lhs.rssi, rhs.rssi) && deepEqualsUniversalBle(lhs.manufacturerDataList, rhs.manufacturerDataList) && deepEqualsUniversalBle(lhs.serviceData, rhs.serviceData) && deepEqualsUniversalBle(lhs.services, rhs.services) && deepEqualsUniversalBle(lhs.timestamp, rhs.timestamp) && deepEqualsUniversalBle(lhs.timestampMicroseconds, rhs.timestampMicroseconds) && deepEqualsUniversalBle(lhs.connectable, rhs.connectable)
   }
 
   func hash(into hasher: inout Hasher) {
@@ -435,6 +439,7 @@ struct UniversalBleScanResult: Hashable {
     deepHashUniversalBle(value: services, hasher: &hasher)
     deepHashUniversalBle(value: timestamp, hasher: &hasher)
     deepHashUniversalBle(value: timestampMicroseconds, hasher: &hasher)
+    deepHashUniversalBle(value: connectable, hasher: &hasher)
   }
 }
 

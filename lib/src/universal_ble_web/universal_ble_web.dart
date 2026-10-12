@@ -871,6 +871,8 @@ extension _BluetoothDeviceExtension on BluetoothDevice {
       serviceData: serviceDataMap ?? {},
       timestamp: timestampMicroseconds ~/ Duration.microsecondsPerMillisecond,
       timestampMicroseconds: timestampMicroseconds,
+      // Info not available on Web
+      connectable: null,
     );
   }
 }
