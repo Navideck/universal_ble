@@ -608,6 +608,7 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
     let manufacturerData = advertisementData[CBAdvertisementDataManufacturerDataKey] as? Data
     let services = (advertisementData[CBAdvertisementDataServiceUUIDsKey] as? [CBUUID])
     let serviceDataDict = advertisementData[CBAdvertisementDataServiceDataKey] as? [CBUUID: Data]
+    let connectable = advertisementData[CBAdvertisementDataIsConnectable] as? Bool
 
     var manufacturerDataList: [UniversalManufacturerData] = []
     var universalManufacturerData: UniversalManufacturerData? = nil
@@ -645,7 +646,8 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
       serviceData: serviceData,
       services: services?.map { $0.uuidStr },
       timestamp: timestampMicroseconds / 1000,
-      timestampMicroseconds: timestampMicroseconds
+      timestampMicroseconds: timestampMicroseconds,
+      connectable: connectable
     )) { _ in }
   }
 

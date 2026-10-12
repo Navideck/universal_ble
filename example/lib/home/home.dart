@@ -131,10 +131,17 @@ class _CentralHomeState extends State<CentralHome> {
           servicesFilterController: servicesFilterController,
           namePrefixController: namePrefixController,
           manufacturerDataController: manufacturerDataController,
-          onScanFilter: (ScanFilter? filter) {
+          initialConnectableOnly: scanFilter?.connectableOnly ?? false,
+          onScanFilter: (ScanFilter? filter) async {
             setState(() {
               scanFilter = filter;
+              if (filter?.connectableOnly == true) {
+                _bleDevices.removeWhere((d) => d.connectable == false);
+              }
             });
+            if (_isScanning) {
+              await startScan();
+            }
           },
         );
       },
@@ -302,7 +309,7 @@ class _CentralHomeState extends State<CentralHome> {
                   },
                 ),
                 PlatformButton(
-                  text: 'Scan Filters',
+                  text: scanFilter == null ? 'Scan Filters' : 'Scan Filters •',
                   onPressed: _showScanFilterBottomSheet,
                 ),
                 PlatformButton(
@@ -360,6 +367,7 @@ class _CentralHomeState extends State<CentralHome> {
             ],
           ),
           const Divider(color: Colors.blue),
+          if (_isScanning) const LinearProgressIndicator(),
           Expanded(
             child: _isScanning && _bleDevices.isEmpty
                 ? const Center(child: CircularProgressIndicator.adaptive())

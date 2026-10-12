@@ -404,9 +404,9 @@ private:
   ThreadSafeMap<std::string, DeviceInformation> device_watcher_devices_{};
   ThreadSafeMap<std::string, UniversalBleScanResult> scan_results_{};
   // Addresses Windows has already handed over as a *connectable* packet. A scan
-  // response arrives as its own, non-connectable event; the gate below admits
-  // such an answer only for an address seen here, so a device that never
-  // advertised connectably cannot creep in.
+  // response arrives as its own, non-connectable event; this map tracks which
+  // addresses were heard as connectable so scan responses preserve their
+  // connectable state.
   ThreadSafeMap<std::string, bool> connectable_heard_{};
   // Maps DeviceInformation.Id() -> MAC address string used as key in
   // device_watcher_devices_

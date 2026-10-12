@@ -10,6 +10,7 @@ class BleDevice {
   bool? paired;
   int? timestamp;
   int? timestampMicroseconds;
+  bool? connectable;
 
   /// List of services advertised by the device.
   List<String> services;
@@ -57,6 +58,7 @@ class BleDevice {
     Map<String, Uint8List> serviceData = const {},
     this.timestamp,
     this.timestampMicroseconds,
+    this.connectable,
   })  : serviceData = _validateServiceData(serviceData),
         rawName = name,
         name = name?.replaceAll(RegExp(r'[^ -~]'), '').trim();
@@ -92,6 +94,7 @@ class BleDevice {
         'isSystemDevice: $isSystemDevice, '
         'timestamp: $timestamp, '
         'timestampMicroseconds: $timestampMicroseconds, '
+        'connectable: $connectable, '
         'manufacturerDataList: $manufacturerDataList, '
         'serviceData: $serviceData';
   }
