@@ -4,13 +4,13 @@ import 'package:universal_ble/universal_ble.dart';
 import 'universal_ble_test_mock.dart';
 
 class _DevicePickerPlatform extends UniversalBlePlatformMock {
-  PlatformConfig? receivedConfig;
+  PickerPlatformConfig? receivedConfig;
   ScanFilter? receivedFilter;
 
   @override
   Future<BleDevice> requestDevice({
     ScanFilter? scanFilter,
-    PlatformConfig? platformConfig,
+    PickerPlatformConfig? platformConfig,
   }) async {
     receivedFilter = scanFilter;
     receivedConfig = platformConfig;
@@ -23,15 +23,19 @@ void main() {
       () async {
     final platform = _DevicePickerPlatform();
     final options = AppleAccessorySetupOptions(
-      displayName: 'My device',
-      imageAsset: 'my_device',
-      serviceUuid: '180D',
+      items: [
+        AppleAccessoryPickerItem(
+          displayName: 'My device',
+          imageAsset: 'my_device',
+          serviceUuid: '180D',
+        ),
+      ],
     );
     UniversalBle.setInstance(platform);
 
     final device = await UniversalBle.requestDevice(
       scanFilter: ScanFilter(withServices: ['180D']),
-      platformConfig: PlatformConfig(apple: options),
+      platformConfig: PickerPlatformConfig(apple: options),
     );
 
     expect(device.deviceId, 'picked-device');

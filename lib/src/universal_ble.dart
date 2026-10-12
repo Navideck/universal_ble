@@ -159,26 +159,25 @@ class UniversalBle {
   /// user selected. Pass its `deviceId` to [connect].
   ///
   /// - **Web:** opens the browser's Bluetooth device chooser, honoring
-  ///   [scanFilter] and [PlatformConfig.web].
+  ///   [scanFilter] and [PickerPlatformConfig.web].
   /// - **iOS 18+:** shows the AccessorySetupKit picker, configured through
-  ///   [PlatformConfig.apple] ([AppleAccessorySetupOptions]). The host app must
-  ///   declare matching values in `Info.plist`, and the configured image asset
+  ///   [PickerPlatformConfig.apple] ([AppleAccessorySetupOptions]). The host app
+  ///   must declare matching values in `Info.plist`, and each item's image asset
   ///   must exist in the iOS asset catalog. Unlike [startScan], this flow does
   ///   not require broad Bluetooth permission.
+  ///
+  /// The picker is user-driven UI rather than a BLE command, so it runs outside
+  /// the command queue and is unaffected by [timeout] or [clearQueue].
   ///
   /// On platforms without a native picker this throws [UniversalBleException]
   /// with code [UniversalBleErrorCode.notSupported].
   static Future<BleDevice> requestDevice({
     ScanFilter? scanFilter,
-    PlatformConfig? platformConfig,
-    String? queueId,
-  }) async {
-    return await _bleCommandQueue.queueCommandWithoutTimeout(
-      () => _platform.requestDevice(
-        scanFilter: scanFilter,
-        platformConfig: platformConfig,
-      ),
-      queueId: queueId,
+    PickerPlatformConfig? platformConfig,
+  }) {
+    return _platform.requestDevice(
+      scanFilter: scanFilter,
+      platformConfig: platformConfig,
     );
   }
 

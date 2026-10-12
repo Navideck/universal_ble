@@ -438,6 +438,46 @@ struct UniversalBleScanResult: Hashable {
   }
 }
 
+/// The device a platform's native picker returned.
+///
+/// Generated class from Pigeon that represents data sent in messages.
+struct UniversalDevicePickerResult: Hashable {
+  /// Identifier to pass to `connect`.
+  var deviceId: String
+  /// Name the platform reported for the selected device, if any.
+  var name: String? = nil
+
+
+  // swift-format-ignore: AlwaysUseLowerCamelCase
+  static func fromList(_ pigeonVar_list: [Any?]) -> UniversalDevicePickerResult? {
+    let deviceId = pigeonVar_list[0] as! String
+    let name: String? = nilOrValue(pigeonVar_list[1])
+
+    return UniversalDevicePickerResult(
+      deviceId: deviceId,
+      name: name
+    )
+  }
+  func toList() -> [Any?] {
+    return [
+      deviceId,
+      name,
+    ]
+  }
+  static func == (lhs: UniversalDevicePickerResult, rhs: UniversalDevicePickerResult) -> Bool {
+    if Swift.type(of: lhs) != Swift.type(of: rhs) {
+      return false
+    }
+    return deepEqualsUniversalBle(lhs.deviceId, rhs.deviceId) && deepEqualsUniversalBle(lhs.name, rhs.name)
+  }
+
+  func hash(into hasher: inout Hasher) {
+    hasher.combine("UniversalDevicePickerResult")
+    deepHashUniversalBle(value: deviceId, hasher: &hasher)
+    deepHashUniversalBle(value: name, hasher: &hasher)
+  }
+}
+
 /// Central/GATT models
 ///
 /// Generated class from Pigeon that represents data sent in messages.
@@ -908,11 +948,11 @@ struct AppleConnectionOptions: Hashable {
   }
 }
 
-/// iOS 18+ options for discovering and authorizing a Bluetooth accessory with
-/// AccessorySetupKit before connecting to it.
+/// One accessory the AccessorySetupKit picker can offer. Each item is shown as
+/// a separate entry in the system picker.
 ///
 /// Generated class from Pigeon that represents data sent in messages.
-struct AppleAccessorySetupOptions: Hashable {
+struct AppleAccessoryPickerItem: Hashable {
   /// Name shown in the system accessory picker.
   var displayName: String
   /// Name of the product image in the iOS app's asset catalog.
@@ -928,7 +968,7 @@ struct AppleAccessorySetupOptions: Hashable {
 
 
   // swift-format-ignore: AlwaysUseLowerCamelCase
-  static func fromList(_ pigeonVar_list: [Any?]) -> AppleAccessorySetupOptions? {
+  static func fromList(_ pigeonVar_list: [Any?]) -> AppleAccessoryPickerItem? {
     let displayName = pigeonVar_list[0] as! String
     let imageAsset = pigeonVar_list[1] as! String
     let serviceUuid = pigeonVar_list[2] as! String
@@ -936,7 +976,7 @@ struct AppleAccessorySetupOptions: Hashable {
     let requiresImmediateRange: Bool? = nilOrValue(pigeonVar_list[4])
     let supportsBluetoothPairing: Bool? = nilOrValue(pigeonVar_list[5])
 
-    return AppleAccessorySetupOptions(
+    return AppleAccessoryPickerItem(
       displayName: displayName,
       imageAsset: imageAsset,
       serviceUuid: serviceUuid,
@@ -955,7 +995,7 @@ struct AppleAccessorySetupOptions: Hashable {
       supportsBluetoothPairing,
     ]
   }
-  static func == (lhs: AppleAccessorySetupOptions, rhs: AppleAccessorySetupOptions) -> Bool {
+  static func == (lhs: AppleAccessoryPickerItem, rhs: AppleAccessoryPickerItem) -> Bool {
     if Swift.type(of: lhs) != Swift.type(of: rhs) {
       return false
     }
@@ -963,13 +1003,48 @@ struct AppleAccessorySetupOptions: Hashable {
   }
 
   func hash(into hasher: inout Hasher) {
-    hasher.combine("AppleAccessorySetupOptions")
+    hasher.combine("AppleAccessoryPickerItem")
     deepHashUniversalBle(value: displayName, hasher: &hasher)
     deepHashUniversalBle(value: imageAsset, hasher: &hasher)
     deepHashUniversalBle(value: serviceUuid, hasher: &hasher)
     deepHashUniversalBle(value: nameSubstring, hasher: &hasher)
     deepHashUniversalBle(value: requiresImmediateRange, hasher: &hasher)
     deepHashUniversalBle(value: supportsBluetoothPairing, hasher: &hasher)
+  }
+}
+
+/// iOS 18+ options for discovering and authorizing Bluetooth accessories with
+/// AccessorySetupKit before connecting to them.
+///
+/// Generated class from Pigeon that represents data sent in messages.
+struct AppleAccessorySetupOptions: Hashable {
+  /// Accessories the picker offers. At least one item is required.
+  var items: [AppleAccessoryPickerItem]
+
+
+  // swift-format-ignore: AlwaysUseLowerCamelCase
+  static func fromList(_ pigeonVar_list: [Any?]) -> AppleAccessorySetupOptions? {
+    let items = pigeonVar_list[0] as! [AppleAccessoryPickerItem]
+
+    return AppleAccessorySetupOptions(
+      items: items
+    )
+  }
+  func toList() -> [Any?] {
+    return [
+      items
+    ]
+  }
+  static func == (lhs: AppleAccessorySetupOptions, rhs: AppleAccessorySetupOptions) -> Bool {
+    if Swift.type(of: lhs) != Swift.type(of: rhs) {
+      return false
+    }
+    return deepEqualsUniversalBle(lhs.items, rhs.items)
+  }
+
+  func hash(into hasher: inout Hasher) {
+    hasher.combine("AppleAccessorySetupOptions")
+    deepHashUniversalBle(value: items, hasher: &hasher)
   }
 }
 
@@ -1504,48 +1579,52 @@ private class UniversalBlePigeonCodecReader: FlutterStandardReader {
     case 144:
       return UniversalBleScanResult.fromList(self.readValue() as! [Any?])
     case 145:
-      return UniversalBleService.fromList(self.readValue() as! [Any?])
+      return UniversalDevicePickerResult.fromList(self.readValue() as! [Any?])
     case 146:
-      return UniversalBleCharacteristic.fromList(self.readValue() as! [Any?])
+      return UniversalBleService.fromList(self.readValue() as! [Any?])
     case 147:
-      return UniversalBleDescriptor.fromList(self.readValue() as! [Any?])
+      return UniversalBleCharacteristic.fromList(self.readValue() as! [Any?])
     case 148:
-      return BleConnectionParametersChange.fromList(self.readValue() as! [Any?])
+      return UniversalBleDescriptor.fromList(self.readValue() as! [Any?])
     case 149:
-      return AndroidOptions.fromList(self.readValue() as! [Any?])
+      return BleConnectionParametersChange.fromList(self.readValue() as! [Any?])
     case 150:
-      return UniversalScanConfig.fromList(self.readValue() as! [Any?])
+      return AndroidOptions.fromList(self.readValue() as! [Any?])
     case 151:
-      return UniversalScanFilter.fromList(self.readValue() as! [Any?])
+      return UniversalScanConfig.fromList(self.readValue() as! [Any?])
     case 152:
-      return ManufacturerDataFilter.fromList(self.readValue() as! [Any?])
+      return UniversalScanFilter.fromList(self.readValue() as! [Any?])
     case 153:
-      return UniversalManufacturerData.fromList(self.readValue() as! [Any?])
+      return ManufacturerDataFilter.fromList(self.readValue() as! [Any?])
     case 154:
-      return AppleConnectionOptions.fromList(self.readValue() as! [Any?])
+      return UniversalManufacturerData.fromList(self.readValue() as! [Any?])
     case 155:
-      return AppleAccessorySetupOptions.fromList(self.readValue() as! [Any?])
+      return AppleConnectionOptions.fromList(self.readValue() as! [Any?])
     case 156:
-      return AndroidConnectionOptions.fromList(self.readValue() as! [Any?])
+      return AppleAccessoryPickerItem.fromList(self.readValue() as! [Any?])
     case 157:
-      return ConnectionPlatformConfig.fromList(self.readValue() as! [Any?])
+      return AppleAccessorySetupOptions.fromList(self.readValue() as! [Any?])
     case 158:
-      return AndroidDiscoverServicesOptions.fromList(self.readValue() as! [Any?])
+      return AndroidConnectionOptions.fromList(self.readValue() as! [Any?])
     case 159:
-      return DiscoverServicesPlatformConfig.fromList(self.readValue() as! [Any?])
+      return ConnectionPlatformConfig.fromList(self.readValue() as! [Any?])
     case 160:
-      return PeripheralAndroidOptions.fromList(self.readValue() as! [Any?])
+      return AndroidDiscoverServicesOptions.fromList(self.readValue() as! [Any?])
     case 161:
-      return PeripheralPlatformConfig.fromList(self.readValue() as! [Any?])
+      return DiscoverServicesPlatformConfig.fromList(self.readValue() as! [Any?])
     case 162:
-      return PeripheralService.fromList(self.readValue() as! [Any?])
+      return PeripheralAndroidOptions.fromList(self.readValue() as! [Any?])
     case 163:
-      return PeripheralCharacteristic.fromList(self.readValue() as! [Any?])
+      return PeripheralPlatformConfig.fromList(self.readValue() as! [Any?])
     case 164:
-      return PeripheralDescriptor.fromList(self.readValue() as! [Any?])
+      return PeripheralService.fromList(self.readValue() as! [Any?])
     case 165:
-      return PeripheralReadRequestResult.fromList(self.readValue() as! [Any?])
+      return PeripheralCharacteristic.fromList(self.readValue() as! [Any?])
     case 166:
+      return PeripheralDescriptor.fromList(self.readValue() as! [Any?])
+    case 167:
+      return PeripheralReadRequestResult.fromList(self.readValue() as! [Any?])
+    case 168:
       return PeripheralWriteRequestResult.fromList(self.readValue() as! [Any?])
     default:
       return super.readValue(ofType: type)
@@ -1603,71 +1682,77 @@ private class UniversalBlePigeonCodecWriter: FlutterStandardWriter {
     } else if let value = value as? UniversalBleScanResult {
       super.writeByte(144)
       super.writeValue(value.toList())
-    } else if let value = value as? UniversalBleService {
+    } else if let value = value as? UniversalDevicePickerResult {
       super.writeByte(145)
       super.writeValue(value.toList())
-    } else if let value = value as? UniversalBleCharacteristic {
+    } else if let value = value as? UniversalBleService {
       super.writeByte(146)
       super.writeValue(value.toList())
-    } else if let value = value as? UniversalBleDescriptor {
+    } else if let value = value as? UniversalBleCharacteristic {
       super.writeByte(147)
       super.writeValue(value.toList())
-    } else if let value = value as? BleConnectionParametersChange {
+    } else if let value = value as? UniversalBleDescriptor {
       super.writeByte(148)
       super.writeValue(value.toList())
-    } else if let value = value as? AndroidOptions {
+    } else if let value = value as? BleConnectionParametersChange {
       super.writeByte(149)
       super.writeValue(value.toList())
-    } else if let value = value as? UniversalScanConfig {
+    } else if let value = value as? AndroidOptions {
       super.writeByte(150)
       super.writeValue(value.toList())
-    } else if let value = value as? UniversalScanFilter {
+    } else if let value = value as? UniversalScanConfig {
       super.writeByte(151)
       super.writeValue(value.toList())
-    } else if let value = value as? ManufacturerDataFilter {
+    } else if let value = value as? UniversalScanFilter {
       super.writeByte(152)
       super.writeValue(value.toList())
-    } else if let value = value as? UniversalManufacturerData {
+    } else if let value = value as? ManufacturerDataFilter {
       super.writeByte(153)
       super.writeValue(value.toList())
-    } else if let value = value as? AppleConnectionOptions {
+    } else if let value = value as? UniversalManufacturerData {
       super.writeByte(154)
       super.writeValue(value.toList())
-    } else if let value = value as? AppleAccessorySetupOptions {
+    } else if let value = value as? AppleConnectionOptions {
       super.writeByte(155)
       super.writeValue(value.toList())
-    } else if let value = value as? AndroidConnectionOptions {
+    } else if let value = value as? AppleAccessoryPickerItem {
       super.writeByte(156)
       super.writeValue(value.toList())
-    } else if let value = value as? ConnectionPlatformConfig {
+    } else if let value = value as? AppleAccessorySetupOptions {
       super.writeByte(157)
       super.writeValue(value.toList())
-    } else if let value = value as? AndroidDiscoverServicesOptions {
+    } else if let value = value as? AndroidConnectionOptions {
       super.writeByte(158)
       super.writeValue(value.toList())
-    } else if let value = value as? DiscoverServicesPlatformConfig {
+    } else if let value = value as? ConnectionPlatformConfig {
       super.writeByte(159)
       super.writeValue(value.toList())
-    } else if let value = value as? PeripheralAndroidOptions {
+    } else if let value = value as? AndroidDiscoverServicesOptions {
       super.writeByte(160)
       super.writeValue(value.toList())
-    } else if let value = value as? PeripheralPlatformConfig {
+    } else if let value = value as? DiscoverServicesPlatformConfig {
       super.writeByte(161)
       super.writeValue(value.toList())
-    } else if let value = value as? PeripheralService {
+    } else if let value = value as? PeripheralAndroidOptions {
       super.writeByte(162)
       super.writeValue(value.toList())
-    } else if let value = value as? PeripheralCharacteristic {
+    } else if let value = value as? PeripheralPlatformConfig {
       super.writeByte(163)
       super.writeValue(value.toList())
-    } else if let value = value as? PeripheralDescriptor {
+    } else if let value = value as? PeripheralService {
       super.writeByte(164)
       super.writeValue(value.toList())
-    } else if let value = value as? PeripheralReadRequestResult {
+    } else if let value = value as? PeripheralCharacteristic {
       super.writeByte(165)
       super.writeValue(value.toList())
-    } else if let value = value as? PeripheralWriteRequestResult {
+    } else if let value = value as? PeripheralDescriptor {
       super.writeByte(166)
+      super.writeValue(value.toList())
+    } else if let value = value as? PeripheralReadRequestResult {
+      super.writeByte(167)
+      super.writeValue(value.toList())
+    } else if let value = value as? PeripheralWriteRequestResult {
+      super.writeByte(168)
       super.writeValue(value.toList())
     } else {
       super.writeValue(value)
@@ -1704,9 +1789,9 @@ protocol UniversalBlePlatformChannel {
   func startScan(filter: UniversalScanFilter?, config: UniversalScanConfig?) throws
   func stopScan() throws
   func isScanning() throws -> Bool
-  /// Shows the iOS AccessorySetupKit picker and returns the selected
-  /// peripheral identifier.
-  func setupAccessory(options: AppleAccessorySetupOptions, completion: @escaping (Result<String, Error>) -> Void)
+  /// Shows the platform's native device picker (iOS 18+ AccessorySetupKit) and
+  /// returns the selected device.
+  func requestDevice(options: AppleAccessorySetupOptions, completion: @escaping (Result<UniversalDevicePickerResult, Error>) -> Void)
   func connect(deviceId: String, autoConnect: Bool?, platformConfig: ConnectionPlatformConfig?) throws
   func disconnect(deviceId: String) throws
   func setNotifiable(deviceId: String, service: String, characteristic: String, bleInputProperty: BleInputProperty, completion: @escaping (Result<Void, Error>) -> Void)
@@ -1851,14 +1936,14 @@ class UniversalBlePlatformChannelSetup {
     } else {
       isScanningChannel.setMessageHandler(nil)
     }
-    /// Shows the iOS AccessorySetupKit picker and returns the selected
-    /// peripheral identifier.
-    let setupAccessoryChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.universal_ble.UniversalBlePlatformChannel.setupAccessory\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    /// Shows the platform's native device picker (iOS 18+ AccessorySetupKit) and
+    /// returns the selected device.
+    let requestDeviceChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.universal_ble.UniversalBlePlatformChannel.requestDevice\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
     if let api = api {
-      setupAccessoryChannel.setMessageHandler { message, reply in
+      requestDeviceChannel.setMessageHandler { message, reply in
         let args = message as! [Any?]
         let optionsArg = args[0] as! AppleAccessorySetupOptions
-        api.setupAccessory(options: optionsArg) { result in
+        api.requestDevice(options: optionsArg) { result in
           switch result {
           case .success(let res):
             reply(wrapResult(res))
@@ -1868,7 +1953,7 @@ class UniversalBlePlatformChannelSetup {
         }
       }
     } else {
-      setupAccessoryChannel.setMessageHandler(nil)
+      requestDeviceChannel.setMessageHandler(nil)
     }
     let connectChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.universal_ble.UniversalBlePlatformChannel.connect\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
     if let api = api {

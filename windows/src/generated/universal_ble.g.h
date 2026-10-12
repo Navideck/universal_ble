@@ -328,6 +328,46 @@ class UniversalBleScanResult {
 };
 
 
+// The device a platform's native picker returned.
+//
+// Generated class from Pigeon that represents data sent in messages.
+class UniversalDevicePickerResult {
+ public:
+  // Constructs an object setting all non-nullable fields.
+  explicit UniversalDevicePickerResult(const std::string& device_id);
+
+  // Constructs an object setting all fields.
+  explicit UniversalDevicePickerResult(
+    const std::string& device_id,
+    const std::string* name);
+
+  // Identifier to pass to `connect`.
+  const std::string& device_id() const;
+  void set_device_id(std::string_view value_arg);
+
+  // Name the platform reported for the selected device, if any.
+  const std::string* name() const;
+  void set_name(const std::string_view* value_arg);
+  void set_name(std::string_view value_arg);
+
+  bool operator==(const UniversalDevicePickerResult& other) const;
+  bool operator!=(const UniversalDevicePickerResult& other) const;
+  /// Returns a hash code value for the object. This method is supported for the benefit of hash tables.
+  size_t Hash() const;
+ private:
+  static UniversalDevicePickerResult FromEncodableList(const ::flutter::EncodableList& list);
+  ::flutter::EncodableList ToEncodableList() const;
+  friend class UniversalBlePlatformChannel;
+  friend class UniversalBleCallbackChannel;
+  friend class UniversalBlePeripheralChannel;
+  friend class UniversalBleAndroidChannel;
+  friend class UniversalBlePeripheralCallback;
+  friend class PigeonInternalCodecSerializer;
+  std::string device_id_;
+  std::optional<std::string> name_;
+};
+
+
 // Central/GATT models
 //
 // Generated class from Pigeon that represents data sent in messages.
@@ -792,20 +832,20 @@ class AppleConnectionOptions {
 };
 
 
-// iOS 18+ options for discovering and authorizing a Bluetooth accessory with
-// AccessorySetupKit before connecting to it.
+// One accessory the AccessorySetupKit picker can offer. Each item is shown as
+// a separate entry in the system picker.
 //
 // Generated class from Pigeon that represents data sent in messages.
-class AppleAccessorySetupOptions {
+class AppleAccessoryPickerItem {
  public:
   // Constructs an object setting all non-nullable fields.
-  explicit AppleAccessorySetupOptions(
+  explicit AppleAccessoryPickerItem(
     const std::string& display_name,
     const std::string& image_asset,
     const std::string& service_uuid);
 
   // Constructs an object setting all fields.
-  explicit AppleAccessorySetupOptions(
+  explicit AppleAccessoryPickerItem(
     const std::string& display_name,
     const std::string& image_asset,
     const std::string& service_uuid,
@@ -840,12 +880,12 @@ class AppleAccessorySetupOptions {
   void set_supports_bluetooth_pairing(const bool* value_arg);
   void set_supports_bluetooth_pairing(bool value_arg);
 
-  bool operator==(const AppleAccessorySetupOptions& other) const;
-  bool operator!=(const AppleAccessorySetupOptions& other) const;
+  bool operator==(const AppleAccessoryPickerItem& other) const;
+  bool operator!=(const AppleAccessoryPickerItem& other) const;
   /// Returns a hash code value for the object. This method is supported for the benefit of hash tables.
   size_t Hash() const;
  private:
-  static AppleAccessorySetupOptions FromEncodableList(const ::flutter::EncodableList& list);
+  static AppleAccessoryPickerItem FromEncodableList(const ::flutter::EncodableList& list);
   ::flutter::EncodableList ToEncodableList() const;
   friend class UniversalBlePlatformChannel;
   friend class UniversalBleCallbackChannel;
@@ -859,6 +899,36 @@ class AppleAccessorySetupOptions {
   std::optional<std::string> name_substring_;
   std::optional<bool> requires_immediate_range_;
   std::optional<bool> supports_bluetooth_pairing_;
+};
+
+
+// iOS 18+ options for discovering and authorizing Bluetooth accessories with
+// AccessorySetupKit before connecting to them.
+//
+// Generated class from Pigeon that represents data sent in messages.
+class AppleAccessorySetupOptions {
+ public:
+  // Constructs an object setting all fields.
+  explicit AppleAccessorySetupOptions(const ::flutter::EncodableList& items);
+
+  // Accessories the picker offers. At least one item is required.
+  const ::flutter::EncodableList& items() const;
+  void set_items(const ::flutter::EncodableList& value_arg);
+
+  bool operator==(const AppleAccessorySetupOptions& other) const;
+  bool operator!=(const AppleAccessorySetupOptions& other) const;
+  /// Returns a hash code value for the object. This method is supported for the benefit of hash tables.
+  size_t Hash() const;
+ private:
+  static AppleAccessorySetupOptions FromEncodableList(const ::flutter::EncodableList& list);
+  ::flutter::EncodableList ToEncodableList() const;
+  friend class UniversalBlePlatformChannel;
+  friend class UniversalBleCallbackChannel;
+  friend class UniversalBlePeripheralChannel;
+  friend class UniversalBleAndroidChannel;
+  friend class UniversalBlePeripheralCallback;
+  friend class PigeonInternalCodecSerializer;
+  ::flutter::EncodableList items_;
 };
 
 
@@ -1356,11 +1426,11 @@ class UniversalBlePlatformChannel {
     const UniversalScanConfig* config) = 0;
   virtual std::optional<FlutterError> StopScan() = 0;
   virtual ErrorOr<bool> IsScanning() = 0;
-  // Shows the iOS AccessorySetupKit picker and returns the selected
-  // peripheral identifier.
-  virtual void SetupAccessory(
+  // Shows the platform's native device picker (iOS 18+ AccessorySetupKit) and
+  // returns the selected device.
+  virtual void RequestDevice(
     const AppleAccessorySetupOptions& options,
-    std::function<void(ErrorOr<std::string> reply)> result) = 0;
+    std::function<void(ErrorOr<UniversalDevicePickerResult> reply)> result) = 0;
   virtual std::optional<FlutterError> Connect(
     const std::string& device_id,
     const bool* auto_connect,

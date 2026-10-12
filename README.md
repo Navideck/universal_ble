@@ -335,13 +335,17 @@ device the user selected. Connect it through the normal path:
 final device = await UniversalBle.requestDevice(
   // Web: the browser chooser honors the scan filter.
   scanFilter: ScanFilter(withServices: ['180D']),
-  platformConfig: PlatformConfig(
+  platformConfig: PickerPlatformConfig(
     // iOS 18+.
     apple: AppleAccessorySetupOptions(
-      displayName: 'My Device',
-      imageAsset: 'my_device', // Image in Runner/Assets.xcassets
-      serviceUuid: '12345678-1234-1234-1234-1234567890AB',
-      nameSubstring: 'MyDevice', // Optional
+      items: [
+        AppleAccessoryPickerItem(
+          displayName: 'My Device',
+          imageAsset: 'my_device', // Image in Runner/Assets.xcassets
+          serviceUuid: '12345678-1234-1234-1234-1234567890AB',
+          nameSubstring: 'MyDevice', // Optional
+        ),
+      ],
     ),
   ),
 );

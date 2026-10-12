@@ -44,6 +44,17 @@ class UniversalBleScanResult {
   });
 }
 
+/// The device a platform's native picker returned.
+class UniversalDevicePickerResult {
+  /// Identifier to pass to `connect`.
+  String deviceId;
+
+  /// Name the platform reported for the selected device, if any.
+  String? name;
+
+  UniversalDevicePickerResult({required this.deviceId, this.name});
+}
+
 enum BleLogLevel { none, error, warning, info, debug, verbose }
 
 enum AvailabilityState {
@@ -295,9 +306,9 @@ class AppleConnectionOptions {
   });
 }
 
-/// iOS 18+ options for discovering and authorizing a Bluetooth accessory with
-/// AccessorySetupKit before connecting to it.
-class AppleAccessorySetupOptions {
+/// One accessory the AccessorySetupKit picker can offer. Each item is shown as
+/// a separate entry in the system picker.
+class AppleAccessoryPickerItem {
   /// Name shown in the system accessory picker.
   String displayName;
 
@@ -316,7 +327,7 @@ class AppleAccessorySetupOptions {
   /// Allow AccessorySetupKit to perform Bluetooth LE pairing when needed.
   bool? supportsBluetoothPairing;
 
-  AppleAccessorySetupOptions({
+  AppleAccessoryPickerItem({
     required this.displayName,
     required this.imageAsset,
     required this.serviceUuid,
@@ -324,6 +335,15 @@ class AppleAccessorySetupOptions {
     this.requiresImmediateRange,
     this.supportsBluetoothPairing,
   });
+}
+
+/// iOS 18+ options for discovering and authorizing Bluetooth accessories with
+/// AccessorySetupKit before connecting to them.
+class AppleAccessorySetupOptions {
+  /// Accessories the picker offers. At least one item is required.
+  List<AppleAccessoryPickerItem> items;
+
+  AppleAccessorySetupOptions({required this.items});
 }
 
 class AndroidConnectionOptions {
@@ -456,10 +476,10 @@ abstract class UniversalBlePlatformChannel {
 
   bool isScanning();
 
-  /// Shows the iOS AccessorySetupKit picker and returns the selected
-  /// peripheral identifier.
+  /// Shows the platform's native device picker (iOS 18+ AccessorySetupKit) and
+  /// returns the selected device.
   @async
-  String setupAccessory(AppleAccessorySetupOptions options);
+  UniversalDevicePickerResult requestDevice(AppleAccessorySetupOptions options);
 
   void connect(
     String deviceId, {

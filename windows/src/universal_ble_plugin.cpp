@@ -211,9 +211,9 @@ void UniversalBlePlugin::EnableBluetooth(
       });
 }
 
-void UniversalBlePlugin::SetupAccessory(
+void UniversalBlePlugin::RequestDevice(
     const AppleAccessorySetupOptions &,
-    std::function<void(ErrorOr<std::string> reply)> result) {
+    std::function<void(ErrorOr<UniversalDevicePickerResult> reply)> result) {
   result(create_flutter_error(UniversalBleErrorCode::kNotSupported,
                               "AccessorySetupKit is only supported on iOS 18+"));
 }

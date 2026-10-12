@@ -14,6 +14,7 @@ export 'package:universal_ble/src/universal_ble.g.dart'
         AndroidConnectionOptions,
         AppleConnectionOptions,
         AppleAccessorySetupOptions,
+        AppleAccessoryPickerItem,
         ConnectionPlatformConfig,
         DiscoverServicesPlatformConfig,
         AndroidDiscoverServicesOptions,

@@ -571,9 +571,10 @@ private:
       const UniversalScanConfig *config) override;
   std::optional<FlutterError> StopScan() override;
   ErrorOr<bool> IsScanning() override;
-  void SetupAccessory(
+  void RequestDevice(
       const AppleAccessorySetupOptions &options,
-      std::function<void(ErrorOr<std::string> reply)> result) override;
+      std::function<void(ErrorOr<UniversalDevicePickerResult> reply)> result)
+      override;
   std::optional<FlutterError> Connect(
       const std::string &device_id, const bool *auto_connect,
       const ConnectionPlatformConfig *platform_config) override;

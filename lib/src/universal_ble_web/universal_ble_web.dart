@@ -225,16 +225,10 @@ class UniversalBleWeb extends UniversalBlePlatform {
   @override
   Future<BleDevice> requestDevice({
     ScanFilter? scanFilter,
-    PlatformConfig? platformConfig,
+    PickerPlatformConfig? platformConfig,
   }) async {
-    final device = await FlutterWebBluetooth.instance.requestDevice(
-      _getRequestOptionBuilder(scanFilter, platformConfig?.web),
-    );
-
-    // Keep the native device so a following `connect(device.id)` can find it.
-    _bluetoothDeviceList[device.id] = device;
-
-    return device.toBleScanResult();
+    final (bleDevice, _) = await _openChooser(scanFilter, platformConfig?.web);
+    return bleDevice;
   }
 
   @override
@@ -245,19 +239,15 @@ class UniversalBleWeb extends UniversalBlePlatform {
     final scanGeneration = ++_scanGeneration;
     try {
       _isScanning = true;
-      FlutterWebBluetooth.instance.isAvailable;
-      final bleDevice = await requestDevice(
-        scanFilter: scanFilter,
-        platformConfig: platformConfig,
+      final (bleDevice, device) = await _openChooser(
+        scanFilter,
+        platformConfig?.web,
       );
 
       // Update Scan Result
       updateScanResult(bleDevice);
 
-      final device = _getDeviceById(bleDevice.deviceId);
-      if (device != null) {
-        unawaited(_watchDeviceAdvertisements(device, scanGeneration));
-      }
+      unawaited(_watchDeviceAdvertisements(device, scanGeneration));
     } catch (e) {
       String error = e.toString().replaceAll("DeviceNotFoundError:", "").trim();
       if (error.toLowerCase().contains("api globally disabled")) {
@@ -267,6 +257,19 @@ class UniversalBleWeb extends UniversalBlePlatform {
     } finally {
       _isScanning = false;
     }
+  }
+
+  /// Opens the browser's device chooser and returns the selected device both as
+  /// a [BleDevice] and as the native [BluetoothDevice] (kept for `connect`).
+  Future<(BleDevice, BluetoothDevice)> _openChooser(
+    ScanFilter? scanFilter,
+    WebOptions? webOptions,
+  ) async {
+    final device = await FlutterWebBluetooth.instance.requestDevice(
+      _getRequestOptionBuilder(scanFilter, webOptions),
+    );
+    _bluetoothDeviceList[device.id] = device;
+    return (device.toBleScanResult(), device);
   }
 
   @override

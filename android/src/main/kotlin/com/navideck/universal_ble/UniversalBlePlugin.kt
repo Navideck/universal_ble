@@ -290,9 +290,9 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
         return safeScanner.isScanning()
     }
 
-    override fun setupAccessory(
+    override fun requestDevice(
         options: AppleAccessorySetupOptions,
-        callback: (Result<String>) -> Unit,
+        callback: (Result<UniversalDevicePickerResult>) -> Unit,
     ) {
         callback(
             Result.failure(

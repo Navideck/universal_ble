@@ -208,7 +208,7 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
     return isManageScanning
   }
 
-  func setupAccessory(options: AppleAccessorySetupOptions, completion: @escaping (Result<String, Error>) -> Void) {
+  func requestDevice(options: AppleAccessorySetupOptions, completion: @escaping (Result<UniversalDevicePickerResult, Error>) -> Void) {
     #if os(iOS)
       guard #available(iOS 18.0, *) else {
         completion(.failure(createFlutterError(code: .notSupported, message: "AccessorySetupKit requires iOS 18 or later")))
@@ -916,8 +916,9 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
     private let session = ASAccessorySession()
     private var isActivated = false
     private var activationActions: [() -> Void] = []
-    private var pickerCompletion: ((Result<String, Error>) -> Void)?
+    private var pickerCompletion: ((Result<UniversalDevicePickerResult, Error>) -> Void)?
     private var selectedIdentifier: UUID?
+    private var selectedName: String?
 
     init() {
       session.activate(on: .main) { [weak self] event in
@@ -925,31 +926,39 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
       }
     }
 
-    func showPicker(options: AppleAccessorySetupOptions, completion: @escaping (Result<String, Error>) -> Void) {
+    func showPicker(options: AppleAccessorySetupOptions, completion: @escaping (Result<UniversalDevicePickerResult, Error>) -> Void) {
       guard pickerCompletion == nil else {
         completion(.failure(createFlutterError(code: .invalidAction, message: "The accessory picker is already open")))
         return
       }
-      guard let image = UIImage(named: options.imageAsset, in: Bundle.main, compatibleWith: nil) else {
-        completion(.failure(createFlutterError(code: .illegalArgument, message: "Image asset not found: \(options.imageAsset)")))
+      var items: [ASPickerDisplayItem] = []
+      for item in options.items {
+        guard let image = UIImage(named: item.imageAsset, in: Bundle.main, compatibleWith: nil) else {
+          completion(.failure(createFlutterError(code: .illegalArgument, message: "Image asset not found: \(item.imageAsset)")))
+          return
+        }
+        let descriptor = ASDiscoveryDescriptor()
+        descriptor.bluetoothServiceUUID = CBUUID(string: item.serviceUuid)
+        descriptor.bluetoothNameSubstring = item.nameSubstring
+        if item.requiresImmediateRange == true {
+          descriptor.bluetoothRange = .immediate
+        }
+        if item.supportsBluetoothPairing == true {
+          descriptor.supportedOptions = .bluetoothPairingLE
+        }
+        items.append(ASPickerDisplayItem(name: item.displayName, productImage: image, descriptor: descriptor))
+      }
+      guard !items.isEmpty else {
+        completion(.failure(createFlutterError(code: .illegalArgument, message: "At least one picker item is required")))
         return
       }
 
       pickerCompletion = completion
       selectedIdentifier = nil
+      selectedName = nil
       whenActivated { [weak self] in
         guard let self else { return }
-        let descriptor = ASDiscoveryDescriptor()
-        descriptor.bluetoothServiceUUID = CBUUID(string: options.serviceUuid)
-        descriptor.bluetoothNameSubstring = options.nameSubstring
-        if options.requiresImmediateRange == true {
-          descriptor.bluetoothRange = .immediate
-        }
-        if options.supportsBluetoothPairing == true {
-          descriptor.supportedOptions = .bluetoothPairingLE
-        }
-        let item = ASPickerDisplayItem(name: options.displayName, productImage: image, descriptor: descriptor)
-        session.showPicker(for: [item]) { [weak self] error in
+        session.showPicker(for: items) { [weak self] error in
           if let error {
             self?.completePicker(.failure(error.toFlutterError()))
           }
@@ -995,9 +1004,10 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
         actions.forEach { $0() }
       case .accessoryAdded:
         selectedIdentifier = event.accessory?.bluetoothIdentifier
+        selectedName = event.accessory?.displayName
       case .pickerDidDismiss:
         if let selectedIdentifier {
-          completePicker(.success(selectedIdentifier.uuidString))
+          completePicker(.success(UniversalDevicePickerResult(deviceId: selectedIdentifier.uuidString, name: selectedName)))
         } else {
           completePicker(.failure(createFlutterError(code: .failed, message: "Accessory setup was cancelled")))
         }
@@ -1008,10 +1018,11 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
       }
     }
 
-    private func completePicker(_ result: Result<String, Error>) {
+    private func completePicker(_ result: Result<UniversalDevicePickerResult, Error>) {
       guard let completion = pickerCompletion else { return }
       pickerCompletion = nil
       selectedIdentifier = nil
+      selectedName = nil
       completion(result)
     }
   }

@@ -62,24 +62,20 @@ class UniversalBlePigeonChannel extends UniversalBlePlatform
   @override
   Future<BleDevice> requestDevice({
     ScanFilter? scanFilter,
-    PlatformConfig? platformConfig,
+    PickerPlatformConfig? platformConfig,
   }) async {
     final options = platformConfig?.apple;
     if (options == null) {
       throw UniversalBleException(
         code: UniversalBleErrorCode.notSupported,
         message:
-            'requestDevice requires PlatformConfig.apple on Apple platforms',
+            'requestDevice requires PickerPlatformConfig.apple on Apple platforms',
       );
     }
-    final deviceId = await _executeWithErrorHandling(
-      () => _channel.setupAccessory(options),
+    final result = await _executeWithErrorHandling(
+      () => _channel.requestDevice(options),
     );
-    return BleDevice(
-      deviceId: deviceId,
-      name: options.displayName,
-      services: [options.serviceUuid],
-    );
+    return result.toBleDevice();
   }
 
   @override
@@ -374,6 +370,10 @@ extension _UniversalBleScanResultExtension on UniversalBleScanResult {
       serviceData: serviceData ?? {},
     );
   }
+}
+
+extension _UniversalDevicePickerResultExtension on UniversalDevicePickerResult {
+  BleDevice toBleDevice() => BleDevice(deviceId: deviceId, name: name);
 }
 
 extension _ScanFilterExtension on ScanFilter? {
