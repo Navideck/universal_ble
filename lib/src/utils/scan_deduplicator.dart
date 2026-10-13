@@ -1,6 +1,6 @@
+import 'package:flutter/foundation.dart';
+import 'package:universal_ble/src/utils/device_id.dart';
 import 'package:universal_ble/universal_ble.dart';
-
-import 'device_id_util.dart';
 
 /// Cross-platform scan de-duplication, backing `UniversalBle.startScan`'s
 /// `skipDuplicates`.
@@ -10,8 +10,13 @@ import 'device_id_util.dart';
 /// once per scan session. This matches Android's native
 /// `CALLBACK_TYPE_FIRST_MATCH` and is enforced on every platform.
 class ScanDeduplicator {
+  final bool? isAddress;
   bool _enabled = false;
   final Set<String> _seen = {};
+
+  ScanDeduplicator({this.isAddress});
+
+  bool get _isAddress => isAddress ?? !kIsWeb;
 
   bool get enabled => _enabled;
 
@@ -28,6 +33,9 @@ class ScanDeduplicator {
   /// treated as duplicates.
   bool shouldEmit(BleDevice device) {
     if (!_enabled) return true;
-    return _seen.add(canonicalDeviceId(device.deviceId));
+    final key = _isAddress
+        ? device.deviceId.toDeviceId().canonical
+        : device.deviceId;
+    return _seen.add(key);
   }
 }

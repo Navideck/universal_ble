@@ -11,7 +11,11 @@ class BleCommandQueue {
   final Map<String, Queue> _queueMap = {};
   static const String globalQueueId = 'global';
 
-  BleCommandQueue({this.queueType = QueueType.auto});
+  final bool? isAddress;
+
+  BleCommandQueue({this.queueType = QueueType.auto, this.isAddress});
+
+  bool get _isAddress => isAddress ?? !kIsWeb;
 
   /// Resolve [QueueType.auto] to a concrete queue type based on the
   /// current platform. Android, Web and Linux BLE stacks require
@@ -26,6 +30,12 @@ class BleCommandQueue {
           ? QueueType.perDevice
           : QueueType.none)
       : queueType;
+
+  String? _queueKey(String? queueId, String? deviceId) {
+    if (queueId != null) return queueId;
+    if (deviceId == null) return null;
+    return _isAddress ? deviceId.toDeviceId().canonical : deviceId;
+  }
 
   Future<T> queueCommand<T>(
     Future<T> Function() command, {
@@ -44,7 +54,7 @@ class BleCommandQueue {
     return switch (_resolvedQueueType) {
       QueueType.global => _queue(queueId).add(command, timeoutDuration),
       QueueType.perDevice => _queue(
-          queueId ?? deviceId?.toDeviceId().canonical,
+          _queueKey(queueId, deviceId),
         ).add(command, timeoutDuration),
       QueueType.none || QueueType.auto => command().timeout(timeoutDuration),
     };
@@ -58,7 +68,7 @@ class BleCommandQueue {
     return switch (_resolvedQueueType) {
       QueueType.global => _queue(queueId).add(command),
       QueueType.perDevice => _queue(
-          queueId ?? deviceId?.toDeviceId().canonical,
+          _queueKey(queueId, deviceId),
         ).add(command),
       QueueType.none || QueueType.auto => command(),
     };
@@ -86,13 +96,15 @@ class BleCommandQueue {
       _queueMap.clear();
     } else {
       _queueMap.remove(id)?.dispose();
-      final canonical = id.toDeviceId().canonical;
-      if (canonical != id) {
-        _queueMap.remove(canonical)?.dispose();
-      }
-      final deviceId = id.toDeviceId();
-      if (deviceId.native != id) {
-        _queueMap.remove(deviceId.native)?.dispose();
+      if (_isAddress) {
+        final canonical = id.toDeviceId().canonical;
+        if (canonical != id) {
+          _queueMap.remove(canonical)?.dispose();
+        }
+        final deviceId = id.toDeviceId();
+        if (deviceId.native != id) {
+          _queueMap.remove(deviceId.native)?.dispose();
+        }
       }
     }
   }

@@ -29,6 +29,14 @@ void main() {
       expect(DeviceId.address(upper), DeviceId.address(lower));
       expect(DeviceId.address(upper).hashCode, DeviceId.address(lower).hashCode);
     });
+
+    test('handles Apple UUID addresses', () {
+      const upperUuid = 'E621E1F8-C36C-495A-93FC-0C247A3E6E5F';
+      const lowerUuid = 'e621e1f8-c36c-495a-93fc-0c247a3e6e5f';
+      expect(DeviceId.address(upperUuid).canonical, lowerUuid);
+      expect(DeviceId.address(lowerUuid).native, upperUuid);
+      expect(DeviceId.address(upperUuid), DeviceId.address(lowerUuid));
+    });
   });
 
   group('opaque ids', () {

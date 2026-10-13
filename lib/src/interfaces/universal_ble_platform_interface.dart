@@ -21,8 +21,8 @@ abstract class UniversalBlePlatform {
   final Map<String, BleConnectionParametersChange>
       _lastConnectionParametersMap = {};
 
-  // Scan de-duplication (see `UniversalBle.startScan`'s `skipDuplicates`).
-  final _scanDeduplicator = ScanDeduplicator();
+  late final _scanDeduplicator =
+      ScanDeduplicator(isAddress: hasAddressDeviceIds);
 
   /// Whether scan de-duplication is currently active. Toggled by
   /// `UniversalBle.startScan`/`stopScan`.

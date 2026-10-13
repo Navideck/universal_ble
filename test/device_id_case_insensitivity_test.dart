@@ -3,8 +3,12 @@ import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:universal_ble/src/universal_ble.g.dart';
+import 'package:universal_ble/src/universal_ble_pigeon/universal_ble_peripheral_pigeon.dart';
 import 'package:universal_ble/src/universal_ble_pigeon/universal_ble_pigeon_channel.dart';
+import 'package:universal_ble/src/utils/ble_command_queue.dart';
 import 'package:universal_ble/src/utils/cache_handler.dart';
+import 'package:universal_ble/src/utils/device_id.dart';
+import 'package:universal_ble/src/utils/scan_deduplicator.dart';
 import 'package:universal_ble/universal_ble.dart';
 
 import 'universal_ble_test_mock.dart';
@@ -44,9 +48,26 @@ class _MockPlatform extends UniversalBlePlatformMock {
     // Report the connection back with a DIFFERENT case than the caller passed — the original hang scenario.
     updateConnection(deviceId.toLowerCase(), true);
   }
+
+  @override
+  Future<void> setNotifiable(
+    String deviceId,
+    String service,
+    String characteristic,
+    BleInputProperty bleInputProperty,
+  ) async {}
+
+  @override
+  Future<List<BleService>> discoverServices(
+    String deviceId,
+    bool withDescriptors, {
+    DiscoverServicesPlatformConfig? platformConfig,
+  }) async =>
+      [BleService('180d', [])];
 }
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
   const upper = 'AA:BB:CC:DD:EE:FF';
   const lower = 'aa:bb:cc:dd:ee:ff';
   const charId = '0000fff1-0000-1000-8000-00805f9b34fb';
@@ -176,6 +197,31 @@ void main() {
     expect(cache.getServices(lowerKey), isNotNull); // found via the other case
     cache.resetDeviceCache(lowerKey); // cleared via the other case
     expect(cache.getServices(upperKey), isNull);
+  });
+
+  test('isSubscribed and getSubscribedCharacteristics match across cases',
+      () async {
+    UniversalBle.setInstance(_MockPlatform());
+    expect(UniversalBle.isSubscribed(lower, charId), isFalse);
+    await UniversalBle.subscribeNotifications(upper, '180d', charId);
+    expect(UniversalBle.isSubscribed(lower, charId), isTrue);
+    expect(UniversalBle.isSubscribed(upper, charId), isTrue);
+    expect(UniversalBle.getSubscribedCharacteristics(lower), contains(charId));
+    expect(UniversalBle.getSubscribedCharacteristics(upper), contains(charId));
+    await UniversalBle.unsubscribe(lower, '180d', charId);
+    expect(UniversalBle.isSubscribed(upper, charId), isFalse);
+  });
+
+  test(
+      'BleDeviceExtension discoverServices and getServices share cache across cases',
+      () async {
+    UniversalBle.setInstance(_MockPlatform());
+    final upperDevice = BleDevice(deviceId: upper, name: null);
+    final lowerDevice = BleDevice(deviceId: lower, name: null);
+    await upperDevice.discoverServices();
+    final cachedService =
+        await lowerDevice.getService('180d', preferCached: true);
+    expect(cachedService, isNotNull);
   });
 
   test('an opaque id is NOT folded into the cache key', () {
@@ -352,6 +398,45 @@ void main() {
       await sub.cancel();
       expect(events, isEmpty);
     });
+
+    test('ScanDeduplicator does not fold opaque Web tokens', () {
+      final deduplicator = ScanDeduplicator(isAddress: false)..setEnabled(true);
+      const id1 = 'mHZbW+PZqBpUlZlVQrPzOQ==';
+      final id2 = id1.toLowerCase();
+      expect(deduplicator.shouldEmit(BleDevice(deviceId: id1, name: null)),
+          isTrue);
+      expect(deduplicator.shouldEmit(BleDevice(deviceId: id2, name: null)),
+          isTrue);
+    });
+
+    test('BleCommandQueue with isAddress: false does not fold opaque tokens',
+        () async {
+      final queue = BleCommandQueue(
+        isAddress: false,
+        queueType: QueueType.perDevice,
+      );
+      final order = <int>[];
+      final completer1 = Completer<void>();
+      final completer2 = Completer<void>();
+
+      final f1 = queue.queueCommand(() async {
+        await completer1.future;
+        order.add(1);
+      }, deviceId: opaque);
+
+      final f2 = queue.queueCommand(() async {
+        await completer2.future;
+        order.add(2);
+      }, deviceId: opaque.toLowerCase());
+
+      completer2.complete();
+      await f2;
+      expect(order, [2]);
+
+      completer1.complete();
+      await f1;
+      expect(order, [2, 1]);
+    });
   });
 
   // Peripheral mode canonicalises the same way: central ids in its streams are lower-case
@@ -386,6 +471,21 @@ void main() {
       final event = platform.mtuChangedStream.first;
       platform.updateMtu(BlePeripheralMtuChanged(upper, 247));
       expect((await event).deviceId, lower);
+    });
+
+    test('peripheral request handlers receive lower-case deviceId', () {
+      final pigeon = UniversalBlePeripheralPigeon.instance;
+      String? receivedDeviceId;
+      pigeon.setReadRequestHandler((deviceId, characteristicId, offset, value) {
+        receivedDeviceId = deviceId;
+        return PeripheralReadRequestResult(value: Uint8List(0));
+      });
+      pigeon.onReadRequest(upper, charId, 0, null);
+      expect(receivedDeviceId, lower);
+    });
+
+    test('toDeviceId().native converts lower-case central id to upper-case', () {
+      expect(lower.toDeviceId().native, upper);
     });
   });
 }
