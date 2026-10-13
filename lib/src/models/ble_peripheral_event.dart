@@ -10,6 +10,7 @@ class BlePeripheralAdvertisingStateChanged extends BlePeripheralEvent {
 
 class BlePeripheralCharacteristicSubscriptionChanged
     extends BlePeripheralEvent {
+  /// Central device identifier in canonical lower-case format.
   final String deviceId;
   final String characteristicId;
   final bool isSubscribed;
@@ -24,6 +25,7 @@ class BlePeripheralCharacteristicSubscriptionChanged
 }
 
 class BlePeripheralConnectionStateChanged extends BlePeripheralEvent {
+  /// Central device identifier in canonical lower-case format.
   final String deviceId;
   final bool connected;
   BlePeripheralConnectionStateChanged(this.deviceId, this.connected);
@@ -36,6 +38,7 @@ class BlePeripheralServiceAdded extends BlePeripheralEvent {
 }
 
 class BlePeripheralMtuChanged extends BlePeripheralEvent {
+  /// Central device identifier in canonical lower-case format.
   final String deviceId;
   final int mtu;
   BlePeripheralMtuChanged(this.deviceId, this.mtu);

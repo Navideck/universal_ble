@@ -3,6 +3,11 @@ import 'dart:typed_data';
 import 'package:universal_ble/universal_ble.dart';
 
 class BleDevice {
+  /// Unique identifier of the device.
+  ///
+  /// Emitted in lower-case canonical format on native platforms (e.g. MAC addresses
+  /// on Android/Windows/Linux, UUIDs on iOS/macOS) and verbatim on Web (where tokens
+  /// are opaque and case-sensitive).
   String deviceId;
   String? name;
   String? rawName;

@@ -33,6 +33,7 @@ Looking for Bluetooth Classic? Check [universal_bluetooth_classic](https://pub.d
 - [Command Queue](#command-queue)
 - [Timeout](#timeout)
 - [Error Handling](#error-handling)
+- [Device ID Format](#device-id-format)
 - [UUID Format Agnostic](#uuid-format-agnostic)
 - [Platform-specific setup](#platform-specific-setup)
 - [Peripheral Mode](#peripheral-mode)
@@ -1096,9 +1097,23 @@ UniversalBlePeripheral.mtuChangedStream.listen(
 
 ## Device ID Format
 
-A device ID is a case-insensitive address on every native platform — a MAC on Android/Windows/Linux, a UUID on Apple — but each platform reports it in its own case (Android upper-cases MACs, Windows lower-cases them). Universal BLE canonicalises them, so **device IDs are emitted in lower-case** in scan results and in every connection, value, pairing and connection-parameter callback or stream. You may pass an ID back in any case; conversion to whatever the native side requires happens internally.
+A device ID represents a Bluetooth address on native platforms — a MAC address on Android, Windows, and Linux, or a peripheral UUID on Apple (iOS/macOS). Although underlying platforms report addresses in differing cases (for example, Android reports upper-case MACs while Windows WinRT reports lower-case MACs), Universal BLE canonicalises all native addresses:
 
-Web is the exception: Web Bluetooth IDs are opaque, case-sensitive browser tokens rather than addresses, so they are emitted exactly as the browser reports them and must be compared exactly.
+- **Emitted in lower-case:** Device IDs are emitted in **lower-case canonical format** across all scan results (`scanStream`, `onScanResult`), connection state streams and callbacks (`connectionStream`, `connectionChangeStream`, `onConnectionChange`), characteristic value updates, pairing state events, and connection parameter changes.
+- **Accepted in any case:** Whenever you pass a `deviceId` to any `UniversalBle` method (such as `connect`, `disconnect`, `discoverServices`, `readValue`, `writeValue`, `subscribeNotifications`, `pair`, etc.), you may provide it in any case (upper, lower, or mixed). Universal BLE canonicalises it internally for queueing and caching, and converts it to whatever format the native platform requires (such as upper-case for Android's `getRemoteDevice`).
+- **Peripheral mode:** The same canonicalisation applies to peripheral mode (`UniversalBlePeripheral`). Central device IDs received in connection events, characteristic subscription updates, MTU changes, read/write request handlers, and `getSubscribedClients()` are emitted in lower-case. Methods taking a central `deviceId` (such as `updateCharacteristicValue` or `getMaximumNotifyLength`) accept any case.
+
+```dart
+// Scan results emit lower-case device IDs:
+UniversalBle.onScanResult = (BleDevice device) {
+  print(device.deviceId); // e.g. "aa:bb:cc:dd:ee:ff" or "e621e1f8-c36c-495a-93fc-0c247a3e6e5f"
+};
+
+// You can pass the ID back in any casing:
+await UniversalBle.connect("AA:BB:CC:DD:EE:FF");
+```
+
+> **Web Bluetooth exception:** Web Bluetooth does not expose MAC addresses or UUIDs. Instead, browsers generate opaque, case-sensitive string tokens (e.g. Base64 random strings). On Web, device IDs are emitted verbatim and must be matched with exact case.
 
 ## UUID Format Agnostic
 
