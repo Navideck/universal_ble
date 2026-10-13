@@ -230,7 +230,15 @@ class AndroidOptions {
 
 class UniversalScanConfig {
   AndroidOptions? android;
-  UniversalScanConfig(this.android);
+
+  /// When `true`, repeated scan results for a device whose advertisement payload
+  /// has not changed are suppressed (an `AllowDuplicates: false` equivalent).
+  /// Platforms with a native lever apply it; the Dart layer de-duplicates as a
+  /// cross-platform guarantee. Wired from `UniversalBle.startScan`'s
+  /// `skipDuplicates`.
+  bool? skipDuplicates;
+
+  UniversalScanConfig(this.android, this.skipDuplicates);
 }
 
 class UniversalScanFilter {

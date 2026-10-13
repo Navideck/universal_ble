@@ -859,18 +859,28 @@ data class AndroidOptions (
 
 /** Generated class from Pigeon that represents data sent in messages. */
 data class UniversalScanConfig (
-  val android: AndroidOptions? = null
+  val android: AndroidOptions? = null,
+  /**
+   * When `true`, repeated scan results for a device whose advertisement payload
+   * has not changed are suppressed (an `AllowDuplicates: false` equivalent).
+   * Platforms with a native lever apply it; the Dart layer de-duplicates as a
+   * cross-platform guarantee. Wired from `UniversalBle.startScan`'s
+   * `skipDuplicates`.
+   */
+  val skipDuplicates: Boolean? = null
 )
  {
   companion object {
     fun fromList(pigeonVar_list: List<Any?>): UniversalScanConfig {
       val android = pigeonVar_list[0] as AndroidOptions?
-      return UniversalScanConfig(android)
+      val skipDuplicates = pigeonVar_list[1] as Boolean?
+      return UniversalScanConfig(android, skipDuplicates)
     }
   }
   fun toList(): List<Any?> {
     return listOf(
       android,
+      skipDuplicates,
     )
   }
   override fun equals(other: Any?): Boolean {
@@ -881,12 +891,13 @@ data class UniversalScanConfig (
       return true
     }
     val other = other as UniversalScanConfig
-    return UniversalBlePigeonUtils.deepEquals(this.android, other.android)
+    return UniversalBlePigeonUtils.deepEquals(this.android, other.android) && UniversalBlePigeonUtils.deepEquals(this.skipDuplicates, other.skipDuplicates)
   }
 
   override fun hashCode(): Int {
     var result = javaClass.hashCode()
     result = 31 * result + UniversalBlePigeonUtils.deepHash(this.android)
+    result = 31 * result + UniversalBlePigeonUtils.deepHash(this.skipDuplicates)
     return result
   }
 }

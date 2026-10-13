@@ -6,6 +6,7 @@ import 'package:universal_ble/src/universal_ble_pigeon/universal_ble_pigeon_chan
 import 'package:universal_ble/src/universal_ble_web/universal_ble_web.dart';
 import 'package:universal_ble/src/utils/ble_command_queue.dart';
 import 'package:universal_ble/src/utils/cache_handler.dart';
+import 'package:universal_ble/src/utils/device_id_util.dart';
 import 'package:universal_ble/src/utils/universal_logger.dart';
 import 'package:universal_ble/universal_ble.dart';
 
@@ -121,17 +122,31 @@ class UniversalBle {
   /// Start scan.
   /// Scan results will arrive in [onScanResult] listener.
   /// It might throw errors if Bluetooth is not available.
-  /// `webRequestOptions` is supported on Web only.
+  ///
+  /// When [skipDuplicates] is `true`, a device whose advertisement payload has
+  /// not changed since it was last reported is not reported again — only the
+  /// first sighting and later payload changes are emitted. This is a
+  /// cross-platform equivalent of CoreBluetooth's
+  /// `CBCentralManagerScanOptionAllowDuplicatesKey: false`; RSSI-only changes
+  /// do not re-emit. Where the platform has a native filter (iOS/macOS, Android,
+  /// Linux) it is applied to save radio/CPU, and the Dart layer de-duplicates on
+  /// every platform as a guarantee. Defaults to `false`: every advertisement is
+  /// reported, exactly as before.
   static Future<void> startScan({
     ScanFilter? scanFilter,
     PlatformConfig? platformConfig,
     String? queueId,
+    bool skipDuplicates = false,
   }) async {
     return await _bleCommandQueue.queueCommandWithoutTimeout(
-      () => _platform.startScan(
-        scanFilter: scanFilter,
-        platformConfig: platformConfig,
-      ),
+      () {
+        _platform.setSkipDuplicates(skipDuplicates);
+        _platform.resetScanDeduplication();
+        return _platform.startScan(
+          scanFilter: scanFilter,
+          platformConfig: platformConfig,
+        );
+      },
       queueId: queueId,
     );
   }
@@ -141,7 +156,11 @@ class UniversalBle {
   /// It might throw errors if Bluetooth is not available.
   static Future<void> stopScan({String? queueId}) async {
     return await _bleCommandQueue.queueCommandWithoutTimeout(
-      () => _platform.stopScan(),
+      () {
+        _platform.setSkipDuplicates(false);
+        _platform.resetScanDeduplication();
+        return _platform.stopScan();
+      },
       queueId: queueId,
     );
   }
@@ -792,7 +811,7 @@ class UniversalBle {
     Duration? timeout,
   }) {
     timeout ??= const Duration(seconds: 60);
-    final target = deviceId.toLowerCase();
+    final target = canonicalDeviceId(deviceId);
     StreamSubscription? connectionSubscription;
     Completer<bool> completer = Completer();
 
@@ -809,8 +828,9 @@ class UniversalBle {
 
     connectionSubscription = _platform
         .bleConnectionChangeStreamController.stream
-        .where(
-            (e) => e.deviceId == deviceId || e.deviceId.toLowerCase() == target)
+        .where((e) =>
+            e.deviceId == deviceId ||
+            canonicalDeviceId(e.deviceId) == target)
         .listen(
       (e) {
         cancelSubscription();

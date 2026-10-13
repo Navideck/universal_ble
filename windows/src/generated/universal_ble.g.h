@@ -630,7 +630,9 @@ class UniversalScanConfig {
   UniversalScanConfig();
 
   // Constructs an object setting all fields.
-  explicit UniversalScanConfig(const AndroidOptions* android);
+  explicit UniversalScanConfig(
+    const AndroidOptions* android,
+    const bool* skip_duplicates);
 
   ~UniversalScanConfig() = default;
   UniversalScanConfig(const UniversalScanConfig& other);
@@ -640,6 +642,15 @@ class UniversalScanConfig {
   const AndroidOptions* android() const;
   void set_android(const AndroidOptions* value_arg);
   void set_android(const AndroidOptions& value_arg);
+
+  // When `true`, repeated scan results for a device whose advertisement payload
+  // has not changed are suppressed (an `AllowDuplicates: false` equivalent).
+  // Platforms with a native lever apply it; the Dart layer de-duplicates as a
+  // cross-platform guarantee. Wired from `UniversalBle.startScan`'s
+  // `skipDuplicates`.
+  const bool* skip_duplicates() const;
+  void set_skip_duplicates(const bool* value_arg);
+  void set_skip_duplicates(bool value_arg);
 
   bool operator==(const UniversalScanConfig& other) const;
   bool operator!=(const UniversalScanConfig& other) const;
@@ -655,6 +666,7 @@ class UniversalScanConfig {
   friend class UniversalBlePeripheralCallback;
   friend class PigeonInternalCodecSerializer;
   std::unique_ptr<AndroidOptions> android_;
+  std::optional<bool> skip_duplicates_;
 };
 
 

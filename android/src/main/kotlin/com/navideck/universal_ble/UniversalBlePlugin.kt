@@ -242,6 +242,21 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
                 }
                 androidConfig.matchMode?.parse()?.let { builder.setMatchMode(it) }
                 androidConfig.numOfMatches?.parse()?.let { builder.setNumOfMatches(it) }
+
+                // Battery-friendly de-duplication: report only the first match
+                // per device unless the caller overrode the relevant option.
+                // Mirrors iOS's CBCentralManagerScanOptionAllowDuplicatesKey = false.
+                if (config?.skipDuplicates == true) {
+                    if (androidConfig.callbackType == null) {
+                        builder.setCallbackType(ScanSettings.CALLBACK_TYPE_FIRST_MATCH)
+                    }
+                    if (androidConfig.matchMode == null) {
+                        builder.setMatchMode(ScanSettings.MATCH_MODE_STICKY)
+                    }
+                    if (androidConfig.numOfMatches == null) {
+                        builder.setNumOfMatches(ScanSettings.MATCH_NUM_MAX_ADVERTISEMENT)
+                    }
+                }
             }
         }
         if (Build.VERSION.SDK_INT >= 26) {

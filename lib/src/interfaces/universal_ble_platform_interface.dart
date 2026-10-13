@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'dart:typed_data';
 import 'package:universal_ble/src/utils/cache_handler.dart';
+import 'package:universal_ble/src/utils/device_id_util.dart';
+import 'package:universal_ble/src/utils/scan_deduplicator.dart';
 import 'package:universal_ble/src/utils/universal_ble_stream_controller.dart';
 import 'package:universal_ble/src/utils/universal_logger.dart';
 import 'package:universal_ble/universal_ble.dart';
@@ -18,6 +20,21 @@ abstract class UniversalBlePlatform {
   final Map<String, bool> _lastPairStateMap = {};
   final Map<String, BleConnectionParametersChange>
       _lastConnectionParametersMap = {};
+
+  // Scan de-duplication (see `UniversalBle.startScan`'s `skipDuplicates`).
+  final _scanDeduplicator = ScanDeduplicator();
+
+  /// Whether scan de-duplication is currently active. Toggled by
+  /// `UniversalBle.startScan`/`stopScan`.
+  bool get skipDuplicatesEnabled => _scanDeduplicator.enabled;
+
+  /// Turns scan de-duplication on or off. Does not clear remembered results;
+  /// call [resetScanDeduplication] to begin a fresh scan session.
+  void setSkipDuplicates(bool enabled) => _scanDeduplicator.setEnabled(enabled);
+
+  /// Forgets results remembered for de-duplication so a device seen in a
+  /// previous scan session is not treated as a duplicate in a new one.
+  void resetScanDeduplication() => _scanDeduplicator.reset();
 
   final _scanStreamController = UniversalBleStreamController<BleDevice>();
 
@@ -163,9 +180,9 @@ abstract class UniversalBlePlatform {
       connectionChangeStream(deviceId).map((e) => e.isConnected);
 
   Stream<BleConnectionChange> connectionChangeStream(String deviceId) {
-    final target = deviceId.toLowerCase();
+    final target = canonicalDeviceId(deviceId);
     return bleConnectionChangeStreamController.stream.where(
-      (e) => e.deviceId == deviceId || e.deviceId.toLowerCase() == target,
+      (e) => e.deviceId == deviceId || canonicalDeviceId(e.deviceId) == target,
     );
   }
 
@@ -173,24 +190,28 @@ abstract class UniversalBlePlatform {
     String deviceId,
     String characteristicId,
   ) {
-    final target = deviceId.toLowerCase();
+    final target = canonicalDeviceId(deviceId);
     characteristicId = BleUuidParser.string(characteristicId);
     return _valueStreamController.stream.where((e) {
-      return (e.deviceId == deviceId || e.deviceId.toLowerCase() == target) &&
+      return (e.deviceId == deviceId ||
+              canonicalDeviceId(e.deviceId) == target) &&
           e.characteristicId == characteristicId;
     }).map((e) => e.value);
   }
 
   Stream<bool> pairingStateStream(String deviceId) {
-    final target = deviceId.toLowerCase();
+    final target = canonicalDeviceId(deviceId);
     return _pairStateStreamController.stream
-        .where(
-            (e) => e.deviceId == deviceId || e.deviceId.toLowerCase() == target)
+        .where((e) =>
+            e.deviceId == deviceId ||
+            canonicalDeviceId(e.deviceId) == target)
         .map((e) => e.isPaired);
   }
 
   /// Update Handlers
   void updateScanResult(BleDevice bleDevice) {
+    if (!_scanDeduplicator.shouldEmit(bleDevice)) return;
+
     _scanStreamController.add(bleDevice);
 
     try {
@@ -225,7 +246,7 @@ abstract class UniversalBlePlatform {
       // Connection parameters belong to this connection, so drop them. Pairing/bond state deliberately
       // outlives the connection (a bonded device stays bonded across reconnects) and is left in
       // _lastPairStateMap.
-      _lastConnectionParametersMap.remove(deviceId.toLowerCase());
+      _lastConnectionParametersMap.remove(canonicalDeviceId(deviceId));
     }
   }
 
@@ -273,7 +294,7 @@ abstract class UniversalBlePlatform {
   /// so it must not go through [updatePairingState]'s dedup — otherwise every failure after the first is
   /// swallowed (#325). The cached value is still refreshed so later genuine transitions dedup as usual.
   void updatePairingFailure(String deviceId) {
-    _lastPairStateMap[deviceId.toLowerCase()] = false;
+    _lastPairStateMap[canonicalDeviceId(deviceId)] = false;
     _emitPairingState(deviceId, false);
   }
 
@@ -312,7 +333,7 @@ abstract class UniversalBlePlatform {
     T value, {
     bool Function(T previous, T next)? equals,
   }) {
-    final key = deviceId.toLowerCase();
+    final key = canonicalDeviceId(deviceId);
     final previous = cache[key];
     if (previous != null &&
         (equals == null ? previous == value : equals(previous, value))) {
