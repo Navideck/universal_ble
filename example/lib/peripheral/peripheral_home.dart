@@ -21,7 +21,9 @@ class _PeripheralHomeState extends State<PeripheralHome> {
   StreamSubscription<BlePeripheralEvent>? _connectionStateStreamSub;
   StreamSubscription<BlePeripheralEvent>? _serviceAddedStreamSub;
   StreamSubscription<BlePeripheralEvent>? _mtuChangedStreamSub;
+  StreamSubscription<List<BleCentral>>? _subscribedCentralsStreamSub;
 
+  List<BleCentral> _subscribedCentrals = const [];
   bool _initialized = false;
   PeripheralAdvertisingState _advertisingState =
       PeripheralAdvertisingState.idle;
@@ -70,6 +72,16 @@ class _PeripheralHomeState extends State<PeripheralHome> {
     _mtuChangedStreamSub = UniversalBlePeripheral.mtuChangedStream
         .listen((BlePeripheralMtuChanged event) {
       _log('MTU: ${event.deviceId} mtu=${event.mtu}');
+    });
+
+    _subscribedCentralsStreamSub = UniversalBlePeripheral.subscribedCentralsStream
+        .listen((List<BleCentral> centrals) {
+      setState(() {
+        _subscribedCentrals = centrals;
+      });
+      _log(
+        'Subscribed centrals updated: ${centrals.map((e) => e.id).join(', ')}',
+      );
     });
 
     UniversalBlePeripheral.setReadRequestHandlers(
@@ -280,6 +292,46 @@ class _PeripheralHomeState extends State<PeripheralHome> {
             ],
           ),
         ),
+        Card(
+          margin: const EdgeInsets.all(12),
+          child: Padding(
+            padding: const EdgeInsets.all(12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Subscribed Centrals (${_subscribedCentrals.length})',
+                  style: Theme.of(context).textTheme.titleSmall,
+                ),
+                const SizedBox(height: 8),
+                if (_subscribedCentrals.isEmpty)
+                  const Text(
+                    'No active centrals subscribed',
+                    style: TextStyle(color: Colors.grey, fontSize: 13),
+                  )
+                else
+                  ..._subscribedCentrals.map(
+                    (c) => Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 4),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            '${c.name != null ? "${c.name} " : ""}(${c.id})',
+                            style: const TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                          Text(
+                            'Characteristics: ${c.subscribedCharacteristics.join(", ")}',
+                            style: const TextStyle(fontSize: 12),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ),
         const Divider(),
         Expanded(
           child: ListView.builder(
@@ -301,6 +353,7 @@ class _PeripheralHomeState extends State<PeripheralHome> {
     _connectionStateStreamSub?.cancel();
     _serviceAddedStreamSub?.cancel();
     _mtuChangedStreamSub?.cancel();
+    _subscribedCentralsStreamSub?.cancel();
     super.dispose();
   }
 }

@@ -85,7 +85,7 @@ Looking for Bluetooth Classic? Check [universal_bluetooth_classic](https://pub.d
 
 \* `getAvailabilityState` returns a snapshot. Listen to `advertisingStateStream`, `connectionStateStream`, and related streams for runtime updates.
 \*\* Pass `deviceId` to notify one client; omit it to notify all subscribed clients (when supported — see `getCapabilities().supportsTargetedCharacteristicUpdate`).
-\*\*\* `advertisingStateStream`, `characteristicSubscriptionStream`, `connectionStateStream`, `serviceAddedStream`, `mtuChangedStream`.
+\*\*\* `advertisingStateStream`, `characteristicSubscriptionStream`, `connectionStateStream`, `serviceAddedStream`, `mtuChangedStream`, `subscribedCentralsStream`.
 
 ## Getting Started
 
@@ -1076,10 +1076,30 @@ UniversalBlePeripheral.mtuChangedStream.listen(
 );
 ```
 
+### Tracking Subscribed Centrals
+
+To track connected BLE central devices currently subscribed to characteristics on your peripheral:
+
+```dart
+import 'package:universal_ble/universal_ble.dart';
+
+// Stream of active centrals (emits current list upon listen, and updates on subscribe/unsubscribe/disconnect)
+UniversalBlePeripheral.subscribedCentralsStream.listen((List<BleCentral> centrals) {
+  for (final central in centrals) {
+    print('Central ID: ${central.id}, Name: ${central.name}');
+    print('Subscribed characteristics: ${central.subscribedCharacteristics}');
+  }
+});
+
+// Synchronous snapshot
+final List<BleCentral> activeCentrals = UniversalBlePeripheral.subscribedCentrals;
+```
+
 ### Platform notes
 
 - Linux/Web currently return unsupported for peripheral mode.
 - Windows peripheral advertising does not expose all advertising payload customization options from Android/Apple stacks.
+- **Central tracking on iOS / Apple platforms**: CoreBluetooth's `CBPeripheralManager` does not expose generic link-layer connection/disconnection callbacks for peripherals. Centrals are tracked as active when they subscribe to at least one GATT characteristic (`didSubscribeTo`), and are removed when unsubscribed from all characteristics or disconnected (`didUnsubscribeFrom`). Android and other platforms additionally prune tracked centrals immediately on link-layer disconnection.
 - iOS/macOS setup (including required `Info.plist` keys for peripheral usage) is documented in [Permissions → iOS / macOS](#ios--macos).
 
 ## UUID Format Agnostic
