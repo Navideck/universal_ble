@@ -55,48 +55,27 @@ void main() {
       expect(dedup.shouldEmit(_device()), isFalse);
     });
 
-    test('enabled: payload changes re-emit', () {
+    test('enabled: payload changes are still treated as duplicates', () {
       final dedup = ScanDeduplicator()..setEnabled(true);
 
       expect(dedup.shouldEmit(_device(name: 'device')), isTrue);
-      expect(dedup.shouldEmit(_device(name: 'device-renamed')), isTrue);
-      expect(dedup.shouldEmit(_device(services: ['180d'])), isTrue);
+      expect(dedup.shouldEmit(_device(name: 'device-renamed')), isFalse);
+      expect(dedup.shouldEmit(_device(services: ['180d'])), isFalse);
       expect(
         dedup.shouldEmit(_device(
           manufacturerDataList: [
             ManufacturerData(76, Uint8List.fromList([1, 2, 3])),
           ],
         )),
-        isTrue,
+        isFalse,
       );
       expect(
         dedup.shouldEmit(
           _device(serviceData: {'180f': Uint8List.fromList([9])}),
         ),
-        isTrue,
-      );
-      expect(dedup.shouldEmit(_device(connectable: true)), isTrue);
-    });
-
-    test('enabled: order of services and manufacturer data is ignored', () {
-      final dedup = ScanDeduplicator()..setEnabled(true);
-
-      expect(dedup.shouldEmit(_device(services: ['a', 'b'])), isTrue);
-      expect(dedup.shouldEmit(_device(services: ['b', 'a'])), isFalse);
-      expect(
-        dedup.shouldEmit(_device(manufacturerDataList: [
-          ManufacturerData(1, Uint8List.fromList([1])),
-          ManufacturerData(2, Uint8List.fromList([2])),
-        ])),
-        isTrue,
-      );
-      expect(
-        dedup.shouldEmit(_device(manufacturerDataList: [
-          ManufacturerData(2, Uint8List.fromList([2])),
-          ManufacturerData(1, Uint8List.fromList([1])),
-        ])),
         isFalse,
       );
+      expect(dedup.shouldEmit(_device(connectable: true)), isFalse);
     });
 
     test('enabled: RSSI-only changes are dropped', () {

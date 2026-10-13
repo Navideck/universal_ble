@@ -191,9 +191,9 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
     }
 
     // When the caller opts into de-duplication, omit the allow-duplicates key so
-    // CoreBluetooth reports each peripheral once instead of on every
-    // advertisement packet. This avoids duplicate callbacks crossing the
-    // platform channel at all (battery friendly). Defaults to `true` otherwise.
+    // CoreBluetooth coalesces repeated discoveries of a peripheral instead of
+    // reporting every advertisement packet (battery friendly). The Dart layer
+    // enforces the once-per-scan-session guarantee. Defaults to `true` otherwise.
     let options: [String: Any]? = (config?.skipDuplicates == true)
       ? nil
       : [CBCentralManagerScanOptionAllowDuplicatesKey: true]

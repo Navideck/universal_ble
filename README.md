@@ -139,13 +139,13 @@ UniversalBle.isScanning();
 
 #### Skipping duplicate scan results
 
-By default every advertisement packet is reported, so the same device can show up many times per second. Pass `skipDuplicates: true` to report a device once, and again only when its advertisement payload (name, services, manufacturer data, service data, connectability) changes. RSSI-only changes do not re-emit.
+By default every advertisement packet is reported, so the same device can show up many times per second. Pass `skipDuplicates: true` to report each device only once per scan session: later sightings are suppressed until the scan is stopped (`UniversalBle.stopScan`) or the next `startScan`, including sightings whose advertisement payload changed.
 
 ```dart
 UniversalBle.startScan(skipDuplicates: true);
 ```
 
-This is the cross-platform equivalent of CoreBluetooth's `CBCentralManagerScanOptionAllowDuplicatesKey: false`. Where a platform has a native filter it is applied so Dart isn't woken for every packet — iOS/macOS stop passing the allow-duplicates key, Android uses `CALLBACK_TYPE_FIRST_MATCH` + `MATCH_MODE_STICKY` + `MATCH_NUM_MAX_ADVERTISEMENT` (unless you set `AndroidOptions.callbackType`/`matchMode`/`numOfMatches` yourself), and Linux sets BlueZ' `DuplicateData` filter. On every platform the Dart layer de-duplicates as well, so the behavior is consistent everywhere. Defaults to `false` (every advertisement is reported, unchanged behavior); users who need live RSSI should keep it `false`.
+Where a platform has a native lever it is applied so Dart isn't woken for every packet — iOS/macOS stop passing CoreBluetooth's allow-duplicates key, Android applies `CALLBACK_TYPE_FIRST_MATCH` + `MATCH_MODE_STICKY` + `MATCH_NUM_MAX_ADVERTISEMENT` when you supply an `AndroidOptions` (unless you set those fields yourself), and Linux sets BlueZ' `DuplicateData` filter. On every platform the Dart layer de-duplicates as well, so the behavior is consistent everywhere. Defaults to `false` (every advertisement is reported, unchanged behavior); users who need live RSSI should keep it `false`.
 
 Before initiating a scan, ensure that Bluetooth is available:
 

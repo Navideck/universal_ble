@@ -643,11 +643,10 @@ class UniversalScanConfig {
   void set_android(const AndroidOptions* value_arg);
   void set_android(const AndroidOptions& value_arg);
 
-  // When `true`, repeated scan results for a device whose advertisement payload
-  // has not changed are suppressed (an `AllowDuplicates: false` equivalent).
-  // Platforms with a native lever apply it; the Dart layer de-duplicates as a
-  // cross-platform guarantee. Wired from `UniversalBle.startScan`'s
-  // `skipDuplicates`.
+  // When `true`, each device is reported only once per scan session: repeated
+  // scan results for a device are suppressed. Platforms with a native lever
+  // apply it; the Dart layer de-duplicates as a cross-platform guarantee.
+  // Wired from `UniversalBle.startScan`'s `skipDuplicates`.
   const bool* skip_duplicates() const;
   void set_skip_duplicates(const bool* value_arg);
   void set_skip_duplicates(bool value_arg);

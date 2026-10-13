@@ -47,7 +47,10 @@ class UniversalBle {
     UniversalLogger.logInfo('Queue ${queueType.name}');
   }
 
-  /// Scan Stream
+  /// Scan Stream.
+  ///
+  /// When [startScan] is called with `skipDuplicates: true`, each device is
+  /// reported at most once per scan session.
   static Stream<BleDevice> get scanStream => _platform.scanStream;
 
   /// Bluetooth availability state stream
@@ -123,15 +126,14 @@ class UniversalBle {
   /// Scan results will arrive in [onScanResult] listener.
   /// It might throw errors if Bluetooth is not available.
   ///
-  /// When [skipDuplicates] is `true`, a device whose advertisement payload has
-  /// not changed since it was last reported is not reported again — only the
-  /// first sighting and later payload changes are emitted. This is a
-  /// cross-platform equivalent of CoreBluetooth's
-  /// `CBCentralManagerScanOptionAllowDuplicatesKey: false`; RSSI-only changes
-  /// do not re-emit. Where the platform has a native filter (iOS/macOS, Android,
-  /// Linux) it is applied to save radio/CPU, and the Dart layer de-duplicates on
-  /// every platform as a guarantee. Defaults to `false`: every advertisement is
-  /// reported, exactly as before.
+  /// When [skipDuplicates] is `true`, each device is reported only once per
+  /// scan session: later sightings are suppressed until [stopScan] or the next
+  /// [startScan], including ones whose advertisement payload changed. Where the
+  /// platform has a native lever — iOS/macOS, Linux, and Android when an
+  /// `AndroidOptions` is supplied — it is applied to save radio/CPU, and the
+  /// Dart layer de-duplicates on every platform so the behavior is consistent
+  /// everywhere. Defaults to `false`: every advertisement is reported, exactly
+  /// as before.
   static Future<void> startScan({
     ScanFilter? scanFilter,
     PlatformConfig? platformConfig,
@@ -1034,6 +1036,9 @@ class UniversalBle {
       _bleCommandQueue.onQueueUpdate = onQueueUpdate;
 
   /// Get scan results.
+  ///
+  /// When [startScan] is called with `skipDuplicates: true`, each device is
+  /// reported at most once per scan session.
   static set onScanResult(OnScanResult? onScanResult) =>
       _platform.onScanResultUpdate = onScanResult;
 

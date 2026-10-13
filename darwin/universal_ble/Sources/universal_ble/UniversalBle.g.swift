@@ -741,11 +741,10 @@ struct AndroidOptions: Hashable {
 /// Generated class from Pigeon that represents data sent in messages.
 struct UniversalScanConfig: Hashable {
   var android: AndroidOptions? = nil
-  /// When `true`, repeated scan results for a device whose advertisement payload
-  /// has not changed are suppressed (an `AllowDuplicates: false` equivalent).
-  /// Platforms with a native lever apply it; the Dart layer de-duplicates as a
-  /// cross-platform guarantee. Wired from `UniversalBle.startScan`'s
-  /// `skipDuplicates`.
+  /// When `true`, each device is reported only once per scan session: repeated
+  /// scan results for a device are suppressed. Platforms with a native lever
+  /// apply it; the Dart layer de-duplicates as a cross-platform guarantee.
+  /// Wired from `UniversalBle.startScan`'s `skipDuplicates`.
   var skipDuplicates: Bool? = nil
 
 
