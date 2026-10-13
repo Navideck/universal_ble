@@ -4,9 +4,6 @@ import 'package:universal_ble/src/utils/device_id.dart';
 import 'package:universal_ble/src/utils/universal_ble_filter_util.dart';
 import 'package:universal_ble/universal_ble.dart';
 
-// Native channel calls take the native form of the id; see DeviceId for both conversions.
-String _nativeId(String deviceId) => DeviceId.address(deviceId).native;
-
 class UniversalBlePigeonChannel extends UniversalBlePlatform
     implements UniversalBleCallbackChannel {
   static UniversalBlePigeonChannel? _instance;
@@ -19,6 +16,9 @@ class UniversalBlePigeonChannel extends UniversalBlePlatform
   }
 
   final _channel = UniversalBlePlatformChannel();
+
+  // Native channel calls take the native form of the id; see DeviceId for both conversions.
+  String _nativeId(String deviceId) => deviceId.toDeviceId().native;
 
   @override
   Future<AvailabilityState> getBluetoothAvailabilityState() =>
@@ -128,10 +128,9 @@ class UniversalBlePigeonChannel extends UniversalBlePlatform
       ),
     );
     return List<BleService>.from(
-      universalBleServices
-          .where((e) => e != null)
+      universalBleServices.nonNulls
           .map(
-            (e) => e!.toBleService(DeviceId.address(deviceId).canonical),
+            (e) => e.toBleService(deviceId.toDeviceId().canonical),
           ) // emitted id stays lower-case
           .toList(),
     );
@@ -374,11 +373,12 @@ extension _BleServiceExtension on UniversalBleService {
   }
 }
 
-extension _UniversalBleScanResultExtension on UniversalBleScanResult {
+@visibleForTesting
+extension UniversalBleScanResultExtension on UniversalBleScanResult {
   BleDevice toBleDevice({bool? isSystemDevice}) {
     return BleDevice(
       name: name,
-      deviceId: deviceId,
+      deviceId: deviceId.toDeviceId().canonical,
       rssi: rssi,
       paired: isPaired,
       isSystemDevice: isSystemDevice,
@@ -395,8 +395,12 @@ extension _UniversalBleScanResultExtension on UniversalBleScanResult {
   }
 }
 
-extension _UniversalDevicePickerResultExtension on UniversalDevicePickerResult {
-  BleDevice toBleDevice() => BleDevice(deviceId: deviceId, name: name);
+@visibleForTesting
+extension UniversalDevicePickerResultExtension on UniversalDevicePickerResult {
+  BleDevice toBleDevice() => BleDevice(
+        deviceId: deviceId.toDeviceId().canonical,
+        name: name,
+      );
 }
 
 extension _ScanFilterExtension on ScanFilter? {

@@ -217,7 +217,7 @@ class UniversalBleLinux extends UniversalBlePlatform {
               .toList(),
         );
         return BleCharacteristic.withMetaData(
-          deviceId: deviceId,
+          deviceId: deviceId.toDeviceId().canonical,
           serviceId: serviceId,
           uuid: e.uuid.toString(),
           properties: properties,
@@ -292,7 +292,8 @@ class UniversalBleLinux extends UniversalBlePlatform {
     );
     final char = _getCharacteristic(deviceId, service, characteristic);
 
-    String characteristicKey = "${deviceId}_${service}_$characteristic";
+    String characteristicKey =
+        "${deviceId.toDeviceId().canonical}_${service}_$characteristic";
 
     if (bleInputProperty != BleInputProperty.disabled) {
       if (char.notifying) {
@@ -567,7 +568,7 @@ class UniversalBleLinux extends UniversalBlePlatform {
   BlueZDevice? _getDeviceById(String deviceId) {
     // Every Linux device resolution funnels through here, so this is where the id becomes the
     // native form BlueZ addresses use; emitted ids and cache keys keep the canonical form.
-    deviceId = DeviceId.address(deviceId).native;
+    deviceId = deviceId.toDeviceId().native;
     return _devices[deviceId] ??
         _client.devices.cast<BlueZDevice?>().firstWhere(
               (device) => device?.address == deviceId,
@@ -818,7 +819,7 @@ extension BlueZDeviceExtension on BlueZDevice {
     final timestampMicroseconds = DateTime.now().microsecondsSinceEpoch;
     return BleDevice(
       name: name,
-      deviceId: address,
+      deviceId: address.toDeviceId().canonical,
       paired: paired,
       rssi: rssi,
       isSystemDevice: isSystemDevice,

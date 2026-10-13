@@ -1,6 +1,9 @@
+import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:universal_ble/src/universal_ble.g.dart';
+import 'package:universal_ble/src/universal_ble_pigeon/universal_ble_pigeon_channel.dart';
 import 'package:universal_ble/src/utils/cache_handler.dart';
 import 'package:universal_ble/universal_ble.dart';
 
@@ -13,6 +16,21 @@ import 'universal_ble_test_mock.dart';
 /// and doesn't split across entries. (Pairing-state and connection-parameters de-dup each have their own
 /// file.)
 class _MockPlatform extends UniversalBlePlatformMock {
+  final List<String> readCalls = [];
+  Completer<void>? readCompleter;
+
+  @override
+  Future<Uint8List> readValue(
+    String deviceId,
+    String service,
+    String characteristic, {
+    Duration? timeout,
+  }) async {
+    readCalls.add(deviceId);
+    if (readCompleter != null) await readCompleter!.future;
+    return Uint8List(0);
+  }
+
   @override
   Future<int> readRssi(String deviceId) => throw UnimplementedError();
 
@@ -224,6 +242,64 @@ void main() {
     platform.onScanResultUpdate = (d) => emitted = d.deviceId;
     platform.updateScanResult(BleDevice(deviceId: upper, name: null));
     expect(emitted, lower);
+  });
+
+  test(
+      'Pigeon scan result and picker result extensions emit lower-case deviceId',
+      () {
+    final scanResult = UniversalBleScanResult(deviceId: upper);
+    expect(scanResult.toBleDevice().deviceId, lower);
+
+    final pickerResult = UniversalDevicePickerResult(deviceId: upper);
+    expect(pickerResult.toBleDevice().deviceId, lower);
+  });
+
+  test(
+      'per-device command queue serializes commands across different cases',
+      () async {
+    final platform = _MockPlatform();
+    UniversalBle.setInstance(platform);
+    UniversalBle.queueType = QueueType.perDevice;
+
+    platform.readCompleter = Completer<void>();
+    final order = <int>[];
+
+    final f1 = UniversalBle.readValue(upper, '180d', '2a37')
+        .then((_) => order.add(1));
+    final f2 = UniversalBle.readValue(lower, '180d', '2a37')
+        .then((_) => order.add(2));
+
+    await Future<void>.delayed(const Duration(milliseconds: 20));
+    expect(order, isEmpty);
+    expect(platform.readCalls, [upper]);
+
+    platform.readCompleter!.complete();
+    await Future.wait([f1, f2]);
+    expect(order, [1, 2]);
+    expect(platform.readCalls, [upper, lower]);
+  });
+
+  test('clearQueue clears per-device queue regardless of casing passed to it',
+      () async {
+    final platform = _MockPlatform();
+    UniversalBle.setInstance(platform);
+    UniversalBle.queueType = QueueType.perDevice;
+
+    platform.readCompleter = Completer<void>();
+
+    final f1 = UniversalBle.readValue(upper, '180d', '2a37');
+    final f2Expectation = expectLater(
+      UniversalBle.readValue(upper, '180d', '2a37'),
+      throwsException,
+    );
+
+    await Future<void>.delayed(const Duration(milliseconds: 20));
+
+    UniversalBle.clearQueue(lower);
+
+    platform.readCompleter!.complete();
+    await f1;
+    await f2Expectation;
   });
 
   // A platform whose ids are NOT addresses (Web Bluetooth: opaque, case-sensitive browser tokens)

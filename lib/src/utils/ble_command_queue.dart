@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:universal_ble/src/queue.dart';
+import 'package:universal_ble/src/utils/device_id.dart';
 import 'package:universal_ble/universal_ble.dart';
 
 /// Set queue type and queue commands
@@ -43,7 +44,7 @@ class BleCommandQueue {
     return switch (_resolvedQueueType) {
       QueueType.global => _queue(queueId).add(command, timeoutDuration),
       QueueType.perDevice => _queue(
-          queueId ?? deviceId,
+          queueId ?? deviceId?.toDeviceId().canonical,
         ).add(command, timeoutDuration),
       QueueType.none || QueueType.auto => command().timeout(timeoutDuration),
     };
@@ -56,7 +57,9 @@ class BleCommandQueue {
   }) {
     return switch (_resolvedQueueType) {
       QueueType.global => _queue(queueId).add(command),
-      QueueType.perDevice => _queue(queueId ?? deviceId).add(command),
+      QueueType.perDevice => _queue(
+          queueId ?? deviceId?.toDeviceId().canonical,
+        ).add(command),
       QueueType.none || QueueType.auto => command(),
     };
   }
@@ -77,13 +80,20 @@ class BleCommandQueue {
     return queue;
   }
 
-  void clearQueue(String? id) {
+  void clearQueue([String? id]) {
     if (id == null) {
       _queueMap.forEach((k, v) => v.dispose());
       _queueMap.clear();
     } else {
-      _queueMap[id]?.dispose();
-      _queueMap.remove(id);
+      _queueMap.remove(id)?.dispose();
+      final canonical = id.toDeviceId().canonical;
+      if (canonical != id) {
+        _queueMap.remove(canonical)?.dispose();
+      }
+      final deviceId = id.toDeviceId();
+      if (deviceId.native != id) {
+        _queueMap.remove(deviceId.native)?.dispose();
+      }
     }
   }
 }

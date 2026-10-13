@@ -82,7 +82,7 @@ abstract class UniversalBlePeripheralPlatform {
   ) {
     _blePeripheralStreamHandler.characteristicSubscriptionStreamController.add(
       BlePeripheralCharacteristicSubscriptionChanged(
-        deviceId: DeviceId.address(event.deviceId).canonical,
+        deviceId: event.deviceId.toDeviceId().canonical,
         characteristicId: event.characteristicId,
         isSubscribed: event.isSubscribed,
         name: event.name,
@@ -94,7 +94,7 @@ abstract class UniversalBlePeripheralPlatform {
   void updateConnectionState(BlePeripheralConnectionStateChanged event) {
     _blePeripheralStreamHandler.connectionStateStreamController.add(
       BlePeripheralConnectionStateChanged(
-        DeviceId.address(event.deviceId).canonical,
+        event.deviceId.toDeviceId().canonical,
         event.connected,
       ),
     );
@@ -109,7 +109,7 @@ abstract class UniversalBlePeripheralPlatform {
   void updateMtu(BlePeripheralMtuChanged event) {
     _blePeripheralStreamHandler.mtuChangedStreamController.add(
       BlePeripheralMtuChanged(
-        DeviceId.address(event.deviceId).canonical,
+        event.deviceId.toDeviceId().canonical,
         event.mtu,
       ),
     );

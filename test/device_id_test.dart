@@ -48,6 +48,12 @@ void main() {
     });
   });
 
+  test('DeviceId primary constructor defaults to !kIsWeb', () {
+    expect(DeviceId(upper).canonical, lower);
+    expect(DeviceId(upper).native, upper);
+    expect(DeviceId(upper), DeviceId.address(upper));
+  });
+
   test('DeviceId.of picks the kind the platform reports', () {
     expect(DeviceId.of(upper, isAddress: true), DeviceId.address(upper));
     expect(DeviceId.of(upper, isAddress: false), DeviceId.opaque(upper));
@@ -55,5 +61,31 @@ void main() {
 
   test('toString is the canonical form, so ids interpolate consistently', () {
     expect('${DeviceId.address(upper)}', lower);
+  });
+
+  group('String.toDeviceId extension', () {
+    test('defaults to address device id', () {
+      expect(upper.toDeviceId().canonical, lower);
+      expect(lower.toDeviceId().native, upper);
+      expect(upper.toDeviceId(), DeviceId.address(upper));
+    });
+
+    test('supports opaque device id when isAddress is false', () {
+      const opaque = 'mHZbW+PZqBpUlZlVQrPzOQ==';
+      expect(opaque.toDeviceId(isAddress: false).canonical, opaque);
+      expect(opaque.toDeviceId(isAddress: false).native, opaque);
+      expect(opaque.toDeviceId(isAddress: false), DeviceId.opaque(opaque));
+    });
+
+    test('supports null-safe navigation via ?. operator', () {
+      const String? nullId = null;
+      expect(nullId?.toDeviceId().canonical, isNull);
+      expect(nullId?.toDeviceId().native, isNull);
+
+      String? maybeId(bool present) => present ? upper : null;
+      expect(maybeId(true)?.toDeviceId().canonical, lower);
+      expect(maybeId(true)?.toDeviceId().native, upper);
+      expect(maybeId(false)?.toDeviceId().canonical, isNull);
+    });
   });
 }

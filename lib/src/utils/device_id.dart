@@ -1,3 +1,5 @@
+import 'package:flutter/foundation.dart';
+
 /// A BLE device id in the two forms universal_ble needs, and the only place the conversion
 /// between them lives.
 ///
@@ -27,17 +29,22 @@ class DeviceId {
 
   const DeviceId._(this.canonical, this.native);
 
+  /// Automatically treats [id] as an opaque token on Web,
+  /// and as a case-insensitive address (MAC/UUID) on native platforms.
+  factory DeviceId(String id, {bool isAddress = !kIsWeb}) => isAddress
+      ? DeviceId._(id.toLowerCase(), id.toUpperCase())
+      : DeviceId._(id, id);
+
   /// A case-insensitive Bluetooth address (a MAC, or a UUID on Apple).
-  factory DeviceId.address(String id) =>
-      DeviceId._(id.toLowerCase(), id.toUpperCase());
+  factory DeviceId.address(String id) => DeviceId(id, isAddress: true);
 
   /// An opaque, case-sensitive token — a Web Bluetooth id.
-  factory DeviceId.opaque(String id) => DeviceId._(id, id);
+  factory DeviceId.opaque(String id) => DeviceId(id, isAddress: false);
 
   /// [DeviceId.address] when [isAddress], else [DeviceId.opaque]. Platforms report their kind via
   /// `UniversalBlePlatform.hasAddressDeviceIds`.
   factory DeviceId.of(String id, {required bool isAddress}) =>
-      isAddress ? DeviceId.address(id) : DeviceId.opaque(id);
+      DeviceId(id, isAddress: isAddress);
 
   @override
   String toString() => canonical;
@@ -50,4 +57,12 @@ class DeviceId {
 
   @override
   int get hashCode => Object.hash(canonical, native);
+}
+
+extension DeviceIdStringExtension on String {
+  /// Converts this string into a [DeviceId].
+  ///
+  /// Defaults to [!kIsWeb].
+  DeviceId toDeviceId({bool isAddress = !kIsWeb}) =>
+      DeviceId(this, isAddress: isAddress);
 }

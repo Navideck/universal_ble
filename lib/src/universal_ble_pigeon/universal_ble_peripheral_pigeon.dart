@@ -5,9 +5,6 @@ import 'package:universal_ble/src/universal_ble.g.dart';
 import 'package:universal_ble/src/utils/device_id.dart';
 import 'package:universal_ble/universal_ble.dart';
 
-// Native channel calls take the native form of the id; see DeviceId for both conversions.
-String _nativeId(String deviceId) => DeviceId.address(deviceId).native;
-
 class UniversalBlePeripheralPigeon extends UniversalBlePeripheralPlatform
     implements UniversalBlePeripheralCallback {
   static UniversalBlePeripheralPigeon? _instance;
@@ -131,7 +128,7 @@ class UniversalBlePeripheralPigeon extends UniversalBlePeripheralPlatform
     return _channel.updateCharacteristic(
       BleUuidParser.string(characteristicId),
       value,
-      deviceId == null ? null : _nativeId(deviceId),
+      deviceId?.toDeviceId().native,
     );
   }
 
@@ -139,12 +136,12 @@ class UniversalBlePeripheralPigeon extends UniversalBlePeripheralPlatform
   Future<List<String>> getSubscribedClients(String characteristicId) async {
     final clients = await _channel.getSubscribedClients(characteristicId);
     // Emitted ids are lower-case (see UniversalBlePeripheralPlatform).
-    return clients.map((e) => DeviceId.address(e).canonical).toList();
+    return clients.map((e) => e.toDeviceId().canonical).toList();
   }
 
   @override
   Future<int?> getMaximumNotifyLength(String deviceId) =>
-      _channel.getMaximumNotifyLength(_nativeId(deviceId));
+      _channel.getMaximumNotifyLength(deviceId.toDeviceId().native);
 
   @override
   void setReadRequestHandler(OnPeripheralReadRequest? handler) =>
@@ -211,7 +208,7 @@ class UniversalBlePeripheralPigeon extends UniversalBlePeripheralPlatform
     Uint8List? value,
   ) {
     final result = _readRequestHandler?.call(
-      DeviceId.address(deviceId).canonical,
+      deviceId.toDeviceId().canonical,
       BleUuidParser.string(characteristicId),
       offset,
       value,
@@ -239,7 +236,7 @@ class UniversalBlePeripheralPigeon extends UniversalBlePeripheralPlatform
     Uint8List? value,
   ) {
     final result = _writeRequestHandler?.call(
-      DeviceId.address(deviceId).canonical,
+      deviceId.toDeviceId().canonical,
       BleUuidParser.string(characteristicId),
       offset,
       value,
@@ -261,7 +258,7 @@ class UniversalBlePeripheralPigeon extends UniversalBlePeripheralPlatform
     Uint8List? value,
   ) {
     final result = _descriptorReadRequestHandler?.call(
-      DeviceId.address(deviceId).canonical,
+      deviceId.toDeviceId().canonical,
       BleUuidParser.string(characteristicId),
       BleUuidParser.string(descriptorId),
       offset,
@@ -284,7 +281,7 @@ class UniversalBlePeripheralPigeon extends UniversalBlePeripheralPlatform
     Uint8List? value,
   ) {
     final result = _descriptorWriteRequestHandler?.call(
-      DeviceId.address(deviceId).canonical,
+      deviceId.toDeviceId().canonical,
       BleUuidParser.string(characteristicId),
       BleUuidParser.string(descriptorId),
       offset,
