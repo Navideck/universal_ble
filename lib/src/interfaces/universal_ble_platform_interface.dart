@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:typed_data';
 import 'package:universal_ble/src/utils/cache_handler.dart';
 import 'package:universal_ble/src/utils/device_id.dart';
+import 'package:universal_ble/src/utils/scan_deduplicator.dart';
 import 'package:universal_ble/src/utils/universal_ble_stream_controller.dart';
 import 'package:universal_ble/src/utils/universal_logger.dart';
 import 'package:universal_ble/universal_ble.dart';
@@ -19,6 +20,21 @@ abstract class UniversalBlePlatform {
   final Map<String, bool> _lastPairStateMap = {};
   final Map<String, BleConnectionParametersChange>
       _lastConnectionParametersMap = {};
+
+  // Scan de-duplication (see `UniversalBle.startScan`'s `skipDuplicates`).
+  final _scanDeduplicator = ScanDeduplicator();
+
+  /// Whether scan de-duplication is currently active. Toggled by
+  /// `UniversalBle.startScan`/`stopScan`.
+  bool get skipDuplicatesEnabled => _scanDeduplicator.enabled;
+
+  /// Turns scan de-duplication on or off. Does not clear remembered results;
+  /// call [resetScanDeduplication] to begin a fresh scan session.
+  void setSkipDuplicates(bool enabled) => _scanDeduplicator.setEnabled(enabled);
+
+  /// Forgets results remembered for de-duplication so a device seen in a
+  /// previous scan session is not treated as a duplicate in a new one.
+  void resetScanDeduplication() => _scanDeduplicator.reset();
 
   final _scanStreamController = UniversalBleStreamController<BleDevice>();
 
@@ -187,7 +203,8 @@ abstract class UniversalBlePlatform {
     final target = _deviceId(deviceId).canonical;
     characteristicId = BleUuidParser.string(characteristicId);
     return _valueStreamController.stream
-        .where((e) => e.deviceId == target && e.characteristicId == characteristicId)
+        .where((e) =>
+            e.deviceId == target && e.characteristicId == characteristicId)
         .map((e) => e.value);
   }
 
@@ -201,6 +218,7 @@ abstract class UniversalBlePlatform {
   /// Update Handlers
   void updateScanResult(BleDevice bleDevice) {
     bleDevice.deviceId = _deviceId(bleDevice.deviceId).canonical;
+    if (!_scanDeduplicator.shouldEmit(bleDevice)) return;
     _scanStreamController.add(bleDevice);
 
     try {

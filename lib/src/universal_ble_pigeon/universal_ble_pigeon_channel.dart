@@ -50,7 +50,9 @@ class UniversalBlePigeonChannel extends UniversalBlePlatform
     await _executeWithErrorHandling(
       () => _channel.startScan(
         scanFilter.toUniversalScanFilter(),
-        platformConfig?.toUniversalScanConfig(),
+        platformConfig.toUniversalScanConfig(
+          skipDuplicates: skipDuplicatesEnabled,
+        ),
       ),
     );
   }
@@ -415,7 +417,10 @@ extension _ScanFilterExtension on ScanFilter? {
 }
 
 extension _PlatformConfigExtension on PlatformConfig? {
-  UniversalScanConfig? toUniversalScanConfig() {
-    return UniversalScanConfig(android: this?.android);
+  UniversalScanConfig toUniversalScanConfig({bool skipDuplicates = false}) {
+    return UniversalScanConfig(
+      android: this?.android,
+      skipDuplicates: skipDuplicates,
+    );
   }
 }

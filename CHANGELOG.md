@@ -25,6 +25,7 @@
 * **Breaking:** Rename `BleConnectionParametersUpdated` to `BleConnectionParametersChange`, aligning the payload with the `…Change` event naming. The `onConnectionParametersChange` callback and the model's fields are unchanged.
 * Android: report every failed bond — including a declined system-initiated bond that ends in `BOND_NONE` — not only the first per process. A failed pairing attempt is an event rather than a state, so `onPairingStateChange` no longer de-duplicates it against the cached pairing state (#325).
 * Add `universal_ble` package skills installable with `dart run skills@ get`: `universal-ble-setup` (add BLE to an app from scratch), `universal-ble-migrate-2-to-3` (upgrade from 2.x), and `universal-ble-migrate-from-flutter-blue-plus` (migrate from `flutter_blue_plus`).
+* Add `skipDuplicates` to `startScan` to report each device only once per scan session — later sightings, including ones whose advertisement payload changed, are suppressed until the scan is restarted. Native filtering is applied where available (iOS/macOS, Android `ScanSettings`, Linux BlueZ `DuplicateData`) and the Dart layer de-duplicates on every platform so the behavior is consistent everywhere. Defaults to `false` (unchanged).
 
 ## 2.3.0
 * Windows: support connectionless manufacturer-data advertising without a GATT service, including state/error reporting and cleanup on stop/disposal.

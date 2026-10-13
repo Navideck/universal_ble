@@ -137,6 +137,18 @@ UniversalBle.stopScan();
 UniversalBle.isScanning();
 ```
 
+#### Skipping duplicate scan results
+
+By default every advertisement packet is reported, so the same device can show up many times per second — each one waking your app and drawing battery. Pass `skipDuplicates: true` to report each device only once per scan session: later sightings are suppressed until the scan is stopped (`UniversalBle.stopScan`) or the next `startScan`, including sightings whose advertisement payload changed.
+
+```dart
+UniversalBle.startScan(skipDuplicates: true);
+```
+
+Where a platform has a native lever it is applied so de-duplication happens before callbacks cross the platform channel, saving battery — iOS/macOS stop passing CoreBluetooth's allow-duplicates key, Android applies `CALLBACK_TYPE_FIRST_MATCH` on controllers that support offloaded first-match filtering when you supply an `AndroidOptions` (unless you set `callbackType` yourself), and Linux sets BlueZ' `DuplicateData` filter. On every platform the Dart layer de-duplicates as well, so the behavior is consistent everywhere. Defaults to `false` (every advertisement is reported, unchanged behavior); users who need live RSSI should keep it `false`.
+
+On Web the browser's device chooser result is reported before advertisement packets arrive, so with `skipDuplicates: true` it is the only result for that device; advertisement-only fields such as RSSI and manufacturer data are not reported.
+
 Before initiating a scan, ensure that Bluetooth is available:
 
 ```dart

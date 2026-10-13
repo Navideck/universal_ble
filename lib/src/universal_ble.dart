@@ -47,7 +47,10 @@ class UniversalBle {
     UniversalLogger.logInfo('Queue ${queueType.name}');
   }
 
-  /// Scan Stream
+  /// Scan Stream.
+  ///
+  /// When [startScan] is called with `skipDuplicates: true`, each device is
+  /// reported at most once per scan session.
   static Stream<BleDevice> get scanStream => _platform.scanStream;
 
   /// Bluetooth availability state stream
@@ -122,17 +125,31 @@ class UniversalBle {
   /// Start scan.
   /// Scan results will arrive in [onScanResult] listener.
   /// It might throw errors if Bluetooth is not available.
-  /// `webRequestOptions` is supported on Web only.
+  ///
+  /// When [skipDuplicates] is `true`, each device is reported only once per
+  /// scan session: later sightings are suppressed until [stopScan] or the next
+  /// [startScan], including ones whose advertisement payload changed. Where the
+  /// platform has a native lever — iOS/macOS, Linux, and Android on controllers
+  /// that support offloaded first-match filtering when an `AndroidOptions` is
+  /// supplied — it is applied to save radio/CPU, and the
+  /// Dart layer de-duplicates on every platform so the behavior is consistent
+  /// everywhere. Defaults to `false`: every advertisement is reported, exactly
+  /// as before.
   static Future<void> startScan({
     ScanFilter? scanFilter,
     PlatformConfig? platformConfig,
     String? queueId,
+    bool skipDuplicates = false,
   }) async {
     return await _bleCommandQueue.queueCommandWithoutTimeout(
-      () => _platform.startScan(
-        scanFilter: scanFilter,
-        platformConfig: platformConfig,
-      ),
+      () {
+        _platform.setSkipDuplicates(skipDuplicates);
+        _platform.resetScanDeduplication();
+        return _platform.startScan(
+          scanFilter: scanFilter,
+          platformConfig: platformConfig,
+        );
+      },
       queueId: queueId,
     );
   }
@@ -142,7 +159,11 @@ class UniversalBle {
   /// It might throw errors if Bluetooth is not available.
   static Future<void> stopScan({String? queueId}) async {
     return await _bleCommandQueue.queueCommandWithoutTimeout(
-      () => _platform.stopScan(),
+      () {
+        _platform.setSkipDuplicates(false);
+        _platform.resetScanDeduplication();
+        return _platform.stopScan();
+      },
       queueId: queueId,
     );
   }
@@ -1029,6 +1050,9 @@ class UniversalBle {
       _bleCommandQueue.onQueueUpdate = onQueueUpdate;
 
   /// Get scan results.
+  ///
+  /// When [startScan] is called with `skipDuplicates: true`, each device is
+  /// reported at most once per scan session.
   static set onScanResult(OnScanResult? onScanResult) =>
       _platform.onScanResultUpdate = onScanResult;
 

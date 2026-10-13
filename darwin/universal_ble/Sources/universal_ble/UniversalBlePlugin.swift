@@ -173,7 +173,7 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
     completion(Result.failure(createFlutterError(code: .notSupported)))
   }
 
-  func startScan(filter: UniversalScanFilter?, config _: UniversalScanConfig?) throws {
+  func startScan(filter: UniversalScanFilter?, config: UniversalScanConfig?) throws {
     // If filter has any other filter other than official one
     let usesCustomFilters = filter?.usesCustomFilters ?? false
 
@@ -190,7 +190,13 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
       universalBleFilterUtil.scanFilterServicesUUID = []
     }
 
-    let options = [CBCentralManagerScanOptionAllowDuplicatesKey: true]
+    // When the caller opts into de-duplication, omit the allow-duplicates key so
+    // CoreBluetooth coalesces repeated discoveries of a peripheral instead of
+    // reporting every advertisement packet (battery friendly). The Dart layer
+    // enforces the once-per-scan-session guarantee. Defaults to `true` otherwise.
+    let options: [String: Any]? = (config?.skipDuplicates == true)
+      ? nil
+      : [CBCentralManagerScanOptionAllowDuplicatesKey: true]
 
     manager.scanForPeripherals(withServices: withServices, options: options)
     isManageScanning = true

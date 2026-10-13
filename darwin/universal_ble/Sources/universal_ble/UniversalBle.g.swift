@@ -741,31 +741,40 @@ struct AndroidOptions: Hashable {
 /// Generated class from Pigeon that represents data sent in messages.
 struct UniversalScanConfig: Hashable {
   var android: AndroidOptions? = nil
+  /// When `true`, each device is reported only once per scan session: repeated
+  /// scan results for a device are suppressed. Platforms with a native lever
+  /// apply it; the Dart layer de-duplicates as a cross-platform guarantee.
+  /// Wired from `UniversalBle.startScan`'s `skipDuplicates`.
+  var skipDuplicates: Bool? = nil
 
 
   // swift-format-ignore: AlwaysUseLowerCamelCase
   static func fromList(_ pigeonVar_list: [Any?]) -> UniversalScanConfig? {
     let android: AndroidOptions? = nilOrValue(pigeonVar_list[0])
+    let skipDuplicates: Bool? = nilOrValue(pigeonVar_list[1])
 
     return UniversalScanConfig(
-      android: android
+      android: android,
+      skipDuplicates: skipDuplicates
     )
   }
   func toList() -> [Any?] {
     return [
-      android
+      android,
+      skipDuplicates,
     ]
   }
   static func == (lhs: UniversalScanConfig, rhs: UniversalScanConfig) -> Bool {
     if Swift.type(of: lhs) != Swift.type(of: rhs) {
       return false
     }
-    return deepEqualsUniversalBle(lhs.android, rhs.android)
+    return deepEqualsUniversalBle(lhs.android, rhs.android) && deepEqualsUniversalBle(lhs.skipDuplicates, rhs.skipDuplicates)
   }
 
   func hash(into hasher: inout Hasher) {
     hasher.combine("UniversalScanConfig")
     deepHashUniversalBle(value: android, hasher: &hasher)
+    deepHashUniversalBle(value: skipDuplicates, hasher: &hasher)
   }
 }
 
