@@ -1099,7 +1099,7 @@ final List<BleCentral> activeCentrals = UniversalBlePeripheral.subscribedCentral
 
 - Linux/Web currently return unsupported for peripheral mode.
 - Windows peripheral advertising does not expose all advertising payload customization options from Android/Apple stacks.
-- **Central tracking on iOS / Apple platforms**: CoreBluetooth's `CBPeripheralManager` does not expose generic link-layer connection/disconnection callbacks for peripherals. Centrals are tracked as active when they subscribe to at least one GATT characteristic (`didSubscribeTo`), and are removed when unsubscribed from all characteristics or disconnected (`didUnsubscribeFrom`). Android and other platforms additionally prune tracked centrals immediately on link-layer disconnection.
+- **Central tracking on iOS / Apple platforms**: CoreBluetooth's `CBPeripheralManager` does not expose generic link-layer connection/disconnection callbacks for peripherals. Centrals are tracked as active when they subscribe to at least one GATT characteristic (`didSubscribeTo`), and are removed only when unsubscribed from all characteristics via `didUnsubscribeFrom`. Because CoreBluetooth does not guarantee unsubscription callbacks on abrupt link-layer disconnects, an entry may linger until the next unsubscription or until services are cleared. Other platforms (such as Android) additionally prune tracked centrals immediately on link-layer disconnection.
 - iOS/macOS setup (including required `Info.plist` keys for peripheral usage) is documented in [Permissions → iOS / macOS](#ios--macos).
 
 ## UUID Format Agnostic

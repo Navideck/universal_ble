@@ -3,12 +3,15 @@ import 'dart:async';
 import 'package:universal_ble/src/models/ble_central.dart';
 import 'package:universal_ble/src/models/ble_peripheral_event.dart';
 import 'package:universal_ble/src/models/ble_uuid_parser.dart';
+import 'package:universal_ble/src/utils/universal_ble_stream_controller.dart';
 
 /// Tracks active BLE central devices subscribed to characteristics in peripheral mode.
 class BleCentralTracker {
   final Map<String, BleCentral> _subscribedCentrals = <String, BleCentral>{};
-  final StreamController<List<BleCentral>> _controller =
-      StreamController<List<BleCentral>>.broadcast();
+  late final UniversalBleStreamController<List<BleCentral>> _controller =
+      UniversalBleStreamController<List<BleCentral>>(
+    initialEvent: () async => subscribedCentrals,
+  );
 
   StreamSubscription<BlePeripheralCharacteristicSubscriptionChanged>?
       _subscriptionSub;
@@ -113,18 +116,7 @@ class BleCentralTracker {
 
   /// Broadcast stream that emits the current list of subscribed centrals upon listening
   /// and any subsequent updates.
-  Stream<List<BleCentral>> get stream => Stream<List<BleCentral>>.multi(
-        (multiController) {
-          multiController.add(subscribedCentrals);
-          final sub = _controller.stream.listen(
-            multiController.add,
-            onError: multiController.addError,
-            onDone: multiController.close,
-          );
-          multiController.onCancel = () => sub.cancel();
-        },
-        isBroadcast: true,
-      );
+  Stream<List<BleCentral>> get stream => _controller.stream;
 
   void _emit() {
     if (!_controller.isClosed) {
