@@ -48,7 +48,7 @@ void main() {
     });
   });
 
-  test('DeviceId primary constructor defaults to !kIsWeb', () {
+  test('DeviceId primary constructor defaults to address device id', () {
     expect(DeviceId(upper).canonical, lower);
     expect(DeviceId(upper).native, upper);
     expect(DeviceId(upper), DeviceId.address(upper));

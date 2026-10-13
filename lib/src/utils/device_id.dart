@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 
 /// A BLE device id in the two forms universal_ble needs, and the only place the conversion
 /// between them lives.
@@ -29,9 +28,8 @@ class DeviceId {
 
   const DeviceId._(this.canonical, this.native);
 
-  /// Automatically treats [id] as an opaque token on Web,
-  /// and as a case-insensitive address (MAC/UUID) on native platforms.
-  factory DeviceId(String id, {bool isAddress = !kIsWeb}) => isAddress
+  /// A case-insensitive Bluetooth address (a MAC, or a UUID on Apple) by default.
+  factory DeviceId(String id, {bool isAddress = true}) => isAddress
       ? DeviceId._(id.toLowerCase(), id.toUpperCase())
       : DeviceId._(id, id);
 
@@ -62,7 +60,7 @@ class DeviceId {
 extension DeviceIdStringExtension on String {
   /// Converts this string into a [DeviceId].
   ///
-  /// Defaults to [!kIsWeb].
-  DeviceId toDeviceId({bool isAddress = !kIsWeb}) =>
+  /// Defaults to address device id ([isAddress] = true).
+  DeviceId toDeviceId({bool isAddress = true}) =>
       DeviceId(this, isAddress: isAddress);
 }
