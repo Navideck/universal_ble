@@ -10,6 +10,11 @@ class BleDevice {
   bool? paired;
   int? timestamp;
   int? timestampMicroseconds;
+  /// Whether the device is connectable based on its advertising flags.
+  ///
+  /// Can be `null` if the platform or advertising packet does not indicate
+  /// connectability (e.g. Linux and Web always report `null`).
+  bool? connectable;
 
   /// List of services advertised by the device.
   List<String> services;
@@ -57,6 +62,7 @@ class BleDevice {
     Map<String, Uint8List> serviceData = const {},
     this.timestamp,
     this.timestampMicroseconds,
+    this.connectable,
   })  : serviceData = _validateServiceData(serviceData),
         rawName = name,
         name = name?.replaceAll(RegExp(r'[^ -~]'), '').trim();
@@ -92,6 +98,7 @@ class BleDevice {
         'isSystemDevice: $isSystemDevice, '
         'timestamp: $timestamp, '
         'timestampMicroseconds: $timestampMicroseconds, '
+        'connectable: $connectable, '
         'manufacturerDataList: $manufacturerDataList, '
         'serviceData: $serviceData';
   }

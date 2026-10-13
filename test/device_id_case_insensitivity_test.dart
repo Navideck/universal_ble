@@ -8,9 +8,10 @@ import 'universal_ble_test_mock.dart';
 
 /// A BLE device id is a case-insensitive identifier, but platforms report it in different cases (Android
 /// upper-cases MACs, Windows/WinRT lower-cases them). These tests guard that universal_ble treats the two
-/// cases as ONE device — both the event-stream matching AND the per-device state keyed internally (pairing
-/// dedup, connection-parameters dedup, the service cache) — so a caller holding the id in a different case
-/// than the platform reports doesn't miss events, doesn't hang connect(), and doesn't split across entries.
+/// cases as ONE device — event-stream matching, connect() completion, and the service cache — so a caller
+/// holding the id in a different case than the platform reports doesn't miss events, doesn't hang connect(),
+/// and doesn't split across entries. (Pairing-state and connection-parameters de-dup each have their own
+/// file.)
 class _MockPlatform extends UniversalBlePlatformMock {
   @override
   Future<int> readRssi(String deviceId) => throw UnimplementedError();
@@ -69,8 +70,7 @@ void main() {
       final streamValue =
           platform.characteristicValueStream(upper, charId).first;
       Uint8List? callbackValue;
-      platform.onValueChange =
-          (deviceId, characteristicId, value, error) => callbackValue = value;
+      platform.onValueChange = (update) => callbackValue = update.value;
 
       platform.updateCharacteristicValue(lower, charId, decodedView, null);
 
@@ -130,8 +130,8 @@ void main() {
     final platform = _MockPlatform();
     final events = <String>[];
     platform.onConnectionParametersChange = (u) => events.add(u.deviceId);
-    BleConnectionParametersUpdated params(String id) =>
-        BleConnectionParametersUpdated(
+    BleConnectionParametersChange params(String id) =>
+        BleConnectionParametersChange(
             deviceId: id,
             interval: 12,
             latency: 0,
@@ -183,7 +183,7 @@ void main() {
       () {
     final platform = _MockPlatform();
     String? emitted;
-    platform.onConnectionChange = (id, isConnected, error) => emitted = id;
+    platform.onConnectionChange = (update) => emitted = update.deviceId;
     platform.updateConnection(upper, true);
     expect(emitted, lower);
   });
@@ -191,8 +191,7 @@ void main() {
   test('updateCharacteristicValue emits a lower-case id', () {
     final platform = _MockPlatform();
     String? emitted;
-    platform.onValueChange =
-        (id, characteristicId, value, timestamp) => emitted = id;
+    platform.onValueChange = (update) => emitted = update.deviceId;
     platform.updateCharacteristicValue(
         upper, charId, Uint8List.fromList([1]), null);
     expect(emitted, lower);
@@ -210,7 +209,7 @@ void main() {
     final platform = _MockPlatform();
     String? emitted;
     platform.onConnectionParametersChange = (u) => emitted = u.deviceId;
-    platform.updateConnectionParameters(BleConnectionParametersUpdated(
+    platform.updateConnectionParameters(BleConnectionParametersChange(
         deviceId: upper,
         interval: 12,
         latency: 0,
@@ -245,7 +244,7 @@ void main() {
     test('updateConnection emits an opaque id unchanged', () {
       final platform = _OpaqueIdPlatform();
       String? emitted;
-      platform.onConnectionChange = (id, isConnected, error) => emitted = id;
+      platform.onConnectionChange = (update) => emitted = update.deviceId;
       platform.updateConnection(opaque, true);
       expect(emitted, opaque);
     });

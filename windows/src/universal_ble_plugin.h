@@ -67,7 +67,7 @@ struct PeripheralGattCharacteristicObject {
 struct PeripheralGattServiceProviderObject {
   GattServiceProvider obj = nullptr;
   winrt::event_token advertisement_status_changed_token;
-  std::map<std::string, PeripheralGattCharacteristicObject*> characteristics;
+  std::map<std::string, PeripheralGattCharacteristicObject *> characteristics;
 };
 
 enum class PeripheralBlePermission {
@@ -79,6 +79,10 @@ enum class PeripheralBlePermission {
 };
 
 struct BluetoothDeviceAgent {
+  const uint64_t bluetooth_address;
+  // Assigned under connected_devices_mutex_ before removal, then moved into
+  // the disposal coroutine by the caller that wins Deactivate().
+  AsyncOperationTracker::Lease cleanup_reservation;
   BluetoothLEDevice device;
   event_token connection_status_changed_token;
   event_token gatt_services_changed_token;
@@ -91,11 +95,12 @@ struct BluetoothDeviceAgent {
   AsyncOperationTracker gatt_operations;
 
   BluetoothDeviceAgent(
-      const BluetoothLEDevice &device,
+      uint64_t bluetooth_address, const BluetoothLEDevice &device,
       const event_token connection_status_changed_token,
       const event_token gatt_services_changed_token,
       std::unordered_map<std::string, GattServiceObject> gatt_map)
-      : device(device),
+      : bluetooth_address(bluetooth_address),
+        device(device),
         connection_status_changed_token(connection_status_changed_token),
         gatt_services_changed_token(gatt_services_changed_token),
         gatt_map(std::move(gatt_map)) {}
@@ -115,9 +120,8 @@ struct BluetoothDeviceAgent {
     return active.load(std::memory_order_acquire);
   }
 
-  GattCharacteristicObject
-  FetchCharacteristic(const std::string &service_uuid,
-                      const std::string &characteristic_uuid) {
+  GattCharacteristicObject FetchCharacteristic(
+      const std::string &service_uuid, const std::string &characteristic_uuid) {
     std::lock_guard<std::mutex> lock(gatt_mutex);
     if (!IsActive()) {
       throw create_flutter_error(UniversalBleErrorCode::kDeviceDisconnected,
@@ -138,8 +142,7 @@ struct BluetoothDeviceAgent {
   }
 
   GattCharacteristicLease FetchCharacteristicForOperation(
-      const std::string &service_uuid,
-      const std::string &characteristic_uuid) {
+      const std::string &service_uuid, const std::string &characteristic_uuid) {
     std::lock_guard<std::mutex> lock(gatt_mutex);
     if (!IsActive()) {
       throw create_flutter_error(UniversalBleErrorCode::kDeviceDisconnected,
@@ -211,8 +214,7 @@ struct BluetoothDeviceAgent {
           return std::nullopt;
         }
         if (characteristic.subscription_token.has_value()) {
-          snapshot.characteristics.emplace_back(service_id,
-                                                characteristic_id);
+          snapshot.characteristics.emplace_back(service_id, characteristic_id);
         }
       }
     }
@@ -272,10 +274,9 @@ struct BluetoothDeviceAgent {
     }
   }
 
-  bool BeginNotificationOperation(
-      const std::string &service_uuid,
-      const std::string &characteristic_uuid,
-      GattCharacteristicObject &characteristic) {
+  bool BeginNotificationOperation(const std::string &service_uuid,
+                                  const std::string &characteristic_uuid,
+                                  GattCharacteristicObject &characteristic) {
     std::lock_guard<std::mutex> lock(gatt_mutex);
     if (!IsActive()) {
       return false;
@@ -297,8 +298,7 @@ struct BluetoothDeviceAgent {
   }
 
   bool UpdateNotificationOperationToken(
-      const std::string &service_uuid,
-      const std::string &characteristic_uuid,
+      const std::string &service_uuid, const std::string &characteristic_uuid,
       const std::optional<event_token> &subscription_token) {
     std::lock_guard<std::mutex> lock(gatt_mutex);
     if (!IsActive()) {
@@ -320,8 +320,7 @@ struct BluetoothDeviceAgent {
   }
 
   bool FinishNotificationOperation(
-      const std::string &service_uuid,
-      const std::string &characteristic_uuid,
+      const std::string &service_uuid, const std::string &characteristic_uuid,
       const std::optional<event_token> &subscription_token) {
     std::lock_guard<std::mutex> lock(gatt_mutex);
     if (!IsActive()) {
@@ -342,7 +341,6 @@ struct BluetoothDeviceAgent {
     ++gatt_revision;
     return true;
   }
-
 };
 
 class UniversalBlePlugin : public flutter::Plugin,
@@ -382,8 +380,24 @@ private:
   flutter::PluginRegistrarWindows *registrar_;
   bool initialized_ = false;
 
+  // Per plugin instance (one per FlutterEngine): the callback channels. Events
+  // must go through this instance's messenger; a process-global channel would
+  // be overwritten by the next engine's registration and reset on any engine's
+  // teardown, dropping the surviving engine's callbacks.
+  std::unique_ptr<UniversalBleCallbackChannel> callback_channel_;
+  std::unique_ptr<UniversalBlePeripheralCallback> peripheral_callback_channel_;
+
+  // PostCentralReport/PostPeripheralReport post callbacks that capture this
+  // instance's channel; the few posted directly capture `this` for other state.
+  // Both are safe because the destructor shuts this handler down before it
+  // resets the channels, and Shutdown drops still-queued callbacks instead of
+  // running them.
   UniversalBleUiThreadHandler ui_thread_handler_;
   AsyncOperationTracker callback_operations_;
+  AsyncOperationTracker initialization_operations_;
+  AsyncOperationTracker cleanup_operations_;
+  // Protected by connected_devices_mutex_; leases outlive map removal.
+  std::unordered_map<uint64_t, AsyncOperationTracker> connection_cleanup_;
   Radio bluetooth_radio_{nullptr};
   RadioState old_radio_state_ = RadioState::Unknown;
   BluetoothLEAdvertisementWatcher bluetooth_le_watcher_{nullptr};
@@ -397,6 +411,11 @@ private:
   std::mutex connected_devices_mutex_;
   ThreadSafeMap<std::string, DeviceInformation> device_watcher_devices_{};
   ThreadSafeMap<std::string, UniversalBleScanResult> scan_results_{};
+  // Addresses Windows has already handed over as a *connectable* packet. A scan
+  // response arrives as its own, non-connectable event; this map tracks which
+  // addresses were heard as connectable so scan responses preserve their
+  // connectable state.
+  ThreadSafeMap<std::string, bool> connectable_heard_{};
   // Maps DeviceInformation.Id() -> MAC address string used as key in
   // device_watcher_devices_
   ThreadSafeMap<std::string, std::string> device_watcher_id_to_mac_{};
@@ -409,43 +428,51 @@ private:
   event_token device_watcher_stopped_token_;
   event_revoker<IRadio> radio_state_changed_revoker_;
 
-  fire_and_forget InitializeAsync();
+  void InitializeAsync();
+  // Post `report` to the UI thread with this instance's callback channel. Keeps
+  // channel access in one place, and the callback never needs to capture
+  // `this`. The caller must hold a `callback_operations_` lease: the channel
+  // pointer is read here, on the caller's thread, and the destructor only
+  // resets the channels once every lease has been released.
+  void PostCentralReport(
+      std::function<void(UniversalBleCallbackChannel *)> &&report);
+  void PostPeripheralReport(
+      std::function<void(UniversalBlePeripheralCallback *)> &&report);
   fire_and_forget ConnectAsync(uint64_t bluetooth_address,
                                uint64_t connect_generation);
   fire_and_forget RefreshGattServicesAsync(
       uint64_t bluetooth_address,
       std::shared_ptr<BluetoothDeviceAgent> device_agent);
   fire_and_forget SetNotifiableAsync(
-      std::string device_id, std::string service,
-      std::string characteristic,
+      std::string device_id, std::string service, std::string characteristic,
       BleInputProperty ble_input_property,
       std::function<void(std::optional<FlutterError> reply)> result);
   fire_and_forget PairAsync(const std::string &device_id,
                             std::function<void(ErrorOr<bool> reply)> result);
-  fire_and_forget
-  CustomPairAsync(const std::string &device_id,
-                  std::function<void(ErrorOr<bool> reply)> result);
+  fire_and_forget CustomPairAsync(
+      const std::string &device_id,
+      std::function<void(ErrorOr<bool> reply)> result);
   static fire_and_forget GetSystemDevicesAsync(
       std::vector<std::string> with_services,
       std::function<void(ErrorOr<flutter::EncodableList> reply)> result);
-  static fire_and_forget
-  IsPairedAsync(const std::string &device_id,
-                std::function<void(ErrorOr<bool> reply)> result);
+  static fire_and_forget IsPairedAsync(
+      const std::string &device_id,
+      std::function<void(ErrorOr<bool> reply)> result);
   fire_and_forget DiscoverServicesAsync(
       const std::string &device_id, bool with_descriptors,
       std::function<void(ErrorOr<flutter::EncodableList> reply)> result);
 
-  void
-  PairingRequestedHandler(DeviceInformationCustomPairing sender,
-                          const DevicePairingRequestedEventArgs &event_args);
+  void PairingRequestedHandler(
+      DeviceInformationCustomPairing sender,
+      const DevicePairingRequestedEventArgs &event_args);
 
   void RadioStateChanged(const Radio &sender, const IInspectable &);
   void SetupDeviceWatcher();
   void DisposeDeviceWatcher();
   void PushUniversalScanResult(UniversalBleScanResult scan_result,
-                               bool is_connectable);
-  static std::string ExpandServiceUuid(const std::vector<uint8_t>& uuid_bytes, 
-                                        uint8_t uuid_type);
+                               bool is_connectable, bool is_scan_response);
+  static std::string ExpandServiceUuid(const std::vector<uint8_t> &uuid_bytes,
+                                       uint8_t uuid_type);
   void BluetoothLeWatcherReceived(
       const BluetoothLEAdvertisementWatcher &sender,
       const BluetoothLEAdvertisementReceivedEventArgs &args);
@@ -453,41 +480,47 @@ private:
   void BluetoothLeDeviceConnectionStatusChanged(const BluetoothLEDevice &sender,
                                                 const IInspectable &args);
   void BluetoothLeDeviceGattServicesChanged(const BluetoothLEDevice &sender,
-                                             const IInspectable &args);
-  std::shared_ptr<BluetoothDeviceAgent>
-  GetConnectedDevice(uint64_t bluetooth_address);
+                                            const IInspectable &args);
+  std::shared_ptr<BluetoothDeviceAgent> GetConnectedDevice(
+      uint64_t bluetooth_address);
   void InvalidateConnectAttempt(uint64_t bluetooth_address);
-  std::shared_ptr<BluetoothDeviceAgent>
-  RemoveConnectedDevice(uint64_t bluetooth_address,
-                        const BluetoothLEDevice *expected_device = nullptr,
-                        uint64_t *removed_generation = nullptr);
+  std::shared_ptr<BluetoothDeviceAgent> RemoveConnectedDevice(
+      uint64_t bluetooth_address,
+      const BluetoothLEDevice *expected_device = nullptr,
+      uint64_t *removed_generation = nullptr);
   bool InstallConnectedDevice(
       uint64_t bluetooth_address, uint64_t connect_generation,
       std::shared_ptr<BluetoothDeviceAgent> device_agent,
       std::shared_ptr<BluetoothDeviceAgent> &previous_device_agent);
-  bool NotifyConnectedIfCurrent(
-      uint64_t bluetooth_address, uint64_t connect_generation,
-      const BluetoothLEDevice &expected_device);
-  void NotifyConnectFailureIfCurrent(
-      uint64_t bluetooth_address, uint64_t connect_generation,
-      const std::string &error_message) noexcept;
-  void NotifyConnectionChanged(uint64_t bluetooth_address, bool connected,
-                               std::optional<std::string> error = std::nullopt,
-                               std::optional<uint64_t> expected_generation =
-                                   std::nullopt);
-  void NotifyConnectionException(uint64_t bluetooth_address,
-                                 const std::string &error_message,
-                                 const BluetoothLEDevice *expected_device =
-                                     nullptr);
+  bool NotifyConnectedIfCurrent(uint64_t bluetooth_address,
+                                uint64_t connect_generation,
+                                const BluetoothLEDevice &expected_device);
+  void NotifyConnectFailureIfCurrent(uint64_t bluetooth_address,
+                                     uint64_t connect_generation,
+                                     const std::string &error_message) noexcept;
+  void NotifyConnectionChanged(
+      uint64_t bluetooth_address, bool connected,
+      std::optional<std::string> error = std::nullopt,
+      std::optional<uint64_t> expected_generation = std::nullopt);
+  void NotifyConnectionException(
+      uint64_t bluetooth_address, const std::string &error_message,
+      const BluetoothLEDevice *expected_device = nullptr);
   bool CleanConnection(uint64_t bluetooth_address,
                        const BluetoothLEDevice *expected_device = nullptr,
                        uint64_t *removed_generation = nullptr);
   void DisposeConnection(
       const std::shared_ptr<BluetoothDeviceAgent> &device_agent);
-  void ResetState();
-  void DisposeServices(
+  // Requires connected_devices_mutex_. Does not deactivate or close objects.
+  void ReserveConnectionCleanupLocked(
       const std::shared_ptr<BluetoothDeviceAgent> &device_agent);
-  void DisposeGattMap(
+  static fire_and_forget DisposeConnectionAsync(
+      std::shared_ptr<BluetoothDeviceAgent> device_agent,
+      AsyncOperationTracker::Lease cleanup_lease,
+      AsyncOperationTracker::Lease connection_cleanup_lease);
+  void ResetState();
+  static void DisposeServices(
+      const std::shared_ptr<BluetoothDeviceAgent> &device_agent);
+  static void DisposeGattMap(
       std::unordered_map<std::string, GattServiceObject> gatt_map,
       const std::vector<GattDeviceService> *retained_services = nullptr);
 
@@ -500,7 +533,8 @@ private:
       const std::string &device_id, const std::string &characteristic_id,
       const GattValueChangedEventArgs &args);
   // Peripheral runtime state
-  std::map<std::string, PeripheralGattServiceProviderObject *> peripheral_service_provider_map_{};
+  std::map<std::string, PeripheralGattServiceProviderObject *>
+      peripheral_service_provider_map_{};
   /// Lowercased service UUIDs from the last successful `StartAdvertising` call.
   /// Empty means all registered services were selected.
   std::vector<std::string> peripheral_advertising_targets_lc_{};
@@ -526,8 +560,7 @@ private:
   void DisposePeripheralServiceProvider(
       PeripheralGattServiceProviderObject *service_provider_object);
   PeripheralGattCharacteristicObject *FindPeripheralGattCharacteristicObject(
-      const std::string &characteristic_id,
-      bool *ambiguous_match = nullptr);
+      const std::string &characteristic_id, bool *ambiguous_match = nullptr);
   bool ArePeripheralAdvertisingTargetsStarted() const;
   static uint8_t ToGattProtocolError(int64_t status_code);
   static GattCharacteristicProperties ToPeripheralGattCharacteristicProperties(
@@ -540,29 +573,36 @@ private:
   // UniversalBlePlatformChannel implementation.
   void GetBluetoothAvailabilityState(
       std::function<void(ErrorOr<AvailabilityState> reply)> result) override;
-  void
-  EnableBluetooth(std::function<void(ErrorOr<bool> reply)> result) override;
-  void
-  DisableBluetooth(std::function<void(ErrorOr<bool> reply)> result) override;
+  void EnableBluetooth(
+      std::function<void(ErrorOr<bool> reply)> result) override;
+  void DisableBluetooth(
+      std::function<void(ErrorOr<bool> reply)> result) override;
   ErrorOr<BleConnectionState> GetConnectionState(
       const std::string &device_id) override;
-  std::optional<FlutterError>
-  SetLogLevel(const BleLogLevel &log_level) override;
-  std::optional<FlutterError>
-  StartScan(const UniversalScanFilter *filter, const UniversalScanConfig *config) override;
+  std::optional<FlutterError> SetLogLevel(
+      const BleLogLevel &log_level) override;
+  std::optional<FlutterError> StartScan(
+      const UniversalScanFilter *filter,
+      const UniversalScanConfig *config) override;
   std::optional<FlutterError> StopScan() override;
   ErrorOr<bool> IsScanning() override;
-  std::optional<FlutterError> Connect(const std::string &device_id, const bool *auto_connect,
-                                      const ConnectionPlatformConfig *platform_config) override;
+  void RequestDevice(
+      const AppleAccessorySetupOptions &options,
+      std::function<void(ErrorOr<UniversalDevicePickerResult> reply)> result)
+      override;
+  std::optional<FlutterError> Connect(
+      const std::string &device_id, const bool *auto_connect,
+      const ConnectionPlatformConfig *platform_config) override;
   std::optional<FlutterError> Disconnect(const std::string &device_id) override;
   ErrorOr<bool> HasPermissions(bool with_android_fine_location) override;
   void RequestPermissions(
       bool with_android_fine_location,
       std::function<void(std::optional<FlutterError> reply)> result) override;
-  void
-  DiscoverServices(const std::string &device_id, bool with_descriptors,
-                   std::function<void(ErrorOr<flutter::EncodableList> reply)>
-                       result) override;
+  void DiscoverServices(
+      const std::string &device_id, bool with_descriptors,
+      const DiscoverServicesPlatformConfig *platform_config,
+      std::function<void(ErrorOr<flutter::EncodableList> reply)> result)
+      override;
   void SetNotifiable(
       const std::string &device_id, const std::string &service,
       const std::string &characteristic,
@@ -597,18 +637,22 @@ private:
                 std::function<void(ErrorOr<bool> reply)> result) override;
   void Pair(const std::string &device_id,
             std::function<void(ErrorOr<bool> reply)> result) override;
-  std::optional<FlutterError> UnPair(const std::string &device_id) override;
-  void
-  GetSystemDevices(const flutter::EncodableList &with_services,
-                   std::function<void(ErrorOr<flutter::EncodableList> reply)>
-                       result) override;
+  void UnPair(
+      const std::string &device_id,
+      std::function<void(std::optional<FlutterError> reply)> result) override;
+  void GetSystemDevices(
+      const flutter::EncodableList &with_services,
+      std::function<void(ErrorOr<flutter::EncodableList> reply)> result)
+      override;
 
   // UniversalBlePeripheralChannel implementation.
   ErrorOr<PeripheralAdvertisingState> GetAdvertisingState() override;
   ErrorOr<PeripheralReadinessState> GetReadinessState() override;
   std::optional<FlutterError> StopAdvertising() override;
-  std::optional<FlutterError> AddService(const PeripheralService &service) override;
-  std::optional<FlutterError> RemoveService(const std::string &service_id) override;
+  std::optional<FlutterError> AddService(
+      const PeripheralService &service) override;
+  std::optional<FlutterError> RemoveService(
+      const std::string &service_id) override;
   std::optional<FlutterError> ClearServices() override;
   ErrorOr<flutter::EncodableList> GetServices() override;
   std::optional<FlutterError> StartAdvertising(
@@ -625,6 +669,6 @@ private:
       const std::string &device_id) override;
 };
 
-} // namespace universal_ble
+}  // namespace universal_ble
 
-#endif // FLUTTER_PLUGIN_UNIVERSAL_BLE_PLUGIN_H_
+#endif  // FLUTTER_PLUGIN_UNIVERSAL_BLE_PLUGIN_H_

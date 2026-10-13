@@ -5,8 +5,7 @@
 
 namespace universal_ble {
 
-std::atomic<BleLogLevel> UniversalBleLogger::current_level_{
-    BleLogLevel::kNone};
+std::atomic<BleLogLevel> UniversalBleLogger::current_level_{BleLogLevel::kNone};
 
 static std::string GetCurrentTimestampString() {
   auto now = std::chrono::system_clock::now();
@@ -65,8 +64,8 @@ void UniversalBleLogger::LogVerbose(const std::string &message) {
 void UniversalBleLogger::LogDebugWithTimestamp(const std::string &message) {
   if (!Allows(BleLogLevel::kDebug))
     return;
-  std::cout << "UniversalBle:DEBUG " << GetCurrentTimestampString() << " " << message
-            << std::endl;
+  std::cout << "UniversalBle:DEBUG " << GetCurrentTimestampString() << " "
+            << message << std::endl;
 }
 
 void UniversalBleLogger::LogVerboseWithTimestamp(const std::string &message) {
@@ -82,4 +81,4 @@ bool UniversalBleLogger::Allows(BleLogLevel level) {
          static_cast<int>(level) <= static_cast<int>(current_level);
 }
 
-} // namespace universal_ble
+}  // namespace universal_ble

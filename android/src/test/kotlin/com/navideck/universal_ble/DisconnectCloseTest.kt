@@ -3,7 +3,6 @@ package com.navideck.universal_ble
 import android.bluetooth.BluetoothDevice
 import android.bluetooth.BluetoothGatt
 import android.os.Handler
-import kotlin.test.AfterTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertSame
@@ -21,20 +20,16 @@ import org.mockito.Mockito
 internal class DisconnectCloseTest {
     private val deviceAddress = "AA:BB:CC:DD:EE:FF"
 
-    // (deviceId, connected, error) of every onConnectionChanged delivered to Dart.
+    // (deviceId, connected, error, errorCode, nativeErrorCode) of every onConnectionChanged
+    // delivered to Dart.
     private val connectionChanges = mutableListOf<List<Any?>>()
     private val callbackChannel: UniversalBleCallbackChannel =
         Mockito.mock(UniversalBleCallbackChannel::class.java) { invocation ->
             if (invocation.method.name == "onConnectionChanged") {
-                connectionChanges.add(invocation.arguments.take(3))
+                connectionChanges.add(invocation.arguments.take(5))
             }
             null
         }
-
-    @AfterTest
-    fun clearCache() {
-        deviceAddress.findGatt()?.removeCache()
-    }
 
     private fun plugin(): UniversalBlePlugin {
         val plugin = UniversalBlePlugin()
@@ -44,23 +39,13 @@ internal class DisconnectCloseTest {
             invocation.getArgument<Runnable>(0).run()
             true
         }.`when`(handler).post(any())
-        setField(plugin, "mainThreadHandler", handler)
-        setField(plugin, "callbackChannel", callbackChannel)
+        plugin.setField("mainThreadHandler", handler)
+        plugin.setField("callbackChannel", callbackChannel)
         return plugin
     }
 
-    private fun setField(plugin: UniversalBlePlugin, name: String, value: Any) {
-        val field = UniversalBlePlugin::class.java.getDeclaredField(name)
-        field.isAccessible = true
-        field.set(plugin, value)
-    }
-
-    @Suppress("UNCHECKED_CAST")
-    private fun closingGatts(plugin: UniversalBlePlugin): MutableSet<BluetoothGatt> {
-        val field = UniversalBlePlugin::class.java.getDeclaredField("closingGatts")
-        field.isAccessible = true
-        return field.get(plugin) as MutableSet<BluetoothGatt>
-    }
+    private fun closingGatts(plugin: UniversalBlePlugin): MutableSet<BluetoothGatt> =
+        plugin.getField("closingGatts")
 
     private fun mockGatt(): BluetoothGatt {
         val device = Mockito.mock(BluetoothDevice::class.java)
@@ -81,8 +66,60 @@ internal class DisconnectCloseTest {
         )
 
         Mockito.verify(gatt).close()
-        assertEquals(listOf(listOf<Any?>(deviceAddress, false, null)), connectionChanges)
+        assertEquals(listOf(listOf<Any?>(deviceAddress, false, null, null, null)), connectionChanges)
         assertTrue(closingGatts(plugin).isEmpty())
+    }
+
+    @Test
+    fun peerDisconnectAfterConnectReportsDeviceDisconnected() {
+        val plugin = plugin()
+        val gatt = mockGatt()
+        plugin.gattRegistry().put(gatt)
+
+        plugin.onConnectionStateChange(
+            gatt, BluetoothGatt.GATT_SUCCESS, BluetoothGatt.STATE_CONNECTED
+        )
+        plugin.onConnectionStateChange(
+            gatt, BluetoothGatt.GATT_FAILURE, BluetoothGatt.STATE_DISCONNECTED
+        )
+
+        assertEquals(
+            listOf(
+                listOf<Any?>(deviceAddress, true, null, null, null),
+                listOf<Any?>(
+                    deviceAddress,
+                    false,
+                    "Unknown Error 257",
+                    UniversalBleErrorCode.DEVICE_DISCONNECTED,
+                    257L,
+                ),
+            ),
+            connectionChanges,
+        )
+    }
+
+    @Test
+    fun disconnectBeforeConnectReportsConnectionFailed() {
+        val plugin = plugin()
+        val gatt = mockGatt()
+        plugin.gattRegistry().put(gatt)
+
+        plugin.onConnectionStateChange(
+            gatt, BluetoothGatt.GATT_FAILURE, BluetoothGatt.STATE_DISCONNECTED
+        )
+
+        assertEquals(
+            listOf(
+                listOf<Any?>(
+                    deviceAddress,
+                    false,
+                    "Unknown Error 257",
+                    UniversalBleErrorCode.CONNECTION_FAILED,
+                    257L,
+                )
+            ),
+            connectionChanges,
+        )
     }
 
     @Test
@@ -91,7 +128,7 @@ internal class DisconnectCloseTest {
         val oldGatt = mockGatt()
         val newGatt = mockGatt()
         closingGatts(plugin).add(oldGatt)
-        newGatt.saveCacheIfNeeded()
+        plugin.gattRegistry().put(newGatt)
 
         plugin.onConnectionStateChange(
             oldGatt, BluetoothGatt.GATT_SUCCESS, BluetoothGatt.STATE_DISCONNECTED
@@ -99,6 +136,6 @@ internal class DisconnectCloseTest {
 
         Mockito.verify(oldGatt).close()
         assertTrue(connectionChanges.isEmpty())
-        assertSame(newGatt, deviceAddress.findGatt())
+        assertSame(newGatt, plugin.gattRegistry().find(deviceAddress))
     }
 }

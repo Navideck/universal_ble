@@ -5,9 +5,9 @@ import 'package:universal_ble/universal_ble.dart';
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  group('BleConnectionParametersUpdatedX', () {
+  group('BleConnectionParametersChangeX', () {
     test('intervalMs and supervisionTimeoutMs', () {
-      final update = BleConnectionParametersUpdated(
+      final update = BleConnectionParametersChange(
         deviceId: 'aa:bb:cc:dd:ee:ff',
         interval: 12,
         latency: 0,
@@ -43,10 +43,10 @@ void main() {
     });
 
     test('skips consecutive identical updates', () async {
-      final events = <BleConnectionParametersUpdated>[];
+      final events = <BleConnectionParametersChange>[];
       platform.onConnectionParametersChange = events.add;
 
-      final update = BleConnectionParametersUpdated(
+      final update = BleConnectionParametersChange(
         deviceId: 'aa:bb:cc:dd:ee:ff',
         interval: 12,
         latency: 0,
@@ -56,7 +56,7 @@ void main() {
       platform.updateConnectionParameters(update);
       platform.updateConnectionParameters(update);
       platform.updateConnectionParameters(
-        BleConnectionParametersUpdated(
+        BleConnectionParametersChange(
           deviceId: update.deviceId,
           interval: 420,
           latency: update.latency,
@@ -69,11 +69,31 @@ void main() {
       expect(events.first.interval, 12);
       expect(events.last.interval, 420);
     });
+
+    test('dedup treats the two cases as one device', () async {
+      final events = <String>[];
+      platform.onConnectionParametersChange = (u) => events.add(u.deviceId);
+      const lower = 'aa:bb:cc:dd:ee:01';
+      const upper = 'AA:BB:CC:DD:EE:01';
+      BleConnectionParametersChange params(String id) => BleConnectionParametersChange(
+            deviceId: id,
+            interval: 12,
+            latency: 0,
+            supervisionTimeout: 500,
+            status: 0,
+          );
+
+      platform.updateConnectionParameters(params(lower)); // first -> emits
+      platform.updateConnectionParameters(params(upper)); // identical params, other case -> deduped
+
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+      expect(events, [lower]);
+    });
   });
 }
 
-BleConnectionParametersUpdated _update({required int interval}) {
-  return BleConnectionParametersUpdated(
+BleConnectionParametersChange _update({required int interval}) {
+  return BleConnectionParametersChange(
     deviceId: 'aa:bb:cc:dd:ee:ff',
     interval: interval,
     latency: 0,

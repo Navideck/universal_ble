@@ -35,9 +35,9 @@ class UniversalBle {
   }
 
   /// Set how commands will be executed. By default, [QueueType.auto] is used,
-  /// which automatically picks the best strategy for the current platform: Android uses a
-  /// per-device queue (its native stack rejects overlapping operations), while all other
-  /// platforms run commands in parallel (they pipeline natively).
+  /// which automatically picks the best strategy for the current platform: Android, Web
+  /// and Linux use a per-device queue (their BLE stacks reject or misbehave on overlapping
+  /// operations), while all other platforms run commands in parallel (they pipeline natively).
   ///
   /// [QueueType.global] will execute commands of all devices in a single queue.
   /// [QueueType.perDevice] will execute command of each device in separate queues.
@@ -58,7 +58,20 @@ class UniversalBle {
   static Stream<bool> connectionStream(String deviceId) =>
       _platform.connectionStream(deviceId);
 
-  /// Characteristic value stream
+  /// Connection stream of a device with the platform's error details.
+  ///
+  /// Emits the same events as [connectionStream], each carrying the native
+  /// error message, a unified [BleConnectionChange.errorCode] and the raw
+  /// [BleConnectionChange.nativeErrorCode] so the app can tell a link loss
+  /// from a disconnect initiated by the peripheral.
+  static Stream<BleConnectionChange> connectionChangeStream(String deviceId) =>
+      _platform.connectionChangeStream(deviceId);
+
+  /// Characteristic value stream.
+  ///
+  /// Emits the raw characteristic bytes for each update. The platform
+  /// timestamp is not surfaced here; set [onValueChange] to receive a
+  /// [BleCharacteristicValue] that also carries it.
   static Stream<Uint8List> characteristicValueStream(
     String deviceId,
     String characteristicId,
@@ -140,6 +153,37 @@ class UniversalBle {
     return await _bleCommandQueue.queueCommand(
       () => _platform.isScanning(),
       queueId: queueId,
+    );
+  }
+
+  /// Presents the platform's native device picker and returns the device the
+  /// user selected. Pass its `deviceId` to [connect].
+  ///
+  /// - **Web:** opens the browser's Bluetooth device chooser, honoring
+  ///   [scanFilter] and [PickerPlatformConfig.web].
+  /// - **iOS 18+:** shows the AccessorySetupKit picker, configured through
+  ///   [PickerPlatformConfig.apple] ([AppleAccessorySetupOptions]). The host app
+  ///   must declare matching values in `Info.plist`, and each item's image asset
+  ///   must exist in the iOS asset catalog. Unlike [startScan], this flow does
+  ///   not require broad Bluetooth permission.
+  ///
+  /// [scanFilter] only applies to Web and is ignored on iOS, where discovery is
+  /// described by [AppleAccessoryPickerItem]. On Apple platforms
+  /// [PickerPlatformConfig.apple] is required; omitting it throws
+  /// [UniversalBleException] with code [UniversalBleErrorCode.notSupported].
+  ///
+  /// The picker is user-driven UI rather than a BLE command, so it runs outside
+  /// the command queue and is unaffected by [timeout] or [clearQueue].
+  ///
+  /// On platforms without a native picker this throws [UniversalBleException]
+  /// with code [UniversalBleErrorCode.notSupported].
+  static Future<BleDevice> requestDevice({
+    ScanFilter? scanFilter,
+    PickerPlatformConfig? platformConfig,
+  }) {
+    return _platform.requestDevice(
+      scanFilter: scanFilter,
+      platformConfig: platformConfig,
     );
   }
 
@@ -244,14 +288,22 @@ class UniversalBle {
 
   /// Discover services of a device.
   /// Set [withDescriptors] to `true` to discover characteristics with descriptors.
+  /// [platformConfig] carries platform-specific options, e.g.
+  /// `AndroidDiscoverServicesOptions(clearGattCache: true)` to drop Android's
+  /// GATT cache before discovering. Ignored where not applicable.
   static Future<List<BleService>> discoverServices(
     String deviceId, {
     bool withDescriptors = false,
     Duration? timeout,
     String? queueId,
+    DiscoverServicesPlatformConfig? platformConfig,
   }) async {
     return await _bleCommandQueue.queueCommand(
-      () => _platform.discoverServices(deviceId, withDescriptors),
+      () => _platform.discoverServices(
+        deviceId,
+        withDescriptors,
+        platformConfig: platformConfig,
+      ),
       timeout: timeout,
       deviceId: deviceId,
       queueId: queueId,
@@ -453,6 +505,10 @@ class UniversalBle {
   ///
   /// **Best Practices:** Design for default ATT MTU (23 bytes), treat requests as
   /// opportunistic, and implement fragmentation for larger payloads.
+  ///
+  /// **Concurrency:** Concurrent requests for the same device share a single
+  /// negotiation. Every pending call resolves to the same negotiated value,
+  /// which may differ from each caller's `expectedMtu`.
   static Future<int> requestMtu(
     String deviceId,
     int expectedMtu, {
@@ -596,6 +652,11 @@ class UniversalBle {
 
   /// Unpair a device.
   /// It might throw an error if device is not paired.
+  ///
+  /// On `iOS 18+`, removes an accessory authorized through AccessorySetupKit;
+  /// [deviceId] is the accessory's Bluetooth identifier returned by
+  /// [requestDevice] (or system devices). Devices not managed by
+  /// AccessorySetupKit fail with [UniversalBleErrorCode.deviceNotFound].
   static Future<void> unpair(
     String deviceId, {
     Duration? timeout,
@@ -763,7 +824,7 @@ class UniversalBle {
     }
 
     connectionSubscription = _platform
-        .bleConnectionUpdateStreamController.stream
+        .bleConnectionChangeStreamController.stream
         .where((e) => e.deviceId == target)
         .listen(
       (e) {
@@ -971,7 +1032,10 @@ class UniversalBle {
   static set onScanResult(OnScanResult? onScanResult) =>
       _platform.onScanResultUpdate = onScanResult;
 
-  /// Get connection state changes.
+  /// Get connection state changes of all devices as [BleConnectionChange],
+  /// with the platform's error message, a unified
+  /// [BleConnectionChange.errorCode] and the raw
+  /// [BleConnectionChange.nativeErrorCode].
   static set onConnectionChange(OnConnectionChange? onConnectionChange) =>
       _platform.onConnectionChange = onConnectionChange;
 

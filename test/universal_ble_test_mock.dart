@@ -25,8 +25,9 @@ abstract class UniversalBlePlatformMock extends UniversalBlePlatform {
   @override
   Future<List<BleService>> discoverServices(
     String deviceId,
-    bool withDescriptors,
-  ) {
+    bool withDescriptors, {
+    DiscoverServicesPlatformConfig? platformConfig,
+  }) {
     throw UnimplementedError();
   }
 
@@ -85,6 +86,14 @@ abstract class UniversalBlePlatformMock extends UniversalBlePlatform {
     String deviceId,
     BleConnectionPriority priority,
   ) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<BleDevice> requestDevice({
+    ScanFilter? scanFilter,
+    PickerPlatformConfig? platformConfig,
+  }) {
     throw UnimplementedError();
   }
 

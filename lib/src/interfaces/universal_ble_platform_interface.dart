@@ -14,21 +14,19 @@ abstract class UniversalBlePlatform {
   OnAvailabilityChange? onAvailabilityChange;
   OnPairingStateChange? onPairingStateChange;
   OnConnectionParametersChange? onConnectionParametersChange;
-  final Map<String, bool> _pairStateMap = {};
-  final Map<String, BleConnectionParametersUpdated>
-  _lastConnectionParametersMap = {};
+  // Last pairing/bond state seen per canonical device id (see updatePairingState). Bond state outlives a
+  // connection, so unlike _lastConnectionParametersMap this is not cleared on disconnect.
+  final Map<String, bool> _lastPairStateMap = {};
+  final Map<String, BleConnectionParametersChange>
+      _lastConnectionParametersMap = {};
 
   final _scanStreamController = UniversalBleStreamController<BleDevice>();
 
-  final bleConnectionUpdateStreamController =
-      UniversalBleStreamController<
-        ({String deviceId, bool isConnected, String? error})
-      >();
+  final bleConnectionChangeStreamController =
+      UniversalBleStreamController<BleConnectionChange>();
 
   final _valueStreamController =
-      UniversalBleStreamController<
-        ({String deviceId, String characteristicId, Uint8List value})
-      >();
+      UniversalBleStreamController<BleCharacteristicValue>();
 
   final _pairStateStreamController =
       UniversalBleStreamController<({String deviceId, bool isPaired})>();
@@ -36,8 +34,8 @@ abstract class UniversalBlePlatform {
   /// Send latest availability state upon subscribing
   late final _availabilityStreamController =
       UniversalBleStreamController<AvailabilityState>(
-        initialEvent: getBluetoothAvailabilityState,
-      );
+    initialEvent: getBluetoothAvailabilityState,
+  );
 
   Future<AvailabilityState> getBluetoothAvailabilityState();
 
@@ -62,6 +60,16 @@ abstract class UniversalBlePlatform {
 
   Future<bool> isScanning();
 
+  Future<BleDevice> requestDevice({
+    ScanFilter? scanFilter,
+    PickerPlatformConfig? platformConfig,
+  }) async {
+    throw UniversalBleException(
+      code: UniversalBleErrorCode.notSupported,
+      message: 'requestDevice is not supported on this platform',
+    );
+  }
+
   Future<void> connect(
     String deviceId, {
     Duration? connectionTimeout,
@@ -73,8 +81,9 @@ abstract class UniversalBlePlatform {
 
   Future<List<BleService>> discoverServices(
     String deviceId,
-    bool withDescriptors,
-  );
+    bool withDescriptors, {
+    DiscoverServicesPlatformConfig? platformConfig,
+  });
 
   Future<void> setNotifiable(
     String deviceId,
@@ -161,12 +170,14 @@ abstract class UniversalBlePlatform {
   DeviceId _deviceId(String deviceId) =>
       DeviceId.of(deviceId, isAddress: hasAddressDeviceIds);
 
+  Stream<bool> connectionStream(String deviceId) =>
+      connectionChangeStream(deviceId).map((e) => e.isConnected);
 
-  Stream<bool> connectionStream(String deviceId) {
+  Stream<BleConnectionChange> connectionChangeStream(String deviceId) {
     final target = _deviceId(deviceId).canonical;
-    return bleConnectionUpdateStreamController.stream
-        .where((e) => e.deviceId == target)
-        .map((e) => e.isConnected);
+    return bleConnectionChangeStreamController.stream.where(
+      (e) => e.deviceId == target,
+    );
   }
 
   Stream<Uint8List> characteristicValueStream(
@@ -197,21 +208,33 @@ abstract class UniversalBlePlatform {
     } catch (_) {}
   }
 
-  void updateConnection(String deviceId, bool isConnected, [String? error]) {
+  void updateConnection(
+    String deviceId,
+    bool isConnected, [
+    String? error,
+    UniversalBleErrorCode? errorCode,
+    int? nativeErrorCode,
+  ]) {
     deviceId = _deviceId(deviceId).canonical;
-    bleConnectionUpdateStreamController.add((
+    final update = BleConnectionChange(
       deviceId: deviceId,
       isConnected: isConnected,
       error: error,
-    ));
+      errorCode: errorCode,
+      nativeErrorCode: nativeErrorCode,
+    );
+    bleConnectionChangeStreamController.add(update);
 
     try {
-      onConnectionChange?.call(deviceId, isConnected, error);
+      onConnectionChange?.call(update);
     } catch (_) {}
 
     if (!isConnected) {
       // Clear per-device state (all keyed by the canonical id).
       CacheHandler.instance.resetDeviceCache(deviceId);
+      // Connection parameters belong to this connection, so drop them. Pairing/bond state deliberately
+      // outlives the connection (a bonded device stays bonded across reconnects) and is left in
+      // _lastPairStateMap.
       _lastConnectionParametersMap.remove(deviceId);
     }
   }
@@ -228,23 +251,19 @@ abstract class UniversalBlePlatform {
     // platform-message buffer. Normalize that view before exposing it so
     // consumers which pass `value.buffer` to another binary API cannot
     // accidentally include Pigeon envelope bytes.
-    final normalizedValue =
-        value.offsetInBytes == 0 &&
+    final normalizedValue = value.offsetInBytes == 0 &&
             value.lengthInBytes == value.buffer.lengthInBytes
         ? value
         : Uint8List.fromList(value);
-    _valueStreamController.add((
+    final update = BleCharacteristicValue(
       deviceId: deviceId,
       characteristicId: characteristicId,
       value: normalizedValue,
-    ));
+      timestamp: timestamp,
+    );
+    _valueStreamController.add(update);
     try {
-      onValueChange?.call(
-        deviceId,
-        characteristicId,
-        normalizedValue,
-        timestamp,
-      );
+      onValueChange?.call(update);
     } catch (_) {}
   }
 
@@ -257,10 +276,21 @@ abstract class UniversalBlePlatform {
   }
 
   void updatePairingState(String deviceId, bool isPaired) {
-    deviceId = _deviceId(deviceId).canonical;
-    if (_pairStateMap[deviceId] == isPaired) return;
-    _pairStateMap[deviceId] = isPaired;
+    final canonicalId = _deviceId(deviceId).canonical;
+    if (_isDuplicateState(_lastPairStateMap, canonicalId, isPaired)) return;
+    _emitPairingState(canonicalId, isPaired);
+  }
 
+  /// A failed bond is an event, not a state: it reports `isPaired: false` regardless of what was cached before,
+  /// so it must not go through [updatePairingState]'s dedup — otherwise every failure after the first is
+  /// swallowed (#325). The cached value is still refreshed so later genuine transitions dedup as usual.
+  void updatePairingFailure(String deviceId) {
+    final canonicalId = _deviceId(deviceId).canonical;
+    _lastPairStateMap[canonicalId] = false;
+    _emitPairingState(canonicalId, false);
+  }
+
+  void _emitPairingState(String deviceId, bool isPaired) {
     _pairStateStreamController.add((deviceId: deviceId, isPaired: isPaired));
 
     try {
@@ -268,20 +298,41 @@ abstract class UniversalBlePlatform {
     } catch (_) {}
   }
 
-  void updateConnectionParameters(BleConnectionParametersUpdated update) {
+  void updateConnectionParameters(BleConnectionParametersChange update) {
     update.deviceId = _deviceId(update.deviceId).canonical;
-    final last = _lastConnectionParametersMap[update.deviceId];
-    if (last != null &&
-        last.interval == update.interval &&
-        last.latency == update.latency &&
-        last.supervisionTimeout == update.supervisionTimeout &&
-        last.status == update.status) {
-      return;
-    }
-    _lastConnectionParametersMap[update.deviceId] = update;
+    final isDuplicate = _isDuplicateState(
+      _lastConnectionParametersMap,
+      update.deviceId,
+      update,
+      equals: (previous, next) =>
+          previous.interval == next.interval &&
+          previous.latency == next.latency &&
+          previous.supervisionTimeout == next.supervisionTimeout &&
+          previous.status == next.status,
+    );
+    if (isDuplicate) return;
 
     try {
       onConnectionParametersChange?.call(update);
     } catch (_) {}
+  }
+
+  /// True when [value] equals the last value cached for [deviceId] (matched case-insensitively), in which case
+  /// the cache is left untouched. Otherwise [value] is cached under the canonical id and this returns false.
+  /// [equals] defaults to `==`; pass a comparator for payloads whose identity is field-based.
+  bool _isDuplicateState<T>(
+    Map<String, T> cache,
+    String deviceId,
+    T value, {
+    bool Function(T previous, T next)? equals,
+  }) {
+    final key = _deviceId(deviceId).canonical;
+    final previous = cache[key];
+    if (previous != null &&
+        (equals == null ? previous == value : equals(previous, value))) {
+      return true;
+    }
+    cache[key] = value;
+    return false;
   }
 }

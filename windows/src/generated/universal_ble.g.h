@@ -266,7 +266,8 @@ class UniversalBleScanResult {
     const ::flutter::EncodableMap* service_data,
     const ::flutter::EncodableList* services,
     const int64_t* timestamp,
-    const int64_t* timestamp_microseconds);
+    const int64_t* timestamp_microseconds,
+    const bool* connectable);
 
   const std::string& device_id() const;
   void set_device_id(std::string_view value_arg);
@@ -303,6 +304,10 @@ class UniversalBleScanResult {
   void set_timestamp_microseconds(const int64_t* value_arg);
   void set_timestamp_microseconds(int64_t value_arg);
 
+  const bool* connectable() const;
+  void set_connectable(const bool* value_arg);
+  void set_connectable(bool value_arg);
+
   bool operator==(const UniversalBleScanResult& other) const;
   bool operator!=(const UniversalBleScanResult& other) const;
   /// Returns a hash code value for the object. This method is supported for the benefit of hash tables.
@@ -325,6 +330,47 @@ class UniversalBleScanResult {
   std::optional<::flutter::EncodableList> services_;
   std::optional<int64_t> timestamp_;
   std::optional<int64_t> timestamp_microseconds_;
+  std::optional<bool> connectable_;
+};
+
+
+// The device a platform's native picker returned.
+//
+// Generated class from Pigeon that represents data sent in messages.
+class UniversalDevicePickerResult {
+ public:
+  // Constructs an object setting all non-nullable fields.
+  explicit UniversalDevicePickerResult(const std::string& device_id);
+
+  // Constructs an object setting all fields.
+  explicit UniversalDevicePickerResult(
+    const std::string& device_id,
+    const std::string* name);
+
+  // Identifier to pass to `connect`.
+  const std::string& device_id() const;
+  void set_device_id(std::string_view value_arg);
+
+  // Name the platform reported for the selected device, if any.
+  const std::string* name() const;
+  void set_name(const std::string_view* value_arg);
+  void set_name(std::string_view value_arg);
+
+  bool operator==(const UniversalDevicePickerResult& other) const;
+  bool operator!=(const UniversalDevicePickerResult& other) const;
+  /// Returns a hash code value for the object. This method is supported for the benefit of hash tables.
+  size_t Hash() const;
+ private:
+  static UniversalDevicePickerResult FromEncodableList(const ::flutter::EncodableList& list);
+  ::flutter::EncodableList ToEncodableList() const;
+  friend class UniversalBlePlatformChannel;
+  friend class UniversalBleCallbackChannel;
+  friend class UniversalBlePeripheralChannel;
+  friend class UniversalBleAndroidChannel;
+  friend class UniversalBlePeripheralCallback;
+  friend class PigeonInternalCodecSerializer;
+  std::string device_id_;
+  std::optional<std::string> name_;
 };
 
 
@@ -435,10 +481,10 @@ class UniversalBleDescriptor {
 // (multiply interval by 1.25 for ms; supervisionTimeout by 10 for ms).
 //
 // Generated class from Pigeon that represents data sent in messages.
-class BleConnectionParametersUpdated {
+class BleConnectionParametersChange {
  public:
   // Constructs an object setting all fields.
-  explicit BleConnectionParametersUpdated(
+  explicit BleConnectionParametersChange(
     const std::string& device_id,
     int64_t interval,
     int64_t latency,
@@ -460,12 +506,12 @@ class BleConnectionParametersUpdated {
   int64_t status() const;
   void set_status(int64_t value_arg);
 
-  bool operator==(const BleConnectionParametersUpdated& other) const;
-  bool operator!=(const BleConnectionParametersUpdated& other) const;
+  bool operator==(const BleConnectionParametersChange& other) const;
+  bool operator!=(const BleConnectionParametersChange& other) const;
   /// Returns a hash code value for the object. This method is supported for the benefit of hash tables.
   size_t Hash() const;
  private:
-  static BleConnectionParametersUpdated FromEncodableList(const ::flutter::EncodableList& list);
+  static BleConnectionParametersChange FromEncodableList(const ::flutter::EncodableList& list);
   ::flutter::EncodableList ToEncodableList() const;
   friend class UniversalBlePlatformChannel;
   friend class UniversalBleCallbackChannel;
@@ -792,6 +838,106 @@ class AppleConnectionOptions {
 };
 
 
+// One accessory the AccessorySetupKit picker can offer. Each item is shown as
+// a separate entry in the system picker.
+//
+// Generated class from Pigeon that represents data sent in messages.
+class AppleAccessoryPickerItem {
+ public:
+  // Constructs an object setting all non-nullable fields.
+  explicit AppleAccessoryPickerItem(
+    const std::string& display_name,
+    const std::string& image_asset,
+    const std::string& service_uuid);
+
+  // Constructs an object setting all fields.
+  explicit AppleAccessoryPickerItem(
+    const std::string& display_name,
+    const std::string& image_asset,
+    const std::string& service_uuid,
+    const std::string* name_substring,
+    const bool* requires_immediate_range,
+    const bool* supports_bluetooth_pairing);
+
+  // Name shown in the system accessory picker.
+  const std::string& display_name() const;
+  void set_display_name(std::string_view value_arg);
+
+  // Name of the product image in the iOS app's asset catalog.
+  const std::string& image_asset() const;
+  void set_image_asset(std::string_view value_arg);
+
+  // Advertised Bluetooth service UUID used to discover the accessory.
+  const std::string& service_uuid() const;
+  void set_service_uuid(std::string_view value_arg);
+
+  // Optional substring of the accessory's advertised Bluetooth name.
+  const std::string* name_substring() const;
+  void set_name_substring(const std::string_view* value_arg);
+  void set_name_substring(std::string_view value_arg);
+
+  // Limit discovery to accessories in the immediate vicinity.
+  const bool* requires_immediate_range() const;
+  void set_requires_immediate_range(const bool* value_arg);
+  void set_requires_immediate_range(bool value_arg);
+
+  // Allow AccessorySetupKit to perform Bluetooth LE pairing when needed.
+  const bool* supports_bluetooth_pairing() const;
+  void set_supports_bluetooth_pairing(const bool* value_arg);
+  void set_supports_bluetooth_pairing(bool value_arg);
+
+  bool operator==(const AppleAccessoryPickerItem& other) const;
+  bool operator!=(const AppleAccessoryPickerItem& other) const;
+  /// Returns a hash code value for the object. This method is supported for the benefit of hash tables.
+  size_t Hash() const;
+ private:
+  static AppleAccessoryPickerItem FromEncodableList(const ::flutter::EncodableList& list);
+  ::flutter::EncodableList ToEncodableList() const;
+  friend class UniversalBlePlatformChannel;
+  friend class UniversalBleCallbackChannel;
+  friend class UniversalBlePeripheralChannel;
+  friend class UniversalBleAndroidChannel;
+  friend class UniversalBlePeripheralCallback;
+  friend class PigeonInternalCodecSerializer;
+  std::string display_name_;
+  std::string image_asset_;
+  std::string service_uuid_;
+  std::optional<std::string> name_substring_;
+  std::optional<bool> requires_immediate_range_;
+  std::optional<bool> supports_bluetooth_pairing_;
+};
+
+
+// iOS 18+ options for discovering and authorizing Bluetooth accessories with
+// AccessorySetupKit before connecting to them.
+//
+// Generated class from Pigeon that represents data sent in messages.
+class AppleAccessorySetupOptions {
+ public:
+  // Constructs an object setting all fields.
+  explicit AppleAccessorySetupOptions(const ::flutter::EncodableList& items);
+
+  // Accessories the picker offers. At least one item is required.
+  const ::flutter::EncodableList& items() const;
+  void set_items(const ::flutter::EncodableList& value_arg);
+
+  bool operator==(const AppleAccessorySetupOptions& other) const;
+  bool operator!=(const AppleAccessorySetupOptions& other) const;
+  /// Returns a hash code value for the object. This method is supported for the benefit of hash tables.
+  size_t Hash() const;
+ private:
+  static AppleAccessorySetupOptions FromEncodableList(const ::flutter::EncodableList& list);
+  ::flutter::EncodableList ToEncodableList() const;
+  friend class UniversalBlePlatformChannel;
+  friend class UniversalBleCallbackChannel;
+  friend class UniversalBlePeripheralChannel;
+  friend class UniversalBleAndroidChannel;
+  friend class UniversalBlePeripheralCallback;
+  friend class PigeonInternalCodecSerializer;
+  ::flutter::EncodableList items_;
+};
+
+
 // Generated class from Pigeon that represents data sent in messages.
 class AndroidConnectionOptions {
  public:
@@ -806,7 +952,8 @@ class AndroidConnectionOptions {
   // GATT open, keeping the peripheral occupied until its supervision
   // timeout; with `autoConnect` it also stays open for reconnection.
   //
-  // When `null`, the current process-wide value is kept.
+  // When `null`, the value set by a previous `connect()` on this engine
+  // is kept.
   const bool* close_gatt_on_detach() const;
   void set_close_gatt_on_detach(const bool* value_arg);
   void set_close_gatt_on_detach(bool value_arg);
@@ -868,6 +1015,81 @@ class ConnectionPlatformConfig {
   friend class PigeonInternalCodecSerializer;
   std::unique_ptr<AppleConnectionOptions> apple_;
   std::unique_ptr<AndroidConnectionOptions> android_;
+};
+
+
+// Generated class from Pigeon that represents data sent in messages.
+class AndroidDiscoverServicesOptions {
+ public:
+  // Constructs an object setting all non-nullable fields.
+  AndroidDiscoverServicesOptions();
+
+  // Constructs an object setting all fields.
+  explicit AndroidDiscoverServicesOptions(const bool* clear_gatt_cache);
+
+  // Clear the OS-level GATT cache of the connection (`BluetoothGatt.refresh()`)
+  // before discovering, so a peripheral whose GATT layout changed while it
+  // was disconnected is read again instead of served from the cache.
+  //
+  // `refresh()` is a hidden API invoked by reflection; discovery fails when
+  // it is unavailable or returns `false`.
+  const bool* clear_gatt_cache() const;
+  void set_clear_gatt_cache(const bool* value_arg);
+  void set_clear_gatt_cache(bool value_arg);
+
+  bool operator==(const AndroidDiscoverServicesOptions& other) const;
+  bool operator!=(const AndroidDiscoverServicesOptions& other) const;
+  /// Returns a hash code value for the object. This method is supported for the benefit of hash tables.
+  size_t Hash() const;
+ private:
+  static AndroidDiscoverServicesOptions FromEncodableList(const ::flutter::EncodableList& list);
+  ::flutter::EncodableList ToEncodableList() const;
+  friend class DiscoverServicesPlatformConfig;
+  friend class UniversalBlePlatformChannel;
+  friend class UniversalBleCallbackChannel;
+  friend class UniversalBlePeripheralChannel;
+  friend class UniversalBleAndroidChannel;
+  friend class UniversalBlePeripheralCallback;
+  friend class PigeonInternalCodecSerializer;
+  std::optional<bool> clear_gatt_cache_;
+};
+
+
+// Platform-specific options for `discoverServices`. Ignored on platforms
+// that have no equivalent.
+//
+// Generated class from Pigeon that represents data sent in messages.
+class DiscoverServicesPlatformConfig {
+ public:
+  // Constructs an object setting all non-nullable fields.
+  DiscoverServicesPlatformConfig();
+
+  // Constructs an object setting all fields.
+  explicit DiscoverServicesPlatformConfig(const AndroidDiscoverServicesOptions* android);
+
+  ~DiscoverServicesPlatformConfig() = default;
+  DiscoverServicesPlatformConfig(const DiscoverServicesPlatformConfig& other);
+  DiscoverServicesPlatformConfig& operator=(const DiscoverServicesPlatformConfig& other);
+  DiscoverServicesPlatformConfig(DiscoverServicesPlatformConfig&& other) = default;
+  DiscoverServicesPlatformConfig& operator=(DiscoverServicesPlatformConfig&& other) noexcept = default;
+  const AndroidDiscoverServicesOptions* android() const;
+  void set_android(const AndroidDiscoverServicesOptions* value_arg);
+  void set_android(const AndroidDiscoverServicesOptions& value_arg);
+
+  bool operator==(const DiscoverServicesPlatformConfig& other) const;
+  bool operator!=(const DiscoverServicesPlatformConfig& other) const;
+  /// Returns a hash code value for the object. This method is supported for the benefit of hash tables.
+  size_t Hash() const;
+ private:
+  static DiscoverServicesPlatformConfig FromEncodableList(const ::flutter::EncodableList& list);
+  ::flutter::EncodableList ToEncodableList() const;
+  friend class UniversalBlePlatformChannel;
+  friend class UniversalBleCallbackChannel;
+  friend class UniversalBlePeripheralChannel;
+  friend class UniversalBleAndroidChannel;
+  friend class UniversalBlePeripheralCallback;
+  friend class PigeonInternalCodecSerializer;
+  std::unique_ptr<AndroidDiscoverServicesOptions> android_;
 };
 
 
@@ -1210,6 +1432,11 @@ class UniversalBlePlatformChannel {
     const UniversalScanConfig* config) = 0;
   virtual std::optional<FlutterError> StopScan() = 0;
   virtual ErrorOr<bool> IsScanning() = 0;
+  // Shows the platform's native device picker (iOS 18+ AccessorySetupKit) and
+  // returns the selected device.
+  virtual void RequestDevice(
+    const AppleAccessorySetupOptions& options,
+    std::function<void(ErrorOr<UniversalDevicePickerResult> reply)> result) = 0;
   virtual std::optional<FlutterError> Connect(
     const std::string& device_id,
     const bool* auto_connect,
@@ -1224,6 +1451,7 @@ class UniversalBlePlatformChannel {
   virtual void DiscoverServices(
     const std::string& device_id,
     bool with_descriptors,
+    const DiscoverServicesPlatformConfig* platform_config,
     std::function<void(ErrorOr<::flutter::EncodableList> reply)> result) = 0;
   virtual void ReadValue(
     const std::string& device_id,
@@ -1260,7 +1488,9 @@ class UniversalBlePlatformChannel {
   virtual void Pair(
     const std::string& device_id,
     std::function<void(ErrorOr<bool> reply)> result) = 0;
-  virtual std::optional<FlutterError> UnPair(const std::string& device_id) = 0;
+  virtual void UnPair(
+    const std::string& device_id,
+    std::function<void(std::optional<FlutterError> reply)> result) = 0;
   virtual void GetSystemDevices(
     const ::flutter::EncodableList& with_services,
     std::function<void(ErrorOr<::flutter::EncodableList> reply)> result) = 0;
@@ -1303,10 +1533,13 @@ class UniversalBleCallbackChannel {
     const AvailabilityState& state,
     std::function<void(void)>&& on_success,
     std::function<void(const FlutterError&)>&& on_error);
+  // [isFailure] marks a failed bond attempt — an event rather than a steady
+  // pairing state — so the Dart side can bypass its state de-duplication
+  // instead of swallowing every failure after the first (#325).
   void OnPairStateChange(
     const std::string& device_id,
     bool is_paired,
-    const std::string* error,
+    bool is_failure,
     std::function<void(void)>&& on_success,
     std::function<void(const FlutterError&)>&& on_error);
   void OnScanResult(
@@ -1320,14 +1553,21 @@ class UniversalBleCallbackChannel {
     const int64_t* timestamp,
     std::function<void(void)>&& on_success,
     std::function<void(const FlutterError&)>&& on_error);
+  // [errorCode] classifies a failed connection or an unexpected disconnect
+  // (`deviceDisconnected`, `connectionTimeout`, `connectionFailed`, ...),
+  // mapped on the native side from `CBError.Code` (Apple) or the GATT
+  // `status` (Android). [nativeErrorCode] is that raw platform value.
+  // Both are `null` when there is no error or the platform has no code.
   void OnConnectionChanged(
     const std::string& device_id,
     bool connected,
     const std::string* error,
+    const UniversalBleErrorCode* error_code,
+    const int64_t* native_error_code,
     std::function<void(void)>&& on_success,
     std::function<void(const FlutterError&)>&& on_error);
   void OnConnectionParametersUpdated(
-    const BleConnectionParametersUpdated& update,
+    const BleConnectionParametersChange& update,
     std::function<void(void)>&& on_success,
     std::function<void(const FlutterError&)>&& on_error);
  private:

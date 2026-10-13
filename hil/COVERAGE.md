@@ -1,7 +1,8 @@
 # Hardware-in-the-loop coverage
 
-The Windows HIL suite runs 65 tests against a physical nRF52 peripheral:
-25 baseline tests and 40 fault injection tests (FIT).
+The Windows HIL suite implements 85 tests against a physical nRF52 peripheral:
+25 baseline tests and 60 fault injection tests (FIT). Skipped scenarios are not
+included in these counts. Firmware contract revision 2 (v2) is required.
 
 The calls start at the public Dart API and go through the operation queue,
 Pigeon channel, Windows C++ plugin, WinRT, Windows Bluetooth stack, radio link,
@@ -12,7 +13,7 @@ and finally the Zephyr GATT server on the fixture.
 ### 1.1. Scan and discovery (4 tests)
 
 - Verifies a fresh filtered scan through both the stream and callback APIs,
-  scanner state, name, service UUID, RSSI, all ten characteristics, their
+  scanner state, name, service UUID, RSSI, all eleven characteristics, their
   properties, and descriptor discovery enabled and disabled.
 - This catches problems in advertisement parsing, UUID conversion, WinRT
   discovery, and Dart model mapping.
@@ -61,7 +62,7 @@ and finally the Zephyr GATT server on the fixture.
 | `FIT-CONN-002` | Immediate peripheral disconnect produces exactly one disconnect event     | Duplicate disconnect callbacks                        |
 | `FIT-CONN-003` | Immediate disconnect is followed by reconnect and a successful read       | Incomplete cleanup of the old connection              |
 | `FIT-CONN-006` | Two simultaneous connects resolve to one usable replacement connection    | Superseded native attempts disturbing the active link |
-| `FIT-CONN-007` | Host and peripheral disconnect concurrently; reconnect remains usable     | Double cleanup when both sides disconnect             |
+| `FIT-CONN-007` | Sweep host disconnect before/around/after a measured peripheral deadline; verify timer telemetry and reconnect | Blocking WinRT teardown, double cleanup, and stale timers |
 | `FIT-CONN-009` | Reconnects before the old native disconnect callback has necessarily run  | Stale map entries suppressing the replacement attempt  |
 | `FIT-CONN-010` | Five immediate peripheral disconnect/reconnect cycles all remain readable | State or resources leaking between connections        |
 | `FIT-CONN-013` | Five rapid cycles emit alternating disconnected/connected events in order | Missing, duplicate, stale, and out-of-order callbacks |
@@ -132,3 +133,67 @@ the original write error is rethrown.
 | `FIT-NOTIFY-008` | Disconnect interrupts a 100-packet burst; partial delivery and reconnect succeed | Callback teardown during active delivery                    |
 | `FIT-NOTIFY-010` | Reconnect and resubscribe produce a clean `0, 1, 2, 3, 4` sequence               | Stale callback/value rejection and new handler installation |
 | `FIT-NOTIFY-012` | Host disconnects during a 500-packet burst and reconnects successfully           | Crashes, hangs, or use-after-free with queued callbacks     |
+
+### 2.8. Indications, MTU/resource pressure, and timing sweeps
+
+These tests use the public BLE API and real fixture callbacks. Firmware telemetry
+proves faults were triggered; successful API calls alone do not count as proof.
+
+| Cases | Fixture behavior and assertions |
+| ----- | ------------------------------- |
+| IND-001 | Send inside indication CCC enable; exact payload and successful confirmation |
+| IND-002/003 | Disconnect or software reboot before the RX handler can process indication confirmation; bounded disconnect, triggered counter or retained boot count, recovery read |
+| IND-004 | Attempt a second indication in the same RX callback; busy counter, uncorrupted first payload and successful subsequent send |
+| IND-005 | Exact indications before disconnect and after reconnect/resubscribe |
+| IND-006 | Interleaved notifications and indications, independent payload lists and completion ownership |
+| MTU-003 | Read/write values at MTU-minus-header boundaries with exact mirrors |
+| MTU-004 | Long reads through 512 bytes; prepared writes through 384 bytes, exact mirrors |
+| MTU-005 | Reject 385-byte write on the fixture (counter required), preserve previous mirror and recover |
+| MTU-006 | 128 nonblocking notification attempts; require actual ENOMEM, completion and receipt of all accepted frames, then successful notification/read/write |
+| MTU-008 | Alternate payload sizes immediately below, at and above the negotiated boundary |
+| RACE-001 | Persist an armed plan through host disconnect; trigger inside the next firmware connection callback; assert trigger and physical-disconnect counts, then recovery |
+| RACE-002 | One-shot fault in the service-declaration reader during uncached discovery inside connect; assert trigger and physical-disconnect counts, then recovery |
+| RACE-003/004 | Block a read/write callback for 300 ms; disconnect at 0, 25, 100 and 350 ms relative to its entry; bounded result and recovery |
+| RACE-005/006 | Same sweep inside notification CCC enable/disable; assert the callback-trigger counter and recovery |
+| RACE-007 | Repeat read/write ATT errors and interrupted operations with successful read and mirrored write after each fault |
+| RACE-008 | Seeded sequence of read/write/CCC timing plans, with a trace for replay |
+
+For the 350 ms sweep point, the fixture callback has returned, but the response
+can still lose the transport race to Windows. Either success or a BLE error is
+allowed; disconnection and clean recovery are required. Earlier points must
+fail because the fixture callback is still blocked.
+
+## 3. Explicit limitations and skips
+
+- MTU-001/002: Windows MTU queries read local metadata. There is no server-side
+  MTU-query callback for the fixture to interrupt deterministically.
+- MTU-007: universal_ble does not expose raw Prepare Writes retained without an
+  Execute Write. An ordinary long write does not prove prepare-queue exhaustion.
+- SMP-001..008: this fixture has no SMP/encrypted-attribute profile, persistent
+  bonds or passkey control. UniversalBle exposes pair/unpair, but its Windows
+  backend cannot drive consent and passkey prompts unattended. These remain
+  explicitly skipped, not implemented tests.
+
+Reset clears counters and armed plans but preserves active subscriptions. It
+does not release indication parameters still owned by Zephyr. Software reboot
+starts a new boot count in retained no-init RAM; power loss/reflashing is outside
+that retention guarantee.
+
+CONN-007 sweeps host teardown offsets of 0, 100, 250 and 500 ms after arming a
+250 ms peripheral timer. Firmware timers retain the original connection and
+are cancelled when that link closes. Timer counters prove execution or
+cancellation, and event ordering proves both host-first and peripheral-first
+teardown across the sweep. WinRT may retain the physical link after the app's
+disconnect returns, so host-first teardown does not require timer cancellation.
+Each step requires exactly one physical disconnect, followed by a usable
+replacement link beyond the old deadline.
+
+This sweep reproduced a Windows UI-thread freeze inside synchronous
+`GattDeviceService.Close()`. Connection disposal now marks the old agent
+inactive immediately and closes its WinRT objects on a background MTA thread.
+Shutdown drains the tracked cleanup operations before releasing plugin state.
+That MTA cleanup drain does not pump application messages during teardown.
+
+The full FIT catalog also contains 58 pending scenarios. Together with the 11
+explicit limitations above, these account for 69 skips; none are counted among
+the 60 implemented FIT cases.

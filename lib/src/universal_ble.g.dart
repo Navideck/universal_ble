@@ -308,6 +308,7 @@ class UniversalBleScanResult {
     this.services,
     this.timestamp,
     this.timestampMicroseconds,
+    this.connectable,
   });
 
   String deviceId;
@@ -328,6 +329,8 @@ class UniversalBleScanResult {
 
   int? timestampMicroseconds;
 
+  bool? connectable;
+
   List<Object?> _toList() {
     return <Object?>[
       deviceId,
@@ -339,6 +342,7 @@ class UniversalBleScanResult {
       services,
       timestamp,
       timestampMicroseconds,
+      connectable,
     ];
   }
 
@@ -360,6 +364,7 @@ class UniversalBleScanResult {
       services: (result[6] as List<Object?>?)?.cast<String>(),
       timestamp: result[7] as int?,
       timestampMicroseconds: result[8] as int?,
+      connectable: result[9] as bool?,
     );
   }
 
@@ -380,7 +385,59 @@ class UniversalBleScanResult {
         _deepEquals(serviceData, other.serviceData) &&
         _deepEquals(services, other.services) &&
         _deepEquals(timestamp, other.timestamp) &&
-        _deepEquals(timestampMicroseconds, other.timestampMicroseconds);
+        _deepEquals(timestampMicroseconds, other.timestampMicroseconds) &&
+        _deepEquals(connectable, other.connectable);
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  int get hashCode => _deepHash(<Object?>[runtimeType, ..._toList()]);
+}
+
+/// The device a platform's native picker returned.
+class UniversalDevicePickerResult {
+  UniversalDevicePickerResult({
+    required this.deviceId,
+    this.name,
+  });
+
+  /// Identifier to pass to `connect`.
+  String deviceId;
+
+  /// Name the platform reported for the selected device, if any.
+  String? name;
+
+  List<Object?> _toList() {
+    return <Object?>[
+      deviceId,
+      name,
+    ];
+  }
+
+  Object encode() {
+    return _toList();
+  }
+
+  static UniversalDevicePickerResult decode(Object result) {
+    result as List<Object?>;
+    return UniversalDevicePickerResult(
+      deviceId: result[0]! as String,
+      name: result[1] as String?,
+    );
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  bool operator ==(Object other) {
+    if (other is! UniversalDevicePickerResult ||
+        other.runtimeType != runtimeType) {
+      return false;
+    }
+    if (identical(this, other)) {
+      return true;
+    }
+    return _deepEquals(deviceId, other.deviceId) &&
+        _deepEquals(name, other.name);
   }
 
   @override
@@ -536,8 +593,8 @@ class UniversalBleDescriptor {
 ///
 /// [interval] and [supervisionTimeout] use BLE connection parameter units
 /// (multiply interval by 1.25 for ms; supervisionTimeout by 10 for ms).
-class BleConnectionParametersUpdated {
-  BleConnectionParametersUpdated({
+class BleConnectionParametersChange {
+  BleConnectionParametersChange({
     required this.deviceId,
     required this.interval,
     required this.latency,
@@ -569,9 +626,9 @@ class BleConnectionParametersUpdated {
     return _toList();
   }
 
-  static BleConnectionParametersUpdated decode(Object result) {
+  static BleConnectionParametersChange decode(Object result) {
     result as List<Object?>;
-    return BleConnectionParametersUpdated(
+    return BleConnectionParametersChange(
       deviceId: result[0]! as String,
       interval: result[1]! as int,
       latency: result[2]! as int,
@@ -583,7 +640,7 @@ class BleConnectionParametersUpdated {
   @override
   // ignore: avoid_equals_and_hash_code_on_mutable_classes
   bool operator ==(Object other) {
-    if (other is! BleConnectionParametersUpdated ||
+    if (other is! BleConnectionParametersChange ||
         other.runtimeType != runtimeType) {
       return false;
     }
@@ -981,6 +1038,131 @@ class AppleConnectionOptions {
   int get hashCode => _deepHash(<Object?>[runtimeType, ..._toList()]);
 }
 
+/// One accessory the AccessorySetupKit picker can offer. Each item is shown as
+/// a separate entry in the system picker.
+class AppleAccessoryPickerItem {
+  AppleAccessoryPickerItem({
+    required this.displayName,
+    required this.imageAsset,
+    required this.serviceUuid,
+    this.nameSubstring,
+    this.requiresImmediateRange,
+    this.supportsBluetoothPairing,
+  });
+
+  /// Name shown in the system accessory picker.
+  String displayName;
+
+  /// Name of the product image in the iOS app's asset catalog.
+  String imageAsset;
+
+  /// Advertised Bluetooth service UUID used to discover the accessory.
+  String serviceUuid;
+
+  /// Optional substring of the accessory's advertised Bluetooth name.
+  String? nameSubstring;
+
+  /// Limit discovery to accessories in the immediate vicinity.
+  bool? requiresImmediateRange;
+
+  /// Allow AccessorySetupKit to perform Bluetooth LE pairing when needed.
+  bool? supportsBluetoothPairing;
+
+  List<Object?> _toList() {
+    return <Object?>[
+      displayName,
+      imageAsset,
+      serviceUuid,
+      nameSubstring,
+      requiresImmediateRange,
+      supportsBluetoothPairing,
+    ];
+  }
+
+  Object encode() {
+    return _toList();
+  }
+
+  static AppleAccessoryPickerItem decode(Object result) {
+    result as List<Object?>;
+    return AppleAccessoryPickerItem(
+      displayName: result[0]! as String,
+      imageAsset: result[1]! as String,
+      serviceUuid: result[2]! as String,
+      nameSubstring: result[3] as String?,
+      requiresImmediateRange: result[4] as bool?,
+      supportsBluetoothPairing: result[5] as bool?,
+    );
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  bool operator ==(Object other) {
+    if (other is! AppleAccessoryPickerItem ||
+        other.runtimeType != runtimeType) {
+      return false;
+    }
+    if (identical(this, other)) {
+      return true;
+    }
+    return _deepEquals(displayName, other.displayName) &&
+        _deepEquals(imageAsset, other.imageAsset) &&
+        _deepEquals(serviceUuid, other.serviceUuid) &&
+        _deepEquals(nameSubstring, other.nameSubstring) &&
+        _deepEquals(requiresImmediateRange, other.requiresImmediateRange) &&
+        _deepEquals(supportsBluetoothPairing, other.supportsBluetoothPairing);
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  int get hashCode => _deepHash(<Object?>[runtimeType, ..._toList()]);
+}
+
+/// iOS 18+ options for discovering and authorizing Bluetooth accessories with
+/// AccessorySetupKit before connecting to them.
+class AppleAccessorySetupOptions {
+  AppleAccessorySetupOptions({
+    required this.items,
+  });
+
+  /// Accessories the picker offers. At least one item is required.
+  List<AppleAccessoryPickerItem> items;
+
+  List<Object?> _toList() {
+    return <Object?>[
+      items,
+    ];
+  }
+
+  Object encode() {
+    return _toList();
+  }
+
+  static AppleAccessorySetupOptions decode(Object result) {
+    result as List<Object?>;
+    return AppleAccessorySetupOptions(
+      items: (result[0]! as List<Object?>).cast<AppleAccessoryPickerItem>(),
+    );
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  bool operator ==(Object other) {
+    if (other is! AppleAccessorySetupOptions ||
+        other.runtimeType != runtimeType) {
+      return false;
+    }
+    if (identical(this, other)) {
+      return true;
+    }
+    return _deepEquals(items, other.items);
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  int get hashCode => _deepHash(<Object?>[runtimeType, ..._toList()]);
+}
+
 class AndroidConnectionOptions {
   AndroidConnectionOptions({
     this.closeGattOnDetach,
@@ -991,7 +1173,8 @@ class AndroidConnectionOptions {
   /// GATT open, keeping the peripheral occupied until its supervision
   /// timeout; with `autoConnect` it also stays open for reconnection.
   ///
-  /// When `null`, the current process-wide value is kept.
+  /// When `null`, the value set by a previous `connect()` on this engine
+  /// is kept.
   bool? closeGattOnDetach;
 
   List<Object?> _toList() {
@@ -1070,6 +1253,98 @@ class ConnectionPlatformConfig {
     }
     return _deepEquals(apple, other.apple) &&
         _deepEquals(android, other.android);
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  int get hashCode => _deepHash(<Object?>[runtimeType, ..._toList()]);
+}
+
+class AndroidDiscoverServicesOptions {
+  AndroidDiscoverServicesOptions({
+    this.clearGattCache,
+  });
+
+  /// Clear the OS-level GATT cache of the connection (`BluetoothGatt.refresh()`)
+  /// before discovering, so a peripheral whose GATT layout changed while it
+  /// was disconnected is read again instead of served from the cache.
+  ///
+  /// `refresh()` is a hidden API invoked by reflection; discovery fails when
+  /// it is unavailable or returns `false`.
+  bool? clearGattCache;
+
+  List<Object?> _toList() {
+    return <Object?>[
+      clearGattCache,
+    ];
+  }
+
+  Object encode() {
+    return _toList();
+  }
+
+  static AndroidDiscoverServicesOptions decode(Object result) {
+    result as List<Object?>;
+    return AndroidDiscoverServicesOptions(
+      clearGattCache: result[0] as bool?,
+    );
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  bool operator ==(Object other) {
+    if (other is! AndroidDiscoverServicesOptions ||
+        other.runtimeType != runtimeType) {
+      return false;
+    }
+    if (identical(this, other)) {
+      return true;
+    }
+    return _deepEquals(clearGattCache, other.clearGattCache);
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  int get hashCode => _deepHash(<Object?>[runtimeType, ..._toList()]);
+}
+
+/// Platform-specific options for `discoverServices`. Ignored on platforms
+/// that have no equivalent.
+class DiscoverServicesPlatformConfig {
+  DiscoverServicesPlatformConfig({
+    this.android,
+  });
+
+  AndroidDiscoverServicesOptions? android;
+
+  List<Object?> _toList() {
+    return <Object?>[
+      android,
+    ];
+  }
+
+  Object encode() {
+    return _toList();
+  }
+
+  static DiscoverServicesPlatformConfig decode(Object result) {
+    result as List<Object?>;
+    return DiscoverServicesPlatformConfig(
+      android: result[0] as AndroidDiscoverServicesOptions?,
+    );
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  bool operator ==(Object other) {
+    if (other is! DiscoverServicesPlatformConfig ||
+        other.runtimeType != runtimeType) {
+      return false;
+    }
+    if (identical(this, other)) {
+      return true;
+    }
+    return _deepEquals(android, other.android);
   }
 
   @override
@@ -1513,62 +1788,77 @@ class _PigeonCodec extends StandardMessageCodec {
     } else if (value is UniversalBleScanResult) {
       buffer.putUint8(144);
       writeValue(buffer, value.encode());
-    } else if (value is UniversalBleService) {
+    } else if (value is UniversalDevicePickerResult) {
       buffer.putUint8(145);
       writeValue(buffer, value.encode());
-    } else if (value is UniversalBleCharacteristic) {
+    } else if (value is UniversalBleService) {
       buffer.putUint8(146);
       writeValue(buffer, value.encode());
-    } else if (value is UniversalBleDescriptor) {
+    } else if (value is UniversalBleCharacteristic) {
       buffer.putUint8(147);
       writeValue(buffer, value.encode());
-    } else if (value is BleConnectionParametersUpdated) {
+    } else if (value is UniversalBleDescriptor) {
       buffer.putUint8(148);
       writeValue(buffer, value.encode());
-    } else if (value is AndroidOptions) {
+    } else if (value is BleConnectionParametersChange) {
       buffer.putUint8(149);
       writeValue(buffer, value.encode());
-    } else if (value is UniversalScanConfig) {
+    } else if (value is AndroidOptions) {
       buffer.putUint8(150);
       writeValue(buffer, value.encode());
-    } else if (value is UniversalScanFilter) {
+    } else if (value is UniversalScanConfig) {
       buffer.putUint8(151);
       writeValue(buffer, value.encode());
-    } else if (value is ManufacturerDataFilter) {
+    } else if (value is UniversalScanFilter) {
       buffer.putUint8(152);
       writeValue(buffer, value.encode());
-    } else if (value is UniversalManufacturerData) {
+    } else if (value is ManufacturerDataFilter) {
       buffer.putUint8(153);
       writeValue(buffer, value.encode());
-    } else if (value is AppleConnectionOptions) {
+    } else if (value is UniversalManufacturerData) {
       buffer.putUint8(154);
       writeValue(buffer, value.encode());
-    } else if (value is AndroidConnectionOptions) {
+    } else if (value is AppleConnectionOptions) {
       buffer.putUint8(155);
       writeValue(buffer, value.encode());
-    } else if (value is ConnectionPlatformConfig) {
+    } else if (value is AppleAccessoryPickerItem) {
       buffer.putUint8(156);
       writeValue(buffer, value.encode());
-    } else if (value is PeripheralAndroidOptions) {
+    } else if (value is AppleAccessorySetupOptions) {
       buffer.putUint8(157);
       writeValue(buffer, value.encode());
-    } else if (value is PeripheralPlatformConfig) {
+    } else if (value is AndroidConnectionOptions) {
       buffer.putUint8(158);
       writeValue(buffer, value.encode());
-    } else if (value is PeripheralService) {
+    } else if (value is ConnectionPlatformConfig) {
       buffer.putUint8(159);
       writeValue(buffer, value.encode());
-    } else if (value is PeripheralCharacteristic) {
+    } else if (value is AndroidDiscoverServicesOptions) {
       buffer.putUint8(160);
       writeValue(buffer, value.encode());
-    } else if (value is PeripheralDescriptor) {
+    } else if (value is DiscoverServicesPlatformConfig) {
       buffer.putUint8(161);
       writeValue(buffer, value.encode());
-    } else if (value is PeripheralReadRequestResult) {
+    } else if (value is PeripheralAndroidOptions) {
       buffer.putUint8(162);
       writeValue(buffer, value.encode());
-    } else if (value is PeripheralWriteRequestResult) {
+    } else if (value is PeripheralPlatformConfig) {
       buffer.putUint8(163);
+      writeValue(buffer, value.encode());
+    } else if (value is PeripheralService) {
+      buffer.putUint8(164);
+      writeValue(buffer, value.encode());
+    } else if (value is PeripheralCharacteristic) {
+      buffer.putUint8(165);
+      writeValue(buffer, value.encode());
+    } else if (value is PeripheralDescriptor) {
+      buffer.putUint8(166);
+      writeValue(buffer, value.encode());
+    } else if (value is PeripheralReadRequestResult) {
+      buffer.putUint8(167);
+      writeValue(buffer, value.encode());
+    } else if (value is PeripheralWriteRequestResult) {
+      buffer.putUint8(168);
       writeValue(buffer, value.encode());
     } else {
       super.writeValue(buffer, value);
@@ -1628,42 +1918,52 @@ class _PigeonCodec extends StandardMessageCodec {
       case 144:
         return UniversalBleScanResult.decode(readValue(buffer)!);
       case 145:
-        return UniversalBleService.decode(readValue(buffer)!);
+        return UniversalDevicePickerResult.decode(readValue(buffer)!);
       case 146:
-        return UniversalBleCharacteristic.decode(readValue(buffer)!);
+        return UniversalBleService.decode(readValue(buffer)!);
       case 147:
-        return UniversalBleDescriptor.decode(readValue(buffer)!);
+        return UniversalBleCharacteristic.decode(readValue(buffer)!);
       case 148:
-        return BleConnectionParametersUpdated.decode(readValue(buffer)!);
+        return UniversalBleDescriptor.decode(readValue(buffer)!);
       case 149:
-        return AndroidOptions.decode(readValue(buffer)!);
+        return BleConnectionParametersChange.decode(readValue(buffer)!);
       case 150:
-        return UniversalScanConfig.decode(readValue(buffer)!);
+        return AndroidOptions.decode(readValue(buffer)!);
       case 151:
-        return UniversalScanFilter.decode(readValue(buffer)!);
+        return UniversalScanConfig.decode(readValue(buffer)!);
       case 152:
-        return ManufacturerDataFilter.decode(readValue(buffer)!);
+        return UniversalScanFilter.decode(readValue(buffer)!);
       case 153:
-        return UniversalManufacturerData.decode(readValue(buffer)!);
+        return ManufacturerDataFilter.decode(readValue(buffer)!);
       case 154:
-        return AppleConnectionOptions.decode(readValue(buffer)!);
+        return UniversalManufacturerData.decode(readValue(buffer)!);
       case 155:
-        return AndroidConnectionOptions.decode(readValue(buffer)!);
+        return AppleConnectionOptions.decode(readValue(buffer)!);
       case 156:
-        return ConnectionPlatformConfig.decode(readValue(buffer)!);
+        return AppleAccessoryPickerItem.decode(readValue(buffer)!);
       case 157:
-        return PeripheralAndroidOptions.decode(readValue(buffer)!);
+        return AppleAccessorySetupOptions.decode(readValue(buffer)!);
       case 158:
-        return PeripheralPlatformConfig.decode(readValue(buffer)!);
+        return AndroidConnectionOptions.decode(readValue(buffer)!);
       case 159:
-        return PeripheralService.decode(readValue(buffer)!);
+        return ConnectionPlatformConfig.decode(readValue(buffer)!);
       case 160:
-        return PeripheralCharacteristic.decode(readValue(buffer)!);
+        return AndroidDiscoverServicesOptions.decode(readValue(buffer)!);
       case 161:
-        return PeripheralDescriptor.decode(readValue(buffer)!);
+        return DiscoverServicesPlatformConfig.decode(readValue(buffer)!);
       case 162:
-        return PeripheralReadRequestResult.decode(readValue(buffer)!);
+        return PeripheralAndroidOptions.decode(readValue(buffer)!);
       case 163:
+        return PeripheralPlatformConfig.decode(readValue(buffer)!);
+      case 164:
+        return PeripheralService.decode(readValue(buffer)!);
+      case 165:
+        return PeripheralCharacteristic.decode(readValue(buffer)!);
+      case 166:
+        return PeripheralDescriptor.decode(readValue(buffer)!);
+      case 167:
+        return PeripheralReadRequestResult.decode(readValue(buffer)!);
+      case 168:
         return PeripheralWriteRequestResult.decode(readValue(buffer)!);
       default:
         return super.readValueOfType(type, buffer);
@@ -1842,6 +2142,29 @@ class UniversalBlePlatformChannel {
     return pigeonVar_replyValue! as bool;
   }
 
+  /// Shows the platform's native device picker (iOS 18+ AccessorySetupKit) and
+  /// returns the selected device.
+  Future<UniversalDevicePickerResult> requestDevice(
+      AppleAccessorySetupOptions options) async {
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.universal_ble.UniversalBlePlatformChannel.requestDevice$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture =
+        pigeonVar_channel.send(<Object?>[options]);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: false,
+    );
+    return pigeonVar_replyValue! as UniversalDevicePickerResult;
+  }
+
   Future<void> connect(
     String deviceId, {
     bool? autoConnect,
@@ -1905,7 +2228,9 @@ class UniversalBlePlatformChannel {
   }
 
   Future<List<UniversalBleService>> discoverServices(
-      String deviceId, bool withDescriptors) async {
+      String deviceId,
+      bool withDescriptors,
+      DiscoverServicesPlatformConfig? platformConfig) async {
     final pigeonVar_channelName =
         'dev.flutter.pigeon.universal_ble.UniversalBlePlatformChannel.discoverServices$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
@@ -1913,8 +2238,8 @@ class UniversalBlePlatformChannel {
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture =
-        pigeonVar_channel.send(<Object?>[deviceId, withDescriptors]);
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel
+        .send(<Object?>[deviceId, withDescriptors, platformConfig]);
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
@@ -2198,16 +2523,25 @@ abstract class UniversalBleCallbackChannel {
 
   void onAvailabilityChanged(AvailabilityState state);
 
-  void onPairStateChange(String deviceId, bool isPaired, String? error);
+  /// [isFailure] marks a failed bond attempt — an event rather than a steady
+  /// pairing state — so the Dart side can bypass its state de-duplication
+  /// instead of swallowing every failure after the first (#325).
+  void onPairStateChange(String deviceId, bool isPaired, bool isFailure);
 
   void onScanResult(UniversalBleScanResult result);
 
   void onValueChanged(String deviceId, String characteristicId, Uint8List value,
       int? timestamp);
 
-  void onConnectionChanged(String deviceId, bool connected, String? error);
+  /// [errorCode] classifies a failed connection or an unexpected disconnect
+  /// (`deviceDisconnected`, `connectionTimeout`, `connectionFailed`, ...),
+  /// mapped on the native side from `CBError.Code` (Apple) or the GATT
+  /// `status` (Android). [nativeErrorCode] is that raw platform value.
+  /// Both are `null` when there is no error or the platform has no code.
+  void onConnectionChanged(String deviceId, bool connected, String? error,
+      UniversalBleErrorCode? errorCode, int? nativeErrorCode);
 
-  void onConnectionParametersUpdated(BleConnectionParametersUpdated update);
+  void onConnectionParametersUpdated(BleConnectionParametersChange update);
 
   static void setUp(
     UniversalBleCallbackChannel? api, {
@@ -2251,9 +2585,9 @@ abstract class UniversalBleCallbackChannel {
           final List<Object?> args = message! as List<Object?>;
           final String arg_deviceId = args[0]! as String;
           final bool arg_isPaired = args[1]! as bool;
-          final String? arg_error = args[2] as String?;
+          final bool arg_isFailure = args[2]! as bool;
           try {
-            api.onPairStateChange(arg_deviceId, arg_isPaired, arg_error);
+            api.onPairStateChange(arg_deviceId, arg_isPaired, arg_isFailure);
             return wrapResponse(empty: true);
           } on PlatformException catch (e) {
             return wrapResponse(error: e);
@@ -2328,8 +2662,12 @@ abstract class UniversalBleCallbackChannel {
           final String arg_deviceId = args[0]! as String;
           final bool arg_connected = args[1]! as bool;
           final String? arg_error = args[2] as String?;
+          final UniversalBleErrorCode? arg_errorCode =
+              args[3] as UniversalBleErrorCode?;
+          final int? arg_nativeErrorCode = args[4] as int?;
           try {
-            api.onConnectionChanged(arg_deviceId, arg_connected, arg_error);
+            api.onConnectionChanged(arg_deviceId, arg_connected, arg_error,
+                arg_errorCode, arg_nativeErrorCode);
             return wrapResponse(empty: true);
           } on PlatformException catch (e) {
             return wrapResponse(error: e);
@@ -2350,8 +2688,8 @@ abstract class UniversalBleCallbackChannel {
       } else {
         pigeonVar_channel.setMessageHandler((Object? message) async {
           final List<Object?> args = message! as List<Object?>;
-          final BleConnectionParametersUpdated arg_update =
-              args[0]! as BleConnectionParametersUpdated;
+          final BleConnectionParametersChange arg_update =
+              args[0]! as BleConnectionParametersChange;
           try {
             api.onConnectionParametersUpdated(arg_update);
             return wrapResponse(empty: true);
