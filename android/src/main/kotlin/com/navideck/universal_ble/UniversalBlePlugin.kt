@@ -1854,18 +1854,14 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
         return bluetoothManager.isBluetoothEnabled()
     }
 
-    /// Whether the controller can perform first-match (on-found) filtering. Android
-    /// rejects `CALLBACK_TYPE_FIRST_MATCH` with `SCAN_FAILED_FEATURE_UNSUPPORTED`
-    /// unless offloaded filtering is supported, and on API 26+ also requires hardware
-    /// tracking filters. See `BluetoothLeScanner.isSettingsConfigAllowedForScan` /
-    /// `isHardwareResourcesAvailableForScan`.
+    /// Whether the controller can perform offloaded first-match (on-found)
+    /// filtering. Android rejects `CALLBACK_TYPE_FIRST_MATCH` with
+    /// `SCAN_FAILED_FEATURE_UNSUPPORTED` unless offloaded filtering is supported
+    /// (`BluetoothLeScanner.isSettingsConfigAllowedForScan`). The framework also
+    /// checks available hardware tracking filters there, but that check uses a
+    /// hidden API, so the Dart layer stays the cross-platform guarantee.
     private fun supportsFirstMatchScan(): Boolean {
         val adapter = bluetoothManager.adapter ?: return false
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O &&
-            !adapter.isHardwareTrackingFiltersAvailable
-        ) {
-            return false
-        }
         return adapter.isOffloadedFilteringSupported
     }
 
