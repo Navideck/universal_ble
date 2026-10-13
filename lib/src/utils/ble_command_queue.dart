@@ -12,10 +12,15 @@ class BleCommandQueue {
   static const String globalQueueId = 'global';
 
   final bool? isAddress;
+  final bool Function()? isAddressSupplier;
 
-  BleCommandQueue({this.queueType = QueueType.auto, this.isAddress});
+  BleCommandQueue({
+    this.queueType = QueueType.auto,
+    this.isAddress,
+    this.isAddressSupplier,
+  });
 
-  bool get _isAddress => isAddress ?? !kIsWeb;
+  bool get _isAddress => isAddress ?? (isAddressSupplier?.call() ?? true);
 
   /// Resolve [QueueType.auto] to a concrete queue type based on the
   /// current platform. Android, Web and Linux BLE stacks require

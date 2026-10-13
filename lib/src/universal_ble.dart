@@ -13,7 +13,9 @@ import 'package:universal_ble/universal_ble.dart';
 class UniversalBle {
   /// Get platform specific implementation.
   static UniversalBlePlatform _platform = _defaultPlatform();
-  static final BleCommandQueue _bleCommandQueue = BleCommandQueue();
+  static final BleCommandQueue _bleCommandQueue = BleCommandQueue(
+    isAddressSupplier: () => _platform.hasAddressDeviceIds,
+  );
 
   /// Set custom platform specific implementation (e.g. for testing).
   static void setInstance(UniversalBlePlatform instance) =>
