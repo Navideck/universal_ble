@@ -129,8 +129,9 @@ class UniversalBle {
   /// When [skipDuplicates] is `true`, each device is reported only once per
   /// scan session: later sightings are suppressed until [stopScan] or the next
   /// [startScan], including ones whose advertisement payload changed. Where the
-  /// platform has a native lever — iOS/macOS, Linux, and Android when an
-  /// `AndroidOptions` is supplied — it is applied to save radio/CPU, and the
+  /// platform has a native lever — iOS/macOS, Linux, and Android on controllers
+  /// that support offloaded first-match filtering when an `AndroidOptions` is
+  /// supplied — it is applied to save radio/CPU, and the
   /// Dart layer de-duplicates on every platform so the behavior is consistent
   /// everywhere. Defaults to `false`: every advertisement is reported, exactly
   /// as before.

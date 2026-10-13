@@ -46,7 +46,7 @@ class UniversalBlePigeonChannel extends UniversalBlePlatform
     await _executeWithErrorHandling(
       () => _channel.startScan(
         scanFilter.toUniversalScanFilter(),
-        platformConfig?.toUniversalScanConfig(
+        platformConfig.toUniversalScanConfig(
           skipDuplicates: skipDuplicatesEnabled,
         ),
       ),

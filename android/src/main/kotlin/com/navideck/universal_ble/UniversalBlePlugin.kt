@@ -243,19 +243,18 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
                 androidConfig.matchMode?.parse()?.let { builder.setMatchMode(it) }
                 androidConfig.numOfMatches?.parse()?.let { builder.setNumOfMatches(it) }
 
-                // Battery-friendly de-duplication: report only the first match
-                // per device unless the caller overrode the relevant option.
-                // Mirrors iOS's CBCentralManagerScanOptionAllowDuplicatesKey = false.
-                if (config?.skipDuplicates == true) {
-                    if (androidConfig.callbackType == null) {
-                        builder.setCallbackType(ScanSettings.CALLBACK_TYPE_FIRST_MATCH)
-                    }
-                    if (androidConfig.matchMode == null) {
-                        builder.setMatchMode(ScanSettings.MATCH_MODE_STICKY)
-                    }
-                    if (androidConfig.numOfMatches == null) {
-                        builder.setNumOfMatches(ScanSettings.MATCH_NUM_MAX_ADVERTISEMENT)
-                    }
+                // Battery-friendly de-duplication: report only the first match per
+                // device (mirrors iOS's CBCentralManagerScanOptionAllowDuplicatesKey
+                // = false) unless the caller overrode callbackType. First-match
+                // filtering is offloaded to the controller, so only request it when
+                // the adapter supports it; otherwise startScan() fails with
+                // SCAN_FAILED_FEATURE_UNSUPPORTED (and the failure is only logged).
+                // The Dart layer de-duplicates regardless of this native lever.
+                if (config?.skipDuplicates == true &&
+                    androidConfig.callbackType == null &&
+                    supportsFirstMatchScan()
+                ) {
+                    builder.setCallbackType(ScanSettings.CALLBACK_TYPE_FIRST_MATCH)
                 }
             }
         }
@@ -1853,6 +1852,21 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
 
     private fun isBluetoothAvailable(): Boolean {
         return bluetoothManager.isBluetoothEnabled()
+    }
+
+    /// Whether the controller can perform first-match (on-found) filtering. Android
+    /// rejects `CALLBACK_TYPE_FIRST_MATCH` with `SCAN_FAILED_FEATURE_UNSUPPORTED`
+    /// unless offloaded filtering is supported, and on API 26+ also requires hardware
+    /// tracking filters. See `BluetoothLeScanner.isSettingsConfigAllowedForScan` /
+    /// `isHardwareResourcesAvailableForScan`.
+    private fun supportsFirstMatchScan(): Boolean {
+        val adapter = bluetoothManager.adapter ?: return false
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O &&
+            !adapter.isHardwareTrackingFiltersAvailable
+        ) {
+            return false
+        }
+        return adapter.isOffloadedFilteringSupported
     }
 
     private fun setCachedServices(deviceId: String, services: List<String>) {
