@@ -1009,14 +1009,19 @@ size_t PigeonInternalDeepHash(const AndroidOptions& v) {
 
 UniversalScanConfig::UniversalScanConfig() {}
 
-UniversalScanConfig::UniversalScanConfig(const AndroidOptions* android)
- : android_(android ? std::make_unique<AndroidOptions>(*android) : nullptr) {}
+UniversalScanConfig::UniversalScanConfig(
+  const AndroidOptions* android,
+  const bool* skip_duplicates)
+ : android_(android ? std::make_unique<AndroidOptions>(*android) : nullptr),
+    skip_duplicates_(skip_duplicates ? std::optional<bool>(*skip_duplicates) : std::nullopt) {}
 
 UniversalScanConfig::UniversalScanConfig(const UniversalScanConfig& other)
- : android_(other.android_ ? std::make_unique<AndroidOptions>(*other.android_) : nullptr) {}
+ : android_(other.android_ ? std::make_unique<AndroidOptions>(*other.android_) : nullptr),
+    skip_duplicates_(other.skip_duplicates_ ? std::optional<bool>(*other.skip_duplicates_) : std::nullopt) {}
 
 UniversalScanConfig& UniversalScanConfig::operator=(const UniversalScanConfig& other) {
   android_ = other.android_ ? std::make_unique<AndroidOptions>(*other.android_) : nullptr;
+  skip_duplicates_ = other.skip_duplicates_;
   return *this;
 }
 
@@ -1033,10 +1038,24 @@ void UniversalScanConfig::set_android(const AndroidOptions& value_arg) {
 }
 
 
+const bool* UniversalScanConfig::skip_duplicates() const {
+  return skip_duplicates_ ? &(*skip_duplicates_) : nullptr;
+}
+
+void UniversalScanConfig::set_skip_duplicates(const bool* value_arg) {
+  skip_duplicates_ = value_arg ? std::optional<bool>(*value_arg) : std::nullopt;
+}
+
+void UniversalScanConfig::set_skip_duplicates(bool value_arg) {
+  skip_duplicates_ = value_arg;
+}
+
+
 EncodableList UniversalScanConfig::ToEncodableList() const {
   EncodableList list;
-  list.reserve(1);
+  list.reserve(2);
   list.push_back(android_ ? CustomEncodableValue(*android_) : EncodableValue());
+  list.push_back(skip_duplicates_ ? EncodableValue(*skip_duplicates_) : EncodableValue());
   return list;
 }
 
@@ -1046,11 +1065,15 @@ UniversalScanConfig UniversalScanConfig::FromEncodableList(const EncodableList& 
   if (!encodable_android.IsNull()) {
     decoded.set_android(std::any_cast<const AndroidOptions&>(std::get<CustomEncodableValue>(encodable_android)));
   }
+  auto& encodable_skip_duplicates = list[1];
+  if (!encodable_skip_duplicates.IsNull()) {
+    decoded.set_skip_duplicates(std::get<bool>(encodable_skip_duplicates));
+  }
   return decoded;
 }
 
 bool UniversalScanConfig::operator==(const UniversalScanConfig& other) const {
-  return PigeonInternalDeepEquals(android_, other.android_);
+  return PigeonInternalDeepEquals(android_, other.android_) && PigeonInternalDeepEquals(skip_duplicates_, other.skip_duplicates_);
 }
 
 bool UniversalScanConfig::operator!=(const UniversalScanConfig& other) const {
@@ -1060,6 +1083,7 @@ bool UniversalScanConfig::operator!=(const UniversalScanConfig& other) const {
 size_t UniversalScanConfig::Hash() const {
   size_t result = 1;
   result = result * 31 + PigeonInternalDeepHash(android_);
+  result = result * 31 + PigeonInternalDeepHash(skip_duplicates_);
   return result;
 }
 

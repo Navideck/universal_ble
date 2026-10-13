@@ -230,7 +230,14 @@ class AndroidOptions {
 
 class UniversalScanConfig {
   AndroidOptions? android;
-  UniversalScanConfig(this.android);
+
+  /// When `true`, each device is reported only once per scan session: repeated
+  /// scan results for a device are suppressed. Platforms with a native lever
+  /// apply it; the Dart layer de-duplicates as a cross-platform guarantee.
+  /// Wired from `UniversalBle.startScan`'s `skipDuplicates`.
+  bool? skipDuplicates;
+
+  UniversalScanConfig(this.android, this.skipDuplicates);
 }
 
 class UniversalScanFilter {

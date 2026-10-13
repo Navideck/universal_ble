@@ -242,6 +242,20 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
                 }
                 androidConfig.matchMode?.parse()?.let { builder.setMatchMode(it) }
                 androidConfig.numOfMatches?.parse()?.let { builder.setNumOfMatches(it) }
+
+                // Battery-friendly de-duplication: report only the first match per
+                // device (mirrors iOS's CBCentralManagerScanOptionAllowDuplicatesKey
+                // = false) unless the caller overrode callbackType. First-match
+                // filtering is offloaded to the controller, so only request it when
+                // the adapter supports it; otherwise startScan() fails with
+                // SCAN_FAILED_FEATURE_UNSUPPORTED (and the failure is only logged).
+                // The Dart layer de-duplicates regardless of this native lever.
+                if (config?.skipDuplicates == true &&
+                    androidConfig.callbackType == null &&
+                    supportsFirstMatchScan()
+                ) {
+                    builder.setCallbackType(ScanSettings.CALLBACK_TYPE_FIRST_MATCH)
+                }
             }
         }
         if (Build.VERSION.SDK_INT >= 26) {
@@ -1838,6 +1852,17 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
 
     private fun isBluetoothAvailable(): Boolean {
         return bluetoothManager.isBluetoothEnabled()
+    }
+
+    /// Whether the controller can perform offloaded first-match (on-found)
+    /// filtering. Android rejects `CALLBACK_TYPE_FIRST_MATCH` with
+    /// `SCAN_FAILED_FEATURE_UNSUPPORTED` unless offloaded filtering is supported
+    /// (`BluetoothLeScanner.isSettingsConfigAllowedForScan`). The framework also
+    /// checks available hardware tracking filters there, but that check uses a
+    /// hidden API, so the Dart layer stays the cross-platform guarantee.
+    private fun supportsFirstMatchScan(): Boolean {
+        val adapter = bluetoothManager.adapter ?: return false
+        return adapter.isOffloadedFilteringSupported
     }
 
     private fun setCachedServices(deviceId: String, services: List<String>) {

@@ -93,6 +93,17 @@ class UniversalBleLinux extends UniversalBlePlatform {
     _deviceAdded ??= _client.deviceAdded.listen(_onDeviceAdd);
     _deviceRemoved ??= _client.deviceRemoved.listen(_onDeviceRemoved);
 
+    // BlueZ filters duplicate advertising data by default; set it explicitly so
+    // the de-duplication intent is documented and robust across BlueZ versions.
+    // (Any residual repeats are handled by the Dart layer.)
+    if (skipDuplicatesEnabled) {
+      try {
+        await adapter.setDiscoveryFilter(duplicateData: false);
+      } catch (e) {
+        UniversalLogger.logError("setDiscoveryFilter error: $e");
+      }
+    }
+
     await adapter.startDiscovery();
 
     for (var device in _client.devices) {
