@@ -43,6 +43,22 @@ class BleCapabilities {
 
   static bool supportsRequestMtuApi = !_Platform.isWeb;
 
+  /// Whether [UniversalBle.requestMtu] discovers the device's services on
+  /// demand before reading the MTU.
+  ///
+  /// `true` on `iOS`/`macOS`, where CoreBluetooth exposes no MTU callback and
+  /// reports the default ATT MTU (23) as if it were the negotiated value until
+  /// the connection has settled — discovering the services is the documented
+  /// signal that it is ready. Also `true` on `Linux`, where the MTU is read off
+  /// the resolved characteristics. On `Android`/`Windows` the MTU is a property
+  /// of the connection itself and is always available, so nothing is discovered.
+  /// `Web` has no MTU API.
+  static bool get mtuRequiresServiceDiscovery =>
+      !kIsWeb &&
+      (defaultTargetPlatform == TargetPlatform.iOS ||
+          defaultTargetPlatform == TargetPlatform.macOS ||
+          defaultTargetPlatform == TargetPlatform.linux);
+
   static bool supportsConnectionPriorityApi =
       !_Platform.isWeb && defaultTargetPlatform == TargetPlatform.android;
 

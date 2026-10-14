@@ -224,6 +224,20 @@ void main() {
     expect(cachedService, isNotNull);
   });
 
+  test('service-discovery marker matches across cases', () {
+    // `requestMtu` consults this marker to decide whether to discover on demand,
+    // so it must be case-insensitive like the rest of the per-device state.
+    UniversalBle.setInstance(_MockPlatform());
+    final cache = CacheHandler.instance;
+    final upperKey = UniversalBle.canonicalDeviceId(upper);
+    final lowerKey = UniversalBle.canonicalDeviceId(lower);
+    cache.resetDeviceCache(upperKey); // clean slate
+    cache.markServicesDiscovered(upperKey);
+    expect(cache.hasDiscoveredServices(lowerKey), isTrue); // seen via other case
+    cache.resetDeviceCache(lowerKey); // cleared via the other case
+    expect(cache.hasDiscoveredServices(upperKey), isFalse);
+  });
+
   test('an opaque id is NOT folded into the cache key', () {
     // Web's ids are case-sensitive, so two that differ only in case are two devices, not one.
     UniversalBle.setInstance(_OpaqueIdPlatform());

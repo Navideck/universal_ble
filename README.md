@@ -658,6 +658,12 @@ int mtu = await bleDevice.requestMtu(256);
 > ⚠️ Note: Requesting an MTU is a _best-effort_ operation.
 > On many platforms the final MTU is fully controlled by the OS and remote device.
 
+> 📋 On iOS/macOS and Linux the device's services are discovered on demand
+> first, because the reported MTU is only meaningful once they are known (on
+> iOS/macOS CoreBluetooth otherwise reports the default ATT MTU, 23, as if it
+> were the negotiated value). Calling `discoverServices()` yourself first is
+> optional — it is skipped when the services are already discovered.
+
 #### Platform Limitations
 
 MTU negotiation is largely platform- and stack-managed, and often cannot be

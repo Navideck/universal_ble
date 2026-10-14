@@ -134,6 +134,8 @@ UniversalBle.unpair(deviceId);
 
 This method will **attempt** to set the MTU (Maximum Transmission Unit) but it is not guaranteed to succeed due to platform limitations. It will always return the current MTU.
 
+On iOS/macOS and Linux the device's services are discovered on demand first, because the reported MTU is only meaningful once they are known (on iOS/macOS CoreBluetooth otherwise reports the default ATT MTU, 23). Calling `discoverServices(deviceId)` yourself first is optional; it is skipped when the services are already discovered.
+
 ```dart
 int mtu = await UniversalBle.requestMtu(widget.deviceId, 247);
 ```

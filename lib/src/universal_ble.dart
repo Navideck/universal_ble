@@ -17,6 +17,15 @@ class UniversalBle {
     isAddressSupplier: () => _platform.hasAddressDeviceIds,
   );
 
+  /// In-flight [discoverServices] calls per canonical device id.
+  ///
+  /// Concurrent callers that ask for the same thing share one platform command
+  /// (mirroring the in-progress de-duplication CoreBluetooth already does)
+  /// instead of each enqueuing their own discovery. [requestMtu] shares *any*
+  /// in-flight discovery for the device because it only needs the side effect,
+  /// not the result.
+  static final Map<String, _PendingDiscovery> _pendingDiscoveries = {};
+
   /// Set custom platform specific implementation (e.g. for testing).
   static void setInstance(UniversalBlePlatform instance) =>
       _platform = instance;
@@ -314,14 +323,48 @@ class UniversalBle {
   /// [platformConfig] carries platform-specific options, e.g.
   /// `AndroidDiscoverServicesOptions(clearGattCache: true)` to drop Android's
   /// GATT cache before discovering. Ignored where not applicable.
+  ///
+  /// Concurrent calls for the same device that request the same result share a
+  /// single discovery and resolve together. A call that asks for something
+  /// different (other [withDescriptors]/[platformConfig]) still runs its own.
   static Future<List<BleService>> discoverServices(
     String deviceId, {
     bool withDescriptors = false,
     Duration? timeout,
     String? queueId,
     DiscoverServicesPlatformConfig? platformConfig,
+  }) {
+    final key = canonicalDeviceId(deviceId);
+    final pending = _pendingDiscoveries[key];
+    if (pending != null &&
+        pending.withDescriptors == withDescriptors &&
+        pending.platformConfig == platformConfig) {
+      return pending.future;
+    }
+    final future = _runDiscovery(
+      deviceId,
+      withDescriptors: withDescriptors,
+      timeout: timeout,
+      queueId: queueId,
+      platformConfig: platformConfig,
+    );
+    _pendingDiscoveries[key] = _PendingDiscovery(
+      future: future,
+      withDescriptors: withDescriptors,
+      platformConfig: platformConfig,
+    );
+    unawaited(_releaseDiscovery(key, future));
+    return future;
+  }
+
+  static Future<List<BleService>> _runDiscovery(
+    String deviceId, {
+    required bool withDescriptors,
+    Duration? timeout,
+    String? queueId,
+    DiscoverServicesPlatformConfig? platformConfig,
   }) async {
-    return await _bleCommandQueue.queueCommand(
+    final services = await _bleCommandQueue.queueCommand(
       () => _platform.discoverServices(
         deviceId,
         withDescriptors,
@@ -331,6 +374,27 @@ class UniversalBle {
       deviceId: deviceId,
       queueId: queueId,
     );
+    // Remember that discovery has run for this connection so requestMtu skips
+    // the on-demand discovery it would otherwise perform. Cleared on disconnect.
+    CacheHandler.instance.markServicesDiscovered(canonicalDeviceId(deviceId));
+    return services;
+  }
+
+  /// Releases the in-flight slot for [key] once [future] settles, so a later
+  /// call starts a fresh discovery. Only removes the entry if it is still the
+  /// one this future registered (a newer call may have replaced it).
+  static Future<void> _releaseDiscovery(
+    String key,
+    Future<List<BleService>> future,
+  ) async {
+    try {
+      await future;
+    } catch (_) {
+      // The original caller observes the error; here we only free the slot.
+    }
+    if (identical(_pendingDiscoveries[key]?.future, future)) {
+      _pendingDiscoveries.remove(key);
+    }
   }
 
   /// Set a characteristic notifiable.
@@ -528,18 +592,51 @@ class UniversalBle {
   /// * **Windows/Linux**: MTU is automatically negotiated; apps can only query it
   /// * **Web**: Not supported (no API available)
   ///
+  /// **Service discovery:** On iOS/macOS and Linux the reported MTU is only
+  /// meaningful once the device's services have been discovered (on iOS/macOS
+  /// CoreBluetooth otherwise reports the default ATT MTU, 23, as if it were the
+  /// negotiated value). This method discovers them on demand, so an explicit
+  /// [discoverServices] call is not required; it is a no-op when they were
+  /// already discovered. The on-demand discovery is best effort: if it fails,
+  /// the MTU request is still attempted.
+  ///
   /// **Best Practices:** Design for default ATT MTU (23 bytes), treat requests as
   /// opportunistic, and implement fragmentation for larger payloads.
   ///
+  /// **Timeout:** [timeout] bounds each step separately, so on iOS/macOS and
+  /// Linux a call that has to discover the services first can take up to roughly
+  /// twice [timeout] before it settles. Pass a [timeout] that accounts for both.
+  ///
   /// **Concurrency:** Concurrent requests for the same device share a single
   /// negotiation. Every pending call resolves to the same negotiated value,
-  /// which may differ from each caller's `expectedMtu`.
+  /// which may differ from each caller's `expectedMtu`. Their on-demand service
+  /// discovery is shared too.
   static Future<int> requestMtu(
     String deviceId,
     int expectedMtu, {
     Duration? timeout,
     String? queueId,
   }) async {
+    // Discover on demand where the MTU is only meaningful once the services are
+    // known (see [BleCapabilities.mtuRequiresServiceDiscovery]). This runs
+    // before queueing the MTU command: discovering from inside a queued command
+    // would deadlock a per-device queue. It is best effort — a discovery failure
+    // must not turn a call that used to succeed into an error. Any discovery
+    // already in flight for the device is shared, so concurrent callers do not
+    // each trigger one.
+    if (BleCapabilities.mtuRequiresServiceDiscovery &&
+        !CacheHandler.instance.hasDiscoveredServices(
+          canonicalDeviceId(deviceId),
+        )) {
+      try {
+        await (_pendingDiscoveries[canonicalDeviceId(deviceId)]?.future ??
+            discoverServices(deviceId, timeout: timeout, queueId: queueId));
+      } catch (e) {
+        UniversalLogger.logError(
+          'requestMtu: on-demand discoverServices failed for $deviceId: $e',
+        );
+      }
+    }
     return await _bleCommandQueue.queueCommand(
       () => _platform.requestMtu(deviceId, expectedMtu),
       timeout: timeout,
@@ -1098,4 +1195,19 @@ class UniversalBle {
         ? action().timeout(timeoutDuration)
         : action();
   }
+}
+
+/// A [UniversalBle.discoverServices] call currently in flight, plus the
+/// parameters it was started with so later concurrent callers can decide
+/// whether they can share its result.
+class _PendingDiscovery {
+  _PendingDiscovery({
+    required this.future,
+    required this.withDescriptors,
+    required this.platformConfig,
+  });
+
+  final Future<List<BleService>> future;
+  final bool withDescriptors;
+  final DiscoverServicesPlatformConfig? platformConfig;
 }
