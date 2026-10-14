@@ -8,6 +8,9 @@ class MockPeripheralPlatform extends Fake implements UniversalBlePeripheralPlatf
   Completer<void>? notifyCompleter;
 
   @override
+  bool get hasAddressDeviceIds => true;
+
+  @override
   void dispose() {}
 
   @override

@@ -15,7 +15,7 @@ void main() {
     platform.updateConnection(deviceId, false, 'Connection Timeout',
         UniversalBleErrorCode.connectionTimeout, 8);
     final update = await event;
-    expect(update.deviceId, deviceId);
+    expect(update.deviceId, deviceId.toLowerCase());
     expect(update.isConnected, isFalse);
     expect(update.error, 'Connection Timeout');
     expect(update.errorCode, UniversalBleErrorCode.connectionTimeout);
@@ -52,7 +52,7 @@ void main() {
     platform.onConnectionChange = received.add;
     platform.updateConnection(deviceId, false, 'Unknown Error 257',
         UniversalBleErrorCode.deviceDisconnected, 257);
-    expect(received.single.deviceId, deviceId);
+    expect(received.single.deviceId, deviceId.toLowerCase());
     expect(received.single.isConnected, isFalse);
     expect(received.single.error, 'Unknown Error 257');
     expect(received.single.errorCode, UniversalBleErrorCode.deviceDisconnected);

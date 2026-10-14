@@ -13,7 +13,9 @@ class UniversalBlePeripheral {
     return _instance!;
   }
 
-  static final BleCommandQueue _bleCommandQueue = BleCommandQueue();
+  static final BleCommandQueue _bleCommandQueue = BleCommandQueue(
+    isAddressSupplier: () => _platform.hasAddressDeviceIds,
+  );
   static final BleCentralTracker _centralTracker = BleCentralTracker();
   static bool _trackerBound = false;
 

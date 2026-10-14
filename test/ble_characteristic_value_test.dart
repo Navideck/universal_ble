@@ -19,7 +19,7 @@ void main() {
     platform.updateCharacteristicValue(
         deviceId, charId, Uint8List.fromList([1, 2, 3]), 1234567890);
     final update = received.single;
-    expect(update.deviceId, deviceId);
+    expect(update.deviceId, deviceId.toLowerCase());
     expect(update.characteristicId, charId);
     expect(update.value, [1, 2, 3]);
     expect(update.timestamp, 1234567890);

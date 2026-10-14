@@ -3,7 +3,7 @@ import 'package:universal_ble/src/universal_ble.g.dart';
 /// A connection state change of a device, including the platform's error
 /// details when the change was not requested by the app.
 class BleConnectionChange {
-  /// Device id as reported by the platform.
+  /// Device id in its canonical form (lower-case on native platforms, verbatim on Web).
   final String deviceId;
 
   /// `true` after a successful connection, `false` after a disconnect or a

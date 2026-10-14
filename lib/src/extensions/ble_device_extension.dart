@@ -115,7 +115,10 @@ extension BleDeviceExtension on BleDevice {
       queueId: queueId,
       platformConfig: platformConfig,
     );
-    CacheHandler.instance.saveServices(deviceId, servicesCache);
+    CacheHandler.instance.saveServices(
+      UniversalBle.canonicalDeviceId(deviceId),
+      servicesCache,
+    );
     return servicesCache;
   }
 
@@ -132,7 +135,10 @@ extension BleDeviceExtension on BleDevice {
   }) async {
     List<BleService> discoveredServices = [];
     if (preferCached) {
-      discoveredServices = CacheHandler.instance.getServices(deviceId) ?? [];
+      discoveredServices = CacheHandler.instance.getServices(
+            UniversalBle.canonicalDeviceId(deviceId),
+          ) ??
+          [];
     }
     if (discoveredServices.isEmpty) {
       discoveredServices = await discoverServices(

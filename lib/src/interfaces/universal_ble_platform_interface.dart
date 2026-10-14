@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'dart:typed_data';
 import 'package:universal_ble/src/utils/cache_handler.dart';
-import 'package:universal_ble/src/utils/device_id_util.dart';
+import 'package:universal_ble/src/utils/device_id.dart';
 import 'package:universal_ble/src/utils/scan_deduplicator.dart';
 import 'package:universal_ble/src/utils/universal_ble_stream_controller.dart';
 import 'package:universal_ble/src/utils/universal_logger.dart';
@@ -21,8 +21,8 @@ abstract class UniversalBlePlatform {
   final Map<String, BleConnectionParametersChange>
       _lastConnectionParametersMap = {};
 
-  // Scan de-duplication (see `UniversalBle.startScan`'s `skipDuplicates`).
-  final _scanDeduplicator = ScanDeduplicator();
+  late final _scanDeduplicator =
+      ScanDeduplicator(isAddress: hasAddressDeviceIds);
 
   /// Whether scan de-duplication is currently active. Toggled by
   /// `UniversalBle.startScan`/`stopScan`.
@@ -169,20 +169,30 @@ abstract class UniversalBlePlatform {
   Stream<AvailabilityState> get availabilityStream =>
       _availabilityStreamController.stream;
 
-  // A BLE device id is a case-insensitive identifier (a MAC on Android/Windows/Linux, a UUID on Apple), but
-  // platforms report it in different cases — Android upper-cases MACs, Windows/WinRT lower-cases them
-  // (`mac_address_to_str` emits lower-case hex). So we (a) match the event streams case-insensitively, and
-  // (b) key all per-device state by a canonical lower-case id (see updatePairingState /
-  // updateConnectionParameters / CacheHandler) so a device reported in two cases can't split across map
-  // entries. Emitted device ids are left AS the platform reports them, so this is non-breaking for consumers.
-  // Hot paths short-circuit on an exact match before lower-casing.
+  /// Whether this platform reports device ids as Bluetooth *addresses* — a MAC on
+  /// Android/Windows/Linux, a UUID on Apple — which are case-insensitive and which platforms
+  /// report in different cases (Android upper-cases MACs, Windows/WinRT lower-cases them). Ids are
+  /// therefore canonicalised: the update* handlers below canonicalise on ingestion, so every
+  /// stream event, callback and per-device map key is canonical, and the stream filters
+  /// canonicalise the query so consumers may still pass an id in any case. Native calls take the
+  /// other form the same [DeviceId] carries; see that class for both conversions.
+  ///
+  /// Web overrides this to `false`: Web Bluetooth ids are opaque, case-sensitive browser tokens
+  /// rather than addresses, so they are emitted and matched verbatim.
+  bool get hasAddressDeviceIds => true;
+
+  /// [deviceId] in the two forms this platform needs. Emission and matching both go through it, so
+  /// an override of [hasAddressDeviceIds] cannot leave the two halves disagreeing.
+  DeviceId _deviceId(String deviceId) =>
+      DeviceId.of(deviceId, isAddress: hasAddressDeviceIds);
+
   Stream<bool> connectionStream(String deviceId) =>
       connectionChangeStream(deviceId).map((e) => e.isConnected);
 
   Stream<BleConnectionChange> connectionChangeStream(String deviceId) {
-    final target = canonicalDeviceId(deviceId);
+    final target = _deviceId(deviceId).canonical;
     return bleConnectionChangeStreamController.stream.where(
-      (e) => e.deviceId == deviceId || canonicalDeviceId(e.deviceId) == target,
+      (e) => e.deviceId == target,
     );
   }
 
@@ -190,28 +200,30 @@ abstract class UniversalBlePlatform {
     String deviceId,
     String characteristicId,
   ) {
-    final target = canonicalDeviceId(deviceId);
+    final target = _deviceId(deviceId).canonical;
     characteristicId = BleUuidParser.string(characteristicId);
-    return _valueStreamController.stream.where((e) {
-      return (e.deviceId == deviceId ||
-              canonicalDeviceId(e.deviceId) == target) &&
-          e.characteristicId == characteristicId;
-    }).map((e) => e.value);
+    return _valueStreamController.stream
+        .where((e) =>
+            e.deviceId == target && e.characteristicId == characteristicId)
+        .map((e) => e.value);
   }
 
   Stream<bool> pairingStateStream(String deviceId) {
-    final target = canonicalDeviceId(deviceId);
+    final target = _deviceId(deviceId).canonical;
     return _pairStateStreamController.stream
-        .where((e) =>
-            e.deviceId == deviceId ||
-            canonicalDeviceId(e.deviceId) == target)
+        .where((e) => e.deviceId == target)
         .map((e) => e.isPaired);
   }
 
   /// Update Handlers
   void updateScanResult(BleDevice bleDevice) {
+    final canonicalId = _deviceId(bleDevice.deviceId).canonical;
+    if (bleDevice.deviceId != canonicalId) {
+      // Replace with a copy rather than mutating the caller's instance, so a platform
+      // that retains or re-reads the device it reported keeps the id it passed in.
+      bleDevice = bleDevice.copyWith(deviceId: canonicalId);
+    }
     if (!_scanDeduplicator.shouldEmit(bleDevice)) return;
-
     _scanStreamController.add(bleDevice);
 
     try {
@@ -226,6 +238,7 @@ abstract class UniversalBlePlatform {
     UniversalBleErrorCode? errorCode,
     int? nativeErrorCode,
   ]) {
+    deviceId = _deviceId(deviceId).canonical;
     final update = BleConnectionChange(
       deviceId: deviceId,
       isConnected: isConnected,
@@ -240,13 +253,12 @@ abstract class UniversalBlePlatform {
     } catch (_) {}
 
     if (!isConnected) {
-      // Clear per-device state by the canonical id so cleanup can't miss an entry stored under another case
-      // (CacheHandler normalizes internally).
+      // Clear per-device state (all keyed by the canonical id).
       CacheHandler.instance.resetDeviceCache(deviceId);
       // Connection parameters belong to this connection, so drop them. Pairing/bond state deliberately
       // outlives the connection (a bonded device stays bonded across reconnects) and is left in
       // _lastPairStateMap.
-      _lastConnectionParametersMap.remove(canonicalDeviceId(deviceId));
+      _lastConnectionParametersMap.remove(deviceId);
     }
   }
 
@@ -256,6 +268,7 @@ abstract class UniversalBlePlatform {
     Uint8List value,
     int? timestamp,
   ) {
+    deviceId = _deviceId(deviceId).canonical;
     characteristicId = BleUuidParser.string(characteristicId);
     // StandardMessageCodec decodes typed data as a view into the complete
     // platform-message buffer. Normalize that view before exposing it so
@@ -286,16 +299,18 @@ abstract class UniversalBlePlatform {
   }
 
   void updatePairingState(String deviceId, bool isPaired) {
-    if (_isDuplicateState(_lastPairStateMap, deviceId, isPaired)) return;
-    _emitPairingState(deviceId, isPaired);
+    final canonicalId = _deviceId(deviceId).canonical;
+    if (_isDuplicateState(_lastPairStateMap, canonicalId, isPaired)) return;
+    _emitPairingState(canonicalId, isPaired);
   }
 
   /// A failed bond is an event, not a state: it reports `isPaired: false` regardless of what was cached before,
   /// so it must not go through [updatePairingState]'s dedup — otherwise every failure after the first is
   /// swallowed (#325). The cached value is still refreshed so later genuine transitions dedup as usual.
   void updatePairingFailure(String deviceId) {
-    _lastPairStateMap[canonicalDeviceId(deviceId)] = false;
-    _emitPairingState(deviceId, false);
+    final canonicalId = _deviceId(deviceId).canonical;
+    _lastPairStateMap[canonicalId] = false;
+    _emitPairingState(canonicalId, false);
   }
 
   void _emitPairingState(String deviceId, bool isPaired) {
@@ -307,6 +322,7 @@ abstract class UniversalBlePlatform {
   }
 
   void updateConnectionParameters(BleConnectionParametersChange update) {
+    update.deviceId = _deviceId(update.deviceId).canonical;
     final isDuplicate = _isDuplicateState(
       _lastConnectionParametersMap,
       update.deviceId,
@@ -333,7 +349,7 @@ abstract class UniversalBlePlatform {
     T value, {
     bool Function(T previous, T next)? equals,
   }) {
-    final key = canonicalDeviceId(deviceId);
+    final key = _deviceId(deviceId).canonical;
     final previous = cache[key];
     if (previous != null &&
         (equals == null ? previous == value : equals(previous, value))) {

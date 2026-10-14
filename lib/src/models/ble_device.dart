@@ -3,6 +3,11 @@ import 'dart:typed_data';
 import 'package:universal_ble/universal_ble.dart';
 
 class BleDevice {
+  /// Unique identifier of the device.
+  ///
+  /// Emitted in lower-case canonical format on native platforms (e.g. MAC addresses
+  /// on Android/Windows/Linux, UUIDs on iOS/macOS) and verbatim on Web (where tokens
+  /// are opaque and case-sensitive).
   String deviceId;
   String? name;
   String? rawName;
@@ -66,6 +71,25 @@ class BleDevice {
   })  : serviceData = _validateServiceData(serviceData),
         rawName = name,
         name = name?.replaceAll(RegExp(r'[^ -~]'), '').trim();
+
+  /// Returns a copy of this device with [deviceId] optionally replaced.
+  ///
+  /// The copy re-derives the sanitised [name] from [rawName] so both survive
+  /// unchanged — passing [name] straight to the constructor would overwrite
+  /// [rawName] with the already-sanitised name.
+  BleDevice copyWith({String? deviceId}) => BleDevice(
+        deviceId: deviceId ?? this.deviceId,
+        name: rawName,
+        rssi: rssi,
+        paired: paired,
+        services: services,
+        isSystemDevice: isSystemDevice,
+        manufacturerDataList: manufacturerDataList,
+        serviceData: serviceData,
+        timestamp: timestamp,
+        timestampMicroseconds: timestampMicroseconds,
+        connectable: connectable,
+      );
 
   DateTime? get timestampDateTime => timestamp != null
       ? DateTime.fromMillisecondsSinceEpoch(timestamp!)

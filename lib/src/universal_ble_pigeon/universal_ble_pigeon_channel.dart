@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:universal_ble/src/universal_ble.g.dart';
+import 'package:universal_ble/src/utils/device_id.dart';
 import 'package:universal_ble/src/utils/universal_ble_filter_util.dart';
 import 'package:universal_ble/universal_ble.dart';
 
@@ -15,6 +16,9 @@ class UniversalBlePigeonChannel extends UniversalBlePlatform
   }
 
   final _channel = UniversalBlePlatformChannel();
+
+  // Native channel calls take the native form of the id; see DeviceId for both conversions.
+  String _nativeId(String deviceId) => deviceId.toDeviceId().native;
 
   @override
   Future<AvailabilityState> getBluetoothAvailabilityState() =>
@@ -88,7 +92,9 @@ class UniversalBlePigeonChannel extends UniversalBlePlatform
 
   @override
   Future<BleConnectionState> getConnectionState(String deviceId) =>
-      _executeWithErrorHandling(() => _channel.getConnectionState(deviceId));
+      _executeWithErrorHandling(
+        () => _channel.getConnectionState(_nativeId(deviceId)),
+      );
 
   @override
   Future<void> connect(
@@ -99,7 +105,7 @@ class UniversalBlePigeonChannel extends UniversalBlePlatform
   }) =>
       _executeWithErrorHandling(
         () => _channel.connect(
-          deviceId,
+          _nativeId(deviceId),
           autoConnect: autoConnect,
           platformConfig: platformConfig,
         ),
@@ -107,7 +113,7 @@ class UniversalBlePigeonChannel extends UniversalBlePlatform
 
   @override
   Future<void> disconnect(String deviceId) =>
-      _executeWithErrorHandling(() => _channel.disconnect(deviceId));
+      _executeWithErrorHandling(() => _channel.disconnect(_nativeId(deviceId)));
 
   @override
   Future<List<BleService>> discoverServices(
@@ -118,15 +124,16 @@ class UniversalBlePigeonChannel extends UniversalBlePlatform
     List<UniversalBleService?> universalBleServices =
         await _executeWithErrorHandling(
       () => _channel.discoverServices(
-        deviceId,
+        _nativeId(deviceId),
         withDescriptors,
         platformConfig,
       ),
     );
     return List<BleService>.from(
-      universalBleServices
-          .where((e) => e != null)
-          .map((e) => e!.toBleService(deviceId))
+      universalBleServices.nonNulls
+          .map(
+            (e) => e.toBleService(deviceId.toDeviceId().canonical),
+          ) // emitted id stays lower-case
           .toList(),
     );
   }
@@ -140,7 +147,7 @@ class UniversalBlePigeonChannel extends UniversalBlePlatform
   ) {
     return _executeWithErrorHandling(
       () => _channel.setNotifiable(
-        deviceId,
+        _nativeId(deviceId),
         service,
         characteristic,
         bleInputProperty,
@@ -156,7 +163,7 @@ class UniversalBlePigeonChannel extends UniversalBlePlatform
     Duration? timeout,
   }) {
     return _executeWithErrorHandling(
-      () => _channel.readValue(deviceId, service, characteristic),
+      () => _channel.readValue(_nativeId(deviceId), service, characteristic),
     );
   }
 
@@ -170,7 +177,7 @@ class UniversalBlePigeonChannel extends UniversalBlePlatform
   }) {
     return _executeWithErrorHandling(
       () => _channel.readDescriptorValue(
-        deviceId,
+        _nativeId(deviceId),
         service,
         characteristic,
         descriptor,
@@ -188,7 +195,7 @@ class UniversalBlePigeonChannel extends UniversalBlePlatform
   ) {
     return _executeWithErrorHandling(
       () => _channel.writeValue(
-        deviceId,
+        _nativeId(deviceId),
         service,
         characteristic,
         value,
@@ -207,7 +214,7 @@ class UniversalBlePigeonChannel extends UniversalBlePlatform
   ) {
     return _executeWithErrorHandling(
       () => _channel.writeDescriptorValue(
-        deviceId,
+        _nativeId(deviceId),
         service,
         characteristic,
         descriptor,
@@ -219,12 +226,12 @@ class UniversalBlePigeonChannel extends UniversalBlePlatform
   @override
   Future<int> requestMtu(String deviceId, int expectedMtu) =>
       _executeWithErrorHandling(
-        () => _channel.requestMtu(deviceId, expectedMtu),
+        () => _channel.requestMtu(_nativeId(deviceId), expectedMtu),
       );
 
   @override
   Future<int> readRssi(String deviceId) =>
-      _executeWithErrorHandling(() => _channel.readRssi(deviceId));
+      _executeWithErrorHandling(() => _channel.readRssi(_nativeId(deviceId)));
 
   @override
   Future<void> requestConnectionPriority(
@@ -232,20 +239,20 @@ class UniversalBlePigeonChannel extends UniversalBlePlatform
     BleConnectionPriority priority,
   ) =>
       _executeWithErrorHandling(
-        () => _channel.requestConnectionPriority(deviceId, priority),
+        () => _channel.requestConnectionPriority(_nativeId(deviceId), priority),
       );
 
   @override
   Future<bool> isPaired(String deviceId) =>
-      _executeWithErrorHandling(() => _channel.isPaired(deviceId));
+      _executeWithErrorHandling(() => _channel.isPaired(_nativeId(deviceId)));
 
   @override
   Future<bool> pair(String deviceId) =>
-      _executeWithErrorHandling(() => _channel.pair(deviceId));
+      _executeWithErrorHandling(() => _channel.pair(_nativeId(deviceId)));
 
   @override
   Future<void> unpair(String deviceId) =>
-      _executeWithErrorHandling(() => _channel.unPair(deviceId));
+      _executeWithErrorHandling(() => _channel.unPair(_nativeId(deviceId)));
 
   @override
   Future<bool> hasPermissions({bool withAndroidFineLocation = false}) =>
@@ -368,11 +375,12 @@ extension _BleServiceExtension on UniversalBleService {
   }
 }
 
-extension _UniversalBleScanResultExtension on UniversalBleScanResult {
+@visibleForTesting
+extension UniversalBleScanResultExtension on UniversalBleScanResult {
   BleDevice toBleDevice({bool? isSystemDevice}) {
     return BleDevice(
       name: name,
-      deviceId: deviceId,
+      deviceId: deviceId.toDeviceId().canonical,
       rssi: rssi,
       paired: isPaired,
       isSystemDevice: isSystemDevice,
@@ -389,8 +397,12 @@ extension _UniversalBleScanResultExtension on UniversalBleScanResult {
   }
 }
 
-extension _UniversalDevicePickerResultExtension on UniversalDevicePickerResult {
-  BleDevice toBleDevice() => BleDevice(deviceId: deviceId, name: name);
+@visibleForTesting
+extension UniversalDevicePickerResultExtension on UniversalDevicePickerResult {
+  BleDevice toBleDevice() => BleDevice(
+        deviceId: deviceId.toDeviceId().canonical,
+        name: name,
+      );
 }
 
 extension _ScanFilterExtension on ScanFilter? {
