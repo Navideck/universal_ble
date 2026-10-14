@@ -3,9 +3,6 @@ import 'dart:collection';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_web_bluetooth/flutter_web_bluetooth.dart';
-import 'package:flutter_web_bluetooth/js_web_bluetooth.dart'
-    show WatchAdvertisementsOptions;
-import 'package:flutter_web_bluetooth/web/js/js.dart' show AbortController;
 import 'package:universal_ble/src/utils/universal_logger.dart';
 import 'package:universal_ble/universal_ble.dart';
 
@@ -26,8 +23,6 @@ class UniversalBleWeb extends UniversalBlePlatform {
 
   final Map<String, BluetoothDevice> _bluetoothDeviceList = {};
   final Map<String, StreamSubscription> _deviceAdvertisementStreamList = {};
-  final Map<String, Future<void>> _advertisementStartOperations = {};
-  final Map<String, AbortController> _advertisementControllers = {};
   static const _advertisementTimeout = Duration(seconds: 5);
   final Map<String, StreamSubscription> _connectedDeviceStreamList = {};
   final Map<String, StreamSubscription> _characteristicStreamList = {};
@@ -338,28 +333,11 @@ class UniversalBleWeb extends UniversalBlePlatform {
         );
       });
       device.advertisementsUseMemory = true;
-      // Own the abort signal: the dependency does not retain its controller
-      // when watchAdvertisements is called without a timeout. A lifetime
-      // timeout would also stop a successfully started scan after five seconds.
-      final controller = AbortController();
-      _advertisementControllers[device.id] = controller;
-      // The wrapper has no API accepting a caller-owned abort signal.
-      // ignore: deprecated_member_use
-      final operation = device.nativeDevice
-          .watchAdvertisements(
-              WatchAdvertisementsOptions(signal: controller.signal))
-          .timeout(_advertisementTimeout, onTimeout: () {
-        controller.abort();
-        throw TimeoutException('Advertisement startup timed out');
-      });
-      _advertisementStartOperations[device.id] = operation;
-      try {
-        await operation;
-      } finally {
-        if (identical(_advertisementStartOperations[device.id], operation)) {
-          _advertisementStartOperations.remove(device.id);
-        }
-      }
+      // Watch indefinitely but bound only the startup. The dependency keeps its
+      // own abort controller for the whole watch, so `unwatchAdvertisements`
+      // aborts a pending start as well as a running watch, and `startupTimeout`
+      // expires without stopping a scan that started successfully.
+      await device.watchAdvertisements(null, _advertisementTimeout);
     } catch (e) {
       UniversalLogger.logError("WebWatchAdvertisementError: $e");
     }
@@ -727,17 +705,12 @@ class UniversalBleWeb extends UniversalBlePlatform {
     for (final id in deviceIds) {
       final subscription = _deviceAdvertisementStreamList[id];
       final device = _getDeviceById(id);
-      // Abort pending startup before waiting for it. An aborted signal also
-      // prevents a late native completion from restarting advertisements.
-      _advertisementControllers.remove(id)?.abort();
       await subscription?.cancel();
-      try {
-        await _advertisementStartOperations[id];
-      } catch (_) {
-        // Advertisement startup reports its own error and is optional.
-      }
-      // Let unexpected stop failures propagate: connecting while the browser
-      // is still watching would recreate the scan/connect overlap.
+      // `unwatchAdvertisements` aborts a pending startup before stopping a
+      // running watch, which also prevents a late native completion from
+      // restarting advertisements. Let unexpected stop failures propagate:
+      // connecting while the browser is still watching would recreate the
+      // scan/connect overlap.
       try {
         await device?.unwatchAdvertisements().timeout(_advertisementTimeout);
       } finally {
