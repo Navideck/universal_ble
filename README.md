@@ -40,48 +40,50 @@ Looking for Bluetooth Classic? Check [universal_bluetooth_classic](https://pub.d
 
 ## API Support
 
+**Legend:** ✔️ supported · — not supported · ⏺ platform-dependent (e.g. pairing is triggered by the OS rather than by an API call) · 🚧 work in progress.
+
 ### Client Mode (`UniversalBle`)
 
 |                               | Android | iOS | macOS | Windows | Linux | Web |
 | :---------------------------- | :-----: | :-: | :---: | :-----: | :---: | :-: |
 | startScan/stopScan            |   ✔️    | ✔️  |  ✔️   |   ✔️    |  ✔️   | ✔️  |
 | connect/disconnect            |   ✔️    | ✔️  |  ✔️   |   ✔️    |  ✔️   | ✔️  |
-| autoConnect                   |   ✔️    | ✔️  |  ✔️   |   ❌    |  ❌   | ❌  |
-| getSystemDevices              |   ✔️    | ✔️  |  ✔️   |   ✔️    |  ✔️   | ❌  |
+| autoConnect                   |   ✔️    | ✔️  |  ✔️   |   —    |  —   | —  |
+| getSystemDevices              |   ✔️    | ✔️  |  ✔️   |   ✔️    |  ✔️   | —  |
 | discoverServices              |   ✔️    | ✔️  |  ✔️   |   ✔️    |  ✔️   | ✔️  |
 | read                          |   ✔️    | ✔️  |  ✔️   |   ✔️    |  ✔️   | ✔️  |
 | write                         |   ✔️    | ✔️  |  ✔️   |   ✔️    |  ✔️   | ✔️  |
 | subscriptions                 |   ✔️    | ✔️  |  ✔️   |   ✔️    |  ✔️   | ✔️  |
 | pair                          |   ✔️    | ✔️  |  ✔️   |   ✔️    |  ✔️   |  ⏺  |
-| unpair                        |   ✔️    | ❌  |  ❌   |   ✔️    |  ✔️   | ❌  |
+| unpair                        |   ✔️    | —  |  —   |   ✔️    |  ✔️   | —  |
 | isPaired                      |   ✔️    | ✔️  |  ✔️   |   ✔️    |  ✔️   | ✔️  |
 | onPairingStateChange          |   ✔️    |  ⏺  |   ⏺   |   ✔️    |  ✔️   |  ⏺  |
-| getBluetoothAvailabilityState |   ✔️    | ✔️  |  ✔️   |   ✔️    |  ✔️   | ❌  |
-| enable/disable Bluetooth      |   ✔️    | ❌  |  ❌   |   ✔️    |  ✔️   | ❌  |
+| getBluetoothAvailabilityState |   ✔️    | ✔️  |  ✔️   |   ✔️    |  ✔️   | —  |
+| enable/disable Bluetooth      |   ✔️    | —  |  —   |   ✔️    |  ✔️   | —  |
 | onAvailabilityChange          |   ✔️    | ✔️  |  ✔️   |   ✔️    |  ✔️   | ✔️  |
-| requestMtu                    |   ✔️    | ✔️  |  ✔️   |   ✔️    |  ✔️   | ❌  |
-| requestConnectionPriority     |   ✔️    | ❌  |  ❌   |   ❌    |  ❌   | ❌  |
-| onConnectionParametersChange  |   ✔️    | ❌  |  ❌   |   ❌    |  ❌   | ❌  |
-| readRssi                      |   ✔️    | ✔️  |  ✔️   |   ❌    |  🚧   | ❌  |
+| requestMtu                    |   ✔️    | ✔️  |  ✔️   |   ✔️    |  ✔️   | —  |
+| requestConnectionPriority     |   ✔️    | —  |  —   |   —    |  —   | —  |
+| onConnectionParametersChange  |   ✔️    | —  |  —   |   —    |  —   | —  |
+| readRssi                      |   ✔️    | ✔️  |  ✔️   |   —    |  🚧   | —  |
 | requestPermissions            |   ✔️    | ✔️  |  ✔️   |   ✔️    |  ✔️   | ✔️  |
 
 ### Peripheral Mode (`UniversalBlePeripheral`)
 
 | API                           | Android | iOS | macOS | Windows | Linux | Web |
 | :---------------------------- | :-----: | :-: | :---: | :-----: | :---: | :-: |
-| getCapabilities               |   ✔️    | ✔️  |  ✔️   |   ✔️    |  🚧   | ❌  |
-| getAvailabilityState\*        |   ✔️    | ✔️  |  ✔️   |   ✔️    |  🚧   | ❌  |
-| getAdvertisingState           |   ✔️    | ✔️  |  ✔️   |   ✔️    |  🚧   | ❌  |
-| addService                    |   ✔️    | ✔️  |  ✔️   |   ✔️    |  🚧   | ❌  |
-| removeService                 |   ✔️    | ✔️  |  ✔️   |   ✔️    |  🚧   | ❌  |
-| clearServices                 |   ✔️    | ✔️  |  ✔️   |   ✔️    |  🚧   | ❌  |
-| getServices                   |   ✔️    | ✔️  |  ✔️   |   ✔️    |  🚧   | ❌  |
-| startAdvertising              |   ✔️    | ✔️  |  ✔️   |   ✔️    |  🚧   | ❌  |
-| stopAdvertising               |   ✔️    | ✔️  |  ✔️   |   ✔️    |  🚧   | ❌  |
-| updateCharacteristicValue\*\* |   ✔️    | ✔️  |  ✔️   |   ✔️    |  🚧   | ❌  |
-| getSubscribedClients          |   ✔️    | ✔️  |  ✔️   |   ✔️    |  🚧   | ❌  |
-| getMaximumNotifyLength        |   ✔️    | ✔️  |  ✔️   |   ✔️    |  🚧   | ❌  |
-| event streams\*\*\*           |   ✔️    | ✔️  |  ✔️   |   ✔️    |  🚧   | ❌  |
+| getCapabilities               |   ✔️    | ✔️  |  ✔️   |   ✔️    |  🚧   | —  |
+| getAvailabilityState\*        |   ✔️    | ✔️  |  ✔️   |   ✔️    |  🚧   | —  |
+| getAdvertisingState           |   ✔️    | ✔️  |  ✔️   |   ✔️    |  🚧   | —  |
+| addService                    |   ✔️    | ✔️  |  ✔️   |   ✔️    |  🚧   | —  |
+| removeService                 |   ✔️    | ✔️  |  ✔️   |   ✔️    |  🚧   | —  |
+| clearServices                 |   ✔️    | ✔️  |  ✔️   |   ✔️    |  🚧   | —  |
+| getServices                   |   ✔️    | ✔️  |  ✔️   |   ✔️    |  🚧   | —  |
+| startAdvertising              |   ✔️    | ✔️  |  ✔️   |   ✔️    |  🚧   | —  |
+| stopAdvertising               |   ✔️    | ✔️  |  ✔️   |   ✔️    |  🚧   | —  |
+| updateCharacteristicValue\*\* |   ✔️    | ✔️  |  ✔️   |   ✔️    |  🚧   | —  |
+| getSubscribedClients          |   ✔️    | ✔️  |  ✔️   |   ✔️    |  🚧   | —  |
+| getMaximumNotifyLength        |   ✔️    | ✔️  |  ✔️   |   ✔️    |  🚧   | —  |
+| event streams\*\*\*           |   ✔️    | ✔️  |  ✔️   |   ✔️    |  🚧   | —  |
 
 \* `getAvailabilityState` returns a snapshot. Listen to `advertisingStateStream`, `connectionStateStream`, and related streams for runtime updates.
 \*\* Pass `deviceId` to notify one client; omit it to notify all subscribed clients (when supported — see `getCapabilities().supportsTargetedCharacteristicUpdate`).
