@@ -998,6 +998,17 @@ class UniversalBle {
     );
   }
 
+  /// Connects (if needed), discovers services and runs a pairing probe: either
+  /// [bleCommand] on an encrypted characteristic, or a read of every readable
+  /// characteristic when none is given.
+  ///
+  /// [updateCallbackValue] makes a successful command report a pairing state
+  /// change via [UniversalBlePlatform.updatePairingState]. It is currently `false`
+  /// at every call site, so no platform emits pairing state from here — including
+  /// iOS/macOS/Web, which have no native pairing-state callback at all. Passing
+  /// `true` on those platforms would start emitting `pairingStateStream` /
+  /// `onPairingStateChange`, so the README's `onPairingStateChange` row (currently
+  /// `—` for iOS/macOS/Web) would have to become `⏺`.
   static Future<void> _connectAndExecuteBleCommand(
     String deviceId,
     BleCommand? bleCommand, {
@@ -1041,6 +1052,8 @@ class UniversalBle {
       timeout: timeout,
       queueId: queueId,
     );
+    // See [updateCallbackValue]: no caller opts in today, so nothing emits pairing
+    // state from here on any platform.
     if (updateCallbackValue) _platform.updatePairingState(deviceId, true);
   }
 
