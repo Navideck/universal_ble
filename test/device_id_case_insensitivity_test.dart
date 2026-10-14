@@ -459,6 +459,25 @@ void main() {
   // reports hasAddressDeviceIds == false, so its ids pass through verbatim. Emission and matching
   // both go through DeviceId, so a scanned id round-trips byte-for-byte and still matches.
 
+  group('UniversalBle.canonicalDeviceId', () {
+    test('lower-cases ids on address platforms', () {
+      UniversalBle.setInstance(_MockPlatform());
+      expect(UniversalBle.canonicalDeviceId(upper), lower);
+      expect(UniversalBle.canonicalDeviceId(lower), lower);
+      expect(UniversalBle.canonicalDeviceId('Aa:Bb:Cc:Dd:Ee:Ff'), lower);
+    });
+
+    test('returns opaque Web tokens verbatim (case preserved)', () {
+      UniversalBle.setInstance(_OpaqueIdPlatform());
+      const opaque = 'mHZbW+PZqBpUlZlVQrPzOQ==';
+      expect(UniversalBle.canonicalDeviceId(opaque), opaque);
+      expect(
+        UniversalBle.canonicalDeviceId(opaque.toLowerCase()),
+        opaque.toLowerCase(),
+      );
+    });
+  });
+
   group('opaque (Web-style) device ids', () {
     const opaque = 'mHZbW+PZqBpUlZlVQrPzOQ==';
 
