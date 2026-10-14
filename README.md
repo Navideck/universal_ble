@@ -40,6 +40,8 @@ Looking for Bluetooth Classic? Check [universal_bluetooth_classic](https://pub.d
 
 ## API Support
 
+**Legend:** ✔️ supported, — not supported, ⏺ partial support (see notes), 🚧 work in progress.
+
 ### Client Mode (`UniversalBle`)
 
 |                               | Android | iOS | macOS | Windows | Linux | Web |
@@ -54,7 +56,7 @@ Looking for Bluetooth Classic? Check [universal_bluetooth_classic](https://pub.d
 | subscriptions                 |   ✔️    | ✔️  |  ✔️   |   ✔️    |  ✔️   | ✔️  |
 | pair¹                         |   ✔️    | ✔️  |  ✔️   |   ✔️    |  ✔️   |  ⏺  |
 | unpair²                       |   ✔️    |  ⏺  |  —   |   ✔️    |  ✔️   | —  |
-| isPaired³                     |   ✔️    | ✔️  |  ✔️   |   ✔️    |  ✔️   | ✔️  |
+| isPaired³                     |   ✔️    |  ⏺  |  ⏺   |   ✔️    |  ✔️   |  ⏺  |
 | onPairingStateChange⁴         |   ✔️    |  —  |   —   |   ✔️    |  ✔️   |  —  |
 | getBluetoothAvailabilityState |   ✔️    | ✔️  |  ✔️   |   ✔️    |  ✔️   | —  |
 | enable/disable Bluetooth      |   ✔️    | —  |  —   |   ✔️    |  ✔️   | —  |
@@ -65,9 +67,12 @@ Looking for Bluetooth Classic? Check [universal_bluetooth_classic](https://pub.d
 | readRssi                      |   ✔️    | ✔️  |  ✔️   |   —    |  🚧   | —  |
 | requestPermissions            |   ✔️    | ✔️  |  ✔️   |   ✔️    |  ✔️   | ✔️  |
 
-¹ On iOS, macOS, and Web there is no dedicated pairing API: `pair()` connects and reads an encrypted characteristic so the OS triggers pairing (pass a `pairingCommand` to target a specific one). This works for all pairing methods on iOS/macOS; on Web it cannot trigger ConfirmOnly ("Just Works") pairing on Web/Windows and Web/Linux — hence ⏺.
+¹ On iOS, macOS, and Web there is no dedicated pairing API: `pair()` connects and reads or writes an encrypted characteristic so the OS triggers pairing (pass a `pairingCommand` to target a specific one). This works for all pairing methods on iOS/macOS. On Web the outcome depends on the browser's host OS: ConfirmOnly ("Just Works") pairing can be triggered when the browser runs on macOS or Android, but not on Windows or Linux — hence the conservative ⏺.
+
 ² On iOS, `unpair` requires iOS 18+ and only removes accessories authorized through AccessorySetupKit (`requestDevice`); other devices fail with `deviceNotFound` — hence ⏺.
-³ On iOS, macOS, and Web, `isPaired` needs a `pairingCommand` with an encrypted read or write characteristic and returns `null` without one. It also triggers pairing if the device is not already paired.
+
+³ On iOS, macOS, and Web, `isPaired` needs a `pairingCommand` with an encrypted read or write characteristic and returns `null` without one — hence ⏺. It also triggers pairing if the device is not already paired.
+
 ⁴ iOS, macOS, and Web do not report pairing-state changes — `pairingStateStream` and `onPairingStateChange` never emit there. Read the current state with `isPaired(pairingCommand:)` instead.
 
 ### Peripheral Mode (`UniversalBlePeripheral`)
@@ -88,10 +93,10 @@ Looking for Bluetooth Classic? Check [universal_bluetooth_classic](https://pub.d
 | getMaximumNotifyLength        |   ✔️    | ✔️  |  ✔️   |   ✔️    |  🚧   | —  |
 | event streams\*\*\*           |   ✔️    | ✔️  |  ✔️   |   ✔️    |  🚧   | —  |
 
-**Legend:** ✔️ supported, — not supported, ⏺ partial support (see notes), 🚧 work in progress.
-
 \* `getAvailabilityState` returns a snapshot. Listen to `advertisingStateStream`, `connectionStateStream`, and related streams for runtime updates.
+
 \*\* Pass `deviceId` to notify one client; omit it to notify all subscribed clients (when supported — see `getCapabilities().supportsTargetedCharacteristicUpdate`).
+
 \*\*\* `advertisingStateStream`, `characteristicSubscriptionStream`, `connectionStateStream`, `serviceAddedStream`, `mtuChangedStream`, `subscribedCentralsStream`.
 
 ## Getting Started
