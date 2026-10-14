@@ -33,7 +33,7 @@ Looking for Bluetooth Classic? Check [universal_bluetooth_classic](https://pub.d
 - [Command Queue](#command-queue)
 - [Timeout](#timeout)
 - [Error Handling](#error-handling)
-- [UUID Format Agnostic](#uuid-format-agnostic)
+- [Device ID & UUID Formats](#device-id--uuid-formats)
 - [Platform-specific setup](#platform-specific-setup)
 - [Peripheral Mode](#peripheral-mode)
 - [AI agent skills](#ai-agent-skills)
@@ -85,7 +85,7 @@ Looking for Bluetooth Classic? Check [universal_bluetooth_classic](https://pub.d
 
 \* `getAvailabilityState` returns a snapshot. Listen to `advertisingStateStream`, `connectionStateStream`, and related streams for runtime updates.
 \*\* Pass `deviceId` to notify one client; omit it to notify all subscribed clients (when supported — see `getCapabilities().supportsTargetedCharacteristicUpdate`).
-\*\*\* `advertisingStateStream`, `characteristicSubscriptionStream`, `connectionStateStream`, `serviceAddedStream`, `mtuChangedStream`.
+\*\*\* `advertisingStateStream`, `characteristicSubscriptionStream`, `connectionStateStream`, `serviceAddedStream`, `mtuChangedStream`, `subscribedCentralsStream`.
 
 ## Getting Started
 
@@ -463,9 +463,42 @@ BleCharacteristic characteristic = await service.getCharacteristic('2a56');
 
 You need to first [discover services](#discovering-services) before you are able to read and write to characteristics.
 
+### Reading data
+
 ```dart
 Uint8List value = await characteristic.read();
 ```
+
+To make it more convenient, you can use built-in extensions on `Future<Uint8List>` or `Uint8List` to parse numbers, strings, and hex directly:
+
+```dart
+// Numbers (8, 16, 32-bit signed/unsigned, floats), little-endian by default
+int batteryLevel = await characteristic.read().toUint8();
+int heartRate    = await characteristic.read().toUint16(); 
+int counter      = await characteristic.read().toInt32();
+double temp      = await characteristic.read().toFloat32();
+
+// Custom endianness and byte offset for multi-field packets
+int sensorValue  = await characteristic.read().toUint16(offset: 2, endian: Endian.big);
+
+// Strings (Device Name, Serial Number, etc.)
+String deviceName = await characteristic.read().toUtf8();
+
+// Hex string for debugging (e.g. "01:0a:ff" or "010AFF")
+String hexDump = await characteristic.read().toHexString(separator: ':');
+```
+
+The same extensions work on any `Uint8List` (e.g., from `characteristic.onValueReceived` notifications):
+
+```dart
+characteristic.onValueReceived.listen((bytes) {
+  int flags = bytes.toUint8();
+  int sensorReading = bytes.toUint16(offset: 1);
+  print('Hex payload: ${bytes.toHexString()}');
+});
+```
+
+### Writing data
 
 ```dart
 await characteristic.write([0x01, 0x02, 0x03]);
@@ -1088,17 +1121,74 @@ UniversalBlePeripheral.mtuChangedStream.listen(
 );
 ```
 
+### Tracking Subscribed Centrals
+
+To track connected BLE central devices currently subscribed to characteristics on your peripheral:
+
+```dart
+import 'package:universal_ble/universal_ble.dart';
+
+// Stream of active centrals (emits current list upon listen, and updates on subscribe/unsubscribe/disconnect)
+UniversalBlePeripheral.subscribedCentralsStream.listen((List<BleCentral> centrals) {
+  for (final central in centrals) {
+    print('Central ID: ${central.id}, Name: ${central.name}');
+    print('Subscribed characteristics: ${central.subscribedCharacteristics}');
+  }
+});
+
+// Synchronous snapshot
+final List<BleCentral> activeCentrals = UniversalBlePeripheral.subscribedCentrals;
+```
+
 ### Platform notes
 
 - Linux/Web currently return unsupported for peripheral mode.
 - Windows peripheral advertising does not expose all advertising payload customization options from Android/Apple stacks.
+- **Central tracking on iOS / Apple platforms**: CoreBluetooth's `CBPeripheralManager` does not expose generic link-layer connection/disconnection callbacks for peripherals. Centrals are tracked as active when they subscribe to at least one GATT characteristic (`didSubscribeTo`), and are removed only when unsubscribed from all characteristics via `didUnsubscribeFrom`. Because CoreBluetooth does not guarantee unsubscription callbacks on abrupt link-layer disconnects, an entry may linger until the next unsubscription or until services are cleared. Other platforms (such as Android) additionally prune tracked centrals immediately on link-layer disconnection.
 - iOS/macOS setup (including required `Info.plist` keys for peripheral usage) is documented in [Permissions → iOS / macOS](#ios--macos).
 
-## UUID Format Agnostic
+## Device ID & UUID Formats
 
-Universal BLE is agnostic to the UUID format of services and characteristics regardless of the platform the app runs on. When passing a UUID, you can pass it in any format (long/short) or character case (upper/lower case) you want. Universal BLE will take care of necessary conversions, across all platforms, so that you don't need to worry about underlying platform differences.
+Universal BLE normalises identifiers across platforms so you don't need to worry about underlying platform differences:
 
-For consistency, all characteristic and service UUIDs will be returned in **lowercase 128-bit format**, across all platforms, e.g. `0000180a-0000-1000-8000-00805f9b34fb`.
+### Device IDs
+
+- **Android, iOS, macOS, Windows, Linux:** Device IDs (MAC addresses or Apple UUIDs) are normalised to **lower-case**, so IDs can be compared with plain string equality, and a `deviceId` can be passed in upper, lower, or mixed case to any `UniversalBle` or `UniversalBlePeripheral` method.
+- **Web (exception):** Device IDs are opaque, case-sensitive browser tokens, preserved verbatim and must be matched with exact case.
+
+```dart
+// Native IDs are normalised to lower-case, so IDs compare with plain string equality:
+UniversalBle.onScanResult = (BleDevice device) {
+  print(device.deviceId); // e.g. "aa:bb:cc:dd:ee:ff" or "e621e1f8-c36c-495a-93fc-0c247a3e6e5f"
+};
+
+// Any case is accepted when calling APIs:
+await UniversalBle.connect("AA:BB:CC:DD:EE:FF");
+await UniversalBle.connect("aa:bb:cc:dd:ee:ff");
+await UniversalBle.connect("Aa:Bb:Cc:Dd:Ee:Ff");
+```
+
+```dart
+// Web (exception) — opaque, case-sensitive tokens, matched exactly as emitted:
+UniversalBle.onScanResult = (BleDevice device) {
+  print(device.deviceId); // e.g. "rNvoULy2kW0atVQmwH8WYg==" (not a MAC or UUID)
+};
+
+await UniversalBle.connect(webDeviceId); // must match exactly — never re-cased
+```
+
+IDs that Universal BLE returns are already in this form, so plain string equality works for them. If you compare a device ID that came from elsewhere (for example one you stored yourself) or use IDs as map keys across sources, `UniversalBle.canonicalDeviceId(deviceId)` returns the comparable form for the current platform (lower-case on native, verbatim on Web):
+
+```dart
+// An id from your own storage may be in a different case than the emitted one.
+final key = UniversalBle.canonicalDeviceId(storedDeviceId);
+```
+
+### UUIDs
+
+Universal BLE is agnostic to the UUID format of services and characteristics:
+- You can pass UUIDs in any format (16-bit, 32-bit, 128-bit) and any character case.
+- All characteristic and service UUIDs are returned in **lowercase 128-bit format** across all platforms, e.g. `0000180a-0000-1000-8000-00805f9b34fb`.
 
 ### Utility Methods
 

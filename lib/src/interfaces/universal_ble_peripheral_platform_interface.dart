@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 
 import 'package:universal_ble/src/universal_ble.g.dart';
+import 'package:universal_ble/src/utils/device_id.dart';
 import 'package:universal_ble/src/utils/universal_ble_stream_controller.dart';
 import 'package:universal_ble/universal_ble.dart';
 
@@ -11,9 +12,8 @@ abstract class UniversalBlePeripheralPlatform {
       _blePeripheralStreamHandler.advertisingStateStreamController.stream;
 
   Stream<BlePeripheralCharacteristicSubscriptionChanged>
-  get characteristicSubscriptionStream => _blePeripheralStreamHandler
-      .characteristicSubscriptionStreamController
-      .stream;
+      get characteristicSubscriptionStream => _blePeripheralStreamHandler
+          .characteristicSubscriptionStreamController.stream;
 
   Stream<BlePeripheralConnectionStateChanged> get connectionStateStream =>
       _blePeripheralStreamHandler.connectionStateStreamController.stream;
@@ -71,6 +71,18 @@ abstract class UniversalBlePeripheralPlatform {
 
   Future<int?> getMaximumNotifyLength(String deviceId);
 
+  /// Whether this platform identifies GATT clients by a Bluetooth *address* — a MAC on
+  /// Android/Windows/Linux, a UUID on Apple — which is case-insensitive. Central ids are
+  /// therefore canonicalised on ingestion, so every stream event, request handler and
+  /// per-client key is canonical. Only a platform whose ids are opaque, case-sensitive
+  /// tokens (like client-mode Web Bluetooth) would override this to `false`; peripheral
+  /// mode is not supported on Web today.
+  bool get hasAddressDeviceIds => true;
+
+  /// [deviceId] in the canonical form this platform emits and matches by.
+  DeviceId _deviceId(String deviceId) =>
+      DeviceId.of(deviceId, isAddress: hasAddressDeviceIds);
+
   /// Push advertising state update to stream listeners.
   void updateAdvertisingState(BlePeripheralAdvertisingStateChanged event) {
     _blePeripheralStreamHandler.advertisingStateStreamController.add(event);
@@ -81,13 +93,23 @@ abstract class UniversalBlePeripheralPlatform {
     BlePeripheralCharacteristicSubscriptionChanged event,
   ) {
     _blePeripheralStreamHandler.characteristicSubscriptionStreamController.add(
-      event,
+      BlePeripheralCharacteristicSubscriptionChanged(
+        deviceId: _deviceId(event.deviceId).canonical,
+        characteristicId: event.characteristicId,
+        isSubscribed: event.isSubscribed,
+        name: event.name,
+      ),
     );
   }
 
   /// Push connection state update to stream listeners.
   void updateConnectionState(BlePeripheralConnectionStateChanged event) {
-    _blePeripheralStreamHandler.connectionStateStreamController.add(event);
+    _blePeripheralStreamHandler.connectionStateStreamController.add(
+      BlePeripheralConnectionStateChanged(
+        _deviceId(event.deviceId).canonical,
+        event.connected,
+      ),
+    );
   }
 
   /// Push service added update to stream listeners.
@@ -97,7 +119,12 @@ abstract class UniversalBlePeripheralPlatform {
 
   /// Push MTU update to stream listeners.
   void updateMtu(BlePeripheralMtuChanged event) {
-    _blePeripheralStreamHandler.mtuChangedStreamController.add(event);
+    _blePeripheralStreamHandler.mtuChangedStreamController.add(
+      BlePeripheralMtuChanged(
+        _deviceId(event.deviceId).canonical,
+        event.mtu,
+      ),
+    );
   }
 
   /// Called when this platform implementation is being replaced.
@@ -216,8 +243,7 @@ class _BlePeripheralStreamHandler {
       UniversalBleStreamController<BlePeripheralAdvertisingStateChanged>();
   final characteristicSubscriptionStreamController =
       UniversalBleStreamController<
-        BlePeripheralCharacteristicSubscriptionChanged
-      >();
+          BlePeripheralCharacteristicSubscriptionChanged>();
   final connectionStateStreamController =
       UniversalBleStreamController<BlePeripheralConnectionStateChanged>();
   final serviceAddedStreamController =

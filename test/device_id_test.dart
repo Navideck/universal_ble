@@ -1,0 +1,126 @@
+import 'package:flutter_test/flutter_test.dart';
+import 'package:universal_ble/src/utils/device_id.dart';
+
+/// [DeviceId] is the one place device-id case conversion lives: the canonical form the Dart layer
+/// emits/matches/keys by, and the native form channel calls take.
+void main() {
+  const upper = 'AA:BB:CC:DD:EE:FF';
+  const lower = 'aa:bb:cc:dd:ee:ff';
+
+  group('address ids', () {
+    test('canonicalise to lower-case whatever case the platform reports', () {
+      expect(DeviceId.address(upper).canonical, lower);
+      expect(DeviceId.address(lower).canonical, lower);
+    });
+
+    test('convert to upper-case for native calls', () {
+      // Android's getRemoteDevice throws on a lower-case MAC.
+      expect(DeviceId.address(lower).native, upper);
+      expect(DeviceId.address(upper).native, upper);
+    });
+
+    test('round-trip through both forms is stable', () {
+      final id = DeviceId.address(upper);
+      expect(DeviceId.address(id.native).canonical, id.canonical);
+      expect(DeviceId.address(id.canonical).native, id.native);
+    });
+
+    test('the two cases are the same DeviceId', () {
+      expect(DeviceId.address(upper), DeviceId.address(lower));
+      expect(DeviceId.address(upper).hashCode, DeviceId.address(lower).hashCode);
+    });
+
+    test('handles Apple UUID addresses', () {
+      const upperUuid = 'E621E1F8-C36C-495A-93FC-0C247A3E6E5F';
+      const lowerUuid = 'e621e1f8-c36c-495a-93fc-0c247a3e6e5f';
+      expect(DeviceId.address(upperUuid).canonical, lowerUuid);
+      expect(DeviceId.address(lowerUuid).native, upperUuid);
+      expect(DeviceId.address(upperUuid), DeviceId.address(lowerUuid));
+    });
+  });
+
+  group('opaque ids', () {
+    // Chromium reports Base64 of a random value; folding one corrupts it.
+    const opaque = 'mHZbW+PZqBpUlZlVQrPzOQ==';
+
+    test('are carried through untouched in both forms', () {
+      expect(DeviceId.opaque(opaque).canonical, opaque);
+      expect(DeviceId.opaque(opaque).native, opaque);
+    });
+
+    test('differing only in case are different devices', () {
+      expect(
+        DeviceId.opaque(opaque),
+        isNot(DeviceId.opaque(opaque.toLowerCase())),
+      );
+    });
+  });
+
+  test('DeviceId primary constructor defaults to address device id', () {
+    expect(DeviceId(upper).canonical, lower);
+    expect(DeviceId(upper).native, upper);
+    expect(DeviceId(upper), DeviceId.address(upper));
+  });
+
+  test('DeviceId.of picks the kind the platform reports', () {
+    expect(DeviceId.of(upper, isAddress: true), DeviceId.address(upper));
+    expect(DeviceId.of(upper, isAddress: false), DeviceId.opaque(upper));
+  });
+
+  test('toString is the canonical form, so ids interpolate consistently', () {
+    expect('${DeviceId.address(upper)}', lower);
+  });
+
+  group('String.toDeviceId extension', () {
+    test('defaults to address device id', () {
+      expect(upper.toDeviceId().canonical, lower);
+      expect(lower.toDeviceId().native, upper);
+      expect(upper.toDeviceId(), DeviceId.address(upper));
+    });
+
+    test('supports opaque device id when isAddress is false', () {
+      const opaque = 'mHZbW+PZqBpUlZlVQrPzOQ==';
+      expect(opaque.toDeviceId(isAddress: false).canonical, opaque);
+      expect(opaque.toDeviceId(isAddress: false).native, opaque);
+      expect(opaque.toDeviceId(isAddress: false), DeviceId.opaque(opaque));
+    });
+
+    test('supports null-safe navigation via ?. operator', () {
+      const String? nullId = null;
+      expect(nullId?.toDeviceId().canonical, isNull);
+      expect(nullId?.toDeviceId().native, isNull);
+
+      String? maybeId(bool present) => present ? upper : null;
+      expect(maybeId(true)?.toDeviceId().canonical, lower);
+      expect(maybeId(true)?.toDeviceId().native, upper);
+      expect(maybeId(false)?.toDeviceId().canonical, isNull);
+    });
+  });
+
+  group('DeviceId.looksLikeAddress', () {
+    test('identifies MAC addresses with colons or hyphens', () {
+      expect(DeviceId.looksLikeAddress('AA:BB:CC:DD:EE:FF'), isTrue);
+      expect(DeviceId.looksLikeAddress('aa:bb:cc:dd:ee:ff'), isTrue);
+      expect(DeviceId.looksLikeAddress('AA-BB-CC-DD-EE-FF'), isTrue);
+      expect(DeviceId.looksLikeAddress('aabbccddeeff'), isTrue);
+    });
+
+    test('identifies 128-bit UUID addresses', () {
+      expect(
+        DeviceId.looksLikeAddress('E621E1F8-C36C-495A-93FC-0C247A3E6E5F'),
+        isTrue,
+      );
+      expect(
+        DeviceId.looksLikeAddress('e621e1f8-c36c-495a-93fc-0c247a3e6e5f'),
+        isTrue,
+      );
+    });
+
+    test('rejects arbitrary custom queue names and opaque tokens', () {
+      expect(DeviceId.looksLikeAddress('Sync'), isFalse);
+      expect(DeviceId.looksLikeAddress('sync'), isFalse);
+      expect(DeviceId.looksLikeAddress('custom_queue'), isFalse);
+      expect(DeviceId.looksLikeAddress('mHZbW+PZqBpUlZlVQrPzOQ=='), isFalse);
+    });
+  });
+}

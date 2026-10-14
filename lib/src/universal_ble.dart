@@ -6,14 +6,16 @@ import 'package:universal_ble/src/universal_ble_pigeon/universal_ble_pigeon_chan
 import 'package:universal_ble/src/universal_ble_web/universal_ble_web.dart';
 import 'package:universal_ble/src/utils/ble_command_queue.dart';
 import 'package:universal_ble/src/utils/cache_handler.dart';
-import 'package:universal_ble/src/utils/device_id_util.dart';
+import 'package:universal_ble/src/utils/device_id.dart';
 import 'package:universal_ble/src/utils/universal_logger.dart';
 import 'package:universal_ble/universal_ble.dart';
 
 class UniversalBle {
   /// Get platform specific implementation.
   static UniversalBlePlatform _platform = _defaultPlatform();
-  static final BleCommandQueue _bleCommandQueue = BleCommandQueue();
+  static final BleCommandQueue _bleCommandQueue = BleCommandQueue(
+    isAddressSupplier: () => _platform.hasAddressDeviceIds,
+  );
 
   /// Set custom platform specific implementation (e.g. for testing).
   static void setInstance(UniversalBlePlatform instance) =>
@@ -389,16 +391,33 @@ class UniversalBle {
     );
   }
 
+  /// Returns [deviceId] in the form used for comparison and per-device state on the current
+  /// platform, so device IDs can be compared with plain string equality.
+  ///
+  /// On native platforms (Android, iOS, macOS, Windows, Linux) a device ID is a case-insensitive
+  /// Bluetooth address (a MAC, or an Apple UUID), so it is returned in lower-case. On Web a
+  /// device ID is an opaque, case-sensitive browser token, so it is returned verbatim.
+  ///
+  /// Every API already accepts a `deviceId` in any case; use this only when you compare device
+  /// IDs yourself or use one as a map key.
+  static String canonicalDeviceId(String deviceId) =>
+      DeviceId.of(deviceId, isAddress: _platform.hasAddressDeviceIds).canonical;
+
   /// Returns whether this app is currently subscribed to notifications/indications for [characteristic].
   ///
   /// Subscription state is updated when [subscribeNotifications], [subscribeIndications],
   /// or [unsubscribe] completes, and is automatically cleared when the device disconnects.
   static bool isSubscribed(String deviceId, String characteristic) =>
-      CacheHandler.instance.isSubscribed(deviceId, characteristic);
+      CacheHandler.instance.isSubscribed(
+        canonicalDeviceId(deviceId),
+        characteristic,
+      );
 
   /// Returns the list of characteristic UUIDs currently subscribed to on [deviceId].
   static List<String> getSubscribedCharacteristics(String deviceId) =>
-      CacheHandler.instance.getSubscribedCharacteristics(deviceId);
+      CacheHandler.instance.getSubscribedCharacteristics(
+        canonicalDeviceId(deviceId),
+      );
 
   /// Read a characteristic value.
   /// On iOS and MacOS this command will also trigger [onValueChange] listener.
@@ -738,8 +757,8 @@ class UniversalBle {
 
   /// Clear a queue.
   /// Use [BleCommandQueue.globalQueueId] to clear the global queue.
-  /// To clear the queue of a specific device, use `deviceId` as [id].
-  /// To clear a custom queue, pass the same `queueId` string used when enqueueing commands.
+  /// To clear the queue of a specific device, use `deviceId` as [id] (handled case-insensitively on native platforms).
+  /// To clear a custom queue, pass the same `queueId` string used when enqueueing commands (matched exactly, unless the id is a device address, which is matched case-insensitively).
   /// If no [id] is provided, all queues will be cleared.
   static void clearQueue([String? id]) => _bleCommandQueue.clearQueue(id);
 
@@ -831,9 +850,7 @@ class UniversalBle {
 
     connectionSubscription = _platform
         .bleConnectionChangeStreamController.stream
-        .where((e) =>
-            e.deviceId == deviceId ||
-            canonicalDeviceId(e.deviceId) == target)
+        .where((e) => e.deviceId == target)
         .listen(
       (e) {
         cancelSubscription();
@@ -878,7 +895,7 @@ class UniversalBle {
       queueId: queueId,
     );
     CacheHandler.instance.updateSubscription(
-      deviceId,
+      canonicalDeviceId(deviceId),
       characteristic,
       bleInputProperty != BleInputProperty.disabled,
     );

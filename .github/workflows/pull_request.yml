@@ -84,6 +84,12 @@ jobs:
         working-directory: example
         run: flutter build linux
 
+      - name: Build and run Windows backend unit tests
+        run: |
+          cmake -S windows/test -B build/windows-tests
+          cmake --build build/windows-tests
+          ctest --test-dir build/windows-tests --output-on-failure
+
   pana:
     runs-on: ubuntu-latest
 

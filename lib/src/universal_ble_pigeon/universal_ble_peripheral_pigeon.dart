@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:universal_ble/src/universal_ble.g.dart';
+import 'package:universal_ble/src/utils/device_id.dart';
 import 'package:universal_ble/universal_ble.dart';
 
 class UniversalBlePeripheralPigeon extends UniversalBlePeripheralPlatform
@@ -127,17 +128,24 @@ class UniversalBlePeripheralPigeon extends UniversalBlePeripheralPlatform
     return _channel.updateCharacteristic(
       BleUuidParser.string(characteristicId),
       value,
-      deviceId,
+      deviceId?.toDeviceId(isAddress: hasAddressDeviceIds).native,
     );
   }
 
   @override
-  Future<List<String>> getSubscribedClients(String characteristicId) =>
-      _channel.getSubscribedClients(characteristicId);
+  Future<List<String>> getSubscribedClients(String characteristicId) async {
+    final clients = await _channel.getSubscribedClients(characteristicId);
+    // Emitted ids are canonical (see UniversalBlePeripheralPlatform).
+    return clients
+        .map((e) => e.toDeviceId(isAddress: hasAddressDeviceIds).canonical)
+        .toList();
+  }
 
   @override
   Future<int?> getMaximumNotifyLength(String deviceId) =>
-      _channel.getMaximumNotifyLength(deviceId);
+      _channel.getMaximumNotifyLength(
+        deviceId.toDeviceId(isAddress: hasAddressDeviceIds).native,
+      );
 
   @override
   void setReadRequestHandler(OnPeripheralReadRequest? handler) =>
@@ -204,7 +212,7 @@ class UniversalBlePeripheralPigeon extends UniversalBlePeripheralPlatform
     Uint8List? value,
   ) {
     final result = _readRequestHandler?.call(
-      deviceId,
+      deviceId.toDeviceId(isAddress: hasAddressDeviceIds).canonical,
       BleUuidParser.string(characteristicId),
       offset,
       value,
@@ -232,7 +240,7 @@ class UniversalBlePeripheralPigeon extends UniversalBlePeripheralPlatform
     Uint8List? value,
   ) {
     final result = _writeRequestHandler?.call(
-      deviceId,
+      deviceId.toDeviceId(isAddress: hasAddressDeviceIds).canonical,
       BleUuidParser.string(characteristicId),
       offset,
       value,
@@ -254,7 +262,7 @@ class UniversalBlePeripheralPigeon extends UniversalBlePeripheralPlatform
     Uint8List? value,
   ) {
     final result = _descriptorReadRequestHandler?.call(
-      deviceId,
+      deviceId.toDeviceId(isAddress: hasAddressDeviceIds).canonical,
       BleUuidParser.string(characteristicId),
       BleUuidParser.string(descriptorId),
       offset,
@@ -277,7 +285,7 @@ class UniversalBlePeripheralPigeon extends UniversalBlePeripheralPlatform
     Uint8List? value,
   ) {
     final result = _descriptorWriteRequestHandler?.call(
-      deviceId,
+      deviceId.toDeviceId(isAddress: hasAddressDeviceIds).canonical,
       BleUuidParser.string(characteristicId),
       BleUuidParser.string(descriptorId),
       offset,

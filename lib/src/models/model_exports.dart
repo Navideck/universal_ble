@@ -12,3 +12,4 @@ export 'package:universal_ble/src/models/ble_connection_change.dart';
 export 'package:universal_ble/src/models/ble_characteristic_value.dart';
 export 'package:universal_ble/src/models/ble_peripheral_event.dart';
 export 'package:universal_ble/src/models/ble_peripheral_capabilities.dart';
+export 'package:universal_ble/src/models/ble_central.dart';
