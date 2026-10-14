@@ -24,6 +24,7 @@ All case conversion and ID classification live centrally in `lib/src/utils/devic
 - **Inputs:**
   - All public client and peripheral methods taking `String deviceId` (`connect`, `disconnect`, `discoverServices`, `readValue`, `writeValue`, `subscribeNotifications`, `pair`, `updateCharacteristicValue`, `getMaximumNotifyLength`, `clearQueue`, etc.) **must accept any casing** from callers.
   - Public API boundaries must canonicalise caller-supplied IDs using `DeviceId.of(deviceId, isAddress: ...)`. Never assume the caller provided a lower-case ID.
+  - `UniversalBle.canonicalDeviceId(deviceId)` is the public entry point to that conversion, for callers that compare IDs or use one as a map key (lower-case on native, verbatim on Web).
 
 ### 3. Queues, Caches, and Deduplication
 - **`BleCommandQueue`:**

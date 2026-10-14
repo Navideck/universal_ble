@@ -391,13 +391,15 @@ class UniversalBle {
     );
   }
 
-  /// [deviceId] in the form the active platform emits, matches and keys per-device state by.
+  /// Returns [deviceId] in the form used for comparison and per-device state on the current
+  /// platform, so device IDs can be compared with plain string equality.
   ///
-  /// The public API accepts an id in any case, so caller-supplied ids are canonicalised here —
-  /// at the boundary, where the platform's id kind is known — and everything downstream (the
-  /// service/subscription cache, stream matching) sees canonical ids only. All conversion lives
-  /// in [DeviceId].
-  @internal
+  /// On native platforms (Android, iOS, macOS, Windows, Linux) a device ID is a case-insensitive
+  /// Bluetooth address (a MAC, or an Apple UUID), so it is returned in lower-case. On Web a
+  /// device ID is an opaque, case-sensitive browser token, so it is returned verbatim.
+  ///
+  /// Every API already accepts a `deviceId` in any case; use this only when you compare device
+  /// IDs yourself or use one as a map key.
   static String canonicalDeviceId(String deviceId) =>
       DeviceId.of(deviceId, isAddress: _platform.hasAddressDeviceIds).canonical;
 

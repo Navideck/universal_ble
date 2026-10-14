@@ -1124,6 +1124,12 @@ UniversalBle.onScanResult = (BleDevice device) {
 await UniversalBle.connect(webDeviceId); // must match exactly — never re-cased
 ```
 
+If you compare device IDs yourself or use one as a map key, `UniversalBle.canonicalDeviceId(deviceId)` returns the comparable form for the current platform (lower-case on native, verbatim on Web):
+
+```dart
+final key = UniversalBle.canonicalDeviceId(device.deviceId);
+```
+
 ### UUIDs
 
 Universal BLE is agnostic to the UUID format of services and characteristics:
