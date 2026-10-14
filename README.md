@@ -1111,15 +1111,8 @@ UniversalBle.onScanResult = (BleDevice device) {
 
 // Any case is accepted when calling APIs:
 await UniversalBle.connect("AA:BB:CC:DD:EE:FF");
-await UniversalBle.discoverServices("aa:bb:cc:dd:ee:ff");
-await UniversalBle.read("Aa:Bb:Cc:Dd:Ee:Ff", "180d", "2a37");
-await UniversalBle.subscribeNotifications("AA:bb:CC:dd:EE:ff", "180d", "2a37");
-UniversalBle.isSubscribed("aA:bB:cC:dD:eE:fF", "2a37");
-await UniversalBle.disconnect("Aa:Bb:Cc:Dd:Ee:Ff");
-
-// The same applies to Apple UUIDs:
-await UniversalBle.connect("E621E1F8-C36C-495A-93FC-0C247A3E6E5F");
-await UniversalBle.disconnect("e621e1f8-c36c-495a-93fc-0c247a3e6e5f");
+await UniversalBle.connect("aa:bb:cc:dd:ee:ff");
+await UniversalBle.connect("Aa:Bb:Cc:Dd:Ee:Ff");
 ```
 
 ```dart
