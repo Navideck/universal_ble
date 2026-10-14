@@ -40,8 +40,6 @@ Looking for Bluetooth Classic? Check [universal_bluetooth_classic](https://pub.d
 
 ## API Support
 
-**Legend:** ✔️ supported · — not supported · ⏺ platform-dependent (e.g. pairing is triggered by the OS rather than by an API call) · 🚧 work in progress.
-
 ### Client Mode (`UniversalBle`)
 
 |                               | Android | iOS | macOS | Windows | Linux | Web |
@@ -84,6 +82,8 @@ Looking for Bluetooth Classic? Check [universal_bluetooth_classic](https://pub.d
 | getSubscribedClients          |   ✔️    | ✔️  |  ✔️   |   ✔️    |  🚧   | —  |
 | getMaximumNotifyLength        |   ✔️    | ✔️  |  ✔️   |   ✔️    |  🚧   | —  |
 | event streams\*\*\*           |   ✔️    | ✔️  |  ✔️   |   ✔️    |  🚧   | —  |
+
+**Legend:** ✔️ supported · — not supported · ⏺ platform-dependent (e.g. pairing is triggered by the OS rather than by an API call) · 🚧 work in progress.
 
 \* `getAvailabilityState` returns a snapshot. Listen to `advertisingStateStream`, `connectionStateStream`, and related streams for runtime updates.
 \*\* Pass `deviceId` to notify one client; omit it to notify all subscribed clients (when supported — see `getCapabilities().supportsTargetedCharacteristicUpdate`).
