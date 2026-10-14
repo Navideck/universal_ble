@@ -56,7 +56,7 @@ Looking for Bluetooth Classic? Check [universal_bluetooth_classic](https://pub.d
 | subscriptions                 |   ✔️    | ✔️  |  ✔️   |   ✔️    |  ✔️   | ✔️  |
 | pair¹                         |   ✔️    | ✔️  |  ✔️   |   ✔️    |  ✔️   |  ⏺  |
 | unpair²                       |   ✔️    |  ⏺  |  —   |   ✔️    |  ✔️   | —  |
-| isPaired³                     |   ✔️    | ✔️  |  ✔️   |   ✔️    |  ✔️   |  ⏺  |
+| isPaired³                     |   ✔️    | ✔️  |  ✔️   |   ✔️    |  ✔️   | ✔️  |
 | onPairingStateChange⁴         |   ✔️    |  ⏺  |  ⏺   |   ✔️    |  ✔️   |  ⏺  |
 | getBluetoothAvailabilityState |   ✔️    | ✔️  |  ✔️   |   ✔️    |  ✔️   | —  |
 | enable/disable Bluetooth      |   ✔️    | —  |  —   |   ✔️    |  ✔️   | —  |
