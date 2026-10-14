@@ -6,7 +6,7 @@ import 'package:flutter/material.dart';
 
 class PlatformButton extends StatelessWidget {
   final String text;
-  final Function()? onPressed;
+  final void Function()? onPressed;
   final bool enabled;
 
   const PlatformButton({

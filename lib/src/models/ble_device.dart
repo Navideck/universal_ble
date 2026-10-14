@@ -7,10 +7,20 @@ class BleDevice {
   String? name;
   String? rawName;
   int? rssi;
-  bool? isPaired;
+  bool? paired;
+  int? timestamp;
+  int? timestampMicroseconds;
+  /// Whether the device is connectable based on its advertising flags.
+  ///
+  /// Can be `null` if the platform or advertising packet does not indicate
+  /// connectability (e.g. Linux and Web always report `null`).
+  bool? connectable;
+
+  /// List of services advertised by the device.
   List<String> services;
   bool? isSystemDevice;
   List<ManufacturerData> manufacturerDataList;
+  Map<String, Uint8List> serviceData;
 
   @Deprecated("Use `manufacturerDataList` instead")
   Uint8List? get manufacturerData => manufacturerDataList.isEmpty
@@ -23,6 +33,19 @@ class BleDevice {
   Future<BleConnectionState> get connectionState =>
       UniversalBle.getConnectionState(deviceId);
 
+  /// Read the RSSI value of this connected device.
+  ///
+  /// Returns the current RSSI value in dBm. This value indicates the signal strength
+  /// between the device and the connected peripheral. Lower (more negative) values
+  /// indicate weaker signal, while higher (less negative) values indicate stronger signal.
+  ///
+  /// **Note**: The device must be connected before reading RSSI.
+  ///
+  /// Throws [UniversalBleException] if:
+  /// - The device is not connected
+  /// - Reading RSSI fails
+  Future<int> readRssi() => UniversalBle.readRssi(deviceId);
+
   /// On web, it returns true if the web browser supports receiving advertisements from this device.
   /// The rest of the platforms will always return true.
   bool get receivesAdvertisements =>
@@ -32,13 +55,36 @@ class BleDevice {
     required this.deviceId,
     required String? name,
     this.rssi,
-    this.isPaired,
+    this.paired,
     this.services = const [],
     this.isSystemDevice,
     this.manufacturerDataList = const [],
-  }) {
-    rawName = name;
-    this.name = name?.replaceAll(RegExp(r'[^ -~]'), '').trim();
+    Map<String, Uint8List> serviceData = const {},
+    this.timestamp,
+    this.timestampMicroseconds,
+    this.connectable,
+  })  : serviceData = _validateServiceData(serviceData),
+        rawName = name,
+        name = name?.replaceAll(RegExp(r'[^ -~]'), '').trim();
+
+  DateTime? get timestampDateTime => timestamp != null
+      ? DateTime.fromMillisecondsSinceEpoch(timestamp!)
+      : null;
+
+  DateTime? get timestampMicrosecondsDateTime => timestampMicroseconds != null
+      ? DateTime.fromMicrosecondsSinceEpoch(timestampMicroseconds!)
+      : null;
+
+  static Map<String, Uint8List> _validateServiceData(
+    Map<String, Uint8List> data,
+  ) {
+    if (data.isEmpty) return const {};
+    return data.map(
+      (key, value) => MapEntry(
+        BleUuidParser.stringOrNull(key) ?? key,
+        Uint8List.fromList(value),
+      ),
+    );
   }
 
   @override
@@ -47,9 +93,13 @@ class BleDevice {
         'deviceId: $deviceId, '
         'name: $name, '
         'rssi: $rssi, '
-        'isPaired: $isPaired, '
+        'paired: $paired, '
         'services: $services, '
         'isSystemDevice: $isSystemDevice, '
-        'manufacturerDataList: $manufacturerDataList';
+        'timestamp: $timestamp, '
+        'timestampMicroseconds: $timestampMicroseconds, '
+        'connectable: $connectable, '
+        'manufacturerDataList: $manufacturerDataList, '
+        'serviceData: $serviceData';
   }
 }

@@ -1,0 +1,269 @@
+import 'dart:async';
+import 'package:flutter/foundation.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:universal_ble/universal_ble.dart';
+import 'universal_ble_test_mock.dart';
+
+String serviceId = "180a";
+String characteristicId = "202a";
+String mockDeviceId = "mock_id";
+BleCharacteristic mockBleCharacteristic = BleCharacteristic.withMetaData(
+  deviceId: mockDeviceId,
+  serviceId: serviceId,
+  uuid: characteristicId,
+  properties: CharacteristicProperty.values,
+  descriptors: [],
+);
+BleService mockBleService = BleService(serviceId, [mockBleCharacteristic]);
+
+void main() {
+  late UniversalBlePlatform platform;
+  setUp(() {
+    platform = _UniversalBleMock();
+    UniversalBle.setInstance(platform);
+  });
+
+  group('BleCharacteristic Tests', () {
+    test("DiscoverServices test", () async {
+      debugPrint("Discovering services");
+      List<BleService> services = await UniversalBle.discoverServices(
+        mockDeviceId,
+      );
+      expect(services.length, 1);
+
+      BleService service = services.first;
+      expect(BleUuidParser.compareStrings(service.uuid, serviceId), true);
+      expect(service.characteristics.length, 1);
+
+      BleCharacteristic characteristic = service.characteristics.first;
+      expect(
+        BleUuidParser.compareStrings(characteristic.uuid, characteristicId),
+        true,
+      );
+      expect(characteristic.metaData?.deviceId, mockDeviceId);
+      expect(
+        BleUuidParser.compareStrings(
+          characteristic.metaData!.serviceId,
+          serviceId,
+        ),
+        true,
+      );
+    });
+
+    test("Subscription Test", () async {
+      BleCharacteristic characteristic = mockBleCharacteristic;
+
+      expect(characteristic.isSubscribed, false);
+      expect(characteristic.notifications.isSubscribed, false);
+      expect(UniversalBle.isSubscribed(mockDeviceId, characteristicId), false);
+      expect(UniversalBle.getSubscribedCharacteristics(mockDeviceId), isEmpty);
+
+      debugPrint("Subscribing to char");
+      await characteristic.notifications.subscribe();
+
+      expect(characteristic.isSubscribed, true);
+      expect(characteristic.notifications.isSubscribed, true);
+      expect(UniversalBle.isSubscribed(mockDeviceId, characteristicId), true);
+      // Case-insensitivity check for deviceId and normalized UUID check
+      expect(
+        UniversalBle.isSubscribed(mockDeviceId.toUpperCase(), characteristicId),
+        true,
+      );
+      expect(
+        UniversalBle.isSubscribed(mockDeviceId, characteristic.uuid),
+        true,
+      );
+      expect(
+        UniversalBle.getSubscribedCharacteristics(mockDeviceId),
+        contains(characteristic.uuid),
+      );
+
+      bool gotEvent = false;
+      var subscription = characteristic.notifications.listen((data) {
+        debugPrint("Received CharValue: $data");
+        gotEvent = true;
+      });
+
+      await Future.delayed(Duration(seconds: 1));
+      await characteristic.notifications.unsubscribe();
+      debugPrint("Unsubscribed from char");
+
+      expect(characteristic.isSubscribed, false);
+      expect(characteristic.notifications.isSubscribed, false);
+      expect(UniversalBle.isSubscribed(mockDeviceId, characteristicId), false);
+      expect(UniversalBle.getSubscribedCharacteristics(mockDeviceId), isEmpty);
+
+      subscription.cancel();
+      expect(gotEvent, true);
+    });
+
+    test("isSubscribed resets on device disconnect", () async {
+      BleCharacteristic characteristic = mockBleCharacteristic;
+      await characteristic.notifications.subscribe();
+      addTearDown(() {
+        final mock = platform as _UniversalBleMock;
+        mock.notifierTimer?.cancel();
+        mock.notifierTimer = null;
+      });
+      expect(characteristic.isSubscribed, true);
+      expect(UniversalBle.isSubscribed(mockDeviceId, characteristicId), true);
+
+      // Simulate device disconnect
+      platform.updateConnection(mockDeviceId, false);
+
+      expect(characteristic.isSubscribed, false);
+      expect(characteristic.notifications.isSubscribed, false);
+      expect(UniversalBle.isSubscribed(mockDeviceId, characteristicId), false);
+      expect(UniversalBle.getSubscribedCharacteristics(mockDeviceId), isEmpty);
+    });
+  });
+
+  test("Write/Read Value Test", () async {
+    BleCharacteristic characteristic = mockBleCharacteristic;
+    Uint8List charValue = Uint8List.fromList([0x01, 0x02]);
+    await characteristic.write(charValue);
+    debugPrint("Write Succeed");
+
+    var readResult = await characteristic.read();
+    debugPrint("Read Succeed");
+    expect(readResult, charValue);
+  });
+
+  test("Write/Read Descriptor Value Test", () async {
+    String descriptorId = "2902";
+    Uint8List descValue = Uint8List.fromList([0x01, 0x00]);
+    await UniversalBle.writeDescriptor(
+      mockDeviceId,
+      serviceId,
+      characteristicId,
+      descriptorId,
+      descValue,
+    );
+    debugPrint("Write Descriptor Succeed");
+
+    var readResult = await mockBleCharacteristic.readDescriptor(descriptorId);
+    debugPrint("Read Descriptor Succeed");
+    expect(readResult, descValue);
+    expect(platform, isA<_UniversalBleMock>());
+    final mock = platform as _UniversalBleMock;
+    expect(mock.descriptorDeviceId, mockDeviceId);
+    expect(
+      BleUuidParser.compareStrings(mock.descriptorService!, serviceId),
+      true,
+    );
+    expect(
+      BleUuidParser.compareStrings(
+        mock.descriptorCharacteristic!,
+        characteristicId,
+      ),
+      true,
+    );
+    expect(
+      BleUuidParser.compareStrings(mock.descriptorId!, descriptorId),
+      true,
+    );
+  });
+}
+
+class _UniversalBleMock extends UniversalBlePlatformMock {
+  Timer? notifierTimer;
+  Uint8List? charValue;
+  Uint8List? descValue;
+  String? descriptorDeviceId;
+  String? descriptorService;
+  String? descriptorCharacteristic;
+  String? descriptorId;
+
+  @override
+  Future<List<BleService>> discoverServices(
+    String deviceId,
+    bool withDescriptors, {
+    DiscoverServicesPlatformConfig? platformConfig,
+  }) async {
+    return <BleService>[mockBleService];
+  }
+
+  @override
+  Future<void> setNotifiable(
+    String deviceId,
+    String service,
+    String characteristic,
+    BleInputProperty bleInputProperty,
+  ) async {
+    if (bleInputProperty == BleInputProperty.disabled) {
+      notifierTimer?.cancel();
+      notifierTimer = null;
+      return;
+    }
+
+    notifierTimer ??= Timer.periodic(Duration(milliseconds: 500), (timer) {
+      updateCharacteristicValue(
+        deviceId,
+        characteristic,
+        Uint8List.fromList([1, 2, 3]),
+        DateTime.now().millisecondsSinceEpoch,
+      );
+    });
+  }
+
+  @override
+  Future<void> writeValue(
+    String deviceId,
+    String service,
+    String characteristic,
+    Uint8List value,
+    BleOutputProperty bleOutputProperty,
+  ) async {
+    charValue = value;
+  }
+
+  @override
+  Future<Uint8List> readValue(
+    String deviceId,
+    String service,
+    String characteristic, {
+    Duration? timeout,
+  }) async {
+    return charValue ?? Uint8List(0);
+  }
+
+  @override
+  Future<void> writeDescriptorValue(
+    String deviceId,
+    String service,
+    String characteristic,
+    String descriptor,
+    Uint8List value,
+  ) async {
+    descriptorDeviceId = deviceId;
+    descriptorService = service;
+    descriptorCharacteristic = characteristic;
+    descriptorId = descriptor;
+    descValue = value;
+  }
+
+  @override
+  Future<Uint8List> readDescriptorValue(
+    String deviceId,
+    String service,
+    String characteristic,
+    String descriptor, {
+    Duration? timeout,
+  }) async {
+    descriptorDeviceId = deviceId;
+    descriptorService = service;
+    descriptorCharacteristic = characteristic;
+    descriptorId = descriptor;
+    return descValue ?? Uint8List(0);
+  }
+
+  @override
+  Future<void> requestPermissions({bool withAndroidFineLocation = false}) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<int> readRssi(String deviceId) async {
+    return -50; // Mock RSSI value
+  }
+}

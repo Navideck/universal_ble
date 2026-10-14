@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 class ScannedDevicesPlaceholderWidget extends StatelessWidget {
-  const ScannedDevicesPlaceholderWidget({Key? key}) : super(key: key);
+  const ScannedDevicesPlaceholderWidget({super.key});
 
   @override
   Widget build(BuildContext context) {

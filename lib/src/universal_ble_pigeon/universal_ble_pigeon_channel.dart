@@ -1,31 +1,39 @@
 import 'package:flutter/foundation.dart';
-import 'package:flutter/services.dart';
-import 'package:universal_ble/src/universal_ble_pigeon/universal_ble.g.dart';
+import 'package:universal_ble/src/universal_ble.g.dart';
+import 'package:universal_ble/src/utils/universal_ble_filter_util.dart';
 import 'package:universal_ble/universal_ble.dart';
 
-class UniversalBlePigeonChannel extends UniversalBlePlatform {
+class UniversalBlePigeonChannel extends UniversalBlePlatform
+    implements UniversalBleCallbackChannel {
   static UniversalBlePigeonChannel? _instance;
   static UniversalBlePigeonChannel get instance =>
       _instance ??= UniversalBlePigeonChannel._();
+  late final UniversalBleFilterUtil _bleFilter = UniversalBleFilterUtil();
 
   UniversalBlePigeonChannel._() {
-    _setupListeners();
+    UniversalBleCallbackChannel.setUp(this);
   }
 
   final _channel = UniversalBlePlatformChannel();
 
   @override
-  Future<AvailabilityState> getBluetoothAvailabilityState() async {
-    int state = await _channel.getBluetoothAvailabilityState();
-    return AvailabilityState.parse(state);
-  }
+  Future<AvailabilityState> getBluetoothAvailabilityState() =>
+      _executeWithErrorHandling(() => _channel.getBluetoothAvailabilityState());
 
   @override
   Future<bool> enableBluetooth() {
     if (!BleCapabilities.supportsBluetoothEnableApi) {
       throw UnsupportedError("Not supported");
     }
-    return _channel.enableBluetooth();
+    return _executeWithErrorHandling(() => _channel.enableBluetooth());
+  }
+
+  @override
+  Future<bool> disableBluetooth() {
+    if (!BleCapabilities.supportsBluetoothEnableApi) {
+      throw UnsupportedError("Not supported");
+    }
+    return _executeWithErrorHandling(() => _channel.disableBluetooth());
   }
 
   @override
@@ -33,46 +41,110 @@ class UniversalBlePigeonChannel extends UniversalBlePlatform {
     ScanFilter? scanFilter,
     PlatformConfig? platformConfig,
   }) async {
-    await _ensureInitialized();
-    await _channel.startScan(
-      scanFilter.toUniversalScanFilter(),
+    await _ensureInitialized(platformConfig);
+    _bleFilter.scanFilter = scanFilter;
+    await _executeWithErrorHandling(
+      () => _channel.startScan(
+        scanFilter.toUniversalScanFilter(),
+        platformConfig.toUniversalScanConfig(
+          skipDuplicates: skipDuplicatesEnabled,
+        ),
+      ),
     );
   }
 
   @override
-  Future<void> stopScan() => _channel.stopScan();
+  Future<void> stopScan() =>
+      _executeWithErrorHandling(() => _channel.stopScan());
 
   @override
-  Future<BleConnectionState> getConnectionState(String deviceId) async {
-    int state = await _channel.getConnectionState(deviceId);
-    return BleConnectionState.parse(state);
+  Future<bool> isScanning() =>
+      _executeWithErrorHandling(() => _channel.isScanning());
+
+  @override
+  Future<BleDevice> requestDevice({
+    ScanFilter? scanFilter,
+    PickerPlatformConfig? platformConfig,
+  }) async {
+    final options = platformConfig?.apple;
+    if (options == null) {
+      // Only the Apple implementation routes the picker through this channel.
+      // Everywhere else `requestDevice` is unsupported regardless of the
+      // config, so don't point callers at Apple-specific options there.
+      final isApplePlatform = defaultTargetPlatform == TargetPlatform.iOS ||
+          defaultTargetPlatform == TargetPlatform.macOS;
+      throw UniversalBleException(
+        code: UniversalBleErrorCode.notSupported,
+        message: isApplePlatform
+            ? 'requestDevice requires PickerPlatformConfig.apple on Apple platforms'
+            : 'requestDevice is not supported on this platform',
+      );
+    }
+    final result = await _executeWithErrorHandling(
+      () => _channel.requestDevice(options),
+    );
+    return result.toBleDevice();
   }
 
   @override
-  Future<void> connect(String deviceId, {Duration? connectionTimeout}) =>
-      _channel.connect(deviceId);
+  Future<BleConnectionState> getConnectionState(String deviceId) =>
+      _executeWithErrorHandling(() => _channel.getConnectionState(deviceId));
 
   @override
-  Future<void> disconnect(String deviceId) => _channel.disconnect(deviceId);
+  Future<void> connect(
+    String deviceId, {
+    Duration? connectionTimeout,
+    bool autoConnect = false,
+    ConnectionPlatformConfig? platformConfig,
+  }) =>
+      _executeWithErrorHandling(
+        () => _channel.connect(
+          deviceId,
+          autoConnect: autoConnect,
+          platformConfig: platformConfig,
+        ),
+      );
 
   @override
-  Future<List<BleService>> discoverServices(String deviceId) async {
+  Future<void> disconnect(String deviceId) =>
+      _executeWithErrorHandling(() => _channel.disconnect(deviceId));
+
+  @override
+  Future<List<BleService>> discoverServices(
+    String deviceId,
+    bool withDescriptors, {
+    DiscoverServicesPlatformConfig? platformConfig,
+  }) async {
     List<UniversalBleService?> universalBleServices =
-        await _channel.discoverServices(deviceId);
-    return List<BleService>.from(universalBleServices
-        .where((e) => e != null)
-        .map((e) => e!.toBleService())
-        .toList());
+        await _executeWithErrorHandling(
+      () => _channel.discoverServices(
+        deviceId,
+        withDescriptors,
+        platformConfig,
+      ),
+    );
+    return List<BleService>.from(
+      universalBleServices
+          .where((e) => e != null)
+          .map((e) => e!.toBleService(deviceId))
+          .toList(),
+    );
   }
 
   @override
-  Future<void> setNotifiable(String deviceId, String service,
-      String characteristic, BleInputProperty bleInputProperty) {
-    return _channel.setNotifiable(
-      deviceId,
-      service,
-      characteristic,
-      bleInputProperty.index,
+  Future<void> setNotifiable(
+    String deviceId,
+    String service,
+    String characteristic,
+    BleInputProperty bleInputProperty,
+  ) {
+    return _executeWithErrorHandling(
+      () => _channel.setNotifiable(
+        deviceId,
+        service,
+        characteristic,
+        bleInputProperty,
+      ),
     );
   }
 
@@ -81,137 +153,219 @@ class UniversalBlePigeonChannel extends UniversalBlePlatform {
     String deviceId,
     String service,
     String characteristic, {
-    final Duration? timeout,
+    Duration? timeout,
   }) {
-    return _channel.readValue(deviceId, service, characteristic);
+    return _executeWithErrorHandling(
+      () => _channel.readValue(deviceId, service, characteristic),
+    );
+  }
+
+  @override
+  Future<Uint8List> readDescriptorValue(
+    String deviceId,
+    String service,
+    String characteristic,
+    String descriptor, {
+    Duration? timeout,
+  }) {
+    return _executeWithErrorHandling(
+      () => _channel.readDescriptorValue(
+        deviceId,
+        service,
+        characteristic,
+        descriptor,
+      ),
+    );
   }
 
   @override
   Future<void> writeValue(
-      String deviceId,
-      String service,
-      String characteristic,
-      Uint8List value,
-      BleOutputProperty bleOutputProperty) {
-    return _channel.writeValue(
-      deviceId,
-      service,
-      characteristic,
-      value,
-      bleOutputProperty.index,
+    String deviceId,
+    String service,
+    String characteristic,
+    Uint8List value,
+    BleOutputProperty bleOutputProperty,
+  ) {
+    return _executeWithErrorHandling(
+      () => _channel.writeValue(
+        deviceId,
+        service,
+        characteristic,
+        value,
+        bleOutputProperty,
+      ),
+    );
+  }
+
+  @override
+  Future<void> writeDescriptorValue(
+    String deviceId,
+    String service,
+    String characteristic,
+    String descriptor,
+    Uint8List value,
+  ) {
+    return _executeWithErrorHandling(
+      () => _channel.writeDescriptorValue(
+        deviceId,
+        service,
+        characteristic,
+        descriptor,
+        value,
+      ),
     );
   }
 
   @override
   Future<int> requestMtu(String deviceId, int expectedMtu) =>
-      _channel.requestMtu(deviceId, expectedMtu);
+      _executeWithErrorHandling(
+        () => _channel.requestMtu(deviceId, expectedMtu),
+      );
 
   @override
-  Future<bool> isPaired(String deviceId) => _channel.isPaired(deviceId);
+  Future<int> readRssi(String deviceId) =>
+      _executeWithErrorHandling(() => _channel.readRssi(deviceId));
 
   @override
-  Future<bool> pair(String deviceId) => _channel.pair(deviceId);
+  Future<void> requestConnectionPriority(
+    String deviceId,
+    BleConnectionPriority priority,
+  ) =>
+      _executeWithErrorHandling(
+        () => _channel.requestConnectionPriority(deviceId, priority),
+      );
 
   @override
-  Future<void> unpair(String deviceId) => _channel.unPair(deviceId);
+  Future<bool> isPaired(String deviceId) =>
+      _executeWithErrorHandling(() => _channel.isPaired(deviceId));
 
   @override
-  Future<List<BleDevice>> getSystemDevices(
-    List<String>? withServices,
-  ) async {
-    var devices = await _channel.getSystemDevices(withServices ?? []);
+  Future<bool> pair(String deviceId) =>
+      _executeWithErrorHandling(() => _channel.pair(deviceId));
+
+  @override
+  Future<void> unpair(String deviceId) =>
+      _executeWithErrorHandling(() => _channel.unPair(deviceId));
+
+  @override
+  Future<bool> hasPermissions({bool withAndroidFineLocation = false}) =>
+      _executeWithErrorHandling(
+        () => _channel.hasPermissions(withAndroidFineLocation),
+      );
+
+  @override
+  Future<void> requestPermissions({bool withAndroidFineLocation = false}) =>
+      _executeWithErrorHandling(
+        () => _channel.requestPermissions(withAndroidFineLocation),
+      );
+
+  @override
+  Future<List<BleDevice>> getSystemDevices(List<String>? withServices) async {
+    var devices = await _executeWithErrorHandling(
+      () => _channel.getSystemDevices(withServices ?? []),
+    );
     return List<BleDevice>.from(
       devices.map((e) => e.toBleDevice(isSystemDevice: true)).toList(),
     );
   }
 
-  /// To set listeners
-  void _setupListeners() {
-    UniversalBleCallbackChannel.setUp(_UniversalBleCallbackHandler(
-      scanResult: updateScanResult,
-      availabilityChange: updateAvailability,
-      connectionChanged: updateConnection,
-      valueChanged: updateCharacteristicValue,
-      pairStateChange: updatePairingState,
-    ));
+  @override
+  Future<void> setLogLevel(BleLogLevel logLevel) =>
+      _executeWithErrorHandling(() => _channel.setLogLevel(logLevel));
+
+  /// Executes a platform call with error handling
+  /// Converts any errors to UniversalBleException
+  Future<T> _executeWithErrorHandling<T>(Future<T> Function() future) async {
+    try {
+      return await future();
+    } catch (error) {
+      throw UniversalBleException.fromError(error);
+    }
   }
 
-  Future<void> _ensureInitialized() async {
-    // Check bluetooth availability on Apple
-    // so that it will ask permission only when required, and throw error on failed
-    if (defaultTargetPlatform == TargetPlatform.iOS ||
+  Future<void> _ensureInitialized(PlatformConfig? platformConfig) async {
+    // Request permissions on Apple and Android
+    // On Android: If activity is available, requests permissions if needed.
+    //             If activity is not available (e.g., ForegroundTask), succeeds
+    //             if permissions are already granted, fails otherwise.
+    if (defaultTargetPlatform == TargetPlatform.android ||
+        defaultTargetPlatform == TargetPlatform.iOS ||
         defaultTargetPlatform == TargetPlatform.macOS) {
-      AvailabilityState state = await getBluetoothAvailabilityState();
-      switch (state) {
-        case AvailabilityState.unauthorized:
-          throw PlatformException(
-            code: "Unauthorized",
-            message: "Not authorized to access Bluetooth",
-          );
-        case AvailabilityState.unsupported:
-          throw PlatformException(
-            code: "Unsupported",
-            message: "Bluetooth is not supported",
-          );
-        default:
-        // Ignore rest..
-      }
+      await requestPermissions(
+        withAndroidFineLocation:
+            platformConfig?.android?.requestLocationPermission ?? false,
+      );
     }
   }
-}
 
-extension _BleServiceExtension on UniversalBleService {
-  BleService toBleService() {
-    List<BleCharacteristic> bleCharacteristics = [];
-    for (UniversalBleCharacteristic? characteristic in characteristics ?? []) {
-      if (characteristic == null) continue;
-      List<int?>? properties = List<int?>.from(characteristic.properties);
-      bleCharacteristics.add(BleCharacteristic(
-        characteristic.uuid,
-        List<CharacteristicProperty>.from(
-          properties.map((e) => CharacteristicProperty.parse(e ?? 1)),
-        ),
-      ));
-    }
-    return BleService(uuid, bleCharacteristics);
+  @override
+  void onAvailabilityChanged(AvailabilityState state) =>
+      updateAvailability(state);
+
+  @override
+  void onConnectionChanged(
+    String deviceId,
+    bool connected,
+    String? error,
+    UniversalBleErrorCode? errorCode,
+    int? nativeErrorCode,
+  ) =>
+      updateConnection(deviceId, connected, error, errorCode, nativeErrorCode);
+
+  @override
+  void onScanResult(UniversalBleScanResult result) {
+    // Exclusion filter and connectableOnly are handled on Dart side;
+    // other scan filters (services, manufacturerData, namePrefix)
+    // are handled natively by the platform.
+    final bleDevice = result.toBleDevice();
+    if (_bleFilter.matchesExclusionFilter(bleDevice)) return;
+    if (!_bleFilter.matchesConnectableFilter(bleDevice)) return;
+    updateScanResult(bleDevice);
   }
-}
-
-class _UniversalBleCallbackHandler extends UniversalBleCallbackChannel {
-  OnAvailabilityChange availabilityChange;
-  OnScanResult scanResult;
-  OnConnectionChange connectionChanged;
-  OnValueChange valueChanged;
-  OnPairingStateChange pairStateChange;
-
-  _UniversalBleCallbackHandler({
-    required this.availabilityChange,
-    required this.scanResult,
-    required this.connectionChanged,
-    required this.valueChanged,
-    required this.pairStateChange,
-  });
-
-  @override
-  void onAvailabilityChanged(int state) =>
-      availabilityChange(AvailabilityState.parse(state));
-
-  @override
-  void onConnectionChanged(String deviceId, bool connected, String? error) =>
-      connectionChanged(deviceId, connected, error);
-
-  @override
-  void onScanResult(UniversalBleScanResult result) =>
-      scanResult(result.toBleDevice());
 
   @override
   void onValueChanged(
-          String deviceId, String characteristicId, Uint8List value) =>
-      valueChanged(deviceId, characteristicId, value);
+    String deviceId,
+    String characteristicId,
+    Uint8List value,
+    int? timestamp,
+  ) =>
+      updateCharacteristicValue(deviceId, characteristicId, value, timestamp);
 
   @override
-  void onPairStateChange(String deviceId, bool isPaired, String? error) =>
-      pairStateChange(deviceId, isPaired);
+  void onPairStateChange(String deviceId, bool isPaired, bool isFailure) {
+    // A failed bond is an event, not a state: route it around the pairing-state dedup (#325).
+    if (isFailure) {
+      updatePairingFailure(deviceId);
+    } else {
+      updatePairingState(deviceId, isPaired);
+    }
+  }
+
+  @override
+  void onConnectionParametersUpdated(BleConnectionParametersChange update) =>
+      updateConnectionParameters(update);
+}
+
+extension _BleServiceExtension on UniversalBleService {
+  BleService toBleService(String deviceId) {
+    List<BleCharacteristic> bleCharacteristics = [];
+    for (UniversalBleCharacteristic? characteristic in characteristics ?? []) {
+      if (characteristic == null) continue;
+      bleCharacteristics.add(
+        BleCharacteristic.withMetaData(
+          deviceId: deviceId,
+          serviceId: uuid,
+          uuid: characteristic.uuid,
+          properties: characteristic.properties,
+          descriptors: List<BleDescriptor>.from(
+            characteristic.descriptors.map((e) => BleDescriptor(e.uuid)),
+          ),
+        ),
+      );
+    }
+    return BleService(uuid, bleCharacteristics);
+  }
 }
 
 extension _UniversalBleScanResultExtension on UniversalBleScanResult {
@@ -220,33 +374,41 @@ extension _UniversalBleScanResultExtension on UniversalBleScanResult {
       name: name,
       deviceId: deviceId,
       rssi: rssi,
-      isPaired: isPaired,
+      paired: isPaired,
       isSystemDevice: isSystemDevice,
       services: services?.map(BleUuidParser.string).toList() ?? [],
+      timestamp: timestamp,
+      timestampMicroseconds: timestampMicroseconds,
       manufacturerDataList: manufacturerDataList
               ?.map((e) => ManufacturerData(e.companyIdentifier, e.data))
               .toList() ??
           [],
+      serviceData: serviceData ?? {},
+      connectable: connectable,
     );
   }
 }
 
+extension _UniversalDevicePickerResultExtension on UniversalDevicePickerResult {
+  BleDevice toBleDevice() => BleDevice(deviceId: deviceId, name: name);
+}
+
 extension _ScanFilterExtension on ScanFilter? {
   UniversalScanFilter? toUniversalScanFilter() {
-    List<UniversalManufacturerDataFilter>? manufacturerDataFilters = this
-        ?.withManufacturerData
-        .map((e) => UniversalManufacturerDataFilter(
-              companyIdentifier: e.companyIdentifier,
-              data: e.payload,
-              mask: e.mask,
-            ))
-        .toList();
-
     // Windows crashes if it's null, so we need to pass empty scan filter in this case
     return UniversalScanFilter(
       withServices: this?.withServices.toValidUUIDList() ?? [],
       withNamePrefix: this?.withNamePrefix ?? [],
-      withManufacturerData: manufacturerDataFilters ?? [],
+      withManufacturerData: this?.withManufacturerData ?? [],
+    );
+  }
+}
+
+extension _PlatformConfigExtension on PlatformConfig? {
+  UniversalScanConfig toUniversalScanConfig({bool skipDuplicates = false}) {
+    return UniversalScanConfig(
+      android: this?.android,
+      skipDuplicates: skipDuplicates,
     );
   }
 }

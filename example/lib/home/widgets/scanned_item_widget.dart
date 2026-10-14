@@ -30,15 +30,27 @@ class ScannedItemWidget extends StatelessWidget {
                 visible: manufacturerData != null,
                 child: Text(manufacturerData.toString()),
               ),
-              bleDevice.isPaired == true
-                  ? const Text(
-                      "Paired",
-                      style: TextStyle(color: Colors.green),
-                    )
-                  : const Text(
-                      "Not Paired",
+              if (bleDevice.timestampDateTime != null)
+                Text("Last Seen: ${bleDevice.timestampDateTime}"),
+              Wrap(
+                spacing: 8,
+                children: [
+                  bleDevice.paired == true
+                      ? const Text(
+                          "Paired",
+                          style: TextStyle(color: Colors.green),
+                        )
+                      : const Text(
+                          "Not Paired",
+                          style: TextStyle(color: Colors.red),
+                        ),
+                  if (bleDevice.connectable == false)
+                    const Text(
+                      "| Not Connectable",
                       style: TextStyle(color: Colors.red),
                     ),
+                ],
+              ),
             ],
           ),
           trailing: const Icon(Icons.arrow_forward_ios),

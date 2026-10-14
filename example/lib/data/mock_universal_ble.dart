@@ -13,27 +13,40 @@ class MockUniversalBle extends UniversalBlePlatform {
   );
 
   Uint8List _serviceValue = utf8.encode('Result');
+  bool _isScanning = false;
 
   final BleService _mockService = BleService('180', [
     BleCharacteristic('180A', [
       CharacteristicProperty.read,
       CharacteristicProperty.write,
       CharacteristicProperty.notify,
-    ]),
+    ], []),
   ]);
 
   @override
   Future<void> startScan({
     ScanFilter? scanFilter,
     PlatformConfig? platformConfig,
-  }) async =>
-      updateScanResult(_mockBleDevice);
+  }) async {
+    _isScanning = true;
+    updateScanResult(_mockBleDevice);
+  }
 
   @override
-  Future<void> stopScan() async {}
+  Future<void> stopScan() async {
+    _isScanning = false;
+  }
 
   @override
-  Future<void> connect(String deviceId, {Duration? connectionTimeout}) async {
+  Future<bool> isScanning() async {
+    return _isScanning;
+  }
+
+  @override
+  Future<void> connect(String deviceId,
+      {Duration? connectionTimeout,
+      bool autoConnect = false,
+      ConnectionPlatformConfig? platformConfig}) async {
     updateConnection(deviceId, true);
   }
 
@@ -43,7 +56,11 @@ class MockUniversalBle extends UniversalBlePlatform {
   }
 
   @override
-  Future<List<BleService>> discoverServices(String deviceId) async {
+  Future<List<BleService>> discoverServices(
+    String deviceId,
+    bool withDescriptors, {
+    DiscoverServicesPlatformConfig? platformConfig,
+  }) async {
     return [_mockService];
   }
 
@@ -68,7 +85,7 @@ class MockUniversalBle extends UniversalBlePlatform {
     String deviceId,
     String service,
     String characteristic, {
-    final Duration? timeout,
+    Duration? timeout,
   }) async {
     await Future.delayed(const Duration(milliseconds: 500));
     return _serviceValue;
@@ -86,10 +103,40 @@ class MockUniversalBle extends UniversalBlePlatform {
   }
 
   @override
+  Future<Uint8List> readDescriptorValue(
+    String deviceId,
+    String service,
+    String characteristic,
+    String descriptor, {
+    Duration? timeout,
+  }) async {
+    await Future.delayed(const Duration(milliseconds: 500));
+    return _serviceValue;
+  }
+
+  @override
+  Future<void> writeDescriptorValue(
+    String deviceId,
+    String service,
+    String characteristic,
+    String descriptor,
+    Uint8List value,
+  ) async {
+    await Future.delayed(const Duration(milliseconds: 500));
+    _serviceValue = value;
+  }
+
+  @override
   Future<int> requestMtu(String deviceId, int expectedMtu) async {
     await Future.delayed(const Duration(seconds: 1));
     return 512;
   }
+
+  @override
+  Future<void> requestConnectionPriority(
+    String deviceId,
+    BleConnectionPriority priority,
+  ) async {}
 
   @override
   Future<void> setNotifiable(String deviceId, String service,
@@ -114,6 +161,21 @@ class MockUniversalBle extends UniversalBlePlatform {
 
   @override
   Future<BleConnectionState> getConnectionState(String deviceId) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<bool> disableBluetooth() {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<void> requestPermissions({bool withAndroidFineLocation = false}) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<int> readRssi(String deviceId) {
     throw UnimplementedError();
   }
 }

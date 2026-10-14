@@ -5,7 +5,7 @@ import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothDevice
 import android.bluetooth.BluetoothGatt
 import android.bluetooth.BluetoothGattCharacteristic
-import android.bluetooth.BluetoothGattDescriptor
+import android.bluetooth.BluetoothManager
 import android.bluetooth.BluetoothStatusCodes
 import android.bluetooth.le.ScanCallback.SCAN_FAILED_ALREADY_STARTED
 import android.bluetooth.le.ScanCallback.SCAN_FAILED_APPLICATION_REGISTRATION_FAILED
@@ -13,96 +13,90 @@ import android.bluetooth.le.ScanCallback.SCAN_FAILED_FEATURE_UNSUPPORTED
 import android.bluetooth.le.ScanCallback.SCAN_FAILED_INTERNAL_ERROR
 import android.bluetooth.le.ScanCallback.SCAN_FAILED_OUT_OF_HARDWARE_RESOURCES
 import android.bluetooth.le.ScanCallback.SCAN_FAILED_SCANNING_TOO_FREQUENTLY
-import android.bluetooth.le.ScanFilter
 import android.bluetooth.le.ScanResult
+import android.bluetooth.le.ScanSettings
+import android.content.BroadcastReceiver
+import android.content.Context
+import android.content.Context.RECEIVER_EXPORTED
+import android.content.Context.RECEIVER_NOT_EXPORTED
+import android.content.Intent
+import android.content.IntentFilter
 import android.os.Build
-import android.os.ParcelUuid
 import android.util.Log
 import android.util.SparseArray
-import androidx.core.util.keyIterator
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.util.UUID
+import androidx.core.util.size
 
 private const val TAG = "UniversalBlePlugin"
 
-val knownGatts = mutableListOf<BluetoothGatt>()
 val ccdCharacteristic: UUID = UUID.fromString("00002902-0000-1000-8000-00805f9b34fb")
 
-enum class BleConnectionState(val value: Long) {
-    Connected(0),
-    Disconnected(1),
-    Connecting(2),
-    Disconnecting(3)
-}
-
-enum class AvailabilityState(val value: Long) {
-    Unknown(0),
-    Resetting(1),
-    Unsupported(2),
-    Unauthorized(3),
-    PoweredOff(4),
-    PoweredOn(5);
-}
-
-enum class BleInputProperty(val value: Long) {
-    Disabled(0),
-    Notification(1),
-    Indication(2);
-}
-
-enum class BleOutputProperty(val value: Long) {
-    withResponse(0),
-    withoutResponse(1);
-}
-
-
-enum class CharacteristicProperty(val value: Long) {
-    Broadcast(0),
-    Read(1),
-    WriteWithoutResponse(2),
-    Write(3),
-    Notify(4),
-    Indicate(5),
-    AuthenticatedSignedWrites(6),
-    ExtendedProperties(7)
-}
+data class BondStateChange(
+    val device: BluetoothDevice,
+    val state: Int,
+)
 
 
 fun Int.toBleConnectionState(): BleConnectionState {
     return when (this) {
-        BluetoothGatt.STATE_CONNECTED -> BleConnectionState.Connected
-        BluetoothGatt.STATE_CONNECTING -> BleConnectionState.Connecting
-        BluetoothGatt.STATE_DISCONNECTING -> BleConnectionState.Disconnecting
-        BluetoothGatt.STATE_DISCONNECTED -> BleConnectionState.Disconnected
-        else -> BleConnectionState.Disconnected
-    }
-}
-
-fun String.validFullUUID(): String {
-    return when (this.count()) {
-        4 -> "0000$this-0000-1000-8000-00805F9B34FB"
-        8 -> "$this-0000-1000-8000-00805F9B34FB"
-        else -> this
+        BluetoothGatt.STATE_CONNECTED -> BleConnectionState.CONNECTED
+        BluetoothGatt.STATE_CONNECTING -> BleConnectionState.CONNECTING
+        BluetoothGatt.STATE_DISCONNECTING -> BleConnectionState.DISCONNECTING
+        BluetoothGatt.STATE_DISCONNECTED -> BleConnectionState.DISCONNECTED
+        else -> BleConnectionState.DISCONNECTED
     }
 }
 
 fun List<String>.toUUIDList(): List<UUID> {
-    return this.map { UUID.fromString(it.validFullUUID()) }
+    return this.map { UUID.fromString(it) }
 }
 
-fun String.toBluetoothGatt(): BluetoothGatt {
-    return knownGatts.find { it.device.address == this }
-        ?: throw FlutterError("IllegalArgument", "Unknown deviceId: $this", null)
+
+fun BluetoothManager.isBluetoothEnabled(): Boolean {
+    return adapter?.isEnabled == true
 }
 
-fun Int.toAvailabilityState(): Long {
+fun Intent.getBluetoothDeviceCompat(): BluetoothDevice? {
+    return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+        getParcelableExtra(BluetoothDevice.EXTRA_DEVICE, BluetoothDevice::class.java)
+    } else {
+        @Suppress("DEPRECATION")
+        getParcelableExtra(BluetoothDevice.EXTRA_DEVICE)
+    }
+}
+
+fun Intent.getBondStateChange(): BondStateChange? {
+    if (action != BluetoothDevice.ACTION_BOND_STATE_CHANGED) return null
+    val device = getBluetoothDeviceCompat() ?: return null
+    val state = getIntExtra(BluetoothDevice.EXTRA_BOND_STATE, BluetoothDevice.ERROR)
+    return BondStateChange(device, state)
+}
+
+fun BluetoothDevice.isBonded(): Boolean = bondState == BluetoothDevice.BOND_BONDED
+
+fun Context.registerReceiverCompat(
+    receiver: BroadcastReceiver,
+    filter: IntentFilter,
+    exported: Boolean,
+) {
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+        val receiverFlag = if (exported) RECEIVER_EXPORTED else RECEIVER_NOT_EXPORTED
+        registerReceiver(receiver, filter, receiverFlag)
+    } else {
+        @Suppress("DEPRECATION")
+        registerReceiver(receiver, filter)
+    }
+}
+
+fun Int.toAvailabilityState(): AvailabilityState {
     return when (this) {
-        BluetoothAdapter.STATE_OFF -> AvailabilityState.PoweredOff.value
-        BluetoothAdapter.STATE_ON -> AvailabilityState.PoweredOn.value
-        BluetoothAdapter.STATE_TURNING_ON -> AvailabilityState.Resetting.value
-        BluetoothAdapter.STATE_TURNING_OFF -> AvailabilityState.Resetting.value
-        else -> AvailabilityState.Unknown.value
+        BluetoothAdapter.STATE_OFF -> AvailabilityState.POWERED_OFF
+        BluetoothAdapter.STATE_ON -> AvailabilityState.POWERED_ON
+        BluetoothAdapter.STATE_TURNING_ON -> AvailabilityState.RESETTING
+        BluetoothAdapter.STATE_TURNING_OFF -> AvailabilityState.RESETTING
+        else -> AvailabilityState.UNKNOWN
     }
 }
 
@@ -118,59 +112,53 @@ fun Int.parseScanErrorMessage(): String {
     }
 }
 
-fun Int.parseBluetoothStatusCodeError(): String? {
-    if (this == BluetoothStatusCodes.SUCCESS) return null
-    return when (this) {
-        BluetoothStatusCodes.ERROR_BLUETOOTH_NOT_ENABLED -> "ERROR_BLUETOOTH_NOT_ENABLED"
-        BluetoothStatusCodes.ERROR_BLUETOOTH_NOT_ALLOWED -> "ERROR_BLUETOOTH_NOT_ALLOWED"
-        BluetoothStatusCodes.ERROR_DEVICE_NOT_BONDED -> "ERROR_DEVICE_NOT_BONDED"
-        BluetoothStatusCodes.ERROR_GATT_WRITE_NOT_ALLOWED -> "ERROR_GATT_WRITE_NOT_ALLOWED"
-        BluetoothStatusCodes.ERROR_GATT_WRITE_REQUEST_BUSY -> "ERROR_GATT_WRITE_REQUEST_BUSY"
-        BluetoothStatusCodes.ERROR_MISSING_BLUETOOTH_CONNECT_PERMISSION -> "ERROR_MISSING_BLUETOOTH_CONNECT_PERMISSION"
-        BluetoothStatusCodes.ERROR_PROFILE_SERVICE_NOT_BOUND -> "ERROR_PROFILE_SERVICE_NOT_BOUND"
-        BluetoothStatusCodes.ERROR_UNKNOWN -> "ERROR_UNKNOWN"
-        BluetoothStatusCodes.FEATURE_NOT_CONFIGURED -> "FEATURE_NOT_CONFIGURED"
-        BluetoothStatusCodes.FEATURE_NOT_SUPPORTED -> "FEATURE_NOT_SUPPORTED"
-        BluetoothStatusCodes.FEATURE_SUPPORTED -> "FEATURE_SUPPORTED"
-        else -> "ErrorCode: $this"
+val ScanResult.resolvedDeviceName: String?
+    get() {
+        val advertisedName = scanRecord?.deviceName
+        if (!advertisedName.isNullOrBlank()) return advertisedName
+        return try {
+            device.name
+        } catch (_: SecurityException) {
+            null
+        }
     }
-}
-
-fun Int.parseGattErrorCode(): String? {
-    return when (this) {
-        BluetoothGatt.GATT_SUCCESS -> null
-        BluetoothGatt.GATT_READ_NOT_PERMITTED -> "GATT_READ_NOT_PERMITTED"
-        BluetoothGatt.GATT_WRITE_NOT_PERMITTED -> "GATT_WRITE_NOT_PERMITTED"
-        BluetoothGatt.GATT_INSUFFICIENT_AUTHENTICATION -> "GATT_INSUFFICIENT_AUTHENTICATION"
-        BluetoothGatt.GATT_REQUEST_NOT_SUPPORTED -> "GATT_REQUEST_NOT_SUPPORTED"
-        BluetoothGatt.GATT_INVALID_OFFSET -> "GATT_INVALID_OFFSET"
-        BluetoothGatt.GATT_INSUFFICIENT_AUTHORIZATION -> "GATT_INSUFFICIENT_AUTHORIZATION"
-        BluetoothGatt.GATT_INVALID_ATTRIBUTE_LENGTH -> "GATT_INVALID_ATTRIBUTE_LENGTH"
-        BluetoothGatt.GATT_INSUFFICIENT_ENCRYPTION -> "GATT_INSUFFICIENT_ENCRYPTION"
-        BluetoothGatt.GATT_CONNECTION_CONGESTED -> "GATT_CONNECTION_CONGESTED"
-        BluetoothGatt.GATT_FAILURE -> "GATT_FAILURE"
-        0x01 -> "GATT_INVALID_HANDLE"
-        0x04 -> "GATT_INVALID_PDU"
-        0x09 -> "GATT_PREPARE_QUEUE_FULL"
-        0x0a -> "GATT_ATTR_NOT_FOUND"
-        0x0b -> "GATT_ATTR_NOT_LONG"
-        0x0c -> "GATT_INSUFFICIENT_KEY_SIZE"
-        0x0e -> "GATT_UNLIKELY"
-        0x10 -> "GATT_UNSUPPORTED_GROUP"
-        0x11 -> "GATT_INSUFFICIENT_RESOURCES"
-        else -> "Unknown Error: $this"
-    }
-}
 
 val ScanResult.manufacturerDataList: List<UniversalManufacturerData>
     get() {
+        val raw = scanRecord?.bytes
+        if (raw != null) {
+            val byCompany = LinkedHashMap<Int, java.io.ByteArrayOutputStream>()
+            var i = 0
+            while (i < raw.size) {
+                val fieldLen = raw[i].toInt() and 0xFF
+                if (fieldLen == 0) break
+                if (i + fieldLen >= raw.size) break
+                if ((raw[i + 1].toInt() and 0xFF) == 0xFF && fieldLen >= 3) {
+                    val companyId =
+                        (raw[i + 2].toInt() and 0xFF) or ((raw[i + 3].toInt() and 0xFF) shl 8)
+                    byCompany.getOrPut(companyId) { java.io.ByteArrayOutputStream() }
+                        .write(raw, i + 4, fieldLen - 3)
+                }
+                i += fieldLen + 1
+            }
+            if (byCompany.isNotEmpty()) {
+                return byCompany.map { (companyId, buffer) ->
+                    UniversalManufacturerData(companyId.toLong(), buffer.toByteArray())
+                }
+            }
+        }
         return scanRecord?.manufacturerSpecificData?.toList()?.map { (key, value) ->
             UniversalManufacturerData(key.toLong(), value)
         } ?: emptyList()
     }
 
+val ScanResult.serviceData: Map<String, ByteArray>
+    get() {
+        return scanRecord?.serviceData?.mapKeys { it.key.uuid.toString() } ?: emptyMap()
+    }
+
 fun <T> SparseArray<T>.toList(): List<Pair<Int, T>> {
-    return (0 until size()).map { index ->
+    return (0 until size).map { index ->
         keyAt(index) to valueAt(index)
     }
 }
@@ -182,16 +170,6 @@ fun BluetoothGatt.getCharacteristic(
     return getService(UUID.fromString(service))?.getCharacteristic(UUID.fromString(characteristic))
 }
 
-fun subscriptionFailedError(error: String? = null): Result<Unit> {
-    return Result.failure(
-        FlutterError(
-            "Failed",
-            "Failed to update subscription state",
-            error
-        )
-    )
-}
-
 fun BluetoothDevice.removeBond() {
     try {
         javaClass.getMethod("removeBond").invoke(this)
@@ -200,32 +178,31 @@ fun BluetoothDevice.removeBond() {
     }
 }
 
-
-fun BluetoothGattCharacteristic.getPropertiesList(): ArrayList<Long> {
-    val propertiesList = arrayListOf<Long>()
+fun BluetoothGattCharacteristic.getPropertiesList(): ArrayList<CharacteristicProperty> {
+    val propertiesList = arrayListOf<CharacteristicProperty>()
     if (properties and BluetoothGattCharacteristic.PROPERTY_BROADCAST > 0) {
-        propertiesList.add(CharacteristicProperty.Broadcast.value)
+        propertiesList.add(CharacteristicProperty.BROADCAST)
     }
     if (properties and BluetoothGattCharacteristic.PROPERTY_READ > 0) {
-        propertiesList.add(CharacteristicProperty.Read.value)
+        propertiesList.add(CharacteristicProperty.READ)
     }
     if (properties and BluetoothGattCharacteristic.PROPERTY_WRITE_NO_RESPONSE > 0) {
-        propertiesList.add(CharacteristicProperty.WriteWithoutResponse.value)
+        propertiesList.add(CharacteristicProperty.WRITE_WITHOUT_RESPONSE)
     }
     if (properties and BluetoothGattCharacteristic.PROPERTY_WRITE > 0) {
-        propertiesList.add(CharacteristicProperty.Write.value)
+        propertiesList.add(CharacteristicProperty.WRITE)
     }
     if (properties and BluetoothGattCharacteristic.PROPERTY_NOTIFY > 0) {
-        propertiesList.add(CharacteristicProperty.Notify.value)
+        propertiesList.add(CharacteristicProperty.NOTIFY)
     }
     if (properties and BluetoothGattCharacteristic.PROPERTY_INDICATE > 0) {
-        propertiesList.add(CharacteristicProperty.Indicate.value)
+        propertiesList.add(CharacteristicProperty.INDICATE)
     }
     if (properties and BluetoothGattCharacteristic.PROPERTY_SIGNED_WRITE > 0) {
-        propertiesList.add(CharacteristicProperty.AuthenticatedSignedWrites.value)
+        propertiesList.add(CharacteristicProperty.AUTHENTICATED_SIGNED_WRITES)
     }
     if (properties and BluetoothGattCharacteristic.PROPERTY_EXTENDED_PROPS > 0) {
-        propertiesList.add(CharacteristicProperty.ExtendedProperties.value)
+        propertiesList.add(CharacteristicProperty.EXTENDED_PROPERTIES)
     }
     return propertiesList
 }
@@ -234,16 +211,178 @@ fun BluetoothGattCharacteristic.getPropertiesList(): ArrayList<Long> {
 fun Short.toByteArray(byteOrder: ByteOrder = ByteOrder.LITTLE_ENDIAN): ByteArray =
     ByteBuffer.allocate(2 /*Short.SIZE_BYTES*/).order(byteOrder).putShort(this).array()
 
-// Errors
-fun unknownCharacteristicError(char: String) =
-    FlutterError("IllegalArgument", "Unknown error", null)
 
+fun createFlutterError(
+    code: UniversalBleErrorCode,
+    message: String? = null,
+    details: String? = null,
+) = FlutterError(code.raw.toString(), message, details ?: code.toString())
 
-val DeviceDisconnectedError: FlutterError = FlutterError(
-    "DeviceDisconnected",
-    "Device Disconnected",
-    null
-)
+fun gattStatusToUniversalBleErrorCode(code: Int): UniversalBleErrorCode {
+    return when (code) {
+        BluetoothGatt.GATT_READ_NOT_PERMITTED -> UniversalBleErrorCode.READ_NOT_PERMITTED
+        BluetoothGatt.GATT_WRITE_NOT_PERMITTED -> UniversalBleErrorCode.WRITE_NOT_PERMITTED
+        BluetoothGatt.GATT_INSUFFICIENT_AUTHENTICATION -> UniversalBleErrorCode.INSUFFICIENT_AUTHENTICATION
+        BluetoothGatt.GATT_INSUFFICIENT_AUTHORIZATION -> UniversalBleErrorCode.INSUFFICIENT_AUTHORIZATION
+        BluetoothGatt.GATT_INSUFFICIENT_ENCRYPTION -> UniversalBleErrorCode.INSUFFICIENT_ENCRYPTION
+        BluetoothGatt.GATT_REQUEST_NOT_SUPPORTED -> UniversalBleErrorCode.OPERATION_NOT_SUPPORTED
+        BluetoothGatt.GATT_INVALID_OFFSET -> UniversalBleErrorCode.INVALID_OFFSET
+        BluetoothGatt.GATT_INVALID_ATTRIBUTE_LENGTH -> UniversalBleErrorCode.INVALID_ATTRIBUTE_LENGTH
+        BluetoothGatt.GATT_CONNECTION_CONGESTED -> UniversalBleErrorCode.CONNECTION_FAILED
+        BluetoothGatt.GATT_FAILURE -> UniversalBleErrorCode.FAILED
+        0x01 -> UniversalBleErrorCode.INVALID_HANDLE
+        0x04 -> UniversalBleErrorCode.INVALID_PDU
+        0x09 -> UniversalBleErrorCode.OPERATION_IN_PROGRESS
+        0x0a -> UniversalBleErrorCode.SERVICE_NOT_FOUND
+        0x0b -> UniversalBleErrorCode.INVALID_ATTRIBUTE_LENGTH
+        0x0c -> UniversalBleErrorCode.INSUFFICIENT_KEY_SIZE
+        0x0e -> UniversalBleErrorCode.FAILED
+        0x10 -> UniversalBleErrorCode.OPERATION_NOT_SUPPORTED
+        0x11 -> UniversalBleErrorCode.FAILED
+        else -> UniversalBleErrorCode.UNKNOWN_ERROR
+    }
+}
+
+fun AndroidScanMode.parse(): Int? {
+    return when (this) {
+        AndroidScanMode.BALANCED -> ScanSettings.SCAN_MODE_BALANCED
+        AndroidScanMode.LOW_LATENCY -> ScanSettings.SCAN_MODE_LOW_LATENCY
+        AndroidScanMode.LOW_POWER -> ScanSettings.SCAN_MODE_LOW_POWER
+        AndroidScanMode.OPPORTUNISTIC -> if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            ScanSettings.SCAN_MODE_OPPORTUNISTIC
+        } else {
+            UniversalBleLogger.logError("Scan mode OPPORTUNISTIC is not supported on this Android version.")
+            null
+        }
+    }
+}
+
+fun AndroidScanCallbackType.parse(): Int? {
+    return when (this) {
+        AndroidScanCallbackType.ALL_MATCHES -> ScanSettings.CALLBACK_TYPE_ALL_MATCHES
+        AndroidScanCallbackType.FIRST_MATCH ->
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                ScanSettings.CALLBACK_TYPE_FIRST_MATCH
+            } else {
+                UniversalBleLogger.logError("CALLBACK_TYPE_FIRST_MATCH requires Android API 23+.")
+                null
+            }
+        AndroidScanCallbackType.MATCH_LOST ->
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                ScanSettings.CALLBACK_TYPE_MATCH_LOST
+            } else {
+                UniversalBleLogger.logError("CALLBACK_TYPE_MATCH_LOST requires Android API 23+.")
+                null
+            }
+        AndroidScanCallbackType.ALL_MATCHES_AUTO_BATCH ->
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+                ScanSettings.CALLBACK_TYPE_ALL_MATCHES_AUTO_BATCH
+            } else {
+                UniversalBleLogger.logError("CALLBACK_TYPE_ALL_MATCHES_AUTO_BATCH requires Android API 34+.")
+                null
+            }
+    }
+}
+
+fun AndroidScanMatchMode.parse(): Int? {
+    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) {
+        UniversalBleLogger.logError("Match mode is not supported on this Android version.")
+        return null
+    }
+    return when (this) {
+        AndroidScanMatchMode.AGGRESSIVE -> ScanSettings.MATCH_MODE_AGGRESSIVE
+        AndroidScanMatchMode.STICKY -> ScanSettings.MATCH_MODE_STICKY
+    }
+}
+
+fun AndroidScanNumOfMatches.parse(): Int? {
+    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) {
+        UniversalBleLogger.logError("Num of matches is not supported on this Android version.")
+        return null
+    }
+    return when (this) {
+        AndroidScanNumOfMatches.ONE -> ScanSettings.MATCH_NUM_ONE_ADVERTISEMENT
+        AndroidScanNumOfMatches.FEW -> ScanSettings.MATCH_NUM_FEW_ADVERTISEMENT
+        AndroidScanNumOfMatches.MAX -> ScanSettings.MATCH_NUM_MAX_ADVERTISEMENT
+    }
+}
+
+fun Int.parseBluetoothStatusCodeError(): UniversalBleErrorCode? {
+    if (this == BluetoothStatusCodes.SUCCESS) return null
+    return when (this) {
+        BluetoothStatusCodes.ERROR_BLUETOOTH_NOT_ENABLED -> UniversalBleErrorCode.BLUETOOTH_NOT_ENABLED
+        BluetoothStatusCodes.ERROR_BLUETOOTH_NOT_ALLOWED -> UniversalBleErrorCode.BLUETOOTH_NOT_ALLOWED
+        BluetoothStatusCodes.ERROR_DEVICE_NOT_BONDED -> UniversalBleErrorCode.NOT_PAIRED
+        BluetoothStatusCodes.ERROR_GATT_WRITE_NOT_ALLOWED -> UniversalBleErrorCode.WRITE_NOT_PERMITTED
+        BluetoothStatusCodes.ERROR_GATT_WRITE_REQUEST_BUSY -> UniversalBleErrorCode.WRITE_REQUEST_BUSY
+        BluetoothStatusCodes.ERROR_MISSING_BLUETOOTH_CONNECT_PERMISSION -> UniversalBleErrorCode.CONNECTION_FAILED
+        BluetoothStatusCodes.ERROR_PROFILE_SERVICE_NOT_BOUND -> UniversalBleErrorCode.SERVICE_NOT_FOUND
+        BluetoothStatusCodes.ERROR_UNKNOWN -> UniversalBleErrorCode.UNKNOWN_ERROR
+        BluetoothStatusCodes.FEATURE_NOT_CONFIGURED -> UniversalBleErrorCode.NOT_IMPLEMENTED
+        BluetoothStatusCodes.FEATURE_NOT_SUPPORTED -> UniversalBleErrorCode.NOT_SUPPORTED
+        else -> null
+    }
+}
+
+/// Raw GATT status of a connection state change, `null` for GATT_SUCCESS.
+/// Unlike [parseHciErrorCode] it keeps values that have no HCI mapping
+/// (e.g. GATT_FAILURE 257, GATT_CONNECTION_TIMEOUT 147) so callers can act on them.
+fun Int.toGattErrorCode(): Long? {
+    return if (this == BluetoothGatt.GATT_SUCCESS) null else this.toLong()
+}
+
+/// Classification of the GATT status of a connection state change.
+/// `null` for GATT_SUCCESS. Values are HCI reason codes (0x01-0x3F) or
+/// `BluetoothGatt` constants, depending on the stack.
+fun Int.toConnectionErrorCode(): UniversalBleErrorCode? {
+    return when (this) {
+        BluetoothGatt.GATT_SUCCESS -> null
+        0x08, // HCI Connection Timeout
+        0x93 -> UniversalBleErrorCode.CONNECTION_TIMEOUT // GATT_CONNECTION_TIMEOUT (147), constant is API 36+
+        0x09 -> UniversalBleErrorCode.CONNECTION_LIMIT_EXCEEDED // HCI Connection Limit Exceeded
+        0x0B -> UniversalBleErrorCode.CONNECTION_ALREADY_EXISTS // HCI Connection Already Exists
+        0x0D, // HCI Connection Rejected due to Limited Resources
+        0x0E, // HCI Connection Rejected due to Security Reasons
+        0x0F -> UniversalBleErrorCode.CONNECTION_REJECTED // HCI Connection Rejected due to Unacceptable BD_ADDR
+        0x13, // HCI Remote User Terminated Connection
+        // GATT_FAILURE is generic in AOSP, but on Pixel 9a / Android 17 it is what a
+        // peer-initiated disconnect reports (measured against a BlueZ peripheral).
+        BluetoothGatt.GATT_FAILURE -> UniversalBleErrorCode.DEVICE_DISCONNECTED
+        0x16 -> UniversalBleErrorCode.CONNECTION_TERMINATED // HCI Terminated By Local Host
+        0x3E, // HCI Connection Failed to be Established
+        0x85, // GATT_ERROR
+        BluetoothGatt.GATT_CONNECTION_CONGESTED -> UniversalBleErrorCode.CONNECTION_FAILED
+        else -> UniversalBleErrorCode.UNKNOWN_ERROR
+    }
+}
+
+/// Clears the OS-level GATT cache of this connection through the hidden
+/// `BluetoothGatt.refresh()`. Returns `false` when the method is unavailable,
+/// throws, or reports failure.
+@SuppressLint("DiscouragedPrivateApi")
+fun BluetoothGatt.refreshGattCache(): Boolean {
+    return try {
+        val refresh = javaClass.getMethod("refresh")
+        val cleared = refresh.invoke(this) as? Boolean ?: false
+        UniversalBleLogger.logDebug("BluetoothGatt.refresh() -> $cleared")
+        cleared
+    } catch (e: Exception) {
+        UniversalBleLogger.logError("BluetoothGatt.refresh() failed: $e")
+        false
+    }
+}
+
+/// Android has no separate failed-attempt callback: a connection that never
+/// reached STATE_CONNECTED also ends in onConnectionStateChange(STATE_DISCONNECTED).
+/// Report it as CONNECTION_FAILED, like Apple's didFailToConnect, instead of
+/// classifying the (often generic) status as a disconnect.
+fun Int.toConnectionErrorCode(wasConnected: Boolean): UniversalBleErrorCode? {
+    return if (wasConnected || this == BluetoothGatt.GATT_SUCCESS) {
+        toConnectionErrorCode()
+    } else {
+        UniversalBleErrorCode.CONNECTION_FAILED
+    }
+}
 
 fun Int.parseHciErrorCode(): String? {
     return when (this) {
@@ -324,11 +463,13 @@ fun Int.parseHciErrorCode(): String? {
 // Future result classes
 class DiscoverServicesFuture(
     val deviceId: String,
+    val withDescriptors: Boolean,
     val result: (Result<List<UniversalBleService>>) -> Unit,
 )
 
 class MtuResultFuture(
     val deviceId: String,
+    val gatt: BluetoothGatt,
     val result: (Result<Long>) -> Unit,
 )
 
@@ -352,3 +493,29 @@ class SubscriptionResultFuture(
     val serviceId: String,
     val result: (Result<Unit>) -> Unit,
 )
+
+class RssiResultFuture(
+    val deviceId: String,
+    val result: (Result<Long>) -> Unit,
+)
+
+class ReadDescriptorResultFuture(
+    val deviceId: String,
+    val descriptorId: String,
+    val characteristicId: String,
+    val serviceId: String,
+    val result: (Result<ByteArray>) -> Unit,
+)
+
+class WriteDescriptorResultFuture(
+    val deviceId: String,
+    val descriptorId: String,
+    val characteristicId: String,
+    val serviceId: String,
+    val result: (Result<Unit>) -> Unit,
+)
+
+// Android 14+ negotiates once per connection. Older releases can request an
+// increase, but an MTU already meeting the requested size needs no new exchange.
+internal fun canReuseNegotiatedMtu(mtu: Int, requested: Int, sdkInt: Int): Boolean =
+    sdkInt >= 34 || mtu >= requested

@@ -39,11 +39,17 @@ list(APPEND PLUGIN_SOURCES
   "src/helper/utils.cpp"
   "src/helper/utils.h"
   "src/ui_thread_handler.hpp"
+  "src/async_operation_tracker.h"
+  "src/callback_drain.h"
   "src/generated/universal_ble.g.cpp"
   "src/generated/universal_ble.g.h"
   "src/pin_entry.h"
   "src/universal_ble_filter_util.cpp"
   "src/universal_ble_filter_util.h"
+  "src/universal_ble_thread_safe.h"
+  "src/enum_parser.h"
+  "src/helper/universal_ble_logger.cpp"
+  "src/helper/universal_ble_logger.h"
 )
 
 add_library(${PLUGIN_NAME} SHARED
@@ -66,6 +72,7 @@ target_link_libraries(${PLUGIN_NAME} PRIVATE
 # ############### NuGet import end ################
 set_target_properties(${PLUGIN_NAME} PROPERTIES
   CXX_VISIBILITY_PRESET hidden)
+target_compile_features(${PLUGIN_NAME} PRIVATE cxx_std_20)
 target_compile_definitions(${PLUGIN_NAME} PRIVATE FLUTTER_PLUGIN_IMPL)
 
 target_include_directories(${PLUGIN_NAME} INTERFACE

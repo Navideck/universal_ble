@@ -1,41 +1,46 @@
-import 'dart:typed_data';
+import 'package:universal_ble/universal_ble.dart';
 
+/// Filter criteria used to discover matching devices during BLE scanning.
 class ScanFilter {
   List<String> withServices;
   List<ManufacturerDataFilter> withManufacturerData;
   List<String> withNamePrefix;
+  List<ExclusionFilter> exclusionFilters;
+
+  /// Whether to discover only connectable devices.
+  ///
+  /// When set to `true`, non-connectable devices (such as beacons) are filtered out.
+  /// Devices with unknown (`null`) [BleDevice.connectable] status pass this filter,
+  /// so this option is a no-op on platforms that do not report connectability (e.g. Linux and Web).
+  bool? connectableOnly;
 
   ScanFilter({
     this.withServices = const [],
     this.withManufacturerData = const [],
     this.withNamePrefix = const [],
+    this.exclusionFilters = const [],
+    this.connectableOnly,
   });
 
   @override
   String toString() {
-    return 'ScanFilter(withServices: $withServices, withManufacturerData: $withManufacturerData, withNamePrefix: $withNamePrefix)';
+    return 'ScanFilter(withServices: $withServices, withManufacturerData: $withManufacturerData, withNamePrefix: $withNamePrefix, exclusionFilters: $exclusionFilters, connectableOnly: $connectableOnly)';
   }
 }
 
-class ManufacturerDataFilter {
-  int companyIdentifier;
+class ExclusionFilter {
+  List<String> services;
+  List<ManufacturerDataFilter> manufacturerDataFilter;
+  String? namePrefix;
 
-  // Mask and data must be of same length
-  Uint8List? payload;
-
-  /// For any bit in the mask, set it the 1 if it needs to match
-  /// the one in manufacturer data, otherwise set it to 0.
-  /// The 'mask' must have the same length as 'data'.
-  Uint8List? mask;
-
-  ManufacturerDataFilter({
-    required this.companyIdentifier,
-    this.payload,
-    this.mask,
+  ExclusionFilter({
+    this.services = const [],
+    this.manufacturerDataFilter = const [],
+    this.namePrefix,
   });
 
-  @override
-  String toString() {
-    return 'ManufacturerDataFilter(companyIdentifier: $companyIdentifier, payload: $payload, mask: $mask)';
-  }
+  bool get hasValidFilters =>
+      services.isNotEmpty ||
+      manufacturerDataFilter.isNotEmpty ||
+      (namePrefix?.isNotEmpty ?? false);
 }

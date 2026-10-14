@@ -1,11 +1,195 @@
+## 3.0.0
+* Extend Windows HIL/FIT coverage for indications, long values, resource pressure, and deterministic timing sweeps using fixture v2.
+* Windows: dispose disconnected WinRT GATT objects on a background MTA thread to avoid blocking the UI during teardown.
+* Windows: Expose non-connectable devices during scanning to match other platforms.
+* Add `connectable` property to `BleDevice`.
+* Add `connectableOnly` to `ScanFilter` to filter for connectable devices during scanning.
+* Add `requestDevice`, a single entry point for the platform's native device picker: the browser's Bluetooth chooser on Web and the iOS 18+ AccessorySetupKit picker on Apple (configured via `PickerPlatformConfig.apple`), returning the selected `BleDevice`. Connect it with the existing `connect(device.deviceId)`. `AppleAccessorySetupOptions` holds a list of `AppleAccessoryPickerItem`s, so the picker can offer several accessories. Platforms without a native picker throw `notSupported`.
+* **Breaking:** On iOS 18+ `unpair` now removes an accessory authorized through AccessorySetupKit (it previously threw `notSupported` on iOS). Devices not managed by AccessorySetupKit fail with `deviceNotFound`.
+* Android/iOS/macOS/Windows: keep the GATT client cache per plugin instance (one per FlutterEngine). It was process-wide, so a `connect()` from one engine could short-circuit on a client created by a destroyed engine — returning a connection that reported as connected but whose service discovery came back empty. Each engine now sees only its own clients, and `closeGattOnDetach` releases only the clients the detaching engine created instead of every client in the process.
+* Windows: deliver scan responses as scan results. A peripheral that publishes its 128-bit service UUID in the scan response (it does not fit in the advertisement next to the name) was invisible to `startScan`: Windows reports that packet with `IsConnectable == false` and it was dropped before reaching the caller.
+* Add `platformConfig` to `discoverServices()`; `AndroidDiscoverServicesOptions(clearGattCache: true)` clears Android's GATT cache (`BluetoothGatt.refresh()`) before discovery. Ignored on other platforms.
+* Android: Register MTU waiters before the native request, serialize completions onto the main looper, and fail rejected requests immediately.
+* Android: Reuse an MTU already negotiated on the current GATT connection; isolate reconnects from late callbacks.
+* **Breaking:** Add `QueueType.auto` which auto-selects the best queueing strategy per platform: Android, Web, and Linux use a per-device queue (their BLE stacks reject or misbehave on overlapping operations), while all other platforms run commands in parallel. It is now the default for both `UniversalBle` and `UniversalBlePeripheral`, replacing the previous `QueueType.global` default. Any exhaustive `switch` over `QueueType` must handle the new `auto` value.
+* iOS/macOS: Handle write-without-response transmit buffer backpressure
+* iOS/macOS: complete concurrent reads, descriptor operations, notification changes, and RSSI reads one callback at a time.
+* Windows: retry transiently unreachable GATT service discovery during connection.
+* Web: await advertisement cleanup before connecting, bound connection setup by its timeout, and prevent cancelled setup or stale GATT discovery from affecting a later connection.
+* Preserve typed BLE error codes when wrapping an existing BLE exception.
+* Windows: fix crashes when closing the app while Bluetooth initialization is still pending.
+* **Breaking:** `onConnectionChange` now receives a single `BleConnectionChange` (`deviceId`, `isConnected`, `error`) instead of three positional arguments. It also carries a unified `errorCode` (`UniversalBleErrorCode.deviceDisconnected`, `connectionTimeout`, `connectionFailed`, ...) and the raw `nativeErrorCode` (`CBError.Code` on Apple, GATT status on Android); a connection attempt that never succeeds is `connectionFailed` on both. Add `connectionChangeStream` and `BleDevice.connectionChangeStream` emitting the same updates per device; `connectionStream` is unchanged. `UniversalBlePlatform.bleConnectionChangeStreamController` (internal) now carries `BleConnectionChange` instead of a record.
+* **Breaking:** `onValueChange` now receives a single `BleCharacteristicValue` (`deviceId`, `characteristicId`, `value`, `timestamp`) instead of four positional arguments.
+* **Breaking:** Rename `BleConnectionParametersUpdated` to `BleConnectionParametersChange`, aligning the payload with the `…Change` event naming. The `onConnectionParametersChange` callback and the model's fields are unchanged.
+* Android: report every failed bond — including a declined system-initiated bond that ends in `BOND_NONE` — not only the first per process. A failed pairing attempt is an event rather than a state, so `onPairingStateChange` no longer de-duplicates it against the cached pairing state (#325).
+* Add `universal_ble` package skills installable with `dart run skills@ get`: `universal-ble-setup` (add BLE to an app from scratch), `universal-ble-migrate-2-to-3` (upgrade from 2.x), and `universal-ble-migrate-from-flutter-blue-plus` (migrate from `flutter_blue_plus`).
+* Add `skipDuplicates` to `startScan` to report each device only once per scan session — later sightings, including ones whose advertisement payload changed, are suppressed until the scan is restarted. Native filtering is applied where available (iOS/macOS, Android `ScanSettings`, Linux BlueZ `DuplicateData`) and the Dart layer de-duplicates on every platform so the behavior is consistent everywhere. Defaults to `false` (unchanged).
+
+## 2.3.0
+* Windows: support connectionless manufacturer-data advertising without a GATT service, including state/error reporting and cleanup on stop/disposal.
+* Apple: Accurately report manufacturer-data advertising capabilities.
+* Android: add `closeGattOnDetach` connection option to release GATT clients when the app is killed
+* Android: close the GATT client once the disconnect completes instead of right after `disconnect()`, and report the real disconnect status
+* Android: Fix peripheral `getReadinessState()` to check permissions and adapter power before advertising support, and throttle `startAdvertising` Bluetooth enable prompts to at most one dialog.
+* Add `isSubscribed` and `getSubscribedCharacteristics` to check characteristic notification/indication subscription status in Central mode.
+* readRssi commands are not queued anymore
+* iOS/macOS: complete only the oldest matching pending write on didWriteValueFor
+
+## 2.2.0
+* Expose microsecond scan timestamps captured before Flutter event dispatch
+* Lower minimum Dart SDK to 3.3 (Flutter 3.19+) to restore compatibility with older stable Flutter releases
+* Add `BleCommandQueue` support to `UniversalBlePeripheral` (`queueType`, `timeout`, `clearQueue`, and `onQueueUpdate`)
+* iOS/macOS: Handle CoreBluetooth peripheral transmit queue exhaustion and error handling in `updateCharacteristicValue`
+* Add Descriptor Read and Write APIs
+* Windows: Harden BLE connection lifetime and asynchronous callbacks
+* Windows: Harden GATT operation lifetimes, Service Changed handling, and notification subscriptions
+* Android: instantly close the GATT client on disconnect
+* Android: complete only the oldest matching pending write on onCharacteristicWrite
+* iOS/macOS: Handle service discovery failure and timeout to prevent poisoning subsequent `discoverServices` calls
+
+## 2.1.1
+* Android: Fix BluetoothDevice null-safety compile error under Kotlin 2.x
+* Android: Make Android write-completion delivery thread-safe
+* Fix `BleCharacteristic` equality and `hashCode` to compare `properties` by value
+* Handle device IDs case-insensitively
+
+## 2.1.0
+* Add optional `queueId` parameter to all APIs
+* iOS/macOS: add opt-in `AppleConnectionOptions` to `connect` (via `ConnectionPlatformConfig`) — map to `CBConnectPeripheralOptionNotifyOnConnectionKey`, `NotifyOnDisconnectionKey` and `NotifyOnNotificationKey`, so a suspended app is relaunched into the background to handle connection events (e.g. auto-reconnect while the phone is locked)
+* Android: add `legacy` to `AndroidOptions` — set `legacy: true` to scan legacy BLE 4.x advertisements (e.g. ESP32) on API 26+; default (`null`/`false`) keeps extended-advertisement scanning unchanged from prior releases
+* Android: add `addServicesInScanResponse` to `PeripheralAndroidOptions` - set `addServicesInScanResponse: true` to Put advertised service UUIDs in the scan response instead of the primary advertisement
+* Android: merge manufacturer data with duplicate company id in scan results
+
+## 2.0.4
+* iOS: make Bluetooth state restoration optional by enabling it only when the `bluetooth-central` background mode is declared
+* iOS: when state restoration is enabled, init `CBCentralManager` at launch only if Bluetooth permission is granted
+
+## 2.0.3
+* iOS/macOS: defer `CBPeripheralManager` creation until peripheral APIs are used, fixing Bluetooth permission prompt on app launch
+* iOS: add CoreBluetooth state preservation/restoration so the app can be relaunched in the background by a connected peripheral and resume the live connection. Requires the `bluetooth-central` background mode in `Info.plist` (see README → Permissions → iOS / macOS).
+* Android: Fix missing scan name after reconnection
+* Windows: Fix null pointer crash when BLE device is unpaired during active scanCommits on May 28, * Windows: Refactor property value lookups to use a safe lookup function
+* Fix Dart primary constructor compatibility
+
+## 2.0.2
+* iOS/macOS: retain peripheral from retrievePeripherals to fix API MISUSE on connect
+* Android: migrate to built-in Kotlin (removes Kotlin Gradle Plugin usage)
+* Use conditional imports for the Linux backend so the package is compatible with the WASM runtime on pub.dev
+
+## 2.0.1
+* Android peripheral: eager Kotlin initialization, thread-safe GATT connection cache, and pairing only via `pair()` or when encryption requires it
+* Add `onConnectionParametersChange` to notify when Android link-layer connection parameters change (API 26+)
+* Android: expose `callbackType`, `matchMode`, and `numOfMatches` on `AndroidOptions` so callers can configure `ScanSettings` to defeat aggressive chip-side advert de-duplication on Pixel devices. `callbackType` accepts a `List<AndroidScanCallbackType>` (OR-folded on the native side) and includes a new `allMatchesAutoBatch` value (API 34+).
+
+## 2.0.0
+* Add peripheral mode on Android, iOS, macOS, and Windows
+* Add `requestConnectionPriority` to allow tuning BLE connection intervals on Android
+* Add SPM support on Apple
+
+## 1.2.0
+* Add `autoConnect` parameter to `connect()` method for automatic reconnection support on Android and iOS/macOS
+* Add `serviceData` in `BleDevice`
+* Add `AndroidScanMode` and `reportDelayMillis` to `AndroidOptions` for scanning
+* Add support for BLE scanning from background services (ForegroundTask) on Android. `PermissionHandler` is now activity-aware and succeeds silently if permissions are already granted when no activity is available
+* Always use custom scan filter on Windows
+* Fix Windows crash by handling WinRT exceptions in BLE callback paths
+* Add serviceData tracking in Linux advertisements
+
+## 1.1.0
+* Add readRssi method
+
+## 1.0.1
+* Enforce C++20 standard for Windows builds
+
+## 1.0.0
+* BREAKING CHANGE: `OnValueChange` callback also includes timestamp
+* BREAKING CHANGE: Bump minimum IOS version to 13.1
+* BREAKING CHANGE: Bump minimum MacOS version to 10.15
+* Fix Windows 11 crash on cancelling pairing
+* Unified error codes for all platforms
+* Add `isScanning` api
+* Add `hasPermissions` api
+* Add `requestPermissions` api and auto ask permission on `startScan`
+* `disconnect` now waits for disconnection confirmation before returning
+* Improve Windows disconnection event handling and cleanup
+* Add `withDescriptors` parameter in `discoverServices` API
+* Add `timestamp` in `BleDevice` 
+* Add `setLogLevel` api for configuring logs
+
+## 0.21.1
+* Fix device name resolution on Windows
+* Add `exclusionFilters` to filter out devices from scan results
+
+## 0.21.0
+* BREAKING CHANGE: `connectionTimeout` argument from `connect`, `isPaired` and `pair` API renamed to `timeout`
+* Add `timeout` argument to all APIs
+* Add `clearQueue()` API
+
+## 0.20.2
+* Fix `BleCharacteristic.onValueReceived`
+
+## 0.20.1
+* Fix `writeWithoutResponse()` which was not properly waiting for completion on Android and Apple
+
+## 0.20.0
+* Add new high level API. Services are auto-discovered. the BleDevice class offers convenient member methods and properties.
+* BREAKING CHANGE: `bleDevice.isPaired` is now `bleDevice.paired`
+* Deprecate `readValue` in favor of `read`
+* Deprecate `writeValue` in favor of `write`
+* Deprecate `setNotifiable` in favor of `subscribeNotifications`, `subscribeIndications`, `unsubscribe`
+* Fix `getBluetoothAvailabilityState` reporting wrong Bluetooth status on browsers where Web Bluetooth can globally be disabled
+* `startScan` on web now throws a `WebBluetoothGloballyDisabled` exception if scanning cannot proceed due to Web Bluetooth being globally disabled
+* EXAMPLE APP: Migrate to the new high level API
+
+## 0.19.0
+* Get and prefer advertised name of scanned devices on Apple
+* Improve Android runtime permissions docs
+* Cache and return advertised name for system devices on Apple
+* Add app showcase in Readme
+* EXAMPLE APP: Don't disconnect on leaving the details page
+* EXAMPLE APP: Fix Android builds
+* EXAMPLE APP: Fix service filter warning on macOS
+* EXAMPLE APP: Add types to callbacks
+
+## 0.18.0
+* Add Streams: `scanStream`, `availabilityStream`, `connectionStream`, `characteristicValueStream`, `pairingStateStream`
+* Fix `connect` api bug to detect proper connection state
+* Fix `getSystemDevices()` on Linux
+* Improve docs for isPaired
+
+## 0.17.0
+* Fix Windows crash when calling pair APIs with an unknown deviceId
+* Fix Windows crash when calling startScan again after some time
+* Fix Windows warning `Unable to establish connection on channel` when hot restarting
+* Refactor native Windows code
+* Improve Android permission documentation
+
+## 0.16.0
+* BREAKING CHANGE: `payload` is now `payloadPrefix`
+* BREAKING CHANGE: `mask` is now `payloadMask`
+* Bump bluez to 0.8.3
+* Do not normalize UUIDs on native side
+* Reverse _permissionStatus return values in example app
+* Improve readme
+* Improve ManufacturerDataFilter
+
+## 0.15.0
+* `getSystemDevices(withServices:)` now sets several generic services by default as filter
+* `getConnectionState` on Android will now return `BleConnectionState.disconnected` if device is connected to the system but not to the app
+* Improve callback error handling
+
 ## 0.14.0
 * BREAKING CHANGE: `bleDevice.name` now filters out non-printable characters
 * Add `bleDevice.rawName`
+* Add `disableBluetooth` API
+* Fix Apple CBCentralManager lazy initialization on `startScan`
+* Fix Android error `scan too frequently` and auto retry scan once sufficient time has passed
+* Fix duplicate `onValueChanged` events on Android 11 or earlier
+* Fix Windows `withServices` filter
+* Fix Windows Bluetooth availability state in release builds
+* Throw error on Apple if Bluetooth permission is denied on `startScan`
+* Do not throw `Characteristic already notifying` error. Subscribing to characteristic notifications multiple times is now handled safely
 * Bump flutter_web_bluetooth to 1.0.0
-* Improve Apple CBCentralManager lazy initialization on `startScan`
-* Throw error on Apple if Bluetooth permission denied on `startScan` 
-* Fix Android error `scan too frequently` and auto retry scan once sufficient time has passed 
-* Android (< 11): Fix duplicate `onValueChanged` events
 
 ## 0.13.0
 * BREAKING CHANGE: `scanFilter` filters are now in OR relation 

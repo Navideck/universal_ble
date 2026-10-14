@@ -3,10 +3,12 @@ import 'package:universal_ble/universal_ble.dart';
 import 'package:universal_ble_example/widgets/platform_button.dart';
 
 class ScanFilterWidget extends StatefulWidget {
-  final Function(ScanFilter? filter) onScanFilter;
+  final void Function(ScanFilter? filter) onScanFilter;
   final TextEditingController servicesFilterController;
   final TextEditingController namePrefixController;
   final TextEditingController manufacturerDataController;
+
+  final bool initialConnectableOnly;
 
   const ScanFilterWidget({
     super.key,
@@ -14,6 +16,7 @@ class ScanFilterWidget extends StatefulWidget {
     required this.servicesFilterController,
     required this.namePrefixController,
     required this.manufacturerDataController,
+    this.initialConnectableOnly = false,
   });
 
   @override
@@ -22,6 +25,13 @@ class ScanFilterWidget extends StatefulWidget {
 
 class _ScanFilterWidgetState extends State<ScanFilterWidget> {
   String? error;
+  late bool _connectableOnly;
+
+  @override
+  void initState() {
+    super.initState();
+    _connectableOnly = widget.initialConnectableOnly;
+  }
 
   void applyFilter() {
     setState(() {
@@ -60,14 +70,14 @@ class _ScanFilterWidgetState extends State<ScanFilterWidget> {
             throw Exception("Invalid Manufacturer Data $manufacturer");
           }
           manufacturerDataFilters.add(
-            ManufacturerDataFilter(companyIdentifier: companyIdentifier),
-          );
+              ManufacturerDataFilter(companyIdentifier: companyIdentifier));
         }
       }
 
       if (serviceUUids.isEmpty &&
           namePrefixes.isEmpty &&
-          manufacturerDataFilters.isEmpty) {
+          manufacturerDataFilters.isEmpty &&
+          !_connectableOnly) {
         widget.onScanFilter(null);
       } else {
         widget.onScanFilter(
@@ -75,6 +85,7 @@ class _ScanFilterWidgetState extends State<ScanFilterWidget> {
             withServices: serviceUUids,
             withNamePrefix: namePrefixes,
             withManufacturerData: manufacturerDataFilters,
+            connectableOnly: _connectableOnly ? true : null,
           ),
         );
         ScaffoldMessenger.of(context).showSnackBar(
@@ -93,6 +104,9 @@ class _ScanFilterWidgetState extends State<ScanFilterWidget> {
     widget.servicesFilterController.clear();
     widget.namePrefixController.clear();
     widget.manufacturerDataController.clear();
+    setState(() {
+      _connectableOnly = false;
+    });
     widget.onScanFilter(null);
     Navigator.pop(context);
   }
@@ -115,19 +129,19 @@ class _ScanFilterWidgetState extends State<ScanFilterWidget> {
           const Divider(),
           const SizedBox(height: 10),
           TextFormField(
-            controller: widget.servicesFilterController,
+            controller: widget.namePrefixController,
             maxLines: 2,
             decoration: const InputDecoration(
-              labelText: "Services",
+              labelText: "Name Prefixes",
               border: OutlineInputBorder(),
             ),
           ),
           const SizedBox(height: 10),
           TextFormField(
-            controller: widget.namePrefixController,
+            controller: widget.servicesFilterController,
             maxLines: 2,
             decoration: const InputDecoration(
-              labelText: "Name Prefixes",
+              labelText: "Services",
               border: OutlineInputBorder(),
             ),
           ),
@@ -139,6 +153,18 @@ class _ScanFilterWidgetState extends State<ScanFilterWidget> {
               labelText: "Manufacturer Data Company IDs",
               border: OutlineInputBorder(),
             ),
+          ),
+          const SizedBox(height: 10),
+          CheckboxListTile(
+            title: const Text("Connectable Only"),
+            value: _connectableOnly,
+            controlAffinity: ListTileControlAffinity.leading,
+            contentPadding: EdgeInsets.zero,
+            onChanged: (bool? value) {
+              setState(() {
+                _connectableOnly = value ?? false;
+              });
+            },
           ),
           const SizedBox(height: 10),
           Row(

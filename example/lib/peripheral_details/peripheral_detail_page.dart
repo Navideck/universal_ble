@@ -1,5 +1,3 @@
-// ignore_for_file: avoid_print, depend_on_referenced_packages
-
 import 'dart:async';
 
 import 'package:convert/convert.dart';
@@ -13,10 +11,8 @@ import 'package:universal_ble_example/widgets/responsive_buttons_grid.dart';
 import 'package:universal_ble_example/widgets/responsive_view.dart';
 
 class PeripheralDetailPage extends StatefulWidget {
-  final String deviceId;
-  final String deviceName;
-  const PeripheralDetailPage(this.deviceId, this.deviceName, {Key? key})
-      : super(key: key);
+  final BleDevice bleDevice;
+  const PeripheralDetailPage(this.bleDevice, {super.key});
 
   @override
   State<StatefulWidget> createState() {
@@ -25,32 +21,50 @@ class PeripheralDetailPage extends StatefulWidget {
 }
 
 class _PeripheralDetailPageState extends State<PeripheralDetailPage> {
+  late final bleDevice = widget.bleDevice;
   bool isConnected = false;
   GlobalKey<FormState> valueFormKey = GlobalKey<FormState>();
   List<BleService> discoveredServices = [];
   final List<String> _logs = [];
   final binaryCode = TextEditingController();
 
-  ({
-    BleService service,
-    BleCharacteristic characteristic
-  })? selectedCharacteristic;
+  StreamSubscription? connectionStreamSubscription;
+  StreamSubscription? pairingStateSubscription;
+  BleService? selectedService;
+  BleCharacteristic? selectedCharacteristic;
+  BleDescriptor? selectedDescriptor;
 
   @override
   void initState() {
     super.initState();
-    UniversalBle.onConnectionChange = _handleConnectionChange;
+
+    connectionStreamSubscription =
+        bleDevice.connectionStream.listen(_handleConnectionChange);
+    pairingStateSubscription =
+        bleDevice.pairingStateStream.listen(_handlePairingStateChange);
     UniversalBle.onValueChange = _handleValueChange;
-    UniversalBle.onPairingStateChange = _handlePairingStateChange;
+    UniversalBle.onConnectionParametersChange =
+        _handleConnectionParametersChange;
+    _asyncInits();
+  }
+
+  void _asyncInits() {
+    bleDevice.connectionState.then((state) {
+      if (state == BleConnectionState.connected) {
+        setState(() {
+          isConnected = true;
+        });
+      }
+    });
   }
 
   @override
   void dispose() {
     super.dispose();
-    UniversalBle.onConnectionChange = null;
+    connectionStreamSubscription?.cancel();
+    pairingStateSubscription?.cancel();
     UniversalBle.onValueChange = null;
-    // Disconnect when leaving the page
-    if (isConnected) UniversalBle.disconnect(widget.deviceId);
+    UniversalBle.onConnectionParametersChange = null;
   }
 
   void _addLog(String type, dynamic data) {
@@ -59,18 +73,10 @@ class _PeripheralDetailPageState extends State<PeripheralDetailPage> {
     });
   }
 
-  void _handleConnectionChange(
-    String deviceId,
-    bool isConnected,
-    String? error,
-  ) {
-    print(
-      '_handleConnectionChange $deviceId, $isConnected ${error != null ? 'Error: $error' : ''}',
-    );
+  void _handleConnectionChange(bool isConnected) {
+    debugPrint('_handleConnectionChange $isConnected');
     setState(() {
-      if (deviceId == widget.deviceId) {
-        this.isConnected = isConnected;
-      }
+      this.isConnected = isConnected;
     });
     _addLog('Connection', isConnected ? "Connected" : "Disconnected");
     // Auto Discover Services
@@ -79,25 +85,39 @@ class _PeripheralDetailPageState extends State<PeripheralDetailPage> {
     }
   }
 
-  void _handleValueChange(
-      String deviceId, String characteristicId, Uint8List value) {
-    String s = String.fromCharCodes(value);
-    String data = '$s\nraw :  ${value.toString()}';
-    print('_handleValueChange $deviceId, $characteristicId, $s');
+  void _handleValueChange(BleCharacteristicValue update) {
+    String s = String.fromCharCodes(update.value);
+    String data = '$s\nraw :  ${update.value.toString()}';
+    DateTime? timestampDateTime = update.timestamp != null
+        ? DateTime.fromMillisecondsSinceEpoch(update.timestamp!)
+        : null;
+    debugPrint(
+        '_handleValueChange ($timestampDateTime) ${update.characteristicId}, $s');
     _addLog("Value", data);
   }
 
-  void _handlePairingStateChange(String deviceId, bool isPaired) {
-    print('isPaired $deviceId, $isPaired');
+  void _handlePairingStateChange(bool isPaired) {
+    debugPrint('isPaired $isPaired');
     _addLog("PairingStateChange - isPaired", isPaired);
   }
 
+  void _handleConnectionParametersChange(
+    BleConnectionParametersChange update,
+  ) {
+    debugPrint('ConnectionParametersChange $update');
+    _addLog(
+      "ConnectionParametersChange",
+      "Interval: ${update.interval} Latency: ${update.latency} Supervision Timeout: ${update.supervisionTimeout} Status: ${update.status}",
+    );
+  }
+
   Future<void> _discoverServices() async {
+    const webWarning =
+        "Note: Only services added in ScanFilter or WebOptions will be discovered";
     try {
-      var services = await UniversalBle.discoverServices(widget.deviceId);
-      print('${services.length} services discovered');
-      print(services);
-      discoveredServices.clear();
+      var services = await bleDevice.discoverServices(withDescriptors: true);
+      debugPrint('${services.length} services discovered');
+      debugPrint(services.toString());
       setState(() {
         discoveredServices = services;
       });
@@ -105,25 +125,67 @@ class _PeripheralDetailPageState extends State<PeripheralDetailPage> {
       if (kIsWeb) {
         _addLog(
           "DiscoverServices",
-          '${services.length} services discovered,\nNote: Only services added in ScanFilter or WebOptions will be discovered',
+          '${services.length} services discovered,\n$webWarning',
         );
       }
     } catch (e) {
-      _addLog(
-        "DiscoverServicesError",
-        '$e\nNote: Only services added in ScanFilter or WebOptions will be discovered',
-      );
+      _addLog("DiscoverServicesError", '$e\n${kIsWeb ? webWarning : ""}');
+    }
+  }
+
+  Future<void> _readDescriptorValue() async {
+    BleCharacteristic? selectedCharacteristic = this.selectedCharacteristic;
+    BleService? selectedService = this.selectedService;
+    BleDescriptor? selectedDescriptor = this.selectedDescriptor;
+    if (selectedCharacteristic == null ||
+        selectedService == null ||
+        selectedDescriptor == null) {
+      return;
+    }
+    try {
+      Uint8List value = await selectedDescriptor.read();
+      String s = String.fromCharCodes(value);
+      String data = '$s\nraw :  ${value.toString()}';
+      _addLog('ReadDescriptor', data);
+    } catch (e) {
+      _addLog('ReadDescriptorError', e);
+    }
+  }
+
+  Future<void> _writeDescriptorValue() async {
+    BleCharacteristic? selectedCharacteristic = this.selectedCharacteristic;
+    BleService? selectedService = this.selectedService;
+    BleDescriptor? selectedDescriptor = this.selectedDescriptor;
+    if (selectedCharacteristic == null ||
+        selectedService == null ||
+        selectedDescriptor == null ||
+        !valueFormKey.currentState!.validate() ||
+        binaryCode.text.isEmpty) {
+      return;
+    }
+
+    Uint8List value;
+    try {
+      value = Uint8List.fromList(hex.decode(binaryCode.text));
+    } catch (e) {
+      _addLog('WriteDescriptorError', "Error parsing hex $e");
+      return;
+    }
+
+    try {
+      await selectedDescriptor.write(value);
+      _addLog('WriteDescriptor', value);
+    } catch (e) {
+      debugPrint(e.toString());
+      _addLog('WriteDescriptorError', e);
     }
   }
 
   Future<void> _readValue() async {
+    BleCharacteristic? selectedCharacteristic = this.selectedCharacteristic;
     if (selectedCharacteristic == null) return;
     try {
-      Uint8List value = await UniversalBle.readValue(
-        widget.deviceId,
-        selectedCharacteristic!.service.uuid,
-        selectedCharacteristic!.characteristic.uuid,
-      );
+      Uint8List value = await selectedCharacteristic.read();
       String s = String.fromCharCodes(value);
       String data = '$s\nraw :  ${value.toString()}';
       _addLog('Read', data);
@@ -132,7 +194,8 @@ class _PeripheralDetailPageState extends State<PeripheralDetailPage> {
     }
   }
 
-  Future<void> _writeValue() async {
+  Future<void> _writeValue({required bool withResponse}) async {
+    BleCharacteristic? selectedCharacteristic = this.selectedCharacteristic;
     if (selectedCharacteristic == null ||
         !valueFormKey.currentState!.validate() ||
         binaryCode.text.isEmpty) {
@@ -148,46 +211,57 @@ class _PeripheralDetailPageState extends State<PeripheralDetailPage> {
     }
 
     try {
-      await UniversalBle.writeValue(
-        widget.deviceId,
-        selectedCharacteristic!.service.uuid,
-        selectedCharacteristic!.characteristic.uuid,
-        value,
-        _hasSelectedCharacteristicProperty(
-                [CharacteristicProperty.writeWithoutResponse])
-            ? BleOutputProperty.withoutResponse
-            : BleOutputProperty.withResponse,
-      );
-      _addLog('Write', value);
+      await selectedCharacteristic.write(value, withResponse: withResponse);
+      _addLog('Write${withResponse ? "" : "WithoutResponse"}', value);
     } catch (e) {
-      print(e);
+      debugPrint(e.toString());
       _addLog('WriteError', e);
     }
   }
 
-  Future<void> _setBleInputProperty(BleInputProperty inputProperty) async {
+  Future<void> _subscribeChar() async {
+    BleCharacteristic? selectedCharacteristic = this.selectedCharacteristic;
     if (selectedCharacteristic == null) return;
     try {
-      if (inputProperty != BleInputProperty.disabled) {
-        List<CharacteristicProperty> properties =
-            selectedCharacteristic!.characteristic.properties;
-        if (properties.contains(CharacteristicProperty.notify)) {
-          inputProperty = BleInputProperty.notification;
-        } else if (properties.contains(CharacteristicProperty.indicate)) {
-          inputProperty = BleInputProperty.indication;
-        } else {
-          throw 'No notify or indicate property';
-        }
-      }
-      await UniversalBle.setNotifiable(
-        widget.deviceId,
-        selectedCharacteristic!.service.uuid,
-        selectedCharacteristic!.characteristic.uuid,
-        inputProperty,
-      );
-      _addLog('BleInputProperty', inputProperty);
+      var subscription = _getCharacteristicSubscription(selectedCharacteristic);
+      if (subscription == null) throw 'No notify or indicate property';
+      await subscription.subscribe();
+      _addLog('BleCharSubscription', 'Subscribed');
+      // Updates can also be handled by
+      // subscription.listen((data) {});
     } catch (e) {
       _addLog('NotifyError', e);
+    }
+  }
+
+  Future<void> _unsubscribeChar() async {
+    try {
+      await selectedCharacteristic?.unsubscribe();
+      _addLog('BleCharSubscription', 'UnSubscribed');
+    } catch (e) {
+      _addLog('NotifyError', e);
+    }
+  }
+
+  CharacteristicSubscription? _getCharacteristicSubscription(
+      BleCharacteristic characteristic) {
+    var properties = characteristic.properties;
+    if (properties.contains(CharacteristicProperty.notify)) {
+      return characteristic.notifications;
+    } else if (properties.contains(CharacteristicProperty.indicate)) {
+      return characteristic.indications;
+    }
+    return null;
+  }
+
+  Future<void> _requestConnectionPriority() async {
+    try {
+      await UniversalBle.requestConnectionPriority(
+        bleDevice.deviceId,
+        BleConnectionPriority.highPerformance,
+      );
+    } catch (e) {
+      _addLog('RequestConnectionPriorityError', e);
     }
   }
 
@@ -195,7 +269,7 @@ class _PeripheralDetailPageState extends State<PeripheralDetailPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text("${widget.deviceName} - ${widget.deviceId}"),
+        title: Text("${bleDevice.name ?? "Unknown"} - ${bleDevice.deviceId}"),
         elevation: 4,
         actions: [
           Padding(
@@ -225,13 +299,14 @@ class _PeripheralDetailPageState extends State<PeripheralDetailPage> {
                       : ServicesListWidget(
                           discoveredServices: discoveredServices,
                           scrollable: true,
-                          onTap: (BleService service,
-                              BleCharacteristic characteristic) {
+                          onTap: (service, characteristic, descriptor) {
                             setState(() {
-                              selectedCharacteristic = (
-                                service: service,
-                                characteristic: characteristic
-                              );
+                              selectedService = service;
+                              selectedCharacteristic = characteristic;
+                              selectedDescriptor = descriptor ??
+                                  (characteristic.descriptors.isNotEmpty
+                                      ? characteristic.descriptors.first
+                                      : null);
                             });
                           },
                         ),
@@ -244,6 +319,35 @@ class _PeripheralDetailPageState extends State<PeripheralDetailPage> {
                 child: SingleChildScrollView(
                   child: Column(
                     children: [
+                      if (bleDevice.connectable == false)
+                        Container(
+                          width: double.infinity,
+                          margin: const EdgeInsets.symmetric(
+                            horizontal: 16.0,
+                            vertical: 8.0,
+                          ),
+                          padding: const EdgeInsets.all(12.0),
+                          decoration: BoxDecoration(
+                            color: Colors.red.shade50,
+                            borderRadius: BorderRadius.circular(8.0),
+                            border: Border.all(color: Colors.red.shade300),
+                          ),
+                          child: const Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(Icons.warning_amber_rounded,
+                                  color: Colors.red),
+                              SizedBox(width: 8),
+                              Text(
+                                "This device is not connectable",
+                                style: TextStyle(
+                                  color: Colors.red,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
                       // Top buttons
                       Padding(
                         padding: const EdgeInsets.all(8.0),
@@ -252,12 +356,10 @@ class _PeripheralDetailPageState extends State<PeripheralDetailPage> {
                           children: <Widget>[
                             PlatformButton(
                               text: 'Connect',
-                              enabled: !isConnected,
+                              enabled: !isConnected && bleDevice.connectable != false,
                               onPressed: () async {
                                 try {
-                                  await UniversalBle.connect(
-                                    widget.deviceId,
-                                  );
+                                  await bleDevice.connect();
                                   _addLog("ConnectionResult", true);
                                 } catch (e) {
                                   _addLog('ConnectError (${e.runtimeType})', e);
@@ -267,8 +369,16 @@ class _PeripheralDetailPageState extends State<PeripheralDetailPage> {
                             PlatformButton(
                               text: 'Disconnect',
                               enabled: isConnected,
-                              onPressed: () {
-                                UniversalBle.disconnect(widget.deviceId);
+                              onPressed: () async {
+                                try {
+                                  await bleDevice.disconnect();
+                                  _addLog("DisconnectResult", true);
+                                } catch (e) {
+                                  _addLog(
+                                    'DisconnectError (${e.runtimeType})',
+                                    e,
+                                  );
+                                }
                               },
                             ),
                           ],
@@ -285,18 +395,60 @@ class _PeripheralDetailPageState extends State<PeripheralDetailPage> {
                               child: Card(
                                 child: ListTile(
                                   title: SelectableText(
-                                    "Characteristic: ${selectedCharacteristic!.characteristic.uuid}",
+                                    "Characteristic: ${selectedCharacteristic?.uuid}",
                                   ),
                                   subtitle: Column(
                                     crossAxisAlignment:
                                         CrossAxisAlignment.start,
                                     children: [
                                       SelectableText(
-                                        "Service: ${selectedCharacteristic!.service.uuid}",
+                                        "Service: ${selectedService?.uuid}",
                                       ),
                                       Text(
-                                        "Properties: ${selectedCharacteristic!.characteristic.properties.map((e) => e.name)}",
+                                        "Properties: ${selectedCharacteristic?.properties.map((e) => e.name)}",
                                       ),
+                                      if (selectedCharacteristic != null &&
+                                          selectedCharacteristic!
+                                              .descriptors.isNotEmpty) ...[
+                                        const SizedBox(height: 4),
+                                        Row(
+                                          children: [
+                                            const Text(
+                                              "Selected Descriptor: ",
+                                              style: TextStyle(
+                                                  fontWeight: FontWeight.bold),
+                                            ),
+                                            Expanded(
+                                              child:
+                                                  DropdownButton<BleDescriptor>(
+                                                isDense: true,
+                                                isExpanded: true,
+                                                value: selectedDescriptor ??
+                                                    selectedCharacteristic!
+                                                        .descriptors.first,
+                                                items: selectedCharacteristic!
+                                                    .descriptors
+                                                    .map(
+                                                        (d) => DropdownMenuItem(
+                                                              value: d,
+                                                              child: Text(
+                                                                d.uuid,
+                                                                overflow:
+                                                                    TextOverflow
+                                                                        .ellipsis,
+                                                              ),
+                                                            ))
+                                                    .toList(),
+                                                onChanged: (val) {
+                                                  setState(() {
+                                                    selectedDescriptor = val;
+                                                  });
+                                                },
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ],
                                     ],
                                   ),
                                 ),
@@ -304,9 +456,10 @@ class _PeripheralDetailPageState extends State<PeripheralDetailPage> {
                             ),
 
                       if (_hasSelectedCharacteristicProperty([
-                        CharacteristicProperty.write,
-                        CharacteristicProperty.writeWithoutResponse
-                      ]))
+                            CharacteristicProperty.write,
+                            CharacteristicProperty.writeWithoutResponse
+                          ]) ||
+                          selectedDescriptor != null)
                         Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 8.0),
                           child: Form(
@@ -351,19 +504,25 @@ class _PeripheralDetailPageState extends State<PeripheralDetailPage> {
                               onPressed: () async {
                                 _addLog(
                                   'ConnectionState',
-                                  await UniversalBle.getConnectionState(
-                                    widget.deviceId,
-                                  ),
+                                  await bleDevice.connectionState,
                                 );
                               },
                               text: 'Connection State',
                             ),
+                            if (BleCapabilities
+                                .supportsConnectionParametersUpdates)
+                              PlatformButton(
+                                enabled: isConnected,
+                                onPressed: () async {
+                                  _requestConnectionPriority();
+                                },
+                                text: 'Request Connection Priority',
+                              ),
                             if (BleCapabilities.supportsRequestMtuApi)
                               PlatformButton(
                                 enabled: isConnected,
                                 onPressed: () async {
-                                  int mtu = await UniversalBle.requestMtu(
-                                      widget.deviceId, 247);
+                                  int mtu = await bleDevice.requestMtu(247);
                                   _addLog('MTU', mtu);
                                 },
                                 text: 'Request Mtu',
@@ -382,10 +541,32 @@ class _PeripheralDetailPageState extends State<PeripheralDetailPage> {
                                   discoveredServices.isNotEmpty &&
                                   _hasSelectedCharacteristicProperty([
                                     CharacteristicProperty.write,
-                                    CharacteristicProperty.writeWithoutResponse
                                   ]),
-                              onPressed: _writeValue,
+                              onPressed: () => _writeValue(withResponse: true),
                               text: 'Write',
+                            ),
+                            PlatformButton(
+                              enabled: isConnected &&
+                                  discoveredServices.isNotEmpty &&
+                                  _hasSelectedCharacteristicProperty([
+                                    CharacteristicProperty.writeWithoutResponse,
+                                  ]),
+                              onPressed: () => _writeValue(withResponse: false),
+                              text: 'WriteWithoutResponse',
+                            ),
+                            PlatformButton(
+                              enabled: isConnected &&
+                                  discoveredServices.isNotEmpty &&
+                                  selectedDescriptor != null,
+                              onPressed: _readDescriptorValue,
+                              text: 'Read Descriptor',
+                            ),
+                            PlatformButton(
+                              enabled: isConnected &&
+                                  discoveredServices.isNotEmpty &&
+                                  selectedDescriptor != null,
+                              onPressed: _writeDescriptorValue,
+                              text: 'Write Descriptor',
                             ),
                             PlatformButton(
                               enabled: isConnected &&
@@ -394,8 +575,7 @@ class _PeripheralDetailPageState extends State<PeripheralDetailPage> {
                                     CharacteristicProperty.notify,
                                     CharacteristicProperty.indicate
                                   ]),
-                              onPressed: () => _setBleInputProperty(
-                                  BleInputProperty.notification),
+                              onPressed: _subscribeChar,
                               text: 'Subscribe',
                             ),
                             PlatformButton(
@@ -405,21 +585,19 @@ class _PeripheralDetailPageState extends State<PeripheralDetailPage> {
                                     CharacteristicProperty.notify,
                                     CharacteristicProperty.indicate
                                   ]),
-                              onPressed: () => _setBleInputProperty(
-                                  BleInputProperty.disabled),
+                              onPressed: _unsubscribeChar,
                               text: 'Unsubscribe',
                             ),
                             PlatformButton(
                               enabled: BleCapabilities.supportsAllPairingKinds,
                               onPressed: () async {
                                 try {
-                                  await UniversalBle.pair(
-                                    widget.deviceId,
-                                    // pairingCommand: BleCommand(
-                                    //   service: "",
-                                    //   characteristic: "",
-                                    // ),
-                                  );
+                                  await bleDevice.pair(
+                                      // pairingCommand: BleCommand(
+                                      //   service: "",
+                                      //   characteristic: "",
+                                      // ),
+                                      );
                                   _addLog("Pairing Result", true);
                                 } catch (e) {
                                   _addLog('PairError (${e.runtimeType})', e);
@@ -429,20 +607,19 @@ class _PeripheralDetailPageState extends State<PeripheralDetailPage> {
                             ),
                             PlatformButton(
                               onPressed: () async {
-                                bool? isPaired = await UniversalBle.isPaired(
-                                  widget.deviceId,
-                                  // pairingCommand: BleCommand(
-                                  //   service: "",
-                                  //   characteristic: "",
-                                  // ),
-                                );
-                                _addLog('IsPaired', isPaired);
+                                bool? isPaired = await bleDevice.isPaired(
+                                    // pairingCommand: BleCommand(
+                                    //   service: "",
+                                    //   characteristic: "",
+                                    // ),
+                                    );
+                                _addLog('isPaired', isPaired);
                               },
-                              text: 'IsPaired',
+                              text: 'isPaired',
                             ),
                             PlatformButton(
                               onPressed: () async {
-                                await UniversalBle.unpair(widget.deviceId);
+                                await bleDevice.unpair();
                               },
                               text: 'Unpair',
                             ),
@@ -453,13 +630,14 @@ class _PeripheralDetailPageState extends State<PeripheralDetailPage> {
                       if (deviceType != DeviceType.desktop)
                         ServicesListWidget(
                           discoveredServices: discoveredServices,
-                          onTap: (BleService service,
-                              BleCharacteristic characteristic) {
+                          onTap: (service, characteristic, descriptor) {
                             setState(() {
-                              selectedCharacteristic = (
-                                service: service,
-                                characteristic: characteristic
-                              );
+                              selectedService = service;
+                              selectedCharacteristic = characteristic;
+                              selectedDescriptor = descriptor ??
+                                  (characteristic.descriptors.isNotEmpty
+                                      ? characteristic.descriptors.first
+                                      : null);
                             });
                           },
                         ),
@@ -488,9 +666,8 @@ class _PeripheralDetailPageState extends State<PeripheralDetailPage> {
   }
 
   bool _hasSelectedCharacteristicProperty(
-          List<CharacteristicProperty> properties) =>
-      properties.any((property) =>
-          selectedCharacteristic?.characteristic.properties
-              .contains(property) ??
-          false);
+      List<CharacteristicProperty> properties) {
+    return properties.any((property) =>
+        selectedCharacteristic?.properties.contains(property) ?? false);
+  }
 }

@@ -1,0 +1,567 @@
+package com.navideck.universal_ble
+
+import android.annotation.SuppressLint
+import android.Manifest
+import android.content.pm.PackageManager
+import android.os.Build
+import androidx.core.content.ContextCompat
+import android.app.Activity
+import android.bluetooth.BluetoothAdapter
+import android.bluetooth.BluetoothDevice
+import android.bluetooth.BluetoothGatt
+import android.bluetooth.BluetoothGattCharacteristic
+import android.bluetooth.BluetoothGattDescriptor
+import android.bluetooth.BluetoothGattServer
+import android.bluetooth.BluetoothGattServerCallback
+import android.bluetooth.BluetoothGattService
+import android.bluetooth.BluetoothManager
+import android.bluetooth.BluetoothProfile
+import android.bluetooth.le.AdvertiseCallback
+import android.bluetooth.le.AdvertiseData
+import android.bluetooth.le.AdvertiseSettings
+import android.bluetooth.le.BluetoothLeAdvertiser
+import android.content.Context
+import android.content.Intent
+import android.os.Handler
+import android.os.ParcelUuid
+import android.util.Log
+import io.flutter.plugin.common.BinaryMessenger
+
+private const val TAG = "UniversalBlePeripheral"
+private const val REQUEST_CODE_ENABLE_BLUETOOTH = 2342717
+
+@SuppressLint("MissingPermission")
+class UniversalBlePeripheralPlugin(
+    private val applicationContext: Context,
+    private val bluetoothManager: BluetoothManager,
+    messenger: BinaryMessenger,
+) : UniversalBlePeripheralChannel {
+    private var activity: Activity? = null
+    private val callback = UniversalBlePeripheralCallback(messenger)
+    private val handler = Handler(applicationContext.mainLooper)
+    private var bluetoothLeAdvertiser: BluetoothLeAdvertiser? = null
+    private var gattServer: BluetoothGattServer? = null
+    private val bluetoothDevicesMap: MutableMap<String, BluetoothDevice> = HashMap()
+    private val mtuByDeviceId: MutableMap<String, Int> = HashMap()
+    private val emptyBytes = byteArrayOf()
+    private var advertisingState: PeripheralAdvertisingState = PeripheralAdvertisingState.IDLE
+    private var originalAdapterName: String? = null
+    private var adapterNameOverridden = false
+    private var isEnableBluetoothPromptPending = false
+
+
+    fun attachActivity(activity: Activity?) {
+        this.activity = activity
+    }
+
+    fun dispose() {
+        kotlin.runCatching { bluetoothLeAdvertiser?.stopAdvertising(advertiseCallback) }
+        restoreAdapterNameIfNeeded()
+        gattServer?.close()
+        gattServer = null
+        bluetoothLeAdvertiser = null
+        synchronized(bluetoothDevicesMap) {
+            bluetoothDevicesMap.clear()
+        }
+        synchronized(mtuByDeviceId) { mtuByDeviceId.clear() }
+        clearPeripheralCaches()
+        isEnableBluetoothPromptPending = false
+    }
+
+    fun handleActivityResult(requestCode: Int, resultCode: Int, data: Intent?): Boolean {
+        if (requestCode == REQUEST_CODE_ENABLE_BLUETOOTH) {
+            isEnableBluetoothPromptPending = false
+            return true
+        }
+        return false
+    }
+
+    private fun promptEnableBluetooth(activity: Activity) {
+        if (isEnableBluetoothPromptPending) return
+        isEnableBluetoothPromptPending = true
+        try {
+            activity.startActivityForResult(
+                Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE),
+                REQUEST_CODE_ENABLE_BLUETOOTH,
+            )
+        } catch (e: Exception) {
+            isEnableBluetoothPromptPending = false
+            Log.e(TAG, "Failed to start Bluetooth enable activity", e)
+        }
+    }
+
+    /** Opens the LE advertiser and GATT server on first use (not in the constructor). */
+    private fun ensurePeripheralInitialized() {
+        val adapter = bluetoothManager.adapter
+            ?: throw UnsupportedOperationException("Bluetooth is not available.")
+        if (bluetoothLeAdvertiser != null && gattServer != null) return
+        bluetoothLeAdvertiser = adapter.bluetoothLeAdvertiser
+            ?: throw UnsupportedOperationException(
+                "Bluetooth LE Advertising not supported on this device.",
+            )
+        gattServer = bluetoothManager.openGattServer(applicationContext, gattServerCallback)
+            ?: throw UnsupportedOperationException("gattServer is null, check Bluetooth is ON.")
+    }
+
+    private fun requireGattServer(): BluetoothGattServer {
+        ensurePeripheralInitialized()
+        return checkNotNull(gattServer) { "GATT server not available." }
+    }
+
+    override fun getAdvertisingState(): PeripheralAdvertisingState = advertisingState
+
+    private fun hasRequiredPermissions(): Boolean {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) return true
+        val hasAdvertise = ContextCompat.checkSelfPermission(
+            applicationContext,
+            Manifest.permission.BLUETOOTH_ADVERTISE,
+        ) == PackageManager.PERMISSION_GRANTED
+        val hasConnect = ContextCompat.checkSelfPermission(
+            applicationContext,
+            Manifest.permission.BLUETOOTH_CONNECT,
+        ) == PackageManager.PERMISSION_GRANTED
+        return hasAdvertise && hasConnect
+    }
+
+    override fun getReadinessState(): PeripheralReadinessState {
+        val adapter = bluetoothManager.adapter ?: return PeripheralReadinessState.UNSUPPORTED
+        if (!hasRequiredPermissions()) return PeripheralReadinessState.UNAUTHORIZED
+        return try {
+            if (!adapter.isEnabled) {
+                PeripheralReadinessState.BLUETOOTH_OFF
+            } else if (adapter.bluetoothLeAdvertiser == null) {
+                PeripheralReadinessState.UNSUPPORTED
+            } else {
+                PeripheralReadinessState.READY
+            }
+        } catch (e: SecurityException) {
+            PeripheralReadinessState.UNAUTHORIZED
+        }
+    }
+
+    override fun addService(service: PeripheralService) {
+        requireGattServer().addService(service.toGattService())
+    }
+
+    override fun removeService(serviceId: String) {
+        serviceId.findService()?.let { requireGattServer().removeService(it) }
+    }
+
+    override fun clearServices() {
+        requireGattServer().clearServices()
+    }
+
+    override fun getServices(): List<String> =
+        runCatching {
+            requireGattServer().services.map { it.uuid.toString() }
+        }.getOrDefault(emptyList())
+
+    override fun startAdvertising(
+        services: List<String>,
+        localName: String?,
+        timeout: Long?,
+        manufacturerData: UniversalManufacturerData?,
+        platformConfig: PeripheralPlatformConfig?,
+    ) {
+        if (!hasRequiredPermissions()) {
+            advertisingState = PeripheralAdvertisingState.ERROR
+            callback.onAdvertisingStateChange(
+                PeripheralAdvertisingState.ERROR,
+                "Bluetooth permission not granted",
+            ) {}
+            throw SecurityException("Bluetooth permission not granted")
+        }
+        val isEnabled = try {
+            bluetoothManager.isBluetoothEnabled()
+        } catch (e: SecurityException) {
+            advertisingState = PeripheralAdvertisingState.ERROR
+            callback.onAdvertisingStateChange(
+                PeripheralAdvertisingState.ERROR,
+                "Bluetooth permission not granted",
+            ) {}
+            throw e
+        }
+        if (!isEnabled) {
+            advertisingState = PeripheralAdvertisingState.ERROR
+            callback.onAdvertisingStateChange(
+                PeripheralAdvertisingState.ERROR,
+                "Bluetooth is not enabled",
+            ) {}
+            activity?.let { promptEnableBluetooth(it) }
+            throw Exception("Bluetooth is not enabled")
+        }
+        isEnableBluetoothPromptPending = false
+        ensurePeripheralInitialized()
+        advertisingState = PeripheralAdvertisingState.STARTING
+        callback.onAdvertisingStateChange(PeripheralAdvertisingState.STARTING, null) {}
+
+        handler.post {
+            val adapter = bluetoothManager.adapter
+            if (localName != null && adapter != null && adapter.name != localName) {
+                if (!adapterNameOverridden) {
+                    originalAdapterName = adapter.name
+                }
+                adapter.name = localName
+                adapterNameOverridden = true
+            }
+            val advertiseSettings = AdvertiseSettings.Builder()
+                .setTxPowerLevel(AdvertiseSettings.ADVERTISE_TX_POWER_HIGH)
+                .setConnectable(true)
+                .setTimeout(timeout?.toInt() ?: 0)
+                .setAdvertiseMode(AdvertiseSettings.ADVERTISE_MODE_LOW_LATENCY)
+                .build()
+
+            val addServicesInScanResponse =
+                platformConfig?.android?.addServicesInScanResponse == true
+            val addManufacturerDataInScanResponse =
+                platformConfig?.android?.addManufacturerDataInScanResponse == true
+
+            val advertiseDataBuilder = AdvertiseData.Builder()
+                .setIncludeTxPowerLevel(false)
+                .setIncludeDeviceName(localName != null)
+            val scanResponseBuilder = AdvertiseData.Builder()
+                .setIncludeTxPowerLevel(false)
+                .setIncludeDeviceName(false)
+
+            val msdBuilder =
+                if (addManufacturerDataInScanResponse) scanResponseBuilder else advertiseDataBuilder
+            manufacturerData?.let {
+                msdBuilder.addManufacturerData(
+                    it.companyIdentifier.toInt(),
+                    it.data,
+                )
+            }
+
+            val servicesBuilder =
+                if (addServicesInScanResponse) scanResponseBuilder else advertiseDataBuilder
+            services.forEach { servicesBuilder.addServiceUuid(ParcelUuid.fromString(it)) }
+
+            bluetoothLeAdvertiser?.startAdvertising(
+                advertiseSettings,
+                advertiseDataBuilder.build(),
+                scanResponseBuilder.build(),
+                advertiseCallback,
+            )
+        }
+    }
+
+    override fun stopAdvertising() {
+        if (advertisingState == PeripheralAdvertisingState.IDLE && bluetoothLeAdvertiser == null) {
+            return
+        }
+        advertisingState = PeripheralAdvertisingState.STOPPING
+        callback.onAdvertisingStateChange(PeripheralAdvertisingState.STOPPING, null) {}
+        handler.post {
+            kotlin.runCatching { bluetoothLeAdvertiser?.stopAdvertising(advertiseCallback) }
+            restoreAdapterNameIfNeeded()
+            advertisingState = PeripheralAdvertisingState.IDLE
+            callback.onAdvertisingStateChange(PeripheralAdvertisingState.IDLE, null) {}
+        }
+    }
+
+    override fun updateCharacteristic(
+        characteristicId: String,
+        value: ByteArray,
+        deviceId: String?,
+    ) {
+        requireGattServer()
+        val characteristic =
+            characteristicId.findGattCharacteristic() ?: throw Exception("Characteristic not found")
+        characteristic.value = value
+        val targetDevices = synchronized(bluetoothDevicesMap) {
+            if (deviceId != null) {
+                val dev = bluetoothDevicesMap[deviceId]
+                    ?: bluetoothDevicesMap[deviceId.uppercase()]
+                    ?: bluetoothDevicesMap[deviceId.lowercase()]
+                    ?: throw Exception("Device not found")
+                listOf(dev)
+            } else {
+                bluetoothDevicesMap.values.toList()
+            }
+        }
+        val indicate =
+            (characteristic.properties and BluetoothGattCharacteristic.PROPERTY_INDICATE) != 0
+        targetDevices.forEach { device ->
+            handler.post {
+                gattServer?.notifyCharacteristicChanged(device, characteristic, indicate)
+            }
+        }
+    }
+
+    override fun getSubscribedClients(characteristicId: String): List<String> {
+        synchronized(subscribedCharDevicesMap) {
+            return subscribedCharDevicesMap.entries
+                .filter { (_, chars) ->
+                    chars.any { it.equals(characteristicId, ignoreCase = true) }
+                }
+                .map { it.key }
+        }
+    }
+
+    override fun getMaximumNotifyLength(deviceId: String): Long? {
+        val mtu = synchronized(mtuByDeviceId) { mtuByDeviceId[deviceId] } ?: return null
+        return (mtu - 3).coerceAtLeast(0).toLong()
+    }
+
+    private fun onConnectionUpdate(device: BluetoothDevice, status: Int, newState: Int) {
+        Log.e(TAG, "onConnectionStateChange: $status -> $newState")
+        handler.post {
+            callback.onConnectionStateChange(
+                device.address,
+                newState == BluetoothProfile.STATE_CONNECTED,
+            ) {}
+        }
+        if (newState == BluetoothProfile.STATE_DISCONNECTED) cleanConnection(device)
+    }
+
+    private fun cleanConnection(device: BluetoothDevice) {
+        val deviceAddress = device.address
+        val subscribedCharUUID = synchronized(subscribedCharDevicesMap) {
+            val current = subscribedCharDevicesMap[deviceAddress]?.toList() ?: emptyList()
+            subscribedCharDevicesMap.remove(deviceAddress)
+            current
+        }
+        subscribedCharUUID.forEach { charUUID ->
+            handler.post {
+                callback.onCharacteristicSubscriptionChange(
+                    deviceAddress,
+                    charUUID,
+                    false,
+                    device.name,
+                ) {}
+            }
+        }
+    }
+
+    private val advertiseCallback = object : AdvertiseCallback() {
+        override fun onStartFailure(errorCode: Int) {
+            super.onStartFailure(errorCode)
+            handler.post {
+                restoreAdapterNameIfNeeded()
+                val errorMessage = when (errorCode) {
+                    ADVERTISE_FAILED_ALREADY_STARTED -> "Already started"
+                    ADVERTISE_FAILED_DATA_TOO_LARGE -> "Data too large"
+                    ADVERTISE_FAILED_FEATURE_UNSUPPORTED -> "Feature unsupported"
+                    ADVERTISE_FAILED_INTERNAL_ERROR -> "Internal error"
+                    ADVERTISE_FAILED_TOO_MANY_ADVERTISERS -> "Too many advertisers"
+                    else -> "Failed to start advertising: $errorCode"
+                }
+                advertisingState = PeripheralAdvertisingState.ERROR
+                callback.onAdvertisingStateChange(PeripheralAdvertisingState.ERROR, errorMessage) {}
+            }
+        }
+
+        override fun onStartSuccess(settingsInEffect: AdvertiseSettings?) {
+            super.onStartSuccess(settingsInEffect)
+            advertisingState = PeripheralAdvertisingState.ADVERTISING
+            handler.post {
+                callback.onAdvertisingStateChange(PeripheralAdvertisingState.ADVERTISING, null) {}
+            }
+        }
+    }
+
+    private val gattServerCallback = object : BluetoothGattServerCallback() {
+        override fun onConnectionStateChange(device: BluetoothDevice, status: Int, newState: Int) {
+            super.onConnectionStateChange(device, status, newState)
+            when (newState) {
+                BluetoothProfile.STATE_CONNECTED -> {
+                    synchronized(bluetoothDevicesMap) {
+                        bluetoothDevicesMap[device.address] = device
+                    }
+                    handler.post { gattServer?.connect(device, true) }
+                    onConnectionUpdate(device, status, newState)
+                }
+
+                BluetoothProfile.STATE_DISCONNECTED -> {
+                    synchronized(bluetoothDevicesMap) {
+                        bluetoothDevicesMap.remove(device.address)
+                    }
+                    onConnectionUpdate(device, status, newState)
+                }
+            }
+        }
+
+        override fun onMtuChanged(device: BluetoothDevice?, mtu: Int) {
+            super.onMtuChanged(device, mtu)
+            device?.address?.let { address ->
+                synchronized(mtuByDeviceId) { mtuByDeviceId[address] = mtu }
+                handler.post { callback.onMtuChange(address, mtu.toLong()) {} }
+            }
+        }
+
+        override fun onCharacteristicReadRequest(
+            device: BluetoothDevice,
+            requestId: Int,
+            offset: Int,
+            characteristic: BluetoothGattCharacteristic,
+        ) {
+            super.onCharacteristicReadRequest(device, requestId, offset, characteristic)
+            if (gattServer == null) return
+            handler.post {
+                callback.onReadRequest(
+                    deviceIdArg = device.address,
+                    characteristicIdArg = characteristic.uuid.toString(),
+                    offsetArg = offset.toLong(),
+                    valueArg = characteristic.value,
+                ) { result ->
+                    val readResult = result.getOrNull()
+                    if (readResult == null) {
+                        gattServer?.sendResponse(
+                            device, requestId, BluetoothGatt.GATT_FAILURE, 0, emptyBytes,
+                        )
+                    } else {
+                        gattServer?.sendResponse(
+                            device,
+                            requestId,
+                            readResult.status?.toInt() ?: BluetoothGatt.GATT_SUCCESS,
+                            readResult.offset?.toInt() ?: 0,
+                            readResult.value,
+                        )
+                    }
+                }
+            }
+        }
+
+        override fun onCharacteristicWriteRequest(
+            device: BluetoothDevice,
+            requestId: Int,
+            characteristic: BluetoothGattCharacteristic,
+            preparedWrite: Boolean,
+            responseNeeded: Boolean,
+            offset: Int,
+            value: ByteArray,
+        ) {
+            super.onCharacteristicWriteRequest(
+                device, requestId, characteristic, preparedWrite, responseNeeded, offset, value,
+            )
+            handler.post {
+                callback.onWriteRequest(
+                    deviceIdArg = device.address,
+                    characteristicIdArg = characteristic.uuid.toString(),
+                    offsetArg = offset.toLong(),
+                    valueArg = value,
+                ) { writeResponse ->
+                    val writeResult = writeResponse.getOrNull()
+                    if (responseNeeded) {
+                        gattServer?.sendResponse(
+                            device,
+                            requestId,
+                            writeResult?.status?.toInt() ?: BluetoothGatt.GATT_SUCCESS,
+                            writeResult?.offset?.toInt() ?: 0,
+                            writeResult?.value ?: emptyBytes,
+                        )
+                    }
+                }
+            }
+        }
+
+        override fun onServiceAdded(status: Int, service: BluetoothGattService) {
+            super.onServiceAdded(status, service)
+            val error = if (status != BluetoothGatt.GATT_SUCCESS) "Adding Service failed" else null
+            handler.post { callback.onServiceAdded(service.uuid.toString(), error) {} }
+        }
+
+        override fun onDescriptorReadRequest(
+            device: BluetoothDevice,
+            requestId: Int,
+            offset: Int,
+            descriptor: BluetoothGattDescriptor,
+        ) {
+            super.onDescriptorReadRequest(device, requestId, offset, descriptor)
+            handler.post {
+                callback.onDescriptorReadRequest(
+                    deviceIdArg = device.address,
+                    characteristicIdArg = descriptor.characteristic.uuid.toString(),
+                    descriptorIdArg = descriptor.uuid.toString(),
+                    offsetArg = offset.toLong(),
+                    valueArg = descriptor.getCacheValue(),
+                ) { result ->
+                    val readResult = result.getOrNull()
+                    if (readResult == null) {
+                        gattServer?.sendResponse(
+                            device,
+                            requestId,
+                            BluetoothGatt.GATT_FAILURE,
+                            offset,
+                            emptyBytes,
+                        )
+                    } else {
+                        gattServer?.sendResponse(
+                            device,
+                            requestId,
+                            readResult.status?.toInt() ?: BluetoothGatt.GATT_SUCCESS,
+                            readResult.offset?.toInt() ?: offset,
+                            readResult.value,
+                        )
+                    }
+                }
+            }
+        }
+
+        override fun onDescriptorWriteRequest(
+            device: BluetoothDevice,
+            requestId: Int,
+            descriptor: BluetoothGattDescriptor,
+            preparedWrite: Boolean,
+            responseNeeded: Boolean,
+            offset: Int,
+            value: ByteArray?,
+        ) {
+            super.onDescriptorWriteRequest(
+                device, requestId, descriptor, preparedWrite, responseNeeded, offset, value,
+            )
+            descriptor.value = value
+            if (descriptor.uuid.toString().lowercase() == peripheralDescriptorCCUUID.lowercase()) {
+                val isSubscribed =
+                    BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE.contentEquals(value) ||
+                            BluetoothGattDescriptor.ENABLE_INDICATION_VALUE.contentEquals(value)
+                val characteristicId = descriptor.characteristic.uuid.toString()
+                device?.address?.let { address ->
+                    handler.post {
+                        callback.onCharacteristicSubscriptionChange(
+                            address, characteristicId, isSubscribed, device.name,
+                        ) {}
+                    }
+                    synchronized(subscribedCharDevicesMap) {
+                        val charSet = subscribedCharDevicesMap.getOrPut(address) { mutableSetOf() }
+                        if (isSubscribed) {
+                            charSet.add(characteristicId)
+                        } else {
+                            charSet.remove(characteristicId)
+                        }
+                    }
+                }
+            }
+            if (responseNeeded) {
+                handler.post {
+                    callback.onDescriptorWriteRequest(
+                        deviceIdArg = device?.address ?: "",
+                        characteristicIdArg = descriptor.characteristic.uuid.toString(),
+                        descriptorIdArg = descriptor.uuid.toString(),
+                        offsetArg = offset.toLong(),
+                        valueArg = value,
+                    ) { writeResponse ->
+                        val writeResult = writeResponse.getOrNull()
+                        gattServer?.sendResponse(
+                            device,
+                            requestId,
+                            writeResult?.status?.toInt() ?: BluetoothGatt.GATT_SUCCESS,
+                            writeResult?.offset?.toInt() ?: offset,
+                            writeResult?.value ?: value ?: emptyBytes,
+                        )
+                    }
+                }
+            }
+        }
+    }
+
+    private fun restoreAdapterNameIfNeeded() {
+        if (!adapterNameOverridden) return
+        val adapter = bluetoothManager.adapter ?: return
+        kotlin.runCatching {
+            adapter.name = originalAdapterName
+        }
+        adapterNameOverridden = false
+        originalAdapterName = null
+    }
+}

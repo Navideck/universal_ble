@@ -1,0 +1,87 @@
+# Contributing
+
+Thank you for helping improve Universal BLE. This document describes how we work in this repository and what we expect from contributions.
+
+## Reporting issues
+
+Use [GitHub Issues](https://github.com/Navideck/universal_ble/issues). Include the platform (Android, iOS, macOS, Windows, Linux, Web), Flutter/Dart versions, and a minimal way to reproduce the problem when possible.
+
+## Pull requests
+
+- Open PRs against the `main` branch.
+- Keep changes focused: one logical concern per PR is easier to review than a large mixed refactor.
+- Update `CHANGELOG.md` when the change is user-visible (new behavior, fixes, or breaking API changes). Follow the existing bullet style (`* …`, `* BREAKING CHANGE: …` where appropriate).
+- Do not commit secrets, local paths, or generated build artifacts unrelated to the change.
+
+## Environment
+
+Requirements are defined in `pubspec.yaml` (Dart SDK and Flutter). Use a stable Flutter channel unless a maintainer asks otherwise.
+
+From the repo root:
+
+```sh
+flutter pub get
+```
+
+## Checks to run before opening a PR
+
+These mirror [.github/workflows/pull_request.yml](.github/workflows/pull_request.yml):
+
+```sh
+flutter analyze
+flutter test
+flutter test --platform chrome
+```
+
+Fix any analyzer issues. The project uses [flutter_lints](https://pub.dev/packages/flutter_lints) via [analysis_options.yaml](analysis_options.yaml) (which includes `package:flutter_lints/flutter.yaml`).
+
+Format Dart code with the SDK formatter:
+
+```sh
+dart format .
+```
+
+If you only touched specific files, you may format those paths instead of the whole tree.
+
+## Pigeon and generated code
+
+Host–native APIs are defined in [pigeon/universal_ble.dart](pigeon/universal_ble.dart). If you change that file, regenerate outputs and include them in the same PR:
+
+```sh
+./build_pigeon.sh
+```
+
+That runs `dart run pigeon --input pigeon/universal_ble.dart` and formats `lib/src/universal_ble.g.dart`. Regenerated Kotlin, Swift, and C++ files land under `android/`, `darwin/`, and `windows/` as configured in the Pigeon `@ConfigurePigeon` block—keep those in sync with the Dart definitions.
+
+## Code conventions
+
+- **Dart:** Follow effective Dart style, existing naming in `lib/`, and analyzer rules. Prefer extending existing patterns (platform interface → pigeon channel → native implementations) over new parallel abstractions unless discussed first.
+- **Native:** Match the style and structure of the surrounding file on each platform (Kotlin, Swift, C++). When a Pigeon API changes, update every generated implementation and any hand-written glue so all targets stay consistent.
+- **C++:** Format with the committed [.clang-format](.clang-format) rather than matching whitespace by eye. It follows the newer Windows layer style (`windows/src/universal_ble_plugin.*`), most notably `PointerAlignment: Right` (`std::string &id`, not `std::string& id`) and `NamespaceIndentation: None` (`namespace universal_ble {` at column 0, body not indented). Generated Pigeon output under `windows/src/generated/**` is excluded via [.clang-format-ignore](.clang-format-ignore). To keep a PR reviewable, format only your own changes with `git clang-format origin/main` instead of reformatting whole files.
+- **Tests:** Add or extend tests under `test/` when behavior is non-trivial or regression-prone. Use `flutter_test` like the existing suite.
+- **Example:** If the change affects how integrators use the plugin, consider updating the `example/` app so it stays a working reference.
+
+## Callback payloads: positional arguments vs. model objects
+
+Event callbacks (`onXxx` / `onXxxChange`) accept up to **three positional values**; beyond that, group the payload into a model object.
+
+Rule of thumb:
+
+- **Keep positional arguments** when the payload is three values or fewer (`onAvailabilityChange(AvailabilityState)`, `onPairingStateChange(deviceId, isPaired)`), or is internal plumbing not tied to a device event.
+- **Use a model object** when a callback delivers four or more related values for a single entity (a device, a characteristic, a queue item), or when a payload of three or fewer is expected to grow past three. New callbacks must follow this. Examples: `onScanResult(BleDevice)`, `onConnectionChange(BleConnectionChange)`.
+- Name the model for the event and document it field-by-field. Where the callback reports a state change, name the model `…Change` (for example `BleConnectionChange`), matching the `onXxxChange` callback family.
+
+Converting an existing positional callback to a model object is a **breaking change**, so it happens only:
+
+1. on a major release, and
+2. in a PR whose explicit purpose includes that API change — never bundled into an unrelated feature, fix, or refactor PR.
+
+## Platform-specific APIs and parameters
+
+- **Single-platform features:** Prefer not adding a new public API when only one platform can implement it, unless none of the existing APIs can be extended or adapted to cover the behavior. For example, something like Android-only `requestConnectionPriority` should only become its own method if `connect`, `platformConfig`, or another existing entry point cannot reasonably subsume it.
+- **Single-platform parameters:** When a value applies to one platform only, attach it via a platform-scoped bag (for example `startScan` takes an optional `platformConfig` object for options that only affect a given OS). That keeps the main method signature stable and makes it obvious which settings are platform-specific.
+- **Shared parameters:** If more than one platform supports the same option, add it as a normal method parameter on the shared API. Document that implementations on platforms without that capability must ignore the parameter (no-op or documented limitation).
+
+## License
+
+By contributing, you agree that your contributions will be licensed under the same terms as the project: [BSD 3-Clause License](LICENSE).
