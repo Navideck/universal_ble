@@ -740,8 +740,8 @@ class UniversalBle {
   ///
   /// On `Apple` and `Web`, it only works on devices with encrypted characteristics.
   /// It is advised to pass a pairingCommand with an encrypted read or write characteristic.
-  /// When not passing a pairingCommand, you should afterwards use [isPaired] with a pairingCommand
-  /// to verify the pairing state.
+  /// When not passing a pairingCommand, it reads every readable characteristic and fails if none
+  /// can be read; afterwards use [isPaired] with a pairingCommand to verify the pairing state.
   ///
   /// On `Web/Windows` and `Web/Linux`, it does not work for devices that use `ConfirmOnly` pairing.
   /// Can throw `PairingException`, `ConnectionException` or `PlatformException`.
@@ -767,20 +767,13 @@ class UniversalBle {
       if (pairingCommand == null) {
         UniversalLogger.logWarning("PairingCommand required to get result");
       }
-      try {
-        await _connectAndExecuteBleCommand(
-          deviceId,
-          pairingCommand,
-          updateCallbackValue: true,
-          timeout: timeout,
-          queueId: queueId,
-        );
-      } catch (_) {
-        // A failed bond is an event, not a state: report it before surfacing the
-        // error, matching the native platforms' onPairStateChange(isFailure: true).
-        _platform.updatePairingFailure(deviceId);
-        rethrow;
-      }
+      await _connectAndExecuteBleCommand(
+        deviceId,
+        pairingCommand,
+        updateCallbackValue: true,
+        timeout: timeout,
+        queueId: queueId,
+      );
     }
   }
 
@@ -1014,11 +1007,15 @@ class UniversalBle {
   /// [bleCommand] on an encrypted characteristic, or a read of every readable
   /// characteristic when none is given.
   ///
-  /// [updateCallbackValue] reports a successful probe as a pairing state change via
-  /// [UniversalBlePlatform.updatePairingState]. [pair] enables it on the platforms
-  /// without a system pairing API (Apple/Web), where this probe is the only signal
-  /// that the OS paired the device. [isPaired] runs the same probe as a query and
-  /// leaves it `false`, so checking the state does not emit.
+  /// [updateCallbackValue] reports the probe outcome as a pairing state change:
+  /// [UniversalBlePlatform.updatePairingState] on success,
+  /// [UniversalBlePlatform.updatePairingFailure] on failure. [pair] enables it on
+  /// the platforms without a system pairing API (Apple/Web), where this probe is
+  /// the only signal that the OS paired the device. [isPaired] runs the same probe
+  /// as a query and leaves it `false`, so checking the state does not emit.
+  ///
+  /// Only the probe itself is reported; a failure to connect or discover services
+  /// happens before it and propagates without emitting a pairing state.
   static Future<void> _connectAndExecuteBleCommand(
     String deviceId,
     BleCommand? bleCommand, {
@@ -1044,22 +1041,32 @@ class UniversalBle {
     );
     UniversalLogger.logInfo("Discovered services: ${services.length}");
 
-    if (bleCommand == null) {
-      // Just attempt pairing
-      await _attemptPairingReadingAll(
-        deviceId,
-        services,
-        timeout: timeout,
-        queueId: queueId,
-      );
-    } else {
-      await _executeBleCommand(
-        deviceId,
-        services,
-        bleCommand,
-        timeout: timeout,
-        queueId: queueId,
-      );
+    try {
+      if (bleCommand == null) {
+        // Just attempt pairing
+        final probeSucceeded = await _attemptPairingReadingAll(
+          deviceId,
+          services,
+          timeout: timeout,
+          queueId: queueId,
+        );
+        if (!probeSucceeded) {
+          throw PairingException("No readable characteristic could be read");
+        }
+      } else {
+        await _executeBleCommand(
+          deviceId,
+          services,
+          bleCommand,
+          timeout: timeout,
+          queueId: queueId,
+        );
+      }
+    } catch (_) {
+      // A failed bond is an event, not a state: report it before surfacing the
+      // error, matching the native platforms' onPairStateChange(isFailure: true).
+      if (updateCallbackValue) _platform.updatePairingFailure(deviceId);
+      rethrow;
     }
 
     // The probe completed, so the OS paired the device. Apple/Web have no native
@@ -1067,20 +1074,29 @@ class UniversalBle {
     if (updateCallbackValue) _platform.updatePairingState(deviceId, true);
   }
 
-  // Fire and forget, and do not rely on result
-  static Future<void> _attemptPairingReadingAll(
+  /// Reads every readable characteristic to trigger pairing, since Apple/Web pair
+  /// the device when an encrypted characteristic is accessed.
+  ///
+  /// Returns `true` when at least one read succeeded and `false` when reads were
+  /// attempted but all failed, so a probe can be reported as a pairing outcome.
+  /// Individual read failures are ignored, so one unreachable characteristic does
+  /// not stop the others from being tried. Throws [PairingException] when the
+  /// device exposes no readable characteristic to probe.
+  static Future<bool> _attemptPairingReadingAll(
     String deviceId,
     List<BleService> services, {
     Duration? timeout,
     String? queueId,
   }) async {
     bool containsReadCharacteristics = false;
-    try {
-      // If BleCommand not given, fallback to reading all characteristics
-      for (BleService service in services) {
-        for (BleCharacteristic characteristic in service.characteristics) {
-          if (characteristic.properties.contains(CharacteristicProperty.read)) {
-            containsReadCharacteristics = true;
+    bool readSucceeded = false;
+
+    // If BleCommand not given, fallback to reading all characteristics
+    for (BleService service in services) {
+      for (BleCharacteristic characteristic in service.characteristics) {
+        if (characteristic.properties.contains(CharacteristicProperty.read)) {
+          containsReadCharacteristics = true;
+          try {
             await read(
               deviceId,
               service.uuid,
@@ -1088,14 +1104,17 @@ class UniversalBle {
               timeout: timeout ?? const Duration(seconds: 30),
               queueId: queueId,
             );
-          }
+            readSucceeded = true;
+          } catch (_) {}
         }
       }
-    } catch (_) {}
+    }
 
     if (!containsReadCharacteristics) {
       throw PairingException("No readable characteristic found");
     }
+
+    return readSucceeded;
   }
 
   static Future<void> _executeBleCommand(

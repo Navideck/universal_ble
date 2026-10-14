@@ -44,6 +44,22 @@ class _EncryptedProbePlatform extends UniversalBlePlatformMock {
   }
 }
 
+class _ConnectFailurePlatform extends UniversalBlePlatformMock {
+  @override
+  Future<BleConnectionState> getConnectionState(String deviceId) async =>
+      BleConnectionState.disconnected;
+
+  @override
+  Future<void> connect(
+    String deviceId, {
+    bool autoConnect = false,
+    Duration? connectionTimeout,
+    ConnectionPlatformConfig? platformConfig,
+  }) async {
+    throw ConnectionException('connect failed');
+  }
+}
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
@@ -91,6 +107,24 @@ void main() {
     expect(events, [true]);
   });
 
+  test('pair() without a pairingCommand reports a failure event when all reads fail',
+      () async {
+    UniversalBle.setInstance(
+      _EncryptedProbePlatform(readError: Exception('encrypted read failed')),
+    );
+    final events = <bool>[];
+    final sub = UniversalBle.pairingStateStream(deviceId).listen(events.add);
+
+    await expectLater(
+      UniversalBle.pair(deviceId),
+      throwsA(isA<PairingException>()),
+    );
+    await pumpEventQueue();
+    await sub.cancel();
+
+    expect(events, [false]);
+  });
+
   test('pair() reports a failure event when the probe throws', () async {
     UniversalBle.setInstance(
       _EncryptedProbePlatform(readError: Exception('encrypted read failed')),
@@ -106,6 +140,22 @@ void main() {
     await sub.cancel();
 
     expect(events, [false]);
+  });
+
+  test('pair() connection failure does not emit a pairing state change',
+      () async {
+    UniversalBle.setInstance(_ConnectFailurePlatform());
+    final events = <bool>[];
+    final sub = UniversalBle.pairingStateStream(deviceId).listen(events.add);
+
+    await expectLater(
+      UniversalBle.pair(deviceId, pairingCommand: encryptedCharacteristic),
+      throwsA(isA<ConnectionException>()),
+    );
+    await pumpEventQueue();
+    await sub.cancel();
+
+    expect(events, isEmpty);
   });
 
   test('isPaired() runs the probe but does not emit a pairing state change',
