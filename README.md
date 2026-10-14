@@ -88,7 +88,7 @@ Looking for Bluetooth Classic? Check [universal_bluetooth_classic](https://pub.d
 | getMaximumNotifyLength        |   ✔️    | ✔️  |  ✔️   |   ✔️    |  🚧   | —  |
 | event streams\*\*\*           |   ✔️    | ✔️  |  ✔️   |   ✔️    |  🚧   | —  |
 
-**Legend:** ✔️ supported · — not supported · ⏺ partial support (see notes) · 🚧 work in progress.
+**Legend:** ✔️ supported, — not supported, ⏺ partial support (see notes), 🚧 work in progress.
 
 \* `getAvailabilityState` returns a snapshot. Listen to `advertisingStateStream`, `connectionStateStream`, and related streams for runtime updates.
 \*\* Pass `deviceId` to notify one client; omit it to notify all subscribed clients (when supported — see `getCapabilities().supportsTargetedCharacteristicUpdate`).
