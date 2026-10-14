@@ -123,11 +123,60 @@ void main() {
     expect(await UniversalBle.requestMtu(deviceId, 247), 247);
     expect(platform.discoverRequests.length, 1);
 
-    // A disconnect clears the per-device cache (see
-    // `UniversalBlePlatform.updateConnection`).
-    CacheHandler.instance.resetDeviceCache(canonicalId);
+    // Drive the production disconnect path, which clears the per-device cache
+    // (see `UniversalBlePlatform.updateConnection`).
+    platform.updateConnection(deviceId, false);
 
     expect(await UniversalBle.requestMtu(deviceId, 247), 247);
     expect(platform.discoverRequests.length, 2);
+  });
+
+  group('shares in-flight discovery', () {
+    test('concurrent requestMtu calls discover once', () async {
+      debugDefaultTargetPlatformOverride = TargetPlatform.linux;
+
+      await Future.wait([
+        UniversalBle.requestMtu(deviceId, 100),
+        UniversalBle.requestMtu(deviceId, 247),
+      ]);
+
+      expect(platform.discoverRequests, [deviceId]);
+      expect(platform.mtuRequests, [deviceId, deviceId]);
+    });
+
+    test('requestMtu shares a discovery started by discoverServices', () async {
+      debugDefaultTargetPlatformOverride = TargetPlatform.linux;
+
+      await Future.wait([
+        UniversalBle.discoverServices(deviceId),
+        UniversalBle.requestMtu(deviceId, 247),
+      ]);
+
+      expect(platform.discoverRequests, [deviceId]);
+    });
+
+    test('only one of several identical discoverServices calls runs',
+        () async {
+      debugDefaultTargetPlatformOverride = TargetPlatform.macOS;
+
+      await Future.wait([
+        UniversalBle.discoverServices(deviceId),
+        UniversalBle.discoverServices(deviceId),
+      ]);
+
+      expect(platform.discoverRequests, [deviceId]);
+    });
+
+    test('a discoverServices with different options still runs its own',
+        () async {
+      debugDefaultTargetPlatformOverride = TargetPlatform.macOS;
+
+      await Future.wait([
+        UniversalBle.discoverServices(deviceId),
+        UniversalBle.discoverServices(deviceId, withDescriptors: true),
+      ]);
+
+      expect(platform.discoverRequests.length, 2);
+    });
   });
 }
