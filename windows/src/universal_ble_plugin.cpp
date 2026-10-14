@@ -313,6 +313,18 @@ std::optional<FlutterError> UniversalBlePlugin::StartScan(
     if (!bluetooth_le_watcher_) {
       bluetooth_le_watcher_ = BluetoothLEAdvertisementWatcher();
       bluetooth_le_watcher_.ScanningMode(BluetoothLEScanningMode::Active);
+      try {
+        bluetooth_le_watcher_.AllowExtendedAdvertisements(true);
+      } catch (const hresult_error &err) {
+        // Expected on Windows builds before 10.0.19041 (the property requires
+        // UniversalApiContract v10) or on adapters without Bluetooth 5 support.
+        // Scans continue with legacy advertisements only.
+        UniversalBleLogger::LogWarning(
+            "Extended advertisements unavailable hr=" +
+            std::to_string(err.code()) + " msg=" + to_string(err.message()));
+      } catch (...) {
+        log_and_swallow_unknown("StartScan AllowExtendedAdvertisements");
+      }
       resetScanFilter();
 
       if (filter != nullptr) {

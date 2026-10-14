@@ -1,4 +1,5 @@
 ## 3.0.0
+* Windows: enable extended BLE advertisement scanning (`AllowExtendedAdvertisements`), with graceful fallback on unsupported OS versions or adapters.
 * Enhance `Uint8List` and `Future<Uint8List>` extensions with comprehensive BLE data type conversions (`int8`, `uint8`, `int16`, `uint16`, `int32`, `uint32`, `float32`, `float64`, `toUtf8`, `toHexString`), byte offset support, and direct `byteData` view accessor.
 * Add `subscribedCentralsStream` and `subscribedCentrals` getter to `UniversalBlePeripheral` to track and expose active central devices (`BleCentral`) subscribed to characteristics in peripheral mode.
 * Extend Windows HIL/FIT coverage for indications, long values, resource pressure, and deterministic timing sweeps using fixture v2.
