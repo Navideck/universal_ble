@@ -85,7 +85,7 @@ Looking for Bluetooth Classic? Check [universal_bluetooth_classic](https://pub.d
 
 \* `getAvailabilityState` returns a snapshot. Listen to `advertisingStateStream`, `connectionStateStream`, and related streams for runtime updates.
 \*\* Pass `deviceId` to notify one client; omit it to notify all subscribed clients (when supported — see `getCapabilities().supportsTargetedCharacteristicUpdate`).
-\*\*\* `advertisingStateStream`, `characteristicSubscriptionStream`, `connectionStateStream`, `serviceAddedStream`, `mtuChangedStream`.
+\*\*\* `advertisingStateStream`, `characteristicSubscriptionStream`, `connectionStateStream`, `serviceAddedStream`, `mtuChangedStream`, `subscribedCentralsStream`.
 
 ## Getting Started
 
@@ -463,9 +463,42 @@ BleCharacteristic characteristic = await service.getCharacteristic('2a56');
 
 You need to first [discover services](#discovering-services) before you are able to read and write to characteristics.
 
+### Reading data
+
 ```dart
 Uint8List value = await characteristic.read();
 ```
+
+To make it more convenient, you can use built-in extensions on `Future<Uint8List>` or `Uint8List` to parse numbers, strings, and hex directly:
+
+```dart
+// Numbers (8, 16, 32-bit signed/unsigned, floats), little-endian by default
+int batteryLevel = await characteristic.read().toUint8();
+int heartRate    = await characteristic.read().toUint16(); 
+int counter      = await characteristic.read().toInt32();
+double temp      = await characteristic.read().toFloat32();
+
+// Custom endianness and byte offset for multi-field packets
+int sensorValue  = await characteristic.read().toUint16(offset: 2, endian: Endian.big);
+
+// Strings (Device Name, Serial Number, etc.)
+String deviceName = await characteristic.read().toUtf8();
+
+// Hex string for debugging (e.g. "01:0a:ff" or "010AFF")
+String hexDump = await characteristic.read().toHexString(separator: ':');
+```
+
+The same extensions work on any `Uint8List` (e.g., from `characteristic.onValueReceived` notifications):
+
+```dart
+characteristic.onValueReceived.listen((bytes) {
+  int flags = bytes.toUint8();
+  int sensorReading = bytes.toUint16(offset: 1);
+  print('Hex payload: ${bytes.toHexString()}');
+});
+```
+
+### Writing data
 
 ```dart
 await characteristic.write([0x01, 0x02, 0x03]);
@@ -1088,10 +1121,30 @@ UniversalBlePeripheral.mtuChangedStream.listen(
 );
 ```
 
+### Tracking Subscribed Centrals
+
+To track connected BLE central devices currently subscribed to characteristics on your peripheral:
+
+```dart
+import 'package:universal_ble/universal_ble.dart';
+
+// Stream of active centrals (emits current list upon listen, and updates on subscribe/unsubscribe/disconnect)
+UniversalBlePeripheral.subscribedCentralsStream.listen((List<BleCentral> centrals) {
+  for (final central in centrals) {
+    print('Central ID: ${central.id}, Name: ${central.name}');
+    print('Subscribed characteristics: ${central.subscribedCharacteristics}');
+  }
+});
+
+// Synchronous snapshot
+final List<BleCentral> activeCentrals = UniversalBlePeripheral.subscribedCentrals;
+```
+
 ### Platform notes
 
 - Linux/Web currently return unsupported for peripheral mode.
 - Windows peripheral advertising does not expose all advertising payload customization options from Android/Apple stacks.
+- **Central tracking on iOS / Apple platforms**: CoreBluetooth's `CBPeripheralManager` does not expose generic link-layer connection/disconnection callbacks for peripherals. Centrals are tracked as active when they subscribe to at least one GATT characteristic (`didSubscribeTo`), and are removed only when unsubscribed from all characteristics via `didUnsubscribeFrom`. Because CoreBluetooth does not guarantee unsubscription callbacks on abrupt link-layer disconnects, an entry may linger until the next unsubscription or until services are cleared. Other platforms (such as Android) additionally prune tracked centrals immediately on link-layer disconnection.
 - iOS/macOS setup (including required `Info.plist` keys for peripheral usage) is documented in [Permissions → iOS / macOS](#ios--macos).
 
 ## Device ID & UUID Formats

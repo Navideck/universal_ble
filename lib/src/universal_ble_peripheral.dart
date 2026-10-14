@@ -1,20 +1,46 @@
 import 'package:flutter/foundation.dart';
 import 'package:universal_ble/src/universal_ble_pigeon/universal_ble_peripheral_pigeon.dart';
+import 'package:universal_ble/src/utils/ble_central_tracker.dart';
 import 'package:universal_ble/src/utils/ble_command_queue.dart';
 import 'package:universal_ble/src/utils/universal_logger.dart';
 import 'package:universal_ble/universal_ble.dart';
 
 class UniversalBlePeripheral {
   static UniversalBlePeripheralPlatform? _instance;
-  static UniversalBlePeripheralPlatform get _platform =>
-      _instance ??= _defaultPlatform();
+  static UniversalBlePeripheralPlatform get _platform {
+    _instance ??= _defaultPlatform();
+    _ensureTrackerBound();
+    return _instance!;
+  }
+
   static final BleCommandQueue _bleCommandQueue = BleCommandQueue(
     isAddressSupplier: () => _platform.hasAddressDeviceIds,
   );
+  static final BleCentralTracker _centralTracker = BleCentralTracker();
+  static bool _trackerBound = false;
+
+  static void _ensureTrackerBound() {
+    if (_trackerBound) return;
+    final platform = _instance ??= _defaultPlatform();
+    _trackerBound = true;
+    try {
+      _centralTracker.bindStreams(
+        characteristicSubscriptionStream:
+            platform.characteristicSubscriptionStream,
+        connectionStateStream: platform.connectionStateStream,
+      );
+    } catch (_) {
+      _trackerBound = false;
+      // Platform implementation may not support or mock these streams.
+    }
+  }
 
   static void setInstance(UniversalBlePeripheralPlatform instance) {
     _instance?.dispose();
     _instance = instance;
+    _trackerBound = false;
+    _centralTracker.reset();
+    _ensureTrackerBound();
   }
 
   /// Set global timeout for all peripheral commands.
@@ -69,6 +95,23 @@ class UniversalBlePeripheral {
   static Stream<BlePeripheralMtuChanged> get mtuChangedStream =>
       _platform.mtuChangedStream;
 
+  /// Stream of currently subscribed BLE central devices.
+  ///
+  /// Emits the current list of subscribed centrals upon listening and
+  /// whenever a central subscribes to/unsubscribes from characteristics
+  /// or disconnects.
+  static Stream<List<BleCentral>> get subscribedCentralsStream {
+    _ensureTrackerBound();
+    return _centralTracker.stream;
+  }
+
+  /// Returns the current list of central devices subscribed to at least
+  /// one characteristic.
+  static List<BleCentral> get subscribedCentrals {
+    _ensureTrackerBound();
+    return _centralTracker.subscribedCentrals;
+  }
+
   static void setReadRequestHandlers(OnPeripheralReadRequest? handlers) =>
       _platform.setReadRequestHandler(handlers);
 
@@ -99,18 +142,33 @@ class UniversalBlePeripheral {
     Duration? timeout,
   }) =>
       _bleCommandQueue.queueCommand(
-        () => _platform.addService(service.toPeripheralService(),
-            timeout: timeout),
+        () async {
+          await _platform.addService(
+            service.toPeripheralService(),
+            timeout: timeout,
+          );
+          _centralTracker.registerService(
+            service.uuid,
+            service.characteristics.map((c) => c.uuid),
+          );
+        },
         timeout: timeout,
       );
 
   static Future<void> removeService(String serviceId) =>
       _bleCommandQueue.queueCommand(
-        () => _platform.removeService(BleUuidParser.string(serviceId)),
+        () async {
+          final normalizedServiceId = BleUuidParser.string(serviceId);
+          await _platform.removeService(normalizedServiceId);
+          _centralTracker.removeService(normalizedServiceId);
+        },
       );
 
   static Future<void> clearServices() => _bleCommandQueue.queueCommand(
-        () => _platform.clearServices(),
+        () async {
+          await _platform.clearServices();
+          _centralTracker.clear();
+        },
       );
 
   static Future<List<String>> getServices() => _bleCommandQueue.queueCommand(
