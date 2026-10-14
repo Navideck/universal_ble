@@ -28,8 +28,8 @@ All case conversion and ID classification live centrally in `lib/src/utils/devic
 ### 3. Queues, Caches, and Deduplication
 - **`BleCommandQueue`:**
   - Resolved with `isAddressSupplier: () => _platform.hasAddressDeviceIds` to dynamically distinguish Bluetooth addresses from Web tokens.
-  - When clearing queues (`clearQueue(id)`), if `_isAddress` is true and `id` is a device address, clear both canonical and native variations of the key. Custom queue IDs are preserved as-is.
-  - When `queueId` is a device address or matches `deviceId`, canonicalise it to preserve per-device command serialization across differing casing.
+  - When clearing queues (`clearQueue(id)`), if `_isAddress` is true and `id` is a device address, clear both canonical and native variations of the key. Non-address ids (custom queue IDs) are preserved as-is.
+  - Canonicalise a `queueId` or `deviceId` only when it is a device address (`DeviceId.looksLikeAddress`), so per-device command serialization survives differing casing while custom queue IDs stay verbatim. Keying and clearing use the same rule, so every key is clearable by the id that produced it.
 - **`ScanDeduplicator`:**
   - Uses `isAddress` (`true` by default on native platforms, `false` on Web).
   - When `isAddress` is true, deduplicates across different casing of the same device address.

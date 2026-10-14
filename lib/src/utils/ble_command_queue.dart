@@ -36,18 +36,19 @@ class BleCommandQueue {
           : QueueType.none)
       : queueType;
 
+  /// The queue key for [id]: a device address is canonicalised so the same device always
+  /// maps to one queue whichever case a caller passes, while anything that is not an address
+  /// (a custom queue id, an opaque Web token) is kept verbatim. [clearQueue] derives keys the
+  /// same way, so any key this produces can always be cleared by the id that produced it.
+  String _keyFor(String id) =>
+      _isAddress && DeviceId.looksLikeAddress(id)
+          ? id.toDeviceId().canonical
+          : id;
+
   String? _queueKey(String? queueId, String? deviceId) {
-    if (queueId != null) {
-      if (_isAddress &&
-          ((deviceId != null &&
-                  queueId.toLowerCase() == deviceId.toLowerCase()) ||
-              DeviceId.looksLikeAddress(queueId))) {
-        return queueId.toDeviceId().canonical;
-      }
-      return queueId;
-    }
+    if (queueId != null) return _keyFor(queueId);
     if (deviceId == null) return null;
-    return _isAddress ? deviceId.toDeviceId().canonical : deviceId;
+    return _keyFor(deviceId);
   }
 
   Future<T> queueCommand<T>(
@@ -109,11 +110,13 @@ class BleCommandQueue {
       _queueMap.clear();
     } else {
       _queueMap.remove(id)?.dispose();
+      final canonical = _keyFor(id);
+      if (canonical != id) {
+        _queueMap.remove(canonical)?.dispose();
+      }
+      // `_keyFor` never yields the native form, but a global queue may be keyed by a
+      // `queueId` the caller passed verbatim (including upper-case), so clear it too.
       if (_isAddress && DeviceId.looksLikeAddress(id)) {
-        final canonical = id.toDeviceId().canonical;
-        if (canonical != id) {
-          _queueMap.remove(canonical)?.dispose();
-        }
         final native = id.toDeviceId().native;
         if (native != id) {
           _queueMap.remove(native)?.dispose();

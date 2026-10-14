@@ -396,6 +396,38 @@ void main() {
   });
 
   test(
+      'clearQueue clears an id that is not address-shaped on an isAddress queue',
+      () async {
+    // Keying and clearing use the same rule (`DeviceId.looksLikeAddress`), so a queue must
+    // always be clearable by the exact id that produced its key — including a non-address id.
+    final queue = BleCommandQueue(
+      queueType: QueueType.perDevice,
+      isAddress: true,
+    );
+
+    final started = Completer<void>();
+    final release = Completer<void>();
+
+    final inFlight = queue.queueCommand(() async {
+      started.complete();
+      await release.future;
+    }, deviceId: 'DeviceA');
+    final pending = queue.queueCommand(
+      () async => 'pending-ok',
+      deviceId: 'DeviceA',
+    );
+
+    await started.future;
+
+    final pendingExpectation = expectLater(pending, throwsException);
+    queue.clearQueue('DeviceA');
+
+    release.complete();
+    await inFlight;
+    await pendingExpectation;
+  });
+
+  test(
       'per-device command queue serializes commands when queueId is passed in different casing for device address',
       () async {
     final queue = BleCommandQueue(

@@ -756,7 +756,7 @@ class UniversalBle {
   /// Clear a queue.
   /// Use [BleCommandQueue.globalQueueId] to clear the global queue.
   /// To clear the queue of a specific device, use `deviceId` as [id] (handled case-insensitively on native platforms).
-  /// To clear a custom queue, pass the same `queueId` string used when enqueueing commands. Custom queue IDs are matched exactly.
+  /// To clear a custom queue, pass the same `queueId` string used when enqueueing commands (matched exactly, unless the id is a device address, which is matched case-insensitively).
   /// If no [id] is provided, all queues will be cleared.
   static void clearQueue([String? id]) => _bleCommandQueue.clearQueue(id);
 
