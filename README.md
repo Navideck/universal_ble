@@ -1100,12 +1100,11 @@ Universal BLE normalises identifiers across platforms so you don't need to worry
 
 ### Device IDs
 
-- **Android, iOS, macOS, Windows, Linux:** The OS reports device IDs (MAC addresses or Apple UUIDs) in its own case, and the library normalises them to **lower-case** so IDs can be compared with plain string equality. It also accepts a `deviceId` in upper, lower, or mixed case in any `UniversalBle` or `UniversalBlePeripheral` method.
+- **Android, iOS, macOS, Windows, Linux:** Device IDs (MAC addresses or Apple UUIDs) are normalised to **lower-case**, so IDs can be compared with plain string equality, and a `deviceId` can be passed in upper, lower, or mixed case to any `UniversalBle` or `UniversalBlePeripheral` method.
 - **Web (exception):** Device IDs are opaque, case-sensitive browser tokens, preserved verbatim and must be matched with exact case.
 
 ```dart
-// The OS reports IDs in its own case; the library normalises them to lower-case,
-// so IDs compare with plain string equality:
+// Native IDs are normalised to lower-case, so IDs compare with plain string equality:
 UniversalBle.onScanResult = (BleDevice device) {
   print(device.deviceId); // e.g. "aa:bb:cc:dd:ee:ff" or "e621e1f8-c36c-495a-93fc-0c247a3e6e5f"
 };
