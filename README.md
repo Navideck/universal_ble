@@ -54,10 +54,10 @@ Looking for Bluetooth Classic? Check [universal_bluetooth_classic](https://pub.d
 | read                          |   ✔️    | ✔️  |  ✔️   |   ✔️    |  ✔️   | ✔️  |
 | write                         |   ✔️    | ✔️  |  ✔️   |   ✔️    |  ✔️   | ✔️  |
 | subscriptions                 |   ✔️    | ✔️  |  ✔️   |   ✔️    |  ✔️   | ✔️  |
-| pair¹                         |   ✔️    | ✔️  |  ✔️   |   ✔️    |  ✔️   |  ⏺  |
-| unpair²                       |   ✔️    |  ⏺  |  —   |   ✔️    |  ✔️   | —  |
-| isPaired³                     |   ✔️    | ✔️  |  ✔️   |   ✔️    |  ✔️   | ✔️  |
-| onPairingStateChange⁴         |   ✔️    |  ⏺  |  ⏺   |   ✔️    |  ✔️   |  ⏺  |
+| pair                          |   ✔️    | ✔️  |  ✔️   |   ✔️    |  ✔️   |  ⏺¹ |
+| unpair                        |   ✔️    |  ⏺² |  —   |   ✔️    |  ✔️   | —  |
+| isPaired                      |   ✔️    | ✔️  |  ✔️   |   ✔️    |  ✔️   | ✔️  |
+| onPairingStateChange          |   ✔️    |  ⏺³ |  ⏺³  |   ✔️    |  ✔️   |  ⏺³ |
 | getBluetoothAvailabilityState |   ✔️    | ✔️  |  ✔️   |   ✔️    |  ✔️   | —  |
 | enable/disable Bluetooth      |   ✔️    | —  |  —   |   ✔️    |  ✔️   | —  |
 | onAvailabilityChange          |   ✔️    | ✔️  |  ✔️   |   ✔️    |  ✔️   | ✔️  |
@@ -67,13 +67,11 @@ Looking for Bluetooth Classic? Check [universal_bluetooth_classic](https://pub.d
 | readRssi                      |   ✔️    | ✔️  |  ✔️   |   —    |  🚧   | —  |
 | requestPermissions            |   ✔️    | ✔️  |  ✔️   |   ✔️    |  ✔️   | ✔️  |
 
-¹ On iOS, macOS, and Web there is no dedicated pairing API: `pair()` connects and reads or writes an encrypted characteristic so the OS triggers pairing (pass a `pairingCommand` to target a specific one). This works for all pairing methods on iOS/macOS. On Web the outcome depends on the browser's host OS: ConfirmOnly ("Just Works") pairing can be triggered when the browser runs on macOS or Android, but not on Windows or Linux.
+¹ On Web, `pair()` depends on the browser's host OS: ConfirmOnly ("Just Works") pairing can be triggered when the browser runs on macOS or Android, but not on Windows or Linux.
 
-² On iOS, `unpair` requires iOS 18+ and only removes accessories authorized through AccessorySetupKit (`requestDevice`); other devices fail with `deviceNotFound`.
+² On iOS, `unpair` only works for accessories authorized through AccessorySetupKit; other devices fail with `deviceNotFound`.
 
-³ On iOS, macOS, and Web, `isPaired` needs a `pairingCommand` with an encrypted read or write characteristic and returns `null` without one. It also triggers pairing if the device is not already paired.
-
-⁴ On iOS, macOS, and Web, `pair()` reports the outcome it drove: `true` when the encrypted-characteristic probe succeeds and `false` on failure. There is no system-initiated pairing event and `unpair` does not report, so other changes stay invisible — read the current state with `isPaired(pairingCommand:)`.
+³ On iOS, macOS, and Web, events are driven by `pair()`: `true` when the encrypted-characteristic probe succeeds and `false` on failure. There is no system-initiated event and `unpair` does not report, so read the current state with `isPaired(pairingCommand:)`.
 
 ### Peripheral Mode (`UniversalBlePeripheral`)
 
@@ -637,7 +635,7 @@ bleDevice.pairingStateStream.listen((bool paired) {
 });
 ```
 
-On `Apple` and `Web`, events are driven by `pair()`: `true` when it successfully triggers pairing and `false` on failure. Those platforms have no system-initiated pairing event, and `unpair` does not report, so read the current state with `isPaired(pairingCommand:)` after those operations.
+On `Apple` and `Web`, see note ³ in [API Support](#api-support).
 
 #### Unpair
 
