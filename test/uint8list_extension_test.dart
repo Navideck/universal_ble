@@ -8,11 +8,11 @@ void main() {
       final list =
           Uint8List.fromList([0xFE, 0x7F]); // 0xFE = 254 (uint8) or -2 (int8)
 
-      expect(list.toInt8(0), -2);
-      expect(list.toUint8(0), 254);
+      expect(list.toInt8(), -2);
+      expect(list.toUint8(), 254);
 
-      expect(list.toInt8(1), 127);
-      expect(list.toUint8(1), 127);
+      expect(list.toInt8(offset: 1), 127);
+      expect(list.toUint8(offset: 1), 127);
     });
 
     test('16-bit integer conversions with endianness and offset', () {

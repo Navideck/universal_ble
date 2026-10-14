@@ -4,10 +4,12 @@ import 'dart:typed_data';
 /// Extensions on [Future<Uint8List>] to conveniently parse read results into numbers, strings, etc.
 extension FutureUint8ListExtension on Future<Uint8List> {
   /// Converts the Future [Uint8List] to a signed 8-bit integer.
-  Future<int> toInt8([int offset = 0]) => then((data) => data.toInt8(offset));
+  Future<int> toInt8({int offset = 0}) =>
+      then((data) => data.toInt8(offset: offset));
 
   /// Converts the Future [Uint8List] to an unsigned 8-bit integer.
-  Future<int> toUint8([int offset = 0]) => then((data) => data.toUint8(offset));
+  Future<int> toUint8({int offset = 0}) =>
+      then((data) => data.toUint8(offset: offset));
 
   /// Converts the Future [Uint8List] to a signed 16-bit integer,
   /// assuming little-endian encoding by default.
@@ -55,10 +57,10 @@ extension Uint8ListExtension on Uint8List {
   ByteData get byteData => ByteData.sublistView(this);
 
   /// Converts the byte at [offset] to a signed 8-bit integer.
-  int toInt8([int offset = 0]) => byteData.getInt8(offset);
+  int toInt8({int offset = 0}) => byteData.getInt8(offset);
 
   /// Converts the byte at [offset] to an unsigned 8-bit integer.
-  int toUint8([int offset = 0]) => byteData.getUint8(offset);
+  int toUint8({int offset = 0}) => byteData.getUint8(offset);
 
   /// Converts 2 bytes starting at [offset] to a signed 16-bit integer,
   /// assuming little-endian encoding by default.
@@ -92,8 +94,10 @@ extension Uint8ListExtension on Uint8List {
 
   /// Decodes this [Uint8List] as a UTF-8 string.
   ///
-  /// Set [allowMalformed] to `true` to replace malformed byte sequences with
-  /// the Unicode replacement character (U+FFFD).
+  /// [allowMalformed] defaults to `true`, so malformed byte sequences (for
+  /// example a truncated string field) are replaced with the Unicode
+  /// replacement character (U+FFFD) instead of throwing. Set it to `false` to
+  /// throw on malformed input.
   String toUtf8({bool allowMalformed = true}) =>
       utf8.decode(this, allowMalformed: allowMalformed);
 

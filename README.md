@@ -492,7 +492,7 @@ The same extensions work on any `Uint8List` (e.g., from `characteristic.onValueR
 
 ```dart
 characteristic.onValueReceived.listen((bytes) {
-  int flags = bytes.toUint8(0);
+  int flags = bytes.toUint8();
   int sensorReading = bytes.toUint16(offset: 1);
   print('Hex payload: ${bytes.toHexString()}');
 });
