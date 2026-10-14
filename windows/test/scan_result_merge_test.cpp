@@ -1,16 +1,16 @@
-// Unit tests for the pure scan-result merge/delivery decisions used by
+// Unit tests for the pure scan-result merge and connectability decisions used by
 // UniversalBlePlugin::PushUniversalScanResult. They cover the Windows
-// scan-response fix: a scan response must reach the caller, a sparse response
-// must not evict cached data, and non-connectable advertisers must stay out.
+// scan-response handling: a scan response must reach the caller, a sparse response
+// must not evict cached data, and scan responses preserve connectability.
 
 #include "scan_result_merge.h"
 
 #include <iostream>
 
+using universal_ble::DeriveConnectableState;
 using universal_ble::PlanScanBackfill;
 using universal_ble::ScanBackfillPlan;
 using universal_ble::ScanFieldPresence;
-using universal_ble::ShouldDeliverScanResult;
 using universal_ble::ShouldUpdateScanResult;
 
 namespace {
@@ -88,17 +88,26 @@ int main() {
   CHECK(
       !ShouldUpdateScanResult(ScanBackfillPlan{}, /*is_scan_response=*/false));
 
-  // Delivery gate: connectable packets always pass.
-  CHECK(ShouldDeliverScanResult(/*is_connectable=*/true,
+  // Connectability derivation:
+  // Connectable advertisements report connectable.
+  CHECK(DeriveConnectableState(/*is_connectable=*/true,
+                               /*is_scan_response=*/false,
+                               /*address_heard_connectable=*/false));
+
+  // Non-connectable advertisements (e.g. beacons) report non-connectable.
+  CHECK(!DeriveConnectableState(/*is_connectable=*/false,
                                 /*is_scan_response=*/false,
                                 /*address_heard_connectable=*/false));
 
-  // An answered scan request passes only for an address heard connectable.
-  CHECK(ShouldDeliverScanResult(false, true, true));
-  CHECK(!ShouldDeliverScanResult(false, true, false));
+  // An answered scan request inherits connectable if heard connectable.
+  CHECK(DeriveConnectableState(/*is_connectable=*/false,
+                               /*is_scan_response=*/true,
+                               /*address_heard_connectable=*/true));
 
-  // A non-connectable packet that is not a scan response never passes.
-  CHECK(!ShouldDeliverScanResult(false, false, true));
+  // A scan response for an address never heard connectable reports non-connectable.
+  CHECK(!DeriveConnectableState(/*is_connectable=*/false,
+                                /*is_scan_response=*/true,
+                                /*address_heard_connectable=*/false));
 
   return 0;
 }

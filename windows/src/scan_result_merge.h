@@ -55,11 +55,11 @@ inline bool ShouldUpdateScanResult(const ScanBackfillPlan &plan,
          plan.services || plan.service_data || is_scan_response;
 }
 
-// A packet may be handed to the caller when it advertised connectably, or when
-// it is an answered scan request for an address already seen connectably. This
-// keeps beacons and other non-connectable advertisers out.
-inline bool ShouldDeliverScanResult(bool is_connectable, bool is_scan_response,
-                                    bool address_heard_connectable) {
+// Determines whether the scan result is connectable. On Windows, a scan
+// response always reports IsConnectable == false; it inherits connectability
+// if the device was already seen advertising connectably.
+inline bool DeriveConnectableState(bool is_connectable, bool is_scan_response,
+                                   bool address_heard_connectable) {
   return is_connectable || (is_scan_response && address_heard_connectable);
 }
 

@@ -1398,10 +1398,6 @@ std::string UniversalBlePlugin::ExpandServiceUuid(
 // this gate used to drop it. The caller then never saw the service, while
 // Android, BlueZ, CoreBluetooth and bleak all merge the two packets of a
 // device into one result.
-//
-// The gate now also admits an answered scan request for an address that has
-// already been handed over as connectable, which leaves beacons and other
-// non-connectable advertisers out.
 void UniversalBlePlugin::PushUniversalScanResult(
     UniversalBleScanResult scan_result, const bool is_connectable,
     const bool is_scan_response) {
@@ -1424,12 +1420,12 @@ void UniversalBlePlugin::PushUniversalScanResult(
 
   const std::optional<UniversalBleScanResult> it =
       scan_results_.get(scan_result.device_id());
-  const bool answers_a_scan_request =
-      is_scan_response &&
-      (connectable_heard_.get(scan_result.device_id()).value_or(false) ||
-       (it.has_value() && it.value().connectable() != nullptr &&
-        *it.value().connectable()));
-  const bool device_is_connectable = is_connectable || answers_a_scan_request;
+  const bool address_heard_connectable =
+      connectable_heard_.get(scan_result.device_id()).value_or(false) ||
+      (it.has_value() && it.value().connectable() != nullptr &&
+       *it.value().connectable());
+  const bool device_is_connectable = DeriveConnectableState(
+      is_connectable, is_scan_response, address_heard_connectable);
   scan_result.set_connectable(device_is_connectable);
 
   if (it.has_value()) {
@@ -1472,9 +1468,8 @@ void UniversalBlePlugin::PushUniversalScanResult(
       scan_result.set_service_data(current_scan_result.service_data());
     }
 
-    // A changed connectable state is an update in itself: a device first heard
-    // as a non-connectable advertiser (and so not delivered) must reach the
-    // caller once it starts advertising connectably, even when the packet
+    // A changed connectable state is an update in itself: a device whose
+    // connectability state changes must reach the caller, even when the packet
     // carries nothing else new.
     const bool connectable_changed =
         current_scan_result.connectable() == nullptr ||
@@ -1490,14 +1485,8 @@ void UniversalBlePlugin::PushUniversalScanResult(
   // Update cache
   scan_results_.insert_or_assign(scan_result.device_id(), scan_result);
 
-  // Filter final result before sending to Flutter. An answered scan request
-  // counts when the same address has advertised connectably - see the note
-  // above this method.
-  const bool address_heard_connectable =
-      connectable_heard_.get(scan_result.device_id()).value_or(false);
-  if (ShouldDeliverScanResult(is_connectable, is_scan_response,
-                              address_heard_connectable) &&
-      filterDevice(scan_result)) {
+  // Filter final result before sending to Flutter
+  if (filterDevice(scan_result)) {
     const auto timestamp_microseconds = GetCurrentTimestampMicros();
     scan_result.set_timestamp(timestamp_microseconds / 1000);
     scan_result.set_timestamp_microseconds(timestamp_microseconds);
