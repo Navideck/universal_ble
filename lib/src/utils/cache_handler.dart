@@ -29,6 +29,21 @@ class CacheHandler {
   /// Retrieves the cached Bluetooth services for a specific device.
   List<BleService>? getServices(String deviceId) => _servicesCache[deviceId];
 
+  /// Device ids (canonical) for which [discoverServices] has completed at least
+  /// once since the current connection. Unlike [_servicesCache] this is set by
+  /// the public `UniversalBle.discoverServices`, not only by the `BleDevice`
+  /// extension, so capabilities that depend on discovery (see
+  /// `BleCapabilities.mtuRequiresServiceDiscovery`) can rely on it.
+  final Set<String> _servicesDiscovered = {};
+
+  /// Records that services have been discovered for [deviceId].
+  void markServicesDiscovered(String deviceId) =>
+      _servicesDiscovered.add(deviceId);
+
+  /// Whether [discoverServices] has run for [deviceId] since it connected.
+  bool hasDiscoveredServices(String deviceId) =>
+      _servicesDiscovered.contains(deviceId);
+
   /// Internal cache to store subscribed characteristic UUIDs for each device.
   final Map<String, Set<String>> _subscriptionsCache = {};
 
@@ -68,5 +83,6 @@ class CacheHandler {
   void resetDeviceCache(String deviceId) {
     _servicesCache.remove(deviceId);
     _subscriptionsCache.remove(deviceId);
+    _servicesDiscovered.remove(deviceId);
   }
 }

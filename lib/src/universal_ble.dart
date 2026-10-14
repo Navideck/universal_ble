@@ -321,7 +321,7 @@ class UniversalBle {
     String? queueId,
     DiscoverServicesPlatformConfig? platformConfig,
   }) async {
-    return await _bleCommandQueue.queueCommand(
+    final services = await _bleCommandQueue.queueCommand(
       () => _platform.discoverServices(
         deviceId,
         withDescriptors,
@@ -331,6 +331,10 @@ class UniversalBle {
       deviceId: deviceId,
       queueId: queueId,
     );
+    // Remember that discovery has run for this connection so requestMtu skips
+    // the on-demand discovery it would otherwise perform. Cleared on disconnect.
+    CacheHandler.instance.markServicesDiscovered(canonicalDeviceId(deviceId));
+    return services;
   }
 
   /// Set a characteristic notifiable.
@@ -528,6 +532,14 @@ class UniversalBle {
   /// * **Windows/Linux**: MTU is automatically negotiated; apps can only query it
   /// * **Web**: Not supported (no API available)
   ///
+  /// **Service discovery:** On iOS/macOS and Linux the reported MTU is only
+  /// meaningful once the device's services have been discovered (on iOS/macOS
+  /// CoreBluetooth otherwise reports the default ATT MTU, 23, as if it were the
+  /// negotiated value). This method discovers them on demand, so an explicit
+  /// [discoverServices] call is not required; it is a no-op when they were
+  /// already discovered. The on-demand discovery is best effort: if it fails,
+  /// the MTU request is still attempted.
+  ///
   /// **Best Practices:** Design for default ATT MTU (23 bytes), treat requests as
   /// opportunistic, and implement fragmentation for larger payloads.
   ///
@@ -540,6 +552,23 @@ class UniversalBle {
     Duration? timeout,
     String? queueId,
   }) async {
+    // Discover on demand where the MTU is only meaningful once the services are
+    // known (see [BleCapabilities.mtuRequiresServiceDiscovery]). This runs
+    // before queueing the MTU command: discovering from inside a queued command
+    // would deadlock a per-device queue. It is best effort — a discovery failure
+    // must not turn a call that used to succeed into an error.
+    if (BleCapabilities.mtuRequiresServiceDiscovery &&
+        !CacheHandler.instance.hasDiscoveredServices(
+          canonicalDeviceId(deviceId),
+        )) {
+      try {
+        await discoverServices(deviceId, timeout: timeout, queueId: queueId);
+      } catch (e) {
+        UniversalLogger.logError(
+          'requestMtu: on-demand discoverServices failed for $deviceId: $e',
+        );
+      }
+    }
     return await _bleCommandQueue.queueCommand(
       () => _platform.requestMtu(deviceId, expectedMtu),
       timeout: timeout,

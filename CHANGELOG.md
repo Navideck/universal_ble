@@ -1,4 +1,5 @@
 ## 3.0.0
+* `requestMtu` now discovers the device's services on demand on iOS/macOS and Linux, instead of returning a misleading MTU (Apple reported the default ATT MTU, 23, as if it were the negotiated value) or failing with an unclear `operationNotSupported` (Linux). It is a no-op when the services were already discovered, so calling `discoverServices` first still works and is not required. Android and Windows read the MTU off the connection itself and are unchanged. Add `BleCapabilities.mtuRequiresServiceDiscovery`.
 * Windows: enable extended BLE advertisement scanning (`AllowExtendedAdvertisements`), with graceful fallback on unsupported OS versions or adapters.
 * Enhance `Uint8List` and `Future<Uint8List>` extensions with comprehensive BLE data type conversions (`int8`, `uint8`, `int16`, `uint16`, `int32`, `uint32`, `float32`, `float64`, `toUtf8`, `toHexString`), byte offset support, and direct `byteData` view accessor.
 * Add `subscribedCentralsStream` and `subscribedCentrals` getter to `UniversalBlePeripheral` to track and expose active central devices (`BleCentral`) subscribed to characteristics in peripheral mode.

@@ -45,6 +45,11 @@ extension BleDeviceExtension on BleDevice {
   /// which may differ from `expectedMtu`. Concurrent requests for the same device
   /// share a single negotiation.
   ///
+  /// On iOS/macOS and Linux the device's services are discovered on demand
+  /// first, because the reported MTU is only meaningful once they are known
+  /// (CoreBluetooth otherwise reports the default ATT MTU, 23). This is a no-op
+  /// when [discoverServices] already ran.
+  ///
   /// See [UniversalBle.requestMtu] for platform limitations and best practices.
   Future<int> requestMtu(int expectedMtu, {String? queueId}) =>
       UniversalBle.requestMtu(deviceId, expectedMtu, queueId: queueId);
