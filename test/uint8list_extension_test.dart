@@ -1,4 +1,4 @@
-import 'dart:typed_data';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:universal_ble/src/extensions/uint8list_extension.dart';
 
@@ -42,13 +42,6 @@ void main() {
       final negList = Uint8List.fromList([0xFF, 0xFF, 0xFF, 0xFF]);
       expect(negList.toInt32(), -1);
       expect(negList.toUint32(), 0xFFFFFFFF);
-    });
-
-    test('64-bit integer conversions', () {
-      final list =
-          Uint8List.fromList([0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]);
-      expect(list.toInt64(), 1);
-      expect(list.toUint64(), 1);
     });
 
     test('float32 and float64 conversions', () {

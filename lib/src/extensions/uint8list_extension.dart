@@ -29,16 +29,6 @@ extension FutureUint8ListExtension on Future<Uint8List> {
   Future<int> toUint32({int offset = 0, Endian endian = Endian.little}) =>
       then((data) => data.toUint32(offset: offset, endian: endian));
 
-  /// Converts the Future [Uint8List] to a signed 64-bit integer,
-  /// assuming little-endian encoding by default.
-  Future<int> toInt64({int offset = 0, Endian endian = Endian.little}) =>
-      then((data) => data.toInt64(offset: offset, endian: endian));
-
-  /// Converts the Future [Uint8List] to an unsigned 64-bit integer,
-  /// assuming little-endian encoding by default.
-  Future<int> toUint64({int offset = 0, Endian endian = Endian.little}) =>
-      then((data) => data.toUint64(offset: offset, endian: endian));
-
   /// Converts the Future [Uint8List] to a 32-bit float,
   /// assuming little-endian encoding by default.
   Future<double> toFloat32({int offset = 0, Endian endian = Endian.little}) =>
@@ -89,16 +79,6 @@ extension Uint8ListExtension on Uint8List {
   /// assuming little-endian encoding by default.
   int toUint32({int offset = 0, Endian endian = Endian.little}) =>
       byteData.getUint32(offset, endian);
-
-  /// Converts 8 bytes starting at [offset] to a signed 64-bit integer,
-  /// assuming little-endian encoding by default.
-  int toInt64({int offset = 0, Endian endian = Endian.little}) =>
-      byteData.getInt64(offset, endian);
-
-  /// Converts 8 bytes starting at [offset] to an unsigned 64-bit integer,
-  /// assuming little-endian encoding by default.
-  int toUint64({int offset = 0, Endian endian = Endian.little}) =>
-      byteData.getUint64(offset, endian);
 
   /// Converts 4 bytes starting at [offset] to a 32-bit float,
   /// assuming little-endian encoding by default.

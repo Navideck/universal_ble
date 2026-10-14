@@ -472,7 +472,7 @@ Uint8List value = await characteristic.read();
 To make it more convenient, you can use built-in extensions on `Future<Uint8List>` or `Uint8List` to parse numbers, strings, and hex directly:
 
 ```dart
-// Numbers (8, 16, 32, 64-bit signed/unsigned, floats), little-endian by default
+// Numbers (8, 16, 32-bit signed/unsigned, floats), little-endian by default
 int batteryLevel = await characteristic.read().toUint8();
 int heartRate    = await characteristic.read().toUint16(); 
 int counter      = await characteristic.read().toInt32();
