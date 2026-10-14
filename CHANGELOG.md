@@ -1,4 +1,5 @@
 ## 3.0.0
+* Add `subscribedCentralsStream` and `subscribedCentrals` getter to `UniversalBlePeripheral` to track and expose active central devices (`BleCentral`) subscribed to characteristics in peripheral mode.
 * Extend Windows HIL/FIT coverage for indications, long values, resource pressure, and deterministic timing sweeps using fixture v2.
 * Windows: dispose disconnected WinRT GATT objects on a background MTA thread to avoid blocking the UI during teardown.
 * Windows: Expose non-connectable devices during scanning to match other platforms.
