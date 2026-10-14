@@ -1540,7 +1540,7 @@ This repo includes an [example app](example/) with two tabs:
 - `Client`: scanning and device communication workflows.
 - `Peripheral`: peripheral server and advertising workflows.
 
-For a full-blown app, check [Universal-BLE](https://github.com/Navideck/Universal-BLE).
+For a full-blown app, check [UniversalBLE-Explorer](https://github.com/Navideck/UniversalBLE-Explorer).
 
 ## AI agent skills
 
