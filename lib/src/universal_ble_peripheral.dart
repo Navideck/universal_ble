@@ -8,7 +8,9 @@ class UniversalBlePeripheral {
   static UniversalBlePeripheralPlatform? _instance;
   static UniversalBlePeripheralPlatform get _platform =>
       _instance ??= _defaultPlatform();
-  static final BleCommandQueue _bleCommandQueue = BleCommandQueue();
+  static final BleCommandQueue _bleCommandQueue = BleCommandQueue(
+    isAddressSupplier: () => _platform.hasAddressDeviceIds,
+  );
 
   static void setInstance(UniversalBlePeripheralPlatform instance) {
     _instance?.dispose();

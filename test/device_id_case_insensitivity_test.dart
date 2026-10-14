@@ -1,6 +1,6 @@
 import 'dart:async';
-import 'dart:typed_data';
 
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:universal_ble/src/universal_ble.g.dart';
 import 'package:universal_ble/src/universal_ble_pigeon/universal_ble_peripheral_pigeon.dart';
@@ -290,6 +290,30 @@ void main() {
     expect(emitted, lower);
   });
 
+  test('updateScanResult does not mutate the caller-supplied device', () {
+    final platform = _MockPlatform();
+    String? emitted;
+    platform.onScanResultUpdate = (d) => emitted = d.deviceId;
+    final device = BleDevice(deviceId: upper, name: null);
+
+    platform.updateScanResult(device);
+
+    // The caller's instance keeps the id it passed in; only the emitted copy is canonical.
+    expect(device.deviceId, upper);
+    expect(emitted, lower);
+  });
+
+  test('BleDevice.copyWith keeps the sanitised name and the raw name', () {
+    final device = BleDevice(deviceId: upper, name: 'Sensor\u0001 ');
+    expect(device.name, 'Sensor');
+
+    final copy = device.copyWith(deviceId: lower);
+
+    expect(copy.deviceId, lower);
+    expect(copy.name, 'Sensor');
+    expect(copy.rawName, 'Sensor\u0001 ');
+  });
+
   test(
       'Pigeon scan result and picker result extensions emit lower-case deviceId',
       () {
@@ -562,6 +586,58 @@ void main() {
       completer1.complete();
       await f1;
       expect(order, [2, 1]);
+    });
+  });
+
+  // The pigeon channel is the native boundary: ids leave Dart in the native (upper-case)
+  // form, so a platform that requires upper case (e.g. Android's `getRemoteDevice`) keeps
+  // working now that the ids the Dart layer emits are lower-case.
+
+  group('pigeon channel boundary sends the native id', () {
+    const connectChannel = BasicMessageChannel<Object?>(
+      'dev.flutter.pigeon.universal_ble.UniversalBlePlatformChannel.connect',
+      UniversalBlePlatformChannel.pigeonChannelCodec,
+    );
+    const readValueChannel = BasicMessageChannel<Object?>(
+      'dev.flutter.pigeon.universal_ble.UniversalBlePlatformChannel.readValue',
+      UniversalBlePlatformChannel.pigeonChannelCodec,
+    );
+
+    List<Object?> connectArgs = const [];
+    List<Object?> readValueArgs = const [];
+
+    setUp(() {
+      connectArgs = const [];
+      readValueArgs = const [];
+      final messenger =
+          TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+      messenger.setMockDecodedMessageHandler<Object?>(connectChannel,
+          (message) async {
+        connectArgs = message! as List<Object?>;
+        return <Object?>[null];
+      });
+      messenger.setMockDecodedMessageHandler<Object?>(readValueChannel,
+          (message) async {
+        readValueArgs = message! as List<Object?>;
+        return <Object?>[Uint8List(0)];
+      });
+    });
+
+    tearDown(() {
+      final messenger =
+          TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+      messenger.setMockDecodedMessageHandler<Object?>(connectChannel, null);
+      messenger.setMockDecodedMessageHandler<Object?>(readValueChannel, null);
+    });
+
+    test('connect forwards the upper-case id', () async {
+      await UniversalBlePigeonChannel.instance.connect(lower);
+      expect(connectArgs.first, upper);
+    });
+
+    test('readValue forwards the upper-case id', () async {
+      await UniversalBlePigeonChannel.instance.readValue(lower, '180d', '2a37');
+      expect(readValueArgs.first, upper);
     });
   });
 

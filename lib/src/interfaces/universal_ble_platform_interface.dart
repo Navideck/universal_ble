@@ -217,7 +217,12 @@ abstract class UniversalBlePlatform {
 
   /// Update Handlers
   void updateScanResult(BleDevice bleDevice) {
-    bleDevice.deviceId = _deviceId(bleDevice.deviceId).canonical;
+    final canonicalId = _deviceId(bleDevice.deviceId).canonical;
+    if (bleDevice.deviceId != canonicalId) {
+      // Replace with a copy rather than mutating the caller's instance, so a platform
+      // that retains or re-reads the device it reported keeps the id it passed in.
+      bleDevice = bleDevice.copyWith(deviceId: canonicalId);
+    }
     if (!_scanDeduplicator.shouldEmit(bleDevice)) return;
     _scanStreamController.add(bleDevice);
 

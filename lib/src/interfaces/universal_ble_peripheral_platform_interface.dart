@@ -71,6 +71,18 @@ abstract class UniversalBlePeripheralPlatform {
 
   Future<int?> getMaximumNotifyLength(String deviceId);
 
+  /// Whether this platform identifies GATT clients by a Bluetooth *address* — a MAC on
+  /// Android/Windows/Linux, a UUID on Apple — which is case-insensitive. Central ids are
+  /// therefore canonicalised on ingestion, so every stream event, request handler and
+  /// per-client key is canonical. Only a platform whose ids are opaque, case-sensitive
+  /// tokens (like client-mode Web Bluetooth) would override this to `false`; peripheral
+  /// mode is not supported on Web today.
+  bool get hasAddressDeviceIds => true;
+
+  /// [deviceId] in the canonical form this platform emits and matches by.
+  DeviceId _deviceId(String deviceId) =>
+      DeviceId.of(deviceId, isAddress: hasAddressDeviceIds);
+
   /// Push advertising state update to stream listeners.
   void updateAdvertisingState(BlePeripheralAdvertisingStateChanged event) {
     _blePeripheralStreamHandler.advertisingStateStreamController.add(event);
@@ -82,7 +94,7 @@ abstract class UniversalBlePeripheralPlatform {
   ) {
     _blePeripheralStreamHandler.characteristicSubscriptionStreamController.add(
       BlePeripheralCharacteristicSubscriptionChanged(
-        deviceId: event.deviceId.toDeviceId().canonical,
+        deviceId: _deviceId(event.deviceId).canonical,
         characteristicId: event.characteristicId,
         isSubscribed: event.isSubscribed,
         name: event.name,
@@ -94,7 +106,7 @@ abstract class UniversalBlePeripheralPlatform {
   void updateConnectionState(BlePeripheralConnectionStateChanged event) {
     _blePeripheralStreamHandler.connectionStateStreamController.add(
       BlePeripheralConnectionStateChanged(
-        event.deviceId.toDeviceId().canonical,
+        _deviceId(event.deviceId).canonical,
         event.connected,
       ),
     );
@@ -109,7 +121,7 @@ abstract class UniversalBlePeripheralPlatform {
   void updateMtu(BlePeripheralMtuChanged event) {
     _blePeripheralStreamHandler.mtuChangedStreamController.add(
       BlePeripheralMtuChanged(
-        event.deviceId.toDeviceId().canonical,
+        _deviceId(event.deviceId).canonical,
         event.mtu,
       ),
     );

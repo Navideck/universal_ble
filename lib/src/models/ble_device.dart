@@ -72,6 +72,25 @@ class BleDevice {
         rawName = name,
         name = name?.replaceAll(RegExp(r'[^ -~]'), '').trim();
 
+  /// Returns a copy of this device with [deviceId] optionally replaced.
+  ///
+  /// The copy re-derives the sanitised [name] from [rawName] so both survive
+  /// unchanged — passing [name] straight to the constructor would overwrite
+  /// [rawName] with the already-sanitised name.
+  BleDevice copyWith({String? deviceId}) => BleDevice(
+        deviceId: deviceId ?? this.deviceId,
+        name: rawName,
+        rssi: rssi,
+        paired: paired,
+        services: services,
+        isSystemDevice: isSystemDevice,
+        manufacturerDataList: manufacturerDataList,
+        serviceData: serviceData,
+        timestamp: timestamp,
+        timestampMicroseconds: timestampMicroseconds,
+        connectable: connectable,
+      );
+
   DateTime? get timestampDateTime => timestamp != null
       ? DateTime.fromMillisecondsSinceEpoch(timestamp!)
       : null;

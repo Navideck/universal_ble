@@ -23,7 +23,7 @@ All case conversion and ID classification live centrally in `lib/src/utils/devic
   - `UniversalBlePeripheral`: Central client device IDs emitted in connection state updates, subscription updates, MTU changes, read/write request callbacks (`OnPeripheralReadRequest`, `OnPeripheralWriteRequest`), and `getSubscribedClients()` **always emit `deviceId` in lower-case canonical form**.
 - **Inputs:**
   - All public client and peripheral methods taking `String deviceId` (`connect`, `disconnect`, `discoverServices`, `readValue`, `writeValue`, `subscribeNotifications`, `pair`, `updateCharacteristicValue`, `getMaximumNotifyLength`, `clearQueue`, etc.) **must accept any casing** from callers.
-  - Public API boundaries must canonicalise caller-supplied IDs using `DeviceId.of(deviceId, isAddress: ...)`. Never assume the caller provided a lower-case ID.
+  - Public API boundaries must canonicalise caller-supplied IDs using `DeviceId.of(deviceId, isAddress: ...)`. Never assume the caller provided a lower-case ID. `DeviceId` (`lib/src/utils/device_id.dart`) is internal and not exported; external platform implementations canonicalise via `UniversalBle.canonicalDeviceId(deviceId)`.
   - `UniversalBle.canonicalDeviceId(deviceId)` is the public entry point to that conversion, for callers that compare IDs or use one as a map key (lower-case on native, verbatim on Web).
 
 ### 3. Queues, Caches, and Deduplication
