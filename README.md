@@ -463,9 +463,42 @@ BleCharacteristic characteristic = await service.getCharacteristic('2a56');
 
 You need to first [discover services](#discovering-services) before you are able to read and write to characteristics.
 
+### Reading data
+
 ```dart
 Uint8List value = await characteristic.read();
 ```
+
+To make it more convenient, you can use built-in extensions on `Future<Uint8List>` or `Uint8List` to parse numbers, strings, and hex directly:
+
+```dart
+// Numbers (8, 16, 32-bit signed/unsigned, floats), little-endian by default
+int batteryLevel = await characteristic.read().toUint8();
+int heartRate    = await characteristic.read().toUint16(); 
+int counter      = await characteristic.read().toInt32();
+double temp      = await characteristic.read().toFloat32();
+
+// Custom endianness and byte offset for multi-field packets
+int sensorValue  = await characteristic.read().toUint16(offset: 2, endian: Endian.big);
+
+// Strings (Device Name, Serial Number, etc.)
+String deviceName = await characteristic.read().toUtf8();
+
+// Hex string for debugging (e.g. "01:0a:ff" or "010AFF")
+String hexDump = await characteristic.read().toHexString(separator: ':');
+```
+
+The same extensions work on any `Uint8List` (e.g., from `characteristic.onValueReceived` notifications):
+
+```dart
+characteristic.onValueReceived.listen((bytes) {
+  int flags = bytes.toUint8();
+  int sensorReading = bytes.toUint16(offset: 1);
+  print('Hex payload: ${bytes.toHexString()}');
+});
+```
+
+### Writing data
 
 ```dart
 await characteristic.write([0x01, 0x02, 0x03]);
