@@ -745,6 +745,10 @@ class UniversalBle {
   ///
   /// On `Web/Windows` and `Web/Linux`, it does not work for devices that use `ConfirmOnly` pairing.
   /// Can throw `PairingException`, `ConnectionException` or `PlatformException`.
+  ///
+  /// On `Apple` and `Web` the outcome is also reported through [pairingStateStream] /
+  /// [onPairingStateChange]: `true` when the encrypted-characteristic probe succeeds,
+  /// `false` when it fails.
   static Future<void> pair(
     String deviceId, {
     BleCommand? pairingCommand,
@@ -763,12 +767,20 @@ class UniversalBle {
       if (pairingCommand == null) {
         UniversalLogger.logWarning("PairingCommand required to get result");
       }
-      await _connectAndExecuteBleCommand(
-        deviceId,
-        pairingCommand,
-        timeout: timeout,
-        queueId: queueId,
-      );
+      try {
+        await _connectAndExecuteBleCommand(
+          deviceId,
+          pairingCommand,
+          updateCallbackValue: true,
+          timeout: timeout,
+          queueId: queueId,
+        );
+      } catch (_) {
+        // A failed bond is an event, not a state: report it before surfacing the
+        // error, matching the native platforms' onPairStateChange(isFailure: true).
+        _platform.updatePairingFailure(deviceId);
+        rethrow;
+      }
     }
   }
 
@@ -1002,13 +1014,11 @@ class UniversalBle {
   /// [bleCommand] on an encrypted characteristic, or a read of every readable
   /// characteristic when none is given.
   ///
-  /// [updateCallbackValue] makes a successful command report a pairing state
-  /// change via [UniversalBlePlatform.updatePairingState]. It is currently `false`
-  /// at every call site, so no platform emits pairing state from here — including
-  /// iOS/macOS/Web, which have no native pairing-state callback at all. Passing
-  /// `true` on those platforms would start emitting `pairingStateStream` /
-  /// `onPairingStateChange`, so the README's `onPairingStateChange` row (currently
-  /// `—` for iOS/macOS/Web) would have to become `⏺`.
+  /// [updateCallbackValue] reports a successful probe as a pairing state change via
+  /// [UniversalBlePlatform.updatePairingState]. [pair] enables it on the platforms
+  /// without a system pairing API (Apple/Web), where this probe is the only signal
+  /// that the OS paired the device. [isPaired] runs the same probe as a query and
+  /// leaves it `false`, so checking the state does not emit.
   static Future<void> _connectAndExecuteBleCommand(
     String deviceId,
     BleCommand? bleCommand, {
@@ -1042,18 +1052,18 @@ class UniversalBle {
         timeout: timeout,
         queueId: queueId,
       );
-      return;
+    } else {
+      await _executeBleCommand(
+        deviceId,
+        services,
+        bleCommand,
+        timeout: timeout,
+        queueId: queueId,
+      );
     }
 
-    await _executeBleCommand(
-      deviceId,
-      services,
-      bleCommand,
-      timeout: timeout,
-      queueId: queueId,
-    );
-    // See [updateCallbackValue]: no caller opts in today, so nothing emits pairing
-    // state from here on any platform.
+    // The probe completed, so the OS paired the device. Apple/Web have no native
+    // bond-state API, which is why this is the only pairing-state signal there.
     if (updateCallbackValue) _platform.updatePairingState(deviceId, true);
   }
 

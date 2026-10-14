@@ -57,7 +57,7 @@ Looking for Bluetooth Classic? Check [universal_bluetooth_classic](https://pub.d
 | pair¹                         |   ✔️    | ✔️  |  ✔️   |   ✔️    |  ✔️   |  ⏺  |
 | unpair²                       |   ✔️    |  ⏺  |  —   |   ✔️    |  ✔️   | —  |
 | isPaired³                     |   ✔️    |  ⏺  |  ⏺   |   ✔️    |  ✔️   |  ⏺  |
-| onPairingStateChange⁴         |   ✔️    |  —  |   —   |   ✔️    |  ✔️   |  —  |
+| onPairingStateChange⁴         |   ✔️    |  ⏺  |  ⏺   |   ✔️    |  ✔️   |  ⏺  |
 | getBluetoothAvailabilityState |   ✔️    | ✔️  |  ✔️   |   ✔️    |  ✔️   | —  |
 | enable/disable Bluetooth      |   ✔️    | —  |  —   |   ✔️    |  ✔️   | —  |
 | onAvailabilityChange          |   ✔️    | ✔️  |  ✔️   |   ✔️    |  ✔️   | ✔️  |
@@ -73,7 +73,7 @@ Looking for Bluetooth Classic? Check [universal_bluetooth_classic](https://pub.d
 
 ³ On iOS, macOS, and Web, `isPaired` needs a `pairingCommand` with an encrypted read or write characteristic and returns `null` without one — hence ⏺. It also triggers pairing if the device is not already paired.
 
-⁴ iOS, macOS, and Web do not report pairing-state changes — `pairingStateStream` and `onPairingStateChange` never emit there. Read the current state with `isPaired(pairingCommand:)` instead.
+⁴ On iOS, macOS, and Web, `pair()` reports the outcome it drove: `true` when the encrypted-characteristic probe succeeds and `false` on failure. There is no system-initiated bond event and `unpair` does not report, so other changes stay invisible — read the current state with `isPaired(pairingCommand:)`.
 
 ### Peripheral Mode (`UniversalBlePeripheral`)
 
@@ -636,6 +636,8 @@ bleDevice.pairingStateStream.listen((bool paired) {
   // Handle pairing state change
 });
 ```
+
+On `Apple` and `Web`, events are driven by `pair()`: `true` when it successfully triggers pairing and `false` on failure. Those platforms have no system-initiated bond event, and `unpair` does not report, so read the current state with `isPaired(pairingCommand:)` after those operations.
 
 #### Unpair
 
