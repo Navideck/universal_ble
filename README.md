@@ -1177,10 +1177,11 @@ UniversalBle.onScanResult = (BleDevice device) {
 await UniversalBle.connect(webDeviceId); // must match exactly — never re-cased
 ```
 
-If you compare device IDs yourself or use one as a map key, `UniversalBle.canonicalDeviceId(deviceId)` returns the comparable form for the current platform (lower-case on native, verbatim on Web):
+IDs that Universal BLE returns are already in this form, so plain string equality works for them. If you compare a device ID that came from elsewhere (for example one you stored yourself) or use IDs as map keys across sources, `UniversalBle.canonicalDeviceId(deviceId)` returns the comparable form for the current platform (lower-case on native, verbatim on Web):
 
 ```dart
-final key = UniversalBle.canonicalDeviceId(device.deviceId);
+// An id from your own storage may be in a different case than the emitted one.
+final key = UniversalBle.canonicalDeviceId(storedDeviceId);
 ```
 
 ### UUIDs
