@@ -1101,8 +1101,8 @@ Universal BLE normalises identifiers across platforms so you don't need to worry
 ### Device IDs
 
 - **Emitted in lower-case:** Native platforms (Android, iOS, macOS, Windows, Linux) emit device IDs (MAC addresses or Apple UUIDs) in **lower-case**.
-- **Accepted in any case:** You can pass a `deviceId` in any casing (upper, lower, or mixed) to any `UniversalBle` or `UniversalBlePeripheral` method.
-- **Web Bluetooth:** Web uses opaque, case-sensitive browser tokens that are preserved verbatim and must be matched with exact casing.
+- **Accepted in any letter case:** You can pass a `deviceId` in upper, lower, or mixed case to any `UniversalBle` or `UniversalBlePeripheral` method.
+- **Web Bluetooth:** Web uses opaque, case-sensitive browser tokens that are preserved verbatim and must be matched with exact case.
 
 ```dart
 // Native platforms emit lower-case IDs:
@@ -1110,7 +1110,7 @@ UniversalBle.onScanResult = (BleDevice device) {
   print(device.deviceId); // e.g. "aa:bb:cc:dd:ee:ff" or "e621e1f8-c36c-495a-93fc-0c247a3e6e5f"
 };
 
-// Any casing is accepted when calling APIs:
+// Any case is accepted when calling APIs:
 await UniversalBle.connect("AA:BB:CC:DD:EE:FF");
 ```
 
