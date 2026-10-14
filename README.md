@@ -52,10 +52,10 @@ Looking for Bluetooth Classic? Check [universal_bluetooth_classic](https://pub.d
 | read                          |   ✔️    | ✔️  |  ✔️   |   ✔️    |  ✔️   | ✔️  |
 | write                         |   ✔️    | ✔️  |  ✔️   |   ✔️    |  ✔️   | ✔️  |
 | subscriptions                 |   ✔️    | ✔️  |  ✔️   |   ✔️    |  ✔️   | ✔️  |
-| pair                          |   ✔️    | ✔️  |  ✔️   |   ✔️    |  ✔️   |  ⏺  |
+| pair¹                         |   ✔️    | ✔️  |  ✔️   |   ✔️    |  ✔️   |  ⏺  |
 | unpair                        |   ✔️    | —  |  —   |   ✔️    |  ✔️   | —  |
 | isPaired                      |   ✔️    | ✔️  |  ✔️   |   ✔️    |  ✔️   | ✔️  |
-| onPairingStateChange          |   ✔️    |  ⏺  |   ⏺   |   ✔️    |  ✔️   |  ⏺  |
+| onPairingStateChange²         |   ✔️    |  —  |   —   |   ✔️    |  ✔️   |  —  |
 | getBluetoothAvailabilityState |   ✔️    | ✔️  |  ✔️   |   ✔️    |  ✔️   | —  |
 | enable/disable Bluetooth      |   ✔️    | —  |  —   |   ✔️    |  ✔️   | —  |
 | onAvailabilityChange          |   ✔️    | ✔️  |  ✔️   |   ✔️    |  ✔️   | ✔️  |
@@ -64,6 +64,9 @@ Looking for Bluetooth Classic? Check [universal_bluetooth_classic](https://pub.d
 | onConnectionParametersChange  |   ✔️    | —  |  —   |   —    |  —   | —  |
 | readRssi                      |   ✔️    | ✔️  |  ✔️   |   —    |  🚧   | —  |
 | requestPermissions            |   ✔️    | ✔️  |  ✔️   |   ✔️    |  ✔️   | ✔️  |
+
+¹ There is no dedicated pairing API on iOS, macOS, or Web. `pair()` connects and reads an encrypted characteristic so the OS triggers pairing (pass a `pairingCommand` to target a specific characteristic). On Web/Windows and Web/Linux it does not work for devices that use ConfirmOnly ("Just Works") pairing — hence ⏺.
+² iOS, macOS, and Web do not report pairing-state changes — `pairingStateStream` and `onPairingStateChange` never emit there. Read the current state with `isPaired(pairingCommand:)` instead.
 
 ### Peripheral Mode (`UniversalBlePeripheral`)
 
@@ -83,7 +86,7 @@ Looking for Bluetooth Classic? Check [universal_bluetooth_classic](https://pub.d
 | getMaximumNotifyLength        |   ✔️    | ✔️  |  ✔️   |   ✔️    |  🚧   | —  |
 | event streams\*\*\*           |   ✔️    | ✔️  |  ✔️   |   ✔️    |  🚧   | —  |
 
-**Legend:** ✔️ supported · — not supported · ⏺ platform-dependent (e.g. pairing is triggered by the OS rather than by an API call) · 🚧 work in progress.
+**Legend:** ✔️ supported · — not supported · ⏺ no dedicated API (see notes) · 🚧 work in progress.
 
 \* `getAvailabilityState` returns a snapshot. Listen to `advertisingStateStream`, `connectionStateStream`, and related streams for runtime updates.
 \*\* Pass `deviceId` to notify one client; omit it to notify all subscribed clients (when supported — see `getCapabilities().supportsTargetedCharacteristicUpdate`).
