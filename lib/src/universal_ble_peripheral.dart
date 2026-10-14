@@ -8,10 +8,8 @@ import 'package:universal_ble/universal_ble.dart';
 class UniversalBlePeripheral {
   static UniversalBlePeripheralPlatform? _instance;
   static UniversalBlePeripheralPlatform get _platform {
-    if (_instance == null) {
-      _instance = _defaultPlatform();
-      _ensureTrackerBound();
-    }
+    _instance ??= _defaultPlatform();
+    _ensureTrackerBound();
     return _instance!;
   }
 
@@ -21,8 +19,7 @@ class UniversalBlePeripheral {
 
   static void _ensureTrackerBound() {
     if (_trackerBound) return;
-    final platform = _instance;
-    if (platform == null) return;
+    final platform = _instance ??= _defaultPlatform();
     _trackerBound = true;
     try {
       _centralTracker.bindStreams(
@@ -143,14 +140,26 @@ class UniversalBlePeripheral {
     Duration? timeout,
   }) =>
       _bleCommandQueue.queueCommand(
-        () => _platform.addService(service.toPeripheralService(),
-            timeout: timeout),
+        () async {
+          await _platform.addService(
+            service.toPeripheralService(),
+            timeout: timeout,
+          );
+          _centralTracker.registerService(
+            service.uuid,
+            service.characteristics.map((c) => c.uuid),
+          );
+        },
         timeout: timeout,
       );
 
   static Future<void> removeService(String serviceId) =>
       _bleCommandQueue.queueCommand(
-        () => _platform.removeService(BleUuidParser.string(serviceId)),
+        () async {
+          final normalizedServiceId = BleUuidParser.string(serviceId);
+          await _platform.removeService(normalizedServiceId);
+          _centralTracker.removeService(normalizedServiceId);
+        },
       );
 
   static Future<void> clearServices() => _bleCommandQueue.queueCommand(

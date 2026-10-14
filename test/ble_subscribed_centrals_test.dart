@@ -120,17 +120,17 @@ class _MockPeripheralPlatform extends UniversalBlePeripheralPlatform {
 void main() {
   group('BleCentral Model', () {
     test('equality and hashCode', () {
-      const central1 = BleCentral(
+      final central1 = BleCentral(
         id: 'central-1',
         name: 'Phone',
         subscribedCharacteristics: {'2a19', '2a18'},
       );
-      const central2 = BleCentral(
+      final central2 = BleCentral(
         id: 'central-1',
         name: 'Phone',
         subscribedCharacteristics: {'2a18', '2a19'},
       );
-      const central3 = BleCentral(
+      final central3 = BleCentral(
         id: 'central-2',
         name: 'Phone',
         subscribedCharacteristics: {'2a19'},
@@ -146,7 +146,7 @@ void main() {
     });
 
     test('copyWith updates properties', () {
-      const central = BleCentral(
+      final central = BleCentral(
         id: 'central-1',
         name: 'Phone',
         subscribedCharacteristics: {'2a19'},
@@ -159,11 +159,17 @@ void main() {
 
       expect(updated.id, 'central-1');
       expect(updated.name, 'Updated Phone');
-      expect(updated.subscribedCharacteristics, {'2a19', '2a37'});
+      expect(
+        updated.subscribedCharacteristics,
+        {
+          BleUuidParser.string('2a19'),
+          BleUuidParser.string('2a37'),
+        },
+      );
     });
 
     test('isSubscribedTo normalizes UUID format and case', () {
-      const central = BleCentral(
+      final central = BleCentral(
         id: 'central-1',
         subscribedCharacteristics: {'00002a19-0000-1000-8000-00805f9b34fb'},
       );
@@ -175,6 +181,33 @@ void main() {
         isTrue,
       );
       expect(central.isSubscribedTo('2a18'), isFalse);
+    });
+
+    test('isSubscribedTo matches short-form UUIDs passed at construction', () {
+      final central = BleCentral(
+        id: 'central-1',
+        subscribedCharacteristics: {'2a19'},
+      );
+
+      expect(central.isSubscribedTo('2a19'), isTrue);
+      expect(central.isSubscribedTo('2A19'), isTrue);
+      expect(
+        central.isSubscribedTo('00002a19-0000-1000-8000-00805f9b34fb'),
+        isTrue,
+      );
+      expect(central.isSubscribedTo('2a18'), isFalse);
+    });
+
+    test('subscribedCharacteristics is unmodifiable', () {
+      final central = BleCentral(
+        id: 'central-1',
+        subscribedCharacteristics: {'2a19'},
+      );
+
+      expect(
+        () => central.subscribedCharacteristics.add('2a18'),
+        throwsUnsupportedError,
+      );
     });
   });
 
@@ -401,6 +434,71 @@ void main() {
       await Future<void>.delayed(Duration.zero);
       expect(tracker.subscribedCentrals, isEmpty);
     });
+
+    test('emits initial snapshot to concurrent listeners that attach later', () async {
+      subController.add(
+        BlePeripheralCharacteristicSubscriptionChanged(
+          deviceId: 'device-01',
+          characteristicId: '2a19',
+          isSubscribed: true,
+          name: 'Central 1',
+        ),
+      );
+      await Future<void>.delayed(Duration.zero);
+      expect(tracker.subscribedCentrals.length, 1);
+
+      final events1 = <List<BleCentral>>[];
+      final sub1 = tracker.stream.listen(events1.add);
+      await Future<void>.delayed(Duration.zero);
+      expect(events1.length, 1);
+      expect(events1.first.length, 1);
+
+      // Second listener attaches while first listener is still active
+      final events2 = <List<BleCentral>>[];
+      final sub2 = tracker.stream.listen(events2.add);
+      await Future<void>.delayed(Duration.zero);
+      expect(events2.length, 1);
+      expect(events2.first.length, 1);
+      expect(events2.first.first.id, 'device-01');
+
+      await sub1.cancel();
+      await sub2.cancel();
+    });
+
+    test('removeService prunes subscriptions and removes central if empty', () async {
+      tracker.registerService('180D', ['2a37', '2a38']);
+      tracker.registerService('180F', ['2a19']);
+
+      subController.add(
+        BlePeripheralCharacteristicSubscriptionChanged(
+          deviceId: 'device-01',
+          characteristicId: '2a37',
+          isSubscribed: true,
+          name: 'Heart Rate Monitor',
+        ),
+      );
+      subController.add(
+        BlePeripheralCharacteristicSubscriptionChanged(
+          deviceId: 'device-01',
+          characteristicId: '2a19',
+          isSubscribed: true,
+          name: 'Heart Rate Monitor',
+        ),
+      );
+      await Future<void>.delayed(Duration.zero);
+      expect(tracker.subscribedCentrals.first.subscribedCharacteristics.length, 2);
+
+      // Removing 180F removes 2a19, but central still has 2a37
+      tracker.removeService('180F');
+      expect(tracker.subscribedCentrals.length, 1);
+      expect(tracker.subscribedCentrals.first.subscribedCharacteristics.length, 1);
+      expect(tracker.subscribedCentrals.first.isSubscribedTo('2a37'), isTrue);
+      expect(tracker.subscribedCentrals.first.isSubscribedTo('2a19'), isFalse);
+
+      // Removing 180D removes 2a37; central has 0 characteristics left -> removed
+      tracker.removeService('180D');
+      expect(tracker.subscribedCentrals, isEmpty);
+    });
   });
 
   group('UniversalBlePeripheral subscribedCentrals integration', () {
@@ -442,6 +540,34 @@ void main() {
       expect(events.last, isEmpty);
 
       await sub.cancel();
+    });
+
+    test('removeService drops characteristic subscriptions and removes empty centrals', () async {
+      await UniversalBlePeripheral.addService(
+        BlePeripheralService(
+          uuid: '180D',
+          characteristics: [
+            BlePeripheralCharacteristic(
+              uuid: '2a37',
+              properties: [CharacteristicProperty.notify],
+              permissions: [PeripheralAttributePermission.readable],
+            ),
+          ],
+        ),
+      );
+
+      mockPlatform.emitSubscription(
+        deviceId: 'central-alpha',
+        characteristicId: '2a37',
+        isSubscribed: true,
+        name: 'Device Alpha',
+      );
+      await Future<void>.delayed(Duration.zero);
+      expect(UniversalBlePeripheral.subscribedCentrals.length, 1);
+
+      await UniversalBlePeripheral.removeService('180D');
+      expect(mockPlatform.callLog, contains('removeService'));
+      expect(UniversalBlePeripheral.subscribedCentrals, isEmpty);
     });
   });
 }

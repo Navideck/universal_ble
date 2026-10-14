@@ -3,15 +3,14 @@ import 'dart:async';
 import 'package:universal_ble/src/models/ble_central.dart';
 import 'package:universal_ble/src/models/ble_peripheral_event.dart';
 import 'package:universal_ble/src/models/ble_uuid_parser.dart';
-import 'package:universal_ble/src/utils/universal_ble_stream_controller.dart';
 
 /// Tracks active BLE central devices subscribed to characteristics in peripheral mode.
 class BleCentralTracker {
   final Map<String, BleCentral> _subscribedCentrals = <String, BleCentral>{};
-  late final UniversalBleStreamController<List<BleCentral>> _controller =
-      UniversalBleStreamController<List<BleCentral>>(
-    initialEvent: () async => subscribedCentrals,
-  );
+  final Map<String, Set<String>> _serviceCharacteristics =
+      <String, Set<String>>{};
+  final StreamController<List<BleCentral>> _controller =
+      StreamController<List<BleCentral>>.broadcast();
 
   StreamSubscription<BlePeripheralCharacteristicSubscriptionChanged>?
       _subscriptionSub;
@@ -22,6 +21,45 @@ class BleCentralTracker {
   /// Returns an unmodifiable list of currently subscribed centrals.
   List<BleCentral> get subscribedCentrals =>
       List<BleCentral>.unmodifiable(_subscribedCentrals.values);
+
+  /// Registers the characteristics associated with a service.
+  void registerService(String serviceId, Iterable<String> characteristicIds) {
+    final sId = BleUuidParser.string(serviceId);
+    _serviceCharacteristics[sId] =
+        characteristicIds.map(BleUuidParser.string).toSet();
+  }
+
+  /// Handles removal of a service, pruning subscriptions for any characteristic
+  /// belonging to the removed service.
+  void removeService(String serviceId) {
+    final sId = BleUuidParser.string(serviceId);
+    final charsToRemove = _serviceCharacteristics.remove(sId);
+    if (charsToRemove == null || charsToRemove.isEmpty) {
+      return;
+    }
+
+    bool changed = false;
+    final keys = _subscribedCentrals.keys.toList();
+    for (final key in keys) {
+      final central = _subscribedCentrals[key]!;
+      final remainingChars = central.subscribedCharacteristics
+          .where((char) => !charsToRemove.contains(char))
+          .toSet();
+      if (remainingChars.length != central.subscribedCharacteristics.length) {
+        changed = true;
+        if (remainingChars.isEmpty) {
+          _subscribedCentrals.remove(key);
+        } else {
+          _subscribedCentrals[key] = central.copyWith(
+            subscribedCharacteristics: remainingChars,
+          );
+        }
+      }
+    }
+    if (changed) {
+      _emit();
+    }
+  }
 
   /// Binds to peripheral event streams to track subscription and connection state changes.
   void bindStreams({
@@ -97,15 +135,16 @@ class BleCentralTracker {
     }
   }
 
-  /// Clears all tracked centrals and emits an empty list if any were present.
+  /// Clears all tracked centrals and registered services, and emits an empty list if any were present.
   void clear() {
+    _serviceCharacteristics.clear();
     if (_subscribedCentrals.isNotEmpty) {
       _subscribedCentrals.clear();
       _emit();
     }
   }
 
-  /// Cancels active stream subscriptions and clears tracked centrals.
+  /// Cancels active stream subscriptions and clears tracked centrals and services.
   void reset() {
     _subscriptionSub?.cancel();
     _subscriptionSub = null;
@@ -116,7 +155,18 @@ class BleCentralTracker {
 
   /// Broadcast stream that emits the current list of subscribed centrals upon listening
   /// and any subsequent updates.
-  Stream<List<BleCentral>> get stream => _controller.stream;
+  Stream<List<BleCentral>> get stream => Stream<List<BleCentral>>.multi(
+        (multiController) {
+          multiController.add(subscribedCentrals);
+          final sub = _controller.stream.listen(
+            multiController.add,
+            onError: multiController.addError,
+            onDone: multiController.close,
+          );
+          multiController.onCancel = () => sub.cancel();
+        },
+        isBroadcast: true,
+      );
 
   void _emit() {
     if (!_controller.isClosed) {
@@ -130,6 +180,7 @@ class BleCentralTracker {
     _connectionSub?.cancel();
     _connectionSub = null;
     _controller.close();
+    _serviceCharacteristics.clear();
     _subscribedCentrals.clear();
   }
 }

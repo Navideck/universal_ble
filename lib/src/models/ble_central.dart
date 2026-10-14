@@ -10,13 +10,20 @@ class BleCentral {
   final String? name;
 
   /// The set of characteristic UUIDs this central device is currently subscribed to.
+  ///
+  /// UUID format and casing are normalized automatically upon construction into
+  /// 128-bit lowercase strings. The set is unmodifiable.
   final Set<String> subscribedCharacteristics;
 
-  const BleCentral({
+  BleCentral({
     required this.id,
     this.name,
-    this.subscribedCharacteristics = const <String>{},
-  });
+    Set<String> subscribedCharacteristics = const <String>{},
+  }) : subscribedCharacteristics = subscribedCharacteristics.isEmpty
+            ? const <String>{}
+            : Set<String>.unmodifiable(
+                subscribedCharacteristics.map(BleUuidParser.string),
+              );
 
   /// Checks whether this central is subscribed to the specified characteristic UUID.
   ///
