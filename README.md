@@ -40,51 +40,61 @@ Looking for Bluetooth Classic? Check [universal_bluetooth_classic](https://pub.d
 
 ## API Support
 
+**Legend:** ✔️ supported, — not supported, ⏺ partial support (see notes), 🚧 work in progress.
+
 ### Client Mode (`UniversalBle`)
 
 |                               | Android | iOS | macOS | Windows | Linux | Web |
 | :---------------------------- | :-----: | :-: | :---: | :-----: | :---: | :-: |
 | startScan/stopScan            |   ✔️    | ✔️  |  ✔️   |   ✔️    |  ✔️   | ✔️  |
 | connect/disconnect            |   ✔️    | ✔️  |  ✔️   |   ✔️    |  ✔️   | ✔️  |
-| autoConnect                   |   ✔️    | ✔️  |  ✔️   |   ❌    |  ❌   | ❌  |
-| getSystemDevices              |   ✔️    | ✔️  |  ✔️   |   ✔️    |  ✔️   | ❌  |
+| autoConnect                   |   ✔️    | ✔️  |  ✔️   |   —    |  —   | —  |
+| getSystemDevices              |   ✔️    | ✔️  |  ✔️   |   ✔️    |  ✔️   | —  |
 | discoverServices              |   ✔️    | ✔️  |  ✔️   |   ✔️    |  ✔️   | ✔️  |
 | read                          |   ✔️    | ✔️  |  ✔️   |   ✔️    |  ✔️   | ✔️  |
 | write                         |   ✔️    | ✔️  |  ✔️   |   ✔️    |  ✔️   | ✔️  |
 | subscriptions                 |   ✔️    | ✔️  |  ✔️   |   ✔️    |  ✔️   | ✔️  |
-| pair                          |   ✔️    | ✔️  |  ✔️   |   ✔️    |  ✔️   |  ⏺  |
-| unpair                        |   ✔️    | ❌  |  ❌   |   ✔️    |  ✔️   | ❌  |
+| pair                          |   ✔️    | ✔️  |  ✔️   |   ✔️    |  ✔️   |  ⏺¹ |
+| unpair                        |   ✔️    |  ⏺² |  —   |   ✔️    |  ✔️   | —  |
 | isPaired                      |   ✔️    | ✔️  |  ✔️   |   ✔️    |  ✔️   | ✔️  |
-| onPairingStateChange          |   ✔️    |  ⏺  |   ⏺   |   ✔️    |  ✔️   |  ⏺  |
-| getBluetoothAvailabilityState |   ✔️    | ✔️  |  ✔️   |   ✔️    |  ✔️   | ❌  |
-| enable/disable Bluetooth      |   ✔️    | ❌  |  ❌   |   ✔️    |  ✔️   | ❌  |
+| onPairingStateChange          |   ✔️    |  ⏺³ |  ⏺³  |   ✔️    |  ✔️   |  ⏺³ |
+| getBluetoothAvailabilityState |   ✔️    | ✔️  |  ✔️   |   ✔️    |  ✔️   | —  |
+| enable/disable Bluetooth      |   ✔️    | —  |  —   |   ✔️    |  ✔️   | —  |
 | onAvailabilityChange          |   ✔️    | ✔️  |  ✔️   |   ✔️    |  ✔️   | ✔️  |
-| requestMtu                    |   ✔️    | ✔️  |  ✔️   |   ✔️    |  ✔️   | ❌  |
-| requestConnectionPriority     |   ✔️    | ❌  |  ❌   |   ❌    |  ❌   | ❌  |
-| onConnectionParametersChange  |   ✔️    | ❌  |  ❌   |   ❌    |  ❌   | ❌  |
-| readRssi                      |   ✔️    | ✔️  |  ✔️   |   ❌    |  🚧   | ❌  |
+| requestMtu                    |   ✔️    | ✔️  |  ✔️   |   ✔️    |  ✔️   | —  |
+| requestConnectionPriority     |   ✔️    | —  |  —   |   —    |  —   | —  |
+| onConnectionParametersChange  |   ✔️    | —  |  —   |   —    |  —   | —  |
+| readRssi                      |   ✔️    | ✔️  |  ✔️   |   —    |  🚧   | —  |
 | requestPermissions            |   ✔️    | ✔️  |  ✔️   |   ✔️    |  ✔️   | ✔️  |
+
+¹ On Web, `pair()` depends on the browser's host OS: ConfirmOnly ("Just Works") pairing can be triggered when the browser runs on macOS or Android, but not on Windows or Linux.
+
+² On iOS, `unpair` only works for accessories authorized through AccessorySetupKit; other devices fail with `deviceNotFound`.
+
+³ On iOS, macOS, and Web, events are driven by `pair()`: `true` when the encrypted-characteristic probe succeeds and `false` on failure. There is no system-initiated event and `unpair` does not report, so read the current state with `isPaired(pairingCommand:)`.
 
 ### Peripheral Mode (`UniversalBlePeripheral`)
 
 | API                           | Android | iOS | macOS | Windows | Linux | Web |
 | :---------------------------- | :-----: | :-: | :---: | :-----: | :---: | :-: |
-| getCapabilities               |   ✔️    | ✔️  |  ✔️   |   ✔️    |  🚧   | ❌  |
-| getAvailabilityState\*        |   ✔️    | ✔️  |  ✔️   |   ✔️    |  🚧   | ❌  |
-| getAdvertisingState           |   ✔️    | ✔️  |  ✔️   |   ✔️    |  🚧   | ❌  |
-| addService                    |   ✔️    | ✔️  |  ✔️   |   ✔️    |  🚧   | ❌  |
-| removeService                 |   ✔️    | ✔️  |  ✔️   |   ✔️    |  🚧   | ❌  |
-| clearServices                 |   ✔️    | ✔️  |  ✔️   |   ✔️    |  🚧   | ❌  |
-| getServices                   |   ✔️    | ✔️  |  ✔️   |   ✔️    |  🚧   | ❌  |
-| startAdvertising              |   ✔️    | ✔️  |  ✔️   |   ✔️    |  🚧   | ❌  |
-| stopAdvertising               |   ✔️    | ✔️  |  ✔️   |   ✔️    |  🚧   | ❌  |
-| updateCharacteristicValue\*\* |   ✔️    | ✔️  |  ✔️   |   ✔️    |  🚧   | ❌  |
-| getSubscribedClients          |   ✔️    | ✔️  |  ✔️   |   ✔️    |  🚧   | ❌  |
-| getMaximumNotifyLength        |   ✔️    | ✔️  |  ✔️   |   ✔️    |  🚧   | ❌  |
-| event streams\*\*\*           |   ✔️    | ✔️  |  ✔️   |   ✔️    |  🚧   | ❌  |
+| getCapabilities               |   ✔️    | ✔️  |  ✔️   |   ✔️    |  🚧   | —  |
+| getAvailabilityState\*        |   ✔️    | ✔️  |  ✔️   |   ✔️    |  🚧   | —  |
+| getAdvertisingState           |   ✔️    | ✔️  |  ✔️   |   ✔️    |  🚧   | —  |
+| addService                    |   ✔️    | ✔️  |  ✔️   |   ✔️    |  🚧   | —  |
+| removeService                 |   ✔️    | ✔️  |  ✔️   |   ✔️    |  🚧   | —  |
+| clearServices                 |   ✔️    | ✔️  |  ✔️   |   ✔️    |  🚧   | —  |
+| getServices                   |   ✔️    | ✔️  |  ✔️   |   ✔️    |  🚧   | —  |
+| startAdvertising              |   ✔️    | ✔️  |  ✔️   |   ✔️    |  🚧   | —  |
+| stopAdvertising               |   ✔️    | ✔️  |  ✔️   |   ✔️    |  🚧   | —  |
+| updateCharacteristicValue\*\* |   ✔️    | ✔️  |  ✔️   |   ✔️    |  🚧   | —  |
+| getSubscribedClients          |   ✔️    | ✔️  |  ✔️   |   ✔️    |  🚧   | —  |
+| getMaximumNotifyLength        |   ✔️    | ✔️  |  ✔️   |   ✔️    |  🚧   | —  |
+| event streams\*\*\*           |   ✔️    | ✔️  |  ✔️   |   ✔️    |  🚧   | —  |
 
 \* `getAvailabilityState` returns a snapshot. Listen to `advertisingStateStream`, `connectionStateStream`, and related streams for runtime updates.
+
 \*\* Pass `deviceId` to notify one client; omit it to notify all subscribed clients (when supported — see `getCapabilities().supportsTargetedCharacteristicUpdate`).
+
 \*\*\* `advertisingStateStream`, `characteristicSubscriptionStream`, `connectionStateStream`, `serviceAddedStream`, `mtuChangedStream`, `subscribedCentralsStream`.
 
 ## Getting Started
@@ -624,6 +634,8 @@ bleDevice.pairingStateStream.listen((bool paired) {
   // Handle pairing state change
 });
 ```
+
+On `Apple` and `Web`, see note ³ in [API Support](#api-support).
 
 #### Unpair
 
