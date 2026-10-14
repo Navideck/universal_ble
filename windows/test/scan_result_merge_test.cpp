@@ -1,7 +1,8 @@
-// Unit tests for the pure scan-result merge and connectability decisions used by
-// UniversalBlePlugin::PushUniversalScanResult. They cover the Windows
-// scan-response handling: a scan response must reach the caller, a sparse response
-// must not evict cached data, and scan responses preserve connectability.
+// Unit tests for the pure scan-result merge, update and connectability
+// decisions used by UniversalBlePlugin::PushUniversalScanResult. They cover the
+// Windows scan-response handling: a scan response must reach the caller, a
+// sparse response must not evict cached data, and scan responses preserve
+// connectability.
 
 #include "scan_result_merge.h"
 
@@ -24,14 +25,6 @@ bool Check(bool condition, const char *expression, int line) {
   return false;
 }
 
-ScanFieldPresence Presence(bool name, bool services, bool service_data) {
-  ScanFieldPresence presence;
-  presence.name = name;
-  presence.services = services;
-  presence.service_data = service_data;
-  return presence;
-}
-
 }  // namespace
 
 #define CHECK(expression)                              \
@@ -46,47 +39,76 @@ int main() {
   // advertisement watcher always sets `services`, so an empty list has to be
   // treated like a missing one.
   {
-    const ScanBackfillPlan plan =
-        PlanScanBackfill(Presence(/*name=*/true, /*services=*/false,
-                                  /*service_data=*/false),
-                         Presence(/*name=*/false, /*services=*/true,
-                                  /*service_data=*/false));
+    const ScanBackfillPlan plan = PlanScanBackfill(
+        ScanFieldPresence{.name = true}, ScanFieldPresence{.services = true});
     CHECK(plan.services);
     CHECK(!plan.name);
-    CHECK(ShouldUpdateScanResult(plan, /*is_scan_response=*/true));
+    CHECK(ShouldUpdateScanResult(plan, /*is_scan_response=*/true,
+                                 /*connectable_changed=*/false));
   }
 
   // A sparse scan response must not evict cached serviceData either.
   {
-    const ScanBackfillPlan plan = PlanScanBackfill(
-        Presence(true, false, false), Presence(false, false, true));
+    const ScanBackfillPlan plan =
+        PlanScanBackfill(ScanFieldPresence{.name = true},
+                         ScanFieldPresence{.service_data = true});
     CHECK(plan.service_data);
-    CHECK(ShouldUpdateScanResult(plan, true));
+    CHECK(ShouldUpdateScanResult(plan, /*is_scan_response=*/true,
+                                 /*connectable_changed=*/false));
+  }
+
+  // is_paired and manufacturer_data are backfilled by the same rule.
+  {
+    const ScanBackfillPlan plan = PlanScanBackfill(
+        ScanFieldPresence{}, ScanFieldPresence{.is_paired = true});
+    CHECK(plan.is_paired);
+    CHECK(!plan.name);
+  }
+  {
+    const ScanBackfillPlan plan = PlanScanBackfill(
+        ScanFieldPresence{}, ScanFieldPresence{.manufacturer_data = true});
+    CHECK(plan.manufacturer_data);
+    CHECK(!plan.services);
   }
 
   // A packet that already carries a field is not backfilled from the cache.
   {
-    const ScanBackfillPlan plan = PlanScanBackfill(Presence(true, true, true),
-                                                   Presence(true, true, true));
+    const ScanFieldPresence all{.name = true,
+                                .is_paired = true,
+                                .manufacturer_data = true,
+                                .services = true,
+                                .service_data = true};
+    const ScanBackfillPlan plan = PlanScanBackfill(all, all);
     CHECK(!plan.name);
+    CHECK(!plan.is_paired);
+    CHECK(!plan.manufacturer_data);
     CHECK(!plan.services);
     CHECK(!plan.service_data);
   }
 
   // Nothing to copy from an empty cache: the packet keeps its own fields.
   {
-    const ScanBackfillPlan plan = PlanScanBackfill(
-        Presence(true, false, false), Presence(false, false, false));
+    const ScanBackfillPlan plan =
+        PlanScanBackfill(ScanFieldPresence{.name = true}, ScanFieldPresence{});
+    CHECK(!plan.name);
+    CHECK(!plan.is_paired);
+    CHECK(!plan.manufacturer_data);
     CHECK(!plan.services);
     CHECK(!plan.service_data);
   }
 
   // A scan response is an update on its own, even with nothing to backfill.
-  CHECK(ShouldUpdateScanResult(ScanBackfillPlan{}, /*is_scan_response=*/true));
+  CHECK(ShouldUpdateScanResult(ScanBackfillPlan{}, /*is_scan_response=*/true,
+                               /*connectable_changed=*/false));
 
-  // A connectable advertisement with nothing new is deduplicated.
-  CHECK(
-      !ShouldUpdateScanResult(ScanBackfillPlan{}, /*is_scan_response=*/false));
+  // A plain packet with nothing new and an unchanged connectable state is
+  // deduplicated.
+  CHECK(!ShouldUpdateScanResult(ScanBackfillPlan{}, /*is_scan_response=*/false,
+                                /*connectable_changed=*/false));
+
+  // A connectable-state change is an update on its own.
+  CHECK(ShouldUpdateScanResult(ScanBackfillPlan{}, /*is_scan_response=*/false,
+                               /*connectable_changed=*/true));
 
   // Connectability derivation:
   // Connectable advertisements report connectable.
@@ -104,7 +126,8 @@ int main() {
                                /*is_scan_response=*/true,
                                /*address_heard_connectable=*/true));
 
-  // A scan response for an address never heard connectable reports non-connectable.
+  // A scan response for an address never heard connectable reports
+  // non-connectable.
   CHECK(!DeriveConnectableState(/*is_connectable=*/false,
                                 /*is_scan_response=*/true,
                                 /*address_heard_connectable=*/false));

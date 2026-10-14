@@ -45,14 +45,21 @@ inline ScanBackfillPlan PlanScanBackfill(const ScanFieldPresence &incoming,
   return plan;
 }
 
-// A packet is an update when it backfills cached data, or when it is the answer
-// to the scan request the host sent: a scan response is newer by itself, even
-// when no cached field could be copied into it. Otherwise the cache-dedup early
-// return drops it.
+// A packet is an update when it backfills cached data, when it is the answer to
+// the scan request the host sent, or when its connectability changed. A scan
+// response is newer by itself, even when no cached field could be copied into
+// it. Otherwise the cache-dedup early return drops it.
+//
+// `connectable_changed` is a parameter rather than something derived from the
+// plan: it compares two results, not one packet's field presence. Keeping it in
+// this predicate makes the helper the single update decision, so a caller
+// cannot forget it.
 inline bool ShouldUpdateScanResult(const ScanBackfillPlan &plan,
-                                   bool is_scan_response) {
+                                   bool is_scan_response,
+                                   bool connectable_changed) {
   return plan.name || plan.is_paired || plan.manufacturer_data ||
-         plan.services || plan.service_data || is_scan_response;
+         plan.services || plan.service_data || is_scan_response ||
+         connectable_changed;
 }
 
 // Determines whether the scan result is connectable. On Windows, a scan

@@ -1443,6 +1443,9 @@ void UniversalBlePlugin::PushUniversalScanResult(
     cached.name = current_scan_result.name() != nullptr &&
                   !current_scan_result.name()->empty();
     cached.is_paired = current_scan_result.is_paired() != nullptr;
+    // A cached list that is null *or* empty counts as absent, the same rule the
+    // incoming packet uses above: copying an empty list over a packet that
+    // carries nothing is not a reason to deliver.
     cached.manufacturer_data =
         has_items(current_scan_result.manufacturer_data_list());
     cached.services = has_items(current_scan_result.services());
@@ -1476,8 +1479,7 @@ void UniversalBlePlugin::PushUniversalScanResult(
         *scan_result.connectable() != *current_scan_result.connectable();
 
     // if nothing to update then return
-    if (!ShouldUpdateScanResult(plan, is_scan_response) &&
-        !connectable_changed) {
+    if (!ShouldUpdateScanResult(plan, is_scan_response, connectable_changed)) {
       return;
     }
   }
