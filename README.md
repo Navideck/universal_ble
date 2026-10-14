@@ -33,8 +33,7 @@ Looking for Bluetooth Classic? Check [universal_bluetooth_classic](https://pub.d
 - [Command Queue](#command-queue)
 - [Timeout](#timeout)
 - [Error Handling](#error-handling)
-- [Device ID Format](#device-id-format)
-- [UUID Format Agnostic](#uuid-format-agnostic)
+- [Device ID & UUID Formats](#device-id--uuid-formats)
 - [Platform-specific setup](#platform-specific-setup)
 - [Peripheral Mode](#peripheral-mode)
 - [AI agent skills](#ai-agent-skills)
@@ -1095,31 +1094,31 @@ UniversalBlePeripheral.mtuChangedStream.listen(
 - Windows peripheral advertising does not expose all advertising payload customization options from Android/Apple stacks.
 - iOS/macOS setup (including required `Info.plist` keys for peripheral usage) is documented in [Permissions → iOS / macOS](#ios--macos).
 
-## Device ID Format
+## Device ID & UUID Formats
 
-A device ID represents a Bluetooth address on native platforms — a MAC address on Android, Windows, and Linux, or a peripheral UUID on Apple (iOS/macOS). Although underlying platforms report addresses in differing cases (for example, Android reports upper-case MACs while Windows WinRT reports lower-case MACs), Universal BLE canonicalises all native addresses:
+Universal BLE normalises identifiers across platforms so you don't need to worry about underlying platform differences:
 
-- **Emitted in lower-case:** Device IDs are emitted in **lower-case canonical format** across all scan results (`scanStream`, `onScanResult`), connection state streams and callbacks (`connectionStream`, `connectionChangeStream`, `onConnectionChange`), characteristic value updates, pairing state events, and connection parameter changes.
-- **Accepted in any case:** Whenever you pass a `deviceId` to any `UniversalBle` method (such as `connect`, `disconnect`, `discoverServices`, `readValue`, `writeValue`, `subscribeNotifications`, `pair`, etc.), you may provide it in any case (upper, lower, or mixed). Universal BLE canonicalises it internally for queueing and caching, and converts it to whatever format the native platform requires (such as upper-case for Android's `getRemoteDevice`).
-- **Peripheral mode:** The same canonicalisation applies to peripheral mode (`UniversalBlePeripheral`). Central device IDs received in connection events, characteristic subscription updates, MTU changes, read/write request handlers, and `getSubscribedClients()` are emitted in lower-case. Methods taking a central `deviceId` (such as `updateCharacteristicValue` or `getMaximumNotifyLength`) accept any case.
+### Device IDs
+
+- **Emitted in lower-case:** Native platforms (Android, iOS, macOS, Windows, Linux) emit device IDs (MAC addresses or Apple UUIDs) in **lower-case**.
+- **Accepted in any case:** You can pass a `deviceId` in any casing (upper, lower, or mixed) to any `UniversalBle` or `UniversalBlePeripheral` method.
+- **Web Bluetooth:** Web uses opaque, case-sensitive browser tokens that are preserved verbatim and must be matched with exact casing.
 
 ```dart
-// Scan results emit lower-case device IDs:
+// Native platforms emit lower-case IDs:
 UniversalBle.onScanResult = (BleDevice device) {
   print(device.deviceId); // e.g. "aa:bb:cc:dd:ee:ff" or "e621e1f8-c36c-495a-93fc-0c247a3e6e5f"
 };
 
-// You can pass the ID back in any casing:
+// Any casing is accepted when calling APIs:
 await UniversalBle.connect("AA:BB:CC:DD:EE:FF");
 ```
 
-> **Web Bluetooth exception:** Web Bluetooth does not expose MAC addresses or UUIDs. Instead, browsers generate opaque, case-sensitive string tokens (e.g. Base64 random strings). On Web, device IDs are emitted verbatim and must be matched with exact case.
+### UUIDs
 
-## UUID Format Agnostic
-
-Universal BLE is agnostic to the UUID format of services and characteristics regardless of the platform the app runs on. When passing a UUID, you can pass it in any format (long/short) or character case (upper/lower case) you want. Universal BLE will take care of necessary conversions, across all platforms, so that you don't need to worry about underlying platform differences.
-
-For consistency, all characteristic and service UUIDs will be returned in **lowercase 128-bit format**, across all platforms, e.g. `0000180a-0000-1000-8000-00805f9b34fb`.
+Universal BLE is agnostic to the UUID format of services and characteristics:
+- You can pass UUIDs in any format (16-bit, 32-bit, 128-bit) and any character case.
+- All characteristic and service UUIDs are returned in **lowercase 128-bit format** across all platforms, e.g. `0000180a-0000-1000-8000-00805f9b34fb`.
 
 ### Utility Methods
 

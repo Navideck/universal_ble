@@ -37,7 +37,15 @@ class BleCommandQueue {
       : queueType;
 
   String? _queueKey(String? queueId, String? deviceId) {
-    if (queueId != null) return queueId;
+    if (queueId != null) {
+      if (_isAddress &&
+          ((deviceId != null &&
+                  queueId.toLowerCase() == deviceId.toLowerCase()) ||
+              DeviceId.looksLikeAddress(queueId))) {
+        return queueId.toDeviceId().canonical;
+      }
+      return queueId;
+    }
     if (deviceId == null) return null;
     return _isAddress ? deviceId.toDeviceId().canonical : deviceId;
   }
@@ -101,14 +109,14 @@ class BleCommandQueue {
       _queueMap.clear();
     } else {
       _queueMap.remove(id)?.dispose();
-      if (_isAddress) {
+      if (_isAddress && DeviceId.looksLikeAddress(id)) {
         final canonical = id.toDeviceId().canonical;
         if (canonical != id) {
           _queueMap.remove(canonical)?.dispose();
         }
-        final deviceId = id.toDeviceId();
-        if (deviceId.native != id) {
-          _queueMap.remove(deviceId.native)?.dispose();
+        final native = id.toDeviceId().native;
+        if (native != id) {
+          _queueMap.remove(native)?.dispose();
         }
       }
     }

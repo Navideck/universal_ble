@@ -96,4 +96,31 @@ void main() {
       expect(maybeId(false)?.toDeviceId().canonical, isNull);
     });
   });
+
+  group('DeviceId.looksLikeAddress', () {
+    test('identifies MAC addresses with colons or hyphens', () {
+      expect(DeviceId.looksLikeAddress('AA:BB:CC:DD:EE:FF'), isTrue);
+      expect(DeviceId.looksLikeAddress('aa:bb:cc:dd:ee:ff'), isTrue);
+      expect(DeviceId.looksLikeAddress('AA-BB-CC-DD-EE-FF'), isTrue);
+      expect(DeviceId.looksLikeAddress('aabbccddeeff'), isTrue);
+    });
+
+    test('identifies 128-bit UUID addresses', () {
+      expect(
+        DeviceId.looksLikeAddress('E621E1F8-C36C-495A-93FC-0C247A3E6E5F'),
+        isTrue,
+      );
+      expect(
+        DeviceId.looksLikeAddress('e621e1f8-c36c-495a-93fc-0c247a3e6e5f'),
+        isTrue,
+      );
+    });
+
+    test('rejects arbitrary custom queue names and opaque tokens', () {
+      expect(DeviceId.looksLikeAddress('Sync'), isFalse);
+      expect(DeviceId.looksLikeAddress('sync'), isFalse);
+      expect(DeviceId.looksLikeAddress('custom_queue'), isFalse);
+      expect(DeviceId.looksLikeAddress('mHZbW+PZqBpUlZlVQrPzOQ=='), isFalse);
+    });
+  });
 }

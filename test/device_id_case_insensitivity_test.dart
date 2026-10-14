@@ -348,6 +348,81 @@ void main() {
     await f2Expectation;
   });
 
+  test('clearQueue with custom queueId does not touch other case variations',
+      () async {
+    final queue = BleCommandQueue(
+      queueType: QueueType.perDevice,
+      isAddress: true,
+    );
+
+    final syncQueueStarted = Completer<void>();
+    final syncQueueRelease = Completer<void>();
+
+    // Enqueue in-flight and pending commands on 'sync'
+    final syncInFlight = queue.queueCommand(() async {
+      syncQueueStarted.complete();
+      await syncQueueRelease.future;
+    }, queueId: 'sync');
+    final syncPending = queue.queueCommand(
+      () async => 'sync-pending-ok',
+      queueId: 'sync',
+    );
+
+    await syncQueueStarted.future;
+
+    // Enqueue in-flight and pending commands on 'Sync'
+    final uppercaseQueueStarted = Completer<void>();
+    unawaited(queue.queueCommand(() async {
+      uppercaseQueueStarted.complete();
+      await Future<void>.delayed(const Duration(seconds: 5));
+    }, queueId: 'Sync'));
+    final uppercasePending = queue.queueCommand(
+      () async => 'uppercase-pending',
+      queueId: 'Sync',
+    );
+
+    await uppercaseQueueStarted.future;
+
+    // Clear 'Sync' only
+    queue.clearQueue('Sync');
+
+    // 'Sync' pending command is disposed
+    await expectLater(uppercasePending, throwsException);
+
+    // 'sync' queue was untouched: pending command completes normally once in-flight finishes
+    syncQueueRelease.complete();
+    await syncInFlight;
+    expect(await syncPending, 'sync-pending-ok');
+  });
+
+  test(
+      'per-device command queue serializes commands when queueId is passed in different casing for device address',
+      () async {
+    final queue = BleCommandQueue(
+      queueType: QueueType.perDevice,
+      isAddress: true,
+    );
+
+    final order = <int>[];
+    final completer1 = Completer<void>();
+
+    final f1 = queue.queueCommand(() async {
+      await completer1.future;
+      order.add(1);
+    }, deviceId: upper, queueId: upper);
+
+    final f2 = queue.queueCommand(() async {
+      order.add(2);
+    }, deviceId: lower, queueId: lower);
+
+    await Future<void>.delayed(const Duration(milliseconds: 20));
+    expect(order, isEmpty);
+
+    completer1.complete();
+    await Future.wait([f1, f2]);
+    expect(order, [1, 2]);
+  });
+
   // A platform whose ids are NOT addresses (Web Bluetooth: opaque, case-sensitive browser tokens)
   // reports hasAddressDeviceIds == false, so its ids pass through verbatim. Emission and matching
   // both go through DeviceId, so a scanned id round-trips byte-for-byte and still matches.

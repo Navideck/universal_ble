@@ -53,6 +53,18 @@ class DeviceId {
       other.canonical == canonical &&
       other.native == native;
 
+  static final RegExp _macRegex = RegExp(
+    r'^([0-9A-Fa-f]{2}[:-]){5}([0-9A-Fa-f]{2})$|^[0-9A-Fa-f]{12}$',
+  );
+  static final RegExp _uuidRegex = RegExp(
+    r'^[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}$',
+  );
+
+  /// Returns true if [id] matches the format of a Bluetooth hardware address
+  /// (a MAC address or a 128-bit UUID).
+  static bool looksLikeAddress(String id) =>
+      _macRegex.hasMatch(id) || _uuidRegex.hasMatch(id);
+
   @override
   int get hashCode => Object.hash(canonical, native);
 }
