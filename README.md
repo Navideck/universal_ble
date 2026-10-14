@@ -1104,19 +1104,21 @@ Universal BLE normalises identifiers across platforms so you don't need to worry
 - **Web (exception):** Device IDs are opaque, case-sensitive browser tokens, preserved verbatim and must be matched with exact case.
 
 ```dart
-// Native platforms (Android, iOS, macOS, Windows, Linux) emit lower-case IDs;
-// Web is the exception — opaque, case-sensitive tokens preserved verbatim.
+// Android, iOS, macOS, Windows, Linux — emitted IDs are lower-case, any case is accepted:
 UniversalBle.onScanResult = (BleDevice device) {
-  print(device.deviceId);
-  // native: e.g. "aa:bb:cc:dd:ee:ff" or "e621e1f8-c36c-495a-93fc-0c247a3e6e5f"
-  // web:    e.g. "rNvoULy2kW0atVQmwH8WYg==" (not a MAC or UUID)
+  print(device.deviceId); // e.g. "aa:bb:cc:dd:ee:ff" or "e621e1f8-c36c-495a-93fc-0c247a3e6e5f"
 };
 
-// Native platforms accept any case when calling APIs:
 await UniversalBle.connect("AA:BB:CC:DD:EE:FF");
+```
 
-// Web must match exactly — pass the ID back as emitted, never re-cased:
-await UniversalBle.connect(webDeviceId); // e.g. "rNvoULy2kW0atVQmwH8WYg=="
+```dart
+// Web (exception) — opaque, case-sensitive tokens, matched exactly as emitted:
+UniversalBle.onScanResult = (BleDevice device) {
+  print(device.deviceId); // e.g. "rNvoULy2kW0atVQmwH8WYg==" (not a MAC or UUID)
+};
+
+await UniversalBle.connect(webDeviceId); // must match exactly — never re-cased
 ```
 
 ### UUIDs
