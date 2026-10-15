@@ -1,6 +1,8 @@
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:universal_ble/src/universal_ble.g.dart';
+import 'package:universal_ble/src/universal_ble_pigeon/universal_ble_pigeon_channel.dart';
 import 'package:universal_ble/src/utils/universal_ble_filter_util.dart';
 import 'package:universal_ble/universal_ble.dart';
 
@@ -89,6 +91,32 @@ void main() {
     test('a malformed advertised service does not throw', () {
       filterUtil.scanFilter = ScanFilter(withServices: [full]);
       expect(filterUtil.matchedScanFilter(deviceWith(['not-a-uuid'])), isFalse);
+    });
+  });
+
+  group('native scan result conversion', () {
+    test('normalises a short advertised service', () {
+      final device = UniversalBleScanResult(
+        deviceId: '1',
+        services: ['180d'],
+      ).toBleDevice();
+
+      expect(device.services, [full]);
+    });
+
+    test('malformed advertised services do not throw', () {
+      final device = UniversalBleScanResult(
+        deviceId: '1',
+        services: ['not-a-uuid'],
+      ).toBleDevice();
+
+      expect(device.services, ['not-a-uuid']);
+    });
+
+    test('absent advertised services become an empty list', () {
+      final device = UniversalBleScanResult(deviceId: '1').toBleDevice();
+
+      expect(device.services, isEmpty);
     });
   });
 }

@@ -123,7 +123,7 @@ class BleDevice {
     if (services.isEmpty) return const [];
     return services
         .map((uuid) => BleUuidParser.stringOrNull(uuid) ?? uuid)
-        .toList(growable: false);
+        .toList();
   }
 
   @override
