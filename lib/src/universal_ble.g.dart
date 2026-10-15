@@ -821,6 +821,7 @@ class UniversalScanFilter {
     required this.withServices,
     required this.withNamePrefix,
     required this.withManufacturerData,
+    required this.withServiceData,
   });
 
   List<String> withServices;
@@ -829,11 +830,17 @@ class UniversalScanFilter {
 
   List<ManufacturerDataFilter> withManufacturerData;
 
+  /// Service data UUIDs to match. Appended last on purpose: pigeon encodes
+  /// fields positionally, so inserting this anywhere else would shift the
+  /// indices of the fields above and break against a stale native binary.
+  List<String> withServiceData;
+
   List<Object?> _toList() {
     return <Object?>[
       withServices,
       withNamePrefix,
       withManufacturerData,
+      withServiceData,
     ];
   }
 
@@ -848,6 +855,7 @@ class UniversalScanFilter {
       withNamePrefix: (result[1]! as List<Object?>).cast<String>(),
       withManufacturerData:
           (result[2]! as List<Object?>).cast<ManufacturerDataFilter>(),
+      withServiceData: (result[3]! as List<Object?>).cast<String>(),
     );
   }
 
@@ -862,7 +870,8 @@ class UniversalScanFilter {
     }
     return _deepEquals(withServices, other.withServices) &&
         _deepEquals(withNamePrefix, other.withNamePrefix) &&
-        _deepEquals(withManufacturerData, other.withManufacturerData);
+        _deepEquals(withManufacturerData, other.withManufacturerData) &&
+        _deepEquals(withServiceData, other.withServiceData);
   }
 
   @override

@@ -655,16 +655,16 @@ class UniversalBleLinux extends UniversalBlePlatform {
 
   void _onDeviceAdd(BlueZDevice device) {
     BleDevice bleDevice = device.toBleDevice();
-    if (!_bleFilter.shouldAcceptDevice(bleDevice)) {
-      return;
-    }
 
     // Update scan results only if rssi is available
-    if (device.rssi != 0) {
+    if (device.rssi != 0 && _bleFilter.shouldAcceptDevice(bleDevice)) {
       updateScanResult(bleDevice);
     }
 
-    // Setup Cache
+    // Setup Cache. Devices are cached (and their listeners attached) even when
+    // the current filter rejects them: a device that has not advertised any
+    // ServiceData/UUIDs yet may only start matching once BlueZ reports them in a
+    // later advertisement (#57).
     _devices[device.address] = device;
 
     // Setup advertisements Listener
@@ -675,8 +675,11 @@ class UniversalBleLinux extends UniversalBlePlatform {
           e.contains(BluezProperty.uuids) ||
           e.contains(BluezProperty.serviceData);
     }).listen((_) {
-      if (_bleFilter.shouldAcceptDevice(bleDevice)) {
-        updateScanResult(device.toBleDevice());
+      // Re-evaluate the filter on the current properties, not on the snapshot
+      // taken when the device was added.
+      final updatedBleDevice = device.toBleDevice();
+      if (_bleFilter.shouldAcceptDevice(updatedBleDevice)) {
+        updateScanResult(updatedBleDevice);
       }
     });
 

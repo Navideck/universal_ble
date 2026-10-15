@@ -2,6 +2,8 @@ package com.navideck.universal_ble
 
 import android.bluetooth.le.ScanRecord
 import android.bluetooth.le.ScanResult
+import android.os.ParcelUuid
+import java.util.UUID
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
@@ -114,6 +116,38 @@ internal class UniversalBleHelperTest {
         `when`(scanResult.scanRecord).thenReturn(null)
 
         assertTrue(scanResult.manufacturerDataList.isEmpty())
+    }
+
+    @Test
+    fun parsesServiceDataAndItsUuids() {
+        val parcelUuid = mock(ParcelUuid::class.java)
+        `when`(parcelUuid.uuid).thenReturn(
+            UUID.fromString("0000181a-0000-1000-8000-00805f9b34fb")
+        )
+        val scanRecord = mock(ScanRecord::class.java)
+        `when`(scanRecord.serviceData).thenReturn(mapOf(parcelUuid to byteArrayOf(1, 2)))
+        val scanResult = mock(ScanResult::class.java)
+        `when`(scanResult.scanRecord).thenReturn(scanRecord)
+
+        val serviceData = scanResult.serviceData
+        assertEquals(1, serviceData.size)
+        assertEquals("0000181a-0000-1000-8000-00805f9b34fb", serviceData.keys.first())
+        assertContentEquals(byteArrayOf(1, 2), serviceData.values.first())
+        assertEquals(
+            listOf(UUID.fromString("0000181a-0000-1000-8000-00805f9b34fb")),
+            scanResult.serviceDataUuids,
+        )
+    }
+
+    @Test
+    fun missingServiceDataReturnsEmpty() {
+        val scanResult = mock(ScanResult::class.java)
+        val scanRecord = mock(ScanRecord::class.java)
+        `when`(scanResult.scanRecord).thenReturn(scanRecord)
+        `when`(scanRecord.serviceData).thenReturn(null)
+
+        assertTrue(scanResult.serviceData.isEmpty())
+        assertTrue(scanResult.serviceDataUuids.isEmpty())
     }
 
     private fun manufacturerAd(companyId: Int, payload: ByteArray): ByteArray {

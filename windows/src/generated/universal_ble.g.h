@@ -676,7 +676,8 @@ class UniversalScanFilter {
   explicit UniversalScanFilter(
     const ::flutter::EncodableList& with_services,
     const ::flutter::EncodableList& with_name_prefix,
-    const ::flutter::EncodableList& with_manufacturer_data);
+    const ::flutter::EncodableList& with_manufacturer_data,
+    const ::flutter::EncodableList& with_service_data);
 
   const ::flutter::EncodableList& with_services() const;
   void set_with_services(const ::flutter::EncodableList& value_arg);
@@ -686,6 +687,12 @@ class UniversalScanFilter {
 
   const ::flutter::EncodableList& with_manufacturer_data() const;
   void set_with_manufacturer_data(const ::flutter::EncodableList& value_arg);
+
+  // Service data UUIDs to match. Appended last on purpose: pigeon encodes
+  // fields positionally, so inserting this anywhere else would shift the
+  // indices of the fields above and break against a stale native binary.
+  const ::flutter::EncodableList& with_service_data() const;
+  void set_with_service_data(const ::flutter::EncodableList& value_arg);
 
   bool operator==(const UniversalScanFilter& other) const;
   bool operator!=(const UniversalScanFilter& other) const;
@@ -703,6 +710,7 @@ class UniversalScanFilter {
   ::flutter::EncodableList with_services_;
   ::flutter::EncodableList with_name_prefix_;
   ::flutter::EncodableList with_manufacturer_data_;
+  ::flutter::EncodableList with_service_data_;
 };
 
 

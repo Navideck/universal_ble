@@ -412,6 +412,7 @@ extension _ScanFilterExtension on ScanFilter? {
       withServices: this?.withServices.toValidUUIDList() ?? [],
       withNamePrefix: this?.withNamePrefix ?? [],
       withManufacturerData: this?.withManufacturerData ?? [],
+      withServiceData: this?.withServiceData.toValidUUIDList() ?? [],
     );
   }
 }

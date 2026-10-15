@@ -135,6 +135,7 @@ UniversalBle.startScan();
 UniversalBle.startScan(
   scanFilter: ScanFilter(
     withServices: ["SERVICE_UUID"],
+    withServiceData: ["SERVICE_DATA_UUID"],
     withManufacturerData: [ManufacturerDataFilter(companyIdentifier: 0x004c)],
     withNamePrefix: ["NAME_PREFIX"],
   )
@@ -146,6 +147,8 @@ UniversalBle.stopScan();
 // Check if scanning
 UniversalBle.isScanning();
 ```
+
+Each scan result is a `BleDevice`. Besides `deviceId`, `name` and `rssi` it carries `services` (the advertised service UUIDs), `manufacturerDataList`, `serviceData` (the advertising Service Data payloads, keyed by service UUID), `connectable` and the reception timestamps.
 
 #### Skipping duplicate scan results
 
@@ -209,6 +212,35 @@ List<String> withServices;
 ```
 
 Note: On web **you have to** specify services before you are able to use them. See the [web](#web) section for more details.
+
+##### With ServiceData
+
+When setting this parameter, the scan results will only include devices that advertise **Service Data** for any of the specified services.
+
+Service Data is the advertising data type that pairs a service UUID with a payload (`0x16`, `0x20` and `0x21` in the Bluetooth specification). It is a *different* field from the advertised service UUID list matched by `withServices`, and beacons commonly carry their UUID only there — Eddystone (`0xFEAA`), the ATC_MiThermometer (`0x181A`), BLE Mesh provisioning (`0x1827`) — which makes them invisible to a `withServices` filter.
+
+```dart
+List<String> withServiceData;
+```
+
+```dart
+UniversalBle.startScan(
+  scanFilter: ScanFilter(withServiceData: ['181A']),
+);
+
+UniversalBle.onScanResult = (device) {
+  // The payload of the device's 181A Service Data field.
+  final payload = device.serviceData['0000181a-0000-1000-8000-00805f9b34fb'];
+};
+```
+
+UUIDs are accepted in any case and in short (`181A`), `0x`-prefixed, or full 128-bit form. Like the other conditions, an empty list is ignored and the conditions are in `OR` relation, so combining `withServiceData` with `withServices` returns devices matching either.
+
+Platform notes:
+
+- On `Android` and `Apple` this moves the scan to the software filter path: the platform cannot filter on Service Data (a controller-level scan filter, or `scanForPeripherals(withServices:)`, would discard the device before the plugin is notified), so more advertisements reach the app process at a battery cost. Set it only when you need it.
+- On `Web` it is not supported and `startScan` / `requestDevice` throw `notSupported`: the browser's device chooser cannot filter on Service Data. Scan without it and read `BleDevice.serviceData` from the advertisement events instead.
+- On `Android`, a peripheral using legacy BLE 4.x advertisements additionally needs `AndroidOptions(legacy: true)`.
 
 ##### With ManufacturerData
 

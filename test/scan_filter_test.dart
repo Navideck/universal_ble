@@ -312,24 +312,141 @@ void main() {
       // When connectableOnly is true, non-connectable is rejected
       universalBleFilter.scanFilter = ScanFilter(connectableOnly: true);
       expect(universalBleFilter.matchedScanFilter(connectableDevice), isTrue);
-      expect(universalBleFilter.matchedScanFilter(nonConnectableDevice), isFalse);
+      expect(
+          universalBleFilter.matchedScanFilter(nonConnectableDevice), isFalse);
       expect(universalBleFilter.matchedScanFilter(unknownDevice), isTrue);
-      expect(universalBleFilter.matchesConnectableFilter(connectableDevice), isTrue);
-      expect(universalBleFilter.matchesConnectableFilter(nonConnectableDevice), isFalse);
-      expect(universalBleFilter.matchesConnectableFilter(unknownDevice), isTrue);
+      expect(universalBleFilter.matchesConnectableFilter(connectableDevice),
+          isTrue);
+      expect(universalBleFilter.matchesConnectableFilter(nonConnectableDevice),
+          isFalse);
+      expect(
+          universalBleFilter.matchesConnectableFilter(unknownDevice), isTrue);
 
       // When connectableOnly is null or false, non-connectable is allowed
       universalBleFilter.scanFilter = ScanFilter(connectableOnly: null);
       expect(universalBleFilter.matchedScanFilter(connectableDevice), isTrue);
-      expect(universalBleFilter.matchedScanFilter(nonConnectableDevice), isTrue);
+      expect(
+          universalBleFilter.matchedScanFilter(nonConnectableDevice), isTrue);
       expect(universalBleFilter.matchedScanFilter(unknownDevice), isTrue);
-      expect(universalBleFilter.matchesConnectableFilter(nonConnectableDevice), isTrue);
+      expect(universalBleFilter.matchesConnectableFilter(nonConnectableDevice),
+          isTrue);
 
       universalBleFilter.scanFilter = ScanFilter(connectableOnly: false);
       expect(universalBleFilter.matchedScanFilter(connectableDevice), isTrue);
-      expect(universalBleFilter.matchedScanFilter(nonConnectableDevice), isTrue);
+      expect(
+          universalBleFilter.matchedScanFilter(nonConnectableDevice), isTrue);
       expect(universalBleFilter.matchedScanFilter(unknownDevice), isTrue);
-      expect(universalBleFilter.matchesConnectableFilter(nonConnectableDevice), isTrue);
+      expect(universalBleFilter.matchesConnectableFilter(nonConnectableDevice),
+          isTrue);
+    });
+  });
+
+  group("Test Service Data Filter", () {
+    // A beacon that carries 0x181A only in its advertising Service Data, without
+    // listing it among its advertised services (#57).
+    final serviceDataBeacon = BleDevice(
+      deviceId: 'sd1',
+      name: 'ATC_DD7A81',
+      services: [],
+      serviceData: {
+        '181a': Uint8List.fromList([0x81, 0x7a, 0xdd]),
+      },
+    );
+    // Advertises the service UUID the old way, and carries full-form service
+    // data for another UUID.
+    final advertisedDevice = BleDevice(
+      deviceId: 'sd2',
+      name: 'other',
+      services: ['20a2'],
+      serviceData: {
+        '0000feaa-0000-1000-8000-00805f9b34fb': Uint8List.fromList([1]),
+      },
+    );
+    // Neither advertised services nor service data.
+    final emptyDevice = BleDevice(
+      deviceId: 'sd3',
+      name: 'empty',
+      services: [],
+      serviceData: {},
+    );
+
+    test('Test serviceDataMatch: short, case-insensitive and full form', () {
+      for (final filterValue in [
+        '181a',
+        '181A',
+        '0x181a',
+        '0000181a-0000-1000-8000-00805f9b34fb',
+        '0000181A-0000-1000-8000-00805F9B34FB',
+      ]) {
+        expect(
+          universalBleFilter.serviceDataMatch(
+            ScanFilter(withServiceData: [filterValue]),
+            serviceDataBeacon,
+          ),
+          isTrue,
+          reason: '$filterValue should match the advertised Service Data UUID',
+        );
+      }
+    });
+
+    test('Test serviceDataMatch: non-matching and empty service data', () {
+      final scanFilter = ScanFilter(withServiceData: ['2a6e']);
+      expect(universalBleFilter.serviceDataMatch(scanFilter, advertisedDevice),
+          isFalse);
+      expect(universalBleFilter.serviceDataMatch(scanFilter, emptyDevice),
+          isFalse);
+      expect(universalBleFilter.serviceDataMatch(scanFilter, serviceDataBeacon),
+          isFalse);
+    });
+
+    test('Test serviceDataMatch: empty filter matches everything', () {
+      expect(
+        universalBleFilter.serviceDataMatch(ScanFilter(), serviceDataBeacon),
+        isTrue,
+      );
+    });
+
+    test('Test matchedScanFilter: Service Data only device is discovered', () {
+      // withServices alone does not see the beacon...
+      universalBleFilter.scanFilter = ScanFilter(withServices: ['181a']);
+      expect(universalBleFilter.matchedScanFilter(serviceDataBeacon), isFalse);
+
+      // ...but withServiceData does.
+      universalBleFilter.scanFilter = ScanFilter(withServiceData: ['181a']);
+      expect(universalBleFilter.matchedScanFilter(serviceDataBeacon), isTrue);
+      expect(universalBleFilter.matchedScanFilter(advertisedDevice), isFalse);
+      expect(universalBleFilter.matchedScanFilter(emptyDevice), isFalse);
+    });
+
+    test('Test matchedScanFilter: conditions stay in OR relation', () {
+      universalBleFilter.scanFilter = ScanFilter(
+        withServices: ['20a2'],
+        withServiceData: ['181a'],
+      );
+      expect(universalBleFilter.matchedScanFilter(serviceDataBeacon), isTrue);
+      expect(universalBleFilter.matchedScanFilter(advertisedDevice), isTrue);
+      expect(universalBleFilter.matchedScanFilter(emptyDevice), isFalse);
+    });
+
+    test('Test matchedScanFilter: unset withServiceData keeps old behaviour',
+        () {
+      universalBleFilter.scanFilter = ScanFilter(withServices: ['181a']);
+      expect(universalBleFilter.matchedScanFilter(serviceDataBeacon), isFalse);
+
+      universalBleFilter.scanFilter = ScanFilter();
+      expect(universalBleFilter.matchedScanFilter(serviceDataBeacon), isTrue);
+    });
+
+    test('Test matchedScanFilter: malformed device keys do not throw', () {
+      final malformed = BleDevice(
+        deviceId: 'sd4',
+        name: 'malformed',
+        serviceData: {
+          'not-a-uuid': Uint8List.fromList([1])
+        },
+      );
+      universalBleFilter.scanFilter = ScanFilter(withServiceData: ['181a']);
+      expect(universalBleFilter.matchedScanFilter(malformed), isFalse);
     });
   });
 }

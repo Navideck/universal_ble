@@ -746,6 +746,21 @@ class UniversalBleWeb extends UniversalBlePlatform {
     List<int> optionalManufacturerData = [];
     List<String> optionalServices = [];
 
+    // The browser chooser can only filter on advertised service UUIDs and
+    // manufacturer data, so a Service Data match cannot be expressed (and the
+    // chooser's result is the only scan result web reports). Fail loudly instead
+    // of silently returning unrelated devices.
+    if (scanFilter != null && scanFilter.withServiceData.isNotEmpty) {
+      throw UniversalBleException(
+        code: UniversalBleErrorCode.notSupported,
+        message:
+            "ScanFilter.withServiceData is not supported on Web: the browser's "
+            "device chooser cannot filter on advertising Service Data. Scan "
+            "without it (or use requestDevice) and read BleDevice.serviceData "
+            "from the advertisement events instead.",
+      );
+    }
+
     if (webOptions != null) {
       optionalServices.addAll(webOptions.optionalServices.toValidUUIDList());
       optionalManufacturerData.addAll(webOptions.optionalManufacturerData);

@@ -172,6 +172,21 @@ public extension CBUUID {
     var uuidStr: String {
         uuidString.lowercased()
     }
+
+    /// The UUID in the canonical 128-bit lowercase form used across the plugin.
+    ///
+    /// CoreBluetooth preserves the width a UUID was advertised with, so a 16-bit
+    /// service UUID arrives as `181A` while the Dart layer always sends the full
+    /// 128-bit form. Comparing `CBUUID` values directly therefore misses 16-bit
+    /// UUIDs; compare these strings instead.
+    var uuid128Str: String {
+        let uuid = uuidString.lowercased()
+        switch uuid.count {
+        case 4: return "0000\(uuid)-0000-1000-8000-00805f9b34fb"
+        case 8: return "\(uuid)-0000-1000-8000-00805f9b34fb"
+        default: return uuid
+        }
+    }
 }
 
 public extension CBPeripheral {

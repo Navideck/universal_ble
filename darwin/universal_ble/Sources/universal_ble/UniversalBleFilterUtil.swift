@@ -12,23 +12,28 @@ public class UniversalBleFilterUtil {
     var scanFilter: UniversalScanFilter?
     var scanFilterServicesUUID: [CBUUID] = []
 
-    func filterDevice(name: String?, manufacturerData: UniversalManufacturerData?, services: [CBUUID]?) -> Bool {
+    /// Service Data UUIDs to match, normalised to 128-bit lowercase form.
+    var scanFilterServiceDataUUID: [String] = []
+
+    func filterDevice(name: String?, manufacturerData: UniversalManufacturerData?, services: [CBUUID]?, serviceData: [CBUUID]? = nil) -> Bool {
         guard let filter = scanFilter else {
             return true
         }
 
         let hasNamePrefixFilter = !filter.withNamePrefix.isEmpty
         let hasServiceFilter = !filter.withServices.isEmpty
+        let hasServiceDataFilter = !filter.withServiceData.isEmpty
         let hasManufacturerDataFilter = !filter.withManufacturerData.isEmpty
 
         // If there is no filter at all, then allow device
-        if !hasNamePrefixFilter && !hasServiceFilter && !hasManufacturerDataFilter {
+        if !hasNamePrefixFilter && !hasServiceFilter && !hasServiceDataFilter && !hasManufacturerDataFilter {
             return true
         }
 
         // Else check one of the filter passes
         return hasNamePrefixFilter && isNameMatchingFilters(filter: filter, name: name) ||
             hasServiceFilter && isServicesMatchingFilters(services: services) ||
+            hasServiceDataFilter && isServiceDataMatchingFilters(serviceData: serviceData) ||
             hasManufacturerDataFilter && isManufacturerDataMatchingFilters(scanFilter: filter, msd: manufacturerData)
     }
 
@@ -47,7 +52,10 @@ public class UniversalBleFilterUtil {
     }
 
     func isServicesMatchingFilters(services: [CBUUID]?) -> Bool {
-        let serviceFilters = Set(scanFilterServicesUUID.compactMap { $0 })
+        // Compared as 128-bit strings: CoreBluetooth reports a 16-bit advertised
+        // service UUID as its short form, which is not equal to the full form the
+        // Dart layer sends.
+        let serviceFilters = Set(scanFilterServicesUUID.map { $0.uuid128Str })
 
         guard !serviceFilters.isEmpty else {
             return true
@@ -57,7 +65,27 @@ public class UniversalBleFilterUtil {
             return false
         }
 
-        return !Set(services).isDisjoint(with: serviceFilters)
+        return !Set(services.map { $0.uuid128Str }).isDisjoint(with: serviceFilters)
+    }
+
+    /// Matches a device by the Service Data it advertises (the `0x16`/`0x20`/`0x21`
+    /// advertising data types).
+    ///
+    /// This is a different set from the advertised service UUID lists matched by
+    /// [isServicesMatchingFilters]: beacons such as Eddystone (`0xFEAA`) or the
+    /// ATC_MiThermometer (`0x181A`) carry the UUID only inside their Service Data.
+    func isServiceDataMatchingFilters(serviceData: [CBUUID]?) -> Bool {
+        let serviceDataFilters = Set(scanFilterServiceDataUUID)
+
+        guard !serviceDataFilters.isEmpty else {
+            return true
+        }
+
+        guard let serviceData = serviceData, !serviceData.isEmpty else {
+            return false
+        }
+
+        return !Set(serviceData.map { $0.uuid128Str }).isDisjoint(with: serviceDataFilters)
     }
 
     func isManufacturerDataMatchingFilters(scanFilter: UniversalScanFilter, msd: UniversalManufacturerData?) -> Bool {
@@ -102,6 +130,11 @@ public class UniversalBleFilterUtil {
 
 extension UniversalScanFilter {
     var usesCustomFilters: Bool {
-        return !withManufacturerData.isEmpty || !withNamePrefix.isEmpty
+        // Service Data matching cannot be expressed as a CoreBluetooth filter:
+        // `scanForPeripherals(withServices:)` matches advertised service UUIDs
+        // only, so a device carrying the UUID inside its Service Data would never
+        // be delivered to the app. Scan with no service filter and match in
+        // software instead — the caller opted into the extra battery cost.
+        return !withManufacturerData.isEmpty || !withNamePrefix.isEmpty || !withServiceData.isEmpty
     }
 }

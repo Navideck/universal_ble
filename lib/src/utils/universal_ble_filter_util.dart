@@ -60,11 +60,13 @@ class UniversalBleFilterUtil {
 
     final hasNamePrefixFilter = filter.withNamePrefix.isNotEmpty;
     final hasServiceFilter = filter.withServices.isNotEmpty;
+    final hasServiceDataFilter = filter.withServiceData.isNotEmpty;
     final hasManufacturerDataFilter = filter.withManufacturerData.isNotEmpty;
 
     // If there is no filter at all, then allow device
     if (!hasNamePrefixFilter &&
         !hasServiceFilter &&
+        !hasServiceDataFilter &&
         !hasManufacturerDataFilter) {
       return true;
     }
@@ -72,6 +74,7 @@ class UniversalBleFilterUtil {
     // Else check one of the filter passes
     return (hasNamePrefixFilter && nameMatches(filter, device)) ||
         (hasServiceFilter && servicesMatch(filter, device)) ||
+        (hasServiceDataFilter && serviceDataMatch(filter, device)) ||
         (hasManufacturerDataFilter &&
             manufacturerDataMatches(filter.withManufacturerData, device));
   }
@@ -94,6 +97,25 @@ class UniversalBleFilterUtil {
       return false;
     }
     return serviceFilters.any(serviceUuids.contains);
+  }
+
+  /// Returns true if the device advertises Service Data for any of the filter's
+  /// UUIDs.
+  ///
+  /// Unlike [servicesMatch], this looks at [BleDevice.serviceData], so devices
+  /// that carry a service UUID only in their Service Data (beacons) are matched.
+  /// The device keys are normalised by [BleDevice], but anything unparseable is
+  /// skipped rather than throwing, so malformed advertisement data cannot fail a
+  /// scan.
+  bool serviceDataMatch(ScanFilter scanFilter, BleDevice device) {
+    final serviceDataFilters = scanFilter.withServiceData.toValidUUIDList();
+    if (serviceDataFilters.isEmpty) return true;
+
+    final advertisedUuids = device.serviceData.keys
+        .map(BleUuidParser.stringOrNull)
+        .whereType<String>()
+        .toSet();
+    return serviceDataFilters.any(advertisedUuids.contains);
   }
 
   bool manufacturerDataMatches(

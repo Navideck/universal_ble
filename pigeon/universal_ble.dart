@@ -245,10 +245,16 @@ class UniversalScanFilter {
   final List<String> withNamePrefix;
   final List<ManufacturerDataFilter> withManufacturerData;
 
+  /// Service data UUIDs to match. Appended last on purpose: pigeon encodes
+  /// fields positionally, so inserting this anywhere else would shift the
+  /// indices of the fields above and break against a stale native binary.
+  final List<String> withServiceData;
+
   UniversalScanFilter(
     this.withServices,
     this.withNamePrefix,
     this.withManufacturerData,
+    this.withServiceData,
   );
 }
 

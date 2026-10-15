@@ -1,3 +1,9 @@
+## 3.1.0
+* Add `ScanFilter.withServiceData` to discover devices that carry a service UUID inside their advertising Service Data (the `0x16`/`0x20`/`0x21` advertising data types) — beacons such as Eddystone (`0xFEAA`) or the ATC_MiThermometer (`0x181A`) — which `withServices` cannot match, because it only looks at the advertised service UUID list (#57). The matching payloads are reported in `BleDevice.serviceData`. On Android and Apple this switches the scan to the software filter path (the platform cannot filter on Service Data), so more advertisements reach the app process; on Web it throws `notSupported`.
+* Apple: compare service UUIDs in their 128-bit form when the custom filter path is active (`withNamePrefix`/`withManufacturerData`), instead of relying on `CBUUID` equality, which does not match a 16-bit advertised service UUID against the full 128-bit form the API sends. `ScanFilter.withServices` can now filter 16-bit services on that path.
+* Linux: re-evaluate the scan filter against the device's current properties instead of the snapshot taken when BlueZ added it, and keep listening to a device that did not match at that point. A peripheral that only advertises its Service Data (or UUIDs) in a later advertisement was previously dropped permanently by any filter.
+* Add `BleDevice.serviceData` documentation to the README (the API existed but was undocumented).
+
 ## 3.0.2
 * Fix the broken "Try it online" demo URL in the README.
 

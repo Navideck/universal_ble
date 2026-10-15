@@ -7,6 +7,7 @@ namespace universal_ble {
 std::vector<ManufacturerDataFilter> manufacturerScanFilter =
     std::vector<ManufacturerDataFilter>();
 std::vector<winrt::guid> serviceFilterUUIDS = std::vector<winrt::guid>();
+std::vector<winrt::guid> serviceDataFilterUUIDS = std::vector<winrt::guid>();
 std::vector<std::string> namePrefixFilter = std::vector<std::string>();
 
 void setScanFilter(const UniversalScanFilter filter) {
@@ -24,6 +25,13 @@ void setScanFilter(const UniversalScanFilter filter) {
       serviceFilterUUIDS.push_back(uuid_to_guid(std::get<std::string>(uuid)));
     }
   }
+  // Set Service Data Filter
+  if (!filter.with_service_data().empty()) {
+    for (const auto &uuid : filter.with_service_data()) {
+      serviceDataFilterUUIDS.push_back(
+          uuid_to_guid(std::get<std::string>(uuid)));
+    }
+  }
   // Set Names Filter
   if (!filter.with_name_prefix().empty()) {
     for (const auto &name : filter.with_name_prefix()) {
@@ -35,6 +43,7 @@ void setScanFilter(const UniversalScanFilter filter) {
 void resetScanFilter() {
   manufacturerScanFilter.clear();
   serviceFilterUUIDS.clear();
+  serviceDataFilterUUIDS.clear();
   namePrefixFilter.clear();
 }
 
@@ -67,6 +76,33 @@ bool isServicesMatchingFilters(const flutter::EncodableList *services) {
                      [&serviceGUIDs](const winrt::guid &filterUUID) {
                        return serviceGUIDs.find(filterUUID) !=
                               serviceGUIDs.end();
+                     });
+}
+
+/// Matches a device by the Service Data it advertises (the `0x16`/`0x20`/`0x21`
+/// advertising data types). This is a different set from the advertised service
+/// UUID lists matched by isServicesMatchingFilters: beacons such as Eddystone
+/// (`0xFEAA`) or the ATC_MiThermometer (`0x181A`) carry the UUID only there.
+bool isServiceDataMatchingFilters(const flutter::EncodableMap *serviceData) {
+  if (serviceDataFilterUUIDS.empty())
+    return true;
+  if (serviceData == nullptr || serviceData->empty())
+    return false;
+
+  std::unordered_set<winrt::guid> serviceDataGUIDs;
+  serviceDataGUIDs.reserve(serviceData->size());
+  for (const auto &entry : *serviceData) {
+    if (const auto *uuid = std::get_if<std::string>(&entry.first)) {
+      serviceDataGUIDs.insert(uuid_to_guid(*uuid));
+    }
+  }
+
+  // Check if any of the filter UUIDs are in the set of Service Data UUIDs
+  return std::any_of(serviceDataFilterUUIDS.begin(),
+                     serviceDataFilterUUIDS.end(),
+                     [&serviceDataGUIDs](const winrt::guid &filterUUID) {
+                       return serviceDataGUIDs.find(filterUUID) !=
+                              serviceDataGUIDs.end();
                      });
 }
 
@@ -119,10 +155,12 @@ bool isManufacturerDataMatchingFilters(
 bool filterDevice(UniversalBleScanResult scanResult) {
   bool hasNamePrefixFilter = !namePrefixFilter.empty();
   bool hasServiceFilter = !serviceFilterUUIDS.empty();
+  bool hasServiceDataFilter = !serviceDataFilterUUIDS.empty();
   bool hasManufacturerDataFilter = !manufacturerScanFilter.empty();
 
   // If there is no filter at all, then allow device
-  if (!hasNamePrefixFilter && !hasServiceFilter && !hasManufacturerDataFilter) {
+  if (!hasNamePrefixFilter && !hasServiceFilter && !hasServiceDataFilter &&
+      !hasManufacturerDataFilter) {
     return true;
   }
 
@@ -130,6 +168,8 @@ bool filterDevice(UniversalBleScanResult scanResult) {
   return (hasNamePrefixFilter && isNameMatchingFilters(scanResult.name())) ||
          (hasServiceFilter &&
           isServicesMatchingFilters(scanResult.services())) ||
+         (hasServiceDataFilter &&
+          isServiceDataMatchingFilters(scanResult.service_data())) ||
          (hasManufacturerDataFilter &&
           isManufacturerDataMatchingFilters(
               scanResult.manufacturer_data_list()));

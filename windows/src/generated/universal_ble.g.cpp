@@ -1096,10 +1096,12 @@ size_t PigeonInternalDeepHash(const UniversalScanConfig& v) {
 UniversalScanFilter::UniversalScanFilter(
   const EncodableList& with_services,
   const EncodableList& with_name_prefix,
-  const EncodableList& with_manufacturer_data)
+  const EncodableList& with_manufacturer_data,
+  const EncodableList& with_service_data)
  : with_services_(with_services),
     with_name_prefix_(with_name_prefix),
-    with_manufacturer_data_(with_manufacturer_data) {}
+    with_manufacturer_data_(with_manufacturer_data),
+    with_service_data_(with_service_data) {}
 
 const EncodableList& UniversalScanFilter::with_services() const {
   return with_services_;
@@ -1128,12 +1130,22 @@ void UniversalScanFilter::set_with_manufacturer_data(const EncodableList& value_
 }
 
 
+const EncodableList& UniversalScanFilter::with_service_data() const {
+  return with_service_data_;
+}
+
+void UniversalScanFilter::set_with_service_data(const EncodableList& value_arg) {
+  with_service_data_ = value_arg;
+}
+
+
 EncodableList UniversalScanFilter::ToEncodableList() const {
   EncodableList list;
-  list.reserve(3);
+  list.reserve(4);
   list.push_back(EncodableValue(with_services_));
   list.push_back(EncodableValue(with_name_prefix_));
   list.push_back(EncodableValue(with_manufacturer_data_));
+  list.push_back(EncodableValue(with_service_data_));
   return list;
 }
 
@@ -1141,12 +1153,13 @@ UniversalScanFilter UniversalScanFilter::FromEncodableList(const EncodableList& 
   UniversalScanFilter decoded(
     std::get<EncodableList>(list[0]),
     std::get<EncodableList>(list[1]),
-    std::get<EncodableList>(list[2]));
+    std::get<EncodableList>(list[2]),
+    std::get<EncodableList>(list[3]));
   return decoded;
 }
 
 bool UniversalScanFilter::operator==(const UniversalScanFilter& other) const {
-  return PigeonInternalDeepEquals(with_services_, other.with_services_) && PigeonInternalDeepEquals(with_name_prefix_, other.with_name_prefix_) && PigeonInternalDeepEquals(with_manufacturer_data_, other.with_manufacturer_data_);
+  return PigeonInternalDeepEquals(with_services_, other.with_services_) && PigeonInternalDeepEquals(with_name_prefix_, other.with_name_prefix_) && PigeonInternalDeepEquals(with_manufacturer_data_, other.with_manufacturer_data_) && PigeonInternalDeepEquals(with_service_data_, other.with_service_data_);
 }
 
 bool UniversalScanFilter::operator!=(const UniversalScanFilter& other) const {
@@ -1158,6 +1171,7 @@ size_t UniversalScanFilter::Hash() const {
   result = result * 31 + PigeonInternalDeepHash(with_services_);
   result = result * 31 + PigeonInternalDeepHash(with_name_prefix_);
   result = result * 31 + PigeonInternalDeepHash(with_manufacturer_data_);
+  result = result * 31 + PigeonInternalDeepHash(with_service_data_);
   return result;
 }
 
