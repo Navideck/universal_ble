@@ -1,178 +1,109 @@
-#include <vector>
-#include "helper/utils.h"
-#include "generated/universal_ble.g.h"
+#include "universal_ble_filter_util.h"
+
 #include <unordered_set>
+#include <vector>
+
+#include "helper/utils.h"
+#include "scan_filter_matcher.h"
 
 namespace universal_ble {
-std::vector<ManufacturerDataFilter> manufacturerScanFilter =
-    std::vector<ManufacturerDataFilter>();
-std::vector<winrt::guid> serviceFilterUUIDS = std::vector<winrt::guid>();
-std::vector<winrt::guid> serviceDataFilterUUIDS = std::vector<winrt::guid>();
-std::vector<std::string> namePrefixFilter = std::vector<std::string>();
+
+// The filter of the current scan, plus the last one it was set from. The matching
+// rules themselves live in scan_filter_matcher.cpp; this file only translates
+// the pigeon/flutter types into the plain ones it works with.
+namespace {
+ScanFilterValues scanFilterValues;
+}  // namespace
+
+namespace {
+
+std::vector<std::string> ToStringList(const flutter::EncodableList &list) {
+  std::vector<std::string> result;
+  result.reserve(list.size());
+  for (const auto &value : list) {
+    if (const auto *str = std::get_if<std::string>(&value)) {
+      result.push_back(*str);
+    }
+  }
+  return result;
+}
+
+std::vector<uint8_t> ToBytes(const flutter::EncodableValue &value) {
+  if (const auto *bytes = std::get_if<std::vector<uint8_t>>(&value)) {
+    return *bytes;
+  }
+  return {};
+}
+
+std::vector<ManufacturerDataFilterValue> ToManufacturerFilters(
+    const flutter::EncodableList &list) {
+  std::vector<ManufacturerDataFilterValue> result;
+  result.reserve(list.size());
+  for (const auto &value : list) {
+    const auto &filter = std::any_cast<const ManufacturerDataFilter &>(
+        std::get<flutter::CustomEncodableValue>(value));
+    ManufacturerDataFilterValue plain;
+    plain.company_identifier = filter.company_identifier();
+    if (const auto *prefix = filter.payload_prefix()) {
+      plain.payload_prefix = *prefix;
+    }
+    if (const auto *mask = filter.payload_mask()) {
+      plain.payload_mask = *mask;
+    }
+    result.push_back(plain);
+  }
+  return result;
+}
+
+AdvertisementValues ToAdvertisementValues(
+    const UniversalBleScanResult &scanResult) {
+  AdvertisementValues advertisement;
+  if (const auto *name = scanResult.name()) {
+    advertisement.name = *name;
+  }
+  if (const auto *services = scanResult.services()) {
+    advertisement.services = ToStringList(*services);
+  }
+  if (const auto *service_data = scanResult.service_data()) {
+    advertisement.service_data_uuids.reserve(service_data->size());
+    for (const auto &entry : *service_data) {
+      if (const auto *uuid = std::get_if<std::string>(&entry.first)) {
+        advertisement.service_data_uuids.push_back(*uuid);
+      }
+    }
+  }
+  if (const auto *manufacturer_data = scanResult.manufacturer_data_list()) {
+    advertisement.manufacturer_data.reserve(manufacturer_data->size());
+    for (const auto &value : *manufacturer_data) {
+      const auto &data = std::any_cast<const UniversalManufacturerData &>(
+          std::get<flutter::CustomEncodableValue>(value));
+      ManufacturerDataValue plain;
+      plain.company_identifier = data.company_identifier();
+      plain.data = data.data();
+      advertisement.manufacturer_data.push_back(plain);
+    }
+  }
+  return advertisement;
+}
+
+}  // namespace
 
 void setScanFilter(const UniversalScanFilter filter) {
-  // Set ManufacturerData filter
-  const auto &manufacturerData = filter.with_manufacturer_data();
-  for (const flutter::EncodableValue &data : manufacturerData) {
-    ManufacturerDataFilter manufacturerDataFilter =
-        std::any_cast<ManufacturerDataFilter>(
-            std::get<flutter::CustomEncodableValue>(data));
-    manufacturerScanFilter.push_back(manufacturerDataFilter);
-  }
-  // Set Services Filter
-  if (!filter.with_services().empty()) {
-    for (const auto &uuid : filter.with_services()) {
-      serviceFilterUUIDS.push_back(uuid_to_guid(std::get<std::string>(uuid)));
-    }
-  }
-  // Set Service Data Filter
-  if (!filter.with_service_data().empty()) {
-    for (const auto &uuid : filter.with_service_data()) {
-      serviceDataFilterUUIDS.push_back(
-          uuid_to_guid(std::get<std::string>(uuid)));
-    }
-  }
-  // Set Names Filter
-  if (!filter.with_name_prefix().empty()) {
-    for (const auto &name : filter.with_name_prefix()) {
-      namePrefixFilter.push_back(std::get<std::string>(name));
-    }
-  }
+  scanFilterValues = ScanFilterValues();
+  scanFilterValues.services = ToStringList(filter.with_services());
+  scanFilterValues.service_data = ToStringList(filter.with_service_data());
+  scanFilterValues.name_prefix = ToStringList(filter.with_name_prefix());
+  scanFilterValues.manufacturer_data =
+      ToManufacturerFilters(filter.with_manufacturer_data());
 }
 
-void resetScanFilter() {
-  manufacturerScanFilter.clear();
-  serviceFilterUUIDS.clear();
-  serviceDataFilterUUIDS.clear();
-  namePrefixFilter.clear();
-}
-
-bool isNameMatchingFilters(const std::string *name) {
-  if (namePrefixFilter.empty())
-    return true;
-  if (name == nullptr || name->empty())
-    return false;
-  return std::any_of(
-      namePrefixFilter.begin(), namePrefixFilter.end(),
-      [&name](const std::string &prefix) { return name->find(prefix) == 0; });
-}
-
-bool isServicesMatchingFilters(const flutter::EncodableList *services) {
-  if (serviceFilterUUIDS.empty())
-    return true;
-  if (services == nullptr || services->empty())
-    return false;
-
-  std::unordered_set<winrt::guid> serviceGUIDs;
-  serviceGUIDs.reserve(services->size());
-  for (const auto &service : *services) {
-    if (const auto *str = std::get_if<std::string>(&service)) {
-      serviceGUIDs.insert(uuid_to_guid(*str));
-    }
-  }
-
-  // Check if any of the filter UUIDs are in the set of service GUIDs
-  return std::any_of(serviceFilterUUIDS.begin(), serviceFilterUUIDS.end(),
-                     [&serviceGUIDs](const winrt::guid &filterUUID) {
-                       return serviceGUIDs.find(filterUUID) !=
-                              serviceGUIDs.end();
-                     });
-}
-
-/// Matches a device by the Service Data it advertises (the `0x16`/`0x20`/`0x21`
-/// advertising data types). This is a different set from the advertised service
-/// UUID lists matched by isServicesMatchingFilters: beacons such as Eddystone
-/// (`0xFEAA`) or the ATC_MiThermometer (`0x181A`) carry the UUID only there.
-bool isServiceDataMatchingFilters(const flutter::EncodableMap *serviceData) {
-  if (serviceDataFilterUUIDS.empty())
-    return true;
-  if (serviceData == nullptr || serviceData->empty())
-    return false;
-
-  std::unordered_set<winrt::guid> serviceDataGUIDs;
-  serviceDataGUIDs.reserve(serviceData->size());
-  for (const auto &entry : *serviceData) {
-    if (const auto *uuid = std::get_if<std::string>(&entry.first)) {
-      serviceDataGUIDs.insert(uuid_to_guid(*uuid));
-    }
-  }
-
-  // Check if any of the filter UUIDs are in the set of Service Data UUIDs
-  return std::any_of(serviceDataFilterUUIDS.begin(),
-                     serviceDataFilterUUIDS.end(),
-                     [&serviceDataGUIDs](const winrt::guid &filterUUID) {
-                       return serviceDataGUIDs.find(filterUUID) !=
-                              serviceDataGUIDs.end();
-                     });
-}
-
-bool isManufacturerDataMatchingFilters(
-    const flutter::EncodableList *manufacturerDataList) {
-  if (manufacturerScanFilter.empty())
-    return true;
-  if (manufacturerDataList == nullptr || manufacturerDataList->empty())
-    return false;
-
-  for (const auto &filter : manufacturerScanFilter) {
-    const auto *data_filter = filter.payload_prefix();
-    const auto *mask = filter.payload_mask();
-
-    for (const auto &value : *manufacturerDataList) {
-      const auto &deviceManufacturerData =
-          std::any_cast<const UniversalManufacturerData &>(
-              std::get<flutter::CustomEncodableValue>(value));
-
-      if (deviceManufacturerData.company_identifier() !=
-          filter.company_identifier())
-        continue;
-
-      // If no data filter, all data matches
-      if (data_filter == nullptr)
-        return true;
-
-      const auto &deviceData = deviceManufacturerData.data();
-      if (deviceData.size() < data_filter->size())
-        continue;
-
-      bool isMatch = true;
-      for (size_t i = 0; i < data_filter->size(); ++i) {
-        const bool hasMask = mask != nullptr && i < mask->size();
-        const uint8_t maskByte = hasMask ? (*mask)[i] : 0xFF;
-        if ((maskByte & (*data_filter)[i]) != (maskByte & deviceData[i])) {
-          isMatch = false;
-          break;
-        }
-      }
-
-      if (isMatch)
-        return true;
-    }
-  }
-
-  return false;
-}
+void resetScanFilter() { scanFilterValues = ScanFilterValues(); }
 
 bool filterDevice(UniversalBleScanResult scanResult) {
-  bool hasNamePrefixFilter = !namePrefixFilter.empty();
-  bool hasServiceFilter = !serviceFilterUUIDS.empty();
-  bool hasServiceDataFilter = !serviceDataFilterUUIDS.empty();
-  bool hasManufacturerDataFilter = !manufacturerScanFilter.empty();
-
-  // If there is no filter at all, then allow device
-  if (!hasNamePrefixFilter && !hasServiceFilter && !hasServiceDataFilter &&
-      !hasManufacturerDataFilter) {
+  if (!HasAnyFilter(scanFilterValues)) {
     return true;
   }
-
-  // Check each filter condition
-  return (hasNamePrefixFilter && isNameMatchingFilters(scanResult.name())) ||
-         (hasServiceFilter &&
-          isServicesMatchingFilters(scanResult.services())) ||
-         (hasServiceDataFilter &&
-          isServiceDataMatchingFilters(scanResult.service_data())) ||
-         (hasManufacturerDataFilter &&
-          isManufacturerDataMatchingFilters(
-              scanResult.manufacturer_data_list()));
+  return MatchesScanFilter(scanFilterValues, ToAdvertisementValues(scanResult));
 }
 
 }  // namespace universal_ble

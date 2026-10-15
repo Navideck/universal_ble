@@ -45,6 +45,8 @@ list(APPEND PLUGIN_SOURCES
   "src/generated/universal_ble.g.h"
   "src/pin_entry.h"
   "src/scan_result_merge.h"
+  "src/scan_filter_matcher.cpp"
+  "src/scan_filter_matcher.h"
   "src/universal_ble_filter_util.cpp"
   "src/universal_ble_filter_util.h"
   "src/universal_ble_thread_safe.h"

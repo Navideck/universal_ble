@@ -5,6 +5,11 @@ import 'package:universal_ble/universal_ble.dart';
 // A default Filter on dart side
 // Used on Linux only
 class UniversalBleFilterUtil {
+  /// The filter of the current scan session.
+  ///
+  /// Kept as a plain field rather than derived state: unlike the native filter
+  /// utils, there is nothing here to keep in sync with it. Every platform
+  /// assigns it in `startScan`, so a previous scan's filter cannot leak in.
   ScanFilter? scanFilter;
 
   bool shouldAcceptDevice(BleDevice device) =>
@@ -32,7 +37,9 @@ class UniversalBleFilterUtil {
         continue;
       }
       // Check manufacturer data
-      if (!manufacturerDataMatches(filter.manufacturerDataFilter, device)) {
+      final manufacturerFilters = filter.manufacturerDataFilter;
+      if (manufacturerFilters.isNotEmpty &&
+          !manufacturerDataMatches(manufacturerFilters, device)) {
         continue;
       }
       // Device matches an exclusion filter
@@ -58,40 +65,29 @@ class UniversalBleFilterUtil {
       return false;
     }
 
-    final hasNamePrefixFilter = filter.withNamePrefix.isNotEmpty;
-    final hasServiceFilter = filter.withServices.isNotEmpty;
-    final hasServiceDataFilter = filter.withServiceData.isNotEmpty;
-    final hasManufacturerDataFilter = filter.withManufacturerData.isNotEmpty;
+    // The conditions are in OR relation. Each check below is a strict predicate
+    // answering "does this dimension match?", so an unfiltered dimension
+    // contributes nothing and needs no `has…Filter &&` guard of its own.
+    final hasAnyFilter = filter.withNamePrefix.isNotEmpty ||
+        filter.withServices.isNotEmpty ||
+        filter.withServiceData.isNotEmpty ||
+        filter.withManufacturerData.isNotEmpty;
+    if (!hasAnyFilter) return true;
 
-    // If there is no filter at all, then allow device
-    if (!hasNamePrefixFilter &&
-        !hasServiceFilter &&
-        !hasServiceDataFilter &&
-        !hasManufacturerDataFilter) {
-      return true;
-    }
-
-    // Else check one of the filter passes
-    return (hasNamePrefixFilter && nameMatches(filter, device)) ||
-        (hasServiceFilter && servicesMatch(filter, device)) ||
-        (hasServiceDataFilter && serviceDataMatch(filter, device)) ||
-        (hasManufacturerDataFilter &&
-            manufacturerDataMatches(filter.withManufacturerData, device));
+    return nameMatches(filter, device) ||
+        servicesMatch(filter, device) ||
+        serviceDataMatch(filter, device) ||
+        manufacturerDataMatches(filter.withManufacturerData, device);
   }
 
   bool nameMatches(ScanFilter scanFilter, BleDevice device) {
-    final namePrefixFilter = scanFilter.withNamePrefix;
-    if (namePrefixFilter.isEmpty) return true;
-
     final name = device.name;
     if (name == null || name.isEmpty) return false;
-    return namePrefixFilter.any(name.startsWith);
+    return scanFilter.withNamePrefix.any(name.startsWith);
   }
 
   bool servicesMatch(ScanFilter scanFilter, BleDevice device) {
     final serviceFilters = scanFilter.withServices.toValidUUIDList();
-    if (serviceFilters.isEmpty) return true;
-
     final serviceUuids = device.services.toValidUUIDList();
     if (serviceUuids.isEmpty) {
       return false;
@@ -109,8 +105,6 @@ class UniversalBleFilterUtil {
   /// scan.
   bool serviceDataMatch(ScanFilter scanFilter, BleDevice device) {
     final serviceDataFilters = scanFilter.withServiceData.toValidUUIDList();
-    if (serviceDataFilters.isEmpty) return true;
-
     final advertisedUuids = device.serviceData.keys
         .map(BleUuidParser.stringOrNull)
         .whereType<String>()
@@ -122,8 +116,6 @@ class UniversalBleFilterUtil {
     List<ManufacturerDataFilter> filters,
     BleDevice device,
   ) {
-    if (filters.isEmpty) return true;
-
     final deviceDataList = device.manufacturerDataList;
     if (deviceDataList.isEmpty) return false;
 

@@ -17,11 +17,7 @@ internal class UniversalBleFilterUtilTest {
     ) = UniversalScanFilter(withServices, withNamePrefix, emptyList(), withServiceData)
 
     private fun filterUtil(filter: UniversalScanFilter): UniversalBleFilterUtil {
-        return UniversalBleFilterUtil().apply {
-            scanFilter = filter
-            serviceFilterUUIDS = filter.withServices.map { UUID.fromString(it) }
-            serviceDataFilterUUIDS = filter.withServiceData.map { UUID.fromString(it) }
-        }
+        return UniversalBleFilterUtil().apply { configure(filter) }
     }
 
     @Test

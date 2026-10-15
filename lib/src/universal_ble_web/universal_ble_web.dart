@@ -737,19 +737,13 @@ class UniversalBleWeb extends UniversalBlePlatform {
     );
   }
 
-  RequestOptionsBuilder _getRequestOptionBuilder(
-    ScanFilter? scanFilter,
-    WebOptions? webOptions,
-  ) {
-    List<RequestFilterBuilder> filters = [];
-    List<RequestFilterBuilder> exclusionFilters = [];
-    List<int> optionalManufacturerData = [];
-    List<String> optionalServices = [];
-
-    // The browser chooser can only filter on advertised service UUIDs and
-    // manufacturer data, so a Service Data match cannot be expressed (and the
-    // chooser's result is the only scan result web reports). Fail loudly instead
-    // of silently returning unrelated devices.
+  /// Rejects filters the browser's device chooser cannot express.
+  ///
+  /// The chooser can only filter on advertised service UUIDs, name prefixes and
+  /// manufacturer data, and its result is the only scan result Web reports, so an
+  /// unsatisfiable filter must fail loudly rather than silently return unrelated
+  /// devices.
+  void _validateScanFilter(ScanFilter? scanFilter) {
     if (scanFilter != null && scanFilter.withServiceData.isNotEmpty) {
       throw UniversalBleException(
         code: UniversalBleErrorCode.notSupported,
@@ -760,6 +754,42 @@ class UniversalBleWeb extends UniversalBlePlatform {
             "from the advertisement events instead.",
       );
     }
+  }
+
+  List<RequestFilterBuilder> _getExclusionFilters(ScanFilter? scanFilter) {
+    final exclusionFilters = <RequestFilterBuilder>[];
+    for (var exclusionFilter in scanFilter?.exclusionFilters ?? const []) {
+      exclusionFilters.add(
+        RequestFilterBuilder(
+          services: exclusionFilter.services.isEmpty
+              ? null
+              : exclusionFilter.services.toValidUUIDList(),
+          namePrefix: exclusionFilter.namePrefix,
+          manufacturerData: exclusionFilter.manufacturerDataFilter.isEmpty
+              ? null
+              : exclusionFilter.manufacturerDataFilter
+                  .map((e) => ManufacturerDataFilterBuilder(
+                        companyIdentifier: e.companyIdentifier,
+                        dataPrefix: e.payloadPrefix,
+                        mask: e.payloadMask,
+                      ))
+                  .toList(),
+        ),
+      );
+    }
+    return exclusionFilters;
+  }
+
+  RequestOptionsBuilder _getRequestOptionBuilder(
+    ScanFilter? scanFilter,
+    WebOptions? webOptions,
+  ) {
+    _validateScanFilter(scanFilter);
+
+    List<RequestFilterBuilder> filters = [];
+    List<int> optionalManufacturerData = [];
+    List<String> optionalServices = [];
+    final exclusionFilters = _getExclusionFilters(scanFilter);
 
     if (webOptions != null) {
       optionalServices.addAll(webOptions.optionalServices.toValidUUIDList());
@@ -798,27 +828,6 @@ class UniversalBleWeb extends UniversalBlePlatform {
       // Add name filter
       for (var name in scanFilter.withNamePrefix) {
         filters.add(RequestFilterBuilder(namePrefix: name));
-      }
-
-      // Add exclusion filters
-      for (var exclusionFilter in scanFilter.exclusionFilters) {
-        exclusionFilters.add(
-          RequestFilterBuilder(
-            services: exclusionFilter.services.isEmpty
-                ? null
-                : exclusionFilter.services.toValidUUIDList(),
-            namePrefix: exclusionFilter.namePrefix,
-            manufacturerData: exclusionFilter.manufacturerDataFilter.isEmpty
-                ? null
-                : exclusionFilter.manufacturerDataFilter.map((e) {
-                    return ManufacturerDataFilterBuilder(
-                      companyIdentifier: e.companyIdentifier,
-                      dataPrefix: e.payloadPrefix,
-                      mask: e.payloadMask,
-                    );
-                  }).toList(),
-          ),
-        );
       }
     }
 

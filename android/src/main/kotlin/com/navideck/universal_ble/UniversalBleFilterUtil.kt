@@ -11,9 +11,21 @@ private const val TAG = "UniversalBlePlugin"
 
 @SuppressLint("MissingPermission")
 class UniversalBleFilterUtil {
-    var scanFilter: UniversalScanFilter? = null
-    var serviceFilterUUIDS: List<UUID> = emptyList()
-    var serviceDataFilterUUIDS: List<UUID> = emptyList()
+    private var scanFilter: UniversalScanFilter? = null
+    private var serviceFilters: List<UUID> = emptyList()
+    private var serviceDataFilters: List<UUID> = emptyList()
+
+    /// Single entry point for the filter state.
+    ///
+    /// Pass `null` when the platform applies the filter itself (native
+    /// `ScanFilter`), which makes [filterDevice] accept every device. Deriving the
+    /// UUID lists here, instead of letting callers assign them alongside
+    /// [scanFilter], keeps the three from drifting apart.
+    fun configure(filter: UniversalScanFilter?) {
+        scanFilter = filter
+        serviceFilters = filter?.withServices?.toUUIDList().orEmpty()
+        serviceDataFilters = filter?.withServiceData?.toUUIDList().orEmpty()
+    }
 
     fun filterDevice(
         name: String?,
@@ -23,51 +35,38 @@ class UniversalBleFilterUtil {
     ): Boolean {
         val filter = scanFilter ?: return true
 
-        val hasNamePrefixFilter = filter.withNamePrefix.isNotEmpty()
-        val hasServiceFilter = filter.withServices.isNotEmpty()
-        val hasServiceDataFilter = filter.withServiceData.isNotEmpty()
-        val hasManufacturerDataFilter = filter.withManufacturerData.isNotEmpty()
-
-        // If there is no filter at all, then allow device
-        if (!hasNamePrefixFilter &&
-            !hasServiceFilter &&
-            !hasServiceDataFilter &&
-            !hasManufacturerDataFilter
-        ) {
+        // The conditions are in OR relation. Each check below is a strict
+        // predicate answering "does this dimension match?", so an unfiltered
+        // dimension contributes nothing and needs no guard of its own.
+        val hasAnyFilter =
+            filter.withNamePrefix.isNotEmpty() ||
+                    serviceFilters.isNotEmpty() ||
+                    serviceDataFilters.isNotEmpty() ||
+                    filter.withManufacturerData.isNotEmpty()
+        if (!hasAnyFilter) {
             return true
         }
 
-        // For not, we only have DeviceName filter
-        return hasNamePrefixFilter && isNameMatchingFilters(filter, name) ||
-                hasServiceFilter && isServicesMatchingFilters(serviceUuids) ||
-                hasServiceDataFilter && isServiceDataMatchingFilters(serviceDataUuids) ||
-                hasManufacturerDataFilter && isManufacturerDataMatchingFilters(
-            filter,
-            manufacturerDataList
-        )
+        return isNameMatchingFilters(filter, name) ||
+                isServicesMatchingFilters(serviceUuids) ||
+                isServiceDataMatchingFilters(serviceDataUuids) ||
+                isManufacturerDataMatchingFilters(
+                    filter,
+                    manufacturerDataList
+                )
     }
 
     private fun isNameMatchingFilters(scanFilter: UniversalScanFilter, name: String?): Boolean {
-        val namePrefixFilter = scanFilter.withNamePrefix
-        if (namePrefixFilter.isEmpty()) {
-            return true
-        }
         if (name.isNullOrEmpty()) {
             return false
         }
-        return namePrefixFilter.any { name.startsWith(it) }
+        return scanFilter.withNamePrefix.any { name.startsWith(it) }
     }
 
     private fun isServicesMatchingFilters(
         serviceUuids: Array<UUID>,
     ): Boolean {
-        if (serviceFilterUUIDS.isEmpty()) {
-            return true
-        }
-        if (serviceUuids.isEmpty()) {
-            return false
-        }
-        return serviceFilterUUIDS.any {
+        return serviceFilters.any {
             serviceUuids.contains(it)
         }
     }
@@ -80,13 +79,7 @@ class UniversalBleFilterUtil {
     private fun isServiceDataMatchingFilters(
         serviceDataUuids: List<UUID>,
     ): Boolean {
-        if (serviceDataFilterUUIDS.isEmpty()) {
-            return true
-        }
-        if (serviceDataUuids.isEmpty()) {
-            return false
-        }
-        return serviceDataFilterUUIDS.any {
+        return serviceDataFilters.any {
             serviceDataUuids.contains(it)
         }
     }
@@ -95,11 +88,9 @@ class UniversalBleFilterUtil {
         scanFilter: UniversalScanFilter,
         manufacturerDataList: List<UniversalManufacturerData>,
     ): Boolean {
-        val filters = scanFilter.withManufacturerData
-        if (filters.isEmpty()) return true
         if (manufacturerDataList.isEmpty()) return false
         return manufacturerDataList.any { msd ->
-            filters.any { filter ->
+            scanFilter.withManufacturerData.any { filter ->
                 msd.companyIdentifier == filter.companyIdentifier &&
                         isDataMatching(filter.payloadPrefix, msd.data, filter.payloadMask)
             }

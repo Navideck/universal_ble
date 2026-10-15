@@ -19,7 +19,7 @@ void main() {
       );
     });
 
-    test('should match when no manufacturer filters are present', () {
+    test('should ignore a filter with no manufacturer filters', () {
       device = BleDevice(
         deviceId: '1',
         name: 'Test Device',
@@ -27,10 +27,13 @@ void main() {
         services: [],
       );
 
+      // The predicate answers "does this dimension match?" and is strict...
       expect(
           filterUtil.manufacturerDataMatches(
               scanFilter.withManufacturerData, device),
-          true);
+          false);
+      // ...so an unfiltered dimension does not narrow the scan on its own.
+      expect(filterUtil.matchedScanFilter(device), true);
     });
 
     test('should not match when device has no manufacturer data', () {

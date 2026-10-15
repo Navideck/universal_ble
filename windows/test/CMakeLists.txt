@@ -15,6 +15,20 @@ target_include_directories(scan_result_merge_test PRIVATE ../src)
 
 add_test(NAME scan_result_merge_test COMMAND scan_result_merge_test)
 
+# Drives the platform-agnostic filter core from the shared Dart/Android/C++
+# conformance fixture.
+add_executable(scan_filter_matcher_test
+  scan_filter_matcher_test.cpp
+  ../src/scan_filter_matcher.cpp
+)
+target_compile_features(scan_filter_matcher_test PRIVATE cxx_std_20)
+target_include_directories(scan_filter_matcher_test PRIVATE ../src)
+target_compile_definitions(scan_filter_matcher_test PRIVATE
+  SCAN_FILTER_FIXTURE_PATH="${CMAKE_CURRENT_SOURCE_DIR}/../../test/fixtures/scan_filter_cases.tsv"
+)
+
+add_test(NAME scan_filter_matcher_test COMMAND scan_filter_matcher_test)
+
 if(WIN32)
   add_executable(cleanup_drain_test cleanup_drain_test.cpp)
   target_compile_features(cleanup_drain_test PRIVATE cxx_std_20)

@@ -182,14 +182,10 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
 
     if usesCustomFilters {
       UniversalBleLogger.shared.logInfo("Using Custom Filters")
-      universalBleFilterUtil.scanFilter = filter
-      universalBleFilterUtil.scanFilterServicesUUID = withServices
-      universalBleFilterUtil.scanFilterServiceDataUUID = filter?.withServiceData.map { $0.lowercased() } ?? []
+      universalBleFilterUtil.configure(scanFilter: filter)
       withServices = []
     } else {
-      universalBleFilterUtil.scanFilter = nil
-      universalBleFilterUtil.scanFilterServicesUUID = []
-      universalBleFilterUtil.scanFilterServiceDataUUID = []
+      universalBleFilterUtil.configure(scanFilter: nil)
     }
 
     // When the caller opts into de-duplication, omit the allow-duplicates key so

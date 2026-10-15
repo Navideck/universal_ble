@@ -272,19 +272,14 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
 
         try {
             val filterServices = filter?.withServices?.toUUIDList() ?: emptyList()
-            val filterServiceData = filter?.withServiceData?.toUUIDList() ?: emptyList()
             var scanFilters = emptyList<ScanFilter>()
 
             // Set custom scan filter only if required
             if (usesCustomFilters) {
                 UniversalBleLogger.logError("Using Custom Filters")
-                universalBleFilterUtil.scanFilter = filter
-                universalBleFilterUtil.serviceFilterUUIDS = filterServices
-                universalBleFilterUtil.serviceDataFilterUUIDS = filterServiceData
+                universalBleFilterUtil.configure(filter)
             } else {
-                universalBleFilterUtil.scanFilter = null
-                universalBleFilterUtil.serviceFilterUUIDS = emptyList()
-                universalBleFilterUtil.serviceDataFilterUUIDS = emptyList()
+                universalBleFilterUtil.configure(null)
                 scanFilters = filter?.toScanFilters(filterServices) ?: emptyList()
             }
 

@@ -5,7 +5,14 @@ import 'package:universal_ble/src/utils/universal_ble_filter_util.dart';
 import 'package:universal_ble/universal_ble.dart';
 
 void main() {
-  final universalBleFilter = UniversalBleFilterUtil();
+  // A fresh util per test: the filter is mutable state, so sharing one instance
+  // makes a test's outcome depend on the tests before it.
+  late UniversalBleFilterUtil universalBleFilter;
+
+  setUp(() {
+    universalBleFilter = UniversalBleFilterUtil();
+  });
+
   var device1 = BleDevice(
     deviceId: '1',
     name: '1_device',
@@ -62,8 +69,14 @@ void main() {
         universalBleFilter.servicesMatch(scanFilter, device2),
         isFalse,
       );
+      // A services-only filter constrains nothing in the name dimension.
       expect(
         universalBleFilter.nameMatches(scanFilter, device3),
+        isFalse,
+      );
+      expect(
+        universalBleFilter.nameMatches(
+            ScanFilter(withNamePrefix: ['3']), device3),
         isTrue,
       );
     });
@@ -399,10 +412,11 @@ void main() {
           isFalse);
     });
 
-    test('Test serviceDataMatch: empty filter matches everything', () {
+    test('Test serviceDataMatch: unset service data filter does not narrow',
+        () {
       expect(
         universalBleFilter.serviceDataMatch(ScanFilter(), serviceDataBeacon),
-        isTrue,
+        isFalse,
       );
     });
 
