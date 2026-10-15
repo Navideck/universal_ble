@@ -1,6 +1,5 @@
 #include "universal_ble_filter_util.h"
 
-#include <unordered_set>
 #include <vector>
 
 #include "helper/utils.h"
@@ -26,13 +25,6 @@ std::vector<std::string> ToStringList(const flutter::EncodableList &list) {
     }
   }
   return result;
-}
-
-std::vector<uint8_t> ToBytes(const flutter::EncodableValue &value) {
-  if (const auto *bytes = std::get_if<std::vector<uint8_t>>(&value)) {
-    return *bytes;
-  }
-  return {};
 }
 
 std::vector<ManufacturerDataFilterValue> ToManufacturerFilters(

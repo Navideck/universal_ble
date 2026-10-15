@@ -33,6 +33,7 @@ void main() {
               scanFilter.withManufacturerData, device),
           false);
       // ...so an unfiltered dimension does not narrow the scan on its own.
+      filterUtil.scanFilter = scanFilter;
       expect(filterUtil.matchedScanFilter(device), true);
     });
 

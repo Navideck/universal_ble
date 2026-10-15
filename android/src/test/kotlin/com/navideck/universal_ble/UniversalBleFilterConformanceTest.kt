@@ -25,8 +25,7 @@ internal class UniversalBleFilterConformanceTest {
         val rows = stream.bufferedReader().readLines()
             .filter { it.isNotBlank() && !it.startsWith("#") }
             .map { it.split("|") }
-            .also { it.first() } // header is dropped below
-            .drop(1)
+            .drop(1) // header row
         return rows.map { columns ->
             assertEquals(10, columns.size, "Bad fixture row: ${columns.joinToString("|")}")
             Row(columns[0], columns, columns[9] == "1")

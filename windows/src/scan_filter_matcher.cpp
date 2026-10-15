@@ -6,13 +6,6 @@
 namespace universal_ble {
 namespace {
 
-std::string ToLower(const std::string &value) {
-  std::string result = value;
-  std::transform(result.begin(), result.end(), result.begin(),
-                 [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
-  return result;
-}
-
 bool NameMatches(const std::vector<std::string> &prefixes,
                  const std::string &name) {
   if (name.empty()) {

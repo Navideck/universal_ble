@@ -201,7 +201,7 @@ You still need to explicitly [connect](#connecting) to them before being able to
 
 #### Scan Filter
 
-You can optionally set a filter when scanning. A filter can have multiple conditions (services, manufacturerData, namePrefix) and all conditions are in `OR` relation, returning results that match any of the given conditions.
+You can optionally set a filter when scanning. A filter can have multiple conditions (services, serviceData, manufacturerData, namePrefix) and all conditions are in `OR` relation, returning results that match any of the given conditions.
 
 ##### With Services
 
