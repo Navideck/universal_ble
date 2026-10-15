@@ -20,7 +20,7 @@ class UniversalBleFilterUtil {
     if (exclusionFilters == null || exclusionFilters.isEmpty) return false;
 
     final deviceName = device.name?.toLowerCase() ?? '';
-    final deviceServices = device.services.toValidUUIDList();
+    final deviceServices = _normalizedUuids(device.services);
 
     for (var filter in exclusionFilters) {
       if (!filter.hasValidFilters) continue;
@@ -88,7 +88,7 @@ class UniversalBleFilterUtil {
 
   bool servicesMatch(ScanFilter scanFilter, BleDevice device) {
     final serviceFilters = scanFilter.withServices.toValidUUIDList();
-    final serviceUuids = device.services.toValidUUIDList();
+    final serviceUuids = _normalizedUuids(device.services);
     if (serviceUuids.isEmpty) {
       return false;
     }
@@ -105,12 +105,17 @@ class UniversalBleFilterUtil {
   /// scan.
   bool serviceDataMatch(ScanFilter scanFilter, BleDevice device) {
     final serviceDataFilters = scanFilter.withServiceData.toValidUUIDList();
-    final advertisedUuids = device.serviceData.keys
-        .map(BleUuidParser.stringOrNull)
-        .whereType<String>()
-        .toSet();
+    final advertisedUuids = _normalizedUuids(device.serviceData.keys);
     return serviceDataFilters.any(advertisedUuids.contains);
   }
+
+  /// The device-side UUIDs of an advertisement, as the full 128-bit lower-case
+  /// form. [BleDevice] normalises them already; anything unparseable is skipped
+  /// rather than throwing, so malformed advertisement data cannot fail a scan.
+  Set<String> _normalizedUuids(Iterable<String> uuids) => uuids
+      .map(BleUuidParser.stringOrNull)
+      .whereType<String>()
+      .toSet();
 
   bool manufacturerDataMatches(
     List<ManufacturerDataFilter> filters,

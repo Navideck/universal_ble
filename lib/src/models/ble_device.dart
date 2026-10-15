@@ -22,6 +22,12 @@ class BleDevice {
   bool? connectable;
 
   /// List of services advertised by the device.
+  ///
+  /// Normalised to full 128-bit lower-case UUIDs on every platform (like the keys
+  /// of [serviceData]), so the value is comparable across platforms and against
+  /// user input of either form. Entries that are not valid UUIDs are kept
+  /// verbatim rather than dropped, so unexpected advertisement data cannot lose
+  /// information.
   List<String> services;
   bool? isSystemDevice;
   List<ManufacturerData> manufacturerDataList;
@@ -61,14 +67,15 @@ class BleDevice {
     required String? name,
     this.rssi,
     this.paired,
-    this.services = const [],
+    List<String> services = const [],
     this.isSystemDevice,
     this.manufacturerDataList = const [],
     Map<String, Uint8List> serviceData = const {},
     this.timestamp,
     this.timestampMicroseconds,
     this.connectable,
-  })  : serviceData = _validateServiceData(serviceData),
+  })  : services = _validateServices(services),
+        serviceData = _validateServiceData(serviceData),
         rawName = name,
         name = name?.replaceAll(RegExp(r'[^ -~]'), '').trim();
 
@@ -109,6 +116,14 @@ class BleDevice {
         Uint8List.fromList(value),
       ),
     );
+  }
+
+  /// Normalises advertised service UUIDs to the full 128-bit lower-case form.
+  static List<String> _validateServices(List<String> services) {
+    if (services.isEmpty) return const [];
+    return services
+        .map((uuid) => BleUuidParser.stringOrNull(uuid) ?? uuid)
+        .toList(growable: false);
   }
 
   @override
