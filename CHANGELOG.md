@@ -1,3 +1,6 @@
+## 3.0.2
+* Fix the broken "Try it online" demo URL in the README.
+
 ## 3.0.1
 * Bump `flutter_web_bluetooth` to `^1.2.0`.
 * Web: use the dependency's advertisement abort controller and `startupTimeout` instead of the hand-rolled abort/timeout workaround. `unwatchAdvertisements` now also aborts a pending advertisement startup.
