@@ -63,5 +63,40 @@ void main() {
         );
       });
     });
+
+    group('extractBlueZAttErrorCode', () {
+      test('reads the ATT code that follows the phrase', () {
+        expect(
+          UniversalBleErrorParser.extractBlueZAttErrorCode(
+            'GDBus.Error:org.bluez.Error.Failed: Operation failed with ATT '
+            'error: 0x0F',
+          ),
+          '15',
+        );
+      });
+
+      test('prefers the ATT code over an unrelated hex value', () {
+        expect(
+          UniversalBleErrorParser.extractBlueZAttErrorCode(
+            'write failed (handle 0xdead) with ATT error: 0x0f',
+          ),
+          '15',
+        );
+      });
+
+      test('falls back to a bare hex value when the phrase is absent', () {
+        expect(
+          UniversalBleErrorParser.extractBlueZAttErrorCode('error code 0x1A'),
+          '26',
+        );
+      });
+
+      test('returns null when the message has no code', () {
+        expect(
+          UniversalBleErrorParser.extractBlueZAttErrorCode('not connected'),
+          isNull,
+        );
+      });
+    });
   });
 }

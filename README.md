@@ -944,6 +944,8 @@ try {
 
 The error parser automatically converts platform-specific error formats (strings, numeric codes, PlatformExceptions) into the unified `UniversalBleErrorCode` enum, ensuring consistent error handling across all platforms.
 
+When a peripheral refuses a characteristic or descriptor read/write, or a subscription, Android, Apple and Windows report the ATT error as the matching `UniversalBleErrorCode` (`insufficientEncryption`, `insufficientAuthentication`, `readNotPermitted`, ...) instead of a generic `failed`/`unknownError`. The raw native code is available in `UniversalBleException.details`. Service/characteristic discovery at connect time, and the Linux and Web backends, may still report a generic code.
+
 ## Peripheral Mode
 
 `universal_ble` provides peripheral mode through `UniversalBlePeripheral`, so your app can advertise as a peripheral "server" in addition to client mode.

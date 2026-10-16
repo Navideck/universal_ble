@@ -29,6 +29,20 @@ target_compile_definitions(scan_filter_matcher_test PRIVATE
 
 add_test(NAME scan_filter_matcher_test COMMAND scan_filter_matcher_test)
 
+# Drives the ATT error mapping used when a peripheral refuses a read, write or
+# subscription. Platform-agnostic so it runs on every host.
+add_executable(att_error_mapper_test
+  att_error_mapper_test.cpp
+  ../src/att_error_mapper.cpp
+)
+target_compile_features(att_error_mapper_test PRIVATE cxx_std_20)
+target_include_directories(att_error_mapper_test PRIVATE ../src)
+target_compile_definitions(att_error_mapper_test PRIVATE
+  ATT_ERROR_FIXTURE_PATH="${CMAKE_CURRENT_SOURCE_DIR}/../../test/fixtures/att_error_cases.tsv"
+)
+
+add_test(NAME att_error_mapper_test COMMAND att_error_mapper_test)
+
 if(WIN32)
   add_executable(cleanup_drain_test cleanup_drain_test.cpp)
   target_compile_features(cleanup_drain_test PRIVATE cxx_std_20)
