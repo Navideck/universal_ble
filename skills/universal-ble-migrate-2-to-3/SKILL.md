@@ -1,24 +1,27 @@
 ---
 name: universal-ble-migrate-2-to-3
 description: >-
-  Migrate a Flutter app from universal_ble 2.x to 3.0. Use when upgrading
+  Migrate a Flutter app from universal_ble 2.x to 3.x. Use when upgrading
   universal_ble to ^3.0.0 and fixing its breaking changes: the QueueType.auto
   default, device IDs now emitted in lower-case, the onConnectionChange callback
   now receiving a BleConnectionChange, the onValueChange callback now receiving a
   BleCharacteristicValue, the new connectionChangeStream, the
   BleConnectionParametersUpdated rename, the iOS 18+ unpair behavior with
-  AccessorySetupKit, or custom UniversalBlePlatform implementations that no
-  longer compile. Also use when a queue no longer serializes commands the same
-  way, an onConnectionChange or onValueChange handler fails to compile, stored
-  device IDs no longer compare equal, a custom platform mock is missing
-  parameters after the upgrade, or unpair behaves differently on iOS.
+  AccessorySetupKit, BleDevice.services now emitted as full 128-bit UUIDs, or
+  custom UniversalBlePlatform implementations that no longer compile. Also use
+  when a queue no longer serializes commands the same way, an onConnectionChange
+  or onValueChange handler fails to compile, stored device IDs no longer compare
+  equal, advertised service UUIDs no longer match a stored short form, a custom
+  platform mock is missing parameters after the upgrade, or unpair behaves
+  differently on iOS.
 ---
 
-# Migrating universal_ble 2.x → 3.0
+# Migrating universal_ble 2.x → 3.x
 
-3.0 is a focused release. There are six breaking changes to the public API,
+3.0 is a focused release. There are seven breaking changes to the public API
+across the 3.x line (the `BleDevice.services` normalisation landed in 3.1.0),
 plus signature changes to `UniversalBlePlatform` for custom implementations;
-everything else in 3.0 is additive.
+everything else is additive.
 
 ## Breaking changes at a glance
 
@@ -30,7 +33,8 @@ everything else in 3.0 is additive.
 | 4 | `onValueChange` now receives a single `BleCharacteristicValue` | Every app using the callback |
 | 5 | `BleConnectionParametersUpdated` renamed to `BleConnectionParametersChange` | Code that references the type by name |
 | 6 | On iOS 18+, `unpair` removes an AccessorySetupKit accessory instead of throwing | Apps that call `unpair` on iOS |
-| 7 | `UniversalBlePlatform` interface signatures changed | Custom platform implementations / mocks (`UniversalBle.setInstance`) |
+| 7 | `BleDevice.services` normalised to full 128-bit lower-case UUIDs (3.1.0) | Code that stored or compared an advertised service UUID in its short Apple form |
+| 8 | `UniversalBlePlatform` interface signatures changed | Custom platform implementations / mocks (`UniversalBle.setInstance`) |
 
 Work top to bottom and re-run `flutter analyze` after each step.
 
@@ -244,7 +248,44 @@ foreground, and the accessory's discovery identifiers must be declared in the
 app's `Info.plist` (see README → Native device picker). Apps using only this flow
 can omit `NSBluetoothAlwaysUsageDescription`.
 
-## 7. Custom `UniversalBlePlatform` implementations
+## 7. `BleDevice.services` is now full 128-bit UUIDs
+
+`BleDevice.services` (the advertised service UUIDs on a scan result) used to keep
+whatever width the reporting platform used: Apple preserved the advertised width,
+so a 16-bit service came back as `180D`, while Android, Windows, Linux and Web
+reported the full `0000180d-0000-1000-8000-00805f9b34fb`. As of 3.1.0 every entry
+is normalised by `BleDevice` to the full 128-bit lower-case form, matching the
+keys of `BleDevice.serviceData`.
+
+```dart
+// Before (3.0): shape depended on the platform
+UniversalBle.onScanResult = (device) {
+  // Apple: ['180D']; Android: ['0000180d-0000-1000-8000-00805f9b34fb']
+  print(device.services);
+};
+
+// After (3.1.0): full 128-bit lower-case on every platform
+UniversalBle.onScanResult = (device) {
+  print(device.services); // ['0000180d-0000-1000-8000-00805f9b34fb']
+};
+```
+
+This only affects code that stored, compared, or keyed a `services` entry by its
+short Apple form. Compare in a form-agnostic way with `BleUuidParser` instead of
+string equality:
+
+```dart
+final advertised = device.services.any(
+  (uuid) => BleUuidParser.compareStrings(uuid, '180D'),
+);
+```
+
+Short (`180D`), `0x`-prefixed and mixed-case forms are still accepted as *input*
+everywhere, so `ScanFilter.withServices` / `withServiceData` and the `BleDevice`
+constructor need no change. Entries that are not valid UUIDs are kept verbatim
+rather than dropped, and the matching helpers skip them instead of throwing.
+
+## 8. Custom `UniversalBlePlatform` implementations
 
 Only relevant if you extend `UniversalBlePlatform` (e.g. a mock via
 `UniversalBle.setInstance`). Several signatures changed:
@@ -311,6 +352,9 @@ including IDs pushed directly onto exported stream controllers.
 - [ ] Reviewed code that stored or compared emitted device IDs by exact case, and
       normalised it with `UniversalBle.canonicalDeviceId` (Web IDs stay verbatim —
       do not blanket lower-case).
+- [ ] Updated code that compared or keyed an advertised service UUID
+      (`BleDevice.services`) in its short Apple form (`180D`); parse both sides
+      with `BleUuidParser` or compare the 128-bit form.
 - [ ] Rewrote every `onConnectionChange` handler to take a `BleConnectionChange`,
       and every `onValueChange` handler to take a `BleCharacteristicValue`.
 - [ ] Renamed `BleConnectionParametersUpdated` references to

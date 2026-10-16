@@ -148,7 +148,7 @@ UniversalBle.stopScan();
 UniversalBle.isScanning();
 ```
 
-Each scan result is a `BleDevice`. Besides `deviceId`, `name` and `rssi` it carries `services` (the advertised service UUIDs), `manufacturerDataList`, `serviceData` (the advertising Service Data payloads, keyed by service UUID), `connectable` and the reception timestamps.
+Each scan result is a `BleDevice`. Besides `deviceId`, `name` and `rssi` it carries `services` (the advertised service UUIDs, normalised to full 128-bit lower-case UUIDs on every platform), `manufacturerDataList`, `serviceData` (the advertising Service Data payloads, keyed by service UUID), `connectable` and the reception timestamps.
 
 #### Skipping duplicate scan results
 
