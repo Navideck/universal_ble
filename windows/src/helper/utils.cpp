@@ -159,8 +159,8 @@ bool is_windows11_or_greater() {
 FlutterError create_flutter_error(UniversalBleErrorCode code,
                                   const std::string &message,
                                   const std::string &details) {
-  // Pass the enum's underlying integer value as string in code, and enum name
-  // or details in details
+  // code and details both carry the enum's integer value as a string; a caller
+  // may pass a native code (e.g. the ATT error) in details instead.
   std::string code_str = std::to_string(static_cast<int>(code));
   std::string details_str =
       details.empty() ? std::to_string(static_cast<int>(code)) : details;

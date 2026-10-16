@@ -1,74 +1,83 @@
-// Unit tests for the Windows ATT error mapping used when a peripheral refuses a
-// read, write or subscription. The expected codes match Android's
-// gattStatusToUniversalBleErrorCode and Apple's
-// attErrorToUniversalBleErrorCode, so the same refusal reports the same
-// UniversalBleErrorCode on every platform.
+// Drives the ATT error mapping used when a peripheral refuses a read, write or
+// subscription from the shared conformance fixture
+// (test/fixtures/att_error_cases.tsv), so the Windows table stays identical to
+// the Android and Dart ones. Builds and runs without a Flutter engine or WinRT:
+// see windows/src/att_error_mapper.h.
+#include <cstdint>
+#include <cstdlib>
+#include <fstream>
+#include <iomanip>
+#include <iostream>
+#include <sstream>
+#include <string>
+#include <vector>
 
 #include "att_error_mapper.h"
 
-#include <iostream>
+namespace {
 
 using universal_ble::AttErrorToUniversalBleErrorCodeValue;
 
-namespace {
-bool Check(bool condition, const char *expression, int line) {
-  if (condition) {
-    return true;
+#ifndef ATT_ERROR_FIXTURE_PATH
+#error "ATT_ERROR_FIXTURE_PATH must point at test/fixtures/att_error_cases.tsv"
+#endif
+
+struct Case {
+  uint8_t att_code = 0;
+  int expected = 0;
+  std::string expected_name;
+};
+
+std::vector<Case> LoadCases(const std::string &path) {
+  std::ifstream file(path);
+  if (!file.is_open()) {
+    std::cerr << "Failed to open fixture: " << path << "\n";
+    std::exit(2);
   }
-  std::cerr << "CHECK failed at line " << line << ": " << expression
-            << std::endl;
-  return false;
+
+  std::vector<Case> cases;
+  std::string line;
+  while (std::getline(file, line)) {
+    if (line.empty() || line[0] == '#' || line.rfind("att_code|", 0) == 0) {
+      continue;
+    }
+    std::stringstream row(line);
+    std::string att_code;
+    std::string expected;
+    std::string expected_name;
+    if (!std::getline(row, att_code, '|') ||
+        !std::getline(row, expected, '|') ||
+        !std::getline(row, expected_name, '|')) {
+      std::cerr << "Bad fixture row: " << line << "\n";
+      std::exit(2);
+    }
+    cases.push_back(Case{
+        static_cast<uint8_t>(std::stoul(att_code, nullptr, 16)),
+        std::stoi(expected),
+        expected_name,
+    });
+  }
+  return cases;
 }
+
 }  // namespace
 
-#define CHECK(expression)                              \
-  do {                                                 \
-    if (!Check((expression), #expression, __LINE__)) { \
-      return 1;                                        \
-    }                                                  \
-  } while (false)
-
 int main() {
-  // UniversalBleErrorCode values (windows/src/generated/universal_ble.g.h).
-  constexpr int kUnknownError = 0;
-  constexpr int kFailed = 1;
-  constexpr int kServiceNotFound = 19;
-  constexpr int kInvalidOffset = 23;
-  constexpr int kInvalidAttributeLength = 24;
-  constexpr int kInvalidPdu = 25;
-  constexpr int kInvalidHandle = 26;
-  constexpr int kReadNotPermitted = 28;
-  constexpr int kWriteNotPermitted = 30;
-  constexpr int kOperationNotSupported = 33;
-  constexpr int kOperationInProgress = 36;
-  constexpr int kInsufficientAuthentication = 50;
-  constexpr int kInsufficientAuthorization = 51;
-  constexpr int kInsufficientEncryption = 52;
-  constexpr int kInsufficientKeySize = 53;
+  const auto cases = LoadCases(ATT_ERROR_FIXTURE_PATH);
+  if (cases.empty()) {
+    std::cerr << "Fixture contained no cases\n";
+    return 1;
+  }
 
-  CHECK(AttErrorToUniversalBleErrorCodeValue(0x01) == kInvalidHandle);
-  CHECK(AttErrorToUniversalBleErrorCodeValue(0x02) == kReadNotPermitted);
-  CHECK(AttErrorToUniversalBleErrorCodeValue(0x03) == kWriteNotPermitted);
-  CHECK(AttErrorToUniversalBleErrorCodeValue(0x04) == kInvalidPdu);
-  CHECK(AttErrorToUniversalBleErrorCodeValue(0x05) ==
-        kInsufficientAuthentication);
-  CHECK(AttErrorToUniversalBleErrorCodeValue(0x06) == kOperationNotSupported);
-  CHECK(AttErrorToUniversalBleErrorCodeValue(0x07) == kInvalidOffset);
-  CHECK(AttErrorToUniversalBleErrorCodeValue(0x08) ==
-        kInsufficientAuthorization);
-  CHECK(AttErrorToUniversalBleErrorCodeValue(0x09) == kOperationInProgress);
-  CHECK(AttErrorToUniversalBleErrorCodeValue(0x0A) == kServiceNotFound);
-  CHECK(AttErrorToUniversalBleErrorCodeValue(0x0B) == kInvalidAttributeLength);
-  CHECK(AttErrorToUniversalBleErrorCodeValue(0x0C) == kInsufficientKeySize);
-  CHECK(AttErrorToUniversalBleErrorCodeValue(0x0D) == kInvalidAttributeLength);
-  CHECK(AttErrorToUniversalBleErrorCodeValue(0x0E) == kFailed);
-  CHECK(AttErrorToUniversalBleErrorCodeValue(0x0F) == kInsufficientEncryption);
-  CHECK(AttErrorToUniversalBleErrorCodeValue(0x10) == kOperationNotSupported);
-  CHECK(AttErrorToUniversalBleErrorCodeValue(0x11) == kFailed);
-
-  // An application-defined ATT code (0x80-0xFF) is not a known protocol error.
-  CHECK(AttErrorToUniversalBleErrorCodeValue(0x80) == kUnknownError);
-  CHECK(AttErrorToUniversalBleErrorCodeValue(0xFF) == kUnknownError);
-
+  for (const auto &test_case : cases) {
+    const int actual = AttErrorToUniversalBleErrorCodeValue(test_case.att_code);
+    if (actual != test_case.expected) {
+      std::cerr << "ATT code 0x" << std::hex
+                << static_cast<int>(test_case.att_code) << std::dec << " ("
+                << test_case.expected_name << "): expected "
+                << test_case.expected << ", got " << actual << std::endl;
+      return 1;
+    }
+  }
   return 0;
 }

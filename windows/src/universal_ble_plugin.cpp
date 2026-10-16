@@ -761,9 +761,10 @@ void UniversalBlePlugin::ReadDescriptorValue(
             }
             const auto desc_result = desc_sender.GetResults();
             if (desc_result.Status() != GattCommunicationStatus::Success) {
-              safe_reply("ReadDescriptorValue", result,
-                         create_flutter_error_from_gatt_communication_status(
-                             desc_result.Status()));
+              safe_reply(
+                  "ReadDescriptorValue", result,
+                  create_flutter_error_from_gatt_result(
+                      desc_result.Status(), desc_result.ProtocolError()));
               return;
             }
             if (desc_result.Descriptors().Size() == 0) {
@@ -895,9 +896,10 @@ void UniversalBlePlugin::WriteDescriptorValue(
             }
             const auto desc_result = desc_sender.GetResults();
             if (desc_result.Status() != GattCommunicationStatus::Success) {
-              safe_reply("WriteDescriptorValue", result,
-                         create_flutter_error_from_gatt_communication_status(
-                             desc_result.Status()));
+              safe_reply(
+                  "WriteDescriptorValue", result,
+                  create_flutter_error_from_gatt_result(
+                      desc_result.Status(), desc_result.ProtocolError()));
               return;
             }
             if (desc_result.Descriptors().Size() == 0) {

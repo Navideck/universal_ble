@@ -1,0 +1,38 @@
+# Shared ATT error-mapping conformance cases.
+#
+# Consumed by:
+#   * test/att_error_conformance_test.dart                        (Dart)
+#   * android/src/test/.../UniversalBleAttErrorConformanceTest.kt (Kotlin)
+#   * windows/test/att_error_mapper_test.cpp                      (C++)
+# so the Android, Dart and Windows ATT mappings are held to one table instead of
+# drifting apart. Apple's `attErrorToUniversalBleErrorCode` (PR #350) should be
+# pointed at the same fixture once it lands.
+#
+# Columns, '|'-separated (exactly two separators per row):
+#   att_code | expected | expected_name
+#     att_code       ATT error code in hex, as the platform delivers it
+#     expected       the UniversalBleErrorCode raw value the code maps to
+#     expected_name  the UniversalBleErrorCode name (documentation only)
+#
+# Codes 0x80-0xFF are application-defined: they are not protocol errors, so every
+# platform reports them as unknownError.
+att_code|expected|expected_name
+0x01|26|invalidHandle
+0x02|28|readNotPermitted
+0x03|30|writeNotPermitted
+0x04|25|invalidPdu
+0x05|50|insufficientAuthentication
+0x06|33|operationNotSupported
+0x07|23|invalidOffset
+0x08|51|insufficientAuthorization
+0x09|36|operationInProgress
+0x0A|19|serviceNotFound
+0x0B|24|invalidAttributeLength
+0x0C|53|insufficientKeySize
+0x0D|24|invalidAttributeLength
+0x0E|1|failed
+0x0F|52|insufficientEncryption
+0x10|33|operationNotSupported
+0x11|1|failed
+0x80|0|unknownError
+0xFF|0|unknownError

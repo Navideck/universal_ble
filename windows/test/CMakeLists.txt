@@ -37,6 +37,9 @@ add_executable(att_error_mapper_test
 )
 target_compile_features(att_error_mapper_test PRIVATE cxx_std_20)
 target_include_directories(att_error_mapper_test PRIVATE ../src)
+target_compile_definitions(att_error_mapper_test PRIVATE
+  ATT_ERROR_FIXTURE_PATH="${CMAKE_CURRENT_SOURCE_DIR}/../../test/fixtures/att_error_cases.tsv"
+)
 
 add_test(NAME att_error_mapper_test COMMAND att_error_mapper_test)
 
