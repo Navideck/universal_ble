@@ -168,20 +168,20 @@ class UniversalBlePeripheralPigeon extends UniversalBlePeripheralPlatform
       _descriptorWriteRequestHandler = handler;
 
   @override
-  void onAdvertisingStateChange(
+  Future<void> onAdvertisingStateChange(
     PeripheralAdvertisingState state,
     String? error,
-  ) {
+  ) async {
     updateAdvertisingState(BlePeripheralAdvertisingStateChanged(state, error));
   }
 
   @override
-  void onCharacteristicSubscriptionChange(
+  Future<void> onCharacteristicSubscriptionChange(
     String deviceId,
     String characteristicId,
     bool isSubscribed,
     String? name,
-  ) {
+  ) async {
     updateCharacteristicSubscription(
       BlePeripheralCharacteristicSubscriptionChanged(
         deviceId: deviceId,
@@ -193,24 +193,24 @@ class UniversalBlePeripheralPigeon extends UniversalBlePeripheralPlatform
   }
 
   @override
-  void onConnectionStateChange(String deviceId, bool connected) {
+  Future<void> onConnectionStateChange(String deviceId, bool connected) async {
     updateConnectionState(
       BlePeripheralConnectionStateChanged(deviceId, connected),
     );
   }
 
   @override
-  void onMtuChange(String deviceId, int mtu) {
+  Future<void> onMtuChange(String deviceId, int mtu) async {
     updateMtu(BlePeripheralMtuChanged(deviceId, mtu));
   }
 
   @override
-  PeripheralReadRequestResult? onReadRequest(
+  Future<PeripheralReadRequestResult?> onReadRequest(
     String deviceId,
     String characteristicId,
     int offset,
     Uint8List? value,
-  ) {
+  ) async {
     final result = _readRequestHandler?.call(
       deviceId.toDeviceId(isAddress: hasAddressDeviceIds).canonical,
       BleUuidParser.string(characteristicId),
@@ -226,19 +226,19 @@ class UniversalBlePeripheralPigeon extends UniversalBlePeripheralPlatform
   }
 
   @override
-  void onServiceAdded(String serviceId, String? error) {
+  Future<void> onServiceAdded(String serviceId, String? error) async {
     updateServiceAdded(
       BlePeripheralServiceAdded(BleUuidParser.string(serviceId), error),
     );
   }
 
   @override
-  PeripheralWriteRequestResult? onWriteRequest(
+  Future<PeripheralWriteRequestResult?> onWriteRequest(
     String deviceId,
     String characteristicId,
     int offset,
     Uint8List? value,
-  ) {
+  ) async {
     final result = _writeRequestHandler?.call(
       deviceId.toDeviceId(isAddress: hasAddressDeviceIds).canonical,
       BleUuidParser.string(characteristicId),
@@ -254,13 +254,13 @@ class UniversalBlePeripheralPigeon extends UniversalBlePeripheralPlatform
   }
 
   @override
-  PeripheralReadRequestResult? onDescriptorReadRequest(
+  Future<PeripheralReadRequestResult?> onDescriptorReadRequest(
     String deviceId,
     String characteristicId,
     String descriptorId,
     int offset,
     Uint8List? value,
-  ) {
+  ) async {
     final result = _descriptorReadRequestHandler?.call(
       deviceId.toDeviceId(isAddress: hasAddressDeviceIds).canonical,
       BleUuidParser.string(characteristicId),
@@ -277,13 +277,13 @@ class UniversalBlePeripheralPigeon extends UniversalBlePeripheralPlatform
   }
 
   @override
-  PeripheralWriteRequestResult? onDescriptorWriteRequest(
+  Future<PeripheralWriteRequestResult?> onDescriptorWriteRequest(
     String deviceId,
     String characteristicId,
     String descriptorId,
     int offset,
     Uint8List? value,
-  ) {
+  ) async {
     final result = _descriptorWriteRequestHandler?.call(
       deviceId.toDeviceId(isAddress: hasAddressDeviceIds).canonical,
       BleUuidParser.string(characteristicId),
