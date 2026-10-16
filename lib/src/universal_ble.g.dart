@@ -1412,18 +1412,76 @@ class AndroidDiscoverServicesOptions {
   }
 }
 
+class AppleDiscoverServicesOptions {
+  AppleDiscoverServicesOptions({
+    this.timeoutMillis,
+  });
+
+  /// How long, in milliseconds, the native discovery may take before it fails.
+  /// iOS and macOS bound discovery themselves, so that a discovery that never
+  /// completes cannot hold back later calls; 10 seconds when not set. Other
+  /// platforms are bounded by the `timeout` of `discoverServices` alone.
+  ///
+  /// `discoverServices` fills this in from its `timeout` when only that is
+  /// given, and takes this as its `timeout` when only this is.
+  int? timeoutMillis;
+
+  List<Object?> _toList() {
+    return <Object?>[
+      timeoutMillis,
+    ];
+  }
+
+  Object encode() {
+    return _toList();
+  }
+
+  static AppleDiscoverServicesOptions decode(Object result) {
+    result as List<Object?>;
+    return AppleDiscoverServicesOptions(
+      timeoutMillis: result[0] as int?,
+    );
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  bool operator ==(Object other) {
+    if (other is! AppleDiscoverServicesOptions ||
+        other.runtimeType != runtimeType) {
+      return false;
+    }
+    if (identical(this, other)) {
+      return true;
+    }
+    return _deepEquals(timeoutMillis, other.timeoutMillis);
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  int get hashCode => _deepHash(<Object?>[runtimeType, ..._toList()]);
+
+  @override
+  String toString() {
+    return 'AppleDiscoverServicesOptions(timeoutMillis: $timeoutMillis)';
+  }
+}
+
 /// Platform-specific options for `discoverServices`. Ignored on platforms
 /// that have no equivalent.
 class DiscoverServicesPlatformConfig {
   DiscoverServicesPlatformConfig({
     this.android,
+    this.apple,
   });
 
   AndroidDiscoverServicesOptions? android;
 
+  AppleDiscoverServicesOptions? apple;
+
   List<Object?> _toList() {
     return <Object?>[
       android,
+      apple,
     ];
   }
 
@@ -1435,6 +1493,7 @@ class DiscoverServicesPlatformConfig {
     result as List<Object?>;
     return DiscoverServicesPlatformConfig(
       android: result[0] as AndroidDiscoverServicesOptions?,
+      apple: result[1] as AppleDiscoverServicesOptions?,
     );
   }
 
@@ -1448,7 +1507,8 @@ class DiscoverServicesPlatformConfig {
     if (identical(this, other)) {
       return true;
     }
-    return _deepEquals(android, other.android);
+    return _deepEquals(android, other.android) &&
+        _deepEquals(apple, other.apple);
   }
 
   @override
@@ -1457,7 +1517,7 @@ class DiscoverServicesPlatformConfig {
 
   @override
   String toString() {
-    return 'DiscoverServicesPlatformConfig(android: $android)';
+    return 'DiscoverServicesPlatformConfig(android: $android, apple: $apple)';
   }
 }
 
@@ -1980,29 +2040,32 @@ class _PigeonCodec extends StandardMessageCodec {
     } else if (value is AndroidDiscoverServicesOptions) {
       buffer.putUint8(160);
       writeValue(buffer, value.encode());
-    } else if (value is DiscoverServicesPlatformConfig) {
+    } else if (value is AppleDiscoverServicesOptions) {
       buffer.putUint8(161);
       writeValue(buffer, value.encode());
-    } else if (value is PeripheralAndroidOptions) {
+    } else if (value is DiscoverServicesPlatformConfig) {
       buffer.putUint8(162);
       writeValue(buffer, value.encode());
-    } else if (value is PeripheralPlatformConfig) {
+    } else if (value is PeripheralAndroidOptions) {
       buffer.putUint8(163);
       writeValue(buffer, value.encode());
-    } else if (value is PeripheralService) {
+    } else if (value is PeripheralPlatformConfig) {
       buffer.putUint8(164);
       writeValue(buffer, value.encode());
-    } else if (value is PeripheralCharacteristic) {
+    } else if (value is PeripheralService) {
       buffer.putUint8(165);
       writeValue(buffer, value.encode());
-    } else if (value is PeripheralDescriptor) {
+    } else if (value is PeripheralCharacteristic) {
       buffer.putUint8(166);
       writeValue(buffer, value.encode());
-    } else if (value is PeripheralReadRequestResult) {
+    } else if (value is PeripheralDescriptor) {
       buffer.putUint8(167);
       writeValue(buffer, value.encode());
-    } else if (value is PeripheralWriteRequestResult) {
+    } else if (value is PeripheralReadRequestResult) {
       buffer.putUint8(168);
+      writeValue(buffer, value.encode());
+    } else if (value is PeripheralWriteRequestResult) {
+      buffer.putUint8(169);
       writeValue(buffer, value.encode());
     } else {
       super.writeValue(buffer, value);
@@ -2094,20 +2157,22 @@ class _PigeonCodec extends StandardMessageCodec {
       case 160:
         return AndroidDiscoverServicesOptions.decode(readValue(buffer)!);
       case 161:
-        return DiscoverServicesPlatformConfig.decode(readValue(buffer)!);
+        return AppleDiscoverServicesOptions.decode(readValue(buffer)!);
       case 162:
-        return PeripheralAndroidOptions.decode(readValue(buffer)!);
+        return DiscoverServicesPlatformConfig.decode(readValue(buffer)!);
       case 163:
-        return PeripheralPlatformConfig.decode(readValue(buffer)!);
+        return PeripheralAndroidOptions.decode(readValue(buffer)!);
       case 164:
-        return PeripheralService.decode(readValue(buffer)!);
+        return PeripheralPlatformConfig.decode(readValue(buffer)!);
       case 165:
-        return PeripheralCharacteristic.decode(readValue(buffer)!);
+        return PeripheralService.decode(readValue(buffer)!);
       case 166:
-        return PeripheralDescriptor.decode(readValue(buffer)!);
+        return PeripheralCharacteristic.decode(readValue(buffer)!);
       case 167:
-        return PeripheralReadRequestResult.decode(readValue(buffer)!);
+        return PeripheralDescriptor.decode(readValue(buffer)!);
       case 168:
+        return PeripheralReadRequestResult.decode(readValue(buffer)!);
+      case 169:
         return PeripheralWriteRequestResult.decode(readValue(buffer)!);
       default:
         return super.readValueOfType(type, buffer);

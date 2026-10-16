@@ -2311,18 +2311,92 @@ size_t PigeonInternalDeepHash(const AndroidDiscoverServicesOptions& v) {
   return v.Hash();
 }
 
+// AppleDiscoverServicesOptions
+
+AppleDiscoverServicesOptions::AppleDiscoverServicesOptions() {}
+
+AppleDiscoverServicesOptions::AppleDiscoverServicesOptions(const int64_t* timeout_millis)
+ : timeout_millis_(timeout_millis ? std::optional<int64_t>(*timeout_millis) : std::nullopt) {}
+
+const int64_t* AppleDiscoverServicesOptions::timeout_millis() const {
+  return timeout_millis_ ? &(*timeout_millis_) : nullptr;
+}
+
+void AppleDiscoverServicesOptions::set_timeout_millis(const int64_t* value_arg) {
+  timeout_millis_ = value_arg ? std::optional<int64_t>(*value_arg) : std::nullopt;
+}
+
+void AppleDiscoverServicesOptions::set_timeout_millis(int64_t value_arg) {
+  timeout_millis_ = value_arg;
+}
+
+
+EncodableList AppleDiscoverServicesOptions::ToEncodableList() const {
+  EncodableList list;
+  list.reserve(1);
+  list.push_back(timeout_millis_ ? EncodableValue(*timeout_millis_) : EncodableValue());
+  return list;
+}
+
+AppleDiscoverServicesOptions AppleDiscoverServicesOptions::FromEncodableList(const EncodableList& list) {
+  AppleDiscoverServicesOptions decoded;
+  auto& encodable_timeout_millis = list[0];
+  if (!encodable_timeout_millis.IsNull()) {
+    decoded.set_timeout_millis(std::get<int64_t>(encodable_timeout_millis));
+  }
+  return decoded;
+}
+
+bool AppleDiscoverServicesOptions::operator==(const AppleDiscoverServicesOptions& other) const {
+  return PigeonInternalDeepEquals(timeout_millis_, other.timeout_millis_);
+}
+
+bool AppleDiscoverServicesOptions::operator!=(const AppleDiscoverServicesOptions& other) const {
+  return !(*this == other);
+}
+
+size_t AppleDiscoverServicesOptions::Hash() const {
+  size_t result = 1;
+  result = result * 31 + PigeonInternalDeepHash(timeout_millis_);
+  return result;
+}
+
+std::ostream& operator<<(
+  std::ostream& os,
+  const AppleDiscoverServicesOptions& obj) {
+  os << "AppleDiscoverServicesOptions(";
+  os << "timeout_millis: ";
+  if (obj.timeout_millis_) {
+    os << PigeonInternalToString(*obj.timeout_millis_);
+  }
+  else {
+    os << "null";
+  }
+  os << ")";
+  return os;
+}
+
+size_t PigeonInternalDeepHash(const AppleDiscoverServicesOptions& v) {
+  return v.Hash();
+}
+
 // DiscoverServicesPlatformConfig
 
 DiscoverServicesPlatformConfig::DiscoverServicesPlatformConfig() {}
 
-DiscoverServicesPlatformConfig::DiscoverServicesPlatformConfig(const AndroidDiscoverServicesOptions* android)
- : android_(android ? std::make_unique<AndroidDiscoverServicesOptions>(*android) : nullptr) {}
+DiscoverServicesPlatformConfig::DiscoverServicesPlatformConfig(
+  const AndroidDiscoverServicesOptions* android,
+  const AppleDiscoverServicesOptions* apple)
+ : android_(android ? std::make_unique<AndroidDiscoverServicesOptions>(*android) : nullptr),
+    apple_(apple ? std::make_unique<AppleDiscoverServicesOptions>(*apple) : nullptr) {}
 
 DiscoverServicesPlatformConfig::DiscoverServicesPlatformConfig(const DiscoverServicesPlatformConfig& other)
- : android_(other.android_ ? std::make_unique<AndroidDiscoverServicesOptions>(*other.android_) : nullptr) {}
+ : android_(other.android_ ? std::make_unique<AndroidDiscoverServicesOptions>(*other.android_) : nullptr),
+    apple_(other.apple_ ? std::make_unique<AppleDiscoverServicesOptions>(*other.apple_) : nullptr) {}
 
 DiscoverServicesPlatformConfig& DiscoverServicesPlatformConfig::operator=(const DiscoverServicesPlatformConfig& other) {
   android_ = other.android_ ? std::make_unique<AndroidDiscoverServicesOptions>(*other.android_) : nullptr;
+  apple_ = other.apple_ ? std::make_unique<AppleDiscoverServicesOptions>(*other.apple_) : nullptr;
   return *this;
 }
 
@@ -2339,10 +2413,24 @@ void DiscoverServicesPlatformConfig::set_android(const AndroidDiscoverServicesOp
 }
 
 
+const AppleDiscoverServicesOptions* DiscoverServicesPlatformConfig::apple() const {
+  return apple_.get();
+}
+
+void DiscoverServicesPlatformConfig::set_apple(const AppleDiscoverServicesOptions* value_arg) {
+  apple_ = value_arg ? std::make_unique<AppleDiscoverServicesOptions>(*value_arg) : nullptr;
+}
+
+void DiscoverServicesPlatformConfig::set_apple(const AppleDiscoverServicesOptions& value_arg) {
+  apple_ = std::make_unique<AppleDiscoverServicesOptions>(value_arg);
+}
+
+
 EncodableList DiscoverServicesPlatformConfig::ToEncodableList() const {
   EncodableList list;
-  list.reserve(1);
+  list.reserve(2);
   list.push_back(android_ ? CustomEncodableValue(*android_) : EncodableValue());
+  list.push_back(apple_ ? CustomEncodableValue(*apple_) : EncodableValue());
   return list;
 }
 
@@ -2352,11 +2440,15 @@ DiscoverServicesPlatformConfig DiscoverServicesPlatformConfig::FromEncodableList
   if (!encodable_android.IsNull()) {
     decoded.set_android(std::any_cast<const AndroidDiscoverServicesOptions&>(std::get<CustomEncodableValue>(encodable_android)));
   }
+  auto& encodable_apple = list[1];
+  if (!encodable_apple.IsNull()) {
+    decoded.set_apple(std::any_cast<const AppleDiscoverServicesOptions&>(std::get<CustomEncodableValue>(encodable_apple)));
+  }
   return decoded;
 }
 
 bool DiscoverServicesPlatformConfig::operator==(const DiscoverServicesPlatformConfig& other) const {
-  return PigeonInternalDeepEquals(android_, other.android_);
+  return PigeonInternalDeepEquals(android_, other.android_) && PigeonInternalDeepEquals(apple_, other.apple_);
 }
 
 bool DiscoverServicesPlatformConfig::operator!=(const DiscoverServicesPlatformConfig& other) const {
@@ -2366,6 +2458,7 @@ bool DiscoverServicesPlatformConfig::operator!=(const DiscoverServicesPlatformCo
 size_t DiscoverServicesPlatformConfig::Hash() const {
   size_t result = 1;
   result = result * 31 + PigeonInternalDeepHash(android_);
+  result = result * 31 + PigeonInternalDeepHash(apple_);
   return result;
 }
 
@@ -2376,6 +2469,13 @@ std::ostream& operator<<(
   os << "android: ";
   if (obj.android_) {
     os << *obj.android_;
+  }
+  else {
+    os << "null";
+  }
+  os << ", apple: ";
+  if (obj.apple_) {
+    os << *obj.apple_;
   }
   else {
     os << "null";
@@ -3293,27 +3393,30 @@ EncodableValue PigeonInternalCodecSerializer::ReadValueOfType(
         return CustomEncodableValue(AndroidDiscoverServicesOptions::FromEncodableList(std::get<EncodableList>(ReadValue(stream))));
       }
     case 161: {
-        return CustomEncodableValue(DiscoverServicesPlatformConfig::FromEncodableList(std::get<EncodableList>(ReadValue(stream))));
+        return CustomEncodableValue(AppleDiscoverServicesOptions::FromEncodableList(std::get<EncodableList>(ReadValue(stream))));
       }
     case 162: {
-        return CustomEncodableValue(PeripheralAndroidOptions::FromEncodableList(std::get<EncodableList>(ReadValue(stream))));
+        return CustomEncodableValue(DiscoverServicesPlatformConfig::FromEncodableList(std::get<EncodableList>(ReadValue(stream))));
       }
     case 163: {
-        return CustomEncodableValue(PeripheralPlatformConfig::FromEncodableList(std::get<EncodableList>(ReadValue(stream))));
+        return CustomEncodableValue(PeripheralAndroidOptions::FromEncodableList(std::get<EncodableList>(ReadValue(stream))));
       }
     case 164: {
-        return CustomEncodableValue(PeripheralService::FromEncodableList(std::get<EncodableList>(ReadValue(stream))));
+        return CustomEncodableValue(PeripheralPlatformConfig::FromEncodableList(std::get<EncodableList>(ReadValue(stream))));
       }
     case 165: {
-        return CustomEncodableValue(PeripheralCharacteristic::FromEncodableList(std::get<EncodableList>(ReadValue(stream))));
+        return CustomEncodableValue(PeripheralService::FromEncodableList(std::get<EncodableList>(ReadValue(stream))));
       }
     case 166: {
-        return CustomEncodableValue(PeripheralDescriptor::FromEncodableList(std::get<EncodableList>(ReadValue(stream))));
+        return CustomEncodableValue(PeripheralCharacteristic::FromEncodableList(std::get<EncodableList>(ReadValue(stream))));
       }
     case 167: {
-        return CustomEncodableValue(PeripheralReadRequestResult::FromEncodableList(std::get<EncodableList>(ReadValue(stream))));
+        return CustomEncodableValue(PeripheralDescriptor::FromEncodableList(std::get<EncodableList>(ReadValue(stream))));
       }
     case 168: {
+        return CustomEncodableValue(PeripheralReadRequestResult::FromEncodableList(std::get<EncodableList>(ReadValue(stream))));
+      }
+    case 169: {
         return CustomEncodableValue(PeripheralWriteRequestResult::FromEncodableList(std::get<EncodableList>(ReadValue(stream))));
       }
     default:
@@ -3485,43 +3588,48 @@ void PigeonInternalCodecSerializer::WriteValue(
       WriteValue(EncodableValue(std::any_cast<AndroidDiscoverServicesOptions>(*custom_value).ToEncodableList()), stream);
       return;
     }
-    if (custom_value->type() == typeid(DiscoverServicesPlatformConfig)) {
+    if (custom_value->type() == typeid(AppleDiscoverServicesOptions)) {
       stream->WriteByte(161);
+      WriteValue(EncodableValue(std::any_cast<AppleDiscoverServicesOptions>(*custom_value).ToEncodableList()), stream);
+      return;
+    }
+    if (custom_value->type() == typeid(DiscoverServicesPlatformConfig)) {
+      stream->WriteByte(162);
       WriteValue(EncodableValue(std::any_cast<DiscoverServicesPlatformConfig>(*custom_value).ToEncodableList()), stream);
       return;
     }
     if (custom_value->type() == typeid(PeripheralAndroidOptions)) {
-      stream->WriteByte(162);
+      stream->WriteByte(163);
       WriteValue(EncodableValue(std::any_cast<PeripheralAndroidOptions>(*custom_value).ToEncodableList()), stream);
       return;
     }
     if (custom_value->type() == typeid(PeripheralPlatformConfig)) {
-      stream->WriteByte(163);
+      stream->WriteByte(164);
       WriteValue(EncodableValue(std::any_cast<PeripheralPlatformConfig>(*custom_value).ToEncodableList()), stream);
       return;
     }
     if (custom_value->type() == typeid(PeripheralService)) {
-      stream->WriteByte(164);
+      stream->WriteByte(165);
       WriteValue(EncodableValue(std::any_cast<PeripheralService>(*custom_value).ToEncodableList()), stream);
       return;
     }
     if (custom_value->type() == typeid(PeripheralCharacteristic)) {
-      stream->WriteByte(165);
+      stream->WriteByte(166);
       WriteValue(EncodableValue(std::any_cast<PeripheralCharacteristic>(*custom_value).ToEncodableList()), stream);
       return;
     }
     if (custom_value->type() == typeid(PeripheralDescriptor)) {
-      stream->WriteByte(166);
+      stream->WriteByte(167);
       WriteValue(EncodableValue(std::any_cast<PeripheralDescriptor>(*custom_value).ToEncodableList()), stream);
       return;
     }
     if (custom_value->type() == typeid(PeripheralReadRequestResult)) {
-      stream->WriteByte(167);
+      stream->WriteByte(168);
       WriteValue(EncodableValue(std::any_cast<PeripheralReadRequestResult>(*custom_value).ToEncodableList()), stream);
       return;
     }
     if (custom_value->type() == typeid(PeripheralWriteRequestResult)) {
-      stream->WriteByte(168);
+      stream->WriteByte(169);
       WriteValue(EncodableValue(std::any_cast<PeripheralWriteRequestResult>(*custom_value).ToEncodableList()), stream);
       return;
     }

@@ -472,6 +472,14 @@ List<BleService> services = await bleDevice.discoverServices(
 );
 ```
 
+On iOS and macOS a discovery that has not completed after 10 seconds fails, so that it cannot hold back later calls for the same device. A `timeout` passed to `discoverServices` extends that, for a peripheral that is slow to answer; on the other platforms it is the only limit. `AppleDiscoverServicesOptions(timeoutMillis: ...)` sets the iOS and macOS limit directly, and without a `timeout` it bounds the whole call too.
+
+```dart
+List<BleService> services = await bleDevice.discoverServices(
+  timeout: const Duration(seconds: 30),
+);
+```
+
 #### GetService
 
 Retrieves a specific service. Returns a `Future<BleService>`.

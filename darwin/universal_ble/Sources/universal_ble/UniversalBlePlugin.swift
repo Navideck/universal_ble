@@ -318,7 +318,7 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
     discoverServicesFutures.failAndRemoveAll(matching: deviceId, with: error)
   }
 
-  func discoverServices(deviceId: String, withDescriptors: Bool, platformConfig _: DiscoverServicesPlatformConfig?, completion: @escaping (Result<[UniversalBleService], Error>) -> Void) {
+  func discoverServices(deviceId: String, withDescriptors: Bool, platformConfig: DiscoverServicesPlatformConfig?, completion: @escaping (Result<[UniversalBleService], Error>) -> Void) {
     guard let peripheral = peripheralCache.find(deviceId, manager: manager) else {
       completion(
         Result.failure(createFlutterError(code: .deviceNotFound, message: "Unknown deviceId:\(deviceId)"))
@@ -359,6 +359,7 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
       peripheral: peripheral,
       deviceId: normalizedDeviceId,
       withDescriptors: withDescriptors,
+      timeoutSeconds: UniversalBleAsyncServiceDiscovery.timeoutSeconds(for: platformConfig),
       completion: wrappedCompletion
     )
 
