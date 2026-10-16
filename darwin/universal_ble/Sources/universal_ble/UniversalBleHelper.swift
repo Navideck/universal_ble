@@ -275,142 +275,140 @@ extension Array where Element: DeviceFuture {
     }
 }
 
-class CharacteristicReadFuture: DeviceFuture {
-    let deviceId: String
-    let characteristicId: String
-    let serviceId: String?
-    let result: (Result<FlutterStandardTypedData, Error>) -> Void
+/// A single-shot pending operation. Its continuation is resumed exactly once,
+/// either by the matching CoreBluetooth callback or by a connection teardown.
+protocol PendingResult {
+    associatedtype Value
+    var continuation: CheckedContinuation<Value, Error> { get }
+}
 
-    init(deviceId: String, characteristicId: String, serviceId: String?, result: @escaping (Result<FlutterStandardTypedData, Error>) -> Void) {
-        self.deviceId = deviceId
-        self.characteristicId = characteristicId
-        self.serviceId = serviceId
-        self.result = result
-    }
-
-    func fail(with error: Error) {
-        result(.failure(error))
+extension CheckedContinuation {
+    /// Resumes with `result`. Spelled out rather than using `resume(with:)`,
+    /// which is ambiguous under Swift 6's `Error`/`any Error` distinction.
+    func finish(_ result: Result<T, E>) {
+        switch result {
+        case .success(let value):
+            resume(returning: value)
+        case .failure(let error):
+            resume(throwing: error)
+        }
     }
 }
 
-class CharacteristicWriteFuture: DeviceFuture {
-    let deviceId: String
-    let characteristicId: String
-    let serviceId: String?
-    let result: (Result<Void, Error>) -> Void
-
-    init(deviceId: String, characteristicId: String, serviceId: String?, result: @escaping (Result<Void, Error>) -> Void) {
-        self.deviceId = deviceId
-        self.characteristicId = characteristicId
-        self.serviceId = serviceId
-        self.result = result
+extension PendingResult {
+    func complete(_ result: Result<Value, Error>) {
+        continuation.finish(result)
     }
 
     func fail(with error: Error) {
-        result(.failure(error))
+        continuation.resume(throwing: error)
     }
 }
 
-class PendingWriteWithoutResponse: DeviceFuture {
+class CharacteristicReadFuture: DeviceFuture, PendingResult {
+    let deviceId: String
+    let characteristicId: String
+    let serviceId: String?
+    let continuation: CheckedContinuation<FlutterStandardTypedData, Error>
+
+    init(deviceId: String, characteristicId: String, serviceId: String?, continuation: CheckedContinuation<FlutterStandardTypedData, Error>) {
+        self.deviceId = deviceId
+        self.characteristicId = characteristicId
+        self.serviceId = serviceId
+        self.continuation = continuation
+    }
+}
+
+class CharacteristicWriteFuture: DeviceFuture, PendingResult {
+    let deviceId: String
+    let characteristicId: String
+    let serviceId: String?
+    let continuation: CheckedContinuation<Void, Error>
+
+    init(deviceId: String, characteristicId: String, serviceId: String?, continuation: CheckedContinuation<Void, Error>) {
+        self.deviceId = deviceId
+        self.characteristicId = characteristicId
+        self.serviceId = serviceId
+        self.continuation = continuation
+    }
+}
+
+class PendingWriteWithoutResponse: DeviceFuture, PendingResult {
     let deviceId: String
     let characteristic: CBCharacteristic
     let data: Data
-    let result: (Result<Void, Error>) -> Void
+    let continuation: CheckedContinuation<Void, Error>
 
-    init(deviceId: String, characteristic: CBCharacteristic, data: Data, result: @escaping (Result<Void, Error>) -> Void) {
+    init(deviceId: String, characteristic: CBCharacteristic, data: Data, continuation: CheckedContinuation<Void, Error>) {
         self.deviceId = deviceId
         self.characteristic = characteristic
         self.data = data
-        self.result = result
-    }
-
-    func fail(with error: Error) {
-        result(.failure(error))
+        self.continuation = continuation
     }
 }
 
-class CharacteristicNotifyFuture: DeviceFuture {
+class CharacteristicNotifyFuture: DeviceFuture, PendingResult {
     let deviceId: String
     let characteristicId: String
     let serviceId: String?
-    let result: (Result<Void, Error>) -> Void
+    let continuation: CheckedContinuation<Void, Error>
 
-    init(deviceId: String, characteristicId: String, serviceId: String?, result: @escaping (Result<Void, Error>) -> Void) {
+    init(deviceId: String, characteristicId: String, serviceId: String?, continuation: CheckedContinuation<Void, Error>) {
         self.deviceId = deviceId
         self.characteristicId = characteristicId
         self.serviceId = serviceId
-        self.result = result
-    }
-
-    func fail(with error: Error) {
-        result(.failure(error))
+        self.continuation = continuation
     }
 }
 
-class DiscoverServicesFuture: DeviceFuture {
+class DiscoverServicesFuture: DeviceFuture, PendingResult {
     let deviceId: String
-    let result: (Result<[UniversalBleService], Error>) -> Void
+    let continuation: CheckedContinuation<[UniversalBleService], Error>
 
-    init(deviceId: String, result: @escaping (Result<[UniversalBleService], Error>) -> Void) {
+    init(deviceId: String, continuation: CheckedContinuation<[UniversalBleService], Error>) {
         self.deviceId = deviceId
-        self.result = result
-    }
-
-    func fail(with error: Error) {
-        result(.failure(error))
+        self.continuation = continuation
     }
 }
 
-class RssiReadFuture: DeviceFuture {
+class RssiReadFuture: DeviceFuture, PendingResult {
     let deviceId: String
-    let result: (Result<Int64, Error>) -> Void
+    let continuation: CheckedContinuation<Int64, Error>
 
-    init(deviceId: String, result: @escaping (Result<Int64, Error>) -> Void) {
+    init(deviceId: String, continuation: CheckedContinuation<Int64, Error>) {
         self.deviceId = deviceId
-        self.result = result
-    }
-
-    func fail(with error: Error) {
-        result(.failure(error))
+        self.continuation = continuation
     }
 }
 
-class DescriptorReadFuture: DeviceFuture {
+class DescriptorReadFuture: DeviceFuture, PendingResult {
     let deviceId: String
     let descriptorId: String
     let characteristicId: String
     let serviceId: String?
-    let result: (Result<FlutterStandardTypedData, Error>) -> Void
+    let continuation: CheckedContinuation<FlutterStandardTypedData, Error>
 
-    init(deviceId: String, descriptorId: String, characteristicId: String, serviceId: String?, result: @escaping (Result<FlutterStandardTypedData, Error>) -> Void) {
+    init(deviceId: String, descriptorId: String, characteristicId: String, serviceId: String?, continuation: CheckedContinuation<FlutterStandardTypedData, Error>) {
         self.deviceId = deviceId
         self.descriptorId = descriptorId
         self.characteristicId = characteristicId
         self.serviceId = serviceId
-        self.result = result
-    }
-
-    func fail(with error: Error) {
-        result(.failure(error))
+        self.continuation = continuation
     }
 }
 
-class DescriptorWriteFuture: DeviceFuture {
+class DescriptorWriteFuture: DeviceFuture, PendingResult {
     let deviceId: String
     let descriptorId: String
     let characteristicId: String
     let serviceId: String?
-    let result: (Result<Void, Error>) -> Void
+    let continuation: CheckedContinuation<Void, Error>
 
-    init(deviceId: String, descriptorId: String, characteristicId: String, serviceId: String?, result: @escaping (Result<Void, Error>) -> Void) {
+    init(deviceId: String, descriptorId: String, characteristicId: String, serviceId: String?, continuation: CheckedContinuation<Void, Error>) {
         self.deviceId = deviceId
         self.descriptorId = descriptorId
         self.characteristicId = characteristicId
         self.serviceId = serviceId
-        self.result = result
-    }
-
-    func fail(with error: Error) {
-        result(.failure(error))
+        self.continuation = continuation
     }
 }

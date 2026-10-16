@@ -150,7 +150,7 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
         permissionHandler = null
     }
 
-    private fun getBluetoothAvailabilityStateInternal(callback: (Result<AvailabilityState>) -> Unit) {
+    private fun getBluetoothAvailabilityState(callback: (Result<AvailabilityState>) -> Unit) {
         callback(
             Result.success(
                 bluetoothManager.adapter?.state?.toAvailabilityState()
@@ -163,7 +163,7 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
         return permissionHandler?.hasPermissions(withAndroidFineLocation) ?: false
     }
 
-    private fun requestPermissionsInternal(
+    private fun requestPermissions(
         withAndroidFineLocation: Boolean,
         callback: (Result<Unit>) -> Unit,
     ) {
@@ -180,7 +180,7 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
         permissionHandler?.requestPermissions(withAndroidFineLocation, callback)
     }
 
-    private fun enableBluetoothInternal(callback: (Result<Boolean>) -> Unit) {
+    private fun enableBluetooth(callback: (Result<Boolean>) -> Unit) {
         if (bluetoothManager.adapter.isEnabled) {
             callback(Result.success(true))
             return
@@ -201,7 +201,7 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
         bluetoothEnableRequestFuture = callback
     }
 
-    private fun disableBluetoothInternal(callback: (Result<Boolean>) -> Unit) {
+    private fun disableBluetooth(callback: (Result<Boolean>) -> Unit) {
         if (!bluetoothManager.adapter.isEnabled) {
             callback(Result.success(true))
             return
@@ -311,7 +311,7 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
         return safeScanner.isScanning()
     }
 
-    private fun requestDeviceInternal(
+    private fun requestDevice(
         options: AppleAccessorySetupOptions,
         callback: (Result<UniversalDevicePickerResult>) -> Unit,
     ) {
@@ -410,7 +410,7 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
         return permissionHandler?.hasBluetoothAdvertisePermission() ?: false
     }
 
-    private fun requestBluetoothAdvertisePermissionInternal(callback: (Result<Boolean>) -> Unit) {
+    private fun requestBluetoothAdvertisePermission(callback: (Result<Boolean>) -> Unit) {
         val handler = permissionHandler
         if (handler == null) {
             callback(
@@ -426,7 +426,7 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
         handler.requestBluetoothAdvertisePermission(callback)
     }
 
-    private fun readRssiInternal(deviceId: String, callback: (Result<Long>) -> Unit) {
+    private fun readRssi(deviceId: String, callback: (Result<Long>) -> Unit) {
         try {
             val gatt = gattRegistry.get(deviceId)
             if (gatt.readRemoteRssi()) {
@@ -469,7 +469,7 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
         }
     }
 
-    private fun discoverServicesInternal(
+    private fun discoverServices(
         deviceId: String,
         withDescriptors: Boolean,
         platformConfig: DiscoverServicesPlatformConfig?,
@@ -555,7 +555,7 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
     }
 
 
-    private fun setNotifiableInternal(
+    private fun setNotifiable(
         deviceId: String,
         service: String,
         characteristic: String,
@@ -662,7 +662,7 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
         }
     }
 
-    private fun readValueInternal(
+    private fun readValue(
         deviceId: String,
         service: String,
         characteristic: String,
@@ -752,7 +752,7 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
         }
     }
 
-    private fun writeValueInternal(
+    private fun writeValue(
         deviceId: String,
         service: String,
         characteristic: String,
@@ -910,7 +910,7 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
         }
     }
 
-    private fun readDescriptorValueInternal(
+    private fun readDescriptorValue(
         deviceId: String,
         service: String,
         characteristic: String,
@@ -1025,7 +1025,7 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
         onDescriptorRead(gatt, descriptor, status, descriptor.value ?: byteArrayOf())
     }
 
-    private fun writeDescriptorValueInternal(
+    private fun writeDescriptorValue(
         deviceId: String,
         service: String,
         characteristic: String,
@@ -1111,7 +1111,7 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
         }
     }
 
-    private fun requestMtuInternal(deviceId: String, expectedMtu: Long, callback: (Result<Long>) -> Unit) {
+    private fun requestMtu(deviceId: String, expectedMtu: Long, callback: (Result<Long>) -> Unit) {
         UniversalBleLogger.logDebug("REQUEST_MTU -> $deviceId expected=$expectedMtu")
         val gatt = try {
             gattRegistry.get(deviceId)
@@ -1180,7 +1180,7 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
         for (future in pending) postMtuResult(future.result, result)
     }
 
-    private fun requestConnectionPriorityInternal(
+    private fun requestConnectionPriority(
         deviceId: String,
         priority: BleConnectionPriority,
         callback: (Result<Unit>) -> Unit,
@@ -1268,13 +1268,13 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
         })
     }
 
-    private fun isPairedInternal(deviceId: String, callback: (Result<Boolean>) -> Unit) {
+    private fun isPaired(deviceId: String, callback: (Result<Boolean>) -> Unit) {
         val remoteDevice: BluetoothDevice =
             bluetoothManager.adapter.getRemoteDevice(deviceId)
         callback(Result.success(remoteDevice.isBonded()))
     }
 
-    private fun pairInternal(deviceId: String, callback: (Result<Boolean>) -> Unit) {
+    private fun pair(deviceId: String, callback: (Result<Boolean>) -> Unit) {
         try {
             val remoteDevice = bluetoothManager.adapter.getRemoteDevice(deviceId)
             val pendingFuture = pairResultFutures.remove(deviceId)
@@ -1322,7 +1322,7 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
 
     }
 
-    private fun unPairInternal(deviceId: String, callback: (Result<Unit>) -> Unit) {
+    private fun unPair(deviceId: String, callback: (Result<Unit>) -> Unit) {
         try {
             val remoteDevice: BluetoothDevice =
                 bluetoothManager.adapter.getRemoteDevice(deviceId)
@@ -1333,7 +1333,7 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
         }
     }
 
-    private fun getSystemDevicesInternal(
+    private fun getSystemDevices(
         withServices: List<String>,
         callback: (Result<List<UniversalBleScanResult>>) -> Unit,
     ) {
@@ -1956,10 +1956,10 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
             ?: false
     }
 
-    // --- Pigeon 29 suspend bridges -------------------------------------------------
-    // The generated Pigeon 29 interface is suspend-based. The implementations below
-    // keep the previous callback-based logic (renamed to *Internal) and bridge it
-    // to coroutines here.
+    // --- Pigeon 29 suspend adapters -------------------------------------------------
+    // The generated Pigeon 29 interface is suspend-based. Each operation keeps the
+    // callback-driven GATT logic (the overload taking a `(Result<T>) -> Unit`) and
+    // bridges it to coroutines here.
 
     private suspend fun <T> awaitResult(block: ((Result<T>) -> Unit) -> Unit): T =
         suspendCancellableCoroutine { continuation ->
@@ -1972,19 +1972,19 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
         }
 
     override suspend fun getBluetoothAvailabilityState(): AvailabilityState =
-        awaitResult { getBluetoothAvailabilityStateInternal(it) }
+        awaitResult { getBluetoothAvailabilityState(it) }
 
     override suspend fun requestPermissions(withAndroidFineLocation: Boolean) =
-        awaitResult<Unit> { requestPermissionsInternal(withAndroidFineLocation, it) }
+        awaitResult<Unit> { requestPermissions(withAndroidFineLocation, it) }
 
     override suspend fun enableBluetooth(): Boolean =
-        awaitResult { enableBluetoothInternal(it) }
+        awaitResult { enableBluetooth(it) }
 
     override suspend fun disableBluetooth(): Boolean =
-        awaitResult { disableBluetoothInternal(it) }
+        awaitResult { disableBluetooth(it) }
 
     override suspend fun requestDevice(options: AppleAccessorySetupOptions): UniversalDevicePickerResult =
-        awaitResult { requestDeviceInternal(options, it) }
+        awaitResult { requestDevice(options, it) }
 
     override suspend fun setNotifiable(
         deviceId: String,
@@ -1992,7 +1992,7 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
         characteristic: String,
         bleInputProperty: BleInputProperty,
     ) = awaitResult<Unit> {
-        setNotifiableInternal(deviceId, service, characteristic, bleInputProperty, it)
+        setNotifiable(deviceId, service, characteristic, bleInputProperty, it)
     }
 
     override suspend fun discoverServices(
@@ -2000,13 +2000,13 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
         withDescriptors: Boolean,
         platformConfig: DiscoverServicesPlatformConfig?,
     ): List<UniversalBleService> =
-        awaitResult { discoverServicesInternal(deviceId, withDescriptors, platformConfig, it) }
+        awaitResult { discoverServices(deviceId, withDescriptors, platformConfig, it) }
 
     override suspend fun readValue(
         deviceId: String,
         service: String,
         characteristic: String,
-    ): ByteArray = awaitResult { readValueInternal(deviceId, service, characteristic, it) }
+    ): ByteArray = awaitResult { readValue(deviceId, service, characteristic, it) }
 
     override suspend fun readDescriptorValue(
         deviceId: String,
@@ -2014,11 +2014,11 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
         characteristic: String,
         descriptor: String,
     ): ByteArray = awaitResult {
-        readDescriptorValueInternal(deviceId, service, characteristic, descriptor, it)
+        readDescriptorValue(deviceId, service, characteristic, descriptor, it)
     }
 
     override suspend fun requestMtu(deviceId: String, expectedMtu: Long): Long =
-        awaitResult { requestMtuInternal(deviceId, expectedMtu, it) }
+        awaitResult { requestMtu(deviceId, expectedMtu, it) }
 
     override suspend fun writeValue(
         deviceId: String,
@@ -2027,7 +2027,7 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
         value: ByteArray,
         bleOutputProperty: BleOutputProperty,
     ) = awaitResult<Unit> {
-        writeValueInternal(deviceId, service, characteristic, value, bleOutputProperty, it)
+        writeValue(deviceId, service, characteristic, value, bleOutputProperty, it)
     }
 
     override suspend fun writeDescriptorValue(
@@ -2037,27 +2037,27 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
         descriptor: String,
         value: ByteArray,
     ) = awaitResult<Unit> {
-        writeDescriptorValueInternal(deviceId, service, characteristic, descriptor, value, it)
+        writeDescriptorValue(deviceId, service, characteristic, descriptor, value, it)
     }
 
     override suspend fun isPaired(deviceId: String): Boolean =
-        awaitResult { isPairedInternal(deviceId, it) }
+        awaitResult { isPaired(deviceId, it) }
 
     override suspend fun pair(deviceId: String): Boolean =
-        awaitResult { pairInternal(deviceId, it) }
+        awaitResult { pair(deviceId, it) }
 
     override suspend fun unPair(deviceId: String) =
-        awaitResult<Unit> { unPairInternal(deviceId, it) }
+        awaitResult<Unit> { unPair(deviceId, it) }
 
     override suspend fun getSystemDevices(withServices: List<String>): List<UniversalBleScanResult> =
-        awaitResult { getSystemDevicesInternal(withServices, it) }
+        awaitResult { getSystemDevices(withServices, it) }
 
     override suspend fun readRssi(deviceId: String): Long =
-        awaitResult { readRssiInternal(deviceId, it) }
+        awaitResult { readRssi(deviceId, it) }
 
     override suspend fun requestConnectionPriority(deviceId: String, priority: BleConnectionPriority) =
-        awaitResult<Unit> { requestConnectionPriorityInternal(deviceId, priority, it) }
+        awaitResult<Unit> { requestConnectionPriority(deviceId, priority, it) }
 
     override suspend fun requestBluetoothAdvertisePermission(): Boolean =
-        awaitResult { requestBluetoothAdvertisePermissionInternal(it) }
+        awaitResult { requestBluetoothAdvertisePermission(it) }
 }
