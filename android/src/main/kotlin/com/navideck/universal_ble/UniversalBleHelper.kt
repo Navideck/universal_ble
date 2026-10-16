@@ -471,6 +471,9 @@ fun Int.parseHciErrorCode(): String? {
     }
 }
 
+// TODO: Hold a CancellableContinuation here (as Darwin does) instead of a
+// `(Result<T>) -> Unit` callback, and remove the awaitResult bridge in
+// UniversalBlePlugin once the nested callback helpers are converted.
 // Future result classes
 class DiscoverServicesFuture(
     val deviceId: String,

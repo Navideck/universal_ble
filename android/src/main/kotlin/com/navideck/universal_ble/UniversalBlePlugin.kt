@@ -1960,6 +1960,13 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
     // The generated Pigeon 29 interface is suspend-based. Each operation keeps the
     // callback-driven GATT logic (the overload taking a `(Result<T>) -> Unit`) and
     // bridges it to coroutines here.
+    //
+    // TODO: Wire coroutine cancellation (invokeOnCancellation) so a cancelled
+    // caller removes its pending request instead of waiting for the GATT callback.
+    // TODO: Store a CancellableContinuation in each pending-request type (as Darwin
+    // does) and drop this bridge, once the nested callback helpers
+    // (discoverServicesOffAlreadyConnectedDevice, PermissionHandler, postMtuResult)
+    // are converted.
 
     private suspend fun <T> awaitResult(block: ((Result<T>) -> Unit) -> Unit): T =
         suspendCancellableCoroutine { continuation ->

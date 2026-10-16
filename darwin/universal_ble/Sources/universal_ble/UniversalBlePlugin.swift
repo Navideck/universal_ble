@@ -929,6 +929,10 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
   // an `async` adapter that bridges the protocol to a continuation-based
   // implementation (the overload taking a `CheckedContinuation`), so the pending
   // request registries hold continuations rather than completion closures.
+  //
+  // TODO: Wire task cancellation (withTaskCancellationHandler) so a cancelled
+  // Dart call removes its pending future instead of leaving the continuation
+  // suspended until the CoreBluetooth callback arrives.
 
   func getBluetoothAvailabilityState() async throws -> AvailabilityState {
     try await withCheckedThrowingContinuation { continuation in
