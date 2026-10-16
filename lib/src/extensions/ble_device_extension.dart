@@ -27,13 +27,12 @@ extension BleDeviceExtension on BleDevice {
     bool autoConnect = false,
     Duration? timeout,
     ConnectionPlatformConfig? platformConfig,
-  }) =>
-      UniversalBle.connect(
-        deviceId,
-        autoConnect: autoConnect,
-        timeout: timeout,
-        platformConfig: platformConfig,
-      );
+  }) => UniversalBle.connect(
+    deviceId,
+    autoConnect: autoConnect,
+    timeout: timeout,
+    platformConfig: platformConfig,
+  );
 
   /// Disconnects from the device.
   Future<void> disconnect({Duration? timeout, String? queueId}) =>
