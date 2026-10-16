@@ -5,8 +5,9 @@
 #   * android/src/test/.../UniversalBleAttErrorConformanceTest.kt (Kotlin)
 #   * windows/test/att_error_mapper_test.cpp                      (C++)
 # so the Android, Dart and Windows ATT mappings are held to one table instead of
-# drifting apart. Apple's `attErrorToUniversalBleErrorCode` (PR #350) should be
-# pointed at the same fixture once it lands.
+# drifting apart. Apple's `attErrorToUniversalBleErrorCode` maps the same way but
+# its XCTest (example/ios/RunnerTests) still asserts a hand-written list; it can
+# be pointed at this fixture too.
 #
 # Columns, '|'-separated (exactly two separators per row):
 #   att_code | expected | expected_name

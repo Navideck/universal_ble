@@ -32,6 +32,26 @@ class UniversalBleErrorParser {
     return UniversalBleErrorCode.unknownError;
   }
 
+  /// Extracts the ATT error code from a BlueZ GATT failure message as a decimal
+  /// string, e.g. `'Operation failed with ATT error: 0x90'` => `'144'`, or
+  /// `null` when the message carries no code.
+  ///
+  /// BlueZ reports a GATT protocol error as `org.bluez.Error.Failed` with an
+  /// "ATT error: 0xNN" message. The phrase is matched first, so an unrelated hex
+  /// value elsewhere in the message is not mistaken for the ATT code; a bare hex
+  /// value is only used when the phrase is absent.
+  static String? extractBlueZAttErrorCode(String message) {
+    final attCode = RegExp(
+      r'ATT error:\s*0x([0-9a-fA-F]+)',
+      caseSensitive: false,
+    ).firstMatch(message)?.group(1);
+    final hex =
+        attCode ?? RegExp(r'0x([0-9a-fA-F]+)').firstMatch(message)?.group(1);
+    if (hex == null) return null;
+    final decimalValue = int.tryParse(hex, radix: 16);
+    return decimalValue?.toString() ?? '0x$hex';
+  }
+
   static UniversalBleErrorCode? _parseStringErrorCode(String code) {
     switch (code.toLowerCase()) {
       case 'failed to get device':

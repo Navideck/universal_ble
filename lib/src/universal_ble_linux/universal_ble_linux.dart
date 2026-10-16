@@ -798,24 +798,10 @@ extension on BlueZFailedException {
     );
   }
 
-  /// Extracts the ATT error code from a BlueZ failure message as a decimal
+  /// The ATT error code parsed out of the BlueZ failure message as a decimal
   /// string, e.g. 'Operation failed with ATT error: 0x90' => '144'.
-  ///
-  /// BlueZ reports a GATT protocol error as `org.bluez.Error.Failed` with an
-  /// "ATT error: 0xNN" message. Match that phrase first so an unrelated hex
-  /// value elsewhere in the message is not mistaken for the ATT code, and fall
-  /// back to the first hex value only when the phrase is absent.
-  String? get errorCode {
-    final attCode = RegExp(
-      r'ATT error:\s*0x([0-9a-fA-F]+)',
-      caseSensitive: false,
-    ).firstMatch(message)?.group(1);
-    final hex = attCode ??
-        RegExp(r'0x([0-9a-fA-F]+)').firstMatch(message)?.group(1);
-    if (hex == null) return null;
-    final decimalValue = int.tryParse(hex, radix: 16);
-    return decimalValue?.toString() ?? '0x$hex';
-  }
+  String? get errorCode =>
+      UniversalBleErrorParser.extractBlueZAttErrorCode(message);
 }
 
 extension BlueZDeviceExtension on BlueZDevice {
