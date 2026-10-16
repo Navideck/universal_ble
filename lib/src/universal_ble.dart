@@ -326,11 +326,14 @@ class UniversalBle {
   ///
   /// [timeout] bounds the whole call. On Apple it is also passed to the native
   /// discovery, which otherwise gives up after 10 seconds, unless
-  /// [platformConfig] already sets `apple.timeoutMillis`.
+  /// [platformConfig] already sets `apple.timeoutMillis`. That option, given
+  /// without a [timeout], bounds the whole call as well.
   ///
   /// Concurrent calls for the same device that request the same result share a
   /// single discovery and resolve together. A call that asks for something
-  /// different (other [withDescriptors]/[platformConfig]) still runs its own.
+  /// different (other [withDescriptors] or Android options) still runs its own.
+  /// A timeout does not change the result, so calls that differ only in their
+  /// timeout share the discovery that started first, and its timeout.
   static Future<List<BleService>> discoverServices(
     String deviceId, {
     bool withDescriptors = false,
@@ -338,12 +341,14 @@ class UniversalBle {
     String? queueId,
     DiscoverServicesPlatformConfig? platformConfig,
   }) {
+    timeout ??= _appleDiscoveryTimeout(platformConfig);
     platformConfig = _withAppleDiscoveryTimeout(platformConfig, timeout);
     final key = canonicalDeviceId(deviceId);
     final pending = _pendingDiscoveries[key];
     if (pending != null &&
         pending.withDescriptors == withDescriptors &&
-        pending.platformConfig == platformConfig) {
+        // Apple's options hold only its timeout, which is left out (see above).
+        pending.platformConfig?.android == platformConfig?.android) {
       return pending.future;
     }
     final future = _runDiscovery(
@@ -360,6 +365,17 @@ class UniversalBle {
     );
     unawaited(_releaseDiscovery(key, future));
     return future;
+  }
+
+  /// The `apple.timeoutMillis` of [platformConfig] as a [Duration], or `null`
+  /// when it is not set or not positive (the native side then uses 10 seconds,
+  /// and the call the command queue's default).
+  static Duration? _appleDiscoveryTimeout(
+    DiscoverServicesPlatformConfig? platformConfig,
+  ) {
+    final millis = platformConfig?.apple?.timeoutMillis;
+    if (millis == null || millis <= 0) return null;
+    return Duration(milliseconds: millis);
   }
 
   /// [platformConfig] with [timeout] as Apple's native discovery timeout, when

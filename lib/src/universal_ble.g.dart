@@ -1419,9 +1419,11 @@ class AppleDiscoverServicesOptions {
 
   /// How long, in milliseconds, the native discovery may take before it fails.
   /// iOS and macOS bound discovery themselves, so that a discovery that never
-  /// completes cannot hold back later calls; 10 seconds when not set.
-  /// `discoverServices` fills this in from its own `timeout` when that is given
-  /// and this is not.
+  /// completes cannot hold back later calls; 10 seconds when not set. Other
+  /// platforms are bounded by the `timeout` of `discoverServices` alone.
+  ///
+  /// `discoverServices` fills this in from its `timeout` when only that is
+  /// given, and takes this as its `timeout` when only this is.
   int? timeoutMillis;
 
   List<Object?> _toList() {
