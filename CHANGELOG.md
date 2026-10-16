@@ -1,5 +1,6 @@
 ## 3.1.1
 * Apple: a read, write or subscription the peripheral refuses now reports its ATT error as the matching `UniversalBleErrorCode` (`insufficientEncryption`, `insufficientAuthentication`, `readNotPermitted`, ...), as Android does, instead of `unknownError`. The error code is still in `details`. Codes in `CBErrorDomain` are unchanged: its numbers overlap ATT's with other meanings (#348).
+* Windows: a read, write or subscription the peripheral refuses now reports its ATT error as the matching `UniversalBleErrorCode` (`insufficientEncryption`, `insufficientAuthentication`, `readNotPermitted`, ...) instead of the generic `failed`, as Android already does. The raw ATT error code is still in `details`.
 * Bump `bluez` to `^0.9.0`.
 * Bump the `pigeon` dev dependency to `^29.0.0`.
 * Regenerate the Pigeon bindings with Pigeon 29. The async platform channels now use `@asyncCallback`, so the existing callback-based native implementations (Swift completion handlers, Kotlin callbacks) are kept as-is rather than migrated to native `async`/`suspend`. No public API change.

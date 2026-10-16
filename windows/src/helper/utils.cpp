@@ -1,4 +1,5 @@
 #include "utils.h"
+#include "../att_error_mapper.h"
 #include "../generated/universal_ble.g.h"
 #include "../enum_parser.h"
 
@@ -189,6 +190,28 @@ FlutterError create_flutter_error_from_gatt_communication_status(
                                   ? error_message.value()
                                   : message;
   return create_flutter_error(error_code, final_message);
+}
+
+FlutterError create_flutter_error_from_gatt_result(
+    GattCommunicationStatus status, const IReference<uint8_t> &protocol_error,
+    const std::string &message) {
+  // A refused GATT operation is reported as ProtocolError; Windows then fills
+  // in the ATT error code, which names the reason (read not permitted,
+  // insufficient encryption, ...). Only ProtocolError carries it: Unreachable
+  // and AccessDenied have no protocol error, so they keep the generic mapping.
+  if (status == GattCommunicationStatus::ProtocolError && protocol_error) {
+    const uint8_t att_error = protocol_error.Value();
+    const auto error_code = static_cast<UniversalBleErrorCode>(
+        AttErrorToUniversalBleErrorCodeValue(att_error));
+    auto error_message = gatt_communication_status_to_error(status);
+    std::string final_message = message.empty() && error_message.has_value()
+                                    ? error_message.value()
+                                    : message;
+    // Keep the raw ATT code in details, as Android and Apple do.
+    return create_flutter_error(error_code, final_message,
+                                std::to_string(att_error));
+  }
+  return create_flutter_error_from_gatt_communication_status(status, message);
 }
 
 FlutterError create_flutter_error_from_pairing_status(

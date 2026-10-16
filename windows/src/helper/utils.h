@@ -40,6 +40,15 @@ FlutterError create_flutter_error(UniversalBleErrorCode code,
 FlutterError create_flutter_error_from_gatt_communication_status(
     GattCommunicationStatus status, const std::string &message = "");
 
+/// Creates a FlutterError from a GATT read/write result. When the peripheral
+/// refused the operation (`ProtocolError`) and Windows supplies the ATT error,
+/// the matching UniversalBleErrorCode is reported instead of the generic failed
+/// code. `status` and `protocol_error` come from the result object's
+/// `Status()` and `ProtocolError()`.
+FlutterError create_flutter_error_from_gatt_result(
+    GattCommunicationStatus status, const IReference<uint8_t> &protocol_error,
+    const std::string &message = "");
+
 /// Creates a FlutterError from device pairing result status
 FlutterError create_flutter_error_from_pairing_status(
     DevicePairingResultStatus status, const std::string &message = "");
