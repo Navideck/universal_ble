@@ -27,6 +27,9 @@ import android.util.SparseArray
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.util.UUID
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import androidx.core.util.size
 
 private const val TAG = "UniversalBlePlugin"
@@ -527,3 +530,19 @@ class WriteDescriptorResultFuture(
 // increase, but an MTU already meeting the requested size needs no new exchange.
 internal fun canReuseNegotiatedMtu(mtu: Int, requested: Int, sdkInt: Int): Boolean =
     sdkInt >= 34 || mtu >= requested
+
+/**
+ * Fire-and-forget a Dart callback from a synchronous BLE callback. Delivery
+ * failures are logged rather than silently swallowed, since the caller has no
+ * other way to observe them.
+ */
+internal fun <T : Any> fireAndForget(channel: T?, block: suspend (T) -> Unit) {
+    if (channel == null) return
+    CoroutineScope(Dispatchers.Main).launch {
+        try {
+            block(channel)
+        } catch (e: Throwable) {
+            UniversalBleLogger.logError("Failed to deliver Dart callback: ${e.message}")
+        }
+    }
+}

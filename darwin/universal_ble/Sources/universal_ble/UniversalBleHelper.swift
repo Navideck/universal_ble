@@ -13,6 +13,29 @@ import Foundation
     import FlutterMacOS
 #endif
 
+/// Supplies the Pigeon callback channel used to push events to Dart.
+protocol DartCallbackSender {
+    associatedtype CallbackChannel
+    var callbackChannel: CallbackChannel { get }
+}
+
+extension DartCallbackSender {
+    /// Fire-and-forget a Dart callback from a synchronous CoreBluetooth callback.
+    /// Delivery failures are logged rather than silently swallowed, since the
+    /// caller has no other way to observe them.
+    func sendToDart(
+        _ body: @escaping @MainActor (CallbackChannel) async throws -> Void
+    ) {
+        Task { @MainActor in
+            do {
+                try await body(callbackChannel)
+            } catch {
+                UniversalBleLogger.shared.logError("Failed to deliver Dart callback: \(error)")
+            }
+        }
+    }
+}
+
 extension CBCharacteristicProperties {
     var toCharacteristicProperty: [CharacteristicProperty] {
         var properties = [CharacteristicProperty]()

@@ -35,7 +35,7 @@ public class UniversalBlePlugin: NSObject, FlutterPlugin {
   }
 }
 
-private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentralManagerDelegate, CBPeripheralDelegate {
+private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentralManagerDelegate, CBPeripheralDelegate, DartCallbackSender {
   // Identifier CoreBluetooth uses to restore this central across relaunches.
   static let stateRestorationIdentifier = "com.universalble.central.restoration"
 
@@ -280,7 +280,7 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
   func disconnect(deviceId: String) throws {
     autoConnectDevices.remove(deviceId)
     guard let peripheral = peripheralCache.find(deviceId, manager: manager) else {
-      Task { @MainActor in try? await callbackChannel.onConnectionChanged(deviceId: deviceId, connected: false, error: nil, errorCode: nil, nativeErrorCode: nil) }
+      sendToDart { try await $0.onConnectionChanged(deviceId: deviceId, connected: false, error: nil, errorCode: nil, nativeErrorCode: nil) }
       cleanUpConnection(deviceId: deviceId)
       return
     }
@@ -619,7 +619,7 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
         // Notify Dart if already connected; on a cold relaunch the Dart layer
         // re-subscribes on resume using the cached peripheral.
         if peripheral.state == .connected {
-          Task { @MainActor in try? await callbackChannel.onConnectionChanged(deviceId: deviceId, connected: true, error: nil, errorCode: nil, nativeErrorCode: nil) }
+          sendToDart { try await $0.onConnectionChanged(deviceId: deviceId, connected: true, error: nil, errorCode: nil, nativeErrorCode: nil) }
         }
       }
     }
@@ -627,7 +627,7 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
 
   func centralManagerDidUpdateState(_ central: CBCentralManager) {
     let state = central.state.toAvailabilityState()
-    Task { @MainActor in try? await callbackChannel.onAvailabilityChanged(state: state) }
+    sendToDart { try await $0.onAvailabilityChanged(state: state) }
     // Complete Pending state handler
     availabilityStateUpdateHandlers.removeAll { handler in
       handler(.success(state))
@@ -682,8 +682,7 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
     }
 
     let timestampMicroseconds = Int64(Date().timeIntervalSince1970 * 1_000_000)
-    Task { @MainActor in
-      try? await callbackChannel.onScanResult(result: UniversalBleScanResult(
+    sendToDart { try await $0.onScanResult(result: UniversalBleScanResult(
         deviceId: peripheral.uuid.uuidString,
         name: displayName,
         isPaired: nil,
@@ -699,13 +698,12 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
   }
 
   public func centralManager(_: CBCentralManager, didConnect peripheral: CBPeripheral) {
-    Task { @MainActor in try? await callbackChannel.onConnectionChanged(deviceId: peripheral.uuid.uuidString, connected: true, error: nil, errorCode: nil, nativeErrorCode: nil) }
+    sendToDart { try await $0.onConnectionChanged(deviceId: peripheral.uuid.uuidString, connected: true, error: nil, errorCode: nil, nativeErrorCode: nil) }
   }
 
   private func handlePeripheralDisconnection(deviceId: String, error: Error?) {
     autoConnectDevices.remove(deviceId)
-    Task { @MainActor in
-      try? await callbackChannel.onConnectionChanged(
+    sendToDart { try await $0.onConnectionChanged(
         deviceId: deviceId, connected: false, error: error?.localizedDescription, errorCode: error?.connectionErrorCode, nativeErrorCode: error?.nativeCode
       )
     }
@@ -737,8 +735,7 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
   }
 
   public func centralManager(_: CBCentralManager, didFailToConnect peripheral: CBPeripheral, error: Error?) {
-    Task { @MainActor in
-      try? await callbackChannel.onConnectionChanged(
+    sendToDart { try await $0.onConnectionChanged(
         deviceId: peripheral.uuid.uuidString, connected: false, error: error?.localizedDescription, errorCode: error?.connectionErrorCode, nativeErrorCode: error?.nativeCode
       )
     }
@@ -879,8 +876,7 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
     // Update callbackChannel if notifying
     if characteristic.isNotifying {
       if let characteristicValue = characteristic.value {
-        Task { @MainActor in
-          try? await callbackChannel.onValueChanged(
+        sendToDart { try await $0.onValueChanged(
             deviceId: peripheral.uuid.uuidString,
             characteristicId: characteristic.uuid.uuidStr,
             value: FlutterStandardTypedData(bytes: characteristicValue),

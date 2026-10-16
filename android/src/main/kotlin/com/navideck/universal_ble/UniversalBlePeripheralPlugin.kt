@@ -28,10 +28,16 @@ import android.util.Log
 import io.flutter.plugin.common.BinaryMessenger
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.launch
 
 private const val TAG = "UniversalBlePeripheral"
 private const val REQUEST_CODE_ENABLE_BLUETOOTH = 2342717
+
+/// How long to wait for a Dart reply to a peripheral read/write request before
+/// answering the central with a failure, so a dropped reply cannot pin the
+/// request open indefinitely.
+private const val PERIPHERAL_REQUEST_TIMEOUT_MS = 10_000L
 
 @SuppressLint("MissingPermission")
 class UniversalBlePeripheralPlugin(
@@ -57,16 +63,16 @@ class UniversalBlePeripheralPlugin(
         this.activity = activity
     }
 
-    /** Fire-and-forget a Dart callback on the main dispatcher, ignoring failures. */
-    private fun notify(block: suspend (UniversalBlePeripheralCallback) -> Unit) {
-        CoroutineScope(Dispatchers.Main).launch {
-            try {
-                block(callback)
-            } catch (_: Throwable) {
-                // Callback delivery failures are non-fatal.
-            }
+    /**
+     * Awaits a Dart reply to a peripheral request. A reply that never arrives is
+     * treated like a failure so the request is not held open forever.
+     */
+    private suspend fun <T> awaitReply(block: suspend () -> T?): T? =
+        try {
+            withTimeout(PERIPHERAL_REQUEST_TIMEOUT_MS) { block() }
+        } catch (_: Throwable) {
+            null
         }
-    }
 
     fun dispose() {
         kotlin.runCatching { bluetoothLeAdvertiser?.stopAdvertising(advertiseCallback) }
@@ -179,7 +185,7 @@ class UniversalBlePeripheralPlugin(
     ) {
         if (!hasRequiredPermissions()) {
             advertisingState = PeripheralAdvertisingState.ERROR
-            notify { it.onAdvertisingStateChange(
+            fireAndForget(callback) { it.onAdvertisingStateChange(
                 PeripheralAdvertisingState.ERROR,
                 "Bluetooth permission not granted",
             ) }
@@ -189,7 +195,7 @@ class UniversalBlePeripheralPlugin(
             bluetoothManager.isBluetoothEnabled()
         } catch (e: SecurityException) {
             advertisingState = PeripheralAdvertisingState.ERROR
-            notify { it.onAdvertisingStateChange(
+            fireAndForget(callback) { it.onAdvertisingStateChange(
                 PeripheralAdvertisingState.ERROR,
                 "Bluetooth permission not granted",
             ) }
@@ -197,7 +203,7 @@ class UniversalBlePeripheralPlugin(
         }
         if (!isEnabled) {
             advertisingState = PeripheralAdvertisingState.ERROR
-            notify { it.onAdvertisingStateChange(
+            fireAndForget(callback) { it.onAdvertisingStateChange(
                 PeripheralAdvertisingState.ERROR,
                 "Bluetooth is not enabled",
             ) }
@@ -207,7 +213,7 @@ class UniversalBlePeripheralPlugin(
         isEnableBluetoothPromptPending = false
         ensurePeripheralInitialized()
         advertisingState = PeripheralAdvertisingState.STARTING
-        notify { it.onAdvertisingStateChange(PeripheralAdvertisingState.STARTING, null) }
+        fireAndForget(callback) { it.onAdvertisingStateChange(PeripheralAdvertisingState.STARTING, null) }
 
         handler.post {
             val adapter = bluetoothManager.adapter
@@ -264,12 +270,12 @@ class UniversalBlePeripheralPlugin(
             return
         }
         advertisingState = PeripheralAdvertisingState.STOPPING
-        notify { it.onAdvertisingStateChange(PeripheralAdvertisingState.STOPPING, null) }
+        fireAndForget(callback) { it.onAdvertisingStateChange(PeripheralAdvertisingState.STOPPING, null) }
         handler.post {
             kotlin.runCatching { bluetoothLeAdvertiser?.stopAdvertising(advertiseCallback) }
             restoreAdapterNameIfNeeded()
             advertisingState = PeripheralAdvertisingState.IDLE
-            notify { it.onAdvertisingStateChange(PeripheralAdvertisingState.IDLE, null) }
+            fireAndForget(callback) { it.onAdvertisingStateChange(PeripheralAdvertisingState.IDLE, null) }
         }
     }
 
@@ -320,7 +326,7 @@ class UniversalBlePeripheralPlugin(
     private fun onConnectionUpdate(device: BluetoothDevice, status: Int, newState: Int) {
         Log.e(TAG, "onConnectionStateChange: $status -> $newState")
         handler.post {
-            notify { it.onConnectionStateChange(
+            fireAndForget(callback) { it.onConnectionStateChange(
                 device.address,
                 newState == BluetoothProfile.STATE_CONNECTED,
             ) }
@@ -337,7 +343,7 @@ class UniversalBlePeripheralPlugin(
         }
         subscribedCharUUID.forEach { charUUID ->
             handler.post {
-                notify { it.onCharacteristicSubscriptionChange(
+                fireAndForget(callback) { it.onCharacteristicSubscriptionChange(
                     deviceAddress,
                     charUUID,
                     false,
@@ -361,7 +367,7 @@ class UniversalBlePeripheralPlugin(
                     else -> "Failed to start advertising: $errorCode"
                 }
                 advertisingState = PeripheralAdvertisingState.ERROR
-                notify { it.onAdvertisingStateChange(PeripheralAdvertisingState.ERROR, errorMessage) }
+                fireAndForget(callback) { it.onAdvertisingStateChange(PeripheralAdvertisingState.ERROR, errorMessage) }
             }
         }
 
@@ -369,7 +375,7 @@ class UniversalBlePeripheralPlugin(
             super.onStartSuccess(settingsInEffect)
             advertisingState = PeripheralAdvertisingState.ADVERTISING
             handler.post {
-                notify { it.onAdvertisingStateChange(PeripheralAdvertisingState.ADVERTISING, null) }
+                fireAndForget(callback) { it.onAdvertisingStateChange(PeripheralAdvertisingState.ADVERTISING, null) }
             }
         }
     }
@@ -399,7 +405,7 @@ class UniversalBlePeripheralPlugin(
             super.onMtuChanged(device, mtu)
             device?.address?.let { address ->
                 synchronized(mtuByDeviceId) { mtuByDeviceId[address] = mtu }
-                handler.post { notify { it.onMtuChange(address, mtu.toLong()) } }
+                handler.post { fireAndForget(callback) { it.onMtuChange(address, mtu.toLong()) } }
             }
         }
 
@@ -413,15 +419,13 @@ class UniversalBlePeripheralPlugin(
             if (gattServer == null) return
             handler.post {
                 CoroutineScope(Dispatchers.Main).launch {
-                    val readResult = try {
+                    val readResult = awaitReply {
                         callback.onReadRequest(
                             deviceIdArg = device.address,
                             characteristicIdArg = characteristic.uuid.toString(),
                             offsetArg = offset.toLong(),
                             valueArg = characteristic.value,
                         )
-                    } catch (_: Throwable) {
-                        null
                     }
                     if (readResult == null) {
                         gattServer?.sendResponse(
@@ -454,15 +458,13 @@ class UniversalBlePeripheralPlugin(
             )
             handler.post {
                 CoroutineScope(Dispatchers.Main).launch {
-                    val writeResult = try {
+                    val writeResult = awaitReply {
                         callback.onWriteRequest(
                             deviceIdArg = device.address,
                             characteristicIdArg = characteristic.uuid.toString(),
                             offsetArg = offset.toLong(),
                             valueArg = value,
                         )
-                    } catch (_: Throwable) {
-                        null
                     }
                     if (responseNeeded) {
                         gattServer?.sendResponse(
@@ -480,7 +482,7 @@ class UniversalBlePeripheralPlugin(
         override fun onServiceAdded(status: Int, service: BluetoothGattService) {
             super.onServiceAdded(status, service)
             val error = if (status != BluetoothGatt.GATT_SUCCESS) "Adding Service failed" else null
-            handler.post { notify { it.onServiceAdded(service.uuid.toString(), error) } }
+            handler.post { fireAndForget(callback) { it.onServiceAdded(service.uuid.toString(), error) } }
         }
 
         override fun onDescriptorReadRequest(
@@ -492,7 +494,7 @@ class UniversalBlePeripheralPlugin(
             super.onDescriptorReadRequest(device, requestId, offset, descriptor)
             handler.post {
                 CoroutineScope(Dispatchers.Main).launch {
-                    val readResult = try {
+                    val readResult = awaitReply {
                         callback.onDescriptorReadRequest(
                             deviceIdArg = device.address,
                             characteristicIdArg = descriptor.characteristic.uuid.toString(),
@@ -500,8 +502,6 @@ class UniversalBlePeripheralPlugin(
                             offsetArg = offset.toLong(),
                             valueArg = descriptor.getCacheValue(),
                         )
-                    } catch (_: Throwable) {
-                        null
                     }
                     if (readResult == null) {
                         gattServer?.sendResponse(
@@ -544,7 +544,7 @@ class UniversalBlePeripheralPlugin(
                 val characteristicId = descriptor.characteristic.uuid.toString()
                 device?.address?.let { address ->
                     handler.post {
-                        notify { it.onCharacteristicSubscriptionChange(
+                        fireAndForget(callback) { it.onCharacteristicSubscriptionChange(
                             address, characteristicId, isSubscribed, device.name,
                         ) }
                     }
@@ -561,7 +561,7 @@ class UniversalBlePeripheralPlugin(
             if (responseNeeded) {
                 handler.post {
                     CoroutineScope(Dispatchers.Main).launch {
-                        val writeResult = try {
+                        val writeResult = awaitReply {
                             callback.onDescriptorWriteRequest(
                                 deviceIdArg = device?.address ?: "",
                                 characteristicIdArg = descriptor.characteristic.uuid.toString(),
@@ -569,8 +569,6 @@ class UniversalBlePeripheralPlugin(
                                 offsetArg = offset.toLong(),
                                 valueArg = value,
                             )
-                        } catch (_: Throwable) {
-                            null
                         }
                         gattServer?.sendResponse(
                             device,

@@ -90,9 +90,33 @@ jobs:
           cmake --build build/windows-tests
           ctest --test-dir build/windows-tests --output-on-failure
 
-  pana:
+  pigeon:
     runs-on: ubuntu-latest
 
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      # Keeps the committed Pigeon outputs in lockstep with the pinned
+      # `pigeon` version. Without this, the constraint and the generated
+      # Kotlin/Swift/C++/Dart can drift (see the Pigeon 29 migration).
+      - name: Regenerate Pigeon outputs
+        run: |
+          dart run pigeon --input pigeon/universal_ble.dart
+          dart format lib/src/universal_ble.g.dart
+
+      - name: Fail if generated code is out of date
+        run: git diff --exit-code
+
+  pana:
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 

@@ -8,9 +8,9 @@ import CoreBluetooth
 import Foundation
 
 final class UniversalBlePeripheralPlugin: NSObject, UniversalBlePeripheralChannel,
-  CBPeripheralManagerDelegate
+  CBPeripheralManagerDelegate, DartCallbackSender
 {
-  private let callbackChannel: UniversalBlePeripheralCallback
+  let callbackChannel: UniversalBlePeripheralCallback
   private var advertisingState: PeripheralAdvertisingState = .idle
   private var peripheralManager: CBPeripheralManager?
   private let centralsLock = NSLock()
@@ -20,6 +20,11 @@ final class UniversalBlePeripheralPlugin: NSObject, UniversalBlePeripheralChanne
   // advertises. Tearing one engine down (or clearing its services) must not wipe
   // another engine's advertising state.
   private let serviceRegistry = PeripheralServiceRegistry()
+
+  /// How long to wait for a Dart reply to a peripheral read/write request before
+  /// answering the central with a failure, so a dropped reply cannot pin the
+  /// CoreBluetooth request open indefinitely.
+  private static let peripheralRequestTimeout: TimeInterval = 10
 
   init(callbackChannel: UniversalBlePeripheralCallback) {
     self.callbackChannel = callbackChannel
@@ -59,7 +64,7 @@ final class UniversalBlePeripheralPlugin: NSObject, UniversalBlePeripheralChanne
   private func completeStopIfNeeded() {
     guard advertisingState == .stopping else { return }
     advertisingState = .idle
-    Task { @MainActor in try? await callbackChannel.onAdvertisingStateChange(state: .idle, error: nil) }
+    sendToDart { try await $0.onAdvertisingStateChange(state: .idle, error: nil) }
   }
 
   func getReadinessState() throws -> PeripheralReadinessState {
@@ -81,7 +86,7 @@ final class UniversalBlePeripheralPlugin: NSObject, UniversalBlePeripheralChanne
 
   func stopAdvertising() throws {
     advertisingState = .stopping
-    Task { @MainActor in try? await callbackChannel.onAdvertisingStateChange(state: .stopping, error: nil) }
+    sendToDart { try await $0.onAdvertisingStateChange(state: .stopping, error: nil) }
     guard let peripheralManager else {
       completeStopIfNeeded()
       return
@@ -144,7 +149,7 @@ final class UniversalBlePeripheralPlugin: NSObject, UniversalBlePeripheralChanne
       advertisementData[CBAdvertisementDataManufacturerDataKey] = manufacturerField
     }
     advertisingState = .starting
-    Task { @MainActor in try? await callbackChannel.onAdvertisingStateChange(state: .starting, error: nil) }
+    sendToDart { try await $0.onAdvertisingStateChange(state: .starting, error: nil) }
     ensurePeripheralManager().startAdvertising(advertisementData)
   }
 
@@ -180,9 +185,8 @@ final class UniversalBlePeripheralPlugin: NSObject, UniversalBlePeripheralChanne
     error: Error?
   ) {
     advertisingState = error == nil ? .advertising : .error
-    Task { @MainActor in
-      try? await callbackChannel.onAdvertisingStateChange(
-        state: advertisingState,
+    sendToDart { try await $0.onAdvertisingStateChange(
+        state: self.advertisingState,
         error: error?.localizedDescription
       )
     }
@@ -191,7 +195,7 @@ final class UniversalBlePeripheralPlugin: NSObject, UniversalBlePeripheralChanne
   nonisolated func peripheralManagerDidUpdateState(_ peripheral: CBPeripheralManager) {
     if peripheral.state != .poweredOn {
       advertisingState = .idle
-      Task { @MainActor in try? await callbackChannel.onAdvertisingStateChange(state: .idle, error: nil) }
+      sendToDart { try await $0.onAdvertisingStateChange(state: .idle, error: nil) }
     }
   }
 
@@ -200,8 +204,7 @@ final class UniversalBlePeripheralPlugin: NSObject, UniversalBlePeripheralChanne
     didAdd service: CBService,
     error: Error?
   ) {
-    Task { @MainActor in
-      try? await callbackChannel.onServiceAdded(
+    sendToDart { try await $0.onServiceAdded(
         serviceId: service.uuid.uuidString,
         error: error?.localizedDescription
       )
@@ -217,16 +220,14 @@ final class UniversalBlePeripheralPlugin: NSObject, UniversalBlePeripheralChanne
       central: central,
       characteristicId: characteristic.uuid.uuidString
     )
-    Task { @MainActor in
-      try? await callbackChannel.onCharacteristicSubscriptionChange(
+    sendToDart { try await $0.onCharacteristicSubscriptionChange(
         deviceId: central.identifier.uuidString,
         characteristicId: characteristic.uuid.uuidString,
         isSubscribed: true,
         name: nil
       )
     }
-    Task { @MainActor in
-      try? await callbackChannel.onMtuChange(
+    sendToDart { try await $0.onMtuChange(
         deviceId: central.identifier.uuidString,
         mtu: Int64(central.maximumUpdateValueLength)
       )
@@ -242,8 +243,7 @@ final class UniversalBlePeripheralPlugin: NSObject, UniversalBlePeripheralChanne
       centralId: central.identifier.uuidString,
       characteristicId: characteristic.uuid.uuidString
     )
-    Task { @MainActor in
-      try? await callbackChannel.onCharacteristicSubscriptionChange(
+    sendToDart { try await $0.onCharacteristicSubscriptionChange(
         deviceId: central.identifier.uuidString,
         characteristicId: characteristic.uuid.uuidString,
         isSubscribed: false,
@@ -257,6 +257,17 @@ final class UniversalBlePeripheralPlugin: NSObject, UniversalBlePeripheralChanne
     didReceiveRead request: CBATTRequest
   ) {
     Task { @MainActor in
+      var responded = false
+      // CoreBluetooth holds the request open until we respond; a Dart reply that
+      // never arrives must not pin it (and the connection) forever.
+      let timeout = DispatchWorkItem {
+        guard !responded else { return }
+        responded = true
+        peripheral.respond(to: request, withResult: .requestNotSupported)
+      }
+      DispatchQueue.main.asyncAfter(deadline: .now() + Self.peripheralRequestTimeout, execute: timeout)
+      defer { timeout.cancel() }
+
       do {
         let result = try await callbackChannel.onReadRequest(
           deviceId: request.central.identifier.uuidString,
@@ -264,6 +275,8 @@ final class UniversalBlePeripheralPlugin: NSObject, UniversalBlePeripheralChanne
           offset: Int64(request.offset),
           value: request.value?.toFlutterBytes()
         )
+        guard !responded else { return }
+        responded = true
         let status = result?.status?.toCBATTErrorCode() ?? .success
         guard status == .success else {
           peripheral.respond(to: request, withResult: status)
@@ -282,6 +295,9 @@ final class UniversalBlePeripheralPlugin: NSObject, UniversalBlePeripheralChanne
         request.value = sliced
         peripheral.respond(to: request, withResult: .success)
       } catch {
+        UniversalBleLogger.shared.logError("Peripheral read request failed: \(error)")
+        guard !responded else { return }
+        responded = true
         peripheral.respond(to: request, withResult: .requestNotSupported)
       }
     }
@@ -293,6 +309,15 @@ final class UniversalBlePeripheralPlugin: NSObject, UniversalBlePeripheralChanne
   ) {
     requests.forEach { req in
       Task { @MainActor in
+        var responded = false
+        let timeout = DispatchWorkItem {
+          guard !responded else { return }
+          responded = true
+          peripheral.respond(to: req, withResult: .requestNotSupported)
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + Self.peripheralRequestTimeout, execute: timeout)
+        defer { timeout.cancel() }
+
         do {
           let response = try await callbackChannel.onWriteRequest(
             deviceId: req.central.identifier.uuidString,
@@ -300,9 +325,14 @@ final class UniversalBlePeripheralPlugin: NSObject, UniversalBlePeripheralChanne
             offset: Int64(req.offset),
             value: req.value?.toFlutterBytes()
           )
+          guard !responded else { return }
+          responded = true
           let status = response?.status?.toCBATTErrorCode() ?? .success
           peripheral.respond(to: req, withResult: status)
         } catch {
+          UniversalBleLogger.shared.logError("Peripheral write request failed: \(error)")
+          guard !responded else { return }
+          responded = true
           peripheral.respond(to: req, withResult: .requestNotSupported)
         }
       }

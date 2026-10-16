@@ -35,9 +35,6 @@ import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
 import androidx.core.content.edit
 
@@ -343,7 +340,7 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
             if (currentState == BluetoothGatt.STATE_CONNECTED) {
                 UniversalBleLogger.logError("$deviceId Already connected")
                 mainThreadHandler?.post {
-                    notify { it.onConnectionChanged(deviceId, true, null, null, null) }
+                    fireAndForget(callbackChannel) { it.onConnectionChanged(deviceId, true, null, null, null) }
                 }
                 return
             } else if (currentState == BluetoothGatt.STATE_CONNECTING) {
@@ -380,7 +377,7 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
         if (gatt == null) {
             cleanUpConnection(deviceId)
             mainThreadHandler?.post {
-                notify { it.onConnectionChanged(deviceId, false, null, null, null) }
+                fireAndForget(callbackChannel) { it.onConnectionChanged(deviceId, false, null, null, null) }
             }
         } else {
             cleanConnection(gatt)
@@ -1240,7 +1237,7 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
             "onConnectionUpdated -> $deviceId interval=$interval latency=$latency timeout=$timeout status=$status"
         )
         mainThreadHandler?.post {
-            notify { it.onConnectionParametersUpdated(
+            fireAndForget(callbackChannel) { it.onConnectionParametersUpdated(
                 BleConnectionParametersChange(
                     deviceId = deviceId,
                     interval = interval.toLong(),
@@ -1590,7 +1587,7 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
                 gatt.close()
                 // A newer connect() owns this address now; its state is not ours to report.
                 if (!gattRegistry.isKnown(deviceId)) {
-                    notify { it.onConnectionChanged(deviceId, false, null, null, null) }
+                    fireAndForget(callbackChannel) { it.onConnectionChanged(deviceId, false, null, null, null) }
                 }
             }
         }, gattCloseTimeoutMs)
@@ -1600,7 +1597,7 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
         val future = pairResultFutures.remove(deviceId)
         future?.let { it(Result.success(bonded)) }
         mainThreadHandler?.post {
-            notify { it.onPairStateChange(deviceId, bonded, isFailure) }
+            fireAndForget(callbackChannel) { it.onPairStateChange(deviceId, bonded, isFailure) }
         }
     }
 
@@ -1608,7 +1605,7 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
         override fun onReceive(context: Context, intent: Intent) {
             if (intent.action == BluetoothAdapter.ACTION_STATE_CHANGED) {
                 mainThreadHandler?.post {
-                    notify { it.onAvailabilityChanged(
+                    fireAndForget(callbackChannel) { it.onAvailabilityChanged(
                         bluetoothManager.adapter?.state?.toAvailabilityState()
                             ?: AvailabilityState.UNKNOWN
                     ) }
@@ -1686,7 +1683,7 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
 
 
             mainThreadHandler?.post {
-                notify { it.onScanResult(
+                fireAndForget(callbackChannel) { it.onScanResult(
                     UniversalBleScanResult(
                         name = name,
                         deviceId = result.device.address,
@@ -1721,7 +1718,7 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
         if (newState == BluetoothGatt.STATE_CONNECTED) {
             connectedGatts.add(gatt)
             mainThreadHandler?.post {
-                notify { it.onConnectionChanged(
+                fireAndForget(callbackChannel) { it.onConnectionChanged(
                     gatt.device.address, true, status.parseHciErrorCode(), status.toConnectionErrorCode(), status.toGattErrorCode()
                 ) }
             }
@@ -1740,7 +1737,7 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
 
                 // Send connection changed callback
                 mainThreadHandler?.post {
-                    notify { it.onConnectionChanged(
+                    fireAndForget(callbackChannel) { it.onConnectionChanged(
                         deviceId,
                         false,
                         status.parseHciErrorCode(),
@@ -1770,7 +1767,7 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
             "NOTIFY <- ${gatt.device.address} ${characteristic.uuid} len=${value.size}"
         )
         mainThreadHandler?.post {
-            notify { it.onValueChanged(
+            fireAndForget(callbackChannel) { it.onValueChanged(
                 deviceIdArg = gatt.device.address,
                 characteristicIdArg = characteristic.uuid.toString(),
                 valueArg = value,
@@ -1973,18 +1970,6 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
                 )
             }
         }
-
-    /** Fire-and-forget a Dart callback on the main dispatcher, ignoring failures. */
-    private fun notify(block: suspend (UniversalBleCallbackChannel) -> Unit) {
-        val channel = callbackChannel ?: return
-        CoroutineScope(Dispatchers.Main).launch {
-            try {
-                block(channel)
-            } catch (_: Throwable) {
-                // Callback delivery failures are non-fatal.
-            }
-        }
-    }
 
     override suspend fun getBluetoothAvailabilityState(): AvailabilityState =
         awaitResult { getBluetoothAvailabilityStateInternal(it) }
