@@ -2070,6 +2070,11 @@ fire_and_forget UniversalBlePlugin::ConnectAsync(uint64_t bluetooth_address,
       services_result =
           co_await device.GetGattServicesAsync(BluetoothCacheMode::Uncached);
     }
+    // Discovery failures report the generic status message rather than the ATT
+    // code in `services_result.ProtocolError()` (unlike the read/write paths,
+    // which use create_flutter_error_from_gatt_result): this runs during connect
+    // and is surfaced as a connection failure. The same applies to the
+    // characteristics query below.
     auto services_result_error =
         gatt_communication_status_to_error(services_result.Status());
     if (services_result_error.has_value()) {

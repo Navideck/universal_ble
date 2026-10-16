@@ -37,9 +37,11 @@ class UniversalBleErrorParser {
   /// `null` when the message carries no code.
   ///
   /// BlueZ reports a GATT protocol error as `org.bluez.Error.Failed` with an
-  /// "ATT error: 0xNN" message. The phrase is matched first, so an unrelated hex
-  /// value elsewhere in the message is not mistaken for the ATT code; a bare hex
-  /// value is only used when the phrase is absent.
+  /// "ATT error: 0xNN" message. The phrase is matched first (case-insensitively),
+  /// so an unrelated hex value elsewhere in the message is not mistaken for the
+  /// ATT code. Only when the phrase is absent is the first `0x`-prefixed hex token
+  /// (lower-case prefix) used as a best-effort fallback; a message with no such
+  /// token returns `null`.
   static String? extractBlueZAttErrorCode(String message) {
     final attCode = RegExp(
       r'ATT error:\s*0x([0-9a-fA-F]+)',

@@ -15,8 +15,11 @@
 #     expected       the UniversalBleErrorCode raw value the code maps to
 #     expected_name  the UniversalBleErrorCode name (documentation only)
 #
-# Codes 0x80-0xFF are application-defined: they are not protocol errors, so every
-# platform reports them as unknownError.
+# Codes 0x80-0xFF are application-defined: they are not protocol errors, so the
+# mappings driven by this fixture (Dart, Android, Windows) report them as
+# unknownError. Linux is not driven by this fixture: its wrapper falls back to the
+# caller's default code (readFailed / writeFailed / ...) whenever the ATT code
+# maps to unknownError.
 att_code|expected|expected_name
 0x01|26|invalidHandle
 0x02|28|readNotPermitted
