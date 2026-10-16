@@ -20,13 +20,27 @@ class UniversalBleAsyncServiceDiscovery: NSObject {
     private var hasCompleted = false
     private var withDescriptors: Bool
     private var timeoutWorkItem: DispatchWorkItem?
-    private let timeoutSeconds: TimeInterval = 10.0
+    private let timeoutSeconds: TimeInterval
 
-    init(peripheral: CBPeripheral, deviceId: String, withDescriptors: Bool, completion: @escaping (Result<[UniversalBleService], Error>) -> Void) {
+    /// Discovery that has not completed after the timeout fails, so that it cannot hold back
+    /// later calls for the same device.
+    static let defaultTimeoutSeconds: TimeInterval = 10.0
+
+    /// The discovery timeout for these options: `AppleDiscoverServicesOptions.timeoutMillis`,
+    /// else `defaultTimeoutSeconds`.
+    static func timeoutSeconds(for platformConfig: DiscoverServicesPlatformConfig?) -> TimeInterval {
+        guard let millis = platformConfig?.apple?.timeoutMillis, millis > 0 else {
+            return defaultTimeoutSeconds
+        }
+        return TimeInterval(millis) / 1000
+    }
+
+    init(peripheral: CBPeripheral, deviceId: String, withDescriptors: Bool, timeoutSeconds: TimeInterval = UniversalBleAsyncServiceDiscovery.defaultTimeoutSeconds, completion: @escaping (Result<[UniversalBleService], Error>) -> Void) {
         self.peripheral = peripheral
         self.deviceId = deviceId
         self.completion = completion
         self.withDescriptors = withDescriptors
+        self.timeoutSeconds = timeoutSeconds
         super.init()
     }
 

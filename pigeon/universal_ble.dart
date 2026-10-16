@@ -392,11 +392,23 @@ class AndroidDiscoverServicesOptions {
   AndroidDiscoverServicesOptions({this.clearGattCache});
 }
 
+class AppleDiscoverServicesOptions {
+  /// How long, in milliseconds, the native discovery may take before it fails.
+  /// iOS and macOS bound discovery themselves, so that a discovery that never
+  /// completes cannot hold back later calls; 10 seconds when not set.
+  /// `discoverServices` fills this in from its own `timeout` when that is given
+  /// and this is not.
+  int? timeoutMillis;
+
+  AppleDiscoverServicesOptions({this.timeoutMillis});
+}
+
 /// Platform-specific options for `discoverServices`. Ignored on platforms
 /// that have no equivalent.
 class DiscoverServicesPlatformConfig {
   AndroidDiscoverServicesOptions? android;
-  DiscoverServicesPlatformConfig({this.android});
+  AppleDiscoverServicesOptions? apple;
+  DiscoverServicesPlatformConfig({this.android, this.apple});
 }
 
 class PeripheralAndroidOptions {

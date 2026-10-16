@@ -1,4 +1,5 @@
 ## 3.1.1
+* Apple: `discoverServices` honours its `timeout`. The native discovery gave up after a fixed 10 seconds, so a longer `timeout` could not help a peripheral that is slow to answer. `timeout` is now passed on as the native limit, which `AppleDiscoverServicesOptions(timeoutMillis:)` in `DiscoverServicesPlatformConfig.apple` also sets directly; without either, it stays 10 seconds (#349).
 * Apple: a read, write or subscription the peripheral refuses now reports its ATT error as the matching `UniversalBleErrorCode` (`insufficientEncryption`, `insufficientAuthentication`, `readNotPermitted`, ...), as Android does, instead of `unknownError`. The error code is still in `details`. Codes in `CBErrorDomain` are unchanged: its numbers overlap ATT's with other meanings (#348).
 * Bump `bluez` to `^0.9.0`.
 * Bump the `pigeon` dev dependency to `^29.0.0`.

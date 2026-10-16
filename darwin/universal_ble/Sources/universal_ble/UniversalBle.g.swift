@@ -1259,41 +1259,86 @@ struct AndroidDiscoverServicesOptions: Hashable, CustomStringConvertible {
   }
 }
 
+/// Generated class from Pigeon that represents data sent in messages.
+struct AppleDiscoverServicesOptions: Hashable, CustomStringConvertible {
+  /// How long, in milliseconds, the native discovery may take before it fails.
+  /// iOS and macOS bound discovery themselves, so that a discovery that never
+  /// completes cannot hold back later calls; 10 seconds when not set.
+  /// `discoverServices` fills this in from its own `timeout` when that is given
+  /// and this is not.
+  var timeoutMillis: Int64? = nil
+
+
+  // swift-format-ignore: AlwaysUseLowerCamelCase
+  static func fromList(_ pigeonVar_list: [Any?]) -> AppleDiscoverServicesOptions? {
+    let timeoutMillis: Int64? = nilOrValue(pigeonVar_list[0])
+
+    return AppleDiscoverServicesOptions(
+      timeoutMillis: timeoutMillis
+    )
+  }
+  func toList() -> [Any?] {
+    return [
+      timeoutMillis
+    ]
+  }
+  static func == (lhs: AppleDiscoverServicesOptions, rhs: AppleDiscoverServicesOptions) -> Bool {
+    if Swift.type(of: lhs) != Swift.type(of: rhs) {
+      return false
+    }
+    return UniversalBlePigeonInternal.deepEquals(lhs.timeoutMillis, rhs.timeoutMillis)
+  }
+
+  func hash(into hasher: inout Hasher) {
+    hasher.combine("AppleDiscoverServicesOptions")
+    UniversalBlePigeonInternal.deepHash(value: timeoutMillis, hasher: &hasher)
+  }
+
+  public var description: String {
+    return "AppleDiscoverServicesOptions(timeoutMillis: \(String(describing: timeoutMillis)))"
+  }
+}
+
 /// Platform-specific options for `discoverServices`. Ignored on platforms
 /// that have no equivalent.
 ///
 /// Generated class from Pigeon that represents data sent in messages.
 struct DiscoverServicesPlatformConfig: Hashable, CustomStringConvertible {
   var android: AndroidDiscoverServicesOptions? = nil
+  var apple: AppleDiscoverServicesOptions? = nil
 
 
   // swift-format-ignore: AlwaysUseLowerCamelCase
   static func fromList(_ pigeonVar_list: [Any?]) -> DiscoverServicesPlatformConfig? {
     let android: AndroidDiscoverServicesOptions? = nilOrValue(pigeonVar_list[0])
+    let apple: AppleDiscoverServicesOptions? = nilOrValue(pigeonVar_list[1])
 
     return DiscoverServicesPlatformConfig(
-      android: android
+      android: android,
+      apple: apple
     )
   }
   func toList() -> [Any?] {
     return [
-      android
+      android,
+      apple,
     ]
   }
   static func == (lhs: DiscoverServicesPlatformConfig, rhs: DiscoverServicesPlatformConfig) -> Bool {
     if Swift.type(of: lhs) != Swift.type(of: rhs) {
       return false
     }
-    return UniversalBlePigeonInternal.deepEquals(lhs.android, rhs.android)
+    return UniversalBlePigeonInternal.deepEquals(lhs.android, rhs.android) && UniversalBlePigeonInternal.deepEquals(lhs.apple, rhs.apple)
   }
 
   func hash(into hasher: inout Hasher) {
     hasher.combine("DiscoverServicesPlatformConfig")
     UniversalBlePigeonInternal.deepHash(value: android, hasher: &hasher)
+    UniversalBlePigeonInternal.deepHash(value: apple, hasher: &hasher)
   }
 
   public var description: String {
-    return "DiscoverServicesPlatformConfig(android: \(String(describing: android)))"
+    return "DiscoverServicesPlatformConfig(android: \(String(describing: android)), apple: \(String(describing: apple)))"
   }
 }
 
@@ -1743,20 +1788,22 @@ private class UniversalBlePigeonCodecReader: FlutterStandardReader {
     case 160:
       return AndroidDiscoverServicesOptions.fromList(self.readValue() as! [Any?])
     case 161:
-      return DiscoverServicesPlatformConfig.fromList(self.readValue() as! [Any?])
+      return AppleDiscoverServicesOptions.fromList(self.readValue() as! [Any?])
     case 162:
-      return PeripheralAndroidOptions.fromList(self.readValue() as! [Any?])
+      return DiscoverServicesPlatformConfig.fromList(self.readValue() as! [Any?])
     case 163:
-      return PeripheralPlatformConfig.fromList(self.readValue() as! [Any?])
+      return PeripheralAndroidOptions.fromList(self.readValue() as! [Any?])
     case 164:
-      return PeripheralService.fromList(self.readValue() as! [Any?])
+      return PeripheralPlatformConfig.fromList(self.readValue() as! [Any?])
     case 165:
-      return PeripheralCharacteristic.fromList(self.readValue() as! [Any?])
+      return PeripheralService.fromList(self.readValue() as! [Any?])
     case 166:
-      return PeripheralDescriptor.fromList(self.readValue() as! [Any?])
+      return PeripheralCharacteristic.fromList(self.readValue() as! [Any?])
     case 167:
-      return PeripheralReadRequestResult.fromList(self.readValue() as! [Any?])
+      return PeripheralDescriptor.fromList(self.readValue() as! [Any?])
     case 168:
+      return PeripheralReadRequestResult.fromList(self.readValue() as! [Any?])
+    case 169:
       return PeripheralWriteRequestResult.fromList(self.readValue() as! [Any?])
     default:
       return super.readValue(ofType: type)
@@ -1862,29 +1909,32 @@ private class UniversalBlePigeonCodecWriter: FlutterStandardWriter {
     } else if let value = value as? AndroidDiscoverServicesOptions {
       super.writeByte(160)
       super.writeValue(value.toList())
-    } else if let value = value as? DiscoverServicesPlatformConfig {
+    } else if let value = value as? AppleDiscoverServicesOptions {
       super.writeByte(161)
       super.writeValue(value.toList())
-    } else if let value = value as? PeripheralAndroidOptions {
+    } else if let value = value as? DiscoverServicesPlatformConfig {
       super.writeByte(162)
       super.writeValue(value.toList())
-    } else if let value = value as? PeripheralPlatformConfig {
+    } else if let value = value as? PeripheralAndroidOptions {
       super.writeByte(163)
       super.writeValue(value.toList())
-    } else if let value = value as? PeripheralService {
+    } else if let value = value as? PeripheralPlatformConfig {
       super.writeByte(164)
       super.writeValue(value.toList())
-    } else if let value = value as? PeripheralCharacteristic {
+    } else if let value = value as? PeripheralService {
       super.writeByte(165)
       super.writeValue(value.toList())
-    } else if let value = value as? PeripheralDescriptor {
+    } else if let value = value as? PeripheralCharacteristic {
       super.writeByte(166)
       super.writeValue(value.toList())
-    } else if let value = value as? PeripheralReadRequestResult {
+    } else if let value = value as? PeripheralDescriptor {
       super.writeByte(167)
       super.writeValue(value.toList())
-    } else if let value = value as? PeripheralWriteRequestResult {
+    } else if let value = value as? PeripheralReadRequestResult {
       super.writeByte(168)
+      super.writeValue(value.toList())
+    } else if let value = value as? PeripheralWriteRequestResult {
+      super.writeByte(169)
       super.writeValue(value.toList())
     } else {
       super.writeValue(value)

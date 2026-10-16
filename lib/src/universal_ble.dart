@@ -324,6 +324,10 @@ class UniversalBle {
   /// `AndroidDiscoverServicesOptions(clearGattCache: true)` to drop Android's
   /// GATT cache before discovering. Ignored where not applicable.
   ///
+  /// [timeout] bounds the whole call. On Apple it is also passed to the native
+  /// discovery, which otherwise gives up after 10 seconds, unless
+  /// [platformConfig] already sets `apple.timeoutMillis`.
+  ///
   /// Concurrent calls for the same device that request the same result share a
   /// single discovery and resolve together. A call that asks for something
   /// different (other [withDescriptors]/[platformConfig]) still runs its own.
@@ -334,6 +338,7 @@ class UniversalBle {
     String? queueId,
     DiscoverServicesPlatformConfig? platformConfig,
   }) {
+    platformConfig = _withAppleDiscoveryTimeout(platformConfig, timeout);
     final key = canonicalDeviceId(deviceId);
     final pending = _pendingDiscoveries[key];
     if (pending != null &&
@@ -355,6 +360,22 @@ class UniversalBle {
     );
     unawaited(_releaseDiscovery(key, future));
     return future;
+  }
+
+  /// [platformConfig] with [timeout] as Apple's native discovery timeout, when
+  /// a timeout is given and the caller set none. Returned unchanged otherwise.
+  static DiscoverServicesPlatformConfig? _withAppleDiscoveryTimeout(
+    DiscoverServicesPlatformConfig? platformConfig,
+    Duration? timeout,
+  ) {
+    if (timeout == null || platformConfig?.apple?.timeoutMillis != null) {
+      return platformConfig;
+    }
+    return DiscoverServicesPlatformConfig(
+      android: platformConfig?.android,
+      apple:
+          AppleDiscoverServicesOptions(timeoutMillis: timeout.inMilliseconds),
+    );
   }
 
   static Future<List<BleService>> _runDiscovery(

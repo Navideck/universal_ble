@@ -41,4 +41,47 @@ void main() {
     expect(platform.lastPlatformConfig, isNull);
     expect(platform.lastWithDescriptors, isTrue);
   });
+
+  test(
+    'discoverServices passes its timeout to Apple as the native discovery timeout',
+    () async {
+      final platform = _CapturingPlatform();
+      UniversalBle.setInstance(platform);
+      await UniversalBle.discoverServices(
+        deviceId,
+        timeout: const Duration(seconds: 30),
+      );
+      expect(platform.lastPlatformConfig?.apple?.timeoutMillis, 30000);
+      expect(platform.lastPlatformConfig?.android, isNull);
+    },
+  );
+
+  test('the timeout keeps the Android options it was given', () async {
+    final platform = _CapturingPlatform();
+    UniversalBle.setInstance(platform);
+    await UniversalBle.discoverServices(
+      deviceId,
+      timeout: const Duration(seconds: 30),
+      platformConfig: DiscoverServicesPlatformConfig(
+        android: AndroidDiscoverServicesOptions(clearGattCache: true),
+      ),
+    );
+    expect(platform.lastPlatformConfig?.apple?.timeoutMillis, 30000);
+    expect(platform.lastPlatformConfig?.android?.clearGattCache, isTrue);
+  });
+
+  test('an Apple timeout set by the caller wins over the timeout', () async {
+    final platform = _CapturingPlatform();
+    UniversalBle.setInstance(platform);
+    final config = DiscoverServicesPlatformConfig(
+      apple: AppleDiscoverServicesOptions(timeoutMillis: 45000),
+    );
+    await UniversalBle.discoverServices(
+      deviceId,
+      timeout: const Duration(seconds: 30),
+      platformConfig: config,
+    );
+    expect(platform.lastPlatformConfig, same(config));
+    expect(platform.lastPlatformConfig?.apple?.timeoutMillis, 45000);
+  });
 }
