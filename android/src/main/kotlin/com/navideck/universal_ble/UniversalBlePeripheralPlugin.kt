@@ -28,8 +28,10 @@ import android.util.Log
 import io.flutter.plugin.common.BinaryMessenger
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.launch
+import kotlin.coroutines.cancellation.CancellationException
 
 private const val TAG = "UniversalBlePeripheral"
 private const val REQUEST_CODE_ENABLE_BLUETOOTH = 2342717
@@ -70,7 +72,15 @@ class UniversalBlePeripheralPlugin(
     private suspend fun <T> awaitReply(block: suspend () -> T?): T? =
         try {
             withTimeout(PERIPHERAL_REQUEST_TIMEOUT_MS) { block() }
+        } catch (_: TimeoutCancellationException) {
+            // The Dart reply did not arrive in time: answer the central with a
+            // failure rather than holding the request (and the connection) open.
+            null
+        } catch (e: CancellationException) {
+            // A genuine scope/job cancellation must not be swallowed as a reply.
+            throw e
         } catch (_: Throwable) {
+            // e.g. the Dart side replied with an error.
             null
         }
 

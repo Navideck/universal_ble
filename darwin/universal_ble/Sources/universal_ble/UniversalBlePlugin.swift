@@ -218,7 +218,7 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
         continuation.finish(.failure(createFlutterError(code: .notSupported, message: "AccessorySetupKit requires iOS 18 or later")))
         return
       }
-      getAccessorySetupManager().showPicker(options: options) { continuation.finish($0) }
+      getAccessorySetupManager().showPicker(options: options, continuation: continuation)
     #else
       continuation.finish(.failure(createFlutterError(code: .notSupported, message: "AccessorySetupKit is only supported on iOS 18+")))
     #endif
@@ -561,7 +561,7 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
         continuation.finish(.failure(createFlutterError(code: .notSupported, message: "AccessorySetupKit requires iOS 18 or later")))
         return
       }
-      getAccessorySetupManager().removeAccessory(deviceId: deviceId) { continuation.finish($0) }
+      getAccessorySetupManager().removeAccessory(deviceId: deviceId, continuation: continuation)
     #else
       continuation.finish(.failure(createFlutterError(code: .notSupported, message: "AccessorySetupKit is only supported on iOS 18+")))
     #endif
@@ -1053,7 +1053,7 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
     /// after that, so the owner drops this manager and builds a fresh one.
     private(set) var isInvalidated = false
     private var activationActions: [(run: () -> Void, cancel: () -> Void)] = []
-    private var pickerCompletion: ((Result<UniversalDevicePickerResult, Error>) -> Void)?
+    private var pickerCompletion: CheckedContinuation<UniversalDevicePickerResult, Error>?
     private var selectedIdentifier: UUID?
     private var selectedName: String?
 
@@ -1090,7 +1090,7 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
         return
       }
 
-      pickerCompletion = completion
+      pickerCompletion = continuation
       selectedIdentifier = nil
       selectedName = nil
       whenActivated { [weak self] in
@@ -1197,7 +1197,7 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
     }
 
     private func completePicker(_ result: Result<UniversalDevicePickerResult, Error>) {
-      guard let completion = pickerCompletion else { return }
+      guard let continuation = pickerCompletion else { return }
       pickerCompletion = nil
       selectedIdentifier = nil
       selectedName = nil

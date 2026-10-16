@@ -184,9 +184,10 @@ final class UniversalBlePeripheralPlugin: NSObject, UniversalBlePeripheralChanne
     _: CBPeripheralManager,
     error: Error?
   ) {
-    advertisingState = error == nil ? .advertising : .error
+    let state: PeripheralAdvertisingState = error == nil ? .advertising : .error
+    advertisingState = state
     sendToDart { try await $0.onAdvertisingStateChange(
-        state: self.advertisingState,
+        state: state,
         error: error?.localizedDescription
       )
     }
