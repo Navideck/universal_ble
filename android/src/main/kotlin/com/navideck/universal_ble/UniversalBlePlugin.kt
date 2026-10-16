@@ -277,10 +277,9 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
             // Set custom scan filter only if required
             if (usesCustomFilters) {
                 UniversalBleLogger.logError("Using Custom Filters")
-                universalBleFilterUtil.scanFilter = filter
-                universalBleFilterUtil.serviceFilterUUIDS = filterServices
+                universalBleFilterUtil.configure(filter)
             } else {
-                universalBleFilterUtil.scanFilter = null
+                universalBleFilterUtil.configure(null)
                 scanFilters = filter?.toScanFilters(filterServices) ?: emptyList()
             }
 
@@ -1674,7 +1673,8 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
             if (!universalBleFilterUtil.filterDevice(
                     name,
                     manufacturerDataList,
-                    serviceUuids
+                    serviceUuids,
+                    result.serviceDataUuids
                 )
             ) return
 

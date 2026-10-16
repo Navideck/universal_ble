@@ -384,7 +384,10 @@ extension UniversalBleScanResultExtension on UniversalBleScanResult {
       rssi: rssi,
       paired: isPaired,
       isSystemDevice: isSystemDevice,
-      services: services?.map(BleUuidParser.string).toList() ?? [],
+      // `BleDevice` normalises these to full 128-bit lower-case UUIDs and keeps
+      // anything unparseable verbatim, so a malformed advertisement value cannot
+      // throw here and fail the scan.
+      services: services ?? [],
       timestamp: timestamp,
       timestampMicroseconds: timestampMicroseconds,
       manufacturerDataList: manufacturerDataList
@@ -412,6 +415,7 @@ extension _ScanFilterExtension on ScanFilter? {
       withServices: this?.withServices.toValidUUIDList() ?? [],
       withNamePrefix: this?.withNamePrefix ?? [],
       withManufacturerData: this?.withManufacturerData ?? [],
+      withServiceData: this?.withServiceData.toValidUUIDList() ?? [],
     );
   }
 }

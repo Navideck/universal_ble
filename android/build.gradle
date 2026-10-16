@@ -36,6 +36,10 @@ android {
     sourceSets {
         main.java.srcDirs += 'src/main/kotlin'
         test.java.srcDirs += 'src/test/kotlin'
+        // The scan filter conformance fixture is shared with the Dart and C++
+        // tests (test/fixtures/scan_filter_cases.tsv), so it lives outside this
+        // module and is exposed to the JVM tests as a resource.
+        test.resources.srcDirs += '../test/fixtures'
     }
 
     defaultConfig {

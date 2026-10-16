@@ -47,6 +47,18 @@ When modifying any device ID handling or API methods taking or returning device 
 
 ---
 
+## Advertisement Field Normalization
+
+Scan results normalise their UUID-bearing fields in the Dart layer, so the same device compares equal whichever platform reported it. Do not re-implement this per platform.
+
+- **`BleDevice.services`** — the advertised service UUIDs (advertising data types `0x02`/`0x03`, `0x04`/`0x05`, `0x06`/`0x07`). Emitted as full 128-bit lower-case UUIDs on every platform. Platforms report their own form (Apple, for instance, reports a 16-bit UUID as `180D`), so `BleDevice` normalises them via `BleUuidParser`.
+- **`BleDevice.serviceData` keys** — the *Service Data* data types (`0x16`/`0x20`/`0x21`), normalised the same way. The values are the raw payload bytes and are never transformed.
+- Entries that are not valid UUIDs are kept verbatim rather than dropped; matching simply skips them, so malformed advertisement data cannot fail a scan.
+- **Inputs** accept any case and short (`181A`), `0x`-prefixed, or full 128-bit form, canonicalised with `BleUuidParser`/`toValidUUIDList()` at the boundary. Native code and the filter matchers only ever see the full form.
+- When changing anything that emits or compares these fields, test cross-form equivalence (short, full, `0x`-prefixed, mixed case). When scan filter semantics change, update the shared conformance fixture `test/fixtures/scan_filter_cases.tsv`, which drives the Dart, Kotlin and C++ filter implementations.
+
+---
+
 ## Architecture & Code Conventions
 
 1. **Platform Interface Pattern:**

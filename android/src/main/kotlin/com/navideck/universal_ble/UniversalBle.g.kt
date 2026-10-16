@@ -905,7 +905,13 @@ data class UniversalScanConfig (
 data class UniversalScanFilter (
   val withServices: List<String>,
   val withNamePrefix: List<String>,
-  val withManufacturerData: List<ManufacturerDataFilter>
+  val withManufacturerData: List<ManufacturerDataFilter>,
+  /**
+   * Service data UUIDs to match. Appended last on purpose: pigeon encodes
+   * fields positionally, so inserting this anywhere else would shift the
+   * indices of the fields above and break against a stale native binary.
+   */
+  val withServiceData: List<String>
 )
  {
   companion object {
@@ -913,7 +919,8 @@ data class UniversalScanFilter (
       val withServices = pigeonVar_list[0] as List<String>
       val withNamePrefix = pigeonVar_list[1] as List<String>
       val withManufacturerData = pigeonVar_list[2] as List<ManufacturerDataFilter>
-      return UniversalScanFilter(withServices, withNamePrefix, withManufacturerData)
+      val withServiceData = pigeonVar_list[3] as List<String>
+      return UniversalScanFilter(withServices, withNamePrefix, withManufacturerData, withServiceData)
     }
   }
   fun toList(): List<Any?> {
@@ -921,6 +928,7 @@ data class UniversalScanFilter (
       withServices,
       withNamePrefix,
       withManufacturerData,
+      withServiceData,
     )
   }
   override fun equals(other: Any?): Boolean {
@@ -931,7 +939,7 @@ data class UniversalScanFilter (
       return true
     }
     val other = other as UniversalScanFilter
-    return UniversalBlePigeonUtils.deepEquals(this.withServices, other.withServices) && UniversalBlePigeonUtils.deepEquals(this.withNamePrefix, other.withNamePrefix) && UniversalBlePigeonUtils.deepEquals(this.withManufacturerData, other.withManufacturerData)
+    return UniversalBlePigeonUtils.deepEquals(this.withServices, other.withServices) && UniversalBlePigeonUtils.deepEquals(this.withNamePrefix, other.withNamePrefix) && UniversalBlePigeonUtils.deepEquals(this.withManufacturerData, other.withManufacturerData) && UniversalBlePigeonUtils.deepEquals(this.withServiceData, other.withServiceData)
   }
 
   override fun hashCode(): Int {
@@ -939,6 +947,7 @@ data class UniversalScanFilter (
     result = 31 * result + UniversalBlePigeonUtils.deepHash(this.withServices)
     result = 31 * result + UniversalBlePigeonUtils.deepHash(this.withNamePrefix)
     result = 31 * result + UniversalBlePigeonUtils.deepHash(this.withManufacturerData)
+    result = 31 * result + UniversalBlePigeonUtils.deepHash(this.withServiceData)
     return result
   }
 }

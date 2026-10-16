@@ -1,0 +1,45 @@
+# Shared scan-filter conformance cases.
+#
+# Consumed by:
+#   * test/scan_filter_conformance_test.dart                    (Dart)
+#   * android/src/test/.../UniversalBleFilterConformanceTest.kt (Kotlin)
+#   * windows/test/scan_filter_matcher_test.cpp                 (C++)
+# so the platform filter implementations are held to one semantics instead of
+# four hand-maintained copies of the same rule.
+#
+# Columns, '|'-separated (exactly nine separators per row):
+#   id | withServices | withServiceData | withNamePrefix | withManufacturerIds
+#      | deviceName | deviceServices | deviceServiceData | deviceManufacturerIds
+#      | expected
+#
+# Multi-value columns are ';'-separated. An empty column means "none", and a
+# filter whose columns are all empty accepts every device.
+#
+# UUIDs are written in the full 128-bit lowercase form the platforms receive.
+# Short (`181A`) and `0x`-prefixed forms are a Dart-layer convenience handled by
+# BleUuidParser, covered by test/scan_filter_test.dart and
+# test/scan_filter_channel_test.dart.
+#
+# Manufacturer payload prefix/mask matching is covered by the per-platform unit
+# tests; this fixture compares company identifiers only.
+id|withServices|withServiceData|withNamePrefix|withManufacturerIds|deviceName|deviceServices|deviceServiceData|deviceManufacturerIds|expected
+no-filter|||||ATC_DD7A81|0000181a-0000-1000-8000-00805f9b34fb|0000181a-0000-1000-8000-00805f9b34fb|76|1
+services-match|0000181a-0000-1000-8000-00805f9b34fb||||ATC|0000181a-0000-1000-8000-00805f9b34fb|||1
+services-mismatch|0000181a-0000-1000-8000-00805f9b34fb||||ATC|00002a6e-0000-1000-8000-00805f9b34fb|||0
+services-multiple-any|0000181a-0000-1000-8000-00805f9b34fb;00002a6e-0000-1000-8000-00805f9b34fb||||ATC|00002a6e-0000-1000-8000-00805f9b34fb|||1
+service-data-match||0000181a-0000-1000-8000-00805f9b34fb|||ATC_DD7A81||0000181a-0000-1000-8000-00805f9b34fb||1
+service-data-mismatch||0000181a-0000-1000-8000-00805f9b34fb|||ATC_DD7A81||00002a6e-0000-1000-8000-00805f9b34fb||0
+service-data-is-not-advertised-services||0000181a-0000-1000-8000-00805f9b34fb|||ATC|0000181a-0000-1000-8000-00805f9b34fb|||0
+advertised-services-are-not-service-data|0000181a-0000-1000-8000-00805f9b34fb||||ATC||0000181a-0000-1000-8000-00805f9b34fb||0
+or-services-hit|0000181a-0000-1000-8000-00805f9b34fb|00002a6e-0000-1000-8000-00805f9b34fb|||ATC|0000181a-0000-1000-8000-00805f9b34fb|||1
+or-service-data-hit|0000181a-0000-1000-8000-00805f9b34fb|00002a6e-0000-1000-8000-00805f9b34fb|||ATC||00002a6e-0000-1000-8000-00805f9b34fb||1
+or-no-hit|0000181a-0000-1000-8000-00805f9b34fb|00002a6e-0000-1000-8000-00805f9b34fb|||ATC|00002a6e-0000-1000-8000-00805f9b34fb|||0
+name-prefix-match|||ATC||ATC_DD7A81||||1
+name-prefix-mismatch|||ATC||OtherDevice||||0
+name-prefix-is-case-sensitive|||atc||ATC_DD7A81||||0
+manufacturer-match||||76|ATC|||76|1
+manufacturer-mismatch||||76|ATC|||117|0
+manufacturer-multiple-any||||76;117|ATC|||117|1
+or-mixed||0000181a-0000-1000-8000-00805f9b34fb|ATC||Other||0000181a-0000-1000-8000-00805f9b34fb||1
+empty-advertisement||0000181a-0000-1000-8000-00805f9b34fb|||||||0
+service-data-128bit||0000feaa-0000-1000-8000-00805f9b34fb|||Eddystone||0000feaa-0000-1000-8000-00805f9b34fb||1

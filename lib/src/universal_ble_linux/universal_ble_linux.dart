@@ -653,18 +653,27 @@ class UniversalBleLinux extends UniversalBlePlatform {
     }
   }
 
-  void _onDeviceAdd(BlueZDevice device) {
-    BleDevice bleDevice = device.toBleDevice();
-    if (!_bleFilter.shouldAcceptDevice(bleDevice)) {
-      return;
-    }
+  /// Emits the device as a scan result when the current filter accepts it.
+  ///
+  /// Runs again on every advertisement rather than trusting the properties seen
+  /// when BlueZ added the device: a peripheral may only start matching once it
+  /// advertises Service Data or UUIDs in a later packet (#57).
+  void _reportIfAccepted(BlueZDevice device, {bool requireRssi = true}) {
+    if (requireRssi && device.rssi == 0) return;
 
-    // Update scan results only if rssi is available
-    if (device.rssi != 0) {
+    final bleDevice = device.toBleDevice();
+    if (_bleFilter.shouldAcceptDevice(bleDevice)) {
       updateScanResult(bleDevice);
     }
+  }
 
-    // Setup Cache
+  void _onDeviceAdd(BlueZDevice device) {
+    _reportIfAccepted(device);
+
+    // Setup Cache. Devices are cached (and their listeners attached) even when
+    // the current filter rejects them: a device that has not advertised any
+    // ServiceData/UUIDs yet may only start matching once BlueZ reports them in a
+    // later advertisement (#57).
     _devices[device.address] = device;
 
     // Setup advertisements Listener
@@ -675,9 +684,7 @@ class UniversalBleLinux extends UniversalBlePlatform {
           e.contains(BluezProperty.uuids) ||
           e.contains(BluezProperty.serviceData);
     }).listen((_) {
-      if (_bleFilter.shouldAcceptDevice(bleDevice)) {
-        updateScanResult(device.toBleDevice());
-      }
+      _reportIfAccepted(device, requireRssi: false);
     });
 
     // Setup update listener

@@ -182,12 +182,10 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
 
     if usesCustomFilters {
       UniversalBleLogger.shared.logInfo("Using Custom Filters")
-      universalBleFilterUtil.scanFilter = filter
-      universalBleFilterUtil.scanFilterServicesUUID = withServices
+      universalBleFilterUtil.configure(scanFilter: filter)
       withServices = []
     } else {
-      universalBleFilterUtil.scanFilter = nil
-      universalBleFilterUtil.scanFilterServicesUUID = []
+      universalBleFilterUtil.configure(scanFilter: nil)
     }
 
     // When the caller opts into de-duplication, omit the allow-duplicates key so
@@ -674,7 +672,12 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
     peripheralCache.rememberAdvertisedName(displayName, for: peripheral.uuid.uuidString)
 
     // Apply custom filters and return early if the peripheral doesn't match
-    if !universalBleFilterUtil.filterDevice(name: displayName, manufacturerData: universalManufacturerData, services: services) {
+    if !universalBleFilterUtil.filterDevice(
+      name: displayName,
+      manufacturerData: universalManufacturerData,
+      services: services,
+      serviceData: serviceDataDict.map { Array($0.keys) }
+    ) {
       return
     }
 

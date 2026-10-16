@@ -11,59 +11,76 @@ private const val TAG = "UniversalBlePlugin"
 
 @SuppressLint("MissingPermission")
 class UniversalBleFilterUtil {
-    var scanFilter: UniversalScanFilter? = null
-    var serviceFilterUUIDS: List<UUID> = emptyList()
+    private var scanFilter: UniversalScanFilter? = null
+    private var serviceFilters: List<UUID> = emptyList()
+    private var serviceDataFilters: List<UUID> = emptyList()
+
+    /// Single entry point for the filter state.
+    ///
+    /// Pass `null` when the platform applies the filter itself (native
+    /// `ScanFilter`), which makes [filterDevice] accept every device. Deriving the
+    /// UUID lists here, instead of letting callers assign them alongside
+    /// [scanFilter], keeps the three from drifting apart.
+    fun configure(filter: UniversalScanFilter?) {
+        scanFilter = filter
+        serviceFilters = filter?.withServices?.toUUIDList().orEmpty()
+        serviceDataFilters = filter?.withServiceData?.toUUIDList().orEmpty()
+    }
 
     fun filterDevice(
         name: String?,
         manufacturerDataList: List<UniversalManufacturerData>,
         serviceUuids: Array<UUID>,
+        serviceDataUuids: List<UUID>,
     ): Boolean {
         val filter = scanFilter ?: return true
 
-        val hasNamePrefixFilter = filter.withNamePrefix.isNotEmpty()
-        val hasServiceFilter = filter.withServices.isNotEmpty()
-        val hasManufacturerDataFilter = filter.withManufacturerData.isNotEmpty()
-
-        // If there is no filter at all, then allow device
-        if (!hasNamePrefixFilter &&
-            !hasServiceFilter &&
-            !hasManufacturerDataFilter
-        ) {
+        // The conditions are in OR relation. Each check below is a strict
+        // predicate answering "does this dimension match?", so an unfiltered
+        // dimension contributes nothing and needs no guard of its own.
+        val hasAnyFilter =
+            filter.withNamePrefix.isNotEmpty() ||
+                    serviceFilters.isNotEmpty() ||
+                    serviceDataFilters.isNotEmpty() ||
+                    filter.withManufacturerData.isNotEmpty()
+        if (!hasAnyFilter) {
             return true
         }
 
-        // For not, we only have DeviceName filter
-        return hasNamePrefixFilter && isNameMatchingFilters(filter, name) ||
-                hasServiceFilter && isServicesMatchingFilters(serviceUuids) ||
-                hasManufacturerDataFilter && isManufacturerDataMatchingFilters(
-            filter,
-            manufacturerDataList
-        )
+        return isNameMatchingFilters(filter, name) ||
+                isServicesMatchingFilters(serviceUuids) ||
+                isServiceDataMatchingFilters(serviceDataUuids) ||
+                isManufacturerDataMatchingFilters(
+                    filter,
+                    manufacturerDataList
+                )
     }
 
     private fun isNameMatchingFilters(scanFilter: UniversalScanFilter, name: String?): Boolean {
-        val namePrefixFilter = scanFilter.withNamePrefix
-        if (namePrefixFilter.isEmpty()) {
-            return true
-        }
         if (name.isNullOrEmpty()) {
             return false
         }
-        return namePrefixFilter.any { name.startsWith(it) }
+        return scanFilter.withNamePrefix.any { name.startsWith(it) }
     }
 
     private fun isServicesMatchingFilters(
         serviceUuids: Array<UUID>,
     ): Boolean {
-        if (serviceFilterUUIDS.isEmpty()) {
-            return true
-        }
-        if (serviceUuids.isEmpty()) {
-            return false
-        }
-        return serviceFilterUUIDS.any {
+        return serviceFilters.any {
             serviceUuids.contains(it)
+        }
+    }
+
+    /// Matches a device by the service UUIDs it carries in its advertising
+    /// Service Data (the `0x16`/`0x20`/`0x21` data types). This is a different
+    /// set from the advertised service UUID list matched by
+    /// [isServicesMatchingFilters]: beacons such as Eddystone (`0xFEAA`) or the
+    /// ATC_MiThermometer (`0x181A`) only appear here (#57).
+    private fun isServiceDataMatchingFilters(
+        serviceDataUuids: List<UUID>,
+    ): Boolean {
+        return serviceDataFilters.any {
+            serviceDataUuids.contains(it)
         }
     }
 
@@ -71,11 +88,9 @@ class UniversalBleFilterUtil {
         scanFilter: UniversalScanFilter,
         manufacturerDataList: List<UniversalManufacturerData>,
     ): Boolean {
-        val filters = scanFilter.withManufacturerData
-        if (filters.isEmpty()) return true
         if (manufacturerDataList.isEmpty()) return false
         return manufacturerDataList.any { msd ->
-            filters.any { filter ->
+            scanFilter.withManufacturerData.any { filter ->
                 msd.companyIdentifier == filter.companyIdentifier &&
                         isDataMatching(filter.payloadPrefix, msd.data, filter.payloadMask)
             }
@@ -100,8 +115,13 @@ class UniversalBleFilterUtil {
 }
 
 fun UniversalScanFilter.usesCustomFilters(): Boolean {
-    // NamePrefix Filtering is not supported in native filters
-    return withNamePrefix.isNotEmpty()
+    // NamePrefix filtering is not supported in native filters. Service Data
+    // matching cannot be expressed as a native ScanFilter either: the controller
+    // would drop a device that carries the UUID only inside its Service Data
+    // before the app is ever notified, so both have to be applied in the scan
+    // callback instead. Callers that opt in pay for it in battery (every
+    // advertisement reaches the app process before being filtered).
+    return withNamePrefix.isNotEmpty() || withServiceData.isNotEmpty()
 }
 
 // Convert UniversalScanFilter to ScanFilter

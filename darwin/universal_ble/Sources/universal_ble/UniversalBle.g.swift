@@ -783,6 +783,10 @@ struct UniversalScanFilter: Hashable {
   var withServices: [String]
   var withNamePrefix: [String]
   var withManufacturerData: [ManufacturerDataFilter]
+  /// Service data UUIDs to match. Appended last on purpose: pigeon encodes
+  /// fields positionally, so inserting this anywhere else would shift the
+  /// indices of the fields above and break against a stale native binary.
+  var withServiceData: [String]
 
 
   // swift-format-ignore: AlwaysUseLowerCamelCase
@@ -790,11 +794,13 @@ struct UniversalScanFilter: Hashable {
     let withServices = pigeonVar_list[0] as! [String]
     let withNamePrefix = pigeonVar_list[1] as! [String]
     let withManufacturerData = pigeonVar_list[2] as! [ManufacturerDataFilter]
+    let withServiceData = pigeonVar_list[3] as! [String]
 
     return UniversalScanFilter(
       withServices: withServices,
       withNamePrefix: withNamePrefix,
-      withManufacturerData: withManufacturerData
+      withManufacturerData: withManufacturerData,
+      withServiceData: withServiceData
     )
   }
   func toList() -> [Any?] {
@@ -802,13 +808,14 @@ struct UniversalScanFilter: Hashable {
       withServices,
       withNamePrefix,
       withManufacturerData,
+      withServiceData,
     ]
   }
   static func == (lhs: UniversalScanFilter, rhs: UniversalScanFilter) -> Bool {
     if Swift.type(of: lhs) != Swift.type(of: rhs) {
       return false
     }
-    return deepEqualsUniversalBle(lhs.withServices, rhs.withServices) && deepEqualsUniversalBle(lhs.withNamePrefix, rhs.withNamePrefix) && deepEqualsUniversalBle(lhs.withManufacturerData, rhs.withManufacturerData)
+    return deepEqualsUniversalBle(lhs.withServices, rhs.withServices) && deepEqualsUniversalBle(lhs.withNamePrefix, rhs.withNamePrefix) && deepEqualsUniversalBle(lhs.withManufacturerData, rhs.withManufacturerData) && deepEqualsUniversalBle(lhs.withServiceData, rhs.withServiceData)
   }
 
   func hash(into hasher: inout Hasher) {
@@ -816,6 +823,7 @@ struct UniversalScanFilter: Hashable {
     deepHashUniversalBle(value: withServices, hasher: &hasher)
     deepHashUniversalBle(value: withNamePrefix, hasher: &hasher)
     deepHashUniversalBle(value: withManufacturerData, hasher: &hasher)
+    deepHashUniversalBle(value: withServiceData, hasher: &hasher)
   }
 }
 

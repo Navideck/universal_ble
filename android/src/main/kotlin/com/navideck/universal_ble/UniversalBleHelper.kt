@@ -157,6 +157,14 @@ val ScanResult.serviceData: Map<String, ByteArray>
         return scanRecord?.serviceData?.mapKeys { it.key.uuid.toString() } ?: emptyMap()
     }
 
+/// Service UUIDs the packet carries in its advertising Service Data
+/// (`0x16`/`0x20`/`0x21` data types), as opposed to [serviceUuids] which are the
+/// advertised service UUID lists.
+val ScanResult.serviceDataUuids: List<UUID>
+    get() {
+        return scanRecord?.serviceData?.keys?.map { it.uuid } ?: emptyList()
+    }
+
 fun <T> SparseArray<T>.toList(): List<Pair<Int, T>> {
     return (0 until size).map { index ->
         keyAt(index) to valueAt(index)
