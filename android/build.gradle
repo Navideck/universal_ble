@@ -47,7 +47,11 @@ android {
     }
 
     dependencies {
+        // Required by the Pigeon-generated code (Dispatchers.Main) and the suspend
+        // bridges in the plugin implementation.
+        implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.1'
         testImplementation 'org.jetbrains.kotlin:kotlin-test'
+        testImplementation 'org.jetbrains.kotlinx:kotlinx-coroutines-test:1.8.1'
         testImplementation 'org.mockito:mockito-core:5.12.0'
     }
 

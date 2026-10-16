@@ -5,6 +5,9 @@ import android.bluetooth.BluetoothGatt
 import android.os.Handler
 import java.util.concurrent.ConcurrentLinkedQueue
 import kotlin.test.AfterTest
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -37,6 +40,21 @@ internal class MtuCompletionTest {
         while (true) (posted.poll() ?: return).run()
     }
 
+    /**
+     * `requestMtu` is now a suspend function. Run it on an unconfined coroutine and
+     * record the outcome exactly like the previous callback-based API did, so the
+     * delivery-timing assertions below still apply.
+     */
+    private fun requestMtuAsync(deviceId: String, mtu: Long, values: MutableList<Result<Long>>) {
+        CoroutineScope(Dispatchers.Unconfined).launch {
+            try {
+                values.add(Result.success(plugin.requestMtu(deviceId, mtu)))
+            } catch (e: Throwable) {
+                values.add(Result.failure(e))
+            }
+        }
+    }
+
     @AfterTest
     fun clearConnections() {
         plugin.gattRegistry().snapshot().forEach { plugin.gattRegistry().remove(it) }
@@ -46,7 +64,7 @@ internal class MtuCompletionTest {
     fun binderReplyIsDeliveredOnMainThreadExactlyOnce() {
         val gatt = gatt()
         val values = mutableListOf<Result<Long>>()
-        plugin.requestMtu(address, 247L) { values.add(it) }
+        requestMtuAsync(address, 247L, values)
         Thread { plugin.onMtuChanged(gatt, 247, BluetoothGatt.GATT_SUCCESS) }.apply { start(); join() }
         assertTrue(values.isEmpty(), "MTU replies should use the main-looper delivery shared by other BLE completions")
         drainMain()
@@ -64,7 +82,7 @@ internal class MtuCompletionTest {
             true
         }.`when`(gatt).requestMtu(247)
         val values = mutableListOf<Result<Long>>()
-        plugin.requestMtu(address, 247L) { values.add(it) }
+        requestMtuAsync(address, 247L, values)
         drainMain()
         assertEquals(247L, values.single().getOrThrow())
     }
@@ -74,7 +92,7 @@ internal class MtuCompletionTest {
         val gatt = gatt()
         plugin.onMtuChanged(gatt, 247, BluetoothGatt.GATT_SUCCESS)
         val values = mutableListOf<Result<Long>>()
-        plugin.requestMtu(address, 247L) { values.add(it) }
+        requestMtuAsync(address, 247L, values)
         drainMain()
         assertEquals(247L, values.single().getOrThrow())
         Mockito.verify(gatt, Mockito.never()).requestMtu(Mockito.anyInt())
@@ -84,7 +102,7 @@ internal class MtuCompletionTest {
     fun insufficientNegotiatedMtuIsReportedWithoutInventingTheRequestedSize() {
         val gatt = gatt()
         val values = mutableListOf<Result<Long>>()
-        plugin.requestMtu(address, 247L) { values.add(it) }
+        requestMtuAsync(address, 247L, values)
         plugin.onMtuChanged(gatt, 23, BluetoothGatt.GATT_SUCCESS)
         drainMain()
         assertEquals(23L, values.single().getOrThrow())
@@ -104,7 +122,7 @@ internal class MtuCompletionTest {
         val gatt = gatt()
         plugin.onMtuChanged(gatt, 23, BluetoothGatt.GATT_SUCCESS)
         val values = mutableListOf<Result<Long>>()
-        plugin.requestMtu(address, 247L) { values.add(it) }
+        requestMtuAsync(address, 247L, values)
         drainMain()
         assertTrue(values.isEmpty())
         Mockito.verify(gatt).requestMtu(247)
@@ -118,10 +136,10 @@ internal class MtuCompletionTest {
         val gatt = gatt()
         Mockito.`when`(gatt.requestMtu(247)).thenReturn(false, true)
         val values = mutableListOf<Result<Long>>()
-        plugin.requestMtu(address, 247L) { values.add(it) }
+        requestMtuAsync(address, 247L, values)
         drainMain()
         assertTrue(values.single().isFailure)
-        plugin.requestMtu(address, 247L) { values.add(it) }
+        requestMtuAsync(address, 247L, values)
         plugin.onMtuChanged(gatt, 247, BluetoothGatt.GATT_SUCCESS)
         drainMain()
         assertEquals(2, values.size)
@@ -132,8 +150,8 @@ internal class MtuCompletionTest {
     fun simultaneousRequestsShareOneNegotiation() {
         val gatt = gatt()
         val values = mutableListOf<Result<Long>>()
-        plugin.requestMtu(address, 247L) { values.add(it) }
-        plugin.requestMtu(address, 517L) { values.add(it) }
+        requestMtuAsync(address, 247L, values)
+        requestMtuAsync(address, 517L, values)
         plugin.onMtuChanged(gatt, 247, BluetoothGatt.GATT_SUCCESS)
         drainMain()
         assertEquals(listOf(247L, 247L), values.map { it.getOrThrow() })
@@ -148,7 +166,7 @@ internal class MtuCompletionTest {
         drainMain()
         val current = gatt()
         val values = mutableListOf<Result<Long>>()
-        plugin.requestMtu(address, 247L) { values.add(it) }
+        requestMtuAsync(address, 247L, values)
         plugin.onMtuChanged(old, 247, BluetoothGatt.GATT_SUCCESS)
         drainMain()
         assertTrue(values.isEmpty())
@@ -162,7 +180,7 @@ internal class MtuCompletionTest {
     fun disconnectFailsPendingMtuAndLateSuccessCannotAcknowledgeIt() {
         val gatt = gatt()
         val values = mutableListOf<Result<Long>>()
-        plugin.requestMtu(address, 247L) { values.add(it) }
+        requestMtuAsync(address, 247L, values)
         plugin.disconnect(address)
         plugin.onMtuChanged(gatt, 247, BluetoothGatt.GATT_SUCCESS)
         drainMain()
@@ -173,11 +191,11 @@ internal class MtuCompletionTest {
     fun failedMtuStatusDoesNotBecomeACachedValue() {
         val gatt = gatt()
         val values = mutableListOf<Result<Long>>()
-        plugin.requestMtu(address, 247L) { values.add(it) }
+        requestMtuAsync(address, 247L, values)
         plugin.onMtuChanged(gatt, 247, BluetoothGatt.GATT_FAILURE)
         drainMain()
         assertTrue(values.single().isFailure)
-        plugin.requestMtu(address, 247L) { values.add(it) }
+        requestMtuAsync(address, 247L, values)
         plugin.onMtuChanged(gatt, 185, BluetoothGatt.GATT_SUCCESS)
         drainMain()
         assertEquals(185L, values.last().getOrThrow())
@@ -195,7 +213,7 @@ internal class MtuCompletionTest {
         )
         drainMain()
         val values = mutableListOf<Result<Long>>()
-        plugin.requestMtu(address, 185L) { values.add(it) }
+        requestMtuAsync(address, 185L, values)
         drainMain()
         assertEquals(185L, values.single().getOrThrow())
         Mockito.verify(current, Mockito.never()).requestMtu(Mockito.anyInt())
@@ -206,7 +224,7 @@ internal class MtuCompletionTest {
         val old = gatt()
         val current = gatt()
         val values = mutableListOf<Result<Long>>()
-        plugin.requestMtu(address, 247L) { values.add(it) }
+        requestMtuAsync(address, 247L, values)
         plugin.onConnectionStateChange(
             old, BluetoothGatt.GATT_SUCCESS, BluetoothGatt.STATE_DISCONNECTED
         )

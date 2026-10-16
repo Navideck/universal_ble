@@ -59,7 +59,7 @@ final class UniversalBlePeripheralPlugin: NSObject, UniversalBlePeripheralChanne
   private func completeStopIfNeeded() {
     guard advertisingState == .stopping else { return }
     advertisingState = .idle
-    callbackChannel.onAdvertisingStateChange(state: .idle, error: nil) { _ in }
+    Task { @MainActor in try? await callbackChannel.onAdvertisingStateChange(state: .idle, error: nil) }
   }
 
   func getReadinessState() throws -> PeripheralReadinessState {
@@ -81,7 +81,7 @@ final class UniversalBlePeripheralPlugin: NSObject, UniversalBlePeripheralChanne
 
   func stopAdvertising() throws {
     advertisingState = .stopping
-    callbackChannel.onAdvertisingStateChange(state: .stopping, error: nil) { _ in }
+    Task { @MainActor in try? await callbackChannel.onAdvertisingStateChange(state: .stopping, error: nil) }
     guard let peripheralManager else {
       completeStopIfNeeded()
       return
@@ -144,7 +144,7 @@ final class UniversalBlePeripheralPlugin: NSObject, UniversalBlePeripheralChanne
       advertisementData[CBAdvertisementDataManufacturerDataKey] = manufacturerField
     }
     advertisingState = .starting
-    callbackChannel.onAdvertisingStateChange(state: .starting, error: nil) { _ in }
+    Task { @MainActor in try? await callbackChannel.onAdvertisingStateChange(state: .starting, error: nil) }
     ensurePeripheralManager().startAdvertising(advertisementData)
   }
 
@@ -180,16 +180,18 @@ final class UniversalBlePeripheralPlugin: NSObject, UniversalBlePeripheralChanne
     error: Error?
   ) {
     advertisingState = error == nil ? .advertising : .error
-    callbackChannel.onAdvertisingStateChange(
-      state: advertisingState,
-      error: error?.localizedDescription
-    ) { _ in }
+    Task { @MainActor in
+      try? await callbackChannel.onAdvertisingStateChange(
+        state: advertisingState,
+        error: error?.localizedDescription
+      )
+    }
   }
 
   nonisolated func peripheralManagerDidUpdateState(_ peripheral: CBPeripheralManager) {
     if peripheral.state != .poweredOn {
       advertisingState = .idle
-      callbackChannel.onAdvertisingStateChange(state: .idle, error: nil) { _ in }
+      Task { @MainActor in try? await callbackChannel.onAdvertisingStateChange(state: .idle, error: nil) }
     }
   }
 
@@ -198,10 +200,12 @@ final class UniversalBlePeripheralPlugin: NSObject, UniversalBlePeripheralChanne
     didAdd service: CBService,
     error: Error?
   ) {
-    callbackChannel.onServiceAdded(
-      serviceId: service.uuid.uuidString,
-      error: error?.localizedDescription
-    ) { _ in }
+    Task { @MainActor in
+      try? await callbackChannel.onServiceAdded(
+        serviceId: service.uuid.uuidString,
+        error: error?.localizedDescription
+      )
+    }
   }
 
   nonisolated func peripheralManager(
@@ -213,16 +217,20 @@ final class UniversalBlePeripheralPlugin: NSObject, UniversalBlePeripheralChanne
       central: central,
       characteristicId: characteristic.uuid.uuidString
     )
-    callbackChannel.onCharacteristicSubscriptionChange(
-      deviceId: central.identifier.uuidString,
-      characteristicId: characteristic.uuid.uuidString,
-      isSubscribed: true,
-      name: nil
-    ) { _ in }
-    callbackChannel.onMtuChange(
-      deviceId: central.identifier.uuidString,
-      mtu: Int64(central.maximumUpdateValueLength)
-    ) { _ in }
+    Task { @MainActor in
+      try? await callbackChannel.onCharacteristicSubscriptionChange(
+        deviceId: central.identifier.uuidString,
+        characteristicId: characteristic.uuid.uuidString,
+        isSubscribed: true,
+        name: nil
+      )
+    }
+    Task { @MainActor in
+      try? await callbackChannel.onMtuChange(
+        deviceId: central.identifier.uuidString,
+        mtu: Int64(central.maximumUpdateValueLength)
+      )
+    }
   }
 
   nonisolated func peripheralManager(
@@ -234,26 +242,28 @@ final class UniversalBlePeripheralPlugin: NSObject, UniversalBlePeripheralChanne
       centralId: central.identifier.uuidString,
       characteristicId: characteristic.uuid.uuidString
     )
-    callbackChannel.onCharacteristicSubscriptionChange(
-      deviceId: central.identifier.uuidString,
-      characteristicId: characteristic.uuid.uuidString,
-      isSubscribed: false,
-      name: nil
-    ) { _ in }
+    Task { @MainActor in
+      try? await callbackChannel.onCharacteristicSubscriptionChange(
+        deviceId: central.identifier.uuidString,
+        characteristicId: characteristic.uuid.uuidString,
+        isSubscribed: false,
+        name: nil
+      )
+    }
   }
 
   nonisolated func peripheralManager(
     _ peripheral: CBPeripheralManager,
     didReceiveRead request: CBATTRequest
   ) {
-    callbackChannel.onReadRequest(
-      deviceId: request.central.identifier.uuidString,
-      characteristicId: request.characteristic.uuid.uuidString,
-      offset: Int64(request.offset),
-      value: request.value?.toFlutterBytes()
-    ) { readReq in
+    Task { @MainActor in
       do {
-        let result = try readReq.get()
+        let result = try await callbackChannel.onReadRequest(
+          deviceId: request.central.identifier.uuidString,
+          characteristicId: request.characteristic.uuid.uuidString,
+          offset: Int64(request.offset),
+          value: request.value?.toFlutterBytes()
+        )
         let status = result?.status?.toCBATTErrorCode() ?? .success
         guard status == .success else {
           peripheral.respond(to: request, withResult: status)
@@ -282,14 +292,14 @@ final class UniversalBlePeripheralPlugin: NSObject, UniversalBlePeripheralChanne
     didReceiveWrite requests: [CBATTRequest]
   ) {
     requests.forEach { req in
-      callbackChannel.onWriteRequest(
-        deviceId: req.central.identifier.uuidString,
-        characteristicId: req.characteristic.uuid.uuidString,
-        offset: Int64(req.offset),
-        value: req.value?.toFlutterBytes()
-      ) { writeRes in
+      Task { @MainActor in
         do {
-          let response = try writeRes.get()
+          let response = try await callbackChannel.onWriteRequest(
+            deviceId: req.central.identifier.uuidString,
+            characteristicId: req.characteristic.uuid.uuidString,
+            offset: Int64(req.offset),
+            value: req.value?.toFlutterBytes()
+          )
           let status = response?.status?.toCBATTErrorCode() ?? .success
           peripheral.respond(to: req, withResult: status)
         } catch {

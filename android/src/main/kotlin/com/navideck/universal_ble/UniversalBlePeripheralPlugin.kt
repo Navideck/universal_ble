@@ -26,6 +26,9 @@ import android.os.Handler
 import android.os.ParcelUuid
 import android.util.Log
 import io.flutter.plugin.common.BinaryMessenger
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 
 private const val TAG = "UniversalBlePeripheral"
 private const val REQUEST_CODE_ENABLE_BLUETOOTH = 2342717
@@ -52,6 +55,17 @@ class UniversalBlePeripheralPlugin(
 
     fun attachActivity(activity: Activity?) {
         this.activity = activity
+    }
+
+    /** Fire-and-forget a Dart callback on the main dispatcher, ignoring failures. */
+    private fun notify(block: suspend (UniversalBlePeripheralCallback) -> Unit) {
+        CoroutineScope(Dispatchers.Main).launch {
+            try {
+                block(callback)
+            } catch (_: Throwable) {
+                // Callback delivery failures are non-fatal.
+            }
+        }
     }
 
     fun dispose() {
@@ -165,35 +179,35 @@ class UniversalBlePeripheralPlugin(
     ) {
         if (!hasRequiredPermissions()) {
             advertisingState = PeripheralAdvertisingState.ERROR
-            callback.onAdvertisingStateChange(
+            notify { it.onAdvertisingStateChange(
                 PeripheralAdvertisingState.ERROR,
                 "Bluetooth permission not granted",
-            ) {}
+            ) }
             throw SecurityException("Bluetooth permission not granted")
         }
         val isEnabled = try {
             bluetoothManager.isBluetoothEnabled()
         } catch (e: SecurityException) {
             advertisingState = PeripheralAdvertisingState.ERROR
-            callback.onAdvertisingStateChange(
+            notify { it.onAdvertisingStateChange(
                 PeripheralAdvertisingState.ERROR,
                 "Bluetooth permission not granted",
-            ) {}
+            ) }
             throw e
         }
         if (!isEnabled) {
             advertisingState = PeripheralAdvertisingState.ERROR
-            callback.onAdvertisingStateChange(
+            notify { it.onAdvertisingStateChange(
                 PeripheralAdvertisingState.ERROR,
                 "Bluetooth is not enabled",
-            ) {}
+            ) }
             activity?.let { promptEnableBluetooth(it) }
             throw Exception("Bluetooth is not enabled")
         }
         isEnableBluetoothPromptPending = false
         ensurePeripheralInitialized()
         advertisingState = PeripheralAdvertisingState.STARTING
-        callback.onAdvertisingStateChange(PeripheralAdvertisingState.STARTING, null) {}
+        notify { it.onAdvertisingStateChange(PeripheralAdvertisingState.STARTING, null) }
 
         handler.post {
             val adapter = bluetoothManager.adapter
@@ -250,12 +264,12 @@ class UniversalBlePeripheralPlugin(
             return
         }
         advertisingState = PeripheralAdvertisingState.STOPPING
-        callback.onAdvertisingStateChange(PeripheralAdvertisingState.STOPPING, null) {}
+        notify { it.onAdvertisingStateChange(PeripheralAdvertisingState.STOPPING, null) }
         handler.post {
             kotlin.runCatching { bluetoothLeAdvertiser?.stopAdvertising(advertiseCallback) }
             restoreAdapterNameIfNeeded()
             advertisingState = PeripheralAdvertisingState.IDLE
-            callback.onAdvertisingStateChange(PeripheralAdvertisingState.IDLE, null) {}
+            notify { it.onAdvertisingStateChange(PeripheralAdvertisingState.IDLE, null) }
         }
     }
 
@@ -306,10 +320,10 @@ class UniversalBlePeripheralPlugin(
     private fun onConnectionUpdate(device: BluetoothDevice, status: Int, newState: Int) {
         Log.e(TAG, "onConnectionStateChange: $status -> $newState")
         handler.post {
-            callback.onConnectionStateChange(
+            notify { it.onConnectionStateChange(
                 device.address,
                 newState == BluetoothProfile.STATE_CONNECTED,
-            ) {}
+            ) }
         }
         if (newState == BluetoothProfile.STATE_DISCONNECTED) cleanConnection(device)
     }
@@ -323,12 +337,12 @@ class UniversalBlePeripheralPlugin(
         }
         subscribedCharUUID.forEach { charUUID ->
             handler.post {
-                callback.onCharacteristicSubscriptionChange(
+                notify { it.onCharacteristicSubscriptionChange(
                     deviceAddress,
                     charUUID,
                     false,
                     device.name,
-                ) {}
+                ) }
             }
         }
     }
@@ -347,7 +361,7 @@ class UniversalBlePeripheralPlugin(
                     else -> "Failed to start advertising: $errorCode"
                 }
                 advertisingState = PeripheralAdvertisingState.ERROR
-                callback.onAdvertisingStateChange(PeripheralAdvertisingState.ERROR, errorMessage) {}
+                notify { it.onAdvertisingStateChange(PeripheralAdvertisingState.ERROR, errorMessage) }
             }
         }
 
@@ -355,7 +369,7 @@ class UniversalBlePeripheralPlugin(
             super.onStartSuccess(settingsInEffect)
             advertisingState = PeripheralAdvertisingState.ADVERTISING
             handler.post {
-                callback.onAdvertisingStateChange(PeripheralAdvertisingState.ADVERTISING, null) {}
+                notify { it.onAdvertisingStateChange(PeripheralAdvertisingState.ADVERTISING, null) }
             }
         }
     }
@@ -385,7 +399,7 @@ class UniversalBlePeripheralPlugin(
             super.onMtuChanged(device, mtu)
             device?.address?.let { address ->
                 synchronized(mtuByDeviceId) { mtuByDeviceId[address] = mtu }
-                handler.post { callback.onMtuChange(address, mtu.toLong()) {} }
+                handler.post { notify { it.onMtuChange(address, mtu.toLong()) } }
             }
         }
 
@@ -398,13 +412,17 @@ class UniversalBlePeripheralPlugin(
             super.onCharacteristicReadRequest(device, requestId, offset, characteristic)
             if (gattServer == null) return
             handler.post {
-                callback.onReadRequest(
-                    deviceIdArg = device.address,
-                    characteristicIdArg = characteristic.uuid.toString(),
-                    offsetArg = offset.toLong(),
-                    valueArg = characteristic.value,
-                ) { result ->
-                    val readResult = result.getOrNull()
+                CoroutineScope(Dispatchers.Main).launch {
+                    val readResult = try {
+                        callback.onReadRequest(
+                            deviceIdArg = device.address,
+                            characteristicIdArg = characteristic.uuid.toString(),
+                            offsetArg = offset.toLong(),
+                            valueArg = characteristic.value,
+                        )
+                    } catch (_: Throwable) {
+                        null
+                    }
                     if (readResult == null) {
                         gattServer?.sendResponse(
                             device, requestId, BluetoothGatt.GATT_FAILURE, 0, emptyBytes,
@@ -435,13 +453,17 @@ class UniversalBlePeripheralPlugin(
                 device, requestId, characteristic, preparedWrite, responseNeeded, offset, value,
             )
             handler.post {
-                callback.onWriteRequest(
-                    deviceIdArg = device.address,
-                    characteristicIdArg = characteristic.uuid.toString(),
-                    offsetArg = offset.toLong(),
-                    valueArg = value,
-                ) { writeResponse ->
-                    val writeResult = writeResponse.getOrNull()
+                CoroutineScope(Dispatchers.Main).launch {
+                    val writeResult = try {
+                        callback.onWriteRequest(
+                            deviceIdArg = device.address,
+                            characteristicIdArg = characteristic.uuid.toString(),
+                            offsetArg = offset.toLong(),
+                            valueArg = value,
+                        )
+                    } catch (_: Throwable) {
+                        null
+                    }
                     if (responseNeeded) {
                         gattServer?.sendResponse(
                             device,
@@ -458,7 +480,7 @@ class UniversalBlePeripheralPlugin(
         override fun onServiceAdded(status: Int, service: BluetoothGattService) {
             super.onServiceAdded(status, service)
             val error = if (status != BluetoothGatt.GATT_SUCCESS) "Adding Service failed" else null
-            handler.post { callback.onServiceAdded(service.uuid.toString(), error) {} }
+            handler.post { notify { it.onServiceAdded(service.uuid.toString(), error) } }
         }
 
         override fun onDescriptorReadRequest(
@@ -469,14 +491,18 @@ class UniversalBlePeripheralPlugin(
         ) {
             super.onDescriptorReadRequest(device, requestId, offset, descriptor)
             handler.post {
-                callback.onDescriptorReadRequest(
-                    deviceIdArg = device.address,
-                    characteristicIdArg = descriptor.characteristic.uuid.toString(),
-                    descriptorIdArg = descriptor.uuid.toString(),
-                    offsetArg = offset.toLong(),
-                    valueArg = descriptor.getCacheValue(),
-                ) { result ->
-                    val readResult = result.getOrNull()
+                CoroutineScope(Dispatchers.Main).launch {
+                    val readResult = try {
+                        callback.onDescriptorReadRequest(
+                            deviceIdArg = device.address,
+                            characteristicIdArg = descriptor.characteristic.uuid.toString(),
+                            descriptorIdArg = descriptor.uuid.toString(),
+                            offsetArg = offset.toLong(),
+                            valueArg = descriptor.getCacheValue(),
+                        )
+                    } catch (_: Throwable) {
+                        null
+                    }
                     if (readResult == null) {
                         gattServer?.sendResponse(
                             device,
@@ -518,9 +544,9 @@ class UniversalBlePeripheralPlugin(
                 val characteristicId = descriptor.characteristic.uuid.toString()
                 device?.address?.let { address ->
                     handler.post {
-                        callback.onCharacteristicSubscriptionChange(
+                        notify { it.onCharacteristicSubscriptionChange(
                             address, characteristicId, isSubscribed, device.name,
-                        ) {}
+                        ) }
                     }
                     synchronized(subscribedCharDevicesMap) {
                         val charSet = subscribedCharDevicesMap.getOrPut(address) { mutableSetOf() }
@@ -534,14 +560,18 @@ class UniversalBlePeripheralPlugin(
             }
             if (responseNeeded) {
                 handler.post {
-                    callback.onDescriptorWriteRequest(
-                        deviceIdArg = device?.address ?: "",
-                        characteristicIdArg = descriptor.characteristic.uuid.toString(),
-                        descriptorIdArg = descriptor.uuid.toString(),
-                        offsetArg = offset.toLong(),
-                        valueArg = value,
-                    ) { writeResponse ->
-                        val writeResult = writeResponse.getOrNull()
+                    CoroutineScope(Dispatchers.Main).launch {
+                        val writeResult = try {
+                            callback.onDescriptorWriteRequest(
+                                deviceIdArg = device?.address ?: "",
+                                characteristicIdArg = descriptor.characteristic.uuid.toString(),
+                                descriptorIdArg = descriptor.uuid.toString(),
+                                offsetArg = offset.toLong(),
+                                valueArg = value,
+                            )
+                        } catch (_: Throwable) {
+                            null
+                        }
                         gattServer?.sendResponse(
                             device,
                             requestId,

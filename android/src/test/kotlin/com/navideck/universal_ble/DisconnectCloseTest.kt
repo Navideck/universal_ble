@@ -3,10 +3,15 @@ package com.navideck.universal_ble
 import android.bluetooth.BluetoothDevice
 import android.bluetooth.BluetoothGatt
 import android.os.Handler
+import kotlin.test.AfterTest
+import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertSame
 import kotlin.test.assertTrue
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.test.resetMain
+import kotlinx.coroutines.test.setMain
 import org.mockito.ArgumentMatchers.any
 import org.mockito.Mockito
 
@@ -19,6 +24,18 @@ import org.mockito.Mockito
  */
 internal class DisconnectCloseTest {
     private val deviceAddress = "AA:BB:CC:DD:EE:FF"
+
+    // Callbacks are delivered through `Dispatchers.Main`; the JVM test dispatcher
+    // stands in for Android's main looper.
+    @BeforeTest
+    fun setUpMainDispatcher() {
+        Dispatchers.setMain(Dispatchers.Unconfined)
+    }
+
+    @AfterTest
+    fun tearDownMainDispatcher() {
+        Dispatchers.resetMain()
+    }
 
     // (deviceId, connected, error, errorCode, nativeErrorCode) of every onConnectionChanged
     // delivered to Dart.

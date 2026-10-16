@@ -125,7 +125,7 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
     }
   #endif
 
-  func getBluetoothAvailabilityState(completion: @escaping (Result<AvailabilityState, Error>) -> Void) {
+  func getBluetoothAvailabilityStateImpl(completion: @escaping (Result<AvailabilityState, Error>) -> Void) {
     #if os(iOS)
       if Self.hasBluetoothCentralBackgroundMode, !Self.hasBluetoothPermission {
         completion(.success(Self.availabilityStateFromAuthorization))
@@ -144,7 +144,7 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
     return CBCentralManager.authorization == .allowedAlways
   }
 
-  func requestPermissions(withAndroidFineLocation _: Bool, completion: @escaping (Result<Void, any Error>) -> Void) {
+  func requestPermissionsImpl(withAndroidFineLocation _: Bool, completion: @escaping (Result<Void, any Error>) -> Void) {
     if manager.state != .unknown {
       completePermissionRequest(completion: completion)
     } else {
@@ -165,11 +165,11 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
     }
   }
 
-  func enableBluetooth(completion: @escaping (Result<Bool, Error>) -> Void) {
+  func enableBluetoothImpl(completion: @escaping (Result<Bool, Error>) -> Void) {
     completion(Result.failure(createFlutterError(code: .notSupported)))
   }
 
-  func disableBluetooth(completion: @escaping (Result<Bool, any Error>) -> Void) {
+  func disableBluetoothImpl(completion: @escaping (Result<Bool, any Error>) -> Void) {
     completion(Result.failure(createFlutterError(code: .notSupported)))
   }
 
@@ -212,7 +212,7 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
     return isManageScanning
   }
 
-  func requestDevice(options: AppleAccessorySetupOptions, completion: @escaping (Result<UniversalDevicePickerResult, Error>) -> Void) {
+  func requestDeviceImpl(options: AppleAccessorySetupOptions, completion: @escaping (Result<UniversalDevicePickerResult, Error>) -> Void) {
     #if os(iOS)
       guard #available(iOS 18.0, *) else {
         completion(.failure(createFlutterError(code: .notSupported, message: "AccessorySetupKit requires iOS 18 or later")))
@@ -280,7 +280,7 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
   func disconnect(deviceId: String) throws {
     autoConnectDevices.remove(deviceId)
     guard let peripheral = peripheralCache.find(deviceId, manager: manager) else {
-      callbackChannel.onConnectionChanged(deviceId: deviceId, connected: false, error: nil, errorCode: nil, nativeErrorCode: nil) { _ in }
+      Task { @MainActor in try? await callbackChannel.onConnectionChanged(deviceId: deviceId, connected: false, error: nil, errorCode: nil, nativeErrorCode: nil) }
       cleanUpConnection(deviceId: deviceId)
       return
     }
@@ -318,7 +318,7 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
     discoverServicesFutures.failAndRemoveAll(matching: deviceId, with: error)
   }
 
-  func discoverServices(deviceId: String, withDescriptors: Bool, platformConfig _: DiscoverServicesPlatformConfig?, completion: @escaping (Result<[UniversalBleService], Error>) -> Void) {
+  func discoverServicesImpl(deviceId: String, withDescriptors: Bool, platformConfig _: DiscoverServicesPlatformConfig?, completion: @escaping (Result<[UniversalBleService], Error>) -> Void) {
     guard let peripheral = peripheralCache.find(deviceId, manager: manager) else {
       completion(
         Result.failure(createFlutterError(code: .deviceNotFound, message: "Unknown deviceId:\(deviceId)"))
@@ -366,7 +366,7 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
     discovery.startDiscovery()
   }
 
-  func setNotifiable(deviceId: String, service: String, characteristic: String, bleInputProperty: BleInputProperty, completion: @escaping (Result<Void, any Error>) -> Void) {
+  func setNotifiableImpl(deviceId: String, service: String, characteristic: String, bleInputProperty: BleInputProperty, completion: @escaping (Result<Void, any Error>) -> Void) {
     UniversalBleLogger.shared.logDebug("SET_NOTIFY -> \(deviceId) \(service) \(characteristic) input=\(bleInputProperty)")
     guard let peripheral = peripheralCache.find(deviceId, manager: manager) else {
       completion(Result.failure(createFlutterError(code: .deviceNotFound, message: "Unknown deviceId:\(deviceId)")))
@@ -393,7 +393,7 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
     characteristicNotifyFutures.append(CharacteristicNotifyFuture(deviceId: deviceId, characteristicId: gattCharacteristic.uuid.uuidStr, serviceId: gattCharacteristic.service?.uuid.uuidStr, result: completion))
   }
 
-  func readValue(deviceId: String, service: String, characteristic: String, completion: @escaping (Result<FlutterStandardTypedData, Error>) -> Void) {
+  func readValueImpl(deviceId: String, service: String, characteristic: String, completion: @escaping (Result<FlutterStandardTypedData, Error>) -> Void) {
     UniversalBleLogger.shared.logDebug("READ -> \(deviceId) \(service) \(characteristic)")
     guard let peripheral = peripheralCache.find(deviceId, manager: manager) else {
       completion(Result.failure(createFlutterError(code: .deviceNotFound, message: "Unknown deviceId:\(self)")))
@@ -411,7 +411,7 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
     characteristicReadFutures.append(CharacteristicReadFuture(deviceId: deviceId, characteristicId: gattCharacteristic.uuid.uuidStr, serviceId: gattCharacteristic.service?.uuid.uuidStr, result: completion))
   }
 
-  func writeValue(deviceId: String, service: String, characteristic: String, value: FlutterStandardTypedData, bleOutputProperty: BleOutputProperty, completion: @escaping (Result<Void, Error>) -> Void) {
+  func writeValueImpl(deviceId: String, service: String, characteristic: String, value: FlutterStandardTypedData, bleOutputProperty: BleOutputProperty, completion: @escaping (Result<Void, Error>) -> Void) {
     UniversalBleLogger.shared.logDebug("WRITE -> \(deviceId) \(service) \(characteristic) len=\(value.data.count) property=\(bleOutputProperty)")
     guard let peripheral = peripheralCache.find(deviceId, manager: manager) else {
       completion(Result.failure(createFlutterError(code: .deviceNotFound, message: "Unknown deviceId:\(self)")))
@@ -456,7 +456,7 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
     }
   }
 
-  func readDescriptorValue(deviceId: String, service: String, characteristic: String, descriptor: String, completion: @escaping (Result<FlutterStandardTypedData, Error>) -> Void) {
+  func readDescriptorValueImpl(deviceId: String, service: String, characteristic: String, descriptor: String, completion: @escaping (Result<FlutterStandardTypedData, Error>) -> Void) {
     UniversalBleLogger.shared.logDebug("READ_DESCRIPTOR -> \(deviceId) \(service) \(characteristic) \(descriptor)")
     guard let peripheral = peripheralCache.find(deviceId, manager: manager) else {
       completion(Result.failure(createFlutterError(code: .deviceNotFound, message: "Unknown deviceId:\(deviceId)")))
@@ -476,7 +476,7 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
     ))
   }
 
-  func writeDescriptorValue(deviceId: String, service: String, characteristic: String, descriptor: String, value: FlutterStandardTypedData, completion: @escaping (Result<Void, Error>) -> Void) {
+  func writeDescriptorValueImpl(deviceId: String, service: String, characteristic: String, descriptor: String, value: FlutterStandardTypedData, completion: @escaping (Result<Void, Error>) -> Void) {
     UniversalBleLogger.shared.logDebug("WRITE_DESCRIPTOR -> \(deviceId) \(service) \(characteristic) \(descriptor) len=\(value.data.count)")
     guard let peripheral = peripheralCache.find(deviceId, manager: manager) else {
       completion(Result.failure(createFlutterError(code: .deviceNotFound, message: "Unknown deviceId:\(deviceId)")))
@@ -517,7 +517,7 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
     ))
   }
 
-  func requestMtu(deviceId: String, expectedMtu _: Int64, completion: @escaping (Result<Int64, Error>) -> Void) {
+  func requestMtuImpl(deviceId: String, expectedMtu _: Int64, completion: @escaping (Result<Int64, Error>) -> Void) {
     UniversalBleLogger.shared.logDebug("REQUEST_MTU -> \(deviceId)")
     guard let peripheral = peripheralCache.find(deviceId, manager: manager) else {
       completion(Result.failure(createFlutterError(code: .deviceNotFound, message: "Unknown deviceId:\(self)")))
@@ -529,7 +529,7 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
     completion(Result.success(mtuResult))
   }
 
-  func requestConnectionPriority(
+  func requestConnectionPriorityImpl(
     deviceId _: String,
     priority _: BleConnectionPriority,
     completion: @escaping (Result<Void, Error>) -> Void
@@ -537,7 +537,7 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
     completion(.failure(createFlutterError(code: .notSupported, message: "requestConnectionPriority is not supported on Apple platforms")))
   }
 
-  func readRssi(deviceId: String, completion: @escaping (Result<Int64, Error>) -> Void) {
+  func readRssiImpl(deviceId: String, completion: @escaping (Result<Int64, Error>) -> Void) {
     UniversalBleLogger.shared.logDebug("READ_RSSI -> \(deviceId)")
     guard let peripheral = peripheralCache.find(deviceId, manager: manager) else {
       completion(Result.failure(createFlutterError(code: .deviceNotFound, message: "Unknown deviceId:\(deviceId)")))
@@ -547,15 +547,15 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
     rssiReadFutures.append(RssiReadFuture(deviceId: deviceId, result: completion))
   }
 
-  func isPaired(deviceId _: String, completion: @escaping (Result<Bool, Error>) -> Void) {
+  func isPairedImpl(deviceId _: String, completion: @escaping (Result<Bool, Error>) -> Void) {
     completion(Result.failure(createFlutterError(code: .notSupported)))
   }
 
-  func pair(deviceId _: String, completion: @escaping (Result<Bool, Error>) -> Void) {
+  func pairImpl(deviceId _: String, completion: @escaping (Result<Bool, Error>) -> Void) {
     completion(Result.failure(createFlutterError(code: .notImplemented)))
   }
 
-  func unPair(deviceId: String, completion: @escaping (Result<Void, Error>) -> Void) {
+  func unPairImpl(deviceId: String, completion: @escaping (Result<Void, Error>) -> Void) {
     #if os(iOS)
       guard #available(iOS 18.0, *) else {
         completion(.failure(createFlutterError(code: .notSupported, message: "AccessorySetupKit requires iOS 18 or later")))
@@ -579,7 +579,7 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
     }
   #endif
 
-  func getSystemDevices(withServices: [String], completion: @escaping (Result<[UniversalBleScanResult], Error>) -> Void) {
+  func getSystemDevicesImpl(withServices: [String], completion: @escaping (Result<[UniversalBleScanResult], Error>) -> Void) {
     var servicesFilter = withServices
     if servicesFilter.isEmpty {
       UniversalBleLogger.shared.logInfo("No services filter was set for getting system connected devices. Using default services...")
@@ -619,7 +619,7 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
         // Notify Dart if already connected; on a cold relaunch the Dart layer
         // re-subscribes on resume using the cached peripheral.
         if peripheral.state == .connected {
-          callbackChannel.onConnectionChanged(deviceId: deviceId, connected: true, error: nil, errorCode: nil, nativeErrorCode: nil) { _ in }
+          Task { @MainActor in try? await callbackChannel.onConnectionChanged(deviceId: deviceId, connected: true, error: nil, errorCode: nil, nativeErrorCode: nil) }
         }
       }
     }
@@ -627,7 +627,7 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
 
   func centralManagerDidUpdateState(_ central: CBCentralManager) {
     let state = central.state.toAvailabilityState()
-    callbackChannel.onAvailabilityChanged(state: state) { _ in }
+    Task { @MainActor in try? await callbackChannel.onAvailabilityChanged(state: state) }
     // Complete Pending state handler
     availabilityStateUpdateHandlers.removeAll { handler in
       handler(.success(state))
@@ -682,29 +682,33 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
     }
 
     let timestampMicroseconds = Int64(Date().timeIntervalSince1970 * 1_000_000)
-    callbackChannel.onScanResult(result: UniversalBleScanResult(
-      deviceId: peripheral.uuid.uuidString,
-      name: displayName,
-      isPaired: nil,
-      rssi: RSSI as? Int64,
-      manufacturerDataList: manufacturerDataList,
-      serviceData: serviceData,
-      services: services?.map { $0.uuidStr },
-      timestamp: timestampMicroseconds / 1000,
-      timestampMicroseconds: timestampMicroseconds,
-      connectable: connectable
-    )) { _ in }
+    Task { @MainActor in
+      try? await callbackChannel.onScanResult(result: UniversalBleScanResult(
+        deviceId: peripheral.uuid.uuidString,
+        name: displayName,
+        isPaired: nil,
+        rssi: RSSI as? Int64,
+        manufacturerDataList: manufacturerDataList,
+        serviceData: serviceData,
+        services: services?.map { $0.uuidStr },
+        timestamp: timestampMicroseconds / 1000,
+        timestampMicroseconds: timestampMicroseconds,
+        connectable: connectable
+      ))
+    }
   }
 
   public func centralManager(_: CBCentralManager, didConnect peripheral: CBPeripheral) {
-    callbackChannel.onConnectionChanged(deviceId: peripheral.uuid.uuidString, connected: true, error: nil, errorCode: nil, nativeErrorCode: nil) { _ in }
+    Task { @MainActor in try? await callbackChannel.onConnectionChanged(deviceId: peripheral.uuid.uuidString, connected: true, error: nil, errorCode: nil, nativeErrorCode: nil) }
   }
 
   private func handlePeripheralDisconnection(deviceId: String, error: Error?) {
     autoConnectDevices.remove(deviceId)
-    callbackChannel.onConnectionChanged(
-      deviceId: deviceId, connected: false, error: error?.localizedDescription, errorCode: error?.connectionErrorCode, nativeErrorCode: error?.nativeCode
-    ) { _ in }
+    Task { @MainActor in
+      try? await callbackChannel.onConnectionChanged(
+        deviceId: deviceId, connected: false, error: error?.localizedDescription, errorCode: error?.connectionErrorCode, nativeErrorCode: error?.nativeCode
+      )
+    }
     cleanUpConnection(deviceId: deviceId)
   }
 
@@ -733,9 +737,11 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
   }
 
   public func centralManager(_: CBCentralManager, didFailToConnect peripheral: CBPeripheral, error: Error?) {
-    callbackChannel.onConnectionChanged(
-      deviceId: peripheral.uuid.uuidString, connected: false, error: error?.localizedDescription, errorCode: error?.connectionErrorCode, nativeErrorCode: error?.nativeCode
-    ) { _ in }
+    Task { @MainActor in
+      try? await callbackChannel.onConnectionChanged(
+        deviceId: peripheral.uuid.uuidString, connected: false, error: error?.localizedDescription, errorCode: error?.connectionErrorCode, nativeErrorCode: error?.nativeCode
+      )
+    }
     cleanUpConnection(deviceId: peripheral.uuid.uuidString)
   }
 
@@ -873,12 +879,14 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
     // Update callbackChannel if notifying
     if characteristic.isNotifying {
       if let characteristicValue = characteristic.value {
-        callbackChannel.onValueChanged(
-          deviceId: peripheral.uuid.uuidString,
-          characteristicId: characteristic.uuid.uuidStr,
-          value: FlutterStandardTypedData(bytes: characteristicValue),
-          timestamp: Int64(Date().timeIntervalSince1970 * 1000)
-        ) { _ in }
+        Task { @MainActor in
+          try? await callbackChannel.onValueChanged(
+            deviceId: peripheral.uuid.uuidString,
+            characteristicId: characteristic.uuid.uuidStr,
+            value: FlutterStandardTypedData(bytes: characteristicValue),
+            timestamp: Int64(Date().timeIntervalSince1970 * 1000)
+          )
+        }
       }
     }
 
@@ -916,6 +924,120 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
       future.result(Result.failure(flutterError))
     } else {
       future.result(Result.success(RSSI.int64Value))
+    }
+  }
+
+  // MARK: - Pigeon 29 async bridges
+  //
+  // The generated protocol is `async` since Pigeon 29. The previous
+  // completion-based implementations are kept (renamed `…Impl`) and bridged
+  // here so the cooperate behaviour is unchanged.
+
+  func getBluetoothAvailabilityState() async throws -> AvailabilityState {
+    try await withCheckedThrowingContinuation { continuation in
+      getBluetoothAvailabilityStateImpl { continuation.resume(with: $0) }
+    }
+  }
+
+  func requestPermissions(withAndroidFineLocation fineLocation: Bool) async throws {
+    try await withCheckedThrowingContinuation { continuation in
+      requestPermissionsImpl(withAndroidFineLocation: fineLocation) { continuation.resume(with: $0) }
+    }
+  }
+
+  func enableBluetooth() async throws -> Bool {
+    try await withCheckedThrowingContinuation { continuation in
+      enableBluetoothImpl { continuation.resume(with: $0) }
+    }
+  }
+
+  func disableBluetooth() async throws -> Bool {
+    try await withCheckedThrowingContinuation { continuation in
+      disableBluetoothImpl { continuation.resume(with: $0) }
+    }
+  }
+
+  func requestDevice(options: AppleAccessorySetupOptions) async throws -> UniversalDevicePickerResult {
+    try await withCheckedThrowingContinuation { continuation in
+      requestDeviceImpl(options: options) { continuation.resume(with: $0) }
+    }
+  }
+
+  func discoverServices(deviceId: String, withDescriptors: Bool, platformConfig: DiscoverServicesPlatformConfig?) async throws -> [UniversalBleService] {
+    try await withCheckedThrowingContinuation { continuation in
+      discoverServicesImpl(deviceId: deviceId, withDescriptors: withDescriptors, platformConfig: platformConfig) { continuation.resume(with: $0) }
+    }
+  }
+
+  func setNotifiable(deviceId: String, service: String, characteristic: String, bleInputProperty: BleInputProperty) async throws {
+    try await withCheckedThrowingContinuation { continuation in
+      setNotifiableImpl(deviceId: deviceId, service: service, characteristic: characteristic, bleInputProperty: bleInputProperty) { continuation.resume(with: $0) }
+    }
+  }
+
+  func readValue(deviceId: String, service: String, characteristic: String) async throws -> FlutterStandardTypedData {
+    try await withCheckedThrowingContinuation { continuation in
+      readValueImpl(deviceId: deviceId, service: service, characteristic: characteristic) { continuation.resume(with: $0) }
+    }
+  }
+
+  func writeValue(deviceId: String, service: String, characteristic: String, value: FlutterStandardTypedData, bleOutputProperty: BleOutputProperty) async throws {
+    try await withCheckedThrowingContinuation { continuation in
+      writeValueImpl(deviceId: deviceId, service: service, characteristic: characteristic, value: value, bleOutputProperty: bleOutputProperty) { continuation.resume(with: $0) }
+    }
+  }
+
+  func readDescriptorValue(deviceId: String, service: String, characteristic: String, descriptor: String) async throws -> FlutterStandardTypedData {
+    try await withCheckedThrowingContinuation { continuation in
+      readDescriptorValueImpl(deviceId: deviceId, service: service, characteristic: characteristic, descriptor: descriptor) { continuation.resume(with: $0) }
+    }
+  }
+
+  func writeDescriptorValue(deviceId: String, service: String, characteristic: String, descriptor: String, value: FlutterStandardTypedData) async throws {
+    try await withCheckedThrowingContinuation { continuation in
+      writeDescriptorValueImpl(deviceId: deviceId, service: service, characteristic: characteristic, descriptor: descriptor, value: value) { continuation.resume(with: $0) }
+    }
+  }
+
+  func requestMtu(deviceId: String, expectedMtu: Int64) async throws -> Int64 {
+    try await withCheckedThrowingContinuation { continuation in
+      requestMtuImpl(deviceId: deviceId, expectedMtu: expectedMtu) { continuation.resume(with: $0) }
+    }
+  }
+
+  func requestConnectionPriority(deviceId: String, priority: BleConnectionPriority) async throws {
+    try await withCheckedThrowingContinuation { continuation in
+      requestConnectionPriorityImpl(deviceId: deviceId, priority: priority) { continuation.resume(with: $0) }
+    }
+  }
+
+  func readRssi(deviceId: String) async throws -> Int64 {
+    try await withCheckedThrowingContinuation { continuation in
+      readRssiImpl(deviceId: deviceId) { continuation.resume(with: $0) }
+    }
+  }
+
+  func isPaired(deviceId: String) async throws -> Bool {
+    try await withCheckedThrowingContinuation { continuation in
+      isPairedImpl(deviceId: deviceId) { continuation.resume(with: $0) }
+    }
+  }
+
+  func pair(deviceId: String) async throws -> Bool {
+    try await withCheckedThrowingContinuation { continuation in
+      pairImpl(deviceId: deviceId) { continuation.resume(with: $0) }
+    }
+  }
+
+  func unPair(deviceId: String) async throws {
+    try await withCheckedThrowingContinuation { continuation in
+      unPairImpl(deviceId: deviceId) { continuation.resume(with: $0) }
+    }
+  }
+
+  func getSystemDevices(withServices: [String]) async throws -> [UniversalBleScanResult] {
+    try await withCheckedThrowingContinuation { continuation in
+      getSystemDevicesImpl(withServices: withServices) { continuation.resume(with: $0) }
     }
   }
 

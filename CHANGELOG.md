@@ -1,6 +1,6 @@
 ## 3.1.1
 * Bump `bluez` to `^0.9.0`.
-* Bump the `pigeon` dev dependency to `^29.0.0`.
+* Regenerate the platform channels with Pigeon `^29.0.0` (up from 26.3.4). The generated Kotlin and Swift channels are now coroutine/`async` based, so the Android module depends on `kotlinx-coroutines-android` and the native central/peripheral plugins were adapted to the new interfaces. No change to the public Dart API.
 
 ## 3.1.0
 * `BleDevice.services` is now normalised to full 128-bit lower-case UUIDs on every platform, matching the keys of `BleDevice.serviceData`. Apple was the outlier: it reported 16-bit advertised service UUIDs in their short form (`180D`), so the same field had a different shape per platform and stored keys or comparisons did not transfer between them. Compare against, or store, the 128-bit form; short (`180D`) and `0x`-prefixed forms are still accepted as *input*. Entries that are not valid UUIDs are kept verbatim rather than dropped.
