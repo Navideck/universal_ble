@@ -306,21 +306,21 @@ class UniversalBlePigeonChannel extends UniversalBlePlatform
   }
 
   @override
-  void onAvailabilityChanged(AvailabilityState state) =>
+  Future<void> onAvailabilityChanged(AvailabilityState state) async =>
       updateAvailability(state);
 
   @override
-  void onConnectionChanged(
+  Future<void> onConnectionChanged(
     String deviceId,
     bool connected,
     String? error,
     UniversalBleErrorCode? errorCode,
     int? nativeErrorCode,
-  ) =>
+  ) async =>
       updateConnection(deviceId, connected, error, errorCode, nativeErrorCode);
 
   @override
-  void onScanResult(UniversalBleScanResult result) {
+  Future<void> onScanResult(UniversalBleScanResult result) async {
     // Exclusion filter and connectableOnly are handled on Dart side;
     // other scan filters (services, manufacturerData, namePrefix)
     // are handled natively by the platform.
@@ -331,16 +331,20 @@ class UniversalBlePigeonChannel extends UniversalBlePlatform
   }
 
   @override
-  void onValueChanged(
+  Future<void> onValueChanged(
     String deviceId,
     String characteristicId,
     Uint8List value,
     int? timestamp,
-  ) =>
+  ) async =>
       updateCharacteristicValue(deviceId, characteristicId, value, timestamp);
 
   @override
-  void onPairStateChange(String deviceId, bool isPaired, bool isFailure) {
+  Future<void> onPairStateChange(
+    String deviceId,
+    bool isPaired,
+    bool isFailure,
+  ) async {
     // A failed bond is an event, not a state: route it around the pairing-state dedup (#325).
     if (isFailure) {
       updatePairingFailure(deviceId);
@@ -350,7 +354,9 @@ class UniversalBlePigeonChannel extends UniversalBlePlatform
   }
 
   @override
-  void onConnectionParametersUpdated(BleConnectionParametersChange update) =>
+  Future<void> onConnectionParametersUpdated(
+    BleConnectionParametersChange update,
+  ) async =>
       updateConnectionParameters(update);
 }
 

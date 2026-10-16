@@ -467,22 +467,27 @@ class PeripheralWriteRequestResult {
 
 /// APIs (Flutter -> Native / Native -> Flutter)
 /// ------------------------------------------------------------
+///
+/// Async methods use [asyncCallback] instead of the Pigeon >= 28 default
+/// (`async` / `suspend`): the native implementations are callback-based
+/// (Swift completion handlers, Kotlin callbacks), and [asyncCallback] keeps
+/// those signatures rather than forcing a rewrite to native async/await.
 
 /// Flutter -> Native (central)
 @HostApi()
 abstract class UniversalBlePlatformChannel {
-  @async
+  @asyncCallback
   AvailabilityState getBluetoothAvailabilityState();
 
   bool hasPermissions(bool withAndroidFineLocation);
 
-  @async
+  @asyncCallback
   void requestPermissions(bool withAndroidFineLocation);
 
-  @async
+  @asyncCallback
   bool enableBluetooth();
 
-  @async
+  @asyncCallback
   bool disableBluetooth();
 
   void startScan(UniversalScanFilter? filter, UniversalScanConfig? config);
@@ -493,7 +498,7 @@ abstract class UniversalBlePlatformChannel {
 
   /// Shows the platform's native device picker (iOS 18+ AccessorySetupKit) and
   /// returns the selected device.
-  @async
+  @asyncCallback
   UniversalDevicePickerResult requestDevice(AppleAccessorySetupOptions options);
 
   void connect(
@@ -504,7 +509,7 @@ abstract class UniversalBlePlatformChannel {
 
   void disconnect(String deviceId);
 
-  @async
+  @asyncCallback
   void setNotifiable(
     String deviceId,
     String service,
@@ -512,17 +517,17 @@ abstract class UniversalBlePlatformChannel {
     BleInputProperty bleInputProperty,
   );
 
-  @async
+  @asyncCallback
   List<UniversalBleService> discoverServices(
     String deviceId,
     bool withDescriptors,
     DiscoverServicesPlatformConfig? platformConfig,
   );
 
-  @async
+  @asyncCallback
   Uint8List readValue(String deviceId, String service, String characteristic);
 
-  @async
+  @asyncCallback
   Uint8List readDescriptorValue(
     String deviceId,
     String service,
@@ -530,10 +535,10 @@ abstract class UniversalBlePlatformChannel {
     String descriptor,
   );
 
-  @async
+  @asyncCallback
   int requestMtu(String deviceId, int expectedMtu);
 
-  @async
+  @asyncCallback
   void writeValue(
     String deviceId,
     String service,
@@ -542,7 +547,7 @@ abstract class UniversalBlePlatformChannel {
     BleOutputProperty bleOutputProperty,
   );
 
-  @async
+  @asyncCallback
   void writeDescriptorValue(
     String deviceId,
     String service,
@@ -551,24 +556,24 @@ abstract class UniversalBlePlatformChannel {
     Uint8List value,
   );
 
-  @async
+  @asyncCallback
   bool isPaired(String deviceId);
 
-  @async
+  @asyncCallback
   bool pair(String deviceId);
 
-  @async
+  @asyncCallback
   void unPair(String deviceId);
 
-  @async
+  @asyncCallback
   List<UniversalBleScanResult> getSystemDevices(List<String> withServices);
 
   BleConnectionState getConnectionState(String deviceId);
 
-  @async
+  @asyncCallback
   int readRssi(String deviceId);
 
-  @async
+  @asyncCallback
   void requestConnectionPriority(
     String deviceId,
     BleConnectionPriority priority,
@@ -580,15 +585,19 @@ abstract class UniversalBlePlatformChannel {
 /// Native -> Flutter (central)
 @FlutterApi()
 abstract class UniversalBleCallbackChannel {
+  @asyncCallback
   void onAvailabilityChanged(AvailabilityState state);
 
   /// [isFailure] marks a failed bond attempt — an event rather than a steady
   /// pairing state — so the Dart side can bypass its state de-duplication
   /// instead of swallowing every failure after the first (#325).
+  @asyncCallback
   void onPairStateChange(String deviceId, bool isPaired, bool isFailure);
 
+  @asyncCallback
   void onScanResult(UniversalBleScanResult result);
 
+  @asyncCallback
   void onValueChanged(
     String deviceId,
     String characteristicId,
@@ -601,6 +610,7 @@ abstract class UniversalBleCallbackChannel {
   /// mapped on the native side from `CBError.Code` (Apple) or the GATT
   /// `status` (Android). [nativeErrorCode] is that raw platform value.
   /// Both are `null` when there is no error or the platform has no code.
+  @asyncCallback
   void onConnectionChanged(
     String deviceId,
     bool connected,
@@ -609,6 +619,7 @@ abstract class UniversalBleCallbackChannel {
     int? nativeErrorCode,
   );
 
+  @asyncCallback
   void onConnectionParametersUpdated(BleConnectionParametersChange update);
 }
 
@@ -656,13 +667,14 @@ abstract class UniversalBlePeripheralChannel {
 abstract class UniversalBleAndroidChannel {
   bool hasBluetoothAdvertisePermission();
 
-  @async
+  @asyncCallback
   bool requestBluetoothAdvertisePermission();
 }
 
 /// Native -> Flutter (peripheral)
 @FlutterApi()
 abstract class UniversalBlePeripheralCallback {
+  @asyncCallback
   PeripheralReadRequestResult? onReadRequest(
     String deviceId,
     String characteristicId,
@@ -670,6 +682,7 @@ abstract class UniversalBlePeripheralCallback {
     Uint8List? value,
   );
 
+  @asyncCallback
   PeripheralWriteRequestResult? onWriteRequest(
     String deviceId,
     String characteristicId,
@@ -677,6 +690,7 @@ abstract class UniversalBlePeripheralCallback {
     Uint8List? value,
   );
 
+  @asyncCallback
   PeripheralReadRequestResult? onDescriptorReadRequest(
     String deviceId,
     String characteristicId,
@@ -685,6 +699,7 @@ abstract class UniversalBlePeripheralCallback {
     Uint8List? value,
   );
 
+  @asyncCallback
   PeripheralWriteRequestResult? onDescriptorWriteRequest(
     String deviceId,
     String characteristicId,
@@ -693,6 +708,7 @@ abstract class UniversalBlePeripheralCallback {
     Uint8List? value,
   );
 
+  @asyncCallback
   void onCharacteristicSubscriptionChange(
     String deviceId,
     String characteristicId,
@@ -700,15 +716,19 @@ abstract class UniversalBlePeripheralCallback {
     String? name,
   );
 
+  @asyncCallback
   void onAdvertisingStateChange(
     PeripheralAdvertisingState state,
     String? error,
   );
 
+  @asyncCallback
   void onServiceAdded(String serviceId, String? error);
 
+  @asyncCallback
   void onMtuChange(String deviceId, int mtu);
 
+  @asyncCallback
   void onConnectionStateChange(String deviceId, bool connected);
 }
 
