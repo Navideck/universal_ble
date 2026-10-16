@@ -124,6 +124,31 @@ func mapErrorCodeToEnum(_ code: String) -> UniversalBleErrorCode {
     }
 }
 
+/// Maps an ATT error code (`CBATTError.Code` in `CBATTErrorDomain`) to UniversalBleErrorCode,
+/// matching Android's `gattStatusToUniversalBleErrorCode` so a refusal reads the same everywhere.
+func attErrorToUniversalBleErrorCode(_ code: Int) -> UniversalBleErrorCode {
+    switch CBATTError.Code(rawValue: code) {
+    case .invalidHandle: return .invalidHandle
+    case .readNotPermitted: return .readNotPermitted
+    case .writeNotPermitted: return .writeNotPermitted
+    case .invalidPdu: return .invalidPdu
+    case .insufficientAuthentication: return .insufficientAuthentication
+    case .requestNotSupported: return .operationNotSupported
+    case .invalidOffset: return .invalidOffset
+    case .insufficientAuthorization: return .insufficientAuthorization
+    case .prepareQueueFull: return .operationInProgress
+    case .attributeNotFound: return .serviceNotFound
+    case .attributeNotLong: return .invalidAttributeLength
+    case .insufficientEncryptionKeySize: return .insufficientKeySize
+    case .invalidAttributeValueLength: return .invalidAttributeLength
+    case .unlikelyError: return .failed
+    case .insufficientEncryption: return .insufficientEncryption
+    case .unsupportedGroupType: return .operationNotSupported
+    case .insufficientResources: return .failed
+    default: return .unknownError
+    }
+}
+
 /// Creates a PigeonError with the error code enum in details
 func createFlutterError(
     code: UniversalBleErrorCode,
@@ -143,7 +168,12 @@ extension Error {
         let nsError = self as NSError
         let errorCode: String = .init(nsError.code)
         let errorDescription: String = nsError.localizedDescription
-        let mappedCode = mapErrorCodeToEnum(errorCode)
+        // A GATT operation the peripheral refused carries its ATT error code, which no name lookup
+        // matches. CBErrorDomain reuses the same small numbers for other meanings, so the domain
+        // decides which table applies.
+        let mappedCode = nsError.domain == CBATTErrorDomain
+            ? attErrorToUniversalBleErrorCode(nsError.code)
+            : mapErrorCodeToEnum(errorCode)
         return createFlutterError(code: mappedCode, message: errorDescription, details: errorCode)
     }
 
