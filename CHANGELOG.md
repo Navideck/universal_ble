@@ -1,4 +1,5 @@
 ## 3.1.1
+* Apple: a read, write or subscription the peripheral refuses now reports its ATT error as the matching `UniversalBleErrorCode` (`insufficientEncryption`, `insufficientAuthentication`, `readNotPermitted`, ...), as Android does, instead of `unknownError`. The error code is still in `details`. Codes in `CBErrorDomain` are unchanged: its numbers overlap ATT's with other meanings (#348).
 * Bump `bluez` to `^0.9.0`.
 * Bump the `pigeon` dev dependency to `^29.0.0`.
 
