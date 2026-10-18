@@ -32,7 +32,10 @@ class UniversalBle {
 
   /// Set global timeout for all commands.
   /// Default timeout is 10 seconds.
-  /// Set to null to disable.
+  ///
+  /// Set to null to remove the Dart-side bound. On iOS and macOS this does not
+  /// lift native service discovery's own 10-second limit; pass a `timeout` to
+  /// [discoverServices] to extend that.
   static set timeout(Duration? duration) {
     _bleCommandQueue.timeout = duration;
   }
