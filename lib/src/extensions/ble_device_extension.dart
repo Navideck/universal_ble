@@ -106,6 +106,8 @@ extension BleDeviceExtension on BleDevice {
   /// Discovers the services offered by the device.
   ///
   /// Returns cached services if already discovered after connection.
+  /// [timeout] bounds the call, and on Apple the native discovery too (see
+  /// [UniversalBle.discoverServices]).
   /// [platformConfig]: platform-specific options, e.g. Android's `clearGattCache`.
   Future<List<BleService>> discoverServices({
     Duration? timeout,

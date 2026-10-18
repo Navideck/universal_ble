@@ -1388,6 +1388,53 @@ data class AndroidDiscoverServicesOptions (
   }
 }
 
+/** Generated class from Pigeon that represents data sent in messages. */
+data class AppleDiscoverServicesOptions (
+  /**
+   * How long, in milliseconds, the native discovery may take before it fails.
+   * iOS and macOS bound discovery themselves, so that a discovery that never
+   * completes cannot hold back later calls; 10 seconds when not set. Other
+   * platforms are bounded by the `timeout` of `discoverServices` alone.
+   *
+   * `discoverServices` fills this in from its `timeout` (by default the global
+   * `UniversalBle.timeout`) when only that is given, and takes this as its
+   * `timeout` when only this is. A value that is not positive counts as unset.
+   */
+  val timeoutMillis: Long? = null
+)
+ {
+  companion object {
+    fun fromList(pigeonVar_list: List<Any?>): AppleDiscoverServicesOptions {
+      val timeoutMillis = pigeonVar_list[0] as Long?
+      return AppleDiscoverServicesOptions(timeoutMillis)
+    }
+  }
+  fun toList(): List<Any?> {
+    return listOf(
+      timeoutMillis,
+    )
+  }
+  override fun equals(other: Any?): Boolean {
+    if (other == null || other.javaClass != javaClass) {
+      return false
+    }
+    if (this === other) {
+      return true
+    }
+    val other = other as AppleDiscoverServicesOptions
+    return UniversalBlePigeonUtils.deepEquals(this.timeoutMillis, other.timeoutMillis)
+  }
+
+  override fun hashCode(): Int {
+    var result = javaClass.hashCode()
+    result = 31 * result + UniversalBlePigeonUtils.deepHash(this.timeoutMillis)
+    return result
+  }
+  override fun toString(): String {
+    return "AppleDiscoverServicesOptions(timeoutMillis=$timeoutMillis)"
+  }
+}
+
 /**
  * Platform-specific options for `discoverServices`. Ignored on platforms
  * that have no equivalent.
@@ -1395,18 +1442,21 @@ data class AndroidDiscoverServicesOptions (
  * Generated class from Pigeon that represents data sent in messages.
  */
 data class DiscoverServicesPlatformConfig (
-  val android: AndroidDiscoverServicesOptions? = null
+  val android: AndroidDiscoverServicesOptions? = null,
+  val apple: AppleDiscoverServicesOptions? = null
 )
  {
   companion object {
     fun fromList(pigeonVar_list: List<Any?>): DiscoverServicesPlatformConfig {
       val android = pigeonVar_list[0] as AndroidDiscoverServicesOptions?
-      return DiscoverServicesPlatformConfig(android)
+      val apple = pigeonVar_list[1] as AppleDiscoverServicesOptions?
+      return DiscoverServicesPlatformConfig(android, apple)
     }
   }
   fun toList(): List<Any?> {
     return listOf(
       android,
+      apple,
     )
   }
   override fun equals(other: Any?): Boolean {
@@ -1417,16 +1467,17 @@ data class DiscoverServicesPlatformConfig (
       return true
     }
     val other = other as DiscoverServicesPlatformConfig
-    return UniversalBlePigeonUtils.deepEquals(this.android, other.android)
+    return UniversalBlePigeonUtils.deepEquals(this.android, other.android) && UniversalBlePigeonUtils.deepEquals(this.apple, other.apple)
   }
 
   override fun hashCode(): Int {
     var result = javaClass.hashCode()
     result = 31 * result + UniversalBlePigeonUtils.deepHash(this.android)
+    result = 31 * result + UniversalBlePigeonUtils.deepHash(this.apple)
     return result
   }
   override fun toString(): String {
-    return "DiscoverServicesPlatformConfig(android=$android)"
+    return "DiscoverServicesPlatformConfig(android=$android, apple=$apple)"
   }
 }
 
@@ -1917,40 +1968,45 @@ private open class UniversalBlePigeonCodec : StandardMessageCodec() {
       }
       161.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          DiscoverServicesPlatformConfig.fromList(it)
+          AppleDiscoverServicesOptions.fromList(it)
         }
       }
       162.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          PeripheralAndroidOptions.fromList(it)
+          DiscoverServicesPlatformConfig.fromList(it)
         }
       }
       163.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          PeripheralPlatformConfig.fromList(it)
+          PeripheralAndroidOptions.fromList(it)
         }
       }
       164.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          PeripheralService.fromList(it)
+          PeripheralPlatformConfig.fromList(it)
         }
       }
       165.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          PeripheralCharacteristic.fromList(it)
+          PeripheralService.fromList(it)
         }
       }
       166.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          PeripheralDescriptor.fromList(it)
+          PeripheralCharacteristic.fromList(it)
         }
       }
       167.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          PeripheralReadRequestResult.fromList(it)
+          PeripheralDescriptor.fromList(it)
         }
       }
       168.toByte() -> {
+        return (readValue(buffer) as? List<Any?>)?.let {
+          PeripheralReadRequestResult.fromList(it)
+        }
+      }
+      169.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
           PeripheralWriteRequestResult.fromList(it)
         }
@@ -2088,36 +2144,40 @@ private open class UniversalBlePigeonCodec : StandardMessageCodec() {
         stream.write(160)
         writeValue(stream, value.toList())
       }
-      is DiscoverServicesPlatformConfig -> {
+      is AppleDiscoverServicesOptions -> {
         stream.write(161)
         writeValue(stream, value.toList())
       }
-      is PeripheralAndroidOptions -> {
+      is DiscoverServicesPlatformConfig -> {
         stream.write(162)
         writeValue(stream, value.toList())
       }
-      is PeripheralPlatformConfig -> {
+      is PeripheralAndroidOptions -> {
         stream.write(163)
         writeValue(stream, value.toList())
       }
-      is PeripheralService -> {
+      is PeripheralPlatformConfig -> {
         stream.write(164)
         writeValue(stream, value.toList())
       }
-      is PeripheralCharacteristic -> {
+      is PeripheralService -> {
         stream.write(165)
         writeValue(stream, value.toList())
       }
-      is PeripheralDescriptor -> {
+      is PeripheralCharacteristic -> {
         stream.write(166)
         writeValue(stream, value.toList())
       }
-      is PeripheralReadRequestResult -> {
+      is PeripheralDescriptor -> {
         stream.write(167)
         writeValue(stream, value.toList())
       }
-      is PeripheralWriteRequestResult -> {
+      is PeripheralReadRequestResult -> {
         stream.write(168)
+        writeValue(stream, value.toList())
+      }
+      is PeripheralWriteRequestResult -> {
+        stream.write(169)
         writeValue(stream, value.toList())
       }
       else -> super.writeValue(stream, value)

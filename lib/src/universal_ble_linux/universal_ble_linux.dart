@@ -187,6 +187,8 @@ class UniversalBleLinux extends UniversalBlePlatform {
     // platformConfig has no equivalent on this platform
     final device = _findDeviceById(deviceId);
     if (device.gattServices.isEmpty && !device.servicesResolved) {
+      // No timeout of its own: the command queue bounds the call with the
+      // caller's `timeout`, as on Android, Windows and Web.
       await device.propertiesChanged.firstWhere((element) {
         if (element.contains(BluezProperty.connected)) {
           if (!device.connected) {
@@ -197,13 +199,7 @@ class UniversalBleLinux extends UniversalBlePlatform {
           }
         }
         return element.contains(BluezProperty.servicesResolved);
-      }).timeout(
-        const Duration(seconds: 10),
-        onTimeout: () {
-          UniversalLogger.logInfo("DiscoverServicesFailed: Timeout");
-          return [];
-        },
-      );
+      });
     }
 
     // Few ble devices requires delay to perform operations after discovering services

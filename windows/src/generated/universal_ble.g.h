@@ -1109,6 +1109,47 @@ class AndroidDiscoverServicesOptions {
 };
 
 
+// Generated class from Pigeon that represents data sent in messages.
+class AppleDiscoverServicesOptions {
+ public:
+  // Constructs an object setting all non-nullable fields.
+  AppleDiscoverServicesOptions();
+
+  // Constructs an object setting all fields.
+  explicit AppleDiscoverServicesOptions(const int64_t* timeout_millis);
+
+  // How long, in milliseconds, the native discovery may take before it fails.
+  // iOS and macOS bound discovery themselves, so that a discovery that never
+  // completes cannot hold back later calls; 10 seconds when not set. Other
+  // platforms are bounded by the `timeout` of `discoverServices` alone.
+  //
+  // `discoverServices` fills this in from its `timeout` (by default the global
+  // `UniversalBle.timeout`) when only that is given, and takes this as its
+  // `timeout` when only this is. A value that is not positive counts as unset.
+  const int64_t* timeout_millis() const;
+  void set_timeout_millis(const int64_t* value_arg);
+  void set_timeout_millis(int64_t value_arg);
+
+  bool operator==(const AppleDiscoverServicesOptions& other) const;
+  bool operator!=(const AppleDiscoverServicesOptions& other) const;
+  /// Returns a hash code value for the object. This method is supported for the benefit of hash tables.
+  size_t Hash() const;
+  /// Stream output operator for formatted string representation.
+  friend std::ostream& operator<<(std::ostream& os, const AppleDiscoverServicesOptions& obj);
+ private:
+  static AppleDiscoverServicesOptions FromEncodableList(const ::flutter::EncodableList& list);
+  ::flutter::EncodableList ToEncodableList() const;
+  friend class DiscoverServicesPlatformConfig;
+  friend class UniversalBlePlatformChannel;
+  friend class UniversalBleCallbackChannel;
+  friend class UniversalBlePeripheralChannel;
+  friend class UniversalBleAndroidChannel;
+  friend class UniversalBlePeripheralCallback;
+  friend class PigeonInternalCodecSerializer;
+  std::optional<int64_t> timeout_millis_;
+};
+
+
 // Platform-specific options for `discoverServices`. Ignored on platforms
 // that have no equivalent.
 //
@@ -1119,7 +1160,9 @@ class DiscoverServicesPlatformConfig {
   DiscoverServicesPlatformConfig();
 
   // Constructs an object setting all fields.
-  explicit DiscoverServicesPlatformConfig(const AndroidDiscoverServicesOptions* android);
+  explicit DiscoverServicesPlatformConfig(
+    const AndroidDiscoverServicesOptions* android,
+    const AppleDiscoverServicesOptions* apple);
 
   ~DiscoverServicesPlatformConfig() = default;
   DiscoverServicesPlatformConfig(const DiscoverServicesPlatformConfig& other);
@@ -1129,6 +1172,10 @@ class DiscoverServicesPlatformConfig {
   const AndroidDiscoverServicesOptions* android() const;
   void set_android(const AndroidDiscoverServicesOptions* value_arg);
   void set_android(const AndroidDiscoverServicesOptions& value_arg);
+
+  const AppleDiscoverServicesOptions* apple() const;
+  void set_apple(const AppleDiscoverServicesOptions* value_arg);
+  void set_apple(const AppleDiscoverServicesOptions& value_arg);
 
   bool operator==(const DiscoverServicesPlatformConfig& other) const;
   bool operator!=(const DiscoverServicesPlatformConfig& other) const;
@@ -1146,6 +1193,7 @@ class DiscoverServicesPlatformConfig {
   friend class UniversalBlePeripheralCallback;
   friend class PigeonInternalCodecSerializer;
   std::unique_ptr<AndroidDiscoverServicesOptions> android_;
+  std::unique_ptr<AppleDiscoverServicesOptions> apple_;
 };
 
 

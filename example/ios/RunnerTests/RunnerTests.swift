@@ -58,4 +58,20 @@ class RunnerTests: XCTestCase {
     XCTAssertEqual(error.code, UniversalBleErrorCode.unknownError.rawValue.description)
     XCTAssertEqual(error.details as? String, "15")
   }
+
+  func testDiscoveryWaitsAsLongAsTheCallerAsks() {
+    let config = DiscoverServicesPlatformConfig(apple: AppleDiscoverServicesOptions(timeoutMillis: 30000))
+
+    XCTAssertEqual(UniversalBleAsyncServiceDiscovery.timeoutSeconds(for: config), 30)
+  }
+
+  func testDiscoveryKeepsItsDefaultWithoutATimeout() {
+    XCTAssertEqual(UniversalBleAsyncServiceDiscovery.timeoutSeconds(for: nil), 10)
+    XCTAssertEqual(UniversalBleAsyncServiceDiscovery.timeoutSeconds(for: DiscoverServicesPlatformConfig()), 10)
+    XCTAssertEqual(
+      UniversalBleAsyncServiceDiscovery.timeoutSeconds(
+        for: DiscoverServicesPlatformConfig(apple: AppleDiscoverServicesOptions(timeoutMillis: 0))),
+      10,
+      "a timeout of zero would fail every discovery at once")
+  }
 }
