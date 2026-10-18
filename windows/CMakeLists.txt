@@ -63,6 +63,14 @@ add_library(${PLUGIN_NAME} SHARED
 
 apply_standard_settings(${PLUGIN_NAME})
 
+# Pigeon-generated sources contain UTF-8 characters in doc comments. Without
+# this, MSVC decodes them using the system ANSI code page (e.g. CP936) and
+# C4819 is promoted to an error by the /WX from apply_standard_settings,
+# failing the plugin build on non-UTF-8 locales (#354).
+if(MSVC)
+  target_compile_options(${PLUGIN_NAME} PRIVATE /utf-8)
+endif()
+
 # ############### NuGet import begin ################
 set_target_properties(${PLUGIN_NAME} PROPERTIES VS_PROJECT_IMPORT
   ${CMAKE_BINARY_DIR}/packages/Microsoft.Windows.CppWinRT.${CPPWINRT_VERSION}/build/native/Microsoft.Windows.CppWinRT.props

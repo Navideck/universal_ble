@@ -3,6 +3,7 @@
 * Bump `bluez` to `^0.9.0`.
 * Bump the `pigeon` dev dependency to `^29.0.0`.
 * Regenerate the Pigeon bindings with Pigeon 29. The async platform channels now use `@asyncCallback`, so the existing callback-based native implementations (Swift completion handlers, Kotlin callbacks) are kept as-is rather than migrated to native `async`/`suspend`. No public API change.
+* Windows: compile the plugin with `/utf-8`. The Pigeon-generated sources contain UTF-8 doc comments, and MSVC decoded them using the system ANSI code page, so a clean build failed with C4819/C2220 on machines configured with a code page such as 936, 932, 949 or 950 (#354).
 
 ## 3.1.0
 * `BleDevice.services` is now normalised to full 128-bit lower-case UUIDs on every platform, matching the keys of `BleDevice.serviceData`. Apple was the outlier: it reported 16-bit advertised service UUIDs in their short form (`180D`), so the same field had a different shape per platform and stored keys or comparisons did not transfer between them. Compare against, or store, the 128-bit form; short (`180D`) and `0x`-prefixed forms are still accepted as *input*. Entries that are not valid UUIDs are kept verbatim rather than dropped.
