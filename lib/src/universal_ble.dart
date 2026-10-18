@@ -324,16 +324,19 @@ class UniversalBle {
   /// `AndroidDiscoverServicesOptions(clearGattCache: true)` to drop Android's
   /// GATT cache before discovering. Ignored where not applicable.
   ///
-  /// [timeout] bounds the whole call. On Apple it is also passed to the native
-  /// discovery, which otherwise gives up after 10 seconds, unless
-  /// [platformConfig] already sets `apple.timeoutMillis`. That option, given
-  /// without a [timeout], bounds the whole call as well.
+  /// [timeout] bounds the whole call, and defaults to `UniversalBle.timeout`. On
+  /// Apple it is also passed to the native discovery, which otherwise gives up
+  /// after 10 seconds, unless [platformConfig] already sets a positive
+  /// `apple.timeoutMillis`. That option, given without a [timeout], bounds the
+  /// whole call as well.
   ///
   /// Concurrent calls for the same device that request the same result share a
   /// single discovery and resolve together. A call that asks for something
   /// different (other [withDescriptors] or Android options) still runs its own.
   /// A timeout does not change the result, so calls that differ only in their
-  /// timeout share the discovery that started first, and its timeout.
+  /// timeout share the discovery that started first, and its timeout. On Apple
+  /// that also holds for a call that only differs in Android options, which the
+  /// native side joins to the discovery in progress.
   static Future<List<BleService>> discoverServices(
     String deviceId, {
     bool withDescriptors = false,
@@ -342,7 +345,10 @@ class UniversalBle {
     DiscoverServicesPlatformConfig? platformConfig,
   }) {
     timeout ??= _appleDiscoveryTimeout(platformConfig);
-    platformConfig = _withAppleDiscoveryTimeout(platformConfig, timeout);
+    platformConfig = _withAppleDiscoveryTimeout(
+      platformConfig,
+      timeout ?? _bleCommandQueue.timeout,
+    );
     final key = canonicalDeviceId(deviceId);
     final pending = _pendingDiscoveries[key];
     if (pending != null &&
@@ -379,12 +385,13 @@ class UniversalBle {
   }
 
   /// [platformConfig] with [timeout] as Apple's native discovery timeout, when
-  /// a timeout is given and the caller set none. Returned unchanged otherwise.
+  /// a timeout is given and the caller set none (a non-positive one counting as
+  /// none, as on the native side). Returned unchanged otherwise.
   static DiscoverServicesPlatformConfig? _withAppleDiscoveryTimeout(
     DiscoverServicesPlatformConfig? platformConfig,
     Duration? timeout,
   ) {
-    if (timeout == null || platformConfig?.apple?.timeoutMillis != null) {
+    if (timeout == null || _appleDiscoveryTimeout(platformConfig) != null) {
       return platformConfig;
     }
     return DiscoverServicesPlatformConfig(

@@ -52,17 +52,48 @@ void main() {
       android: AndroidDiscoverServicesOptions(clearGattCache: true),
     );
     await UniversalBle.discoverServices(deviceId, platformConfig: config);
-    expect(platform.lastPlatformConfig, same(config));
+    expect(platform.lastPlatformConfig?.android, same(config.android));
     expect(platform.lastPlatformConfig?.android?.clearGattCache, isTrue);
     expect(platform.lastWithDescriptors, isFalse);
   });
 
-  test('discoverServices without platformConfig passes null', () async {
+  test('discoverServices without platformConfig passes only the global timeout',
+      () async {
     final platform = _CapturingPlatform();
     UniversalBle.setInstance(platform);
     await UniversalBle.discoverServices(deviceId, withDescriptors: true);
-    expect(platform.lastPlatformConfig, isNull);
+    expect(platform.lastPlatformConfig?.android, isNull);
+    expect(platform.lastPlatformConfig?.apple?.timeoutMillis, 10000);
     expect(platform.lastWithDescriptors, isTrue);
+  });
+
+  test('a raised global timeout is passed to Apple', () async {
+    final platform = _CapturingPlatform();
+    UniversalBle.setInstance(platform);
+    UniversalBle.timeout = const Duration(seconds: 30);
+    await UniversalBle.discoverServices(deviceId);
+    expect(platform.lastPlatformConfig?.apple?.timeoutMillis, 30000);
+  });
+
+  test('with no timeout at all, no platformConfig is passed', () async {
+    final platform = _CapturingPlatform();
+    UniversalBle.setInstance(platform);
+    UniversalBle.timeout = null;
+    await UniversalBle.discoverServices(deviceId);
+    expect(platform.lastPlatformConfig, isNull);
+  });
+
+  test('a non-positive Apple timeout gives way to the timeout', () async {
+    final platform = _CapturingPlatform();
+    UniversalBle.setInstance(platform);
+    await UniversalBle.discoverServices(
+      deviceId,
+      timeout: const Duration(seconds: 30),
+      platformConfig: DiscoverServicesPlatformConfig(
+        apple: AppleDiscoverServicesOptions(timeoutMillis: 0),
+      ),
+    );
+    expect(platform.lastPlatformConfig?.apple?.timeoutMillis, 30000);
   });
 
   test(

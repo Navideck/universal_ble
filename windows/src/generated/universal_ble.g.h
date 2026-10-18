@@ -1123,8 +1123,9 @@ class AppleDiscoverServicesOptions {
   // completes cannot hold back later calls; 10 seconds when not set. Other
   // platforms are bounded by the `timeout` of `discoverServices` alone.
   //
-  // `discoverServices` fills this in from its `timeout` when only that is
-  // given, and takes this as its `timeout` when only this is.
+  // `discoverServices` fills this in from its `timeout` (by default the global
+  // `UniversalBle.timeout`) when only that is given, and takes this as its
+  // `timeout` when only this is. A value that is not positive counts as unset.
   const int64_t* timeout_millis() const;
   void set_timeout_millis(const int64_t* value_arg);
   void set_timeout_millis(int64_t value_arg);
