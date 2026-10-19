@@ -572,9 +572,9 @@ void UniversalBlePlugin::ReadValue(
                   "READ_FAILED <- " + device_id + " " + service + " " +
                   characteristic +
                   " status=" + std::to_string(static_cast<int>(status)));
-              safe_reply(
-                  "ReadValue", result,
-                  create_flutter_error_from_gatt_communication_status(status));
+              safe_reply("ReadValue", result,
+                         create_flutter_error_from_gatt_result(
+                             status, read_value_result.ProtocolError()));
             } else {
               if (!bluetooth_agent->IsActive()) {
                 safe_reply("ReadValue", result,
@@ -650,11 +650,12 @@ void UniversalBlePlugin::WriteValue(
       }
     }
 
-    gatt_characteristic.WriteValueAsync(from_bytevc(value), write_option)
+    gatt_characteristic
+        .WriteValueWithResultAsync(from_bytevc(value), write_option)
         .Completed([bluetooth_agent, gatt_characteristic_lease, device_id,
-                    service, characteristic, result](
-                       IAsyncOperation<GattCommunicationStatus> const &sender,
-                       AsyncStatus const args) {
+                    service, characteristic,
+                    result](IAsyncOperation<GattWriteResult> const &sender,
+                            AsyncStatus const args) {
           try {
             if (!bluetooth_agent->IsActive()) {
               safe_reply("WriteValue", result,
@@ -672,15 +673,16 @@ void UniversalBlePlugin::WriteValue(
               return;
             }
 
-            const auto status = sender.GetResults();
+            const auto write_result = sender.GetResults();
+            const auto status = write_result.Status();
             if (status != GattCommunicationStatus::Success) {
               UniversalBleLogger::LogError(
                   "WRITE_FAILED <- " + device_id + " " + service + " " +
                   characteristic +
                   " status=" + std::to_string(static_cast<int>(status)));
-              safe_reply(
-                  "WriteValue", result,
-                  create_flutter_error_from_gatt_communication_status(status));
+              safe_reply("WriteValue", result,
+                         create_flutter_error_from_gatt_result(
+                             status, write_result.ProtocolError()));
             } else {
               if (!bluetooth_agent->IsActive()) {
                 safe_reply("WriteValue", result,
@@ -759,9 +761,10 @@ void UniversalBlePlugin::ReadDescriptorValue(
             }
             const auto desc_result = desc_sender.GetResults();
             if (desc_result.Status() != GattCommunicationStatus::Success) {
-              safe_reply("ReadDescriptorValue", result,
-                         create_flutter_error_from_gatt_communication_status(
-                             desc_result.Status()));
+              safe_reply(
+                  "ReadDescriptorValue", result,
+                  create_flutter_error_from_gatt_result(
+                      desc_result.Status(), desc_result.ProtocolError()));
               return;
             }
             if (desc_result.Descriptors().Size() == 0) {
@@ -801,8 +804,8 @@ void UniversalBlePlugin::ReadDescriptorValue(
                     if (status != GattCommunicationStatus::Success) {
                       safe_reply(
                           "ReadDescriptorValue", result,
-                          create_flutter_error_from_gatt_communication_status(
-                              status));
+                          create_flutter_error_from_gatt_result(
+                              status, read_value_result.ProtocolError()));
                     } else {
                       if (!bluetooth_agent->IsActive()) {
                         safe_reply(
@@ -893,9 +896,10 @@ void UniversalBlePlugin::WriteDescriptorValue(
             }
             const auto desc_result = desc_sender.GetResults();
             if (desc_result.Status() != GattCommunicationStatus::Success) {
-              safe_reply("WriteDescriptorValue", result,
-                         create_flutter_error_from_gatt_communication_status(
-                             desc_result.Status()));
+              safe_reply(
+                  "WriteDescriptorValue", result,
+                  create_flutter_error_from_gatt_result(
+                      desc_result.Status(), desc_result.ProtocolError()));
               return;
             }
             if (desc_result.Descriptors().Size() == 0) {
@@ -906,12 +910,11 @@ void UniversalBlePlugin::WriteDescriptorValue(
               return;
             }
             const auto gatt_descriptor = desc_result.Descriptors().GetAt(0);
-            gatt_descriptor.WriteValueAsync(from_bytevc(value))
+            gatt_descriptor.WriteValueWithResultAsync(from_bytevc(value))
                 .Completed([bluetooth_agent, gatt_characteristic_lease,
                             device_id, service, characteristic, descriptor,
                             result](
-                               IAsyncOperation<GattCommunicationStatus> const
-                                   &sender,
+                               IAsyncOperation<GattWriteResult> const &sender,
                                AsyncStatus const args) {
                   try {
                     if (!bluetooth_agent->IsActive()) {
@@ -932,12 +935,12 @@ void UniversalBlePlugin::WriteDescriptorValue(
                       return;
                     }
 
-                    const auto status = sender.GetResults();
+                    const auto write_result = sender.GetResults();
+                    const auto status = write_result.Status();
                     if (status != GattCommunicationStatus::Success) {
-                      safe_reply(
-                          "WriteDescriptorValue", result,
-                          create_flutter_error_from_gatt_communication_status(
-                              status));
+                      safe_reply("WriteDescriptorValue", result,
+                                 create_flutter_error_from_gatt_result(
+                                     status, write_result.ProtocolError()));
                     } else {
                       if (!bluetooth_agent->IsActive()) {
                         safe_reply(
@@ -2067,6 +2070,11 @@ fire_and_forget UniversalBlePlugin::ConnectAsync(uint64_t bluetooth_address,
       services_result =
           co_await device.GetGattServicesAsync(BluetoothCacheMode::Uncached);
     }
+    // Discovery failures report the generic status message rather than the ATT
+    // code in `services_result.ProtocolError()` (unlike the read/write paths,
+    // which use create_flutter_error_from_gatt_result): this runs during connect
+    // and is surfaced as a connection failure. The same applies to the
+    // characteristics query below.
     auto services_result_error =
         gatt_communication_status_to_error(services_result.Status());
     if (services_result_error.has_value()) {
@@ -2997,12 +3005,13 @@ fire_and_forget UniversalBlePlugin::SetNotifiableAsync(
     }
 
     // Write to the descriptor.
-    GattCommunicationStatus status{};
+    GattWriteResult write_result{nullptr};
     try {
       stage = "write-descriptor";
-      status = co_await gatt_characteristic
-                   .WriteClientCharacteristicConfigurationDescriptorAsync(
-                       descriptor_value);
+      write_result =
+          co_await gatt_characteristic
+              .WriteClientCharacteristicConfigurationDescriptorWithResultAsync(
+                  descriptor_value);
     } catch (const hresult_error &err) {
       UniversalBleLogger::LogError(
           "SET_NOTIFY exception hr=" + std::to_string(err.code()) +
@@ -3025,6 +3034,7 @@ fire_and_forget UniversalBlePlugin::SetNotifiableAsync(
       co_return;
     }
     stage = "descriptor-completed";
+    const auto status = write_result.Status();
     if (status != GattCommunicationStatus::Success) {
       UniversalBleLogger::LogError("SET_NOTIFY_FAILED <- " + device_id + " " +
                                    service + " " + characteristic + " status=" +
@@ -3039,7 +3049,8 @@ fire_and_forget UniversalBlePlugin::SetNotifiableAsync(
       device_agent->FinishNotificationOperation(service, characteristic,
                                                 previous_subscription_token);
       notification_operation_started = false;
-      reply(create_flutter_error_from_gatt_communication_status(status));
+      reply(create_flutter_error_from_gatt_result(
+          status, write_result.ProtocolError()));
       co_return;
     }
 

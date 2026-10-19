@@ -149,13 +149,14 @@ func attErrorToUniversalBleErrorCode(_ code: Int) -> UniversalBleErrorCode {
     }
 }
 
-/// Creates a PigeonError with the error code enum in details
+/// Creates a PigeonError carrying the error code enum's raw value
 func createFlutterError(
     code: UniversalBleErrorCode,
     message: String? = nil,
     details: String? = nil
 ) -> PigeonError {
-    // Pass the enum's rawValue (Int) in code as string, and enum name in details
+    // `code` and `details` are both numeric strings: the enum's raw value, unless
+    // the caller passes a native code (e.g. the ATT error) in details.
     return PigeonError(
         code: code.rawValue.description,
         message: message,
