@@ -47,6 +47,8 @@ list(APPEND PLUGIN_SOURCES
   "src/scan_result_merge.h"
   "src/scan_filter_matcher.cpp"
   "src/scan_filter_matcher.h"
+  "src/advertisement_uuid.cpp"
+  "src/advertisement_uuid.h"
   "src/att_error_mapper.cpp"
   "src/att_error_mapper.h"
   "src/universal_ble_filter_util.cpp"
