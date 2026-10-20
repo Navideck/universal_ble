@@ -43,6 +43,17 @@ target_compile_definitions(att_error_mapper_test PRIVATE
 
 add_test(NAME att_error_mapper_test COMMAND att_error_mapper_test)
 
+# Covers the little-endian UUID expansion used for advertised Service Data.
+# Platform-agnostic so it runs on every host.
+add_executable(advertisement_uuid_test
+  advertisement_uuid_test.cpp
+  ../src/advertisement_uuid.cpp
+)
+target_compile_features(advertisement_uuid_test PRIVATE cxx_std_20)
+target_include_directories(advertisement_uuid_test PRIVATE ../src)
+
+add_test(NAME advertisement_uuid_test COMMAND advertisement_uuid_test)
+
 if(WIN32)
   add_executable(cleanup_drain_test cleanup_drain_test.cpp)
   target_compile_features(cleanup_drain_test PRIVATE cxx_std_20)
