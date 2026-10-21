@@ -13,9 +13,11 @@ class UniversalBleAsyncServiceDiscovery: NSObject {
     private let peripheral: CBPeripheral
     private let deviceId: String
     private let completion: (Result<[UniversalBleService], Error>) -> Void
-    private var discoveredServicesProgressMap: [UniversalBleService] = []
-    private var discoveredDescriptorsSet: Set<String> = []
-    private var expectedCharacteristicsCountMap: [String: Int] = [:]
+    /// The services in the peripheral's order, held so that their identities
+    /// stay unique while `progress` keys on them. Progress kept by UUID string
+    /// never completed for a peripheral with two services of one UUID.
+    private var discoveredServices: [CBService] = []
+    private var progress: UniversalBleDiscoveryProgress<ObjectIdentifier, ObjectIdentifier>?
     private var isDiscoveryInProgress = false
     private var hasCompleted = false
     private var withDescriptors: Bool
@@ -90,9 +92,8 @@ class UniversalBleAsyncServiceDiscovery: NSObject {
         isDiscoveryInProgress = false
         timeoutWorkItem?.cancel()
         timeoutWorkItem = nil
-        discoveredServicesProgressMap.removeAll()
-        discoveredDescriptorsSet.removeAll()
-        expectedCharacteristicsCountMap.removeAll()
+        discoveredServices.removeAll()
+        progress = nil
     }
 
     private func completeWith(result: Result<[UniversalBleService], Error>) {
@@ -103,9 +104,11 @@ class UniversalBleAsyncServiceDiscovery: NSObject {
     }
 
     private func handleServicesDiscovered(_ services: [CBService]) {
-        discoveredServicesProgressMap = services.map { UniversalBleService(uuid: $0.uuid.uuidString, characteristics: nil) }
-        discoveredDescriptorsSet = Set<String>()
-        expectedCharacteristicsCountMap = [:]
+        discoveredServices = services
+        progress = UniversalBleDiscoveryProgress<ObjectIdentifier, ObjectIdentifier>(
+            services: services.map { ObjectIdentifier($0) },
+            withDescriptors: withDescriptors
+        )
 
         // If no services, complete discovery immediately
         guard !services.isEmpty else {
@@ -134,34 +137,24 @@ class UniversalBleAsyncServiceDiscovery: NSObject {
     }
 
     private func processCharacteristicsForService(_ service: CBService) {
-        let serviceUuid = service.uuid.uuidString
         let safeChars = service.safeCharacteristics
         if safeChars.hasForeign {
             failForStaleGattCache(
-                location: "characteristics of service \(serviceUuid)",
+                location: "characteristics of service \(service.uuid.uuidString)",
                 foreignClassNames: safeChars.foreignClassNames
             )
             return
         }
-        guard let characteristics = safeChars.attributes else {
-            // Service has no characteristics, mark as complete
-            expectedCharacteristicsCountMap[serviceUuid] = 0
-            if let index = discoveredServicesProgressMap.firstIndex(where: { $0.uuid == serviceUuid }) {
-                discoveredServicesProgressMap[index] = UniversalBleService(uuid: serviceUuid, characteristics: [])
-            }
-            checkForDiscoveryCompletion()
-            return
-        }
+        // A service with no characteristics (nil or empty) is complete as it is.
+        let characteristics = safeChars.attributes ?? []
 
-        // Store expected characteristic count for this service
-        expectedCharacteristicsCountMap[serviceUuid] = characteristics.count
-
-        // If no characteristics, mark service as complete
-        if characteristics.isEmpty {
-            if let index = discoveredServicesProgressMap.firstIndex(where: { $0.uuid == serviceUuid }) {
-                discoveredServicesProgressMap[index] = UniversalBleService(uuid: serviceUuid, characteristics: [])
-            }
-            checkForDiscoveryCompletion()
+        // The service is found by its identity, never by its UUID, so a
+        // second service with the same UUID is its own entry.
+        // A service this discovery was not started with is ignored.
+        guard progress?.characteristicsDiscovered(
+            for: ObjectIdentifier(service),
+            characteristics.map { ObjectIdentifier($0) }
+        ) == true else {
             return
         }
 
@@ -181,93 +174,59 @@ class UniversalBleAsyncServiceDiscovery: NSObject {
                     peripheral.discoverDescriptors(for: characteristic)
                 }
             }
-        } else {
-            if let index = discoveredServicesProgressMap.firstIndex(where: { $0.uuid == serviceUuid }) {
-                discoveredServicesProgressMap[index] = UniversalBleService(
-                    uuid: serviceUuid,
-                    characteristics: characteristics.map {
-                        UniversalBleCharacteristic(
-                            uuid: $0.uuid.uuidString,
-                            properties: $0.properties.toCharacteristicProperty,
-                            descriptors: []
-                        )
-                    }
-                )
-            }
-            checkForDiscoveryCompletion()
         }
+        checkForDiscoveryCompletion()
     }
 
     private func handleDescriptorsDiscovered(for characteristic: CBCharacteristic) {
-        guard let service = characteristic.service else {
-            return
-        }
-
-        let serviceUuid = service.uuid.uuidString
-        let characteristicUuid = characteristic.uuid.uuidString
-        let characteristicKey = "\(serviceUuid):\(characteristicUuid)"
-
-        // Mark this characteristic's descriptors as discovered
-        discoveredDescriptorsSet.insert(characteristicKey)
-
-        // Get expected characteristic count for this service
-        guard let expectedCount = expectedCharacteristicsCountMap[serviceUuid] else {
-            return
-        }
-
-        // Check if all characteristics for this service have had their descriptors discovered
-        let safeChars = service.safeCharacteristics
-        if safeChars.hasForeign {
-            failForStaleGattCache(
-                location: "characteristics of service \(serviceUuid)",
-                foreignClassNames: safeChars.foreignClassNames
-            )
-            return
-        }
-        guard let allCharacteristics = safeChars.attributes else {
-            return
-        }
-
-        let discoveredCount = allCharacteristics.filter { char in
-            let key = "\(serviceUuid):\(char.uuid.uuidString)"
-            return discoveredDescriptorsSet.contains(key)
-        }.count
-
-        // Only update the service when all characteristics have descriptors discovered
-        if discoveredCount == expectedCount {
-            var universalBleCharacteristicsList: [UniversalBleCharacteristic] = []
-            for characteristic in allCharacteristics {
-                let safeDescs = characteristic.safeDescriptors
-                if safeDescs.hasForeign {
-                    failForStaleGattCache(
-                        location: "descriptors of characteristic \(characteristic.uuid.uuidString)",
-                        foreignClassNames: safeDescs.foreignClassNames
-                    )
-                    return
-                }
-                universalBleCharacteristicsList.append(
-                    UniversalBleCharacteristic(
-                        uuid: characteristic.uuid.uuidString,
-                        properties: characteristic.properties.toCharacteristicProperty,
-                        descriptors: (safeDescs.attributes ?? []).map { UniversalBleDescriptor(uuid: $0.uuid.uuidString) }
-                    )
-                )
-            }
-
-            if let index = discoveredServicesProgressMap.firstIndex(where: { $0.uuid == serviceUuid }) {
-                discoveredServicesProgressMap[index] = UniversalBleService(uuid: serviceUuid, characteristics: universalBleCharacteristicsList)
-            }
-
-            checkForDiscoveryCompletion()
-        }
+        // By the characteristic's identity, never by
+        // "service UUID:characteristic UUID".
+        progress?.descriptorsDiscovered(for: ObjectIdentifier(characteristic))
+        checkForDiscoveryCompletion()
     }
 
     private func checkForDiscoveryCompletion() {
         // Check if all services have been fully discovered (all characteristics with all descriptors)
-        guard discoveredServicesProgressMap.allSatisfy({ $0.characteristics != nil }) else {
+        guard let progress = progress, progress.isComplete else {
             return
         }
-        completeWith(result: .success(discoveredServicesProgressMap))
+        // The result is built through the safe accessors too, so a stale
+        // GATT cache still fails discovery here rather than trapping.
+        var services: [UniversalBleService] = []
+        for service in discoveredServices {
+            let safeChars = service.safeCharacteristics
+            if safeChars.hasForeign {
+                failForStaleGattCache(
+                    location: "characteristics of service \(service.uuid.uuidString)",
+                    foreignClassNames: safeChars.foreignClassNames
+                )
+                return
+            }
+            var characteristics: [UniversalBleCharacteristic] = []
+            for characteristic in safeChars.attributes ?? [] {
+                var descriptors: [UniversalBleDescriptor] = []
+                if withDescriptors {
+                    let safeDescs = characteristic.safeDescriptors
+                    if safeDescs.hasForeign {
+                        failForStaleGattCache(
+                            location: "descriptors of characteristic \(characteristic.uuid.uuidString)",
+                            foreignClassNames: safeDescs.foreignClassNames
+                        )
+                        return
+                    }
+                    descriptors = (safeDescs.attributes ?? []).map { UniversalBleDescriptor(uuid: $0.uuid.uuidString) }
+                }
+                characteristics.append(
+                    UniversalBleCharacteristic(
+                        uuid: characteristic.uuid.uuidString,
+                        properties: characteristic.properties.toCharacteristicProperty,
+                        descriptors: descriptors
+                    )
+                )
+            }
+            services.append(UniversalBleService(uuid: service.uuid.uuidString, characteristics: characteristics))
+        }
+        completeWith(result: .success(services))
     }
 }
 
