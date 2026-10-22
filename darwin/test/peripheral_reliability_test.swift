@@ -34,6 +34,16 @@ struct PeripheralReliabilityTests {
       precondition(uuid.data.count == 16, "Do not truncate custom or 32-bit service UUIDs")
       precondition(uuid.uuid128Str == CBUUID(string: value).uuid128Str)
     }
+    for value in ["2908", "00002908-0000-1000-8000-00805F9B34FB"] {
+      let reference = PeripheralDescriptor(
+        uuid: value, value: FlutterStandardTypedData(bytes: Data([3, 1])),
+        permissions: [.readable]).toCBMutableDescriptor()
+      precondition(reference.uuid.data.count == 2)
+      precondition(reference.value as? Data == Data([3, 1]))
+      // Native restoration reconstructs this descriptor before calling Dart.
+      let restored = CBMutableDescriptor(type: reference.uuid, value: nil)
+      precondition(restored.uuid.uuidString == "2908")
+    }
     var queue = PeripheralNotificationQueue<Int>()
     var delivered = [Int]()
     queue.append(1)

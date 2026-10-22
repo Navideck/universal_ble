@@ -26,7 +26,12 @@ extension PeripheralService {
 
 extension PeripheralDescriptor {
   func toCBMutableDescriptor() -> CBMutableDescriptor {
-    return CBMutableDescriptor(type: CBUUID(string: uuid), value: value?.toData())
+    let descriptorUuid = CBUUID(string: uuid)
+    // CoreBluetooth restores Report Reference values as nil. That is accepted
+    // for the SIG descriptor, but asserts if its UUID was encoded as 128 bits.
+    let type = descriptorUuid.uuid128Str == "00002908-0000-1000-8000-00805f9b34fb"
+      ? CBUUID(string: "2908") : descriptorUuid
+    return CBMutableDescriptor(type: type, value: value?.toData())
   }
 }
 
