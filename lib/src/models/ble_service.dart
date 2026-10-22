@@ -7,7 +7,7 @@ class BleService {
   List<BleCharacteristic> characteristics;
 
   BleService(String uuid, this.characteristics)
-    : uuid = BleUuidParser.string(uuid);
+      : uuid = BleUuidParser.string(uuid);
 
   @override
   String toString() {
@@ -22,7 +22,7 @@ class BleCharacteristic {
   BleCharOperationMetadata? metaData;
 
   BleCharacteristic(String uuid, this.properties, this.descriptors)
-    : uuid = BleUuidParser.string(uuid);
+      : uuid = BleUuidParser.string(uuid);
 
   BleCharacteristic.withMetaData({
     required String deviceId,
@@ -58,10 +58,10 @@ class BleCharacteristic {
   }
 
   Map<String, dynamic> toJson() => <String, dynamic>{
-    'uuid': uuid,
-    'properties': properties.map((e) => e.name).toList(),
-    'descriptors': descriptors.map((e) => e.toJson()).toList(),
-  };
+        'uuid': uuid,
+        'properties': properties.map((e) => e.name).toList(),
+        'descriptors': descriptors.map((e) => e.toJson()).toList(),
+      };
 
   @override
   String toString() {
@@ -145,20 +145,21 @@ class BlePeripheralService extends BleService {
   }
 
   Map<String, dynamic> toJson() => <String, dynamic>{
-    'uuid': uuid,
-    'primary': primary,
-    'characteristics': characteristics
-        .map((characteristic) => characteristic.toJson())
-        .toList(),
-  };
+        'uuid': uuid,
+        'primary': primary,
+        'characteristics': characteristics
+            .map((characteristic) => characteristic.toJson())
+            .toList(),
+      };
 
   PeripheralService toPeripheralService() => PeripheralService(
-    uuid: uuid,
-    primary: primary,
-    characteristics: characteristics
-        .map((characteristic) => characteristic.toPeripheralCharacteristic())
-        .toList(),
-  );
+        uuid: uuid,
+        primary: primary,
+        characteristics: characteristics
+            .map(
+                (characteristic) => characteristic.toPeripheralCharacteristic())
+            .toList(),
+      );
 }
 
 /// Peripheral/GATT server characteristic model that reuses [BleCharacteristic].
@@ -176,6 +177,9 @@ class BlePeripheralCharacteristic extends BleCharacteristic {
   /// to address them independently; leave it `null` for UUID-only behaviour.
   String? instanceId;
 
+  /// Require encrypted notification subscriptions on Apple. Ignored elsewhere.
+  bool requireEncryptedNotifications;
+
   @override
   List<BlePeripheralDescriptor> get descriptors =>
       super.descriptors.cast<BlePeripheralDescriptor>();
@@ -187,6 +191,7 @@ class BlePeripheralCharacteristic extends BleCharacteristic {
     required this.permissions,
     this.value,
     this.instanceId,
+    this.requireEncryptedNotifications = false,
   }) : super(uuid, properties, descriptors);
 
   factory BlePeripheralCharacteristic.fromJson(Map<String, dynamic> json) {
@@ -219,29 +224,32 @@ class BlePeripheralCharacteristic extends BleCharacteristic {
           ? null
           : Uint8List.fromList(valueList.whereType<int>().toList()),
       instanceId: json['instanceId'] as String?,
+      requireEncryptedNotifications:
+          json['requireEncryptedNotifications'] as bool? ?? false,
     );
   }
 
   @override
   Map<String, dynamic> toJson() => <String, dynamic>{
-    'uuid': uuid,
-    'properties': properties.map((e) => e.name).toList(),
-    'descriptors': descriptors.map((e) => e.toJson()).toList(),
-    'permissions': permissions.map((e) => e.name).toList(),
-    'value': value?.toList(),
-    'instanceId': instanceId,
-  };
+        'uuid': uuid,
+        'properties': properties.map((e) => e.name).toList(),
+        'descriptors': descriptors.map((e) => e.toJson()).toList(),
+        'permissions': permissions.map((e) => e.name).toList(),
+        'value': value?.toList(),
+        'instanceId': instanceId,
+        'requireEncryptedNotifications': requireEncryptedNotifications,
+      };
 
   PeripheralCharacteristic toPeripheralCharacteristic() =>
       PeripheralCharacteristic(
         uuid: uuid,
         properties: properties,
         permissions: permissions,
-        descriptors: descriptors
-            .map((e) => e.toPeripheralDescriptor())
-            .toList(),
+        descriptors:
+            descriptors.map((e) => e.toPeripheralDescriptor()).toList(),
         value: value,
         instanceId: instanceId,
+        requireEncryptedNotifications: requireEncryptedNotifications,
       );
 }
 
@@ -251,7 +259,7 @@ class BlePeripheralDescriptor extends BleDescriptor {
   List<PeripheralAttributePermission>? permissions;
 
   BlePeripheralDescriptor({required String uuid, this.value, this.permissions})
-    : super(uuid);
+      : super(uuid);
 
   factory BlePeripheralDescriptor.fromJson(Map<String, dynamic> json) {
     final permissions = (json['permissions'] as List<dynamic>? ?? <dynamic>[])
@@ -271,10 +279,10 @@ class BlePeripheralDescriptor extends BleDescriptor {
 
   @override
   Map<String, dynamic> toJson() => <String, dynamic>{
-    'uuid': uuid,
-    'value': value?.toList(),
-    'permissions': permissions?.map((e) => e.name).toList(),
-  };
+        'uuid': uuid,
+        'value': value?.toList(),
+        'permissions': permissions?.map((e) => e.name).toList(),
+      };
 
   PeripheralDescriptor toPeripheralDescriptor() =>
       PeripheralDescriptor(uuid: uuid, value: value, permissions: permissions);

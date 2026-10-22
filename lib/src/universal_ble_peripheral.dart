@@ -250,6 +250,20 @@ class UniversalBlePeripheral {
         instanceId: instanceId,
       );
 
+  /// Enables Apple peripheral restoration with a stable identifier per engine.
+  /// Set `UniversalBlePeripheralRestorationIdentifier` to the same value in the
+  /// host Info.plist to recreate the manager early during an OS relaunch.
+  /// Call after installing handlers/listeners. No-op on other platforms.
+  static Future<void> configureRestoration(String restorationIdentifier) =>
+      _platform.configureRestoration(restorationIdentifier);
+
+  /// Discards unsent native notifications and queued Dart updates for a client.
+  /// Already submitted packets cannot be recalled.
+  static Future<void> clearPendingNotifications([String? deviceId]) {
+    clearQueue(deviceId);
+    return _platform.clearPendingNotifications(deviceId);
+  }
+
   static Future<int?> getMaximumNotifyLength(String deviceId) =>
       _platform.getMaximumNotifyLength(deviceId);
 

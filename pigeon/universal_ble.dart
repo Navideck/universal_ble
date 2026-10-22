@@ -460,6 +460,9 @@ class PeripheralCharacteristic {
   /// instance an event belongs to.
   String? instanceId;
 
+  /// Requires encryption for notifications on Apple platforms; ignored elsewhere.
+  bool? requireEncryptedNotifications;
+
   PeripheralCharacteristic(
     this.uuid,
     this.properties,
@@ -467,6 +470,7 @@ class PeripheralCharacteristic {
     this.descriptors,
     this.value,
     this.instanceId,
+    this.requireEncryptedNotifications,
   );
 }
 
@@ -689,8 +693,17 @@ abstract class UniversalBlePeripheralChannel {
     String? characteristicInstanceId,
   );
 
+  /// Discards native notifications that have not yet been submitted.
+  void clearPendingNotifications(String? deviceId);
+
   /// Returns max characteristic notify payload length for a connected client.
   int? getMaximumNotifyLength(String deviceId);
+}
+
+/// Flutter -> Native (Apple peripheral restoration only).
+@HostApi()
+abstract class UniversalBleDarwinPeripheralChannel {
+  void configureRestoration(String restorationIdentifier);
 }
 
 /// Flutter -> Native (Android only)

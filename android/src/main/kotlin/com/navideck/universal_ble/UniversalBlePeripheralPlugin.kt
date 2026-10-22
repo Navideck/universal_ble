@@ -168,14 +168,20 @@ class UniversalBlePeripheralPlugin(
     }
 
     override fun addService(service: PeripheralService) {
-        requireGattServer().addService(service.toGattService())
+        check(requireGattServer().addService(service.toGattService())) { "Service registration rejected" }
     }
 
     override fun removeService(serviceId: String) {
-        serviceId.findService()?.let { requireGattServer().removeService(it) }
+        serviceId.findService()?.let { service ->
+            synchronized(pendingNotifications) {
+                pendingNotifications.removeAll { it.characteristic.service === service }
+            }
+            requireGattServer().removeService(service)
+        }
     }
 
     override fun clearServices() {
+        clearPendingNotifications(null)
         requireGattServer().clearServices()
     }
 
@@ -311,12 +317,19 @@ class UniversalBlePeripheralPlugin(
         val indicate =
             (characteristic.properties and BluetoothGattCharacteristic.PROPERTY_INDICATE) != 0
         synchronized(pendingNotifications) {
-            targetDevices.forEach { device ->
+            targetDevices.filter { isSubscribed(it.address, characteristic) }.forEach { device ->
                 pendingNotifications.addLast(
                     PendingNotification(device, characteristic, value.copyOf(), indicate)
                 )
             }
             targetDevices.forEach { drainNotifications(it.address) }
+        }
+    }
+
+    private fun isSubscribed(deviceAddress: String, characteristic: BluetoothGattCharacteristic): Boolean {
+        val subscriptionId = characteristic.instanceId() ?: characteristic.uuid.toString()
+        return synchronized(subscribedCharDevicesMap) {
+            subscribedCharDevicesMap[deviceAddress]?.any { it.equals(subscriptionId, ignoreCase = true) } == true
         }
     }
 
@@ -342,6 +355,15 @@ class UniversalBlePeripheralPlugin(
                 notificationsInFlight.remove(deviceAddress)
                 pendingNotifications.addFirst(next)
             }
+        }
+    }
+
+    override fun clearPendingNotifications(deviceId: String?) {
+        synchronized(pendingNotifications) {
+            if (deviceId == null) pendingNotifications.clear()
+            else pendingNotifications.removeAll { it.device.address.equals(deviceId, ignoreCase = true) }
+            // In-flight packets are already owned by Android. Keep their busy
+            // markers until onNotificationSent, so a neutral cannot overtake them.
         }
     }
 
@@ -645,6 +667,7 @@ class UniversalBlePeripheralPlugin(
                             charSet.remove(subscriptionId)
                         }
                     }
+                    if (!isSubscribed) clearPendingNotifications(address)
                 }
             }
             if (responseNeeded) {

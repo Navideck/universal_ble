@@ -1,3 +1,6 @@
+import CoreBluetooth
+import Foundation
+
 #if os(iOS)
   import Flutter
 #elseif os(macOS)
@@ -5,8 +8,6 @@
 #else
   #error("Unsupported platform.")
 #endif
-import CoreBluetooth
-import Foundation
 
 enum UniversalBlePeripheralError: Error {
   case notFound(String)
@@ -34,12 +35,21 @@ extension PeripheralCharacteristic {
   func toCBCharacteristic() -> CBMutableCharacteristic {
     let properties = self.properties.compactMap { $0.toCBCharacteristicProperties() }
     let permissions = self.permissions.compactMap { $0.toCBAttributePermissions() }
-    let combinedProperties = properties.reduce(CBCharacteristicProperties()) { $0.union($1) }
+    var combinedProperties = properties.reduce(CBCharacteristicProperties()) { $0.union($1) }
+    if requireEncryptedNotifications == true && combinedProperties.contains(.notify) {
+      combinedProperties.remove(.notify)
+      combinedProperties.insert(.notifyEncryptionRequired)
+    }
+    let dynamicProperties: CBCharacteristicProperties = [
+      .write, .writeWithoutResponse, .notify, .indicate,
+      .notifyEncryptionRequired, .indicateEncryptionRequired,
+    ]
+    let isDynamic = !combinedProperties.intersection(dynamicProperties).isEmpty
     let combinedPermissions = permissions.reduce(CBAttributePermissions()) { $0.union($1) }
     let characteristic = CBMutableCharacteristic(
       type: CBUUID(string: uuid),
       properties: combinedProperties,
-      value: value?.toData(),
+      value: isDynamic ? nil : value?.toData(),
       permissions: combinedPermissions
     )
     characteristic.descriptors = descriptors?.compactMap { $0.toCBMutableDescriptor() }
@@ -94,7 +104,9 @@ extension Int64 {
     case 15: return .insufficientEncryption
     case 16: return .unsupportedGroupType
     case 17: return .insufficientResources
-    default: return .success
+    // CoreBluetooth does not expose every ATT status (for example 0x13).
+    // Unsupported errors must never silently become successful writes.
+    default: return .unlikelyError
     }
   }
 }

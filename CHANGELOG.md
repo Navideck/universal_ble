@@ -1,3 +1,9 @@
+## Unreleased
+* Apple peripheral: create dynamic characteristics with nil native values, support optional encrypted notification subscriptions, preserve notification FIFO ordering under backpressure, and discard unsent reports on session/service/adapter loss.
+* Add opt-in peripheral state restoration with stable characteristic-instance identities and buffered events until Dart configuration.
+* Add `clearPendingNotifications` for discarding unsent native updates. Android retains already submitted packets until their completion callback; Windows has no plugin-owned pending queue.
+* Remove failed Apple service additions from pending state and cancel Dart service-add listeners on errors/timeouts.
+
 ## 3.2.0
 * Peripheral mode: characteristics can declare a stable `instanceId`. GATT allows several characteristics with the same UUID (HID exposes one Report characteristic per report), but the plugin addressed them by UUID and could only reach the first. Set `BlePeripheralCharacteristic.instanceId` to address each instance in `updateCharacteristicValue` and `getSubscribedClients`; read/write/descriptor callbacks and subscription events echo it back. UUID-only callers keep the first-match behaviour. `OnPeripheralReadRequestWithInstance` (and the write/descriptor variants, plus `setReadRequestHandlersWithInstance` etc.) receive the identity; the existing callbacks and setters are unchanged.
 * Peripheral mode: each client's CCCD is tracked per characteristic instance and defaults to disabled, so one subscriber cannot change what another reads. CCCD and descriptor reads without an app handler now return the configured or per-client value instead of `GATT_FAILURE`.

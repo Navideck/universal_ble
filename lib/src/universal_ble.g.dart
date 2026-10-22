@@ -1697,6 +1697,7 @@ class PeripheralCharacteristic {
     this.descriptors,
     this.value,
     this.instanceId,
+    this.requireEncryptedNotifications,
   });
 
   String uuid;
@@ -1719,6 +1720,9 @@ class PeripheralCharacteristic {
   /// instance an event belongs to.
   String? instanceId;
 
+  /// Requires encryption for notifications on Apple platforms; ignored elsewhere.
+  bool? requireEncryptedNotifications;
+
   List<Object?> _toList() {
     return <Object?>[
       uuid,
@@ -1727,6 +1731,7 @@ class PeripheralCharacteristic {
       descriptors,
       value,
       instanceId,
+      requireEncryptedNotifications,
     ];
   }
 
@@ -1744,6 +1749,7 @@ class PeripheralCharacteristic {
       descriptors: (result[3] as List<Object?>?)?.cast<PeripheralDescriptor>(),
       value: result[4] as Uint8List?,
       instanceId: result[5] as String?,
+      requireEncryptedNotifications: result[6] as bool?,
     );
   }
 
@@ -1762,7 +1768,9 @@ class PeripheralCharacteristic {
         _deepEquals(permissions, other.permissions) &&
         _deepEquals(descriptors, other.descriptors) &&
         _deepEquals(value, other.value) &&
-        _deepEquals(instanceId, other.instanceId);
+        _deepEquals(instanceId, other.instanceId) &&
+        _deepEquals(
+            requireEncryptedNotifications, other.requireEncryptedNotifications);
   }
 
   @override
@@ -1771,7 +1779,7 @@ class PeripheralCharacteristic {
 
   @override
   String toString() {
-    return 'PeripheralCharacteristic(uuid: $uuid, properties: $properties, permissions: $permissions, descriptors: $descriptors, value: $value, instanceId: $instanceId)';
+    return 'PeripheralCharacteristic(uuid: $uuid, properties: $properties, permissions: $permissions, descriptors: $descriptors, value: $value, instanceId: $instanceId, requireEncryptedNotifications: $requireEncryptedNotifications)';
   }
 }
 
@@ -3163,6 +3171,26 @@ class UniversalBlePeripheralChannel {
     return (pigeonVar_replyValue! as List<Object?>).cast<String>();
   }
 
+  /// Discards native notifications that have not yet been submitted.
+  Future<void> clearPendingNotifications(String? deviceId) async {
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.universal_ble.UniversalBlePeripheralChannel.clearPendingNotifications$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture =
+        pigeonVar_channel.send(<Object?>[deviceId]);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    _extractReplyValueOrThrow(
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: true,
+    );
+  }
+
   /// Returns max characteristic notify payload length for a connected client.
   Future<int?> getMaximumNotifyLength(String deviceId) async {
     final pigeonVar_channelName =
@@ -3182,6 +3210,43 @@ class UniversalBlePeripheralChannel {
       isNullValid: true,
     );
     return pigeonVar_replyValue as int?;
+  }
+}
+
+/// Flutter -> Native (Apple peripheral restoration only).
+class UniversalBleDarwinPeripheralChannel {
+  /// Constructor for [UniversalBleDarwinPeripheralChannel]. The [binaryMessenger] named argument is
+  /// available for dependency injection. If it is left null, the default
+  /// BinaryMessenger will be used which routes to the host platform.
+  UniversalBleDarwinPeripheralChannel({
+    BinaryMessenger? binaryMessenger,
+    String messageChannelSuffix = '',
+  })  : pigeonVar_binaryMessenger = binaryMessenger,
+        pigeonVar_messageChannelSuffix =
+            messageChannelSuffix.isNotEmpty ? '.$messageChannelSuffix' : '';
+
+  final BinaryMessenger? pigeonVar_binaryMessenger;
+  static const MessageCodec<Object?> pigeonChannelCodec = _PigeonCodec();
+
+  final String pigeonVar_messageChannelSuffix;
+
+  Future<void> configureRestoration(String restorationIdentifier) async {
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.universal_ble.UniversalBleDarwinPeripheralChannel.configureRestoration$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture =
+        pigeonVar_channel.send(<Object?>[restorationIdentifier]);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    _extractReplyValueOrThrow(
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: true,
+    );
   }
 }
 

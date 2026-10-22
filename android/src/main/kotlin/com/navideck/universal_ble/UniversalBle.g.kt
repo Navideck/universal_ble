@@ -1633,7 +1633,9 @@ data class PeripheralCharacteristic (
    * notification callbacks echo the identity back, so a caller can tell which
    * instance an event belongs to.
    */
-  val instanceId: String? = null
+  val instanceId: String? = null,
+  /** Requires encryption for notifications on Apple platforms; ignored elsewhere. */
+  val requireEncryptedNotifications: Boolean? = null
 )
  {
   companion object {
@@ -1644,7 +1646,8 @@ data class PeripheralCharacteristic (
       val descriptors = pigeonVar_list[3] as List<PeripheralDescriptor>?
       val value = pigeonVar_list[4] as ByteArray?
       val instanceId = pigeonVar_list[5] as String?
-      return PeripheralCharacteristic(uuid, properties, permissions, descriptors, value, instanceId)
+      val requireEncryptedNotifications = pigeonVar_list[6] as Boolean?
+      return PeripheralCharacteristic(uuid, properties, permissions, descriptors, value, instanceId, requireEncryptedNotifications)
     }
   }
   fun toList(): List<Any?> {
@@ -1655,6 +1658,7 @@ data class PeripheralCharacteristic (
       descriptors,
       value,
       instanceId,
+      requireEncryptedNotifications,
     )
   }
   override fun equals(other: Any?): Boolean {
@@ -1665,7 +1669,7 @@ data class PeripheralCharacteristic (
       return true
     }
     val other = other as PeripheralCharacteristic
-    return UniversalBlePigeonUtils.deepEquals(this.uuid, other.uuid) && UniversalBlePigeonUtils.deepEquals(this.properties, other.properties) && UniversalBlePigeonUtils.deepEquals(this.permissions, other.permissions) && UniversalBlePigeonUtils.deepEquals(this.descriptors, other.descriptors) && UniversalBlePigeonUtils.deepEquals(this.value, other.value) && UniversalBlePigeonUtils.deepEquals(this.instanceId, other.instanceId)
+    return UniversalBlePigeonUtils.deepEquals(this.uuid, other.uuid) && UniversalBlePigeonUtils.deepEquals(this.properties, other.properties) && UniversalBlePigeonUtils.deepEquals(this.permissions, other.permissions) && UniversalBlePigeonUtils.deepEquals(this.descriptors, other.descriptors) && UniversalBlePigeonUtils.deepEquals(this.value, other.value) && UniversalBlePigeonUtils.deepEquals(this.instanceId, other.instanceId) && UniversalBlePigeonUtils.deepEquals(this.requireEncryptedNotifications, other.requireEncryptedNotifications)
   }
 
   override fun hashCode(): Int {
@@ -1676,10 +1680,11 @@ data class PeripheralCharacteristic (
     result = 31 * result + UniversalBlePigeonUtils.deepHash(this.descriptors)
     result = 31 * result + UniversalBlePigeonUtils.deepHash(this.value)
     result = 31 * result + UniversalBlePigeonUtils.deepHash(this.instanceId)
+    result = 31 * result + UniversalBlePigeonUtils.deepHash(this.requireEncryptedNotifications)
     return result
   }
   override fun toString(): String {
-    return "PeripheralCharacteristic(uuid=$uuid, properties=$properties, permissions=$permissions, descriptors=$descriptors, value=${value?.contentToString()}, instanceId=$instanceId)"
+    return "PeripheralCharacteristic(uuid=$uuid, properties=$properties, permissions=$permissions, descriptors=$descriptors, value=${value?.contentToString()}, instanceId=$instanceId, requireEncryptedNotifications=$requireEncryptedNotifications)"
   }
 }
 
@@ -2912,6 +2917,8 @@ interface UniversalBlePeripheralChannel {
    * [characteristicInstanceId]).
    */
   fun getSubscribedClients(characteristicId: String, characteristicInstanceId: String?): List<String>
+  /** Discards native notifications that have not yet been submitted. */
+  fun clearPendingNotifications(deviceId: String?)
   /** Returns max characteristic notify payload length for a connected client. */
   fun getMaximumNotifyLength(deviceId: String): Long?
 
@@ -3099,6 +3106,24 @@ interface UniversalBlePeripheralChannel {
         }
       }
       run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.universal_ble.UniversalBlePeripheralChannel.clearPendingNotifications$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { message, reply ->
+            val args = message as List<Any?>
+            val deviceIdArg = args[0] as String?
+            val wrapped: List<Any?> = try {
+              api.clearPendingNotifications(deviceIdArg)
+              listOf(null)
+            } catch (exception: Throwable) {
+              UniversalBlePigeonUtils.wrapError(exception)
+            }
+            reply.reply(wrapped)
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
         val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.universal_ble.UniversalBlePeripheralChannel.getMaximumNotifyLength$separatedMessageChannelSuffix", codec)
         if (api != null) {
           channel.setMessageHandler { message, reply ->
@@ -3106,6 +3131,44 @@ interface UniversalBlePeripheralChannel {
             val deviceIdArg = args[0] as String
             val wrapped: List<Any?> = try {
               listOf(api.getMaximumNotifyLength(deviceIdArg))
+            } catch (exception: Throwable) {
+              UniversalBlePigeonUtils.wrapError(exception)
+            }
+            reply.reply(wrapped)
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+    }
+  }
+}
+/**
+ * Flutter -> Native (Apple peripheral restoration only).
+ *
+ * Generated interface from Pigeon that represents a handler of messages from Flutter.
+ */
+interface UniversalBleDarwinPeripheralChannel {
+  fun configureRestoration(restorationIdentifier: String)
+
+  companion object {
+    /** The codec used by UniversalBleDarwinPeripheralChannel. */
+    val codec: MessageCodec<Any?> by lazy {
+      UniversalBlePigeonCodec()
+    }
+    /** Sets up an instance of `UniversalBleDarwinPeripheralChannel` to handle messages through the `binaryMessenger`. */
+    @JvmOverloads
+    fun setUp(binaryMessenger: BinaryMessenger, api: UniversalBleDarwinPeripheralChannel?, messageChannelSuffix: String = "") {
+      val separatedMessageChannelSuffix = if (messageChannelSuffix.isNotEmpty()) ".$messageChannelSuffix" else ""
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.universal_ble.UniversalBleDarwinPeripheralChannel.configureRestoration$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { message, reply ->
+            val args = message as List<Any?>
+            val restorationIdentifierArg = args[0] as String
+            val wrapped: List<Any?> = try {
+              api.configureRestoration(restorationIdentifierArg)
+              listOf(null)
             } catch (exception: Throwable) {
               UniversalBlePigeonUtils.wrapError(exception)
             }

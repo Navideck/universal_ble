@@ -1489,6 +1489,8 @@ struct PeripheralCharacteristic: Hashable, CustomStringConvertible {
   /// notification callbacks echo the identity back, so a caller can tell which
   /// instance an event belongs to.
   var instanceId: String? = nil
+  /// Requires encryption for notifications on Apple platforms; ignored elsewhere.
+  var requireEncryptedNotifications: Bool? = nil
 
 
   // swift-format-ignore: AlwaysUseLowerCamelCase
@@ -1499,6 +1501,7 @@ struct PeripheralCharacteristic: Hashable, CustomStringConvertible {
     let descriptors: [PeripheralDescriptor]? = nilOrValue(pigeonVar_list[3])
     let value: FlutterStandardTypedData? = nilOrValue(pigeonVar_list[4])
     let instanceId: String? = nilOrValue(pigeonVar_list[5])
+    let requireEncryptedNotifications: Bool? = nilOrValue(pigeonVar_list[6])
 
     return PeripheralCharacteristic(
       uuid: uuid,
@@ -1506,7 +1509,8 @@ struct PeripheralCharacteristic: Hashable, CustomStringConvertible {
       permissions: permissions,
       descriptors: descriptors,
       value: value,
-      instanceId: instanceId
+      instanceId: instanceId,
+      requireEncryptedNotifications: requireEncryptedNotifications
     )
   }
   func toList() -> [Any?] {
@@ -1517,13 +1521,14 @@ struct PeripheralCharacteristic: Hashable, CustomStringConvertible {
       descriptors,
       value,
       instanceId,
+      requireEncryptedNotifications,
     ]
   }
   static func == (lhs: PeripheralCharacteristic, rhs: PeripheralCharacteristic) -> Bool {
     if Swift.type(of: lhs) != Swift.type(of: rhs) {
       return false
     }
-    return UniversalBlePigeonInternal.deepEquals(lhs.uuid, rhs.uuid) && UniversalBlePigeonInternal.deepEquals(lhs.properties, rhs.properties) && UniversalBlePigeonInternal.deepEquals(lhs.permissions, rhs.permissions) && UniversalBlePigeonInternal.deepEquals(lhs.descriptors, rhs.descriptors) && UniversalBlePigeonInternal.deepEquals(lhs.value, rhs.value) && UniversalBlePigeonInternal.deepEquals(lhs.instanceId, rhs.instanceId)
+    return UniversalBlePigeonInternal.deepEquals(lhs.uuid, rhs.uuid) && UniversalBlePigeonInternal.deepEquals(lhs.properties, rhs.properties) && UniversalBlePigeonInternal.deepEquals(lhs.permissions, rhs.permissions) && UniversalBlePigeonInternal.deepEquals(lhs.descriptors, rhs.descriptors) && UniversalBlePigeonInternal.deepEquals(lhs.value, rhs.value) && UniversalBlePigeonInternal.deepEquals(lhs.instanceId, rhs.instanceId) && UniversalBlePigeonInternal.deepEquals(lhs.requireEncryptedNotifications, rhs.requireEncryptedNotifications)
   }
 
   func hash(into hasher: inout Hasher) {
@@ -1534,10 +1539,11 @@ struct PeripheralCharacteristic: Hashable, CustomStringConvertible {
     UniversalBlePigeonInternal.deepHash(value: descriptors, hasher: &hasher)
     UniversalBlePigeonInternal.deepHash(value: value, hasher: &hasher)
     UniversalBlePigeonInternal.deepHash(value: instanceId, hasher: &hasher)
+    UniversalBlePigeonInternal.deepHash(value: requireEncryptedNotifications, hasher: &hasher)
   }
 
   public var description: String {
-    return "PeripheralCharacteristic(uuid: \(String(describing: uuid)), properties: \(String(describing: properties)), permissions: \(String(describing: permissions)), descriptors: \(String(describing: descriptors)), value: \(String(describing: value)), instanceId: \(String(describing: instanceId)))"
+    return "PeripheralCharacteristic(uuid: \(String(describing: uuid)), properties: \(String(describing: properties)), permissions: \(String(describing: permissions)), descriptors: \(String(describing: descriptors)), value: \(String(describing: value)), instanceId: \(String(describing: instanceId)), requireEncryptedNotifications: \(String(describing: requireEncryptedNotifications)))"
   }
 }
 
@@ -2627,6 +2633,8 @@ protocol UniversalBlePeripheralChannel {
   /// characteristic identified by [characteristicId] (and, when supplied,
   /// [characteristicInstanceId]).
   func getSubscribedClients(characteristicId: String, characteristicInstanceId: String?) throws -> [String]
+  /// Discards native notifications that have not yet been submitted.
+  func clearPendingNotifications(deviceId: String?) throws
   /// Returns max characteristic notify payload length for a connected client.
   func getMaximumNotifyLength(deviceId: String) throws -> Int64?
 }
@@ -2788,6 +2796,22 @@ class UniversalBlePeripheralChannelSetup {
     } else {
       getSubscribedClientsChannel.setMessageHandler(nil)
     }
+    /// Discards native notifications that have not yet been submitted.
+    let clearPendingNotificationsChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.universal_ble.UniversalBlePeripheralChannel.clearPendingNotifications\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    if let api = api {
+      clearPendingNotificationsChannel.setMessageHandler { message, reply in
+        let args = message as! [Any?]
+        let deviceIdArg: String? = nilOrValue(args[0])
+        do {
+          try api.clearPendingNotifications(deviceId: deviceIdArg)
+          reply(wrapResult(nil))
+        } catch {
+          reply(wrapError(error))
+        }
+      }
+    } else {
+      clearPendingNotificationsChannel.setMessageHandler(nil)
+    }
     /// Returns max characteristic notify payload length for a connected client.
     let getMaximumNotifyLengthChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.universal_ble.UniversalBlePeripheralChannel.getMaximumNotifyLength\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
     if let api = api {
@@ -2803,6 +2827,36 @@ class UniversalBlePeripheralChannelSetup {
       }
     } else {
       getMaximumNotifyLengthChannel.setMessageHandler(nil)
+    }
+  }
+}
+/// Flutter -> Native (Apple peripheral restoration only).
+///
+/// Generated protocol from Pigeon that represents a handler of messages from Flutter.
+protocol UniversalBleDarwinPeripheralChannel {
+  func configureRestoration(restorationIdentifier: String) throws
+}
+
+/// Generated setup class from Pigeon to handle messages through the `binaryMessenger`.
+class UniversalBleDarwinPeripheralChannelSetup {
+  static var codec: FlutterStandardMessageCodec { UniversalBlePigeonCodec.shared }
+  /// Sets up an instance of `UniversalBleDarwinPeripheralChannel` to handle messages through the `binaryMessenger`.
+  static func setUp(binaryMessenger: FlutterBinaryMessenger, api: UniversalBleDarwinPeripheralChannel?, messageChannelSuffix: String = "") {
+    let channelSuffix = messageChannelSuffix.count > 0 ? ".\(messageChannelSuffix)" : ""
+    let configureRestorationChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.universal_ble.UniversalBleDarwinPeripheralChannel.configureRestoration\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    if let api = api {
+      configureRestorationChannel.setMessageHandler { message, reply in
+        let args = message as! [Any?]
+        let restorationIdentifierArg = args[0] as! String
+        do {
+          try api.configureRestoration(restorationIdentifier: restorationIdentifierArg)
+          reply(wrapResult(nil))
+        } catch {
+          reply(wrapError(error))
+        }
+      }
+    } else {
+      configureRestorationChannel.setMessageHandler(nil)
     }
   }
 }

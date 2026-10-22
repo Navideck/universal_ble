@@ -93,6 +93,12 @@ abstract class UniversalBlePeripheralPlatform {
     String? instanceId,
   });
 
+  /// Configure Apple restoration before first manager use; no-op elsewhere.
+  Future<void> configureRestoration(String restorationIdentifier) async {}
+
+  /// Discard notifications not yet submitted to the OS. Does not retract sent data.
+  Future<void> clearPendingNotifications(String? deviceId) async {}
+
   Future<int?> getMaximumNotifyLength(String deviceId);
 
   /// Whether this platform identifies GATT clients by a Bluetooth *address* — a MAC on

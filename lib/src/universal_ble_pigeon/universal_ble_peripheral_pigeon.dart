@@ -70,28 +70,27 @@ class UniversalBlePeripheralPigeon extends UniversalBlePeripheralPlatform
     Duration? timeout,
   }) async {
     final String serviceId = BleUuidParser.string(service.uuid);
-    final Completer<void> completer = Completer<void>();
-    serviceAddedStream
-        .where((e) => BleUuidParser.compareStrings(e.serviceId, serviceId))
-        .first
-        .timeout(
-          timeout ?? const Duration(seconds: 5),
-          onTimeout: () =>
-              BlePeripheralServiceAdded(serviceId, 'Service add timed out'),
-        )
-        .then((e) {
+    final completer = Completer<void>();
+    final subscription = serviceAddedStream
+        .where(
+            (event) => BleUuidParser.compareStrings(event.serviceId, serviceId))
+        .listen((event) {
       if (completer.isCompleted) return;
-      if (e.error != null) {
-        completer.completeError(
-          PlatformException(code: 'service-add-failed', message: e.error),
-        );
-      } else {
+      if (event.error == null) {
         completer.complete();
+      } else {
+        completer.completeError(PlatformException(
+            code: 'service-add-failed', message: event.error));
       }
     });
-
-    await _channel.addService(service);
-    await completer.future;
+    try {
+      await Future.wait<void>([
+        completer.future.timeout(timeout ?? const Duration(seconds: 5)),
+        _channel.addService(service),
+      ], eagerError: true);
+    } finally {
+      await subscription.cancel();
+    }
   }
 
   @override
@@ -154,6 +153,26 @@ class UniversalBlePeripheralPigeon extends UniversalBlePeripheralPlatform
         .map((e) => e.toDeviceId(isAddress: hasAddressDeviceIds).canonical)
         .toList();
   }
+
+  @override
+  Future<void> configureRestoration(String restorationIdentifier) async {
+    if (!kIsWeb &&
+        (defaultTargetPlatform == TargetPlatform.iOS ||
+            defaultTargetPlatform == TargetPlatform.macOS)) {
+      if (restorationIdentifier.trim().isEmpty) {
+        throw ArgumentError.value(
+            restorationIdentifier, 'restorationIdentifier');
+      }
+      await UniversalBleDarwinPeripheralChannel()
+          .configureRestoration(restorationIdentifier);
+    }
+  }
+
+  @override
+  Future<void> clearPendingNotifications(String? deviceId) =>
+      _channel.clearPendingNotifications(
+        deviceId?.toDeviceId(isAddress: hasAddressDeviceIds).native,
+      );
 
   @override
   Future<int?> getMaximumNotifyLength(String deviceId) =>
@@ -252,9 +271,8 @@ class UniversalBlePeripheralPigeon extends UniversalBlePeripheralPlatform
     int offset,
     Uint8List? value,
   ) async {
-    final canonicalId = deviceId
-        .toDeviceId(isAddress: hasAddressDeviceIds)
-        .canonical;
+    final canonicalId =
+        deviceId.toDeviceId(isAddress: hasAddressDeviceIds).canonical;
     final parsedCharacteristicId = BleUuidParser.string(characteristicId);
     final result = _readRequestHandlerWithInstance?.call(
           canonicalId,
@@ -292,9 +310,8 @@ class UniversalBlePeripheralPigeon extends UniversalBlePeripheralPlatform
     int offset,
     Uint8List? value,
   ) async {
-    final canonicalId = deviceId
-        .toDeviceId(isAddress: hasAddressDeviceIds)
-        .canonical;
+    final canonicalId =
+        deviceId.toDeviceId(isAddress: hasAddressDeviceIds).canonical;
     final parsedCharacteristicId = BleUuidParser.string(characteristicId);
     final result = _writeRequestHandlerWithInstance?.call(
           canonicalId,
@@ -326,9 +343,8 @@ class UniversalBlePeripheralPigeon extends UniversalBlePeripheralPlatform
     int offset,
     Uint8List? value,
   ) async {
-    final canonicalId = deviceId
-        .toDeviceId(isAddress: hasAddressDeviceIds)
-        .canonical;
+    final canonicalId =
+        deviceId.toDeviceId(isAddress: hasAddressDeviceIds).canonical;
     final parsedCharacteristicId = BleUuidParser.string(characteristicId);
     final parsedDescriptorId = BleUuidParser.string(descriptorId);
     final result = _descriptorReadRequestHandlerWithInstance?.call(
@@ -363,9 +379,8 @@ class UniversalBlePeripheralPigeon extends UniversalBlePeripheralPlatform
     int offset,
     Uint8List? value,
   ) async {
-    final canonicalId = deviceId
-        .toDeviceId(isAddress: hasAddressDeviceIds)
-        .canonical;
+    final canonicalId =
+        deviceId.toDeviceId(isAddress: hasAddressDeviceIds).canonical;
     final parsedCharacteristicId = BleUuidParser.string(characteristicId);
     final parsedDescriptorId = BleUuidParser.string(descriptorId);
     final result = _descriptorWriteRequestHandlerWithInstance?.call(
