@@ -271,8 +271,9 @@ class UniversalBlePeripheralPigeon extends UniversalBlePeripheralPlatform
     int offset,
     Uint8List? value,
   ) async {
-    final canonicalId =
-        deviceId.toDeviceId(isAddress: hasAddressDeviceIds).canonical;
+    final canonicalId = deviceId
+        .toDeviceId(isAddress: hasAddressDeviceIds)
+        .canonical;
     final parsedCharacteristicId = BleUuidParser.string(characteristicId);
     final result = _readRequestHandlerWithInstance?.call(
           canonicalId,
@@ -310,8 +311,9 @@ class UniversalBlePeripheralPigeon extends UniversalBlePeripheralPlatform
     int offset,
     Uint8List? value,
   ) async {
-    final canonicalId =
-        deviceId.toDeviceId(isAddress: hasAddressDeviceIds).canonical;
+    final canonicalId = deviceId
+        .toDeviceId(isAddress: hasAddressDeviceIds)
+        .canonical;
     final parsedCharacteristicId = BleUuidParser.string(characteristicId);
     final result = _writeRequestHandlerWithInstance?.call(
           canonicalId,
@@ -343,8 +345,9 @@ class UniversalBlePeripheralPigeon extends UniversalBlePeripheralPlatform
     int offset,
     Uint8List? value,
   ) async {
-    final canonicalId =
-        deviceId.toDeviceId(isAddress: hasAddressDeviceIds).canonical;
+    final canonicalId = deviceId
+        .toDeviceId(isAddress: hasAddressDeviceIds)
+        .canonical;
     final parsedCharacteristicId = BleUuidParser.string(characteristicId);
     final parsedDescriptorId = BleUuidParser.string(descriptorId);
     final result = _descriptorReadRequestHandlerWithInstance?.call(
@@ -379,8 +382,9 @@ class UniversalBlePeripheralPigeon extends UniversalBlePeripheralPlatform
     int offset,
     Uint8List? value,
   ) async {
-    final canonicalId =
-        deviceId.toDeviceId(isAddress: hasAddressDeviceIds).canonical;
+    final canonicalId = deviceId
+        .toDeviceId(isAddress: hasAddressDeviceIds)
+        .canonical;
     final parsedCharacteristicId = BleUuidParser.string(characteristicId);
     final parsedDescriptorId = BleUuidParser.string(descriptorId);
     final result = _descriptorWriteRequestHandlerWithInstance?.call(

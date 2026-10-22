@@ -1,12 +1,11 @@
-import CoreBluetooth
-import Foundation
-
 #if os(iOS)
   import Flutter
 #elseif os(macOS)
   import Cocoa
   import FlutterMacOS
 #endif
+import CoreBluetooth
+import Foundation
 
 final class UniversalBlePeripheralPlugin: NSObject, UniversalBlePeripheralChannel,
   UniversalBleDarwinPeripheralChannel,
@@ -246,7 +245,9 @@ final class UniversalBlePeripheralPlugin: NSObject, UniversalBlePeripheralChanne
     }
   }
 
-  func getServices() throws -> [String] { serviceRegistry.serviceIds }
+  func getServices() throws -> [String] {
+    serviceRegistry.serviceIds
+  }
 
   func clearPendingNotifications(deviceId: String?) throws {
     if let deviceId {

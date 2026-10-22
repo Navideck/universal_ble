@@ -1,6 +1,3 @@
-import CoreBluetooth
-import Foundation
-
 #if os(iOS)
   import Flutter
 #elseif os(macOS)
@@ -8,6 +5,8 @@ import Foundation
 #else
   #error("Unsupported platform.")
 #endif
+import CoreBluetooth
+import Foundation
 
 enum UniversalBlePeripheralError: Error {
   case notFound(String)
