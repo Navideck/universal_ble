@@ -20,6 +20,20 @@ struct PeripheralReliabilityTests {
     _ = #selector(UniversalBlePeripheralPlugin.peripheralManager(_:didReceiveRead:))
     _ = #selector(UniversalBlePeripheralPlugin.peripheralManager(_:didReceiveWrite:))
     precondition(Int64(19).toCBATTErrorCode() == .unlikelyError)
+    for value in ["1812", "00001812-0000-1000-8000-00805F9B34FB",
+      "00001812-0000-1000-8000-00805f9b34fb", "180F"]
+    {
+      let uuid = UniversalBlePeripheralPlugin.advertisingServiceUuid(value)
+      precondition(uuid.data.count == 2, "SIG services must use 16-bit advertising fields")
+      precondition(uuid.uuid128Str == CBUUID(string: value).uuid128Str)
+    }
+    for value in ["12345678-1234-5678-9ABC-DEF012345678",
+      "12345678-0000-1000-8000-00805F9B34FB"]
+    {
+      let uuid = UniversalBlePeripheralPlugin.advertisingServiceUuid(value)
+      precondition(uuid.data.count == 16, "Do not truncate custom or 32-bit service UUIDs")
+      precondition(uuid.uuid128Str == CBUUID(string: value).uuid128Str)
+    }
     var queue = PeripheralNotificationQueue<Int>()
     var delivered = [Int]()
     queue.append(1)

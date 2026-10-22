@@ -259,6 +259,17 @@ final class UniversalBlePeripheralPlugin: NSObject, UniversalBlePeripheralChanne
     }
   }
 
+  // Dart canonicalizes UUIDs to 128 bits. Preserve the 16-bit advertising field
+  // for SIG services: some system pairing screens recognize HID only there.
+  static func advertisingServiceUuid(_ value: String) -> CBUUID {
+    let uuid = CBUUID(string: value)
+    let full = uuid.uuid128Str
+    if full.hasPrefix("0000"), full.hasSuffix("-0000-1000-8000-00805f9b34fb") {
+      return CBUUID(string: String(full.dropFirst(4).prefix(4)))
+    }
+    return uuid
+  }
+
   func startAdvertising(
     services: [String],
     localName: String?,
@@ -273,7 +284,7 @@ final class UniversalBlePeripheralPlugin: NSObject, UniversalBlePeripheralChanne
         userInfo: [NSLocalizedDescriptionKey: "Advertising timeout is not supported on Darwin."]
       )
     }
-    let cbServices = services.map { CBUUID(string: $0) }
+    let cbServices = services.map(Self.advertisingServiceUuid)
     var advertisementData: [String: Any] = [CBAdvertisementDataServiceUUIDsKey: cbServices]
     if let localName {
       advertisementData[CBAdvertisementDataLocalNameKey] = localName
