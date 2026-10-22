@@ -1005,6 +1005,28 @@ await UniversalBlePeripheral.addService(
   ),
 );
 
+// A characteristic that appears more than once in a service: give each
+// instance a stable identity and address it by that identity.
+await UniversalBlePeripheral.addService(
+  BlePeripheralService(
+    uuid: '00001812-0000-1000-8000-00805f9b34fb',
+    characteristics: [
+      BlePeripheralCharacteristic(
+        uuid: '00002a4d-0000-1000-8000-00805f9b34fb',
+        instanceId: 'consumerInput',
+        properties: [CharacteristicProperty.notify],
+        permissions: [PeripheralAttributePermission.readable],
+      ),
+    ],
+  ),
+);
+
+await UniversalBlePeripheral.updateCharacteristicValue(
+  characteristicId: '00002a4d-0000-1000-8000-00805f9b34fb',
+  instanceId: 'consumerInput',
+  value: Uint8List.fromList([0xE9, 0x00]),
+);
+
 await UniversalBlePeripheral.addService(
   BlePeripheralService(
     uuid: heartRateService,
@@ -1073,7 +1095,11 @@ await UniversalBlePeripheral.stopAdvertising();
 
 ### Request Handlers
 
-Register read/write handlers separately. Return `null` to let the stack use the characteristic's current value.
+Register read/write handlers separately. Return `null` to let the stack use the characteristic's configured or per-client value (including a CCCD, which is tracked per client and defaults to disabled).
+
+Read handlers return the **complete** characteristic value: the platform applies the client's read offset exactly once, on every platform.
+
+When a service contains several characteristics with the same UUID (HID Report characteristics), set `instanceId` on each and use the `...WithInstance` variants. They receive the instance identity; the UUID-only handlers above keep receiving the first matching characteristic.
 
 ```dart
 import 'dart:typed_data';
@@ -1104,6 +1130,13 @@ UniversalBlePeripheral.setDescriptorReadRequestHandlers(
 UniversalBlePeripheral.setDescriptorWriteRequestHandlers(
   (deviceId, characteristicId, descriptorId, offset, value) {
     return PeripheralWriteRequestResult();
+  },
+);
+
+// Instance-aware variant, for services with duplicate characteristic UUIDs.
+UniversalBlePeripheral.setReadRequestHandlersWithInstance(
+  (deviceId, characteristicId, instanceId, offset, value) {
+    return null;
   },
 );
 ```

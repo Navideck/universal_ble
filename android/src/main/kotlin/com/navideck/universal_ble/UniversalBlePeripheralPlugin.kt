@@ -30,6 +30,13 @@ import io.flutter.plugin.common.BinaryMessenger
 private const val TAG = "UniversalBlePeripheral"
 private const val REQUEST_CODE_ENABLE_BLUETOOTH = 2342717
 
+/** Bytes of [value] starting at [offset], as ATT expects for a read at that offset. */
+private fun offsetSuffix(value: ByteArray, offset: Int): ByteArray = when {
+    offset <= 0 -> value
+    offset >= value.size -> byteArrayOf()
+    else -> value.copyOfRange(offset, value.size)
+}
+
 @SuppressLint("MissingPermission")
 class UniversalBlePeripheralPlugin(
     private val applicationContext: Context,
@@ -49,6 +56,23 @@ class UniversalBlePeripheralPlugin(
     private var adapterNameOverridden = false
     private var isEnableBluetoothPromptPending = false
 
+    private data class PendingNotification(
+        val device: BluetoothDevice,
+        val characteristic: BluetoothGattCharacteristic,
+        val value: ByteArray,
+        val indicate: Boolean,
+    )
+
+    /**
+     * Notifications waiting for the native transmit queue. Android accepts one
+     * notification per client at a time ([BluetoothGattServer.notifyCharacteristicChanged]
+     * returns false while the previous one is in flight), so they are drained
+     * FIFO from [BluetoothGattServerCallback.onNotificationSent]. Ordering matters:
+     * a HID release must never overtake the press it releases.
+     */
+    private val pendingNotifications: ArrayDeque<PendingNotification> = ArrayDeque()
+    private val notificationsInFlight: MutableSet<String> = HashSet()
+
 
     fun attachActivity(activity: Activity?) {
         this.activity = activity
@@ -64,6 +88,10 @@ class UniversalBlePeripheralPlugin(
             bluetoothDevicesMap.clear()
         }
         synchronized(mtuByDeviceId) { mtuByDeviceId.clear() }
+        synchronized(pendingNotifications) {
+            pendingNotifications.clear()
+            notificationsInFlight.clear()
+        }
         clearPeripheralCaches()
         isEnableBluetoothPromptPending = false
     }
@@ -261,13 +289,14 @@ class UniversalBlePeripheralPlugin(
 
     override fun updateCharacteristic(
         characteristicId: String,
+        characteristicInstanceId: String?,
         value: ByteArray,
         deviceId: String?,
     ) {
         requireGattServer()
         val characteristic =
-            characteristicId.findGattCharacteristic() ?: throw Exception("Characteristic not found")
-        characteristic.value = value
+            characteristicId.findGattCharacteristic(characteristicInstanceId)
+                ?: throw Exception("Characteristic not found")
         val targetDevices = synchronized(bluetoothDevicesMap) {
             if (deviceId != null) {
                 val dev = bluetoothDevicesMap[deviceId]
@@ -281,18 +310,57 @@ class UniversalBlePeripheralPlugin(
         }
         val indicate =
             (characteristic.properties and BluetoothGattCharacteristic.PROPERTY_INDICATE) != 0
-        targetDevices.forEach { device ->
-            handler.post {
-                gattServer?.notifyCharacteristicChanged(device, characteristic, indicate)
+        synchronized(pendingNotifications) {
+            targetDevices.forEach { device ->
+                pendingNotifications.addLast(
+                    PendingNotification(device, characteristic, value.copyOf(), indicate)
+                )
+            }
+            targetDevices.forEach { drainNotifications(it.address) }
+        }
+    }
+
+    private fun drainNotifications(deviceAddress: String) {
+        if (notificationsInFlight.contains(deviceAddress)) return
+        val next: PendingNotification
+        val server: BluetoothGattServer
+        synchronized(pendingNotifications) {
+            val index = pendingNotifications.indexOfFirst { it.device.address == deviceAddress }
+            if (index < 0) return
+            next = pendingNotifications.removeAt(index)
+            server = gattServer ?: return
+            notificationsInFlight.add(deviceAddress)
+        }
+        next.characteristic.value = next.value
+        val sent = kotlin.runCatching {
+            server.notifyCharacteristicChanged(next.device, next.characteristic, next.indicate)
+        }.getOrDefault(false)
+        if (!sent) {
+            // Native queue still busy. Put the payload back at the front and wait
+            // for onNotificationSent to retry; never drop a release.
+            synchronized(pendingNotifications) {
+                notificationsInFlight.remove(deviceAddress)
+                pendingNotifications.addFirst(next)
             }
         }
     }
 
-    override fun getSubscribedClients(characteristicId: String): List<String> {
+    override fun getSubscribedClients(
+        characteristicId: String,
+        characteristicInstanceId: String?,
+    ): List<String> {
+        val targetInstanceId = characteristicInstanceId
+            ?: characteristicId.findGattCharacteristic()?.instanceId()
         synchronized(subscribedCharDevicesMap) {
             return subscribedCharDevicesMap.entries
                 .filter { (_, chars) ->
-                    chars.any { it.equals(characteristicId, ignoreCase = true) }
+                    chars.any { subscribed ->
+                        if (targetInstanceId != null) {
+                            subscribed.equals(targetInstanceId, ignoreCase = true)
+                        } else {
+                            subscribed.equals(characteristicId, ignoreCase = true)
+                        }
+                    }
                 }
                 .map { it.key }
         }
@@ -321,15 +389,21 @@ class UniversalBlePeripheralPlugin(
             subscribedCharDevicesMap.remove(deviceAddress)
             current
         }
-        subscribedCharUUID.forEach { charUUID ->
+        subscribedCharUUID.forEach { subscribedId ->
+            val characteristic = subscribedId.findGattCharacteristic()
             handler.post {
                 callback.onCharacteristicSubscriptionChange(
                     deviceAddress,
-                    charUUID,
+                    characteristic?.uuid?.toString() ?: subscribedId,
+                    characteristic?.instanceId(),
                     false,
                     device.name,
                 ) {}
             }
+        }
+        synchronized(pendingNotifications) {
+            pendingNotifications.removeAll { it.device.address == deviceAddress }
+            notificationsInFlight.remove(deviceAddress)
         }
     }
 
@@ -389,6 +463,15 @@ class UniversalBlePeripheralPlugin(
             }
         }
 
+        override fun onNotificationSent(device: BluetoothDevice, status: Int) {
+            super.onNotificationSent(device, status)
+            val address = device.address
+            synchronized(pendingNotifications) {
+                notificationsInFlight.remove(address)
+                drainNotifications(address)
+            }
+        }
+
         override fun onCharacteristicReadRequest(
             device: BluetoothDevice,
             requestId: Int,
@@ -401,14 +484,26 @@ class UniversalBlePeripheralPlugin(
                 callback.onReadRequest(
                     deviceIdArg = device.address,
                     characteristicIdArg = characteristic.uuid.toString(),
+                    characteristicInstanceIdArg = characteristic.instanceId(),
                     offsetArg = offset.toLong(),
                     valueArg = characteristic.value,
                 ) { result ->
                     val readResult = result.getOrNull()
                     if (readResult == null) {
-                        gattServer?.sendResponse(
-                            device, requestId, BluetoothGatt.GATT_FAILURE, 0, emptyBytes,
-                        )
+                        val configured = characteristic.value
+                        if (configured == null) {
+                            gattServer?.sendResponse(
+                                device, requestId, BluetoothGatt.GATT_FAILURE, 0, emptyBytes,
+                            )
+                        } else {
+                            gattServer?.sendResponse(
+                                device,
+                                requestId,
+                                BluetoothGatt.GATT_SUCCESS,
+                                offset,
+                                offsetSuffix(configured, offset),
+                            )
+                        }
                     } else {
                         gattServer?.sendResponse(
                             device,
@@ -438,6 +533,7 @@ class UniversalBlePeripheralPlugin(
                 callback.onWriteRequest(
                     deviceIdArg = device.address,
                     characteristicIdArg = characteristic.uuid.toString(),
+                    characteristicInstanceIdArg = characteristic.instanceId(),
                     offsetArg = offset.toLong(),
                     valueArg = value,
                 ) { writeResponse ->
@@ -472,19 +568,31 @@ class UniversalBlePeripheralPlugin(
                 callback.onDescriptorReadRequest(
                     deviceIdArg = device.address,
                     characteristicIdArg = descriptor.characteristic.uuid.toString(),
+                    characteristicInstanceIdArg = descriptor.characteristic.instanceId(),
                     descriptorIdArg = descriptor.uuid.toString(),
                     offsetArg = offset.toLong(),
-                    valueArg = descriptor.getCacheValue(),
+                    valueArg = descriptor.getClientValue(device.address),
                 ) { result ->
                     val readResult = result.getOrNull()
                     if (readResult == null) {
-                        gattServer?.sendResponse(
-                            device,
-                            requestId,
-                            BluetoothGatt.GATT_FAILURE,
-                            offset,
-                            emptyBytes,
-                        )
+                        val configured = descriptor.getClientValue(device.address)
+                        if (configured == null) {
+                            gattServer?.sendResponse(
+                                device,
+                                requestId,
+                                BluetoothGatt.GATT_FAILURE,
+                                offset,
+                                emptyBytes,
+                            )
+                        } else {
+                            gattServer?.sendResponse(
+                                device,
+                                requestId,
+                                BluetoothGatt.GATT_SUCCESS,
+                                offset,
+                                offsetSuffix(configured, offset),
+                            )
+                        }
                     } else {
                         gattServer?.sendResponse(
                             device,
@@ -511,23 +619,30 @@ class UniversalBlePeripheralPlugin(
                 device, requestId, descriptor, preparedWrite, responseNeeded, offset, value,
             )
             descriptor.value = value
+            descriptor.storeClientValue(device?.address, value)
             if (descriptor.uuid.toString().lowercase() == peripheralDescriptorCCUUID.lowercase()) {
                 val isSubscribed =
                     BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE.contentEquals(value) ||
                             BluetoothGattDescriptor.ENABLE_INDICATION_VALUE.contentEquals(value)
-                val characteristicId = descriptor.characteristic.uuid.toString()
+                val characteristic = descriptor.characteristic
+                val subscriptionId =
+                    characteristic.instanceId() ?: characteristic.uuid.toString()
                 device?.address?.let { address ->
                     handler.post {
                         callback.onCharacteristicSubscriptionChange(
-                            address, characteristicId, isSubscribed, device.name,
+                            address,
+                            characteristic.uuid.toString(),
+                            characteristic.instanceId(),
+                            isSubscribed,
+                            device.name,
                         ) {}
                     }
                     synchronized(subscribedCharDevicesMap) {
                         val charSet = subscribedCharDevicesMap.getOrPut(address) { mutableSetOf() }
                         if (isSubscribed) {
-                            charSet.add(characteristicId)
+                            charSet.add(subscriptionId)
                         } else {
-                            charSet.remove(characteristicId)
+                            charSet.remove(subscriptionId)
                         }
                     }
                 }
@@ -537,6 +652,7 @@ class UniversalBlePeripheralPlugin(
                     callback.onDescriptorWriteRequest(
                         deviceIdArg = device?.address ?: "",
                         characteristicIdArg = descriptor.characteristic.uuid.toString(),
+                        characteristicInstanceIdArg = descriptor.characteristic.instanceId(),
                         descriptorIdArg = descriptor.uuid.toString(),
                         offsetArg = offset.toLong(),
                         valueArg = value,

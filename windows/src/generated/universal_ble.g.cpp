@@ -2766,12 +2766,14 @@ PeripheralCharacteristic::PeripheralCharacteristic(
   const EncodableList& properties,
   const EncodableList& permissions,
   const EncodableList* descriptors,
-  const std::vector<uint8_t>* value)
+  const std::vector<uint8_t>* value,
+  const std::string* instance_id)
  : uuid_(uuid),
     properties_(properties),
     permissions_(permissions),
     descriptors_(descriptors ? std::optional<EncodableList>(*descriptors) : std::nullopt),
-    value_(value ? std::optional<std::vector<uint8_t>>(*value) : std::nullopt) {}
+    value_(value ? std::optional<std::vector<uint8_t>>(*value) : std::nullopt),
+    instance_id_(instance_id ? std::optional<std::string>(*instance_id) : std::nullopt) {}
 
 const std::string& PeripheralCharacteristic::uuid() const {
   return uuid_;
@@ -2826,14 +2828,28 @@ void PeripheralCharacteristic::set_value(const std::vector<uint8_t>& value_arg) 
 }
 
 
+const std::string* PeripheralCharacteristic::instance_id() const {
+  return instance_id_ ? &(*instance_id_) : nullptr;
+}
+
+void PeripheralCharacteristic::set_instance_id(const std::string_view* value_arg) {
+  instance_id_ = value_arg ? std::optional<std::string>(*value_arg) : std::nullopt;
+}
+
+void PeripheralCharacteristic::set_instance_id(std::string_view value_arg) {
+  instance_id_ = value_arg;
+}
+
+
 EncodableList PeripheralCharacteristic::ToEncodableList() const {
   EncodableList list;
-  list.reserve(5);
+  list.reserve(6);
   list.push_back(EncodableValue(uuid_));
   list.push_back(EncodableValue(properties_));
   list.push_back(EncodableValue(permissions_));
   list.push_back(descriptors_ ? EncodableValue(*descriptors_) : EncodableValue());
   list.push_back(value_ ? EncodableValue(*value_) : EncodableValue());
+  list.push_back(instance_id_ ? EncodableValue(*instance_id_) : EncodableValue());
   return list;
 }
 
@@ -2850,11 +2866,15 @@ PeripheralCharacteristic PeripheralCharacteristic::FromEncodableList(const Encod
   if (!encodable_value.IsNull()) {
     decoded.set_value(std::get<std::vector<uint8_t>>(encodable_value));
   }
+  auto& encodable_instance_id = list[5];
+  if (!encodable_instance_id.IsNull()) {
+    decoded.set_instance_id(std::get<std::string>(encodable_instance_id));
+  }
   return decoded;
 }
 
 bool PeripheralCharacteristic::operator==(const PeripheralCharacteristic& other) const {
-  return PigeonInternalDeepEquals(uuid_, other.uuid_) && PigeonInternalDeepEquals(properties_, other.properties_) && PigeonInternalDeepEquals(permissions_, other.permissions_) && PigeonInternalDeepEquals(descriptors_, other.descriptors_) && PigeonInternalDeepEquals(value_, other.value_);
+  return PigeonInternalDeepEquals(uuid_, other.uuid_) && PigeonInternalDeepEquals(properties_, other.properties_) && PigeonInternalDeepEquals(permissions_, other.permissions_) && PigeonInternalDeepEquals(descriptors_, other.descriptors_) && PigeonInternalDeepEquals(value_, other.value_) && PigeonInternalDeepEquals(instance_id_, other.instance_id_);
 }
 
 bool PeripheralCharacteristic::operator!=(const PeripheralCharacteristic& other) const {
@@ -2868,6 +2888,7 @@ size_t PeripheralCharacteristic::Hash() const {
   result = result * 31 + PigeonInternalDeepHash(permissions_);
   result = result * 31 + PigeonInternalDeepHash(descriptors_);
   result = result * 31 + PigeonInternalDeepHash(value_);
+  result = result * 31 + PigeonInternalDeepHash(instance_id_);
   return result;
 }
 
@@ -2891,6 +2912,13 @@ std::ostream& operator<<(
   os << ", value: ";
   if (obj.value_) {
     os << PigeonInternalToString(*obj.value_);
+  }
+  else {
+    os << "null";
+  }
+  os << ", instance_id: ";
+  if (obj.instance_id_) {
+    os << PigeonInternalToString(*obj.instance_id_);
   }
   else {
     os << "null";
@@ -4910,15 +4938,17 @@ void UniversalBlePeripheralChannel::SetUp(
             return;
           }
           const auto& characteristic_id_arg = std::get<std::string>(encodable_characteristic_id_arg);
-          const auto& encodable_value_arg = args.at(1);
+          const auto& encodable_characteristic_instance_id_arg = args.at(1);
+          const auto* characteristic_instance_id_arg = std::get_if<std::string>(&encodable_characteristic_instance_id_arg);
+          const auto& encodable_value_arg = args.at(2);
           if (encodable_value_arg.IsNull()) {
             reply(WrapError("value_arg unexpectedly null."));
             return;
           }
           const auto& value_arg = std::get<std::vector<uint8_t>>(encodable_value_arg);
-          const auto& encodable_device_id_arg = args.at(2);
+          const auto& encodable_device_id_arg = args.at(3);
           const auto* device_id_arg = std::get_if<std::string>(&encodable_device_id_arg);
-          std::optional<FlutterError> output = api->UpdateCharacteristic(characteristic_id_arg, value_arg, device_id_arg);
+          std::optional<FlutterError> output = api->UpdateCharacteristic(characteristic_id_arg, characteristic_instance_id_arg, value_arg, device_id_arg);
           if (output.has_value()) {
             reply(WrapError(output.value()));
             return;
@@ -4946,7 +4976,9 @@ void UniversalBlePeripheralChannel::SetUp(
             return;
           }
           const auto& characteristic_id_arg = std::get<std::string>(encodable_characteristic_id_arg);
-          ErrorOr<EncodableList> output = api->GetSubscribedClients(characteristic_id_arg);
+          const auto& encodable_characteristic_instance_id_arg = args.at(1);
+          const auto* characteristic_instance_id_arg = std::get_if<std::string>(&encodable_characteristic_instance_id_arg);
+          ErrorOr<EncodableList> output = api->GetSubscribedClients(characteristic_id_arg, characteristic_instance_id_arg);
           if (output.has_error()) {
             reply(WrapError(output.error()));
             return;
@@ -5109,6 +5141,7 @@ const ::flutter::StandardMessageCodec& UniversalBlePeripheralCallback::GetCodec(
 void UniversalBlePeripheralCallback::OnReadRequest(
   const std::string& device_id_arg,
   const std::string& characteristic_id_arg,
+  const std::string* characteristic_instance_id_arg,
   int64_t offset_arg,
   const std::vector<uint8_t>* value_arg,
   std::function<void(const PeripheralReadRequestResult*)>&& on_success,
@@ -5118,6 +5151,7 @@ void UniversalBlePeripheralCallback::OnReadRequest(
   EncodableValue encoded_api_arguments = EncodableValue(EncodableList{
     EncodableValue(device_id_arg),
     EncodableValue(characteristic_id_arg),
+    characteristic_instance_id_arg ? EncodableValue(*characteristic_instance_id_arg) : EncodableValue(),
     EncodableValue(offset_arg),
     value_arg ? EncodableValue(*value_arg) : EncodableValue(),
   });
@@ -5141,6 +5175,7 @@ void UniversalBlePeripheralCallback::OnReadRequest(
 void UniversalBlePeripheralCallback::OnWriteRequest(
   const std::string& device_id_arg,
   const std::string& characteristic_id_arg,
+  const std::string* characteristic_instance_id_arg,
   int64_t offset_arg,
   const std::vector<uint8_t>* value_arg,
   std::function<void(const PeripheralWriteRequestResult*)>&& on_success,
@@ -5150,6 +5185,7 @@ void UniversalBlePeripheralCallback::OnWriteRequest(
   EncodableValue encoded_api_arguments = EncodableValue(EncodableList{
     EncodableValue(device_id_arg),
     EncodableValue(characteristic_id_arg),
+    characteristic_instance_id_arg ? EncodableValue(*characteristic_instance_id_arg) : EncodableValue(),
     EncodableValue(offset_arg),
     value_arg ? EncodableValue(*value_arg) : EncodableValue(),
   });
@@ -5173,6 +5209,7 @@ void UniversalBlePeripheralCallback::OnWriteRequest(
 void UniversalBlePeripheralCallback::OnDescriptorReadRequest(
   const std::string& device_id_arg,
   const std::string& characteristic_id_arg,
+  const std::string* characteristic_instance_id_arg,
   const std::string& descriptor_id_arg,
   int64_t offset_arg,
   const std::vector<uint8_t>* value_arg,
@@ -5183,6 +5220,7 @@ void UniversalBlePeripheralCallback::OnDescriptorReadRequest(
   EncodableValue encoded_api_arguments = EncodableValue(EncodableList{
     EncodableValue(device_id_arg),
     EncodableValue(characteristic_id_arg),
+    characteristic_instance_id_arg ? EncodableValue(*characteristic_instance_id_arg) : EncodableValue(),
     EncodableValue(descriptor_id_arg),
     EncodableValue(offset_arg),
     value_arg ? EncodableValue(*value_arg) : EncodableValue(),
@@ -5207,6 +5245,7 @@ void UniversalBlePeripheralCallback::OnDescriptorReadRequest(
 void UniversalBlePeripheralCallback::OnDescriptorWriteRequest(
   const std::string& device_id_arg,
   const std::string& characteristic_id_arg,
+  const std::string* characteristic_instance_id_arg,
   const std::string& descriptor_id_arg,
   int64_t offset_arg,
   const std::vector<uint8_t>* value_arg,
@@ -5217,6 +5256,7 @@ void UniversalBlePeripheralCallback::OnDescriptorWriteRequest(
   EncodableValue encoded_api_arguments = EncodableValue(EncodableList{
     EncodableValue(device_id_arg),
     EncodableValue(characteristic_id_arg),
+    characteristic_instance_id_arg ? EncodableValue(*characteristic_instance_id_arg) : EncodableValue(),
     EncodableValue(descriptor_id_arg),
     EncodableValue(offset_arg),
     value_arg ? EncodableValue(*value_arg) : EncodableValue(),
@@ -5241,6 +5281,7 @@ void UniversalBlePeripheralCallback::OnDescriptorWriteRequest(
 void UniversalBlePeripheralCallback::OnCharacteristicSubscriptionChange(
   const std::string& device_id_arg,
   const std::string& characteristic_id_arg,
+  const std::string* characteristic_instance_id_arg,
   bool is_subscribed_arg,
   const std::string* name_arg,
   std::function<void(void)>&& on_success,
@@ -5250,6 +5291,7 @@ void UniversalBlePeripheralCallback::OnCharacteristicSubscriptionChange(
   EncodableValue encoded_api_arguments = EncodableValue(EncodableList{
     EncodableValue(device_id_arg),
     EncodableValue(characteristic_id_arg),
+    characteristic_instance_id_arg ? EncodableValue(*characteristic_instance_id_arg) : EncodableValue(),
     EncodableValue(is_subscribed_arg),
     name_arg ? EncodableValue(*name_arg) : EncodableValue(),
   });

@@ -1696,6 +1696,7 @@ class PeripheralCharacteristic {
     required this.permissions,
     this.descriptors,
     this.value,
+    this.instanceId,
   });
 
   String uuid;
@@ -1708,6 +1709,16 @@ class PeripheralCharacteristic {
 
   Uint8List? value;
 
+  /// Optional stable identity for this characteristic *instance*.
+  ///
+  /// A GATT service may legally contain several characteristics with the same
+  /// [uuid]. Callers that need to address one of them individually set a unique
+  /// [instanceId] per characteristic; UUID-only callers leave it `null` and keep
+  /// the historical first-match behaviour. Request, subscription and
+  /// notification callbacks echo the identity back, so a caller can tell which
+  /// instance an event belongs to.
+  String? instanceId;
+
   List<Object?> _toList() {
     return <Object?>[
       uuid,
@@ -1715,6 +1726,7 @@ class PeripheralCharacteristic {
       permissions,
       descriptors,
       value,
+      instanceId,
     ];
   }
 
@@ -1731,6 +1743,7 @@ class PeripheralCharacteristic {
           (result[2]! as List<Object?>).cast<PeripheralAttributePermission>(),
       descriptors: (result[3] as List<Object?>?)?.cast<PeripheralDescriptor>(),
       value: result[4] as Uint8List?,
+      instanceId: result[5] as String?,
     );
   }
 
@@ -1748,7 +1761,8 @@ class PeripheralCharacteristic {
         _deepEquals(properties, other.properties) &&
         _deepEquals(permissions, other.permissions) &&
         _deepEquals(descriptors, other.descriptors) &&
-        _deepEquals(value, other.value);
+        _deepEquals(value, other.value) &&
+        _deepEquals(instanceId, other.instanceId);
   }
 
   @override
@@ -1757,7 +1771,7 @@ class PeripheralCharacteristic {
 
   @override
   String toString() {
-    return 'PeripheralCharacteristic(uuid: $uuid, properties: $properties, permissions: $permissions, descriptors: $descriptors, value: $value)';
+    return 'PeripheralCharacteristic(uuid: $uuid, properties: $properties, permissions: $permissions, descriptors: $descriptors, value: $value, instanceId: $instanceId)';
   }
 }
 
@@ -3103,7 +3117,10 @@ class UniversalBlePeripheralChannel {
   }
 
   Future<void> updateCharacteristic(
-      String characteristicId, Uint8List value, String? deviceId) async {
+      String characteristicId,
+      String? characteristicInstanceId,
+      Uint8List value,
+      String? deviceId) async {
     final pigeonVar_channelName =
         'dev.flutter.pigeon.universal_ble.UniversalBlePeripheralChannel.updateCharacteristic$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
@@ -3111,8 +3128,8 @@ class UniversalBlePeripheralChannel {
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture =
-        pigeonVar_channel.send(<Object?>[characteristicId, value, deviceId]);
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
+        <Object?>[characteristicId, characteristicInstanceId, value, deviceId]);
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     _extractReplyValueOrThrow(
@@ -3122,9 +3139,11 @@ class UniversalBlePeripheralChannel {
     );
   }
 
-  /// Returns peripheral-client device ids currently subscribed to [characteristicId]
-  /// (e.g. HID report characteristic). Used to restore app state after restart.
-  Future<List<String>> getSubscribedClients(String characteristicId) async {
+  /// Returns peripheral-client device ids currently subscribed to the
+  /// characteristic identified by [characteristicId] (and, when supplied,
+  /// [characteristicInstanceId]).
+  Future<List<String>> getSubscribedClients(
+      String characteristicId, String? characteristicInstanceId) async {
     final pigeonVar_channelName =
         'dev.flutter.pigeon.universal_ble.UniversalBlePeripheralChannel.getSubscribedClients$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
@@ -3132,8 +3151,8 @@ class UniversalBlePeripheralChannel {
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture =
-        pigeonVar_channel.send(<Object?>[characteristicId]);
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel
+        .send(<Object?>[characteristicId, characteristicInstanceId]);
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
@@ -3227,14 +3246,23 @@ abstract class UniversalBlePeripheralCallback {
   static const MessageCodec<Object?> pigeonChannelCodec = _PigeonCodec();
 
   Future<PeripheralReadRequestResult?> onReadRequest(
-      String deviceId, String characteristicId, int offset, Uint8List? value);
+      String deviceId,
+      String characteristicId,
+      String? characteristicInstanceId,
+      int offset,
+      Uint8List? value);
 
   Future<PeripheralWriteRequestResult?> onWriteRequest(
-      String deviceId, String characteristicId, int offset, Uint8List? value);
+      String deviceId,
+      String characteristicId,
+      String? characteristicInstanceId,
+      int offset,
+      Uint8List? value);
 
   Future<PeripheralReadRequestResult?> onDescriptorReadRequest(
       String deviceId,
       String characteristicId,
+      String? characteristicInstanceId,
       String descriptorId,
       int offset,
       Uint8List? value);
@@ -3242,12 +3270,17 @@ abstract class UniversalBlePeripheralCallback {
   Future<PeripheralWriteRequestResult?> onDescriptorWriteRequest(
       String deviceId,
       String characteristicId,
+      String? characteristicInstanceId,
       String descriptorId,
       int offset,
       Uint8List? value);
 
-  Future<void> onCharacteristicSubscriptionChange(String deviceId,
-      String characteristicId, bool isSubscribed, String? name);
+  Future<void> onCharacteristicSubscriptionChange(
+      String deviceId,
+      String characteristicId,
+      String? characteristicInstanceId,
+      bool isSubscribed,
+      String? name);
 
   Future<void> onAdvertisingStateChange(
       PeripheralAdvertisingState state, String? error);
@@ -3277,11 +3310,16 @@ abstract class UniversalBlePeripheralCallback {
           final List<Object?> args = message! as List<Object?>;
           final String arg_deviceId = args[0]! as String;
           final String arg_characteristicId = args[1]! as String;
-          final int arg_offset = args[2]! as int;
-          final Uint8List? arg_value = args[3] as Uint8List?;
+          final String? arg_characteristicInstanceId = args[2] as String?;
+          final int arg_offset = args[3]! as int;
+          final Uint8List? arg_value = args[4] as Uint8List?;
           try {
             final PeripheralReadRequestResult? output = await api.onReadRequest(
-                arg_deviceId, arg_characteristicId, arg_offset, arg_value);
+                arg_deviceId,
+                arg_characteristicId,
+                arg_characteristicInstanceId,
+                arg_offset,
+                arg_value);
             return wrapResponse(result: output);
           } on PlatformException catch (e) {
             return wrapResponse(error: e);
@@ -3304,12 +3342,13 @@ abstract class UniversalBlePeripheralCallback {
           final List<Object?> args = message! as List<Object?>;
           final String arg_deviceId = args[0]! as String;
           final String arg_characteristicId = args[1]! as String;
-          final int arg_offset = args[2]! as int;
-          final Uint8List? arg_value = args[3] as Uint8List?;
+          final String? arg_characteristicInstanceId = args[2] as String?;
+          final int arg_offset = args[3]! as int;
+          final Uint8List? arg_value = args[4] as Uint8List?;
           try {
             final PeripheralWriteRequestResult? output =
-                await api.onWriteRequest(
-                    arg_deviceId, arg_characteristicId, arg_offset, arg_value);
+                await api.onWriteRequest(arg_deviceId, arg_characteristicId,
+                    arg_characteristicInstanceId, arg_offset, arg_value);
             return wrapResponse(result: output);
           } on PlatformException catch (e) {
             return wrapResponse(error: e);
@@ -3332,14 +3371,16 @@ abstract class UniversalBlePeripheralCallback {
           final List<Object?> args = message! as List<Object?>;
           final String arg_deviceId = args[0]! as String;
           final String arg_characteristicId = args[1]! as String;
-          final String arg_descriptorId = args[2]! as String;
-          final int arg_offset = args[3]! as int;
-          final Uint8List? arg_value = args[4] as Uint8List?;
+          final String? arg_characteristicInstanceId = args[2] as String?;
+          final String arg_descriptorId = args[3]! as String;
+          final int arg_offset = args[4]! as int;
+          final Uint8List? arg_value = args[5] as Uint8List?;
           try {
             final PeripheralReadRequestResult? output =
                 await api.onDescriptorReadRequest(
                     arg_deviceId,
                     arg_characteristicId,
+                    arg_characteristicInstanceId,
                     arg_descriptorId,
                     arg_offset,
                     arg_value);
@@ -3365,14 +3406,16 @@ abstract class UniversalBlePeripheralCallback {
           final List<Object?> args = message! as List<Object?>;
           final String arg_deviceId = args[0]! as String;
           final String arg_characteristicId = args[1]! as String;
-          final String arg_descriptorId = args[2]! as String;
-          final int arg_offset = args[3]! as int;
-          final Uint8List? arg_value = args[4] as Uint8List?;
+          final String? arg_characteristicInstanceId = args[2] as String?;
+          final String arg_descriptorId = args[3]! as String;
+          final int arg_offset = args[4]! as int;
+          final Uint8List? arg_value = args[5] as Uint8List?;
           try {
             final PeripheralWriteRequestResult? output =
                 await api.onDescriptorWriteRequest(
                     arg_deviceId,
                     arg_characteristicId,
+                    arg_characteristicInstanceId,
                     arg_descriptorId,
                     arg_offset,
                     arg_value);
@@ -3398,11 +3441,16 @@ abstract class UniversalBlePeripheralCallback {
           final List<Object?> args = message! as List<Object?>;
           final String arg_deviceId = args[0]! as String;
           final String arg_characteristicId = args[1]! as String;
-          final bool arg_isSubscribed = args[2]! as bool;
-          final String? arg_name = args[3] as String?;
+          final String? arg_characteristicInstanceId = args[2] as String?;
+          final bool arg_isSubscribed = args[3]! as bool;
+          final String? arg_name = args[4] as String?;
           try {
             await api.onCharacteristicSubscriptionChange(
-                arg_deviceId, arg_characteristicId, arg_isSubscribed, arg_name);
+                arg_deviceId,
+                arg_characteristicId,
+                arg_characteristicInstanceId,
+                arg_isSubscribed,
+                arg_name);
             return wrapResponse(empty: true);
           } on PlatformException catch (e) {
             return wrapResponse(error: e);

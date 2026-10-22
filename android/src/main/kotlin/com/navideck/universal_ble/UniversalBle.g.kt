@@ -1622,7 +1622,18 @@ data class PeripheralCharacteristic (
   val properties: List<CharacteristicProperty>,
   val permissions: List<PeripheralAttributePermission>,
   val descriptors: List<PeripheralDescriptor>? = null,
-  val value: ByteArray? = null
+  val value: ByteArray? = null,
+  /**
+   * Optional stable identity for this characteristic *instance*.
+   *
+   * A GATT service may legally contain several characteristics with the same
+   * [uuid]. Callers that need to address one of them individually set a unique
+   * [instanceId] per characteristic; UUID-only callers leave it `null` and keep
+   * the historical first-match behaviour. Request, subscription and
+   * notification callbacks echo the identity back, so a caller can tell which
+   * instance an event belongs to.
+   */
+  val instanceId: String? = null
 )
  {
   companion object {
@@ -1632,7 +1643,8 @@ data class PeripheralCharacteristic (
       val permissions = pigeonVar_list[2] as List<PeripheralAttributePermission>
       val descriptors = pigeonVar_list[3] as List<PeripheralDescriptor>?
       val value = pigeonVar_list[4] as ByteArray?
-      return PeripheralCharacteristic(uuid, properties, permissions, descriptors, value)
+      val instanceId = pigeonVar_list[5] as String?
+      return PeripheralCharacteristic(uuid, properties, permissions, descriptors, value, instanceId)
     }
   }
   fun toList(): List<Any?> {
@@ -1642,6 +1654,7 @@ data class PeripheralCharacteristic (
       permissions,
       descriptors,
       value,
+      instanceId,
     )
   }
   override fun equals(other: Any?): Boolean {
@@ -1652,7 +1665,7 @@ data class PeripheralCharacteristic (
       return true
     }
     val other = other as PeripheralCharacteristic
-    return UniversalBlePigeonUtils.deepEquals(this.uuid, other.uuid) && UniversalBlePigeonUtils.deepEquals(this.properties, other.properties) && UniversalBlePigeonUtils.deepEquals(this.permissions, other.permissions) && UniversalBlePigeonUtils.deepEquals(this.descriptors, other.descriptors) && UniversalBlePigeonUtils.deepEquals(this.value, other.value)
+    return UniversalBlePigeonUtils.deepEquals(this.uuid, other.uuid) && UniversalBlePigeonUtils.deepEquals(this.properties, other.properties) && UniversalBlePigeonUtils.deepEquals(this.permissions, other.permissions) && UniversalBlePigeonUtils.deepEquals(this.descriptors, other.descriptors) && UniversalBlePigeonUtils.deepEquals(this.value, other.value) && UniversalBlePigeonUtils.deepEquals(this.instanceId, other.instanceId)
   }
 
   override fun hashCode(): Int {
@@ -1662,10 +1675,11 @@ data class PeripheralCharacteristic (
     result = 31 * result + UniversalBlePigeonUtils.deepHash(this.permissions)
     result = 31 * result + UniversalBlePigeonUtils.deepHash(this.descriptors)
     result = 31 * result + UniversalBlePigeonUtils.deepHash(this.value)
+    result = 31 * result + UniversalBlePigeonUtils.deepHash(this.instanceId)
     return result
   }
   override fun toString(): String {
-    return "PeripheralCharacteristic(uuid=$uuid, properties=$properties, permissions=$permissions, descriptors=$descriptors, value=${value?.contentToString()})"
+    return "PeripheralCharacteristic(uuid=$uuid, properties=$properties, permissions=$permissions, descriptors=$descriptors, value=${value?.contentToString()}, instanceId=$instanceId)"
   }
 }
 
@@ -2891,12 +2905,13 @@ interface UniversalBlePeripheralChannel {
   fun clearServices()
   fun getServices(): List<String>
   fun startAdvertising(services: List<String>, localName: String?, timeout: Long?, manufacturerData: UniversalManufacturerData?, platformConfig: PeripheralPlatformConfig?)
-  fun updateCharacteristic(characteristicId: String, value: ByteArray, deviceId: String?)
+  fun updateCharacteristic(characteristicId: String, characteristicInstanceId: String?, value: ByteArray, deviceId: String?)
   /**
-   * Returns peripheral-client device ids currently subscribed to [characteristicId]
-   * (e.g. HID report characteristic). Used to restore app state after restart.
+   * Returns peripheral-client device ids currently subscribed to the
+   * characteristic identified by [characteristicId] (and, when supplied,
+   * [characteristicInstanceId]).
    */
-  fun getSubscribedClients(characteristicId: String): List<String>
+  fun getSubscribedClients(characteristicId: String, characteristicInstanceId: String?): List<String>
   /** Returns max characteristic notify payload length for a connected client. */
   fun getMaximumNotifyLength(deviceId: String): Long?
 
@@ -3050,10 +3065,11 @@ interface UniversalBlePeripheralChannel {
           channel.setMessageHandler { message, reply ->
             val args = message as List<Any?>
             val characteristicIdArg = args[0] as String
-            val valueArg = args[1] as ByteArray
-            val deviceIdArg = args[2] as String?
+            val characteristicInstanceIdArg = args[1] as String?
+            val valueArg = args[2] as ByteArray
+            val deviceIdArg = args[3] as String?
             val wrapped: List<Any?> = try {
-              api.updateCharacteristic(characteristicIdArg, valueArg, deviceIdArg)
+              api.updateCharacteristic(characteristicIdArg, characteristicInstanceIdArg, valueArg, deviceIdArg)
               listOf(null)
             } catch (exception: Throwable) {
               UniversalBlePigeonUtils.wrapError(exception)
@@ -3070,8 +3086,9 @@ interface UniversalBlePeripheralChannel {
           channel.setMessageHandler { message, reply ->
             val args = message as List<Any?>
             val characteristicIdArg = args[0] as String
+            val characteristicInstanceIdArg = args[1] as String?
             val wrapped: List<Any?> = try {
-              listOf(api.getSubscribedClients(characteristicIdArg))
+              listOf(api.getSubscribedClients(characteristicIdArg, characteristicInstanceIdArg))
             } catch (exception: Throwable) {
               UniversalBlePigeonUtils.wrapError(exception)
             }
@@ -3167,12 +3184,12 @@ class UniversalBlePeripheralCallback(private val binaryMessenger: BinaryMessenge
       UniversalBlePigeonCodec()
     }
   }
-  fun onReadRequest(deviceIdArg: String, characteristicIdArg: String, offsetArg: Long, valueArg: ByteArray?, callback: (Result<PeripheralReadRequestResult?>) -> Unit)
+  fun onReadRequest(deviceIdArg: String, characteristicIdArg: String, characteristicInstanceIdArg: String?, offsetArg: Long, valueArg: ByteArray?, callback: (Result<PeripheralReadRequestResult?>) -> Unit)
 {
     val separatedMessageChannelSuffix = if (messageChannelSuffix.isNotEmpty()) ".$messageChannelSuffix" else ""
     val channelName = "dev.flutter.pigeon.universal_ble.UniversalBlePeripheralCallback.onReadRequest$separatedMessageChannelSuffix"
     val channel = BasicMessageChannel<Any?>(binaryMessenger, channelName, codec)
-    channel.send(listOf(deviceIdArg, characteristicIdArg, offsetArg, valueArg)) {
+    channel.send(listOf(deviceIdArg, characteristicIdArg, characteristicInstanceIdArg, offsetArg, valueArg)) {
       if (it is List<*>) {
         if (it.size > 1) {
           callback(Result.failure(FlutterError(it[0] as String, it[1] as String, it[2] as String?)))
@@ -3185,12 +3202,12 @@ class UniversalBlePeripheralCallback(private val binaryMessenger: BinaryMessenge
       } 
     }
   }
-  fun onWriteRequest(deviceIdArg: String, characteristicIdArg: String, offsetArg: Long, valueArg: ByteArray?, callback: (Result<PeripheralWriteRequestResult?>) -> Unit)
+  fun onWriteRequest(deviceIdArg: String, characteristicIdArg: String, characteristicInstanceIdArg: String?, offsetArg: Long, valueArg: ByteArray?, callback: (Result<PeripheralWriteRequestResult?>) -> Unit)
 {
     val separatedMessageChannelSuffix = if (messageChannelSuffix.isNotEmpty()) ".$messageChannelSuffix" else ""
     val channelName = "dev.flutter.pigeon.universal_ble.UniversalBlePeripheralCallback.onWriteRequest$separatedMessageChannelSuffix"
     val channel = BasicMessageChannel<Any?>(binaryMessenger, channelName, codec)
-    channel.send(listOf(deviceIdArg, characteristicIdArg, offsetArg, valueArg)) {
+    channel.send(listOf(deviceIdArg, characteristicIdArg, characteristicInstanceIdArg, offsetArg, valueArg)) {
       if (it is List<*>) {
         if (it.size > 1) {
           callback(Result.failure(FlutterError(it[0] as String, it[1] as String, it[2] as String?)))
@@ -3203,12 +3220,12 @@ class UniversalBlePeripheralCallback(private val binaryMessenger: BinaryMessenge
       } 
     }
   }
-  fun onDescriptorReadRequest(deviceIdArg: String, characteristicIdArg: String, descriptorIdArg: String, offsetArg: Long, valueArg: ByteArray?, callback: (Result<PeripheralReadRequestResult?>) -> Unit)
+  fun onDescriptorReadRequest(deviceIdArg: String, characteristicIdArg: String, characteristicInstanceIdArg: String?, descriptorIdArg: String, offsetArg: Long, valueArg: ByteArray?, callback: (Result<PeripheralReadRequestResult?>) -> Unit)
 {
     val separatedMessageChannelSuffix = if (messageChannelSuffix.isNotEmpty()) ".$messageChannelSuffix" else ""
     val channelName = "dev.flutter.pigeon.universal_ble.UniversalBlePeripheralCallback.onDescriptorReadRequest$separatedMessageChannelSuffix"
     val channel = BasicMessageChannel<Any?>(binaryMessenger, channelName, codec)
-    channel.send(listOf(deviceIdArg, characteristicIdArg, descriptorIdArg, offsetArg, valueArg)) {
+    channel.send(listOf(deviceIdArg, characteristicIdArg, characteristicInstanceIdArg, descriptorIdArg, offsetArg, valueArg)) {
       if (it is List<*>) {
         if (it.size > 1) {
           callback(Result.failure(FlutterError(it[0] as String, it[1] as String, it[2] as String?)))
@@ -3221,12 +3238,12 @@ class UniversalBlePeripheralCallback(private val binaryMessenger: BinaryMessenge
       } 
     }
   }
-  fun onDescriptorWriteRequest(deviceIdArg: String, characteristicIdArg: String, descriptorIdArg: String, offsetArg: Long, valueArg: ByteArray?, callback: (Result<PeripheralWriteRequestResult?>) -> Unit)
+  fun onDescriptorWriteRequest(deviceIdArg: String, characteristicIdArg: String, characteristicInstanceIdArg: String?, descriptorIdArg: String, offsetArg: Long, valueArg: ByteArray?, callback: (Result<PeripheralWriteRequestResult?>) -> Unit)
 {
     val separatedMessageChannelSuffix = if (messageChannelSuffix.isNotEmpty()) ".$messageChannelSuffix" else ""
     val channelName = "dev.flutter.pigeon.universal_ble.UniversalBlePeripheralCallback.onDescriptorWriteRequest$separatedMessageChannelSuffix"
     val channel = BasicMessageChannel<Any?>(binaryMessenger, channelName, codec)
-    channel.send(listOf(deviceIdArg, characteristicIdArg, descriptorIdArg, offsetArg, valueArg)) {
+    channel.send(listOf(deviceIdArg, characteristicIdArg, characteristicInstanceIdArg, descriptorIdArg, offsetArg, valueArg)) {
       if (it is List<*>) {
         if (it.size > 1) {
           callback(Result.failure(FlutterError(it[0] as String, it[1] as String, it[2] as String?)))
@@ -3239,12 +3256,12 @@ class UniversalBlePeripheralCallback(private val binaryMessenger: BinaryMessenge
       } 
     }
   }
-  fun onCharacteristicSubscriptionChange(deviceIdArg: String, characteristicIdArg: String, isSubscribedArg: Boolean, nameArg: String?, callback: (Result<Unit>) -> Unit)
+  fun onCharacteristicSubscriptionChange(deviceIdArg: String, characteristicIdArg: String, characteristicInstanceIdArg: String?, isSubscribedArg: Boolean, nameArg: String?, callback: (Result<Unit>) -> Unit)
 {
     val separatedMessageChannelSuffix = if (messageChannelSuffix.isNotEmpty()) ".$messageChannelSuffix" else ""
     val channelName = "dev.flutter.pigeon.universal_ble.UniversalBlePeripheralCallback.onCharacteristicSubscriptionChange$separatedMessageChannelSuffix"
     val channel = BasicMessageChannel<Any?>(binaryMessenger, channelName, codec)
-    channel.send(listOf(deviceIdArg, characteristicIdArg, isSubscribedArg, nameArg)) {
+    channel.send(listOf(deviceIdArg, characteristicIdArg, characteristicInstanceIdArg, isSubscribedArg, nameArg)) {
       if (it is List<*>) {
         if (it.size > 1) {
           callback(Result.failure(FlutterError(it[0] as String, it[1] as String, it[2] as String?)))

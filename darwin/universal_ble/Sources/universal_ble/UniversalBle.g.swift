@@ -1480,6 +1480,15 @@ struct PeripheralCharacteristic: Hashable, CustomStringConvertible {
   var permissions: [PeripheralAttributePermission]
   var descriptors: [PeripheralDescriptor]? = nil
   var value: FlutterStandardTypedData? = nil
+  /// Optional stable identity for this characteristic *instance*.
+  ///
+  /// A GATT service may legally contain several characteristics with the same
+  /// [uuid]. Callers that need to address one of them individually set a unique
+  /// [instanceId] per characteristic; UUID-only callers leave it `null` and keep
+  /// the historical first-match behaviour. Request, subscription and
+  /// notification callbacks echo the identity back, so a caller can tell which
+  /// instance an event belongs to.
+  var instanceId: String? = nil
 
 
   // swift-format-ignore: AlwaysUseLowerCamelCase
@@ -1489,13 +1498,15 @@ struct PeripheralCharacteristic: Hashable, CustomStringConvertible {
     let permissions = pigeonVar_list[2] as! [PeripheralAttributePermission]
     let descriptors: [PeripheralDescriptor]? = nilOrValue(pigeonVar_list[3])
     let value: FlutterStandardTypedData? = nilOrValue(pigeonVar_list[4])
+    let instanceId: String? = nilOrValue(pigeonVar_list[5])
 
     return PeripheralCharacteristic(
       uuid: uuid,
       properties: properties,
       permissions: permissions,
       descriptors: descriptors,
-      value: value
+      value: value,
+      instanceId: instanceId
     )
   }
   func toList() -> [Any?] {
@@ -1505,13 +1516,14 @@ struct PeripheralCharacteristic: Hashable, CustomStringConvertible {
       permissions,
       descriptors,
       value,
+      instanceId,
     ]
   }
   static func == (lhs: PeripheralCharacteristic, rhs: PeripheralCharacteristic) -> Bool {
     if Swift.type(of: lhs) != Swift.type(of: rhs) {
       return false
     }
-    return UniversalBlePigeonInternal.deepEquals(lhs.uuid, rhs.uuid) && UniversalBlePigeonInternal.deepEquals(lhs.properties, rhs.properties) && UniversalBlePigeonInternal.deepEquals(lhs.permissions, rhs.permissions) && UniversalBlePigeonInternal.deepEquals(lhs.descriptors, rhs.descriptors) && UniversalBlePigeonInternal.deepEquals(lhs.value, rhs.value)
+    return UniversalBlePigeonInternal.deepEquals(lhs.uuid, rhs.uuid) && UniversalBlePigeonInternal.deepEquals(lhs.properties, rhs.properties) && UniversalBlePigeonInternal.deepEquals(lhs.permissions, rhs.permissions) && UniversalBlePigeonInternal.deepEquals(lhs.descriptors, rhs.descriptors) && UniversalBlePigeonInternal.deepEquals(lhs.value, rhs.value) && UniversalBlePigeonInternal.deepEquals(lhs.instanceId, rhs.instanceId)
   }
 
   func hash(into hasher: inout Hasher) {
@@ -1521,10 +1533,11 @@ struct PeripheralCharacteristic: Hashable, CustomStringConvertible {
     UniversalBlePigeonInternal.deepHash(value: permissions, hasher: &hasher)
     UniversalBlePigeonInternal.deepHash(value: descriptors, hasher: &hasher)
     UniversalBlePigeonInternal.deepHash(value: value, hasher: &hasher)
+    UniversalBlePigeonInternal.deepHash(value: instanceId, hasher: &hasher)
   }
 
   public var description: String {
-    return "PeripheralCharacteristic(uuid: \(String(describing: uuid)), properties: \(String(describing: properties)), permissions: \(String(describing: permissions)), descriptors: \(String(describing: descriptors)), value: \(String(describing: value)))"
+    return "PeripheralCharacteristic(uuid: \(String(describing: uuid)), properties: \(String(describing: properties)), permissions: \(String(describing: permissions)), descriptors: \(String(describing: descriptors)), value: \(String(describing: value)), instanceId: \(String(describing: instanceId)))"
   }
 }
 
@@ -2609,10 +2622,11 @@ protocol UniversalBlePeripheralChannel {
   func clearServices() throws
   func getServices() throws -> [String]
   func startAdvertising(services: [String], localName: String?, timeout: Int64?, manufacturerData: UniversalManufacturerData?, platformConfig: PeripheralPlatformConfig?) throws
-  func updateCharacteristic(characteristicId: String, value: FlutterStandardTypedData, deviceId: String?) throws
-  /// Returns peripheral-client device ids currently subscribed to [characteristicId]
-  /// (e.g. HID report characteristic). Used to restore app state after restart.
-  func getSubscribedClients(characteristicId: String) throws -> [String]
+  func updateCharacteristic(characteristicId: String, characteristicInstanceId: String?, value: FlutterStandardTypedData, deviceId: String?) throws
+  /// Returns peripheral-client device ids currently subscribed to the
+  /// characteristic identified by [characteristicId] (and, when supplied,
+  /// [characteristicInstanceId]).
+  func getSubscribedClients(characteristicId: String, characteristicInstanceId: String?) throws -> [String]
   /// Returns max characteristic notify payload length for a connected client.
   func getMaximumNotifyLength(deviceId: String) throws -> Int64?
 }
@@ -2742,10 +2756,11 @@ class UniversalBlePeripheralChannelSetup {
       updateCharacteristicChannel.setMessageHandler { message, reply in
         let args = message as! [Any?]
         let characteristicIdArg = args[0] as! String
-        let valueArg = args[1] as! FlutterStandardTypedData
-        let deviceIdArg: String? = nilOrValue(args[2])
+        let characteristicInstanceIdArg: String? = nilOrValue(args[1])
+        let valueArg = args[2] as! FlutterStandardTypedData
+        let deviceIdArg: String? = nilOrValue(args[3])
         do {
-          try api.updateCharacteristic(characteristicId: characteristicIdArg, value: valueArg, deviceId: deviceIdArg)
+          try api.updateCharacteristic(characteristicId: characteristicIdArg, characteristicInstanceId: characteristicInstanceIdArg, value: valueArg, deviceId: deviceIdArg)
           reply(wrapResult(nil))
         } catch {
           reply(wrapError(error))
@@ -2754,15 +2769,17 @@ class UniversalBlePeripheralChannelSetup {
     } else {
       updateCharacteristicChannel.setMessageHandler(nil)
     }
-    /// Returns peripheral-client device ids currently subscribed to [characteristicId]
-    /// (e.g. HID report characteristic). Used to restore app state after restart.
+    /// Returns peripheral-client device ids currently subscribed to the
+    /// characteristic identified by [characteristicId] (and, when supplied,
+    /// [characteristicInstanceId]).
     let getSubscribedClientsChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.universal_ble.UniversalBlePeripheralChannel.getSubscribedClients\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
     if let api = api {
       getSubscribedClientsChannel.setMessageHandler { message, reply in
         let args = message as! [Any?]
         let characteristicIdArg = args[0] as! String
+        let characteristicInstanceIdArg: String? = nilOrValue(args[1])
         do {
-          let result = try api.getSubscribedClients(characteristicId: characteristicIdArg)
+          let result = try api.getSubscribedClients(characteristicId: characteristicIdArg, characteristicInstanceId: characteristicInstanceIdArg)
           reply(wrapResult(result))
         } catch {
           reply(wrapError(error))
@@ -2838,11 +2855,11 @@ class UniversalBleAndroidChannelSetup {
 ///
 /// Generated protocol from Pigeon that represents Flutter messages that can be called from Swift.
 protocol UniversalBlePeripheralCallbackProtocol {
-  func onReadRequest(deviceId deviceIdArg: String, characteristicId characteristicIdArg: String, offset offsetArg: Int64, value valueArg: FlutterStandardTypedData?, completion: @escaping (Result<PeripheralReadRequestResult?, PigeonError>) -> Void)
-  func onWriteRequest(deviceId deviceIdArg: String, characteristicId characteristicIdArg: String, offset offsetArg: Int64, value valueArg: FlutterStandardTypedData?, completion: @escaping (Result<PeripheralWriteRequestResult?, PigeonError>) -> Void)
-  func onDescriptorReadRequest(deviceId deviceIdArg: String, characteristicId characteristicIdArg: String, descriptorId descriptorIdArg: String, offset offsetArg: Int64, value valueArg: FlutterStandardTypedData?, completion: @escaping (Result<PeripheralReadRequestResult?, PigeonError>) -> Void)
-  func onDescriptorWriteRequest(deviceId deviceIdArg: String, characteristicId characteristicIdArg: String, descriptorId descriptorIdArg: String, offset offsetArg: Int64, value valueArg: FlutterStandardTypedData?, completion: @escaping (Result<PeripheralWriteRequestResult?, PigeonError>) -> Void)
-  func onCharacteristicSubscriptionChange(deviceId deviceIdArg: String, characteristicId characteristicIdArg: String, isSubscribed isSubscribedArg: Bool, name nameArg: String?, completion: @escaping (Result<Void, PigeonError>) -> Void)
+  func onReadRequest(deviceId deviceIdArg: String, characteristicId characteristicIdArg: String, characteristicInstanceId characteristicInstanceIdArg: String?, offset offsetArg: Int64, value valueArg: FlutterStandardTypedData?, completion: @escaping (Result<PeripheralReadRequestResult?, PigeonError>) -> Void)
+  func onWriteRequest(deviceId deviceIdArg: String, characteristicId characteristicIdArg: String, characteristicInstanceId characteristicInstanceIdArg: String?, offset offsetArg: Int64, value valueArg: FlutterStandardTypedData?, completion: @escaping (Result<PeripheralWriteRequestResult?, PigeonError>) -> Void)
+  func onDescriptorReadRequest(deviceId deviceIdArg: String, characteristicId characteristicIdArg: String, characteristicInstanceId characteristicInstanceIdArg: String?, descriptorId descriptorIdArg: String, offset offsetArg: Int64, value valueArg: FlutterStandardTypedData?, completion: @escaping (Result<PeripheralReadRequestResult?, PigeonError>) -> Void)
+  func onDescriptorWriteRequest(deviceId deviceIdArg: String, characteristicId characteristicIdArg: String, characteristicInstanceId characteristicInstanceIdArg: String?, descriptorId descriptorIdArg: String, offset offsetArg: Int64, value valueArg: FlutterStandardTypedData?, completion: @escaping (Result<PeripheralWriteRequestResult?, PigeonError>) -> Void)
+  func onCharacteristicSubscriptionChange(deviceId deviceIdArg: String, characteristicId characteristicIdArg: String, characteristicInstanceId characteristicInstanceIdArg: String?, isSubscribed isSubscribedArg: Bool, name nameArg: String?, completion: @escaping (Result<Void, PigeonError>) -> Void)
   func onAdvertisingStateChange(state stateArg: PeripheralAdvertisingState, error errorArg: String?, completion: @escaping (Result<Void, PigeonError>) -> Void)
   func onServiceAdded(serviceId serviceIdArg: String, error errorArg: String?, completion: @escaping (Result<Void, PigeonError>) -> Void)
   func onMtuChange(deviceId deviceIdArg: String, mtu mtuArg: Int64, completion: @escaping (Result<Void, PigeonError>) -> Void)
@@ -2858,10 +2875,10 @@ class UniversalBlePeripheralCallback: UniversalBlePeripheralCallbackProtocol {
   var codec: UniversalBlePigeonCodec {
     return UniversalBlePigeonCodec.shared
   }
-  func onReadRequest(deviceId deviceIdArg: String, characteristicId characteristicIdArg: String, offset offsetArg: Int64, value valueArg: FlutterStandardTypedData?, completion: @escaping (Result<PeripheralReadRequestResult?, PigeonError>) -> Void) {
+  func onReadRequest(deviceId deviceIdArg: String, characteristicId characteristicIdArg: String, characteristicInstanceId characteristicInstanceIdArg: String?, offset offsetArg: Int64, value valueArg: FlutterStandardTypedData?, completion: @escaping (Result<PeripheralReadRequestResult?, PigeonError>) -> Void) {
     let channelName: String = "dev.flutter.pigeon.universal_ble.UniversalBlePeripheralCallback.onReadRequest\(messageChannelSuffix)"
     let channel = FlutterBasicMessageChannel(name: channelName, binaryMessenger: binaryMessenger, codec: codec)
-    channel.sendMessage([deviceIdArg, characteristicIdArg, offsetArg, valueArg] as [Any?]) { response in
+    channel.sendMessage([deviceIdArg, characteristicIdArg, characteristicInstanceIdArg, offsetArg, valueArg] as [Any?]) { response in
       guard let listResponse = response as? [Any?] else {
         completion(.failure(createConnectionError(withChannelName: channelName)))
         return
@@ -2877,10 +2894,10 @@ class UniversalBlePeripheralCallback: UniversalBlePeripheralCallbackProtocol {
       }
     }
   }
-  func onWriteRequest(deviceId deviceIdArg: String, characteristicId characteristicIdArg: String, offset offsetArg: Int64, value valueArg: FlutterStandardTypedData?, completion: @escaping (Result<PeripheralWriteRequestResult?, PigeonError>) -> Void) {
+  func onWriteRequest(deviceId deviceIdArg: String, characteristicId characteristicIdArg: String, characteristicInstanceId characteristicInstanceIdArg: String?, offset offsetArg: Int64, value valueArg: FlutterStandardTypedData?, completion: @escaping (Result<PeripheralWriteRequestResult?, PigeonError>) -> Void) {
     let channelName: String = "dev.flutter.pigeon.universal_ble.UniversalBlePeripheralCallback.onWriteRequest\(messageChannelSuffix)"
     let channel = FlutterBasicMessageChannel(name: channelName, binaryMessenger: binaryMessenger, codec: codec)
-    channel.sendMessage([deviceIdArg, characteristicIdArg, offsetArg, valueArg] as [Any?]) { response in
+    channel.sendMessage([deviceIdArg, characteristicIdArg, characteristicInstanceIdArg, offsetArg, valueArg] as [Any?]) { response in
       guard let listResponse = response as? [Any?] else {
         completion(.failure(createConnectionError(withChannelName: channelName)))
         return
@@ -2896,10 +2913,10 @@ class UniversalBlePeripheralCallback: UniversalBlePeripheralCallbackProtocol {
       }
     }
   }
-  func onDescriptorReadRequest(deviceId deviceIdArg: String, characteristicId characteristicIdArg: String, descriptorId descriptorIdArg: String, offset offsetArg: Int64, value valueArg: FlutterStandardTypedData?, completion: @escaping (Result<PeripheralReadRequestResult?, PigeonError>) -> Void) {
+  func onDescriptorReadRequest(deviceId deviceIdArg: String, characteristicId characteristicIdArg: String, characteristicInstanceId characteristicInstanceIdArg: String?, descriptorId descriptorIdArg: String, offset offsetArg: Int64, value valueArg: FlutterStandardTypedData?, completion: @escaping (Result<PeripheralReadRequestResult?, PigeonError>) -> Void) {
     let channelName: String = "dev.flutter.pigeon.universal_ble.UniversalBlePeripheralCallback.onDescriptorReadRequest\(messageChannelSuffix)"
     let channel = FlutterBasicMessageChannel(name: channelName, binaryMessenger: binaryMessenger, codec: codec)
-    channel.sendMessage([deviceIdArg, characteristicIdArg, descriptorIdArg, offsetArg, valueArg] as [Any?]) { response in
+    channel.sendMessage([deviceIdArg, characteristicIdArg, characteristicInstanceIdArg, descriptorIdArg, offsetArg, valueArg] as [Any?]) { response in
       guard let listResponse = response as? [Any?] else {
         completion(.failure(createConnectionError(withChannelName: channelName)))
         return
@@ -2915,10 +2932,10 @@ class UniversalBlePeripheralCallback: UniversalBlePeripheralCallbackProtocol {
       }
     }
   }
-  func onDescriptorWriteRequest(deviceId deviceIdArg: String, characteristicId characteristicIdArg: String, descriptorId descriptorIdArg: String, offset offsetArg: Int64, value valueArg: FlutterStandardTypedData?, completion: @escaping (Result<PeripheralWriteRequestResult?, PigeonError>) -> Void) {
+  func onDescriptorWriteRequest(deviceId deviceIdArg: String, characteristicId characteristicIdArg: String, characteristicInstanceId characteristicInstanceIdArg: String?, descriptorId descriptorIdArg: String, offset offsetArg: Int64, value valueArg: FlutterStandardTypedData?, completion: @escaping (Result<PeripheralWriteRequestResult?, PigeonError>) -> Void) {
     let channelName: String = "dev.flutter.pigeon.universal_ble.UniversalBlePeripheralCallback.onDescriptorWriteRequest\(messageChannelSuffix)"
     let channel = FlutterBasicMessageChannel(name: channelName, binaryMessenger: binaryMessenger, codec: codec)
-    channel.sendMessage([deviceIdArg, characteristicIdArg, descriptorIdArg, offsetArg, valueArg] as [Any?]) { response in
+    channel.sendMessage([deviceIdArg, characteristicIdArg, characteristicInstanceIdArg, descriptorIdArg, offsetArg, valueArg] as [Any?]) { response in
       guard let listResponse = response as? [Any?] else {
         completion(.failure(createConnectionError(withChannelName: channelName)))
         return
@@ -2934,10 +2951,10 @@ class UniversalBlePeripheralCallback: UniversalBlePeripheralCallbackProtocol {
       }
     }
   }
-  func onCharacteristicSubscriptionChange(deviceId deviceIdArg: String, characteristicId characteristicIdArg: String, isSubscribed isSubscribedArg: Bool, name nameArg: String?, completion: @escaping (Result<Void, PigeonError>) -> Void) {
+  func onCharacteristicSubscriptionChange(deviceId deviceIdArg: String, characteristicId characteristicIdArg: String, characteristicInstanceId characteristicInstanceIdArg: String?, isSubscribed isSubscribedArg: Bool, name nameArg: String?, completion: @escaping (Result<Void, PigeonError>) -> Void) {
     let channelName: String = "dev.flutter.pigeon.universal_ble.UniversalBlePeripheralCallback.onCharacteristicSubscriptionChange\(messageChannelSuffix)"
     let channel = FlutterBasicMessageChannel(name: channelName, binaryMessenger: binaryMessenger, codec: codec)
-    channel.sendMessage([deviceIdArg, characteristicIdArg, isSubscribedArg, nameArg] as [Any?]) { response in
+    channel.sendMessage([deviceIdArg, characteristicIdArg, characteristicInstanceIdArg, isSubscribedArg, nameArg] as [Any?]) { response in
       guard let listResponse = response as? [Any?] else {
         completion(.failure(createConnectionError(withChannelName: channelName)))
         return

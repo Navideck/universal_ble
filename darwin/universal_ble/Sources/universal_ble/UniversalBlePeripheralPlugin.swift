@@ -16,10 +16,19 @@ final class UniversalBlePeripheralPlugin: NSObject, UniversalBlePeripheralChanne
   private let centralsLock = NSLock()
   private var centralsById = [String: CBCentral]()
   private var centralCharacteristicSubscriptions = [String: Set<String>]()
+  private let pendingNotificationsLock = NSLock()
+  private var pendingNotifications = [PendingNotification]()
   // Per plugin instance (one per FlutterEngine): the services this peripheral
   // advertises. Tearing one engine down (or clearing its services) must not wipe
   // another engine's advertising state.
   private let serviceRegistry = PeripheralServiceRegistry()
+
+  private struct PendingNotification {
+    let value: Data
+    let characteristic: CBMutableCharacteristic
+    let centrals: [CBCentral]?
+    let instanceId: String?
+  }
 
   init(callbackChannel: UniversalBlePeripheralCallback) {
     self.callbackChannel = callbackChannel
@@ -94,7 +103,11 @@ final class UniversalBlePeripheralPlugin: NSObject, UniversalBlePeripheralChanne
 
   func addService(service: PeripheralService) throws {
     let cbService = service.toCBService()
-    serviceRegistry.register(cbService)
+    serviceRegistry.register(
+      cbService,
+      modelCharacteristics: service.characteristics,
+      mutableCharacteristics: cbService.characteristics ?? []
+    )
     ensurePeripheralManager().add(cbService)
   }
 
@@ -150,10 +163,16 @@ final class UniversalBlePeripheralPlugin: NSObject, UniversalBlePeripheralChanne
 
   func updateCharacteristic(
     characteristicId: String,
+    characteristicInstanceId: String?,
     value: FlutterStandardTypedData,
     deviceId: String?
   ) throws {
-    guard let characteristic = serviceRegistry.characteristic(characteristicId) else {
+    guard
+      let characteristic = serviceRegistry.characteristic(
+        characteristicId,
+        instanceId: characteristicInstanceId
+      )
+    else {
       throw UniversalBlePeripheralError.notFound("\(characteristicId) characteristic not found")
     }
     let centrals: [CBCentral]?
@@ -165,14 +184,54 @@ final class UniversalBlePeripheralPlugin: NSObject, UniversalBlePeripheralChanne
     } else {
       centrals = nil
     }
+    let data = value.toData()
     let success = ensurePeripheralManager().updateValue(
-      value.toData(),
+      data,
       for: characteristic,
       onSubscribedCentrals: centrals
     )
     if !success {
-      throw UniversalBlePeripheralError.failed("Peripheral transmit queue full")
+      // CoreBluetooth reports a full transmit queue through the delegate; keep
+      // the payloads FIFO so a HID release can never overtake its press.
+      pendingNotificationsLock.lock()
+      pendingNotifications.append(
+        PendingNotification(
+          value: data,
+          characteristic: characteristic,
+          centrals: centrals,
+          instanceId: serviceRegistry.instanceId(of: characteristic)
+        )
+      )
+      pendingNotificationsLock.unlock()
     }
+  }
+
+  private func drainPendingNotifications() {
+    pendingNotificationsLock.lock()
+    let queued = pendingNotifications
+    pendingNotifications.removeAll()
+    pendingNotificationsLock.unlock()
+    var remaining = [PendingNotification]()
+    for (index, notification) in queued.enumerated() {
+      let success = ensurePeripheralManager().updateValue(
+        notification.value,
+        for: notification.characteristic,
+        onSubscribedCentrals: notification.centrals
+      )
+      if !success {
+        remaining.append(contentsOf: queued[index...])
+        break
+      }
+    }
+    if !remaining.isEmpty {
+      pendingNotificationsLock.lock()
+      pendingNotifications.insert(contentsOf: remaining, at: 0)
+      pendingNotificationsLock.unlock()
+    }
+  }
+
+  nonisolated func peripheralManagerIsReady(toUpdateSubscribers peripheral: CBPeripheralManager) {
+    drainPendingNotifications()
   }
 
   nonisolated func peripheralManagerDidStartAdvertising(
@@ -209,13 +268,15 @@ final class UniversalBlePeripheralPlugin: NSObject, UniversalBlePeripheralChanne
     central: CBCentral,
     didSubscribeTo characteristic: CBCharacteristic
   ) {
+    let instanceId = serviceRegistry.instanceId(of: characteristic)
     upsertCentralSubscription(
       central: central,
-      characteristicId: characteristic.uuid.uuidString
+      subscriptionId: instanceId ?? characteristic.uuid.uuidString
     )
     callbackChannel.onCharacteristicSubscriptionChange(
       deviceId: central.identifier.uuidString,
       characteristicId: characteristic.uuid.uuidString,
+      characteristicInstanceId: instanceId,
       isSubscribed: true,
       name: nil
     ) { _ in }
@@ -230,13 +291,15 @@ final class UniversalBlePeripheralPlugin: NSObject, UniversalBlePeripheralChanne
     central: CBCentral,
     didUnsubscribeFrom characteristic: CBCharacteristic
   ) {
+    let instanceId = serviceRegistry.instanceId(of: characteristic)
     removeCentralSubscription(
       centralId: central.identifier.uuidString,
-      characteristicId: characteristic.uuid.uuidString
+      subscriptionId: instanceId ?? characteristic.uuid.uuidString
     )
     callbackChannel.onCharacteristicSubscriptionChange(
       deviceId: central.identifier.uuidString,
       characteristicId: characteristic.uuid.uuidString,
+      characteristicInstanceId: instanceId,
       isSubscribed: false,
       name: nil
     ) { _ in }
@@ -249,6 +312,7 @@ final class UniversalBlePeripheralPlugin: NSObject, UniversalBlePeripheralChanne
     callbackChannel.onReadRequest(
       deviceId: request.central.identifier.uuidString,
       characteristicId: request.characteristic.uuid.uuidString,
+      characteristicInstanceId: serviceRegistry.instanceId(of: request.characteristic),
       offset: Int64(request.offset),
       value: request.value?.toFlutterBytes()
     ) { readReq in
@@ -259,7 +323,15 @@ final class UniversalBlePeripheralPlugin: NSObject, UniversalBlePeripheralChanne
           peripheral.respond(to: request, withResult: status)
           return
         }
-        guard let fullData = result?.value.toData() as Data? else {
+        // No handler, or a handler without data: serve the configured value so
+        // static characteristics do not depend on an app-side read handler.
+        let fullData: Data?
+        if let result {
+          fullData = result.value.toData()
+        } else {
+          fullData = request.characteristic.value
+        }
+        guard let fullData else {
           peripheral.respond(to: request, withResult: .requestNotSupported)
           return
         }
@@ -268,8 +340,7 @@ final class UniversalBlePeripheralPlugin: NSObject, UniversalBlePeripheralChanne
           peripheral.respond(to: request, withResult: .invalidOffset)
           return
         }
-        let sliced = fullData.subdata(in: offset..<fullData.count)
-        request.value = sliced
+        request.value = fullData.subdata(in: offset..<fullData.count)
         peripheral.respond(to: request, withResult: .success)
       } catch {
         peripheral.respond(to: request, withResult: .requestNotSupported)
@@ -285,6 +356,7 @@ final class UniversalBlePeripheralPlugin: NSObject, UniversalBlePeripheralChanne
       callbackChannel.onWriteRequest(
         deviceId: req.central.identifier.uuidString,
         characteristicId: req.characteristic.uuid.uuidString,
+        characteristicInstanceId: serviceRegistry.instanceId(of: req.characteristic),
         offset: Int64(req.offset),
         value: req.value?.toFlutterBytes()
       ) { writeRes in
@@ -301,21 +373,21 @@ final class UniversalBlePeripheralPlugin: NSObject, UniversalBlePeripheralChanne
 
   private func upsertCentralSubscription(
     central: CBCentral,
-    characteristicId: String
+    subscriptionId: String
   ) {
     let centralId = central.identifier.uuidString
     centralsLock.lock()
     centralsById[centralId] = central
     var subscriptions = centralCharacteristicSubscriptions[centralId] ?? Set<String>()
-    subscriptions.insert(characteristicId)
+    subscriptions.insert(subscriptionId)
     centralCharacteristicSubscriptions[centralId] = subscriptions
     centralsLock.unlock()
   }
 
-  private func removeCentralSubscription(centralId: String, characteristicId: String) {
+  private func removeCentralSubscription(centralId: String, subscriptionId: String) {
     centralsLock.lock()
     var subscriptions = centralCharacteristicSubscriptions[centralId] ?? Set<String>()
-    subscriptions.remove(characteristicId)
+    subscriptions.remove(subscriptionId)
     if subscriptions.isEmpty {
       centralCharacteristicSubscriptions.removeValue(forKey: centralId)
       centralsById.removeValue(forKey: centralId)
@@ -339,8 +411,11 @@ final class UniversalBlePeripheralPlugin: NSObject, UniversalBlePeripheralChanne
     centralsLock.unlock()
   }
 
-  func getSubscribedClients(characteristicId: String) throws -> [String] {
-    let target = characteristicId.uppercased()
+  func getSubscribedClients(
+    characteristicId: String,
+    characteristicInstanceId: String?
+  ) throws -> [String] {
+    let target = (characteristicInstanceId ?? characteristicId).uppercased()
     centralsLock.lock()
     defer { centralsLock.unlock() }
     return centralCharacteristicSubscriptions.compactMap { centralId, chars in
@@ -365,15 +440,37 @@ final class UniversalBlePeripheralPlugin: NSObject, UniversalBlePeripheralChanne
 /// exposes.
 private final class PeripheralServiceRegistry {
   private var services = [CBMutableService]()
+  private var characteristicsByIdentity =
+    [(characteristic: CBMutableCharacteristic, instanceId: String?)]()
 
-  func register(_ service: CBMutableService) {
+  func register(
+    _ service: CBMutableService,
+    modelCharacteristics: [PeripheralCharacteristic],
+    mutableCharacteristics: [CBCharacteristic]
+  ) {
+    unregisterCharacteristics(of: service)
     services.removeAll {
       $0.uuid.uuidString.lowercased() == service.uuid.uuidString.lowercased()
     }
     services.append(service)
+    // Model order matches `mutableCharacteristics`, so a characteristic's
+    // declared instance id can be attached to its CoreBluetooth object.
+    for (index, characteristic) in mutableCharacteristics.enumerated() {
+      guard let mutable = characteristic as? CBMutableCharacteristic else { continue }
+      let model = index < modelCharacteristics.count ? modelCharacteristics[index] : nil
+      characteristicsByIdentity.append((mutable, model?.instanceId))
+    }
+  }
+
+  private func unregisterCharacteristics(of service: CBMutableService) {
+    let ids = Set(
+      (service.characteristics ?? []).map { ObjectIdentifier($0) }
+    )
+    characteristicsByIdentity.removeAll { ids.contains(ObjectIdentifier($0.characteristic)) }
   }
 
   func remove(_ service: CBMutableService) {
+    unregisterCharacteristics(of: service)
     services.removeAll {
       $0.uuid.uuidString.lowercased() == service.uuid.uuidString.lowercased()
     }
@@ -381,6 +478,7 @@ private final class PeripheralServiceRegistry {
 
   func clear() {
     services.removeAll()
+    characteristicsByIdentity.removeAll()
   }
 
   func service(_ serviceId: String) -> CBMutableService? {
@@ -388,16 +486,27 @@ private final class PeripheralServiceRegistry {
     return services.first { $0.uuid.uuidString.lowercased() == target }
   }
 
-  func characteristic(_ characteristicId: String) -> CBMutableCharacteristic? {
-    let target = characteristicId.lowercased()
-    for service in services {
-      for case let characteristic as CBMutableCharacteristic in service.characteristics ?? [] {
-        if characteristic.uuid.uuidString.lowercased() == target {
-          return characteristic
-        }
-      }
+  func characteristic(
+    _ characteristicId: String,
+    instanceId: String?
+  ) -> CBMutableCharacteristic? {
+    if let instanceId {
+      return characteristicsByIdentity.first {
+        $0.characteristic.uuid.uuidString.lowercased() == characteristicId.lowercased()
+          && ($0.instanceId?.lowercased() == instanceId.lowercased())
+      }?.characteristic
     }
-    return nil
+    let target = characteristicId.lowercased()
+    return characteristicsByIdentity.first {
+      $0.characteristic.uuid.uuidString.lowercased() == target
+    }?.characteristic
+  }
+
+  func instanceId(of characteristic: CBCharacteristic) -> String? {
+    let identifier = ObjectIdentifier(characteristic)
+    return characteristicsByIdentity.first {
+      ObjectIdentifier($0.characteristic) == identifier
+    }?.instanceId
   }
 
   var serviceIds: [String] { services.map { $0.uuid.uuidString } }

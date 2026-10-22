@@ -128,6 +128,28 @@ class UniversalBlePeripheral {
   ) =>
       _platform.setDescriptorWriteRequestHandler(handlers);
 
+  /// Instance-aware read handler; used when several characteristics share a
+  /// UUID (HID Report characteristics).
+  static void setReadRequestHandlersWithInstance(
+    OnPeripheralReadRequestWithInstance? handlers,
+  ) =>
+      _platform.setReadRequestHandlerWithInstance(handlers);
+
+  static void setWriteRequestHandlersWithInstance(
+    OnPeripheralWriteRequestWithInstance? handlers,
+  ) =>
+      _platform.setWriteRequestHandlerWithInstance(handlers);
+
+  static void setDescriptorReadRequestHandlersWithInstance(
+    OnPeripheralDescriptorReadRequestWithInstance? handlers,
+  ) =>
+      _platform.setDescriptorReadRequestHandlerWithInstance(handlers);
+
+  static void setDescriptorWriteRequestHandlersWithInstance(
+    OnPeripheralDescriptorWriteRequestWithInstance? handlers,
+  ) =>
+      _platform.setDescriptorWriteRequestHandlerWithInstance(handlers);
+
   static Future<PeripheralReadinessState> getAvailabilityState() =>
       _platform.getAvailabilityState();
 
@@ -199,6 +221,7 @@ class UniversalBlePeripheral {
 
   static Future<void> updateCharacteristicValue({
     required String characteristicId,
+    String? instanceId,
     required Uint8List value,
     String? deviceId,
     String? queueId,
@@ -206,6 +229,7 @@ class UniversalBlePeripheral {
       _bleCommandQueue.queueCommand(
         () => _platform.updateCharacteristicValue(
           characteristicId: BleUuidParser.string(characteristicId),
+          instanceId: instanceId,
           value: value,
           deviceId: deviceId,
         ),
@@ -213,10 +237,18 @@ class UniversalBlePeripheral {
         queueId: queueId,
       );
 
-  /// Returns client device ids currently subscribed to [characteristicId]
-  /// (e.g. HID report characteristic). Used to restore in-app state after restart.
-  static Future<List<String>> getSubscribedClients(String characteristicId) =>
-      _platform.getSubscribedClients(BleUuidParser.string(characteristicId));
+  /// Returns client device ids currently subscribed to the characteristic
+  /// identified by [characteristicId] (and [instanceId], when the service
+  /// exposes several characteristics with the same UUID). Used to restore
+  /// in-app state after restart.
+  static Future<List<String>> getSubscribedClients(
+    String characteristicId, {
+    String? instanceId,
+  }) =>
+      _platform.getSubscribedClients(
+        BleUuidParser.string(characteristicId),
+        instanceId: instanceId,
+      );
 
   static Future<int?> getMaximumNotifyLength(String deviceId) =>
       _platform.getMaximumNotifyLength(deviceId);

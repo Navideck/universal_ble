@@ -169,6 +169,13 @@ class BlePeripheralCharacteristic extends BleCharacteristic {
   List<PeripheralAttributePermission> permissions;
   Uint8List? value;
 
+  /// Optional stable identity for this characteristic instance.
+  ///
+  /// Services may contain several characteristics with the same [uuid] (HID
+  /// exposes one Report characteristic per report). Set a unique [instanceId]
+  /// to address them independently; leave it `null` for UUID-only behaviour.
+  String? instanceId;
+
   @override
   List<BlePeripheralDescriptor> get descriptors =>
       super.descriptors.cast<BlePeripheralDescriptor>();
@@ -179,6 +186,7 @@ class BlePeripheralCharacteristic extends BleCharacteristic {
     List<BlePeripheralDescriptor> descriptors = const [],
     required this.permissions,
     this.value,
+    this.instanceId,
   }) : super(uuid, properties, descriptors);
 
   factory BlePeripheralCharacteristic.fromJson(Map<String, dynamic> json) {
@@ -210,6 +218,7 @@ class BlePeripheralCharacteristic extends BleCharacteristic {
       value: valueList == null || valueList.isEmpty
           ? null
           : Uint8List.fromList(valueList.whereType<int>().toList()),
+      instanceId: json['instanceId'] as String?,
     );
   }
 
@@ -220,6 +229,7 @@ class BlePeripheralCharacteristic extends BleCharacteristic {
     'descriptors': descriptors.map((e) => e.toJson()).toList(),
     'permissions': permissions.map((e) => e.name).toList(),
     'value': value?.toList(),
+    'instanceId': instanceId,
   };
 
   PeripheralCharacteristic toPeripheralCharacteristic() =>
@@ -231,6 +241,7 @@ class BlePeripheralCharacteristic extends BleCharacteristic {
             .map((e) => e.toPeripheralDescriptor())
             .toList(),
         value: value,
+        instanceId: instanceId,
       );
 }
 

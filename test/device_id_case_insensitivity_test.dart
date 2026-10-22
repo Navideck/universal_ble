@@ -692,11 +692,11 @@ void main() {
     test('peripheral request handlers receive lower-case deviceId', () {
       final pigeon = UniversalBlePeripheralPigeon.instance;
       String? receivedDeviceId;
-      pigeon.setReadRequestHandler((deviceId, characteristicId, offset, value) {
+      pigeon.setReadRequestHandlerWithInstance((deviceId, characteristicId, instanceId, offset, value) {
         receivedDeviceId = deviceId;
         return PeripheralReadRequestResult(value: Uint8List(0));
       });
-      pigeon.onReadRequest(upper, charId, 0, null);
+      pigeon.onReadRequest(upper, charId, null, 0, null);
       expect(receivedDeviceId, lower);
     });
 

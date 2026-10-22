@@ -1336,7 +1336,8 @@ class PeripheralCharacteristic {
     const ::flutter::EncodableList& properties,
     const ::flutter::EncodableList& permissions,
     const ::flutter::EncodableList* descriptors,
-    const std::vector<uint8_t>* value);
+    const std::vector<uint8_t>* value,
+    const std::string* instance_id);
 
   const std::string& uuid() const;
   void set_uuid(std::string_view value_arg);
@@ -1354,6 +1355,18 @@ class PeripheralCharacteristic {
   const std::vector<uint8_t>* value() const;
   void set_value(const std::vector<uint8_t>* value_arg);
   void set_value(const std::vector<uint8_t>& value_arg);
+
+  // Optional stable identity for this characteristic *instance*.
+  //
+  // A GATT service may legally contain several characteristics with the same
+  // [uuid]. Callers that need to address one of them individually set a unique
+  // [instanceId] per characteristic; UUID-only callers leave it `null` and keep
+  // the historical first-match behaviour. Request, subscription and
+  // notification callbacks echo the identity back, so a caller can tell which
+  // instance an event belongs to.
+  const std::string* instance_id() const;
+  void set_instance_id(const std::string_view* value_arg);
+  void set_instance_id(std::string_view value_arg);
 
   bool operator==(const PeripheralCharacteristic& other) const;
   bool operator!=(const PeripheralCharacteristic& other) const;
@@ -1375,6 +1388,7 @@ class PeripheralCharacteristic {
   ::flutter::EncodableList permissions_;
   std::optional<::flutter::EncodableList> descriptors_;
   std::optional<std::vector<uint8_t>> value_;
+  std::optional<std::string> instance_id_;
 };
 
 
@@ -1721,11 +1735,15 @@ class UniversalBlePeripheralChannel {
     const PeripheralPlatformConfig* platform_config) = 0;
   virtual std::optional<FlutterError> UpdateCharacteristic(
     const std::string& characteristic_id,
+    const std::string* characteristic_instance_id,
     const std::vector<uint8_t>& value,
     const std::string* device_id) = 0;
-  // Returns peripheral-client device ids currently subscribed to [characteristicId]
-  // (e.g. HID report characteristic). Used to restore app state after restart.
-  virtual ErrorOr<::flutter::EncodableList> GetSubscribedClients(const std::string& characteristic_id) = 0;
+  // Returns peripheral-client device ids currently subscribed to the
+  // characteristic identified by [characteristicId] (and, when supplied,
+  // [characteristicInstanceId]).
+  virtual ErrorOr<::flutter::EncodableList> GetSubscribedClients(
+    const std::string& characteristic_id,
+    const std::string* characteristic_instance_id) = 0;
   // Returns max characteristic notify payload length for a connected client.
   virtual ErrorOr<std::optional<int64_t>> GetMaximumNotifyLength(const std::string& device_id) = 0;
 
@@ -1783,6 +1801,7 @@ class UniversalBlePeripheralCallback {
   void OnReadRequest(
     const std::string& device_id,
     const std::string& characteristic_id,
+    const std::string* characteristic_instance_id,
     int64_t offset,
     const std::vector<uint8_t>* value,
     std::function<void(const PeripheralReadRequestResult*)>&& on_success,
@@ -1790,6 +1809,7 @@ class UniversalBlePeripheralCallback {
   void OnWriteRequest(
     const std::string& device_id,
     const std::string& characteristic_id,
+    const std::string* characteristic_instance_id,
     int64_t offset,
     const std::vector<uint8_t>* value,
     std::function<void(const PeripheralWriteRequestResult*)>&& on_success,
@@ -1797,6 +1817,7 @@ class UniversalBlePeripheralCallback {
   void OnDescriptorReadRequest(
     const std::string& device_id,
     const std::string& characteristic_id,
+    const std::string* characteristic_instance_id,
     const std::string& descriptor_id,
     int64_t offset,
     const std::vector<uint8_t>* value,
@@ -1805,6 +1826,7 @@ class UniversalBlePeripheralCallback {
   void OnDescriptorWriteRequest(
     const std::string& device_id,
     const std::string& characteristic_id,
+    const std::string* characteristic_instance_id,
     const std::string& descriptor_id,
     int64_t offset,
     const std::vector<uint8_t>* value,
@@ -1813,6 +1835,7 @@ class UniversalBlePeripheralCallback {
   void OnCharacteristicSubscriptionChange(
     const std::string& device_id,
     const std::string& characteristic_id,
+    const std::string* characteristic_instance_id,
     bool is_subscribed,
     const std::string* name,
     std::function<void(void)>&& on_success,

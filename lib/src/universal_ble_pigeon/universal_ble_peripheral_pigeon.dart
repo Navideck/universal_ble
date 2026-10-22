@@ -27,6 +27,12 @@ class UniversalBlePeripheralPigeon extends UniversalBlePeripheralPlatform
   OnPeripheralWriteRequest? _writeRequestHandler;
   OnPeripheralDescriptorReadRequest? _descriptorReadRequestHandler;
   OnPeripheralDescriptorWriteRequest? _descriptorWriteRequestHandler;
+  OnPeripheralReadRequestWithInstance? _readRequestHandlerWithInstance;
+  OnPeripheralWriteRequestWithInstance? _writeRequestHandlerWithInstance;
+  OnPeripheralDescriptorReadRequestWithInstance?
+      _descriptorReadRequestHandlerWithInstance;
+  OnPeripheralDescriptorWriteRequestWithInstance?
+      _descriptorWriteRequestHandlerWithInstance;
 
   @override
   Future<PeripheralReadinessState> getAvailabilityState() =>
@@ -122,19 +128,27 @@ class UniversalBlePeripheralPigeon extends UniversalBlePeripheralPlatform
   @override
   Future<void> updateCharacteristicValue({
     required String characteristicId,
+    String? instanceId,
     required Uint8List value,
     String? deviceId,
   }) {
     return _channel.updateCharacteristic(
       BleUuidParser.string(characteristicId),
+      instanceId,
       value,
       deviceId?.toDeviceId(isAddress: hasAddressDeviceIds).native,
     );
   }
 
   @override
-  Future<List<String>> getSubscribedClients(String characteristicId) async {
-    final clients = await _channel.getSubscribedClients(characteristicId);
+  Future<List<String>> getSubscribedClients(
+    String characteristicId, {
+    String? instanceId,
+  }) async {
+    final clients = await _channel.getSubscribedClients(
+      BleUuidParser.string(characteristicId),
+      instanceId,
+    );
     // Emitted ids are canonical (see UniversalBlePeripheralPlatform).
     return clients
         .map((e) => e.toDeviceId(isAddress: hasAddressDeviceIds).canonical)
@@ -168,6 +182,30 @@ class UniversalBlePeripheralPigeon extends UniversalBlePeripheralPlatform
       _descriptorWriteRequestHandler = handler;
 
   @override
+  void setReadRequestHandlerWithInstance(
+    OnPeripheralReadRequestWithInstance? handler,
+  ) =>
+      _readRequestHandlerWithInstance = handler;
+
+  @override
+  void setWriteRequestHandlerWithInstance(
+    OnPeripheralWriteRequestWithInstance? handler,
+  ) =>
+      _writeRequestHandlerWithInstance = handler;
+
+  @override
+  void setDescriptorReadRequestHandlerWithInstance(
+    OnPeripheralDescriptorReadRequestWithInstance? handler,
+  ) =>
+      _descriptorReadRequestHandlerWithInstance = handler;
+
+  @override
+  void setDescriptorWriteRequestHandlerWithInstance(
+    OnPeripheralDescriptorWriteRequestWithInstance? handler,
+  ) =>
+      _descriptorWriteRequestHandlerWithInstance = handler;
+
+  @override
   Future<void> onAdvertisingStateChange(
     PeripheralAdvertisingState state,
     String? error,
@@ -179,6 +217,7 @@ class UniversalBlePeripheralPigeon extends UniversalBlePeripheralPlatform
   Future<void> onCharacteristicSubscriptionChange(
     String deviceId,
     String characteristicId,
+    String? characteristicInstanceId,
     bool isSubscribed,
     String? name,
   ) async {
@@ -186,6 +225,7 @@ class UniversalBlePeripheralPigeon extends UniversalBlePeripheralPlatform
       BlePeripheralCharacteristicSubscriptionChanged(
         deviceId: deviceId,
         characteristicId: BleUuidParser.string(characteristicId),
+        instanceId: characteristicInstanceId,
         isSubscribed: isSubscribed,
         name: name,
       ),
@@ -208,15 +248,27 @@ class UniversalBlePeripheralPigeon extends UniversalBlePeripheralPlatform
   Future<PeripheralReadRequestResult?> onReadRequest(
     String deviceId,
     String characteristicId,
+    String? characteristicInstanceId,
     int offset,
     Uint8List? value,
   ) async {
-    final result = _readRequestHandler?.call(
-      deviceId.toDeviceId(isAddress: hasAddressDeviceIds).canonical,
-      BleUuidParser.string(characteristicId),
-      offset,
-      value,
-    );
+    final canonicalId = deviceId
+        .toDeviceId(isAddress: hasAddressDeviceIds)
+        .canonical;
+    final parsedCharacteristicId = BleUuidParser.string(characteristicId);
+    final result = _readRequestHandlerWithInstance?.call(
+          canonicalId,
+          parsedCharacteristicId,
+          characteristicInstanceId,
+          offset,
+          value,
+        ) ??
+        _readRequestHandler?.call(
+          canonicalId,
+          parsedCharacteristicId,
+          offset,
+          value,
+        );
     if (result == null) return null;
     return PeripheralReadRequestResult(
       value: result.value,
@@ -236,15 +288,27 @@ class UniversalBlePeripheralPigeon extends UniversalBlePeripheralPlatform
   Future<PeripheralWriteRequestResult?> onWriteRequest(
     String deviceId,
     String characteristicId,
+    String? characteristicInstanceId,
     int offset,
     Uint8List? value,
   ) async {
-    final result = _writeRequestHandler?.call(
-      deviceId.toDeviceId(isAddress: hasAddressDeviceIds).canonical,
-      BleUuidParser.string(characteristicId),
-      offset,
-      value,
-    );
+    final canonicalId = deviceId
+        .toDeviceId(isAddress: hasAddressDeviceIds)
+        .canonical;
+    final parsedCharacteristicId = BleUuidParser.string(characteristicId);
+    final result = _writeRequestHandlerWithInstance?.call(
+          canonicalId,
+          parsedCharacteristicId,
+          characteristicInstanceId,
+          offset,
+          value,
+        ) ??
+        _writeRequestHandler?.call(
+          canonicalId,
+          parsedCharacteristicId,
+          offset,
+          value,
+        );
     if (result == null) return null;
     return PeripheralWriteRequestResult(
       value: result.value,
@@ -257,17 +321,31 @@ class UniversalBlePeripheralPigeon extends UniversalBlePeripheralPlatform
   Future<PeripheralReadRequestResult?> onDescriptorReadRequest(
     String deviceId,
     String characteristicId,
+    String? characteristicInstanceId,
     String descriptorId,
     int offset,
     Uint8List? value,
   ) async {
-    final result = _descriptorReadRequestHandler?.call(
-      deviceId.toDeviceId(isAddress: hasAddressDeviceIds).canonical,
-      BleUuidParser.string(characteristicId),
-      BleUuidParser.string(descriptorId),
-      offset,
-      value,
-    );
+    final canonicalId = deviceId
+        .toDeviceId(isAddress: hasAddressDeviceIds)
+        .canonical;
+    final parsedCharacteristicId = BleUuidParser.string(characteristicId);
+    final parsedDescriptorId = BleUuidParser.string(descriptorId);
+    final result = _descriptorReadRequestHandlerWithInstance?.call(
+          canonicalId,
+          parsedCharacteristicId,
+          characteristicInstanceId,
+          parsedDescriptorId,
+          offset,
+          value,
+        ) ??
+        _descriptorReadRequestHandler?.call(
+          canonicalId,
+          parsedCharacteristicId,
+          parsedDescriptorId,
+          offset,
+          value,
+        );
     if (result == null) return null;
     return PeripheralReadRequestResult(
       value: result.value,
@@ -280,17 +358,31 @@ class UniversalBlePeripheralPigeon extends UniversalBlePeripheralPlatform
   Future<PeripheralWriteRequestResult?> onDescriptorWriteRequest(
     String deviceId,
     String characteristicId,
+    String? characteristicInstanceId,
     String descriptorId,
     int offset,
     Uint8List? value,
   ) async {
-    final result = _descriptorWriteRequestHandler?.call(
-      deviceId.toDeviceId(isAddress: hasAddressDeviceIds).canonical,
-      BleUuidParser.string(characteristicId),
-      BleUuidParser.string(descriptorId),
-      offset,
-      value,
-    );
+    final canonicalId = deviceId
+        .toDeviceId(isAddress: hasAddressDeviceIds)
+        .canonical;
+    final parsedCharacteristicId = BleUuidParser.string(characteristicId);
+    final parsedDescriptorId = BleUuidParser.string(descriptorId);
+    final result = _descriptorWriteRequestHandlerWithInstance?.call(
+          canonicalId,
+          parsedCharacteristicId,
+          characteristicInstanceId,
+          parsedDescriptorId,
+          offset,
+          value,
+        ) ??
+        _descriptorWriteRequestHandler?.call(
+          canonicalId,
+          parsedCharacteristicId,
+          parsedDescriptorId,
+          offset,
+          value,
+        );
     if (result == null) return null;
     return PeripheralWriteRequestResult(
       value: result.value,
@@ -326,6 +418,10 @@ class UniversalBlePeripheralPigeon extends UniversalBlePeripheralPlatform
     _writeRequestHandler = null;
     _descriptorReadRequestHandler = null;
     _descriptorWriteRequestHandler = null;
+    _readRequestHandlerWithInstance = null;
+    _writeRequestHandlerWithInstance = null;
+    _descriptorReadRequestHandlerWithInstance = null;
+    _descriptorWriteRequestHandlerWithInstance = null;
     super.dispose();
     if (identical(_instance, this)) {
       _instance = null;
