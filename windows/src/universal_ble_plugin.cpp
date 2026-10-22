@@ -1944,19 +1944,10 @@ fire_and_forget UniversalBlePlugin::ConnectAsync(uint64_t bluetooth_address,
         DisposeConnection(device_agent);
         return;
       }
-      if (device) {
-        if (connection_status_changed_token.has_value()) {
-          device.ConnectionStatusChanged(
-              connection_status_changed_token.value());
-        }
-        if (gatt_services_changed_token.has_value()) {
-          device.GattServicesChanged(gatt_services_changed_token.value());
-        }
-      }
-      DisposeGattMap(std::move(gatt_map));
-      if (device) {
-        device.Close();
-      }
+      DisposePartialConnection(bluetooth_address, std::move(device),
+                               std::move(gatt_map),
+                               connection_status_changed_token,
+                               gatt_services_changed_token);
     } catch (...) {
       log_and_swallow_unknown("ConnectAsync partial cleanup");
     }
@@ -2019,7 +2010,8 @@ fire_and_forget UniversalBlePlugin::ConnectAsync(uint64_t bluetooth_address,
         gatt_communication_status_to_error(services_result.Status());
     if (services_result_error.has_value()) {
       try {
-        device.Close();
+        DisposePartialConnection(bluetooth_address, std::move(device), {},
+                                 std::nullopt, std::nullopt);
       } catch (...) {
         log_and_swallow_unknown("ConnectAsync failed-service-query close");
       }
@@ -2074,9 +2066,10 @@ fire_and_forget UniversalBlePlugin::ConnectAsync(uint64_t bluetooth_address,
     }
 
     if (gatt_discovery_error.has_value()) {
-      DisposeGattMap(std::move(gatt_map));
       try {
-        device.Close();
+        DisposePartialConnection(bluetooth_address, std::move(device),
+                                 std::move(gatt_map), std::nullopt,
+                                 std::nullopt);
       } catch (...) {
         log_and_swallow_unknown("ConnectAsync failed-discovery close");
       }
@@ -2564,6 +2557,85 @@ fire_and_forget UniversalBlePlugin::DisposeConnectionAsync(
   }
   // Release every old object before allowing another discovery for the address.
   device_agent.reset();
+  connection_cleanup_lease.reset();
+}
+
+void UniversalBlePlugin::DisposePartialConnection(
+    const uint64_t bluetooth_address, BluetoothLEDevice device,
+    std::unordered_map<std::string, GattServiceObject> gatt_map,
+    std::optional<event_token> connection_status_changed_token,
+    std::optional<event_token> gatt_services_changed_token) {
+  if (!device && gatt_map.empty()) {
+    return;
+  }
+  const auto cleanup = cleanup_operations_.TryAcquire();
+  if (!cleanup.has_value()) {
+    // Shutdown has closed the tracker; dropping the references is all that
+    // is left, as for an agent in DisposeConnection.
+    try {
+      UniversalBleLogger::LogError(
+          "DisposePartialConnection: cleanup tracker closed before disposal "
+          "was scheduled");
+    } catch (...) {
+    }
+    return;
+  }
+  AsyncOperationTracker::Lease reservation;
+  {
+    std::lock_guard<std::mutex> lock(connected_devices_mutex_);
+    reservation = connection_cleanup_[bluetooth_address].TryAcquire().value();
+  }
+  // A failed connect attempt can run on Flutter's STA. Closing there can
+  // deadlock the same way as disconnect teardown (see DisposeConnection),
+  // e.g. when a peripheral that is rebooting drops the link mid-discovery.
+  DisposePartialConnectionAsync(
+      std::move(device), std::move(gatt_map), connection_status_changed_token,
+      gatt_services_changed_token, cleanup.value(), std::move(reservation));
+}
+
+fire_and_forget UniversalBlePlugin::DisposePartialConnectionAsync(
+    BluetoothLEDevice device,
+    std::unordered_map<std::string, GattServiceObject> gatt_map,
+    std::optional<event_token> connection_status_changed_token,
+    std::optional<event_token> gatt_services_changed_token,
+    AsyncOperationTracker::Lease cleanup_lease,
+    AsyncOperationTracker::Lease connection_cleanup_lease) {
+  try {
+    co_await winrt::resume_background();
+    if (device) {
+      try {
+        if (connection_status_changed_token.has_value()) {
+          device.ConnectionStatusChanged(
+              connection_status_changed_token.value());
+        }
+        if (gatt_services_changed_token.has_value()) {
+          device.GattServicesChanged(gatt_services_changed_token.value());
+        }
+      } catch (...) {
+        log_and_swallow_unknown(
+            "DisposePartialConnection: failed to remove handlers");
+      }
+    }
+    DisposeGattMap(std::move(gatt_map));
+    if (device) {
+      try {
+        device.Close();
+      } catch (const hresult_error &err) {
+        UniversalBleLogger::LogError(
+            "DisposePartialConnection close hresult_error: " +
+            to_string(err.message()));
+      } catch (...) {
+        log_and_swallow_unknown("DisposePartialConnection close");
+      }
+    }
+  } catch (...) {
+    // Do not continue cleanup on the caller's UI apartment if scheduling fails.
+    try {
+      log_and_swallow_unknown("DisposePartialConnectionAsync");
+    } catch (...) {
+    }
+  }
+  device = nullptr;
   connection_cleanup_lease.reset();
 }
 
