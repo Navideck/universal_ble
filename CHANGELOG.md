@@ -1,4 +1,6 @@
 ## Unreleased
+* Apple peripheral: retain service registration order after adapter recovery and when rebinding restored services.
+* Apple peripheral: reject multi-request write batches once, before invoking Dart handlers, to avoid partially applying an atomic batch. Single-request writes keep their existing result handling; stale session completions are rejected.
 * Apple peripheral: create dynamic characteristics with nil native values, support optional encrypted notification subscriptions, preserve notification FIFO ordering under backpressure, and discard unsent reports on session/service/adapter loss.
 * Add opt-in peripheral state restoration with stable characteristic-instance identities and buffered events until Dart configuration.
 * Add `clearPendingNotifications` for discarding unsent native updates. Android retains already submitted packets until their completion callback; Windows has no plugin-owned pending queue.

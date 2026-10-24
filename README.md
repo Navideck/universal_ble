@@ -1099,6 +1099,8 @@ Register read/write handlers separately. Return `null` to let the stack use the 
 
 Read handlers return the **complete** characteristic value: the platform applies the client's read offset exactly once, on every platform.
 
+On Apple platforms, a multi-request write batch is rejected with `requestNotSupported` before invoking any write handler. CoreBluetooth requires atomic batch handling, but these individual-write callbacks cannot validate or roll back a whole batch. Single-request writes retain their normal handler behavior.
+
 When a service contains several characteristics with the same UUID (HID Report characteristics), set `instanceId` on each and use the `...WithInstance` variants. They receive the instance identity; the UUID-only handlers above keep receiving the first matching characteristic.
 
 ```dart

@@ -111,6 +111,133 @@ struct PeripheralReliabilityTests {
         === service.characteristics![0])
     registry.remove(service)
     precondition(registry.characteristic("2A4D", instanceId: "consumerInput") == nil)
+    testServiceRegistrationOrder(input: input, output: output)
+    testWriteRequests()
     print("Peripheral native reliability checks passed")
   }
+
+  static func testServiceRegistrationOrder(
+    input: PeripheralCharacteristic, output: PeripheralCharacteristic
+  ) {
+    let information = PeripheralService(uuid: "180A", primary: true, characteristics: [])
+    let battery = PeripheralService(uuid: "180F", primary: true, characteristics: [])
+    let hid = PeripheralService(uuid: "1812", primary: true, characteristics: [input, output])
+    var models = PeripheralServiceModels()
+    for model in [information, battery, hid] { models.set(model) }
+    let initialOrder = models.values.map { CBUUID(string: $0.uuid).uuid128Str }
+    let registry = PeripheralServiceRegistry()
+    for _ in 0..<3 {
+      // Adapter loss clears native objects, but retains the model order used
+      // by the next poweredOn registration pass.
+      registry.clear()
+      for model in models.values {
+        let service = model.toCBService()
+        registry.register(
+          service, modelCharacteristics: model.characteristics,
+          mutableCharacteristics: service.characteristics ?? [])
+      }
+      precondition(registry.allServices.map { $0.uuid.uuid128Str } == initialOrder)
+    }
+    let reboundBattery = PeripheralService(
+      uuid: "0000180f-0000-1000-8000-00805f9b34fb", primary: true, characteristics: [])
+    models.set(reboundBattery)
+    precondition(models.values.map { CBUUID(string: $0.uuid).uuid128Str } == initialOrder)
+    models.remove("0000180F-0000-1000-8000-00805F9B34FB")
+    precondition(models.values.map { $0.uuid } == ["180A", "1812"])
+    models.set(battery)
+    precondition(models.values.map { $0.uuid } == ["180A", "1812", "180F"])
+    models.removeAll()
+    precondition(models.values.isEmpty)
+
+    let restoredHid = hid.toCBService()
+    let restoredBattery = battery.toCBService()
+    registry.clear()
+    for service in [restoredHid, restoredBattery] {
+      models.reserve(service.uuid.uuidString)
+      registry.restore(
+        service, identities: service === restoredHid
+          ? [["uuid": "2A4D", "instanceId": "consumerInput"],
+            ["uuid": "2A4D", "instanceId": "keyboardOutput"]] : [])
+    }
+    // Dart can rebind in a different order from native restoration. Keep the
+    // native publication order and characteristic identities in either case.
+    for model in [battery, hid] {
+      models.set(model)
+      let service = registry.service(model.uuid)!
+      registry.register(
+        service, modelCharacteristics: model.characteristics,
+        mutableCharacteristics: service.characteristics ?? [])
+    }
+    precondition(models.values.map { $0.uuid } == ["1812", "180F"])
+    precondition(registry.service("1812") === restoredHid)
+    precondition(
+      registry.characteristic("2A4D", instanceId: "consumerInput")
+        === restoredHid.characteristics![0])
+    precondition(
+      registry.characteristic("2A4D", instanceId: "keyboardOutput")
+        === restoredHid.characteristics![1])
+    models.reserve("180A")
+    models.remove("180A")
+    models.set(information)
+    precondition(models.values.map { $0.uuid } == ["1812", "180F", "180A"])
+  }
+
+  static func testWriteRequests() {
+    var generation = 0
+    var events = [() -> Void]()
+    var completions = [(Result<PeripheralWriteRequestResult?, PigeonError>) -> Void]()
+    var mutations = [Int]()
+    var responses = [(request: Int, status: CBATTError.Code)]()
+    func receive(_ requests: [Int]) {
+      let capturedGeneration = generation
+      UniversalBlePeripheralPlugin.handleWriteRequests(
+        requests,
+        isCurrent: { capturedGeneration == generation },
+        emit: { events.append($0) },
+        dispatch: { request, completion in
+          mutations.append(request)
+          completions.append(completion)
+        },
+        respond: { responses.append(($0, $1)) })
+    }
+    receive([])
+    precondition(events.isEmpty && mutations.isEmpty && responses.isEmpty)
+    receive([1, 2])
+    precondition(events.isEmpty && mutations.isEmpty && completions.isEmpty)
+    precondition(responses.count == 1 && responses[0].request == 1)
+    precondition(responses[0].status == .requestNotSupported)
+
+    receive([3])
+    events.removeFirst()()
+    precondition(mutations == [3] && responses.count == 1)
+    completions.removeFirst()(.success(nil))
+    precondition(responses.count == 2 && responses[1].status == .success)
+
+    receive([4])
+    events.removeFirst()()
+    completions.removeFirst()(.success(PeripheralWriteRequestResult(
+      status: Int64(CBATTError.Code.writeNotPermitted.rawValue))))
+    precondition(responses.count == 3 && responses[2].status == .writeNotPermitted)
+
+    receive([5])
+    events.removeFirst()()
+    completions.removeFirst()(.failure(PigeonError(code: "test", message: nil, details: nil)))
+    precondition(responses.count == 4 && responses[3].status == .requestNotSupported)
+
+    receive([6])
+    generation += 1  // Adapter/service loss while an event waits for Dart.
+    events.removeFirst()()
+    precondition(mutations == [3, 4, 5] && completions.isEmpty)
+    precondition(responses.count == 5 && responses[4].status == .requestNotSupported)
+
+    receive([7])
+    events.removeFirst()()
+    generation += 1  // Adapter/service loss during an asynchronous Dart handler.
+    completions.removeFirst()(.success(nil))
+    precondition(mutations == [3, 4, 5, 7])
+    precondition(responses.count == 6 && responses[5].status == .requestNotSupported)
+    precondition(responses.map { $0.request } == [1, 3, 4, 5, 6, 7])
+    precondition(events.isEmpty && completions.isEmpty)
+  }
+
 }

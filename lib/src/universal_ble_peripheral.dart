@@ -115,6 +115,11 @@ class UniversalBlePeripheral {
   static void setReadRequestHandlers(OnPeripheralReadRequest? handlers) =>
       _platform.setReadRequestHandler(handlers);
 
+  /// Sets the handler for individual characteristic writes.
+  ///
+  /// On Apple platforms, multi-request write batches are rejected with
+  /// `requestNotSupported` before any handler is invoked. This API cannot
+  /// validate or roll back the entire batch atomically.
   static void setWriteRequestHandlers(OnPeripheralWriteRequest? handlers) =>
       _platform.setWriteRequestHandler(handlers);
 
@@ -135,6 +140,8 @@ class UniversalBlePeripheral {
   ) =>
       _platform.setReadRequestHandlerWithInstance(handlers);
 
+  /// Instance-aware variant of [setWriteRequestHandlers], with the same
+  /// restriction on multi-request write batches on Apple platforms.
   static void setWriteRequestHandlersWithInstance(
     OnPeripheralWriteRequestWithInstance? handlers,
   ) =>

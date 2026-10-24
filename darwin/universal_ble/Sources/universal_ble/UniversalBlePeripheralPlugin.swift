@@ -27,7 +27,7 @@ final class UniversalBlePeripheralPlugin: NSObject, UniversalBlePeripheralChanne
   private var eventsReady = true
   private var bufferedEvents = [() -> Void]()
   private var desiredAdvertisement: [String: Any]?
-  private var serviceModels = [String: PeripheralService]()
+  private var serviceModels = PeripheralServiceModels()
   private var pendingServices = [ObjectIdentifier: (CBMutableService, PeripheralService)]()
   private var initialValues = [ObjectIdentifier: Data]()
   // Per plugin instance (one per FlutterEngine): the services this peripheral
@@ -166,7 +166,6 @@ final class UniversalBlePeripheralPlugin: NSObject, UniversalBlePeripheralChanne
     if pendingServices.values.contains(where: { CBUUID(string: $0.1.uuid).uuid128Str == key }) {
       return  // Dart is already waiting for didAdd for this service.
     }
-    serviceModels[key] = service
     if let restored = serviceRegistry.service(service.uuid) {
       // Rebind Dart's definitions to restored objects; never publish duplicates.
       guard
@@ -178,6 +177,7 @@ final class UniversalBlePeripheralPlugin: NSObject, UniversalBlePeripheralChanne
         throw UniversalBlePeripheralError.failed(
           "Restored service layout changed; remove it before replacing it")
       }
+      serviceModels.set(service)
       serviceRegistry.register(
         restored, modelCharacteristics: service.characteristics,
         mutableCharacteristics: restored.characteristics ?? [])
@@ -196,6 +196,7 @@ final class UniversalBlePeripheralPlugin: NSObject, UniversalBlePeripheralChanne
       }
       return
     }
+    serviceModels.set(service)
     let cbService = service.toCBService()
     pendingServices[ObjectIdentifier(cbService)] = (cbService, service)
     manager.add(cbService)
@@ -219,7 +220,7 @@ final class UniversalBlePeripheralPlugin: NSObject, UniversalBlePeripheralChanne
       peripheralManager?.remove(service)
       serviceRegistry.remove(service)
     }
-    serviceModels.removeValue(forKey: key)
+    serviceModels.remove(serviceId)
     forgetSavedIdentity(serviceId)
   }
 
@@ -398,7 +399,7 @@ final class UniversalBlePeripheralPlugin: NSObject, UniversalBlePeripheralChanne
       }
     } else {
       hasBeenPoweredOn = true
-      for model in Array(serviceModels.values) where serviceRegistry.service(model.uuid) == nil {
+      for model in serviceModels.values where serviceRegistry.service(model.uuid) == nil {
         try? addService(service: model)
       }
       restartAdvertisingIfReady()
@@ -451,7 +452,7 @@ final class UniversalBlePeripheralPlugin: NSObject, UniversalBlePeripheralChanne
     guard pendingServices.isEmpty, let manager = peripheralManager,
       manager.state == .poweredOn, !manager.isAdvertising,
       let desiredAdvertisement,
-      serviceModels.keys.allSatisfy({ serviceRegistry.service($0) != nil })
+      serviceModels.values.allSatisfy({ serviceRegistry.service($0.uuid) != nil })
     else { return }
     manager.startAdvertising(desiredAdvertisement)
   }
@@ -465,6 +466,7 @@ final class UniversalBlePeripheralPlugin: NSObject, UniversalBlePeripheralChanne
     clearCentrals()
     let saved = savedIdentities()
     for service in dict[CBPeripheralManagerRestoredStateServicesKey] as? [CBMutableService] ?? [] {
+      serviceModels.reserve(service.uuid.uuidString)
       let identities = saved[service.uuid.uuid128Str] ?? []
       serviceRegistry.restore(service, identities: identities)
       for characteristic in service.characteristics ?? [] {
@@ -637,27 +639,56 @@ final class UniversalBlePeripheralPlugin: NSObject, UniversalBlePeripheralChanne
     _ peripheral: CBPeripheralManager,
     didReceiveWrite requests: [CBATTRequest]
   ) {
-    requests.forEach { req in
-      let generation = requestGeneration
-      emit { [weak self] in
-        guard let self, generation == self.requestGeneration else {
-          peripheral.respond(to: req, withResult: .requestNotSupported)
-          return
-        }
+    let generation = requestGeneration
+    Self.handleWriteRequests(
+      requests,
+      isCurrent: { [weak self] in self?.requestGeneration == generation },
+      emit: emit,
+      dispatch: { [weak self] req, completion in
+        guard let self else { return }
         self.callbackChannel.onWriteRequest(
           deviceId: req.central.identifier.uuidString,
           characteristicId: req.characteristic.uuid.uuidString,
           characteristicInstanceId: self.serviceRegistry.instanceId(of: req.characteristic),
           offset: Int64(req.offset),
-          value: req.value?.toFlutterBytes()
-        ) { writeRes in
-          do {
-            let response = try writeRes.get()
-            let status = response?.status?.toCBATTErrorCode() ?? .success
-            peripheral.respond(to: req, withResult: status)
-          } catch {
-            peripheral.respond(to: req, withResult: .requestNotSupported)
-          }
+          value: req.value?.toFlutterBytes(),
+          completion: completion)
+      },
+      respond: { peripheral.respond(to: $0, withResult: $1) })
+  }
+
+  // CoreBluetooth requires one response for the entire array, using its first
+  // request. Dart handlers may mutate app state and cannot roll back, so reject
+  // multi-request batches before dispatching any of them.
+  static func handleWriteRequests<Request>(
+    _ requests: [Request],
+    isCurrent: @escaping () -> Bool,
+    emit: (@escaping () -> Void) -> Void,
+    dispatch: @escaping (
+      Request, @escaping (Result<PeripheralWriteRequestResult?, PigeonError>) -> Void
+    ) -> Void,
+    respond: @escaping (Request, CBATTError.Code) -> Void
+  ) {
+    guard let request = requests.first else { return }
+    guard requests.count == 1 else {
+      respond(request, .requestNotSupported)
+      return
+    }
+    emit {
+      guard isCurrent() else {
+        respond(request, .requestNotSupported)
+        return
+      }
+      dispatch(request) { result in
+        guard isCurrent() else {
+          respond(request, .requestNotSupported)
+          return
+        }
+        do {
+          let response = try result.get()
+          respond(request, response?.status?.toCBATTErrorCode() ?? .success)
+        } catch {
+          respond(request, .requestNotSupported)
         }
       }
     }
@@ -844,4 +875,38 @@ final class PeripheralServiceRegistry {
   var allServices: [CBMutableService] { services }
 
   var serviceIds: [String] { services.map { $0.uuid.uuidString } }
+}
+
+/// Retained definitions in publication order, including slots for restored
+/// services until Dart rebinds their models. Rebinding never moves a service;
+/// an explicit remove followed by add places it at the end.
+struct PeripheralServiceModels {
+  private var entries = [(uuid: String, model: PeripheralService?)]()
+
+  mutating func reserve(_ serviceId: String) {
+    let uuid = CBUUID(string: serviceId).uuid128Str
+    if !entries.contains(where: { $0.uuid == uuid }) {
+      entries.append((uuid, nil))
+    }
+  }
+
+  mutating func set(_ model: PeripheralService) {
+    let uuid = CBUUID(string: model.uuid).uuid128Str
+    if let index = entries.firstIndex(where: { $0.uuid == uuid }) {
+      entries[index].model = model
+    } else {
+      entries.append((uuid, model))
+    }
+  }
+
+  mutating func remove(_ serviceId: String) {
+    let uuid = CBUUID(string: serviceId).uuid128Str
+    entries.removeAll { $0.uuid == uuid }
+  }
+
+  mutating func removeAll() {
+    entries.removeAll()
+  }
+
+  var values: [PeripheralService] { entries.compactMap { $0.model } }
 }
