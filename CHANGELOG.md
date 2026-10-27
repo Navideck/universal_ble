@@ -1,3 +1,6 @@
+## Unreleased
+* Windows: `updateCharacteristicValue` no longer stalls the platform thread until the notification has reached every subscribed client. `NotifyValueAsync` was started on a helper thread but awaited on the caller, so one slow or wedged client link froze the app's UI — permanently, if that link never completed. The value is now submitted and the per-client transport result logged, which is what Apple and Android already do (both queue the update and return). Failures the stack reports while starting the operation are still returned to the caller, and consecutive calls are still submitted in order.
+
 ## 3.1.2
 * Windows: Service Data advertised under a 128-bit UUID is reported under that UUID, and `ScanFilter.withServiceData` matches it. The 16 UUID bytes are little-endian on air but were read in the order they arrive, so `BleDevice.serviceData` used a byte-reversed key and a filter with the real UUID found nothing (#356).
 

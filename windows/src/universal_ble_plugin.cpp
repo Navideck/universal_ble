@@ -7,12 +7,10 @@
 
 #include <algorithm>
 #include <cctype>
-#include <future>
 #include <iomanip>
 #include <memory>
 #include <regex>
 #include <sstream>
-#include <thread>
 #include <utility>
 
 #include "advertisement_uuid.h"
@@ -91,6 +89,43 @@ IPropertyValue lookup_i_property_value(
         std::string(context) + ": failed to lookup " + property_name +
         " property (hr=" + std::to_string(err.code()) + ")");
     return nullptr;
+  }
+}
+
+// Logs what a peripheral notification did on the transport. Runs on the WinRT
+// thread pool once NotifyValueAsync has finished, so it outlives the call site
+// and must not touch plugin state.
+void log_notification_result(
+    const IAsyncOperation<IVectorView<GattClientNotificationResult>> &sender,
+    const AsyncStatus status) noexcept {
+  try {
+    if (status != AsyncStatus::Completed) {
+      UniversalBleLogger::LogError(
+          "PERIPHERAL_NOTIFY did not complete, status=" +
+          std::to_string(static_cast<int>(status)));
+      return;
+    }
+    for (const auto &client_result : sender.GetResults()) {
+      const auto client_status = client_result.Status();
+      if (client_status != GattCommunicationStatus::Success) {
+        UniversalBleLogger::LogError(
+            "PERIPHERAL_NOTIFY failed for a client, status=" +
+            std::to_string(static_cast<int>(client_status)));
+      }
+    }
+  } catch (const hresult_error &err) {
+    try {
+      UniversalBleLogger::LogError(
+          "PERIPHERAL_NOTIFY hresult_error hr=" + std::to_string(err.code()) +
+          " msg=" + to_string(err.message()));
+    } catch (...) {
+    }
+  } catch (...) {
+    try {
+      UniversalBleLogger::LogError(
+          "PERIPHERAL_NOTIFY failed with an unknown exception");
+    } catch (...) {
+    }
   }
 }
 }  // namespace
@@ -3491,20 +3526,16 @@ std::optional<FlutterError> UniversalBlePlugin::UpdateCharacteristic(
   }
 
   try {
-    std::future<bool> notify_future =
-        std::async(std::launch::async, [local_char, buffer]() {
-          auto op = local_char.NotifyValueAsync(buffer);
-          op.get();
-          return true;
-        });
-    const bool notify_result = notify_future.get();
-    if (!notify_result) {
-      return FlutterError(
-          "failed",
-          "Failed to notify subscribed clients for characteristic update",
-          nullptr);
-    }
+    // NotifyValueAsync completes only once the value has been handed to every
+    // subscribed client, so waiting for it costs the platform thread a full
+    // GATT round trip (and blocks it for good when a client link is wedged).
+    // Apple and Android queue the update and return, so submit it and report
+    // the per-client outcome from the completion handler instead. Consecutive
+    // calls are still submitted from the platform thread in call order.
+    local_char.NotifyValueAsync(buffer).Completed(log_notification_result);
   } catch (...) {
+    // Starting the operation failed (for example the characteristic was
+    // removed); that is still reported synchronously.
     return FlutterError(
         "failed",
         "Failed to notify subscribed clients for characteristic update",
