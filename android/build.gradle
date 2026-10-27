@@ -52,21 +52,14 @@ android {
     }
 
     testOptions {
-        unitTests {
-            // GATT callbacks delegate to BluetoothGattCallback's default (empty)
-            // implementations; without this the stub android.jar throws
-            // "Stub!" instead of returning, so those callbacks cannot be driven
-            // from a unit test.
-            returnDefaultValues = true
-            all {
-                jvmArgs '-Dnet.bytebuddy.experimental=true'
-                useJUnitPlatform()
+        unitTests.all {
+            jvmArgs '-Dnet.bytebuddy.experimental=true'
+            useJUnitPlatform()
 
-                testLogging {
-                   events "passed", "skipped", "failed", "standardOut", "standardError"
-                   outputs.upToDateWhen {false}
-                   showStandardStreams = true
-                }
+            testLogging {
+               events "passed", "skipped", "failed", "standardOut", "standardError"
+               outputs.upToDateWhen {false}
+               showStandardStreams = true
             }
         }
     }

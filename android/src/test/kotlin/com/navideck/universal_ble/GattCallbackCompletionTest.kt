@@ -146,6 +146,11 @@ internal class GattCallbackCompletionTest {
             byteArrayOf(),
             BluetoothGatt.GATT_FAILURE
         )
+        assertEquals(
+            0,
+            firstReads.size,
+            "the reply must be sent from the main looper, not the binder thread"
+        )
         drainMainLooper()
 
         assertEquals(1, firstReads.size)
@@ -291,6 +296,17 @@ internal class GattCallbackCompletionTest {
         plugin.disconnect(deviceAddress)
 
         assertEquals(0, reads.size, "disconnect must fail pending work on the main looper")
+        assertEquals(
+            0,
+            discoveries.size,
+            "disconnect must fail pending work on the main looper"
+        )
+        assertEquals(
+            0,
+            subscriptions.size,
+            "disconnect must fail pending work on the main looper"
+        )
+        assertEquals(0, rssis.size, "disconnect must fail pending work on the main looper")
         drainMainLooper()
 
         assertEquals(1, reads.size)
@@ -301,6 +317,73 @@ internal class GattCallbackCompletionTest {
         assertTrue(subscriptions[0].isFailure)
         assertEquals(1, rssis.size)
         assertTrue(rssis[0].isFailure)
+    }
+
+    @Test
+    fun readValueRegistersTheFutureBeforeTheReadCanRespond() {
+        val plugin = plugin()
+        val reads = mutableListOf<Result<ByteArray>>()
+        val characteristic = mockCharacteristic()
+        val gatt = mockGattWithService(characteristic)
+        // The stack can answer on a binder thread before readCharacteristic()
+        // returns; a future registered only afterwards would never be matched
+        // and the Dart call would await forever.
+        Mockito.`when`(gatt.readCharacteristic(characteristic)).thenAnswer {
+            plugin.onCharacteristicRead(
+                gatt,
+                characteristic,
+                byteArrayOf(0x2A),
+                BluetoothGatt.GATT_SUCCESS
+            )
+            true
+        }
+        plugin.gattRegistry().put(gatt)
+
+        plugin.readValue(deviceAddress, serviceUuid.toString(), charUuid.toString()) {
+            reads.add(it)
+        }
+        drainMainLooper()
+
+        assertEquals(1, reads.size, "a response must complete the read that was in flight")
+        assertTrue(reads[0].isSuccess)
+        assertEquals(0x2A.toByte(), reads[0].getOrThrow().single())
+        assertTrue(
+            plugin.getField<MutableList<ReadResultFuture>>("readResultFutureList").isEmpty(),
+            "a completed read must leave the pending list"
+        )
+    }
+
+    @Test
+    fun rejectedReadLeavesNoPendingFuture() {
+        val plugin = plugin()
+        val reads = mutableListOf<Result<ByteArray>>()
+        val characteristic = mockCharacteristic()
+        val gatt = mockGattWithService(characteristic)
+        Mockito.`when`(gatt.readCharacteristic(characteristic)).thenReturn(false)
+        plugin.gattRegistry().put(gatt)
+
+        plugin.readValue(deviceAddress, serviceUuid.toString(), charUuid.toString()) {
+            reads.add(it)
+        }
+
+        assertEquals(1, reads.size)
+        assertTrue(reads[0].isFailure)
+        assertTrue(
+            plugin.getField<MutableList<ReadResultFuture>>("readResultFutureList").isEmpty(),
+            "a read the stack refused must not stay registered for a later callback"
+        )
+    }
+
+    /** A gatt whose [serviceUuid] service exposes [characteristic] under [charUuid]. */
+    private fun mockGattWithService(
+        characteristic: BluetoothGattCharacteristic
+    ): BluetoothGatt {
+        val service = Mockito.mock(BluetoothGattService::class.java)
+        Mockito.`when`(service.uuid).thenReturn(serviceUuid)
+        Mockito.`when`(service.getCharacteristic(charUuid)).thenReturn(characteristic)
+        val gatt = mockGatt()
+        Mockito.`when`(gatt.getService(serviceUuid)).thenReturn(service)
+        return gatt
     }
 
     private fun readFuture(reads: MutableList<Result<ByteArray>>) = ReadResultFuture(

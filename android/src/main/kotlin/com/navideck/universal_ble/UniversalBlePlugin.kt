@@ -737,7 +737,34 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
                 )
                 return
             }
-            if (!gatt.readCharacteristic(gattCharacteristic)) {
+            // Register before issuing the read, as writeValue does: the response
+            // arrives on a binder thread and a future added afterwards is never
+            // matched (the callback finds nothing to complete), leaving the Dart
+            // call awaiting forever. Every access to the list holds its lock.
+            val readFuture = ReadResultFuture(
+                gatt.device.address,
+                gattCharacteristic.uuid.toString(),
+                gattCharacteristic.service.uuid.toString(),
+                callback
+            )
+            synchronized(readResultFutureList) {
+                readResultFutureList.add(readFuture)
+            }
+
+            val started = try {
+                gatt.readCharacteristic(gattCharacteristic)
+            } catch (e: Exception) {
+                // The request never went out: drop the future so no later
+                // callback completes it on top of the error reported below.
+                synchronized(readResultFutureList) {
+                    readResultFutureList.remove(readFuture)
+                }
+                throw e
+            }
+            if (!started) {
+                synchronized(readResultFutureList) {
+                    readResultFutureList.remove(readFuture)
+                }
                 callback(
                     Result.failure(
                         createFlutterError(
@@ -746,17 +773,7 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
                         )
                     )
                 )
-                return
             }
-
-            readResultFutureList.add(
-                ReadResultFuture(
-                    gatt.device.address,
-                    gattCharacteristic.uuid.toString(),
-                    gattCharacteristic.service.uuid.toString(),
-                    callback
-                )
-            )
         } catch (e: FlutterError) {
             callback(Result.failure(e))
         } catch (e: Exception) {
@@ -783,6 +800,10 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
         // there). Every readCharacteristic() has its own response, so this
         // callback belongs to the oldest pending read of that characteristic —
         // completing every match would acknowledge reads still in flight.
+        // The service must match exactly, as onCharacteristicWrite requires: a
+        // device+characteristic-only fallback can complete a read issued for
+        // another service that exposes the same characteristic UUID (HID
+        // report characteristics).
         val deviceId = gatt.device.address
         val characteristicId = characteristic.uuid.toString()
         val serviceUuid = characteristic.service?.uuid?.toString()
@@ -791,7 +812,7 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
             future = readResultFutureList.firstOrNull {
                 it.deviceId == deviceId &&
                     it.characteristicId == characteristicId &&
-                    (serviceUuid == null || it.serviceId == serviceUuid)
+                    it.serviceId == serviceUuid
             }
             future?.let { readResultFutureList.remove(it) }
         }
@@ -1882,7 +1903,10 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
         descriptor: BluetoothGattDescriptor?,
         status: Int,
     ) {
-        super.onDescriptorWrite(gatt, descriptor, status)
+        // No super call: BluetoothGattCallback's default implementations are
+        // empty, and calling one from a unit test needs
+        // testOptions.unitTests.returnDefaultValues, which would also make
+        // every other unstubbed android.jar call in the suite fail silently.
         if (descriptor != null) {
             val future: WriteDescriptorResultFuture?
             synchronized(writeDescriptorResultFutureList) {
