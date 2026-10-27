@@ -567,6 +567,10 @@ private:
       GattServiceProviderAdvertisementStatus status);
   static std::string ParsePeripheralBluetoothClientId(hstring client_id);
   static std::string ParsePeripheralBluetoothError(BluetoothError error);
+  static void LogPeripheralNotificationResult(
+      const std::string &characteristic_id, uint32_t value_size,
+      const IAsyncOperation<IVectorView<GattClientNotificationResult>> &sender,
+      AsyncStatus status) noexcept;
 
   // UniversalBlePlatformChannel implementation.
   void GetBluetoothAvailabilityState(
