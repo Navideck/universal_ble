@@ -23,6 +23,9 @@
 #include "ui_thread_handler.hpp"
 #include "universal_ble_thread_safe.h"
 #include <atomic>
+#include <condition_variable>
+#include <deque>
+#include <functional>
 #include <memory>
 #include <mutex>
 #include <utility>
@@ -496,6 +499,26 @@ private:
   void NotifyConnectFailureIfCurrent(uint64_t bluetooth_address,
                                      uint64_t connect_generation,
                                      const std::string &error_message) noexcept;
+  // Serial background worker for Bluetooth-stack calls that can block on a
+  // wedged stack (watcher teardown, provider ops, notify waits). Bounded to
+  // one thread so a stuck call parks a single worker instead of accumulating
+  // detached threads or stalling the platform thread.
+  struct BleOpsState {
+    std::mutex mutex;
+    std::condition_variable cv;
+    std::deque<std::function<void()>> queue;
+    bool stop = false;
+  };
+  std::shared_ptr<BleOpsState> ble_ops_state_ =
+      std::make_shared<BleOpsState>();
+  std::mutex ble_ops_start_mutex_;
+  bool ble_ops_started_ = false;
+  // Enqueues work for the serial worker (lazy-starts it). Returns false when
+  // the queue is stopped (teardown) — the caller must then run inline.
+  bool PostBleOp(std::function<void()> task);
+  // Stops the worker and drops pending tasks; called at teardown before
+  // members are released so queued work never outlives the plugin.
+  void StopBleOps();
   void NotifyConnectionChanged(
       uint64_t bluetooth_address, bool connected,
       std::optional<std::string> error = std::nullopt,
