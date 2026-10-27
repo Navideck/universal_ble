@@ -1,3 +1,6 @@
+## Unreleased
+* Android: a read, RSSI, service-discovery or notification-subscription result that the stack reports from a binder thread is now delivered on the main thread, and the matching pending entry is found and removed under the list's lock. Those four lists were the last ones still bypassing the discipline the write, descriptor and MTU paths already follow, so a GATT callback racing an API call could corrupt the list — losing a completion, which left the Dart call awaiting forever — and completing inline sent the platform-channel reply from a binder thread. A callback now also completes only the operation it belongs to rather than every pending operation on that characteristic, so one response can no longer be reported for a request that is still in flight.
+
 ## 3.1.2
 * Windows: Service Data advertised under a 128-bit UUID is reported under that UUID, and `ScanFilter.withServiceData` matches it. The 16 UUID bytes are little-endian on air but were read in the order they arrive, so `BleDevice.serviceData` used a byte-reversed key and a filter with the real UUID found nothing (#356).
 
