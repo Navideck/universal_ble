@@ -166,6 +166,9 @@ func createFlutterError(
 
 extension Error {
     func toFlutterError() -> PigeonError {
+        if let pigeonError = self as? PigeonError {
+            return pigeonError
+        }
         let nsError = self as NSError
         let errorCode: String = .init(nsError.code)
         let errorDescription: String = nsError.localizedDescription
@@ -199,6 +202,67 @@ extension Error {
     }
 }
 
+/// CoreBluetooth keeps a per-bond cache of the peripheral's attribute table.
+/// When the device's GATT layout changes underneath that cache (for example,
+/// after a firmware update or handle remapping without a Service Changed indication),
+/// CoreBluetooth can build its attribute tree from the stale table and file an attribute of the
+/// wrong class into an array, such as a CBService among a service's characteristics.
+/// Swift's typed bridging of that NSArray traps with "NSArray element failed to match the
+/// Swift Array Element type" the moment it is iterated, causing an uncatchable app crash.
+/// These accessors read the arrays through KVC so no typed bridge runs, keep only the elements
+/// of the declared class, and report any foreign classes so callers can fail gracefully.
+public struct GattAttributeArray<Attribute: CBAttribute> {
+    public let attributes: [Attribute]?
+    public let foreignClassNames: [String]
+
+    public var hasForeign: Bool { !foreignClassNames.isEmpty }
+}
+
+public extension NSObject {
+    func gattAttributeArray<Attribute: CBAttribute>(forKey key: String) -> GattAttributeArray<Attribute> {
+        guard responds(to: NSSelectorFromString(key)) else {
+            return GattAttributeArray(attributes: nil, foreignClassNames: [])
+        }
+        guard let rawValue = value(forKey: key) else {
+            return GattAttributeArray(attributes: nil, foreignClassNames: [])
+        }
+        guard let raw = rawValue as? NSArray else {
+            return GattAttributeArray(
+                attributes: nil,
+                foreignClassNames: [String(describing: type(of: rawValue))]
+            )
+        }
+        var attributes: [Attribute] = []
+        var foreignClassNames: [String] = []
+        for item in raw {
+            if let attribute = item as? Attribute {
+                attributes.append(attribute)
+            } else {
+                foreignClassNames.append(String(describing: type(of: item)))
+            }
+        }
+        return GattAttributeArray(attributes: attributes, foreignClassNames: foreignClassNames)
+    }
+}
+
+public extension CBPeripheral {
+    var safeServices: GattAttributeArray<CBService> {
+        gattAttributeArray(forKey: "services")
+    }
+}
+
+public extension CBService {
+    var safeCharacteristics: GattAttributeArray<CBCharacteristic> {
+        gattAttributeArray(forKey: "characteristics")
+    }
+}
+
+public extension CBCharacteristic {
+    var safeDescriptors: GattAttributeArray<CBDescriptor> {
+        gattAttributeArray(forKey: "descriptors")
+    }
+}
+
 public extension CBUUID {
     var uuidStr: String {
         uuidString.lowercased()
@@ -227,10 +291,10 @@ public extension CBPeripheral {
 
     func getCharacteristic(_ characteristic: String, of service: String) -> CBCharacteristic? {
         let GSS_SUFFIX = "0000-1000-8000-00805f9b34fb"
-        let s = services?.first {
+        let s = safeServices.attributes?.first {
             $0.uuid.uuidStr.lowercased() == service.lowercased() || service.lowercased() == "0000\($0.uuid.uuidStr)-\(GSS_SUFFIX)".lowercased()
         }
-        let c = s?.characteristics?.first {
+        let c = s?.safeCharacteristics.attributes?.first {
             $0.uuid.uuidStr.lowercased() == characteristic.lowercased() || characteristic.lowercased() == "0000\($0.uuid.uuidStr)-\(GSS_SUFFIX)".lowercased()
         }
         return c
@@ -239,7 +303,7 @@ public extension CBPeripheral {
     func getDescriptor(_ descriptor: String, for characteristic: String, of service: String) -> CBDescriptor? {
         let GSS_SUFFIX = "0000-1000-8000-00805f9b34fb"
         guard let c = getCharacteristic(characteristic, of: service) else { return nil }
-        return c.descriptors?.first {
+        return c.safeDescriptors.attributes?.first {
             $0.uuid.uuidStr.lowercased() == descriptor.lowercased() || descriptor.lowercased() == "0000\($0.uuid.uuidStr)-\(GSS_SUFFIX)".lowercased()
         }
     }

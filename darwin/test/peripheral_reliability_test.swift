@@ -249,6 +249,38 @@ struct PeripheralReliabilityTests {
     precondition(responses.count == 6 && responses[5].status == .requestNotSupported)
     precondition(responses.map { $0.request } == [1, 3, 4, 5, 6, 7])
     precondition(events.isEmpty && completions.isEmpty)
-  }
 
+    // Stale GATT cache safety checks (Issue #365):
+    // When CoreBluetooth returns an attribute of the wrong class (e.g. CBService inside characteristics),
+    // safe accessors must not trap with "NSArray element failed to match the Swift Array Element type".
+    class MockCorruptedAttributeContainer: NSObject {
+      @objc var characteristics: NSArray
+
+      init(characteristics: NSArray) {
+        self.characteristics = characteristics
+        super.init()
+      }
+    }
+
+    let serviceClass = NSClassFromString("CBService") as! NSObject.Type
+    let fakeService = serviceClass.init()
+    let corruptedContainer = MockCorruptedAttributeContainer(
+      characteristics: NSArray(array: [fakeService])
+    )
+    let charAttrs: GattAttributeArray<CBCharacteristic> = corruptedContainer.gattAttributeArray(forKey: "characteristics")
+    precondition(charAttrs.hasForeign, "Must detect foreign attribute in characteristics")
+    precondition(charAttrs.foreignClassNames.contains("CBService"), "Must report CBService as foreign")
+    precondition(charAttrs.attributes?.isEmpty == true, "Must filter out invalid characteristics")
+
+    // Empty or unset attributes return nil without marking foreign
+    let emptyContainer = NSObject()
+    let unsetAttrs: GattAttributeArray<CBCharacteristic> = emptyContainer.gattAttributeArray(forKey: "characteristics")
+    precondition(!unsetAttrs.hasForeign)
+    precondition(unsetAttrs.attributes == nil)
+
+    // PigeonError preservation in toFlutterError
+    let customError = PigeonError(code: "custom", message: "msg", details: "det")
+    let converted = customError.toFlutterError()
+    precondition(converted.code == "custom" && converted.message == "msg" && (converted.details as? String) == "det")
+  }
 }

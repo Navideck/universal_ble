@@ -748,11 +748,29 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
 
   public func peripheral(_ peripheral: CBPeripheral, didDiscoverCharacteristicsFor service: CBService, error: Error?) {
     let deviceId = peripheral.uuid.uuidString
+    guard (service as AnyObject) is CBService else {
+      let actual = NSStringFromClass(type(of: service as AnyObject))
+      UniversalBleLogger.shared.logError("didDiscoverCharacteristicsFor received foreign object of type \(actual)")
+      activeServiceDiscoveries[deviceId]?.failForStaleGattCache(
+        location: "didDiscoverCharacteristicsFor (delegate received \(actual))",
+        foreignClassNames: [actual]
+      )
+      return
+    }
     activeServiceDiscoveries[deviceId]?.handleDidDiscoverCharacteristicsFor(peripheral, service: service, error: error)
   }
 
   public func peripheral(_ peripheral: CBPeripheral, didDiscoverDescriptorsFor characteristic: CBCharacteristic, error: Error?) {
     let deviceId = peripheral.uuid.uuidString
+    guard (characteristic as AnyObject) is CBCharacteristic else {
+      let actual = NSStringFromClass(type(of: characteristic as AnyObject))
+      UniversalBleLogger.shared.logError("didDiscoverDescriptorsFor received foreign object of type \(actual)")
+      activeServiceDiscoveries[deviceId]?.failForStaleGattCache(
+        location: "didDiscoverDescriptorsFor (delegate received \(actual))",
+        foreignClassNames: [actual]
+      )
+      return
+    }
     activeServiceDiscoveries[deviceId]?.handleDidDiscoverDescriptorsFor(peripheral, characteristic: characteristic, error: error)
   }
 
