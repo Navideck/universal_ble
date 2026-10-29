@@ -508,6 +508,10 @@ private:
                        uint64_t *removed_generation = nullptr);
   void DisposeConnection(
       const std::shared_ptr<BluetoothDeviceAgent> &device_agent);
+  // Requires connected_devices_mutex_. Also prunes idle entries of other
+  // addresses.
+  AsyncOperationTracker::Lease
+  ReserveAddressCleanupLocked(uint64_t bluetooth_address);
   // Requires connected_devices_mutex_. Does not deactivate or close objects.
   void ReserveConnectionCleanupLocked(
       const std::shared_ptr<BluetoothDeviceAgent> &device_agent);

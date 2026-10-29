@@ -1,4 +1,5 @@
 ## 3.1.2
+* Windows: a connect attempt that fails (the device drops the link during service or characteristic discovery, e.g. while it reboots) no longer freezes the app window. Its `BluetoothLEDevice` and GATT services were closed on Flutter's UI thread, where `Close` can deadlock as disconnect teardown did before #333; they are now closed on a background thread. The next connect to the same address waits for that close, at most 10 seconds, then fails with a connection error instead of waiting for the Dart-side timeout (#358).
 * Windows: Service Data advertised under a 128-bit UUID is reported under that UUID, and `ScanFilter.withServiceData` matches it. The 16 UUID bytes are little-endian on air but were read in the order they arrive, so `BleDevice.serviceData` used a byte-reversed key and a filter with the real UUID found nothing (#356).
 
 ## 3.1.1
