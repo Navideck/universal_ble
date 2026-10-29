@@ -374,6 +374,62 @@ internal class GattCallbackCompletionTest {
         )
     }
 
+    @Test
+    fun readFailureAfterDisconnectMustNotReplyTwice() {
+        for (throwsOnRead in listOf(false, true)) {
+            val plugin = plugin()
+            val reads = mutableListOf<Result<ByteArray>>()
+            val characteristic = mockCharacteristic()
+            val gatt = mockGattWithService(characteristic)
+            Mockito.`when`(gatt.readCharacteristic(characteristic)).thenAnswer {
+                // A binder-thread disconnect can close the client before the read starts.
+                plugin.onConnectionStateChange(
+                    gatt, BluetoothGatt.GATT_SUCCESS, BluetoothGatt.STATE_DISCONNECTED
+                )
+                if (throwsOnRead) throw IllegalStateException("GATT client closed")
+                false
+            }
+            plugin.gattRegistry().put(gatt)
+
+            plugin.readValue(deviceAddress, serviceUuid.toString(), charUuid.toString()) {
+                reads.add(it)
+            }
+
+            assertTrue(reads.isEmpty(), "disconnect owns the reply, including when the read throws")
+            drainMainLooper()
+
+            assertEquals(1, reads.size, "one read must send exactly one reply")
+            assertEquals(
+                UniversalBleErrorCode.DEVICE_DISCONNECTED.raw.toString(),
+                (reads.single().exceptionOrNull() as FlutterError).code
+            )
+            assertTrue(plugin.getField<MutableList<ReadResultFuture>>("readResultFutureList").isEmpty())
+        }
+    }
+
+    @Test
+    fun throwingReadLeavesNoPendingFuture() {
+        val plugin = plugin()
+        val reads = mutableListOf<Result<ByteArray>>()
+        val characteristic = mockCharacteristic()
+        val gatt = mockGattWithService(characteristic)
+        Mockito.`when`(gatt.readCharacteristic(characteristic))
+            .thenThrow(IllegalStateException("Read failed"))
+        plugin.gattRegistry().put(gatt)
+
+        plugin.readValue(deviceAddress, serviceUuid.toString(), charUuid.toString()) {
+            reads.add(it)
+        }
+        drainMainLooper()
+
+        assertEquals(1, reads.size)
+        assertEquals(
+            UniversalBleErrorCode.READ_FAILED.raw.toString(),
+            (reads.single().exceptionOrNull() as FlutterError).code
+        )
+        assertTrue(plugin.getField<MutableList<ReadResultFuture>>("readResultFutureList").isEmpty())
+    }
+
     /** A gatt whose [serviceUuid] service exposes [characteristic] under [charUuid]. */
     private fun mockGattWithService(
         characteristic: BluetoothGattCharacteristic

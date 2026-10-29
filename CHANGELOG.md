@@ -1,4 +1,5 @@
 ## Unreleased
+* Android: prevent duplicate read replies when a disconnect races a rejected or throwing native read.
 * Android: a read, RSSI, service-discovery or notification-subscription result that the stack reports from a binder thread is now delivered on the main thread, and the matching pending entry is found and removed under the list's lock. Those four lists were the last ones still bypassing the discipline the write, descriptor and MTU paths already follow, so a GATT callback racing an API call could corrupt the list — losing a completion, which left the Dart call awaiting forever — and completing inline sent the platform-channel reply from a binder thread. A callback now also completes only the operation it belongs to rather than every pending operation on that characteristic, so one response can no longer be reported for a request that is still in flight. A read also registers its pending result before `readCharacteristic()` is called, as writes already did, so a response that arrives before that call returns cannot be lost, and unregisters it again when the stack refuses the request.
 
 ## 3.1.2

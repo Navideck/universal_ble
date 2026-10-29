@@ -754,16 +754,15 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
             val started = try {
                 gatt.readCharacteristic(gattCharacteristic)
             } catch (e: Exception) {
-                // The request never went out: drop the future so no later
-                // callback completes it on top of the error reported below.
+                // A callback or disconnect may already own the reply.
                 synchronized(readResultFutureList) {
-                    readResultFutureList.remove(readFuture)
+                    if (!readResultFutureList.remove(readFuture)) return
                 }
                 throw e
             }
             if (!started) {
                 synchronized(readResultFutureList) {
-                    readResultFutureList.remove(readFuture)
+                    if (!readResultFutureList.remove(readFuture)) return
                 }
                 callback(
                     Result.failure(
