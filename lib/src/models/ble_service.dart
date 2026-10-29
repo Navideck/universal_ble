@@ -173,7 +173,8 @@ class BlePeripheralCharacteristic extends BleCharacteristic {
   ///
   /// Services may contain several characteristics with the same [uuid] (HID
   /// exposes one Report characteristic per report). Set a unique [instanceId]
-  /// to address them independently; leave it `null` for UUID-only behaviour.
+  /// to address them independently on Android and Apple platforms. Windows
+  /// rejects instance IDs; leave it `null` for UUID-only behaviour.
   String? instanceId;
 
   /// Require encrypted notification subscriptions on Apple. Ignored elsewhere.

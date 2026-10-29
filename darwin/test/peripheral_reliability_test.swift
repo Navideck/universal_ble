@@ -70,6 +70,17 @@ struct PeripheralReliabilityTests {
     }
     precondition(delivered == [1, 2, 4], "Old session input must be discarded")
 
+    var reports = PeripheralNotificationQueue<(central: Int, characteristic: Int)>()
+    reports.append((1, 1))
+    reports.append((1, 2))
+    reports.append((2, 1))
+    reports.drain { _ in false }
+    reports.removeAll { $0.central == 1 && $0.characteristic == 1 }
+    reports.resume()
+    var remaining = [Int]()
+    reports.drain { remaining.append($0.central * 10 + $0.characteristic); return true }
+    precondition(remaining == [12, 21], "Unsubscribe must preserve other reports and clients")
+
     let input = PeripheralCharacteristic(
       uuid: "2A4D", properties: [.read, .notify],
       permissions: [.readEncryptionRequired], value: FlutterStandardTypedData(bytes: Data([0, 0])),

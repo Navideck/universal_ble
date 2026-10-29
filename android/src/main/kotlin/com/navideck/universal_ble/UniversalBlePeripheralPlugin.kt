@@ -303,6 +303,7 @@ class UniversalBlePeripheralPlugin(
         val characteristic =
             characteristicId.findGattCharacteristic(characteristicInstanceId)
                 ?: throw Exception("Characteristic not found")
+        characteristic.value = value.copyOf()
         val targetDevices = synchronized(bluetoothDevicesMap) {
             if (deviceId != null) {
                 val dev = bluetoothDevicesMap[deviceId]
@@ -667,7 +668,11 @@ class UniversalBlePeripheralPlugin(
                             charSet.remove(subscriptionId)
                         }
                     }
-                    if (!isSubscribed) clearPendingNotifications(address)
+                    if (!isSubscribed) synchronized(pendingNotifications) {
+                        pendingNotifications.removeAll {
+                            it.device.address == address && it.characteristic === characteristic
+                        }
+                    }
                 }
             }
             if (responseNeeded) {

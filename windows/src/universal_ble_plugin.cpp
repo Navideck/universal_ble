@@ -3221,6 +3221,15 @@ std::optional<FlutterError> UniversalBlePlugin::StopAdvertising() {
 
 std::optional<FlutterError> UniversalBlePlugin::AddService(
     const PeripheralService &service) {
+  for (const auto &encoded : service.characteristics()) {
+    const auto characteristic = std::any_cast<PeripheralCharacteristic>(
+        std::get<flutter::CustomEncodableValue>(encoded));
+    if (characteristic.instance_id() != nullptr) {
+      return FlutterError("not-supported",
+                          "Windows does not support characteristic instance IDs",
+                          nullptr);
+    }
+  }
   PeripheralAddServiceAsync(service);
   return std::nullopt;
 }
@@ -3266,7 +3275,11 @@ ErrorOr<flutter::EncodableList> UniversalBlePlugin::GetServices() {
 
 ErrorOr<flutter::EncodableList> UniversalBlePlugin::GetSubscribedClients(
     const std::string &characteristic_id, const std::string *characteristic_instance_id) {
-  (void)characteristic_instance_id;
+  if (characteristic_instance_id != nullptr) {
+    return FlutterError("not-supported",
+                        "Windows does not support characteristic instance IDs",
+                        nullptr);
+  }
   std::lock_guard<std::mutex> lock(peripheral_mutex_);
   flutter::EncodableList out;
   auto *char_obj = FindPeripheralGattCharacteristicObject(characteristic_id);
@@ -3467,7 +3480,11 @@ void UniversalBlePlugin::DisposeAdvertisementPublisher() {
 std::optional<FlutterError> UniversalBlePlugin::UpdateCharacteristic(
     const std::string &characteristic_id, const std::string *characteristic_instance_id,
     const std::vector<uint8_t> &value, const std::string *device_id) {
-  (void)characteristic_instance_id;
+  if (characteristic_instance_id != nullptr) {
+    return FlutterError("not-supported",
+                        "Windows does not support characteristic instance IDs",
+                        nullptr);
+  }
   GattLocalCharacteristic local_char = nullptr;
   IBuffer buffer = nullptr;
   {
@@ -3862,7 +3879,7 @@ fire_and_forget UniversalBlePlugin::PeripheralReadRequestedAsync(
         ParsePeripheralBluetoothClientId(args.Session().DeviceId().Id());
     const int64_t offset = request.Offset();
     PostPeripheralReport(
-        [device_id, characteristicId, nullptr, offset, value_arg, value_holder, deferral,
+        [device_id, characteristicId, offset, value_arg, value_holder, deferral,
          request](UniversalBlePeripheralCallback *peripheral_channel) {
           peripheral_channel->OnReadRequest(
               device_id, characteristicId, nullptr, offset, value_arg,

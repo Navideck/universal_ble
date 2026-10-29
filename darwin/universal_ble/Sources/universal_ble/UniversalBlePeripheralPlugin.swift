@@ -577,7 +577,7 @@ final class UniversalBlePeripheralPlugin: NSObject, UniversalBlePeripheralChanne
       subscriptionId: instanceId ?? characteristic.uuid.uuidString
     )
     pendingNotifications.removeAll {
-      $0.central.identifier == central.identifier
+      $0.central.identifier == central.identifier && $0.characteristic === characteristic
     }
     initialValues.removeValue(forKey: ObjectIdentifier(characteristic))
     subscriptionEvent(central, characteristic, subscribed: false)

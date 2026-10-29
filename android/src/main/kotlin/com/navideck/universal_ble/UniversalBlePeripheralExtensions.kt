@@ -172,7 +172,7 @@ fun BluetoothGattDescriptor.getClientValue(deviceId: String?): ByteArray? {
         synchronized(cccdValues) {
             cccdValues[key]?.let { return it }
         }
-        return value ?: BluetoothGattDescriptor.DISABLE_NOTIFICATION_VALUE
+        return byteArrayOf(0, 0)
     }
     return value ?: getCacheValue()
 }
@@ -208,8 +208,11 @@ fun String.findGattCharacteristic(instanceId: String? = null): BluetoothGattChar
     }
 
 fun String.findService(): BluetoothGattService? {
-    val characteristic = findGattCharacteristic() ?: return null
-    return characteristic.service
+    return synchronized(bluetoothGattCharacteristics) {
+        bluetoothGattCharacteristics.values.firstOrNull {
+            it.service?.uuid?.toString().equals(this, ignoreCase = true)
+        }?.service
+    }
 }
 
 private fun List<CharacteristicProperty>.toPropertiesList(): Int =

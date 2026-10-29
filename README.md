@@ -1005,6 +1005,8 @@ await UniversalBlePeripheral.addService(
   ),
 );
 
+// Android and Apple support characteristic instance IDs. Windows rejects
+// service definitions and operations that specify an instance ID.
 // A characteristic that appears more than once in a service: give each
 // instance a stable identity and address it by that identity.
 await UniversalBlePeripheral.addService(

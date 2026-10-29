@@ -1,4 +1,7 @@
 ## 3.2.0
+* Fix Windows compilation and reject unsupported characteristic instance IDs explicitly.
+* Fix Android service removal, value updates without subscribers, and per-client CCCD defaults.
+* Preserve subscriptions and queued reports for other characteristic instances when one unsubscribes.
 * Peripheral mode: characteristics can declare a stable `instanceId`. GATT allows several characteristics with the same UUID (HID exposes one Report characteristic per report), but the plugin addressed them by UUID and could only reach the first. Set `BlePeripheralCharacteristic.instanceId` to address each instance in `updateCharacteristicValue` and `getSubscribedClients`; read/write/descriptor callbacks and subscription events echo it back. UUID-only callers keep the first-match behaviour. `OnPeripheralReadRequestWithInstance` (and the write/descriptor variants, plus `setReadRequestHandlersWithInstance` etc.) receive the identity; the existing callbacks and setters are unchanged.
 * Peripheral mode: each client's CCCD is tracked per characteristic instance and defaults to disabled, so one subscriber cannot change what another reads. CCCD and descriptor reads without an app handler now return the configured or per-client value instead of `GATT_FAILURE`.
 * Peripheral mode: read request handlers return the complete value; the platform applies the client's read offset once. Previously Android sent handler data with the handler-supplied offset while Apple sliced it again, so handlers had to slice for one platform and not the other.
