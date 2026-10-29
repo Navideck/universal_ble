@@ -450,12 +450,27 @@ class PeripheralCharacteristic {
   List<PeripheralDescriptor>? descriptors;
   Uint8List? value;
 
+  /// Optional stable identity for this characteristic *instance*.
+  ///
+  /// A GATT service may legally contain several characteristics with the same
+  /// [uuid]. Callers that need to address one of them individually set a unique
+  /// [instanceId] per characteristic; UUID-only callers leave it `null` and keep
+  /// the historical first-match behaviour. Request, subscription and
+  /// notification callbacks echo the identity back, so a caller can tell which
+  /// instance an event belongs to.
+  String? instanceId;
+
+  /// Requires encryption for notifications on Apple platforms; ignored elsewhere.
+  bool? requireEncryptedNotifications;
+
   PeripheralCharacteristic(
     this.uuid,
     this.properties,
     this.permissions,
     this.descriptors,
     this.value,
+    this.instanceId,
+    this.requireEncryptedNotifications,
   );
 }
 
@@ -665,16 +680,30 @@ abstract class UniversalBlePeripheralChannel {
 
   void updateCharacteristic(
     String characteristicId,
+    String? characteristicInstanceId,
     Uint8List value,
     String? deviceId,
   );
 
-  /// Returns peripheral-client device ids currently subscribed to [characteristicId]
-  /// (e.g. HID report characteristic). Used to restore app state after restart.
-  List<String> getSubscribedClients(String characteristicId);
+  /// Returns peripheral-client device ids currently subscribed to the
+  /// characteristic identified by [characteristicId] (and, when supplied,
+  /// [characteristicInstanceId]).
+  List<String> getSubscribedClients(
+    String characteristicId,
+    String? characteristicInstanceId,
+  );
+
+  /// Discards native notifications that have not yet been submitted.
+  void clearPendingNotifications(String? deviceId);
 
   /// Returns max characteristic notify payload length for a connected client.
   int? getMaximumNotifyLength(String deviceId);
+}
+
+/// Flutter -> Native (Apple peripheral restoration only).
+@HostApi()
+abstract class UniversalBleDarwinPeripheralChannel {
+  void configureRestoration(String restorationIdentifier);
 }
 
 /// Flutter -> Native (Android only)
@@ -693,6 +722,7 @@ abstract class UniversalBlePeripheralCallback {
   PeripheralReadRequestResult? onReadRequest(
     String deviceId,
     String characteristicId,
+    String? characteristicInstanceId,
     int offset,
     Uint8List? value,
   );
@@ -701,6 +731,7 @@ abstract class UniversalBlePeripheralCallback {
   PeripheralWriteRequestResult? onWriteRequest(
     String deviceId,
     String characteristicId,
+    String? characteristicInstanceId,
     int offset,
     Uint8List? value,
   );
@@ -709,6 +740,7 @@ abstract class UniversalBlePeripheralCallback {
   PeripheralReadRequestResult? onDescriptorReadRequest(
     String deviceId,
     String characteristicId,
+    String? characteristicInstanceId,
     String descriptorId,
     int offset,
     Uint8List? value,
@@ -718,6 +750,7 @@ abstract class UniversalBlePeripheralCallback {
   PeripheralWriteRequestResult? onDescriptorWriteRequest(
     String deviceId,
     String characteristicId,
+    String? characteristicInstanceId,
     String descriptorId,
     int offset,
     Uint8List? value,
@@ -727,6 +760,7 @@ abstract class UniversalBlePeripheralCallback {
   void onCharacteristicSubscriptionChange(
     String deviceId,
     String characteristicId,
+    String? characteristicInstanceId,
     bool isSubscribed,
     String? name,
   );

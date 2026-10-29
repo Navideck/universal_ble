@@ -663,10 +663,11 @@ private:
       const UniversalManufacturerData *manufacturer_data,
       const PeripheralPlatformConfig *platform_config) override;
   std::optional<FlutterError> UpdateCharacteristic(
-      const std::string &characteristic_id, const std::vector<uint8_t> &value,
-      const std::string *device_id) override;
+      const std::string &characteristic_id, const std::string *characteristic_instance_id,
+      const std::vector<uint8_t> &value, const std::string *device_id) override;
   ErrorOr<flutter::EncodableList> GetSubscribedClients(
-      const std::string &characteristic_id) override;
+      const std::string &characteristic_id, const std::string *characteristic_instance_id) override;
+  std::optional<FlutterError> ClearPendingNotifications(const std::string *device_id) override;
   ErrorOr<std::optional<int64_t>> GetMaximumNotifyLength(
       const std::string &device_id) override;
 };

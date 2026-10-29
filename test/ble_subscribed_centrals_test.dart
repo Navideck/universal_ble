@@ -64,12 +64,16 @@ class _MockPeripheralPlatform extends UniversalBlePeripheralPlatform {
   @override
   Future<void> updateCharacteristicValue({
     required String characteristicId,
+    String? instanceId,
     required dynamic value,
     String? deviceId,
   }) async {}
 
   @override
-  Future<List<String>> getSubscribedClients(String characteristicId) async => [];
+  Future<List<String>> getSubscribedClients(
+    String characteristicId, {
+    String? instanceId,
+  }) async => [];
 
   @override
   Future<int?> getMaximumNotifyLength(String deviceId) async => null;
@@ -94,6 +98,7 @@ class _MockPeripheralPlatform extends UniversalBlePeripheralPlatform {
   void emitSubscription({
     required String deviceId,
     required String characteristicId,
+    String? instanceId,
     required bool isSubscribed,
     String? name,
   }) {
@@ -101,6 +106,7 @@ class _MockPeripheralPlatform extends UniversalBlePeripheralPlatform {
       BlePeripheralCharacteristicSubscriptionChanged(
         deviceId: deviceId,
         characteristicId: characteristicId,
+        instanceId: instanceId,
         isSubscribed: isSubscribed,
         name: name,
       ),

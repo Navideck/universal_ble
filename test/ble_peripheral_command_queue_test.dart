@@ -16,6 +16,7 @@ class MockPeripheralPlatform extends Fake implements UniversalBlePeripheralPlatf
   @override
   Future<void> updateCharacteristicValue({
     required String characteristicId,
+    String? instanceId,
     required Uint8List value,
     String? deviceId,
   }) async {

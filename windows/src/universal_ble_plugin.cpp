@@ -3244,6 +3244,15 @@ std::optional<FlutterError> UniversalBlePlugin::StopAdvertising() {
 
 std::optional<FlutterError> UniversalBlePlugin::AddService(
     const PeripheralService &service) {
+  for (const auto &encoded : service.characteristics()) {
+    const auto characteristic = std::any_cast<PeripheralCharacteristic>(
+        std::get<flutter::CustomEncodableValue>(encoded));
+    if (characteristic.instance_id() != nullptr) {
+      return FlutterError("not-supported",
+                          "Windows does not support characteristic instance IDs",
+                          nullptr);
+    }
+  }
   PeripheralAddServiceAsync(service);
   return std::nullopt;
 }
@@ -3288,7 +3297,12 @@ ErrorOr<flutter::EncodableList> UniversalBlePlugin::GetServices() {
 }
 
 ErrorOr<flutter::EncodableList> UniversalBlePlugin::GetSubscribedClients(
-    const std::string &characteristic_id) {
+    const std::string &characteristic_id, const std::string *characteristic_instance_id) {
+  if (characteristic_instance_id != nullptr) {
+    return FlutterError("not-supported",
+                        "Windows does not support characteristic instance IDs",
+                        nullptr);
+  }
   std::lock_guard<std::mutex> lock(peripheral_mutex_);
   flutter::EncodableList out;
   auto *char_obj = FindPeripheralGattCharacteristicObject(characteristic_id);
@@ -3305,6 +3319,12 @@ ErrorOr<flutter::EncodableList> UniversalBlePlugin::GetSubscribedClients(
   } catch (...) {
   }
   return out;
+}
+
+std::optional<FlutterError> UniversalBlePlugin::ClearPendingNotifications(const std::string *device_id) {
+  // Windows submits synchronously; there is no plugin-owned notification queue.
+  (void)device_id;
+  return std::nullopt;
 }
 
 ErrorOr<std::optional<int64_t>> UniversalBlePlugin::GetMaximumNotifyLength(
@@ -3481,8 +3501,13 @@ void UniversalBlePlugin::DisposeAdvertisementPublisher() {
 }
 
 std::optional<FlutterError> UniversalBlePlugin::UpdateCharacteristic(
-    const std::string &characteristic_id, const std::vector<uint8_t> &value,
-    const std::string *device_id) {
+    const std::string &characteristic_id, const std::string *characteristic_instance_id,
+    const std::vector<uint8_t> &value, const std::string *device_id) {
+  if (characteristic_instance_id != nullptr) {
+    return FlutterError("not-supported",
+                        "Windows does not support characteristic instance IDs",
+                        nullptr);
+  }
   GattLocalCharacteristic local_char = nullptr;
   IBuffer buffer = nullptr;
   {
@@ -3906,7 +3931,7 @@ fire_and_forget UniversalBlePlugin::PeripheralSubscribedClientsChanged(
             const std::string *name_ptr =
                 device_name.empty() ? nullptr : &device_name;
             peripheral_channel->OnCharacteristicSubscriptionChange(
-                device_id, characteristic_id, true, name_ptr, SuccessCallback,
+                device_id, characteristic_id, nullptr, true, name_ptr, SuccessCallback,
                 ErrorCallback);
           });
       const int64_t mtu = client.Session().MaxPduSize();
@@ -3934,7 +3959,7 @@ fire_and_forget UniversalBlePlugin::PeripheralSubscribedClientsChanged(
           [device_id, characteristic_id](
               UniversalBlePeripheralCallback *peripheral_channel) {
             peripheral_channel->OnCharacteristicSubscriptionChange(
-                device_id, characteristic_id, false, nullptr, SuccessCallback,
+                device_id, characteristic_id, nullptr, false, nullptr, SuccessCallback,
                 ErrorCallback);
           });
     }
@@ -3972,7 +3997,7 @@ fire_and_forget UniversalBlePlugin::PeripheralReadRequestedAsync(
         [device_id, characteristicId, offset, value_arg, value_holder, deferral,
          request](UniversalBlePeripheralCallback *peripheral_channel) {
           peripheral_channel->OnReadRequest(
-              device_id, characteristicId, offset, value_arg,
+              device_id, characteristicId, nullptr, offset, value_arg,
               // SuccessCallback
               [request, deferral](const PeripheralReadRequestResult *result) {
                 if (result != nullptr) {
@@ -4063,7 +4088,7 @@ fire_and_forget UniversalBlePlugin::PeripheralWriteRequestedAsync(
         [characteristicId, offset, value_holder, request, deferral, deviceId,
          with_response](UniversalBlePeripheralCallback *peripheral_channel) {
           peripheral_channel->OnWriteRequest(
-              deviceId, characteristicId, offset, value_holder.get(),
+              deviceId, characteristicId, nullptr, offset, value_holder.get(),
               [deferral, request, deviceId, characteristicId,
                with_response](const PeripheralWriteRequestResult *writeResult) {
                 try {

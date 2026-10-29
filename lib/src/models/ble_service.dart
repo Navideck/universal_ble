@@ -169,6 +169,17 @@ class BlePeripheralCharacteristic extends BleCharacteristic {
   List<PeripheralAttributePermission> permissions;
   Uint8List? value;
 
+  /// Optional stable identity for this characteristic instance.
+  ///
+  /// Services may contain several characteristics with the same [uuid] (HID
+  /// exposes one Report characteristic per report). Set a unique [instanceId]
+  /// to address them independently on Android and Apple platforms. Windows
+  /// rejects instance IDs; leave it `null` for UUID-only behaviour.
+  String? instanceId;
+
+  /// Require encrypted notification subscriptions on Apple. Ignored elsewhere.
+  bool requireEncryptedNotifications;
+
   @override
   List<BlePeripheralDescriptor> get descriptors =>
       super.descriptors.cast<BlePeripheralDescriptor>();
@@ -179,6 +190,8 @@ class BlePeripheralCharacteristic extends BleCharacteristic {
     List<BlePeripheralDescriptor> descriptors = const [],
     required this.permissions,
     this.value,
+    this.instanceId,
+    this.requireEncryptedNotifications = false,
   }) : super(uuid, properties, descriptors);
 
   factory BlePeripheralCharacteristic.fromJson(Map<String, dynamic> json) {
@@ -210,6 +223,9 @@ class BlePeripheralCharacteristic extends BleCharacteristic {
       value: valueList == null || valueList.isEmpty
           ? null
           : Uint8List.fromList(valueList.whereType<int>().toList()),
+      instanceId: json['instanceId'] as String?,
+      requireEncryptedNotifications:
+          json['requireEncryptedNotifications'] as bool? ?? false,
     );
   }
 
@@ -220,6 +236,8 @@ class BlePeripheralCharacteristic extends BleCharacteristic {
     'descriptors': descriptors.map((e) => e.toJson()).toList(),
     'permissions': permissions.map((e) => e.name).toList(),
     'value': value?.toList(),
+    'instanceId': instanceId,
+    'requireEncryptedNotifications': requireEncryptedNotifications,
   };
 
   PeripheralCharacteristic toPeripheralCharacteristic() =>
@@ -231,6 +249,8 @@ class BlePeripheralCharacteristic extends BleCharacteristic {
             .map((e) => e.toPeripheralDescriptor())
             .toList(),
         value: value,
+        instanceId: instanceId,
+        requireEncryptedNotifications: requireEncryptedNotifications,
       );
 }
 

@@ -54,3 +54,47 @@ typedef OnPeripheralDescriptorWriteRequest =
       int offset,
       Uint8List? value,
     );
+
+/// Instance-aware variants.
+///
+/// A GATT service may expose several characteristics with the same UUID; these
+/// callbacks additionally receive the characteristic's stable instance id
+/// (`null` when the service did not declare one). They take precedence over the
+/// UUID-only callbacks above.
+typedef OnPeripheralReadRequestWithInstance =
+    PeripheralReadRequestResult? Function(
+      String deviceId,
+      String characteristicId,
+      String? instanceId,
+      int offset,
+      Uint8List? value,
+    );
+
+typedef OnPeripheralWriteRequestWithInstance =
+    PeripheralWriteRequestResult? Function(
+      String deviceId,
+      String characteristicId,
+      String? instanceId,
+      int offset,
+      Uint8List? value,
+    );
+
+typedef OnPeripheralDescriptorReadRequestWithInstance =
+    PeripheralReadRequestResult? Function(
+      String deviceId,
+      String characteristicId,
+      String? instanceId,
+      String descriptorId,
+      int offset,
+      Uint8List? value,
+    );
+
+typedef OnPeripheralDescriptorWriteRequestWithInstance =
+    PeripheralWriteRequestResult? Function(
+      String deviceId,
+      String characteristicId,
+      String? instanceId,
+      String descriptorId,
+      int offset,
+      Uint8List? value,
+    );

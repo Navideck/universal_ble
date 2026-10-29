@@ -233,7 +233,8 @@ void main() {
     final lowerKey = UniversalBle.canonicalDeviceId(lower);
     cache.resetDeviceCache(upperKey); // clean slate
     cache.markServicesDiscovered(upperKey);
-    expect(cache.hasDiscoveredServices(lowerKey), isTrue); // seen via other case
+    expect(
+        cache.hasDiscoveredServices(lowerKey), isTrue); // seen via other case
     cache.resetDeviceCache(lowerKey); // cleared via the other case
     expect(cache.hasDiscoveredServices(upperKey), isFalse);
   });
@@ -338,8 +339,7 @@ void main() {
     expect(pickerResult.toBleDevice().deviceId, lower);
   });
 
-  test(
-      'per-device command queue serializes commands across different cases',
+  test('per-device command queue serializes commands across different cases',
       () async {
     final platform = _MockPlatform();
     UniversalBle.setInstance(platform);
@@ -348,10 +348,10 @@ void main() {
     platform.readCompleter = Completer<void>();
     final order = <int>[];
 
-    final f1 = UniversalBle.readValue(upper, '180d', '2a37')
-        .then((_) => order.add(1));
-    final f2 = UniversalBle.readValue(lower, '180d', '2a37')
-        .then((_) => order.add(2));
+    final f1 =
+        UniversalBle.readValue(upper, '180d', '2a37').then((_) => order.add(1));
+    final f2 =
+        UniversalBle.readValue(lower, '180d', '2a37').then((_) => order.add(2));
 
     await Future<void>.delayed(const Duration(milliseconds: 20));
     expect(order, isEmpty);
@@ -692,15 +692,19 @@ void main() {
     test('peripheral request handlers receive lower-case deviceId', () {
       final pigeon = UniversalBlePeripheralPigeon.instance;
       String? receivedDeviceId;
-      pigeon.setReadRequestHandler((deviceId, characteristicId, offset, value) {
+      pigeon.setReadRequestHandlerWithInstance(
+          (deviceId, characteristicId, instanceId, offset, value) {
         receivedDeviceId = deviceId;
         return PeripheralReadRequestResult(value: Uint8List(0));
       });
-      pigeon.onReadRequest(upper, charId, 0, null);
-      expect(receivedDeviceId, lower);
+      for (final id in [upper, lower, 'Aa:Bb:Cc:Dd:Ee:Ff']) {
+        pigeon.onReadRequest(id, charId, 'consumerInput', 0, null);
+        expect(receivedDeviceId, lower);
+      }
     });
 
-    test('toDeviceId().native converts lower-case central id to upper-case', () {
+    test('toDeviceId().native converts lower-case central id to upper-case',
+        () {
       expect(lower.toDeviceId().native, upper);
     });
   });
