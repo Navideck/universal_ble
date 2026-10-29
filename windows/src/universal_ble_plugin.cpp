@@ -7,12 +7,10 @@
 
 #include <algorithm>
 #include <cctype>
-#include <future>
 #include <iomanip>
 #include <memory>
 #include <regex>
 #include <sstream>
-#include <thread>
 #include <utility>
 
 #include "advertisement_uuid.h"
@@ -22,6 +20,7 @@
 #include "helper/universal_ble_logger.h"
 #include "helper/universal_enum.h"
 #include "helper/utils.h"
+#include "notification_failure_log.h"
 #include "pin_entry.h"
 #include "scan_result_merge.h"
 #include "universal_ble_filter_util.h"
@@ -91,6 +90,30 @@ IPropertyValue lookup_i_property_value(
         std::string(context) + ": failed to lookup " + property_name +
         " property (hr=" + std::to_string(err.code()) + ")");
     return nullptr;
+  }
+}
+
+// Throttles the notification failure log without holding plugin state: the
+// completion handler runs on the WinRT thread pool and can outlive the plugin.
+// Intentionally leaked so a handler that runs during teardown cannot touch a
+// destroyed object.
+NotificationFailureLog &notification_failure_log() {
+  static auto *log = new NotificationFailureLog();
+  return *log;
+}
+
+const char *async_status_to_string(const AsyncStatus status) {
+  switch (status) {
+    case AsyncStatus::Started:
+      return "Started";
+    case AsyncStatus::Completed:
+      return "Completed";
+    case AsyncStatus::Canceled:
+      return "Canceled";
+    case AsyncStatus::Error:
+      return "Error";
+    default:
+      return "Unknown";
   }
 }
 }  // namespace
@@ -3516,26 +3539,118 @@ std::optional<FlutterError> UniversalBlePlugin::UpdateCharacteristic(
   }
 
   try {
-    std::future<bool> notify_future =
-        std::async(std::launch::async, [local_char, buffer]() {
-          auto op = local_char.NotifyValueAsync(buffer);
-          op.get();
-          return true;
+    // NotifyValueAsync completes only once the value has been handed to every
+    // subscribed client, so waiting for it costs the platform thread a full
+    // GATT round trip (and blocks it for good when a client link is wedged).
+    // Apple and Android queue the update and return, so submit it and report
+    // the per-client outcome from the completion handler instead. Consecutive
+    // calls are still submitted from the platform thread in call order, but
+    // Windows does not promise that overlapping operations are serialized or
+    // delivered in that order.
+    const auto value_size = buffer.Length();
+    local_char.NotifyValueAsync(buffer).Completed(
+        [characteristic_id, value_size](
+            const IAsyncOperation<IVectorView<GattClientNotificationResult>>
+                &sender,
+            const AsyncStatus status) {
+          LogPeripheralNotificationResult(characteristic_id, value_size, sender,
+                                          status);
         });
-    const bool notify_result = notify_future.get();
-    if (!notify_result) {
-      return FlutterError(
-          "failed",
-          "Failed to notify subscribed clients for characteristic update",
-          nullptr);
-    }
   } catch (...) {
+    // Starting the operation failed (for example the characteristic object is
+    // no longer valid); that is still reported synchronously.
     return FlutterError(
         "failed",
         "Failed to notify subscribed clients for characteristic update",
         nullptr);
   }
   return std::nullopt;
+}
+
+// Runs on a WinRT thread pool thread, possibly after this plugin is gone, which
+// is why it is static and only touches the failure log and the logger.
+void UniversalBlePlugin::LogPeripheralNotificationResult(
+    const std::string &characteristic_id, const uint32_t value_size,
+    const IAsyncOperation<IVectorView<GattClientNotificationResult>> &sender,
+    const AsyncStatus status) noexcept {
+  try {
+    const std::string context = "PERIPHERAL_NOTIFY " + characteristic_id;
+    bool failing = false;
+    std::string details;
+    if (status != AsyncStatus::Completed) {
+      failing = true;
+      details = std::string(" did not complete, status=") +
+                async_status_to_string(status);
+      if (status == AsyncStatus::Error) {
+        details += " hr=" + std::to_string(sender.ErrorCode());
+        try {
+          // GetResults rethrows the operation's exception, whose message is
+          // more useful than the bare HRESULT on ErrorCode().
+          sender.GetResults();
+        } catch (const hresult_error &err) {
+          details += " msg=" + to_string(err.message());
+        } catch (...) {
+        }
+      }
+    } else {
+      // Only requested when something failed: this runs for every update of a
+      // characteristic that may be notifying at stream rate.
+      const auto client_id = [](const GattClientNotificationResult &result) {
+        return ParsePeripheralBluetoothClientId(
+            result.SubscribedClient().Session().DeviceId().Id());
+      };
+      for (const auto &client_result : sender.GetResults()) {
+        if (client_result.Status() != GattCommunicationStatus::Success) {
+          failing = true;
+          const auto status_name =
+              gatt_communication_status_to_error(client_result.Status());
+          details +=
+              " client=" + client_id(client_result) + " status=" +
+              (status_name.has_value()
+                   ? status_name.value()
+                   : std::to_string(static_cast<int>(client_result.Status())));
+          if (const auto protocol_error = client_result.ProtocolError()) {
+            details += " att_error=" + std::to_string(protocol_error.Value());
+          }
+          continue;
+        }
+        if (static_cast<uint32_t>(client_result.BytesSent()) < value_size) {
+          // The client's MTU is smaller than the value, so it was truncated on
+          // the way out. Nothing else reports this.
+          failing = true;
+          details += " client=" + client_id(client_result) +
+                     " truncated=" + std::to_string(client_result.BytesSent()) +
+                     "/" + std::to_string(value_size);
+        }
+      }
+    }
+
+    // A client that stops reading fails every update, so logs are emitted on
+    // the transition into and out of failure instead of per notification.
+    if (!notification_failure_log().Update(
+            characteristic_id, failing,
+            UniversalBleLogger::current_log_level() != BleLogLevel::kNone)) {
+      return;
+    }
+    if (failing) {
+      UniversalBleLogger::LogError(context + " failed:" + details);
+    } else {
+      UniversalBleLogger::LogInfo(context + " recovered");
+    }
+  } catch (const hresult_error &err) {
+    try {
+      UniversalBleLogger::LogError(
+          "PERIPHERAL_NOTIFY hresult_error hr=" + std::to_string(err.code()) +
+          " msg=" + to_string(err.message()));
+    } catch (...) {
+    }
+  } catch (...) {
+    try {
+      UniversalBleLogger::LogError(
+          "PERIPHERAL_NOTIFY failed with an unknown exception");
+    } catch (...) {
+    }
+  }
 }
 
 fire_and_forget UniversalBlePlugin::PeripheralAddServiceAsync(

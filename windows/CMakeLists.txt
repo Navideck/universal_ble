@@ -41,6 +41,7 @@ list(APPEND PLUGIN_SOURCES
   "src/ui_thread_handler.hpp"
   "src/async_operation_tracker.h"
   "src/callback_drain.h"
+  "src/notification_failure_log.h"
   "src/generated/universal_ble.g.cpp"
   "src/generated/universal_ble.g.h"
   "src/pin_entry.h"

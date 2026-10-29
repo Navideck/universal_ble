@@ -226,6 +226,19 @@ class UniversalBlePeripheral {
         () => _platform.stopAdvertising(),
       );
 
+  /// Sends [value] to the clients subscribed to [characteristicId].
+  ///
+  /// Pass [deviceId] to target one client on platforms that support it (see
+  /// `getCapabilities().supportsTargetedCharacteristicUpdate`); omit it to
+  /// notify every subscribed client.
+  ///
+  /// The returned future completes once the update has been handed to the
+  /// platform, not once it has been transmitted. On Windows and Android a
+  /// transport failure is not reported through this future (Windows logs it
+  /// when `UniversalBle.setLogLevel` enables error output), while Apple reports
+  /// a full transmit queue. On Windows, [QueueType.perDevice] and
+  /// [QueueType.global] serialize submission only; awaiting this future does
+  /// not prevent overlapping transmissions or guarantee their delivery order.
   static Future<void> updateCharacteristicValue({
     required String characteristicId,
     String? instanceId,
