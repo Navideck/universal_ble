@@ -33,28 +33,35 @@ void main() {
     }
   });
 
-  test('encrypted notifications survive JSON and Pigeon codec', () {
-    final model = BlePeripheralCharacteristic(
-        uuid: '2a4d',
-        properties: [
-          CharacteristicProperty.read,
-          CharacteristicProperty.notify
-        ],
-        permissions: [PeripheralAttributePermission.readEncryptionRequired],
-        instanceId: 'consumerInput',
-        requireEncryptedNotifications: true);
+  final model = BlePeripheralCharacteristic(
+      uuid: '2a4d',
+      properties: [
+        CharacteristicProperty.read,
+        CharacteristicProperty.notify
+      ],
+      permissions: [PeripheralAttributePermission.readEncryptionRequired],
+      instanceId: 'consumerInput',
+      requireEncryptedNotifications: true);
+
+  test('encrypted notifications survive JSON', () {
     final restored = BlePeripheralCharacteristic.fromJson(model.toJson());
-    final native = restored.toPeripheralCharacteristic();
-    final codec = UniversalBlePeripheralChannel.pigeonChannelCodec;
-    final decoded = codec.decodeMessage(codec.encodeMessage(native))
-        as PeripheralCharacteristic;
-    expect(decoded.requireEncryptedNotifications, isTrue);
-    expect(decoded.instanceId, 'consumerInput');
+    expect(restored.requireEncryptedNotifications, isTrue);
+    expect(restored.instanceId, 'consumerInput');
     expect(
         BlePeripheralCharacteristic.fromJson({'uuid': '2a4d'})
             .requireEncryptedNotifications,
         isFalse);
   });
+
+  // Native channel enums use Int64 accessors unavailable in JavaScript.
+  test('encrypted notifications survive the native Pigeon codec', () {
+    final native = model.toPeripheralCharacteristic();
+    final codec = UniversalBlePeripheralChannel.pigeonChannelCodec;
+    final decoded = codec.decodeMessage(codec.encodeMessage(native))
+        as PeripheralCharacteristic;
+    expect(decoded.requireEncryptedNotifications, isTrue);
+    expect(decoded.instanceId, 'consumerInput');
+  }, skip: kIsWeb);
 
   test('clearing notifications accepts any MAC/Apple UUID casing', () async {
     final received = <String?>[];
@@ -91,6 +98,12 @@ void main() {
     });
     await UniversalBlePeripheralPigeon.instance
         .configureRestoration('test.peripheral');
+    if (kIsWeb) {
+      // Apple platform overrides must not enable native restoration on Web.
+      await UniversalBlePeripheralPigeon.instance.configureRestoration(' ');
+      expect(identifier, isNull);
+      return;
+    }
     expect(identifier, 'test.peripheral');
     await expectLater(
         UniversalBlePeripheralPigeon.instance.configureRestoration(' '),
