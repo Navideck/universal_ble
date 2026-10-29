@@ -8,6 +8,7 @@ import CoreBluetooth
 import Foundation
 
 final class UniversalBlePeripheralPlugin: NSObject, UniversalBlePeripheralChannel,
+  UniversalBleDarwinPeripheralChannel,
   CBPeripheralManagerDelegate
 {
   private let callbackChannel: UniversalBlePeripheralCallback
@@ -16,14 +17,73 @@ final class UniversalBlePeripheralPlugin: NSObject, UniversalBlePeripheralChanne
   private let centralsLock = NSLock()
   private var centralsById = [String: CBCentral]()
   private var centralCharacteristicSubscriptions = [String: Set<String>]()
+  // Pigeon calls and CoreBluetooth delegates both run on the main queue.
+  private var pendingNotifications = PeripheralNotificationQueue<PendingNotification>()
+  private static let restorationOwners = NSMapTable<NSString, UniversalBlePeripheralPlugin>
+    .strongToWeakObjects()
+  private var requestGeneration = 0
+  private var hasBeenPoweredOn = false
+  private var restorationIdentifier: String?
+  private var eventsReady = true
+  private var bufferedEvents = [() -> Void]()
+  private var desiredAdvertisement: [String: Any]?
+  private var serviceModels = PeripheralServiceModels()
+  private var pendingServices = [ObjectIdentifier: (CBMutableService, PeripheralService)]()
+  private var initialValues = [ObjectIdentifier: Data]()
   // Per plugin instance (one per FlutterEngine): the services this peripheral
   // advertises. Tearing one engine down (or clearing its services) must not wipe
   // another engine's advertising state.
   private let serviceRegistry = PeripheralServiceRegistry()
 
+  private struct PendingNotification {
+    let value: Data
+    let characteristic: CBMutableCharacteristic
+    let central: CBCentral
+  }
+
   init(callbackChannel: UniversalBlePeripheralCallback) {
     self.callbackChannel = callbackChannel
     super.init()
+    if let identifier = Bundle.main.object(
+      forInfoDictionaryKey: "UniversalBlePeripheralRestorationIdentifier"
+    ) as? String, !identifier.isEmpty,
+      Self.restorationOwners.object(forKey: identifier as NSString) == nil
+    {
+      Self.restorationOwners.setObject(self, forKey: identifier as NSString)
+      restorationIdentifier = identifier
+      eventsReady = false
+      // Do not introduce a launch-time permission prompt for an unused feature.
+      if CBPeripheralManager.authorization == .allowedAlways {
+        _ = ensurePeripheralManager()
+      }
+    }
+  }
+
+  func configureRestoration(restorationIdentifier: String) throws {
+    guard !restorationIdentifier.trimmingCharacters(in: .whitespaces).isEmpty else {
+      throw UniversalBlePeripheralError.failed("Restoration identifier must not be empty")
+    }
+    if peripheralManager != nil && self.restorationIdentifier != restorationIdentifier {
+      throw UniversalBlePeripheralError.failed(
+        "Configure restoration before creating the peripheral manager")
+    }
+    if let owner = Self.restorationOwners.object(forKey: restorationIdentifier as NSString),
+      owner !== self
+    {
+      throw UniversalBlePeripheralError.failed(
+        "Restoration identifier is already owned by another engine")
+    }
+    Self.restorationOwners.setObject(self, forKey: restorationIdentifier as NSString)
+    self.restorationIdentifier = restorationIdentifier
+    _ = ensurePeripheralManager()
+    eventsReady = true
+    let events = bufferedEvents
+    bufferedEvents.removeAll()
+    events.forEach { $0() }
+  }
+
+  private func emit(_ event: @escaping () -> Void) {
+    if eventsReady { event() } else { bufferedEvents.append(event) }
   }
 
   deinit {
@@ -36,7 +96,11 @@ final class UniversalBlePeripheralPlugin: NSObject, UniversalBlePeripheralChanne
     if let peripheralManager {
       return peripheralManager
     }
-    let manager = CBPeripheralManager(delegate: self, queue: nil, options: nil)
+    var options: [String: Any] = [:]
+    if let restorationIdentifier {
+      options[CBPeripheralManagerOptionRestoreIdentifierKey] = restorationIdentifier
+    }
+    let manager = CBPeripheralManager(delegate: self, queue: nil, options: options)
     peripheralManager = manager
     return manager
   }
@@ -80,6 +144,7 @@ final class UniversalBlePeripheralPlugin: NSObject, UniversalBlePeripheralChanne
   }
 
   func stopAdvertising() throws {
+    desiredAdvertisement = nil
     advertisingState = .stopping
     callbackChannel.onAdvertisingStateChange(state: .stopping, error: nil) { _ in }
     guard let peripheralManager else {
@@ -93,25 +158,117 @@ final class UniversalBlePeripheralPlugin: NSObject, UniversalBlePeripheralChanne
   }
 
   func addService(service: PeripheralService) throws {
+    let manager = ensurePeripheralManager()
+    guard manager.state == .poweredOn else {
+      throw UniversalBlePeripheralError.failed("Bluetooth peripheral is not ready")
+    }
+    let key = CBUUID(string: service.uuid).uuid128Str
+    if pendingServices.values.contains(where: { CBUUID(string: $0.1.uuid).uuid128Str == key }) {
+      return  // Dart is already waiting for didAdd for this service.
+    }
+    if let restored = serviceRegistry.service(service.uuid) {
+      // Rebind Dart's definitions to restored objects; never publish duplicates.
+      guard
+        zip(restored.characteristics ?? [], service.characteristics).allSatisfy({
+          $0.uuid.uuid128Str == CBUUID(string: $1.uuid).uuid128Str
+        }),
+        restored.characteristics?.count == service.characteristics.count
+      else {
+        throw UniversalBlePeripheralError.failed(
+          "Restored service layout changed; remove it before replacing it")
+      }
+      serviceModels.set(service)
+      serviceRegistry.register(
+        restored, modelCharacteristics: service.characteristics,
+        mutableCharacteristics: restored.characteristics ?? [])
+      for (characteristic, definition) in zip(
+        restored.characteristics ?? [], service.characteristics)
+      {
+        if let data = definition.value?.toData() {
+          initialValues[ObjectIdentifier(characteristic)] = data
+        }
+      }
+      rebuildCentralSubscriptions()
+      saveIdentity(of: restored)
+      emit { [weak self] in
+        guard let self else { return }
+        self.callbackChannel.onServiceAdded(serviceId: service.uuid, error: nil) { _ in }
+      }
+      return
+    }
+    serviceModels.set(service)
     let cbService = service.toCBService()
-    serviceRegistry.register(cbService)
-    ensurePeripheralManager().add(cbService)
+    pendingServices[ObjectIdentifier(cbService)] = (cbService, service)
+    manager.add(cbService)
   }
 
   func removeService(serviceId: String) throws {
+    let key = CBUUID(string: serviceId).uuid128Str
+    let pending = pendingServices.values.filter { CBUUID(string: $0.1.uuid).uuid128Str == key }
+    for (service, _) in pending {
+      pendingServices.removeValue(forKey: ObjectIdentifier(service))
+      emit { [weak self] in
+        self?.callbackChannel.onServiceAdded(
+          serviceId: service.uuid.uuidString,
+          error: "Service registration cancelled"
+        ) { _ in }
+      }
+      peripheralManager?.remove(service)
+    }
     if let service = serviceRegistry.service(serviceId) {
-      ensurePeripheralManager().remove(service)
+      invalidateSubscriptions(of: service)
+      peripheralManager?.remove(service)
       serviceRegistry.remove(service)
     }
+    serviceModels.remove(serviceId)
+    forgetSavedIdentity(serviceId)
   }
 
   func clearServices() throws {
+    requestGeneration += 1
+    for service in serviceRegistry.allServices { invalidateSubscriptions(of: service) }
     peripheralManager?.removeAllServices()
+    for (_, model) in pendingServices.values {
+      emit { [weak self] in
+        self?.callbackChannel.onServiceAdded(
+          serviceId: model.uuid,
+          error: "Service registration cancelled"
+        ) { _ in }
+      }
+    }
+    pendingServices.removeAll()
+    pendingNotifications.removeAll()
     serviceRegistry.clear()
+    serviceModels.removeAll()
+    initialValues.removeAll()
+    if let restorationIdentifier {
+      UserDefaults.standard.removeObject(forKey: identityKey(restorationIdentifier))
+    }
   }
 
   func getServices() throws -> [String] {
     serviceRegistry.serviceIds
+  }
+
+  func clearPendingNotifications(deviceId: String?) throws {
+    if let deviceId {
+      pendingNotifications.removeAll {
+        $0.central.identifier.uuidString.caseInsensitiveCompare(deviceId) == .orderedSame
+      }
+    } else {
+      pendingNotifications.removeAll()
+    }
+  }
+
+  // Dart canonicalizes UUIDs to 128 bits. Preserve the 16-bit advertising field
+  // for SIG services: some system pairing screens recognize HID only there.
+  static func advertisingServiceUuid(_ value: String) -> CBUUID {
+    let uuid = CBUUID(string: value)
+    let full = uuid.uuid128Str
+    if full.hasPrefix("0000"), full.hasSuffix("-0000-1000-8000-00805f9b34fb") {
+      return CBUUID(string: String(full.dropFirst(4).prefix(4)))
+    }
+    return uuid
   }
 
   func startAdvertising(
@@ -128,7 +285,7 @@ final class UniversalBlePeripheralPlugin: NSObject, UniversalBlePeripheralChanne
         userInfo: [NSLocalizedDescriptionKey: "Advertising timeout is not supported on Darwin."]
       )
     }
-    let cbServices = services.map { CBUUID(string: $0) }
+    let cbServices = services.map(Self.advertisingServiceUuid)
     var advertisementData: [String: Any] = [CBAdvertisementDataServiceUUIDsKey: cbServices]
     if let localName {
       advertisementData[CBAdvertisementDataLocalNameKey] = localName
@@ -145,34 +302,59 @@ final class UniversalBlePeripheralPlugin: NSObject, UniversalBlePeripheralChanne
     }
     advertisingState = .starting
     callbackChannel.onAdvertisingStateChange(state: .starting, error: nil) { _ in }
+    desiredAdvertisement = advertisementData
     ensurePeripheralManager().startAdvertising(advertisementData)
   }
 
   func updateCharacteristic(
     characteristicId: String,
+    characteristicInstanceId: String?,
     value: FlutterStandardTypedData,
     deviceId: String?
   ) throws {
-    guard let characteristic = serviceRegistry.characteristic(characteristicId) else {
+    guard
+      let characteristic = serviceRegistry.characteristic(
+        characteristicId,
+        instanceId: characteristicInstanceId
+      )
+    else {
       throw UniversalBlePeripheralError.notFound("\(characteristicId) characteristic not found")
     }
-    let centrals: [CBCentral]?
+    let targets = characteristic.subscribedCentrals ?? []
+    let centrals: [CBCentral]
     if let deviceId {
-      guard let central = central(for: deviceId) else {
+      guard central(for: deviceId) != nil else {
         throw UniversalBlePeripheralError.notFound("\(deviceId) device not found")
       }
-      centrals = [central]
+      centrals = targets.filter {
+        $0.identifier.uuidString.caseInsensitiveCompare(deviceId) == .orderedSame
+      }
     } else {
-      centrals = nil
+      centrals = targets
     }
-    let success = ensurePeripheralManager().updateValue(
-      value.toData(),
-      for: characteristic,
-      onSubscribedCentrals: centrals
-    )
-    if !success {
-      throw UniversalBlePeripheralError.failed("Peripheral transmit queue full")
+    let data = value.toData()
+    initialValues[ObjectIdentifier(characteristic)] = data
+    // Capture actual subscribers now. A future subscriber must never receive
+    // a broadcast queued during a previous session.
+    for central in centrals {
+      pendingNotifications.append(
+        PendingNotification(value: data, characteristic: characteristic, central: central))
     }
+    drainPendingNotifications()
+  }
+
+  private func drainPendingNotifications() {
+    pendingNotifications.drain { notification in
+      guard let manager = peripheralManager, manager.state == .poweredOn else { return false }
+      return manager.updateValue(
+        notification.value, for: notification.characteristic,
+        onSubscribedCentrals: [notification.central])
+    }
+  }
+
+  nonisolated func peripheralManagerIsReady(toUpdateSubscribers peripheral: CBPeripheralManager) {
+    pendingNotifications.resume()
+    drainPendingNotifications()
   }
 
   nonisolated func peripheralManagerDidStartAdvertising(
@@ -180,28 +362,189 @@ final class UniversalBlePeripheralPlugin: NSObject, UniversalBlePeripheralChanne
     error: Error?
   ) {
     advertisingState = error == nil ? .advertising : .error
-    callbackChannel.onAdvertisingStateChange(
-      state: advertisingState,
-      error: error?.localizedDescription
-    ) { _ in }
+    emit { [weak self] in
+      guard let self else { return }
+      self.callbackChannel.onAdvertisingStateChange(
+        state: self.advertisingState,
+        error: error?.localizedDescription
+      ) { _ in }
+    }
   }
 
   nonisolated func peripheralManagerDidUpdateState(_ peripheral: CBPeripheralManager) {
     if peripheral.state != .poweredOn {
+      // An initial unknown state is not evidence that restored services died.
+      if peripheral.state == .unknown && !hasBeenPoweredOn { return }
+      requestGeneration += 1
+      for service in serviceRegistry.allServices { invalidateSubscriptions(of: service) }
+      pendingNotifications.removeAll()
+      clearCentrals()
+      // Fail outstanding adds, so their Dart futures cannot outlive the adapter.
+      let pending = pendingServices.values.map { $0.1.uuid }
+      pendingServices.removeAll()
+      serviceRegistry.clear()
+      initialValues.removeAll()
+      for uuid in pending {
+        emit { [weak self] in
+          guard let self else { return }
+          self.callbackChannel.onServiceAdded(
+            serviceId: uuid, error: "Bluetooth peripheral became unavailable"
+          ) { _ in }
+        }
+      }
       advertisingState = .idle
-      callbackChannel.onAdvertisingStateChange(state: .idle, error: nil) { _ in }
+      emit { [weak self] in
+        guard let self else { return }
+        self.callbackChannel.onAdvertisingStateChange(state: .idle, error: nil) { _ in }
+      }
+    } else {
+      hasBeenPoweredOn = true
+      for model in serviceModels.values where serviceRegistry.service(model.uuid) == nil {
+        try? addService(service: model)
+      }
+      restartAdvertisingIfReady()
+      emit { [weak self] in
+        guard let self else { return }
+        self.callbackChannel.onAdvertisingStateChange(state: self.advertisingState, error: nil) {
+          _ in
+        }
+      }
     }
   }
 
   nonisolated func peripheralManager(
-    _: CBPeripheralManager,
-    didAdd service: CBService,
-    error: Error?
+    _ peripheral: CBPeripheralManager, didAdd service: CBService, error: Error?
   ) {
-    callbackChannel.onServiceAdded(
-      serviceId: service.uuid.uuidString,
-      error: error?.localizedDescription
-    ) { _ in }
+    guard let (mutable, model) = pendingServices.removeValue(forKey: ObjectIdentifier(service))
+    else {
+      // A removed/timed-out add can complete late. Do not leak its publication
+      // into a newer service registration with the same UUID.
+      if error == nil, let mutable = service as? CBMutableService,
+        serviceRegistry.service(service.uuid.uuidString) !== mutable
+      {
+        peripheral.remove(mutable)
+      }
+      return
+    }
+    if error == nil {
+      serviceRegistry.register(
+        mutable, modelCharacteristics: model.characteristics,
+        mutableCharacteristics: mutable.characteristics ?? [])
+      for (characteristic, definition) in zip(mutable.characteristics ?? [], model.characteristics)
+      {
+        if let data = definition.value?.toData() {
+          initialValues[ObjectIdentifier(characteristic)] = data
+        }
+      }
+      saveIdentity(of: mutable)
+    }
+    emit { [weak self] in
+      guard let self else { return }
+      self.callbackChannel.onServiceAdded(
+        serviceId: service.uuid.uuidString,
+        error: error?.localizedDescription
+      ) { _ in }
+    }
+    restartAdvertisingIfReady()
+  }
+
+  private func restartAdvertisingIfReady() {
+    guard pendingServices.isEmpty, let manager = peripheralManager,
+      manager.state == .poweredOn, !manager.isAdvertising,
+      let desiredAdvertisement,
+      serviceModels.values.allSatisfy({ serviceRegistry.service($0.uuid) != nil })
+    else { return }
+    manager.startAdvertising(desiredAdvertisement)
+  }
+
+  nonisolated func peripheralManager(
+    _ peripheral: CBPeripheralManager, willRestoreState dict: [String: Any]
+  ) {
+    peripheralManager = peripheral
+    pendingNotifications.removeAll()
+    serviceRegistry.clear()
+    clearCentrals()
+    let saved = savedIdentities()
+    for service in dict[CBPeripheralManagerRestoredStateServicesKey] as? [CBMutableService] ?? [] {
+      serviceModels.reserve(service.uuid.uuidString)
+      let identities = saved[service.uuid.uuid128Str] ?? []
+      serviceRegistry.restore(service, identities: identities)
+      for characteristic in service.characteristics ?? [] {
+        // Never restore transient key state from an old process.
+        for central in (characteristic as? CBMutableCharacteristic)?.subscribedCentrals ?? [] {
+          self.peripheralManager(peripheral, central: central, didSubscribeTo: characteristic)
+        }
+      }
+    }
+    desiredAdvertisement =
+      dict[CBPeripheralManagerRestoredStateAdvertisementDataKey] as? [String: Any]
+    advertisingState = peripheral.isAdvertising ? .advertising : .idle
+    emit { [weak self] in
+      guard let self else { return }
+      self.callbackChannel.onAdvertisingStateChange(state: self.advertisingState, error: nil) { _ in
+      }
+    }
+  }
+
+  private func identityKey(_ identifier: String) -> String {
+    "universal_ble.peripheral.instances." + identifier
+  }
+
+  private func savedIdentities() -> [String: [[String: String]]] {
+    guard let restorationIdentifier else { return [:] }
+    return UserDefaults.standard.dictionary(forKey: identityKey(restorationIdentifier))
+      as? [String: [[String: String]]] ?? [:]
+  }
+
+  private func saveIdentity(of service: CBMutableService) {
+    guard let restorationIdentifier else { return }
+    var saved = savedIdentities()
+    saved[service.uuid.uuid128Str] = (service.characteristics ?? []).map {
+      ["uuid": $0.uuid.uuid128Str, "instanceId": serviceRegistry.instanceId(of: $0) ?? ""]
+    }
+    UserDefaults.standard.set(saved, forKey: identityKey(restorationIdentifier))
+  }
+
+  private func forgetSavedIdentity(_ serviceId: String) {
+    guard let restorationIdentifier else { return }
+    var saved = savedIdentities()
+    saved.removeValue(forKey: CBUUID(string: serviceId).uuid128Str)
+    UserDefaults.standard.set(saved, forKey: identityKey(restorationIdentifier))
+  }
+
+  private func invalidateSubscriptions(of service: CBMutableService) {
+    for characteristic in service.characteristics ?? [] {
+      pendingNotifications.removeAll { $0.characteristic === characteristic }
+      initialValues.removeValue(forKey: ObjectIdentifier(characteristic))
+      let subscriptionId =
+        serviceRegistry.instanceId(of: characteristic) ?? characteristic.uuid.uuidString
+      centralsLock.lock()
+      let subscribed = centralCharacteristicSubscriptions.compactMap { id, subscriptions in
+        subscriptions.contains(subscriptionId) ? centralsById[id] : nil
+      }
+      centralsLock.unlock()
+      for central in subscribed {
+        removeCentralSubscription(
+          centralId: central.identifier.uuidString,
+          subscriptionId: serviceRegistry.instanceId(of: characteristic)
+            ?? characteristic.uuid.uuidString)
+        subscriptionEvent(central, characteristic, subscribed: false)
+      }
+    }
+  }
+
+  private func subscriptionEvent(
+    _ central: CBCentral, _ characteristic: CBCharacteristic, subscribed: Bool
+  ) {
+    let instanceId = serviceRegistry.instanceId(of: characteristic)
+    emit { [weak self] in
+      guard let self else { return }
+      self.callbackChannel.onCharacteristicSubscriptionChange(
+        deviceId: central.identifier.uuidString,
+        characteristicId: characteristic.uuid.uuidString, characteristicInstanceId: instanceId,
+        isSubscribed: subscribed, name: nil
+      ) { _ in }
+    }
   }
 
   nonisolated func peripheralManager(
@@ -209,20 +552,18 @@ final class UniversalBlePeripheralPlugin: NSObject, UniversalBlePeripheralChanne
     central: CBCentral,
     didSubscribeTo characteristic: CBCharacteristic
   ) {
+    let instanceId = serviceRegistry.instanceId(of: characteristic)
     upsertCentralSubscription(
       central: central,
-      characteristicId: characteristic.uuid.uuidString
+      subscriptionId: instanceId ?? characteristic.uuid.uuidString
     )
-    callbackChannel.onCharacteristicSubscriptionChange(
-      deviceId: central.identifier.uuidString,
-      characteristicId: characteristic.uuid.uuidString,
-      isSubscribed: true,
-      name: nil
-    ) { _ in }
-    callbackChannel.onMtuChange(
-      deviceId: central.identifier.uuidString,
-      mtu: Int64(central.maximumUpdateValueLength)
-    ) { _ in }
+    subscriptionEvent(central, characteristic, subscribed: true)
+    emit { [weak self] in
+      self?.callbackChannel.onMtuChange(
+        deviceId: central.identifier.uuidString,
+        mtu: Int64(central.maximumUpdateValueLength)
+      ) { _ in }
+    }
   }
 
   nonisolated func peripheralManager(
@@ -230,49 +571,66 @@ final class UniversalBlePeripheralPlugin: NSObject, UniversalBlePeripheralChanne
     central: CBCentral,
     didUnsubscribeFrom characteristic: CBCharacteristic
   ) {
+    let instanceId = serviceRegistry.instanceId(of: characteristic)
     removeCentralSubscription(
       centralId: central.identifier.uuidString,
-      characteristicId: characteristic.uuid.uuidString
+      subscriptionId: instanceId ?? characteristic.uuid.uuidString
     )
-    callbackChannel.onCharacteristicSubscriptionChange(
-      deviceId: central.identifier.uuidString,
-      characteristicId: characteristic.uuid.uuidString,
-      isSubscribed: false,
-      name: nil
-    ) { _ in }
+    pendingNotifications.removeAll {
+      $0.central.identifier == central.identifier && $0.characteristic === characteristic
+    }
+    initialValues.removeValue(forKey: ObjectIdentifier(characteristic))
+    subscriptionEvent(central, characteristic, subscribed: false)
   }
 
   nonisolated func peripheralManager(
     _ peripheral: CBPeripheralManager,
     didReceiveRead request: CBATTRequest
   ) {
-    callbackChannel.onReadRequest(
-      deviceId: request.central.identifier.uuidString,
-      characteristicId: request.characteristic.uuid.uuidString,
-      offset: Int64(request.offset),
-      value: request.value?.toFlutterBytes()
-    ) { readReq in
-      do {
-        let result = try readReq.get()
-        let status = result?.status?.toCBATTErrorCode() ?? .success
-        guard status == .success else {
-          peripheral.respond(to: request, withResult: status)
-          return
-        }
-        guard let fullData = result?.value.toData() as Data? else {
-          peripheral.respond(to: request, withResult: .requestNotSupported)
-          return
-        }
-        let offset = Int(request.offset)
-        guard offset <= fullData.count else {
-          peripheral.respond(to: request, withResult: .invalidOffset)
-          return
-        }
-        let sliced = fullData.subdata(in: offset..<fullData.count)
-        request.value = sliced
-        peripheral.respond(to: request, withResult: .success)
-      } catch {
+    let generation = requestGeneration
+    emit { [weak self] in
+      guard let self, generation == self.requestGeneration else {
         peripheral.respond(to: request, withResult: .requestNotSupported)
+        return
+      }
+      self.callbackChannel.onReadRequest(
+        deviceId: request.central.identifier.uuidString,
+        characteristicId: request.characteristic.uuid.uuidString,
+        characteristicInstanceId: self.serviceRegistry.instanceId(of: request.characteristic),
+        offset: Int64(request.offset),
+        value: request.value?.toFlutterBytes()
+      ) { readReq in
+        do {
+          let result = try readReq.get()
+          let status = result?.status?.toCBATTErrorCode() ?? .success
+          guard status == .success else {
+            peripheral.respond(to: request, withResult: status)
+            return
+          }
+          // No handler, or a handler without data: serve the configured value so
+          // static characteristics do not depend on an app-side read handler.
+          let fullData: Data?
+          if let result {
+            fullData = result.value.toData()
+          } else {
+            fullData =
+              self.initialValues[ObjectIdentifier(request.characteristic)]
+              ?? request.characteristic.value
+          }
+          guard let fullData else {
+            peripheral.respond(to: request, withResult: .requestNotSupported)
+            return
+          }
+          let offset = Int(request.offset)
+          guard offset <= fullData.count else {
+            peripheral.respond(to: request, withResult: .invalidOffset)
+            return
+          }
+          request.value = fullData.subdata(in: offset..<fullData.count)
+          peripheral.respond(to: request, withResult: .success)
+        } catch {
+          peripheral.respond(to: request, withResult: .requestNotSupported)
+        }
       }
     }
   }
@@ -281,19 +639,56 @@ final class UniversalBlePeripheralPlugin: NSObject, UniversalBlePeripheralChanne
     _ peripheral: CBPeripheralManager,
     didReceiveWrite requests: [CBATTRequest]
   ) {
-    requests.forEach { req in
-      callbackChannel.onWriteRequest(
-        deviceId: req.central.identifier.uuidString,
-        characteristicId: req.characteristic.uuid.uuidString,
-        offset: Int64(req.offset),
-        value: req.value?.toFlutterBytes()
-      ) { writeRes in
+    let generation = requestGeneration
+    Self.handleWriteRequests(
+      requests,
+      isCurrent: { [weak self] in self?.requestGeneration == generation },
+      emit: emit,
+      dispatch: { [weak self] req, completion in
+        guard let self else { return }
+        self.callbackChannel.onWriteRequest(
+          deviceId: req.central.identifier.uuidString,
+          characteristicId: req.characteristic.uuid.uuidString,
+          characteristicInstanceId: self.serviceRegistry.instanceId(of: req.characteristic),
+          offset: Int64(req.offset),
+          value: req.value?.toFlutterBytes(),
+          completion: completion)
+      },
+      respond: { peripheral.respond(to: $0, withResult: $1) })
+  }
+
+  // CoreBluetooth requires one response for the entire array, using its first
+  // request. Dart handlers may mutate app state and cannot roll back, so reject
+  // multi-request batches before dispatching any of them.
+  static func handleWriteRequests<Request>(
+    _ requests: [Request],
+    isCurrent: @escaping () -> Bool,
+    emit: (@escaping () -> Void) -> Void,
+    dispatch: @escaping (
+      Request, @escaping (Result<PeripheralWriteRequestResult?, PigeonError>) -> Void
+    ) -> Void,
+    respond: @escaping (Request, CBATTError.Code) -> Void
+  ) {
+    guard let request = requests.first else { return }
+    guard requests.count == 1 else {
+      respond(request, .requestNotSupported)
+      return
+    }
+    emit {
+      guard isCurrent() else {
+        respond(request, .requestNotSupported)
+        return
+      }
+      dispatch(request) { result in
+        guard isCurrent() else {
+          respond(request, .requestNotSupported)
+          return
+        }
         do {
-          let response = try writeRes.get()
-          let status = response?.status?.toCBATTErrorCode() ?? .success
-          peripheral.respond(to: req, withResult: status)
+          let response = try result.get()
+          respond(request, response?.status?.toCBATTErrorCode() ?? .success)
         } catch {
-          peripheral.respond(to: req, withResult: .requestNotSupported)
+          respond(request, .requestNotSupported)
         }
       }
     }
@@ -301,21 +696,21 @@ final class UniversalBlePeripheralPlugin: NSObject, UniversalBlePeripheralChanne
 
   private func upsertCentralSubscription(
     central: CBCentral,
-    characteristicId: String
+    subscriptionId: String
   ) {
     let centralId = central.identifier.uuidString
     centralsLock.lock()
     centralsById[centralId] = central
     var subscriptions = centralCharacteristicSubscriptions[centralId] ?? Set<String>()
-    subscriptions.insert(characteristicId)
+    subscriptions.insert(subscriptionId)
     centralCharacteristicSubscriptions[centralId] = subscriptions
     centralsLock.unlock()
   }
 
-  private func removeCentralSubscription(centralId: String, characteristicId: String) {
+  private func removeCentralSubscription(centralId: String, subscriptionId: String) {
     centralsLock.lock()
     var subscriptions = centralCharacteristicSubscriptions[centralId] ?? Set<String>()
-    subscriptions.remove(characteristicId)
+    subscriptions.remove(subscriptionId)
     if subscriptions.isEmpty {
       centralCharacteristicSubscriptions.removeValue(forKey: centralId)
       centralsById.removeValue(forKey: centralId)
@@ -339,12 +734,30 @@ final class UniversalBlePeripheralPlugin: NSObject, UniversalBlePeripheralChanne
     centralsLock.unlock()
   }
 
-  func getSubscribedClients(characteristicId: String) throws -> [String] {
-    let target = characteristicId.uppercased()
-    centralsLock.lock()
-    defer { centralsLock.unlock() }
-    return centralCharacteristicSubscriptions.compactMap { centralId, chars in
-      chars.contains(where: { $0.uppercased() == target }) ? centralId : nil
+  func getSubscribedClients(
+    characteristicId: String,
+    characteristicInstanceId: String?
+  ) throws -> [String] {
+    guard
+      let characteristic = serviceRegistry.characteristic(
+        characteristicId,
+        instanceId: characteristicInstanceId)
+    else { return [] }
+    // Query CoreBluetooth's current objects, not a potentially stale app cache.
+    return (characteristic.subscribedCentrals ?? []).map { $0.identifier.uuidString }
+  }
+
+  private func rebuildCentralSubscriptions() {
+    clearCentrals()
+    for service in serviceRegistry.allServices {
+      for characteristic in service.characteristics ?? [] {
+        for central in (characteristic as? CBMutableCharacteristic)?.subscribedCentrals ?? [] {
+          upsertCentralSubscription(
+            central: central,
+            subscriptionId: serviceRegistry.instanceId(of: characteristic)
+              ?? characteristic.uuid.uuidString)
+        }
+      }
     }
   }
 
@@ -363,42 +776,137 @@ final class UniversalBlePeripheralPlugin: NSObject, UniversalBlePeripheralChanne
 /// removed, or cleared service cannot be updated through a stale characteristic,
 /// and removing one service never drops a characteristic another service still
 /// exposes.
-private final class PeripheralServiceRegistry {
+final class PeripheralServiceRegistry {
   private var services = [CBMutableService]()
+  private var characteristicsByIdentity =
+    [(characteristic: CBMutableCharacteristic, instanceId: String?)]()
 
-  func register(_ service: CBMutableService) {
+  func register(
+    _ service: CBMutableService,
+    modelCharacteristics: [PeripheralCharacteristic],
+    mutableCharacteristics: [CBCharacteristic]
+  ) {
+    if let previous = self.service(service.uuid.uuidString) {
+      unregisterCharacteristics(of: previous)
+    }
+    unregisterCharacteristics(of: service)
     services.removeAll {
-      $0.uuid.uuidString.lowercased() == service.uuid.uuidString.lowercased()
+      $0.uuid.uuid128Str == service.uuid.uuid128Str
     }
     services.append(service)
+    // Model order matches `mutableCharacteristics`, so a characteristic's
+    // declared instance id can be attached to its CoreBluetooth object.
+    for (index, characteristic) in mutableCharacteristics.enumerated() {
+      guard let mutable = characteristic as? CBMutableCharacteristic else { continue }
+      let model = index < modelCharacteristics.count ? modelCharacteristics[index] : nil
+      characteristicsByIdentity.append((mutable, model?.instanceId))
+    }
+  }
+
+  private func unregisterCharacteristics(of service: CBMutableService) {
+    let ids = Set(
+      (service.characteristics ?? []).map { ObjectIdentifier($0) }
+    )
+    characteristicsByIdentity.removeAll { ids.contains(ObjectIdentifier($0.characteristic)) }
   }
 
   func remove(_ service: CBMutableService) {
+    if let previous = self.service(service.uuid.uuidString) {
+      unregisterCharacteristics(of: previous)
+    }
+    unregisterCharacteristics(of: service)
     services.removeAll {
-      $0.uuid.uuidString.lowercased() == service.uuid.uuidString.lowercased()
+      $0.uuid.uuid128Str == service.uuid.uuid128Str
     }
   }
 
   func clear() {
     services.removeAll()
+    characteristicsByIdentity.removeAll()
   }
 
   func service(_ serviceId: String) -> CBMutableService? {
-    let target = serviceId.lowercased()
-    return services.first { $0.uuid.uuidString.lowercased() == target }
+    let target = CBUUID(string: serviceId).uuid128Str
+    return services.first { $0.uuid.uuid128Str == target }
   }
 
-  func characteristic(_ characteristicId: String) -> CBMutableCharacteristic? {
-    let target = characteristicId.lowercased()
-    for service in services {
-      for case let characteristic as CBMutableCharacteristic in service.characteristics ?? [] {
-        if characteristic.uuid.uuidString.lowercased() == target {
-          return characteristic
-        }
-      }
+  func characteristic(
+    _ characteristicId: String,
+    instanceId: String?
+  ) -> CBMutableCharacteristic? {
+    if let instanceId {
+      return characteristicsByIdentity.first {
+        $0.characteristic.uuid.uuid128Str == CBUUID(string: characteristicId).uuid128Str
+          && ($0.instanceId?.lowercased() == instanceId.lowercased())
+      }?.characteristic
     }
-    return nil
+    let target = CBUUID(string: characteristicId).uuid128Str
+    return characteristicsByIdentity.first {
+      $0.characteristic.uuid.uuid128Str == target
+    }?.characteristic
   }
+
+  func instanceId(of characteristic: CBCharacteristic) -> String? {
+    let identifier = ObjectIdentifier(characteristic)
+    return characteristicsByIdentity.first {
+      ObjectIdentifier($0.characteristic) == identifier
+    }?.instanceId
+  }
+
+  /// Restore the actual CoreBluetooth objects, keeping duplicate UUID identities.
+  func restore(_ service: CBMutableService, identities: [[String: String]]) {
+    if let previous = self.service(service.uuid.uuidString) {
+      unregisterCharacteristics(of: previous)
+    }
+    unregisterCharacteristics(of: service)
+    services.removeAll { $0.uuid.uuid128Str == service.uuid.uuid128Str }
+    services.append(service)
+    for (index, characteristic) in (service.characteristics ?? []).enumerated() {
+      guard let mutable = characteristic as? CBMutableCharacteristic else { continue }
+      let identity = index < identities.count ? identities[index] : [:]
+      let matches =
+        identity["uuid"].map { CBUUID(string: $0).uuid128Str == characteristic.uuid.uuid128Str }
+        ?? false
+      let id = matches ? identity["instanceId"] : nil
+      characteristicsByIdentity.append((mutable, id?.isEmpty == false ? id : nil))
+    }
+  }
+
+  var allServices: [CBMutableService] { services }
 
   var serviceIds: [String] { services.map { $0.uuid.uuidString } }
+}
+
+/// Retained definitions in publication order, including slots for restored
+/// services until Dart rebinds their models. Rebinding never moves a service;
+/// an explicit remove followed by add places it at the end.
+struct PeripheralServiceModels {
+  private var entries = [(uuid: String, model: PeripheralService?)]()
+
+  mutating func reserve(_ serviceId: String) {
+    let uuid = CBUUID(string: serviceId).uuid128Str
+    if !entries.contains(where: { $0.uuid == uuid }) {
+      entries.append((uuid, nil))
+    }
+  }
+
+  mutating func set(_ model: PeripheralService) {
+    let uuid = CBUUID(string: model.uuid).uuid128Str
+    if let index = entries.firstIndex(where: { $0.uuid == uuid }) {
+      entries[index].model = model
+    } else {
+      entries.append((uuid, model))
+    }
+  }
+
+  mutating func remove(_ serviceId: String) {
+    let uuid = CBUUID(string: serviceId).uuid128Str
+    entries.removeAll { $0.uuid == uuid }
+  }
+
+  mutating func removeAll() {
+    entries.removeAll()
+  }
+
+  var values: [PeripheralService] { entries.compactMap { $0.model } }
 }
