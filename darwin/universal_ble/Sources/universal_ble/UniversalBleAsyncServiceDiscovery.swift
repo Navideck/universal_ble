@@ -61,7 +61,12 @@ class UniversalBleAsyncServiceDiscovery: NSObject {
         DispatchQueue.main.asyncAfter(deadline: .now() + timeoutSeconds, execute: workItem)
 
         // Check if services are already cached
-        if let cachedServices = peripheral.services, !cachedServices.isEmpty {
+        let safeServices = peripheral.safeServices
+        if safeServices.hasForeign {
+            failForStaleGattCache(location: "cached services", foreignClassNames: safeServices.foreignClassNames)
+            return
+        }
+        if let cachedServices = safeServices.attributes, !cachedServices.isEmpty {
             handleServicesDiscovered(cachedServices)
         } else {
             peripheral.discoverServices(nil)
@@ -71,6 +76,13 @@ class UniversalBleAsyncServiceDiscovery: NSObject {
     /// Cancels the service discovery and fails completion
     func cancel(error: Error) {
         completeWith(result: .failure(error))
+    }
+
+    /// Fails discovery due to stale CoreBluetooth GATT cache holding foreign classes in attribute arrays
+    func failForStaleGattCache(location: String, foreignClassNames: [String]) {
+        let message = "Stale GATT cache: \(foreignClassNames.count) attribute(s) of unexpected type [\(foreignClassNames.joined(separator: ", "))] in \(location) of peripheral \(deviceId); iOS reads the device's attribute table again after Bluetooth is turned off and on or device is forgotten in Settings"
+        UniversalBleLogger.shared.logError(message)
+        completeWith(result: .failure(createFlutterError(code: .failed, message: message)))
     }
 
     /// Cleans up discovery state
@@ -103,7 +115,15 @@ class UniversalBleAsyncServiceDiscovery: NSObject {
 
         // Discover characteristics for each service
         for service in services {
-            if let cachedChar = service.characteristics, !cachedChar.isEmpty {
+            let safeChars = service.safeCharacteristics
+            if safeChars.hasForeign {
+                failForStaleGattCache(
+                    location: "cached characteristics of service \(service.uuid.uuidString)",
+                    foreignClassNames: safeChars.foreignClassNames
+                )
+                return
+            }
+            if let cachedChar = safeChars.attributes, !cachedChar.isEmpty {
                 // Characteristics already cached, process them
                 processCharacteristicsForService(service)
             } else {
@@ -115,7 +135,15 @@ class UniversalBleAsyncServiceDiscovery: NSObject {
 
     private func processCharacteristicsForService(_ service: CBService) {
         let serviceUuid = service.uuid.uuidString
-        guard let characteristics = service.characteristics else {
+        let safeChars = service.safeCharacteristics
+        if safeChars.hasForeign {
+            failForStaleGattCache(
+                location: "characteristics of service \(serviceUuid)",
+                foreignClassNames: safeChars.foreignClassNames
+            )
+            return
+        }
+        guard let characteristics = safeChars.attributes else {
             // Service has no characteristics, mark as complete
             expectedCharacteristicsCountMap[serviceUuid] = 0
             if let index = discoveredServicesProgressMap.firstIndex(where: { $0.uuid == serviceUuid }) {
@@ -139,7 +167,15 @@ class UniversalBleAsyncServiceDiscovery: NSObject {
 
         if withDescriptors {
             for characteristic in characteristics {
-                if let cachedDescriptors = characteristic.descriptors, !cachedDescriptors.isEmpty {
+                let safeDescs = characteristic.safeDescriptors
+                if safeDescs.hasForeign {
+                    failForStaleGattCache(
+                        location: "cached descriptors of characteristic \(characteristic.uuid.uuidString)",
+                        foreignClassNames: safeDescs.foreignClassNames
+                    )
+                    return
+                }
+                if let cachedDescriptors = safeDescs.attributes, !cachedDescriptors.isEmpty {
                     handleDescriptorsDiscovered(for: characteristic)
                 } else {
                     peripheral.discoverDescriptors(for: characteristic)
@@ -180,7 +216,15 @@ class UniversalBleAsyncServiceDiscovery: NSObject {
         }
 
         // Check if all characteristics for this service have had their descriptors discovered
-        guard let allCharacteristics = service.characteristics else {
+        let safeChars = service.safeCharacteristics
+        if safeChars.hasForeign {
+            failForStaleGattCache(
+                location: "characteristics of service \(serviceUuid)",
+                foreignClassNames: safeChars.foreignClassNames
+            )
+            return
+        }
+        guard let allCharacteristics = safeChars.attributes else {
             return
         }
 
@@ -193,11 +237,19 @@ class UniversalBleAsyncServiceDiscovery: NSObject {
         if discoveredCount == expectedCount {
             var universalBleCharacteristicsList: [UniversalBleCharacteristic] = []
             for characteristic in allCharacteristics {
+                let safeDescs = characteristic.safeDescriptors
+                if safeDescs.hasForeign {
+                    failForStaleGattCache(
+                        location: "descriptors of characteristic \(characteristic.uuid.uuidString)",
+                        foreignClassNames: safeDescs.foreignClassNames
+                    )
+                    return
+                }
                 universalBleCharacteristicsList.append(
                     UniversalBleCharacteristic(
                         uuid: characteristic.uuid.uuidString,
                         properties: characteristic.properties.toCharacteristicProperty,
-                        descriptors: (characteristic.descriptors ?? []).map { UniversalBleDescriptor(uuid: $0.uuid.uuidString) }
+                        descriptors: (safeDescs.attributes ?? []).map { UniversalBleDescriptor(uuid: $0.uuid.uuidString) }
                     )
                 )
             }
@@ -226,7 +278,12 @@ extension UniversalBleAsyncServiceDiscovery {
             completeWith(result: .failure(error!))
             return
         }
-        guard let services = peripheral.services else {
+        let safeServices = peripheral.safeServices
+        if safeServices.hasForeign {
+            failForStaleGattCache(location: "services", foreignClassNames: safeServices.foreignClassNames)
+            return
+        }
+        guard let services = safeServices.attributes else {
             completeWith(result: .success([]))
             return
         }
@@ -234,6 +291,14 @@ extension UniversalBleAsyncServiceDiscovery {
     }
 
     func handleDidDiscoverCharacteristicsFor(_: CBPeripheral, service: CBService, error: Error?) {
+        guard (service as AnyObject) is CBService else {
+            let actual = NSStringFromClass(type(of: service as AnyObject))
+            failForStaleGattCache(
+                location: "didDiscoverCharacteristicsFor (delegate received \(actual))",
+                foreignClassNames: [actual]
+            )
+            return
+        }
         guard error == nil else {
             completeWith(result: .failure(error!))
             return
@@ -242,6 +307,14 @@ extension UniversalBleAsyncServiceDiscovery {
     }
 
     func handleDidDiscoverDescriptorsFor(_: CBPeripheral, characteristic: CBCharacteristic, error: Error?) {
+        guard (characteristic as AnyObject) is CBCharacteristic else {
+            let actual = NSStringFromClass(type(of: characteristic as AnyObject))
+            failForStaleGattCache(
+                location: "didDiscoverDescriptorsFor (delegate received \(actual))",
+                foreignClassNames: [actual]
+            )
+            return
+        }
         guard error == nil else {
             completeWith(result: .failure(error!))
             return
