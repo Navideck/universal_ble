@@ -11,6 +11,8 @@ void main() {
     test('canonicalise to lower-case whatever case the platform reports', () {
       expect(DeviceId.address(upper).canonical, lower);
       expect(DeviceId.address(lower).canonical, lower);
+      expect(
+          DeviceId.of('Aa:Bb:Cc:Dd:Ee:Ff', isAddress: true).canonical, lower);
     });
 
     test('convert to upper-case for native calls', () {
@@ -27,7 +29,8 @@ void main() {
 
     test('the two cases are the same DeviceId', () {
       expect(DeviceId.address(upper), DeviceId.address(lower));
-      expect(DeviceId.address(upper).hashCode, DeviceId.address(lower).hashCode);
+      expect(
+          DeviceId.address(upper).hashCode, DeviceId.address(lower).hashCode);
     });
 
     test('handles Apple UUID addresses', () {

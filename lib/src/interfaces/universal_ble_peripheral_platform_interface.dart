@@ -36,6 +36,25 @@ abstract class UniversalBlePeripheralPlatform {
     OnPeripheralDescriptorWriteRequest? handler,
   );
 
+  /// Instance-aware handler variants, used when a service exposes several
+  /// characteristics with the same UUID. Default no-op so third-party platform
+  /// implementations keep compiling.
+  void setReadRequestHandlerWithInstance(
+    OnPeripheralReadRequestWithInstance? handler,
+  ) {}
+
+  void setWriteRequestHandlerWithInstance(
+    OnPeripheralWriteRequestWithInstance? handler,
+  ) {}
+
+  void setDescriptorReadRequestHandlerWithInstance(
+    OnPeripheralDescriptorReadRequestWithInstance? handler,
+  ) {}
+
+  void setDescriptorWriteRequestHandlerWithInstance(
+    OnPeripheralDescriptorWriteRequestWithInstance? handler,
+  ) {}
+
   Future<PeripheralReadinessState> getAvailabilityState();
 
   Future<PeripheralAdvertisingState> getAdvertisingState();
@@ -62,12 +81,23 @@ abstract class UniversalBlePeripheralPlatform {
 
   Future<void> updateCharacteristicValue({
     required String characteristicId,
+    String? instanceId,
     required Uint8List value,
     String? deviceId,
   });
 
-  /// Returns GATT client device ids currently subscribed to [characteristicId].
-  Future<List<String>> getSubscribedClients(String characteristicId);
+  /// Returns GATT client device ids currently subscribed to the characteristic
+  /// identified by [characteristicId] (and [instanceId], when supplied).
+  Future<List<String>> getSubscribedClients(
+    String characteristicId, {
+    String? instanceId,
+  });
+
+  /// Configure Apple restoration before first manager use; no-op elsewhere.
+  Future<void> configureRestoration(String restorationIdentifier) async {}
+
+  /// Discard notifications not yet submitted to the OS. Does not retract sent data.
+  Future<void> clearPendingNotifications(String? deviceId) async {}
 
   Future<int?> getMaximumNotifyLength(String deviceId);
 
@@ -96,6 +126,7 @@ abstract class UniversalBlePeripheralPlatform {
       BlePeripheralCharacteristicSubscriptionChanged(
         deviceId: _deviceId(event.deviceId).canonical,
         characteristicId: event.characteristicId,
+        instanceId: event.instanceId,
         isSubscribed: event.isSubscribed,
         name: event.name,
       ),
@@ -202,6 +233,7 @@ class UniversalBlePeripheralUnsupported extends UniversalBlePeripheralPlatform {
   @override
   Future<void> updateCharacteristicValue({
     required String characteristicId,
+    String? instanceId,
     required Uint8List value,
     String? deviceId,
   }) async {
@@ -209,7 +241,10 @@ class UniversalBlePeripheralUnsupported extends UniversalBlePeripheralPlatform {
   }
 
   @override
-  Future<List<String>> getSubscribedClients(String characteristicId) async {
+  Future<List<String>> getSubscribedClients(
+    String characteristicId, {
+    String? instanceId,
+  }) async {
     throw _notSupported();
   }
 

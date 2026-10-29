@@ -2,6 +2,22 @@
 * Android: prevent duplicate read replies when a disconnect races a rejected or throwing native read.
 * Android: a read, RSSI, service-discovery or notification-subscription result that the stack reports from a binder thread is now delivered on the main thread, and the matching pending entry is found and removed under the list's lock. Those four lists were the last ones still bypassing the discipline the write, descriptor and MTU paths already follow, so a GATT callback racing an API call could corrupt the list — losing a completion, which left the Dart call awaiting forever — and completing inline sent the platform-channel reply from a binder thread. A callback now also completes only the operation it belongs to rather than every pending operation on that characteristic, so one response can no longer be reported for a request that is still in flight. A read also registers its pending result before `readCharacteristic()` is called, as writes already did, so a response that arrives before that call returns cannot be lost, and unregisters it again when the stack refuses the request.
 
+## 3.2.0
+* Fix Windows compilation and reject unsupported characteristic instance IDs explicitly.
+* Fix Android service removal, value updates without subscribers, and per-client CCCD defaults.
+* Preserve subscriptions and queued reports for other characteristic instances when one unsubscribes.
+* Peripheral mode: characteristics can declare a stable `instanceId`. GATT allows several characteristics with the same UUID (HID exposes one Report characteristic per report), but the plugin addressed them by UUID and could only reach the first. Set `BlePeripheralCharacteristic.instanceId` to address each instance in `updateCharacteristicValue` and `getSubscribedClients`; read/write/descriptor callbacks and subscription events echo it back. UUID-only callers keep the first-match behaviour. `OnPeripheralReadRequestWithInstance` (and the write/descriptor variants, plus `setReadRequestHandlersWithInstance` etc.) receive the identity; the existing callbacks and setters are unchanged.
+* Peripheral mode: each client's CCCD is tracked per characteristic instance and defaults to disabled, so one subscriber cannot change what another reads. CCCD and descriptor reads without an app handler now return the configured or per-client value instead of `GATT_FAILURE`.
+* Peripheral mode: read request handlers return the complete value; the platform applies the client's read offset once. Previously Android sent handler data with the handler-supplied offset while Apple sliced it again, so handlers had to slice for one platform and not the other.
+* Peripheral mode (Android, Apple): characteristic notifications are queued through native backpressure. Android drains FIFO from `onNotificationSent`; Apple retries from `peripheralManagerIsReady(toUpdateSubscribers)`. A release report can no longer be dropped or overtake its press when the transmit queue is full.
+* Android: a peripheral characteristic whose read handler declines now serves its configured `value` instead of failing.
+* Apple peripheral: retain service registration order after adapter recovery and when rebinding restored services.
+* Apple peripheral: reject multi-request write batches once, before invoking Dart handlers, to avoid partially applying an atomic batch. Single-request writes keep their existing result handling; stale session completions are rejected.
+* Apple peripheral: create dynamic characteristics with nil native values, support optional encrypted notification subscriptions, preserve notification FIFO ordering under backpressure, and discard unsent reports on session/service/adapter loss.
+* Add opt-in peripheral state restoration with stable characteristic-instance identities and buffered events until Dart configuration.
+* Add `clearPendingNotifications` for discarding unsent native updates. Android retains already submitted packets until their completion callback; Windows has no plugin-owned pending queue.
+* Remove failed Apple service additions from pending state and cancel Dart service-add listeners on errors/timeouts.
+
 ## 3.1.2
 * Windows: Service Data advertised under a 128-bit UUID is reported under that UUID, and `ScanFilter.withServiceData` matches it. The 16 UUID bytes are little-endian on air but were read in the order they arrive, so `BleDevice.serviceData` used a byte-reversed key and a filter with the real UUID found nothing (#356).
 

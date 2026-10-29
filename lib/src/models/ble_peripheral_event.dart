@@ -13,12 +13,17 @@ class BlePeripheralCharacteristicSubscriptionChanged
   /// Central device identifier in canonical lower-case format.
   final String deviceId;
   final String characteristicId;
+
+  /// Identity of the subscribed characteristic instance, when the service
+  /// declared one.
+  final String? instanceId;
   final bool isSubscribed;
   final String? name;
 
   BlePeripheralCharacteristicSubscriptionChanged({
     required this.deviceId,
     required this.characteristicId,
+    this.instanceId,
     required this.isSubscribed,
     required this.name,
   });

@@ -1005,6 +1005,30 @@ await UniversalBlePeripheral.addService(
   ),
 );
 
+// Android and Apple support characteristic instance IDs. Windows rejects
+// service definitions and operations that specify an instance ID.
+// A characteristic that appears more than once in a service: give each
+// instance a stable identity and address it by that identity.
+await UniversalBlePeripheral.addService(
+  BlePeripheralService(
+    uuid: '00001812-0000-1000-8000-00805f9b34fb',
+    characteristics: [
+      BlePeripheralCharacteristic(
+        uuid: '00002a4d-0000-1000-8000-00805f9b34fb',
+        instanceId: 'consumerInput',
+        properties: [CharacteristicProperty.notify],
+        permissions: [PeripheralAttributePermission.readable],
+      ),
+    ],
+  ),
+);
+
+await UniversalBlePeripheral.updateCharacteristicValue(
+  characteristicId: '00002a4d-0000-1000-8000-00805f9b34fb',
+  instanceId: 'consumerInput',
+  value: Uint8List.fromList([0xE9, 0x00]),
+);
+
 await UniversalBlePeripheral.addService(
   BlePeripheralService(
     uuid: heartRateService,
@@ -1073,7 +1097,13 @@ await UniversalBlePeripheral.stopAdvertising();
 
 ### Request Handlers
 
-Register read/write handlers separately. Return `null` to let the stack use the characteristic's current value.
+Register read/write handlers separately. Return `null` to let the stack use the characteristic's configured or per-client value (including a CCCD, which is tracked per client and defaults to disabled).
+
+Read handlers return the **complete** characteristic value: the platform applies the client's read offset exactly once, on every platform.
+
+On Apple platforms, a multi-request write batch is rejected with `requestNotSupported` before invoking any write handler. CoreBluetooth requires atomic batch handling, but these individual-write callbacks cannot validate or roll back a whole batch. Single-request writes retain their normal handler behavior.
+
+When a service contains several characteristics with the same UUID (HID Report characteristics), set `instanceId` on each and use the `...WithInstance` variants. They receive the instance identity; the UUID-only handlers above keep receiving the first matching characteristic.
 
 ```dart
 import 'dart:typed_data';
@@ -1104,6 +1134,13 @@ UniversalBlePeripheral.setDescriptorReadRequestHandlers(
 UniversalBlePeripheral.setDescriptorWriteRequestHandlers(
   (deviceId, characteristicId, descriptorId, offset, value) {
     return PeripheralWriteRequestResult();
+  },
+);
+
+// Instance-aware variant, for services with duplicate characteristic UUIDs.
+UniversalBlePeripheral.setReadRequestHandlersWithInstance(
+  (deviceId, characteristicId, instanceId, offset, value) {
+    return null;
   },
 );
 ```
@@ -1206,6 +1243,54 @@ final List<BleCentral> activeCentrals = UniversalBlePeripheral.subscribedCentral
 - Windows peripheral advertising does not expose all advertising payload customization options from Android/Apple stacks.
 - **Central tracking on iOS / Apple platforms**: CoreBluetooth's `CBPeripheralManager` does not expose generic link-layer connection/disconnection callbacks for peripherals. Centrals are tracked as active when they subscribe to at least one GATT characteristic (`didSubscribeTo`), and are removed only when unsubscribed from all characteristics via `didUnsubscribeFrom`. Because CoreBluetooth does not guarantee unsubscription callbacks on abrupt link-layer disconnects, an entry may linger until the next unsubscription or until services are cleared. Other platforms (such as Android) additionally prune tracked centrals immediately on link-layer disconnection.
 - iOS/macOS setup (including required `Info.plist` keys for peripheral usage) is documented in [Permissions → iOS / macOS](#ios--macos).
+
+### Apple peripheral reliability and restoration
+
+For dynamic characteristics (write, notify, or indicate), CoreBluetooth requires
+`value: nil` at native construction. The plugin retains configured initial values
+for fallback reads; an installed read handler supplies current values.
+Set `BlePeripheralCharacteristic(requireEncryptedNotifications: true, ...)` to
+require encrypted notification subscriptions on Apple. The setting defaults to
+false and is ignored on other platforms.
+
+Install request handlers and subscription/connection listeners before calling:
+
+```dart
+await UniversalBlePeripheral.configureRestoration('com.example.app.peripheral');
+```
+
+For early manager recreation after an OS relaunch, configure the same identifier
+in the host application's Info.plist and add the iOS background mode:
+
+```xml
+<key>UniversalBlePeripheralRestorationIdentifier</key>
+<string>com.example.app.peripheral</string>
+<key>UIBackgroundModes</key>
+<array><string>bluetooth-peripheral</string></array>
+```
+
+Early recreation requires existing Bluetooth permission, so adding this key does
+not introduce a launch-time permission prompt. Each engine must use a distinct
+restoration identifier; the Info.plist key belongs to the first engine that claims
+it. Other engines may configure their own identifier before manager creation.
+Restored native services and characteristics are reused. Re-add their matching
+Dart service definitions to bind instance IDs and initial fallback values and
+retain definitions for later adapter recovery. A changed layout must be removed
+before replacement. Install listeners before configuration, then query
+`getSubscribedClients` to reconcile readiness. Explicit force-quit recovery and
+background discoverability are governed by CoreBluetooth and are not guaranteed.
+
+Apple notifications remain FIFO while CoreBluetooth applies backpressure. Use
+`await UniversalBlePeripheral.clearPendingNotifications(deviceId)` at an explicit
+session boundary or suspension to discard unsent updates, then publish neutral
+state before new input. Native unsubscription, service removal, and adapter loss
+also invalidate pending Apple updates. Packets already accepted by the OS cannot
+be recalled. Completion of `updateCharacteristicValue` means accepted by the
+plugin, not acknowledged by the remote device.
+
+Run `./darwin/test/run_peripheral_reliability_tests.sh` on macOS for native
+characteristic, restored-identity, and notification-FIFO regression checks.
+
 
 ## Device ID & UUID Formats
 

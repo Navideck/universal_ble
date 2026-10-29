@@ -115,6 +115,11 @@ class UniversalBlePeripheral {
   static void setReadRequestHandlers(OnPeripheralReadRequest? handlers) =>
       _platform.setReadRequestHandler(handlers);
 
+  /// Sets the handler for individual characteristic writes.
+  ///
+  /// On Apple platforms, multi-request write batches are rejected with
+  /// `requestNotSupported` before any handler is invoked. This API cannot
+  /// validate or roll back the entire batch atomically.
   static void setWriteRequestHandlers(OnPeripheralWriteRequest? handlers) =>
       _platform.setWriteRequestHandler(handlers);
 
@@ -127,6 +132,30 @@ class UniversalBlePeripheral {
     OnPeripheralDescriptorWriteRequest? handlers,
   ) =>
       _platform.setDescriptorWriteRequestHandler(handlers);
+
+  /// Instance-aware read handler; used when several characteristics share a
+  /// UUID (HID Report characteristics).
+  static void setReadRequestHandlersWithInstance(
+    OnPeripheralReadRequestWithInstance? handlers,
+  ) =>
+      _platform.setReadRequestHandlerWithInstance(handlers);
+
+  /// Instance-aware variant of [setWriteRequestHandlers], with the same
+  /// restriction on multi-request write batches on Apple platforms.
+  static void setWriteRequestHandlersWithInstance(
+    OnPeripheralWriteRequestWithInstance? handlers,
+  ) =>
+      _platform.setWriteRequestHandlerWithInstance(handlers);
+
+  static void setDescriptorReadRequestHandlersWithInstance(
+    OnPeripheralDescriptorReadRequestWithInstance? handlers,
+  ) =>
+      _platform.setDescriptorReadRequestHandlerWithInstance(handlers);
+
+  static void setDescriptorWriteRequestHandlersWithInstance(
+    OnPeripheralDescriptorWriteRequestWithInstance? handlers,
+  ) =>
+      _platform.setDescriptorWriteRequestHandlerWithInstance(handlers);
 
   static Future<PeripheralReadinessState> getAvailabilityState() =>
       _platform.getAvailabilityState();
@@ -199,6 +228,7 @@ class UniversalBlePeripheral {
 
   static Future<void> updateCharacteristicValue({
     required String characteristicId,
+    String? instanceId,
     required Uint8List value,
     String? deviceId,
     String? queueId,
@@ -206,6 +236,7 @@ class UniversalBlePeripheral {
       _bleCommandQueue.queueCommand(
         () => _platform.updateCharacteristicValue(
           characteristicId: BleUuidParser.string(characteristicId),
+          instanceId: instanceId,
           value: value,
           deviceId: deviceId,
         ),
@@ -213,10 +244,32 @@ class UniversalBlePeripheral {
         queueId: queueId,
       );
 
-  /// Returns client device ids currently subscribed to [characteristicId]
-  /// (e.g. HID report characteristic). Used to restore in-app state after restart.
-  static Future<List<String>> getSubscribedClients(String characteristicId) =>
-      _platform.getSubscribedClients(BleUuidParser.string(characteristicId));
+  /// Returns client device ids currently subscribed to the characteristic
+  /// identified by [characteristicId] (and [instanceId], when the service
+  /// exposes several characteristics with the same UUID). Used to restore
+  /// in-app state after restart.
+  static Future<List<String>> getSubscribedClients(
+    String characteristicId, {
+    String? instanceId,
+  }) =>
+      _platform.getSubscribedClients(
+        BleUuidParser.string(characteristicId),
+        instanceId: instanceId,
+      );
+
+  /// Enables Apple peripheral restoration with a stable identifier per engine.
+  /// Set `UniversalBlePeripheralRestorationIdentifier` to the same value in the
+  /// host Info.plist to recreate the manager early during an OS relaunch.
+  /// Call after installing handlers/listeners. No-op on other platforms.
+  static Future<void> configureRestoration(String restorationIdentifier) =>
+      _platform.configureRestoration(restorationIdentifier);
+
+  /// Discards unsent native notifications and queued Dart updates for a client.
+  /// Already submitted packets cannot be recalled.
+  static Future<void> clearPendingNotifications([String? deviceId]) {
+    clearQueue(deviceId);
+    return _platform.clearPendingNotifications(deviceId);
+  }
 
   static Future<int?> getMaximumNotifyLength(String deviceId) =>
       _platform.getMaximumNotifyLength(deviceId);

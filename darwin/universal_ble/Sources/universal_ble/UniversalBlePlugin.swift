@@ -28,6 +28,7 @@ public class UniversalBlePlugin: NSObject, FlutterPlugin {
       // relaunch (see activateStateRestoration).
       api.activateStateRestoration()
     #endif
+    UniversalBleDarwinPeripheralChannelSetup.setUp(binaryMessenger: messenger, api: peripheralApi)
     UniversalBlePeripheralChannelSetup.setUp(
       binaryMessenger: messenger,
       api: peripheralApi

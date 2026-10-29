@@ -6,6 +6,7 @@ import 'package:universal_ble/src/models/ble_uuid_parser.dart';
 
 /// Tracks active BLE central devices subscribed to characteristics in peripheral mode.
 class BleCentralTracker {
+  final Map<String, Map<String, Set<String?>>> _instances = {};
   final Map<String, BleCentral> _subscribedCentrals = <String, BleCentral>{};
   final Map<String, Set<String>> _serviceCharacteristics =
       <String, Set<String>>{};
@@ -42,12 +43,14 @@ class BleCentralTracker {
     final keys = _subscribedCentrals.keys.toList();
     for (final key in keys) {
       final central = _subscribedCentrals[key]!;
+      _instances[key]?.removeWhere((uuid, _) => charsToRemove.contains(uuid));
       final remainingChars = central.subscribedCharacteristics
           .where((char) => !charsToRemove.contains(char))
           .toSet();
       if (remainingChars.length != central.subscribedCharacteristics.length) {
         changed = true;
         if (remainingChars.isEmpty) {
+          _instances.remove(key);
           _subscribedCentrals.remove(key);
         } else {
           _subscribedCentrals[key] = central.copyWith(
@@ -82,12 +85,19 @@ class BleCentralTracker {
     final key = _key(event.deviceId);
     final charId = BleUuidParser.string(event.characteristicId);
 
+    if (!event.isSubscribed &&
+        !(_instances[key]?[charId]?.contains(event.instanceId) ?? false)) {
+      return;
+    }
+    final instances = _instances.putIfAbsent(key, () => {});
+    final ids = instances.putIfAbsent(charId, () => <String?>{});
     if (event.isSubscribed) {
+      ids.add(event.instanceId);
       final existing = _subscribedCentrals[key];
-      final isAlreadySubscribed =
-          existing != null && existing.subscribedCharacteristics.contains(charId);
-      final hasSameName =
-          existing != null && (event.name == null || event.name == existing.name);
+      final isAlreadySubscribed = existing != null &&
+          existing.subscribedCharacteristics.contains(charId);
+      final hasSameName = existing != null &&
+          (event.name == null || event.name == existing.name);
 
       if (isAlreadySubscribed && hasSameName) {
         // No state change; suppress duplicate emission.
@@ -105,8 +115,12 @@ class BleCentralTracker {
       );
       _emit();
     } else {
+      if (!ids.remove(event.instanceId) || ids.isNotEmpty) return;
+      instances.remove(charId);
+      if (instances.isEmpty) _instances.remove(key);
       final existing = _subscribedCentrals[key];
-      if (existing == null || !existing.subscribedCharacteristics.contains(charId)) {
+      if (existing == null ||
+          !existing.subscribedCharacteristics.contains(charId)) {
         // Not tracked or characteristic wasn't subscribed; suppress duplicate emission.
         return;
       }
@@ -129,6 +143,7 @@ class BleCentralTracker {
   void handleConnectionChange(BlePeripheralConnectionStateChanged event) {
     if (!event.connected) {
       final key = _key(event.deviceId);
+      _instances.remove(key);
       if (_subscribedCentrals.remove(key) != null) {
         _emit();
       }
@@ -137,6 +152,7 @@ class BleCentralTracker {
 
   /// Clears all tracked centrals and registered services, and emits an empty list if any were present.
   void clear() {
+    _instances.clear();
     _serviceCharacteristics.clear();
     if (_subscribedCentrals.isNotEmpty) {
       _subscribedCentrals.clear();
@@ -180,6 +196,7 @@ class BleCentralTracker {
     _connectionSub?.cancel();
     _connectionSub = null;
     _controller.close();
+    _instances.clear();
     _serviceCharacteristics.clear();
     _subscribedCentrals.clear();
   }
