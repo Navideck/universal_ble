@@ -424,9 +424,19 @@ class PeripheralAndroidOptions {
   /// Note: If this is enabled with `addManufacturerDataInScanResponse`, ensure
   /// the combined data fits within the scan response's 31-byte limit.
   bool? addServicesInScanResponse;
+
+  /// Whether `BluetoothGattServer.connect(device, autoConnect)` should be
+  /// invoked with autoConnect set to true when a central connects.
+  ///
+  /// Defaults to `true` to maintain Android's default GATT server reconnection behavior.
+  /// Set to `false` if central devices should not be automatically reconnected by
+  /// the Android Bluetooth stack when they disconnect and re-advertise.
+  bool? autoConnect;
+
   PeripheralAndroidOptions({
     this.addManufacturerDataInScanResponse,
     this.addServicesInScanResponse,
+    this.autoConnect,
   });
 }
 

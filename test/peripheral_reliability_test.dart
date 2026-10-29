@@ -63,6 +63,20 @@ void main() {
     expect(decoded.instanceId, 'consumerInput');
   }, skip: kIsWeb);
 
+  test('PeripheralAndroidOptions autoConnect survives Pigeon codec', () {
+    final options = PeripheralAndroidOptions(
+      addManufacturerDataInScanResponse: true,
+      addServicesInScanResponse: false,
+      autoConnect: false,
+    );
+    final codec = UniversalBlePeripheralChannel.pigeonChannelCodec;
+    final encoded = codec.encodeMessage(options);
+    final decoded = codec.decodeMessage(encoded) as PeripheralAndroidOptions;
+    expect(decoded.addManufacturerDataInScanResponse, isTrue);
+    expect(decoded.addServicesInScanResponse, isFalse);
+    expect(decoded.autoConnect, isFalse);
+  });
+
   test('clearing notifications accepts any MAC/Apple UUID casing', () async {
     final received = <String?>[];
     mock('UniversalBlePeripheralChannel.clearPendingNotifications',

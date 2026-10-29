@@ -1,4 +1,5 @@
 ## Unreleased
+* Android Peripheral: Add `autoConnect` option to `PeripheralAndroidOptions` (defaulting to `true`) to allow configuring whether `BluetoothGattServer.connect(device, autoConnect)` enables background auto-reconnection when a central connects.
 * Windows: `updateCharacteristicValue` returns after submitting notifications instead of blocking the platform thread until every subscribed client has been notified, so a slow or wedged link no longer freezes the UI. Failures while starting the operation are still returned; transport failures and truncated values are logged when error logging is enabled. Repeated failures for a characteristic are suppressed until a successful update, with recovery logged at info level. Failures observed while logging is disabled do not consume the first visible failure. Dart queues (including `QueueType.perDevice` and `QueueType.global`) and awaiting the returned future serialize submission only: Windows notification operations can overlap, and delivery order is not guaranteed.
 
 ## 3.2.0

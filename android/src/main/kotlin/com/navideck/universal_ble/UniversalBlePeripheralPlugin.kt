@@ -55,6 +55,8 @@ class UniversalBlePeripheralPlugin(
     private var originalAdapterName: String? = null
     private var adapterNameOverridden = false
     private var isEnableBluetoothPromptPending = false
+    @Volatile
+    private var autoConnect: Boolean = true
 
     private data class PendingNotification(
         val device: BluetoothDevice,
@@ -245,6 +247,7 @@ class UniversalBlePeripheralPlugin(
                 .setAdvertiseMode(AdvertiseSettings.ADVERTISE_MODE_LOW_LATENCY)
                 .build()
 
+            autoConnect = platformConfig?.android?.autoConnect ?: true
             val addServicesInScanResponse =
                 platformConfig?.android?.addServicesInScanResponse == true
             val addManufacturerDataInScanResponse =
@@ -288,6 +291,7 @@ class UniversalBlePeripheralPlugin(
         handler.post {
             kotlin.runCatching { bluetoothLeAdvertiser?.stopAdvertising(advertiseCallback) }
             restoreAdapterNameIfNeeded()
+            autoConnect = true
             advertisingState = PeripheralAdvertisingState.IDLE
             callback.onAdvertisingStateChange(PeripheralAdvertisingState.IDLE, null) {}
         }
@@ -465,7 +469,7 @@ class UniversalBlePeripheralPlugin(
                     synchronized(bluetoothDevicesMap) {
                         bluetoothDevicesMap[device.address] = device
                     }
-                    handler.post { gattServer?.connect(device, true) }
+                    handler.post { gattServer?.connect(device, autoConnect) }
                     onConnectionUpdate(device, status, newState)
                 }
 
