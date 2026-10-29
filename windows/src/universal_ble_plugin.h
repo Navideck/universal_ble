@@ -508,11 +508,30 @@ private:
                        uint64_t *removed_generation = nullptr);
   void DisposeConnection(
       const std::shared_ptr<BluetoothDeviceAgent> &device_agent);
+  // Requires connected_devices_mutex_. Also prunes idle entries of other
+  // addresses.
+  AsyncOperationTracker::Lease
+  ReserveAddressCleanupLocked(uint64_t bluetooth_address);
   // Requires connected_devices_mutex_. Does not deactivate or close objects.
   void ReserveConnectionCleanupLocked(
       const std::shared_ptr<BluetoothDeviceAgent> &device_agent);
   static fire_and_forget DisposeConnectionAsync(
       std::shared_ptr<BluetoothDeviceAgent> device_agent,
+      AsyncOperationTracker::Lease cleanup_lease,
+      AsyncOperationTracker::Lease connection_cleanup_lease);
+  // Disposes a connection attempt that never became a BluetoothDeviceAgent.
+  // Like DisposeConnection, closes the WinRT objects off Flutter's UI thread
+  // and holds the address's cleanup reservation until Close returns.
+  void DisposePartialConnection(
+      uint64_t bluetooth_address, BluetoothLEDevice device,
+      std::unordered_map<std::string, GattServiceObject> gatt_map,
+      std::optional<event_token> connection_status_changed_token,
+      std::optional<event_token> gatt_services_changed_token);
+  static fire_and_forget DisposePartialConnectionAsync(
+      BluetoothLEDevice device,
+      std::unordered_map<std::string, GattServiceObject> gatt_map,
+      std::optional<event_token> connection_status_changed_token,
+      std::optional<event_token> gatt_services_changed_token,
       AsyncOperationTracker::Lease cleanup_lease,
       AsyncOperationTracker::Lease connection_cleanup_lease);
   void ResetState();
