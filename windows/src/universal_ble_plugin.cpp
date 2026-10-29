@@ -3602,7 +3602,9 @@ void UniversalBlePlugin::LogPeripheralNotificationResult(
 
     // A client that stops reading fails every update, so logs are emitted on
     // the transition into and out of failure instead of per notification.
-    if (!notification_failure_log().Update(characteristic_id, failing)) {
+    if (!notification_failure_log().Update(
+            characteristic_id, failing,
+            UniversalBleLogger::current_log_level() != BleLogLevel::kNone)) {
       return;
     }
     if (failing) {

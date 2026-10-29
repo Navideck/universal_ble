@@ -1127,6 +1127,8 @@ await UniversalBlePeripheral.updateCharacteristicValue(
 );
 ```
 
+On Windows, the returned future completes after submitting the notification. Awaiting it or selecting `QueueType.perDevice` or `QueueType.global` serializes submission only: notification operations can still overlap, and delivery order is not guaranteed. Transport failures and truncated values are logged when `UniversalBle.setLogLevel(BleLogLevel.error)` (or a more verbose level) is enabled. Repeated failures for a characteristic are suppressed until a successful update.
+
 ### Subscribed Clients and Notify Length
 
 Useful to restore in-app state after a process restart (subscription callbacks are not replayed).

@@ -207,9 +207,9 @@ class UniversalBlePeripheral {
   /// platform, not once it has been transmitted. On Windows and Android a
   /// transport failure is not reported through this future (Windows logs it
   /// when `UniversalBle.setLogLevel` enables error output), while Apple reports
-  /// a full transmit queue. Windows also does not serialize overlapping
-  /// updates: set [queueType] to [QueueType.perDevice] when a caller needs one
-  /// update in flight per device.
+  /// a full transmit queue. On Windows, [QueueType.perDevice] and
+  /// [QueueType.global] serialize submission only; awaiting this future does
+  /// not prevent overlapping transmissions or guarantee their delivery order.
   static Future<void> updateCharacteristicValue({
     required String characteristicId,
     required Uint8List value,

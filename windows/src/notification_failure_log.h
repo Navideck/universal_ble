@@ -7,24 +7,24 @@
 
 namespace universal_ble {
 
-// Remembers, per characteristic, whether the last peripheral notification
-// reported a problem on the transport. A client that stops reading makes every
-// `updateCharacteristicValue` fail, so logging each one would emit a line per
-// notification at stream rate; the notification completion handler logs
+// Remembers, per characteristic, whether a transport failure has been logged
+// since the last successful notification. A client that stops reading makes
+// every `updateCharacteristicValue` fail, so logging each one would emit a line
+// per notification at stream rate; the notification completion handler logs
 // transitions instead.
 //
 // Platform-agnostic on purpose so it is covered by `windows/test` on every
 // host.
 class NotificationFailureLog {
 public:
-  // Records `failing` for `characteristic_id` and returns true when that is a
-  // change from the recorded state, which is the first failure and the
-  // recovery after one. Successful updates only ever clear state, so the set
-  // stays as small as the characteristics currently failing.
-  bool Update(const std::string &characteristic_id, bool failing) {
+  // Reports the first failure with error logging enabled and recovery after
+  // one. Disabled logging never consumes the first failure; successful updates
+  // always clear state, even when logging is disabled.
+  bool Update(const std::string &characteristic_id, bool failing,
+              bool error_logging_enabled) {
     std::lock_guard<std::mutex> lock(mutex_);
     if (failing) {
-      return failing_.insert(characteristic_id).second;
+      return error_logging_enabled && failing_.insert(characteristic_id).second;
     }
     return failing_.erase(characteristic_id) > 0;
   }
