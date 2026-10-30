@@ -1226,8 +1226,7 @@ class PeripheralAndroidOptions {
   // Constructs an object setting all fields.
   explicit PeripheralAndroidOptions(
     const bool* add_manufacturer_data_in_scan_response,
-    const bool* add_services_in_scan_response,
-    const bool* auto_connect);
+    const bool* add_services_in_scan_response);
 
   const bool* add_manufacturer_data_in_scan_response() const;
   void set_add_manufacturer_data_in_scan_response(const bool* value_arg);
@@ -1242,16 +1241,6 @@ class PeripheralAndroidOptions {
   const bool* add_services_in_scan_response() const;
   void set_add_services_in_scan_response(const bool* value_arg);
   void set_add_services_in_scan_response(bool value_arg);
-
-  // Whether `BluetoothGattServer.connect(device, autoConnect)` should be
-  // invoked with autoConnect set to true when a central connects.
-  //
-  // Defaults to `true` to maintain Android's default GATT server reconnection behavior.
-  // Set to `false` if central devices should not be automatically reconnected by
-  // the Android Bluetooth stack when they disconnect and re-advertise.
-  const bool* auto_connect() const;
-  void set_auto_connect(const bool* value_arg);
-  void set_auto_connect(bool value_arg);
 
   bool operator==(const PeripheralAndroidOptions& other) const;
   bool operator!=(const PeripheralAndroidOptions& other) const;
@@ -1272,7 +1261,6 @@ class PeripheralAndroidOptions {
   friend class PigeonInternalCodecSerializer;
   std::optional<bool> add_manufacturer_data_in_scan_response_;
   std::optional<bool> add_services_in_scan_response_;
-  std::optional<bool> auto_connect_;
 };
 
 
@@ -1794,6 +1782,13 @@ class UniversalBlePeripheralChannel {
   virtual std::optional<FlutterError> ClearPendingNotifications(const std::string* device_id) = 0;
   // Returns max characteristic notify payload length for a connected client.
   virtual ErrorOr<std::optional<int64_t>> GetMaximumNotifyLength(const std::string& device_id) = 0;
+  // Sets whether `BluetoothGattServer.connect(device, autoConnect)` should be
+  // invoked with autoConnect set to true when a central connects (Android only).
+  //
+  // This setting only affects future connections; changing it does not alter
+  // or cancel background reconnection requests already registered with the
+  // Android Bluetooth stack for previously connected peers.
+  virtual std::optional<FlutterError> SetAutoConnect(bool auto_connect) = 0;
 
   // The codec used by UniversalBlePeripheralChannel.
   static const ::flutter::StandardMessageCodec& GetCodec();

@@ -89,6 +89,7 @@ Looking for Bluetooth Classic? Check [universal_bluetooth_classic](https://pub.d
 | updateCharacteristicValue\*\* |   ✔️    | ✔️  |  ✔️   |   ✔️    |  🚧   | —  |
 | getSubscribedClients          |   ✔️    | ✔️  |  ✔️   |   ✔️    |  🚧   | —  |
 | getMaximumNotifyLength        |   ✔️    | ✔️  |  ✔️   |   ✔️    |  🚧   | —  |
+| setAutoConnect                |   ✔️    | —  |  —   |   —    |  —   | —  |
 | event streams\*\*\*           |   ✔️    | ✔️  |  ✔️   |   ✔️    |  🚧   | —  |
 
 \* `getAvailabilityState` returns a snapshot. Listen to `advertisingStateStream`, `connectionStateStream`, and related streams for runtime updates.
@@ -1293,6 +1294,16 @@ plugin, not acknowledged by the remote device.
 Run `./darwin/test/run_peripheral_reliability_tests.sh` on macOS for native
 characteristic, restored-identity, and notification-FIFO regression checks.
 
+### Android GATT Server Auto-Reconnection
+
+On Android, the `GattServer` automatically attempts to connect to centrals that connect to it, keeping an internal OS whitelist entry to reconnect in the background if the peer disconnects. To disable this behavior:
+
+```dart
+await UniversalBlePeripheral.setAutoConnect(false);
+```
+
+> [!NOTE]
+> `setAutoConnect` only affects **future** connections. It does not cancel or unregister background reconnection requests already registered with Android's Bluetooth stack for previously connected peers. Call this before clients connect if auto-reconnection should be disabled. No-op on other platforms.
 
 ## Device ID & UUID Formats
 

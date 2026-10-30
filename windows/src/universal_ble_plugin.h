@@ -670,6 +670,7 @@ private:
   std::optional<FlutterError> ClearPendingNotifications(const std::string *device_id) override;
   ErrorOr<std::optional<int64_t>> GetMaximumNotifyLength(
       const std::string &device_id) override;
+  std::optional<FlutterError> SetAutoConnect(bool auto_connect) override;
 };
 
 }  // namespace universal_ble

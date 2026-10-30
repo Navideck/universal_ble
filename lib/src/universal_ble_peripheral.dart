@@ -287,6 +287,20 @@ class UniversalBlePeripheral {
   static Future<int?> getMaximumNotifyLength(String deviceId) =>
       _platform.getMaximumNotifyLength(deviceId);
 
+  /// Sets whether GATT server autoConnect should be enabled when a central connects.
+  ///
+  /// On Android, controls whether `BluetoothGattServer.connect(device, autoConnect)`
+  /// uses `autoConnect: true` (the default) or `autoConnect: false`.
+  ///
+  /// **Scope:** This setting only affects future connections; changing it does
+  /// not cancel or alter background reconnection requests already registered
+  /// with the Android Bluetooth stack for previously connected peers. Call this
+  /// before clients connect if auto-reconnection should be disabled.
+  ///
+  /// No-op on other platforms.
+  static Future<void> setAutoConnect(bool autoConnect) =>
+      _platform.setAutoConnect(autoConnect);
+
   static UniversalBlePeripheralPlatform _defaultPlatform() {
     if (!BleCapabilities.supportsPeripheralApi) {
       return UniversalBlePeripheralUnsupported();

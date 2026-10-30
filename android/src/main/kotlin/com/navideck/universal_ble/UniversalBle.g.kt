@@ -1492,31 +1492,20 @@ data class PeripheralAndroidOptions (
    * Note: If this is enabled with `addManufacturerDataInScanResponse`, ensure
    * the combined data fits within the scan response's 31-byte limit.
    */
-  val addServicesInScanResponse: Boolean? = null,
-  /**
-   * Whether `BluetoothGattServer.connect(device, autoConnect)` should be
-   * invoked with autoConnect set to true when a central connects.
-   *
-   * Defaults to `true` to maintain Android's default GATT server reconnection behavior.
-   * Set to `false` if central devices should not be automatically reconnected by
-   * the Android Bluetooth stack when they disconnect and re-advertise.
-   */
-  val autoConnect: Boolean? = null
+  val addServicesInScanResponse: Boolean? = null
 )
  {
   companion object {
     fun fromList(pigeonVar_list: List<Any?>): PeripheralAndroidOptions {
       val addManufacturerDataInScanResponse = pigeonVar_list[0] as Boolean?
       val addServicesInScanResponse = pigeonVar_list[1] as Boolean?
-      val autoConnect = pigeonVar_list[2] as Boolean?
-      return PeripheralAndroidOptions(addManufacturerDataInScanResponse, addServicesInScanResponse, autoConnect)
+      return PeripheralAndroidOptions(addManufacturerDataInScanResponse, addServicesInScanResponse)
     }
   }
   fun toList(): List<Any?> {
     return listOf(
       addManufacturerDataInScanResponse,
       addServicesInScanResponse,
-      autoConnect,
     )
   }
   override fun equals(other: Any?): Boolean {
@@ -1527,18 +1516,17 @@ data class PeripheralAndroidOptions (
       return true
     }
     val other = other as PeripheralAndroidOptions
-    return UniversalBlePigeonUtils.deepEquals(this.addManufacturerDataInScanResponse, other.addManufacturerDataInScanResponse) && UniversalBlePigeonUtils.deepEquals(this.addServicesInScanResponse, other.addServicesInScanResponse) && UniversalBlePigeonUtils.deepEquals(this.autoConnect, other.autoConnect)
+    return UniversalBlePigeonUtils.deepEquals(this.addManufacturerDataInScanResponse, other.addManufacturerDataInScanResponse) && UniversalBlePigeonUtils.deepEquals(this.addServicesInScanResponse, other.addServicesInScanResponse)
   }
 
   override fun hashCode(): Int {
     var result = javaClass.hashCode()
     result = 31 * result + UniversalBlePigeonUtils.deepHash(this.addManufacturerDataInScanResponse)
     result = 31 * result + UniversalBlePigeonUtils.deepHash(this.addServicesInScanResponse)
-    result = 31 * result + UniversalBlePigeonUtils.deepHash(this.autoConnect)
     return result
   }
   override fun toString(): String {
-    return "PeripheralAndroidOptions(addManufacturerDataInScanResponse=$addManufacturerDataInScanResponse, addServicesInScanResponse=$addServicesInScanResponse, autoConnect=$autoConnect)"
+    return "PeripheralAndroidOptions(addManufacturerDataInScanResponse=$addManufacturerDataInScanResponse, addServicesInScanResponse=$addServicesInScanResponse)"
   }
 }
 
@@ -2933,6 +2921,15 @@ interface UniversalBlePeripheralChannel {
   fun clearPendingNotifications(deviceId: String?)
   /** Returns max characteristic notify payload length for a connected client. */
   fun getMaximumNotifyLength(deviceId: String): Long?
+  /**
+   * Sets whether `BluetoothGattServer.connect(device, autoConnect)` should be
+   * invoked with autoConnect set to true when a central connects (Android only).
+   *
+   * This setting only affects future connections; changing it does not alter
+   * or cancel background reconnection requests already registered with the
+   * Android Bluetooth stack for previously connected peers.
+   */
+  fun setAutoConnect(autoConnect: Boolean)
 
   companion object {
     /** The codec used by UniversalBlePeripheralChannel. */
@@ -3143,6 +3140,24 @@ interface UniversalBlePeripheralChannel {
             val deviceIdArg = args[0] as String
             val wrapped: List<Any?> = try {
               listOf(api.getMaximumNotifyLength(deviceIdArg))
+            } catch (exception: Throwable) {
+              UniversalBlePigeonUtils.wrapError(exception)
+            }
+            reply.reply(wrapped)
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.universal_ble.UniversalBlePeripheralChannel.setAutoConnect$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { message, reply ->
+            val args = message as List<Any?>
+            val autoConnectArg = args[0] as Boolean
+            val wrapped: List<Any?> = try {
+              api.setAutoConnect(autoConnectArg)
+              listOf(null)
             } catch (exception: Throwable) {
               UniversalBlePigeonUtils.wrapError(exception)
             }

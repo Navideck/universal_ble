@@ -1355,50 +1355,39 @@ struct PeripheralAndroidOptions: Hashable, CustomStringConvertible {
   /// Note: If this is enabled with `addManufacturerDataInScanResponse`, ensure
   /// the combined data fits within the scan response's 31-byte limit.
   var addServicesInScanResponse: Bool? = nil
-  /// Whether `BluetoothGattServer.connect(device, autoConnect)` should be
-  /// invoked with autoConnect set to true when a central connects.
-  ///
-  /// Defaults to `true` to maintain Android's default GATT server reconnection behavior.
-  /// Set to `false` if central devices should not be automatically reconnected by
-  /// the Android Bluetooth stack when they disconnect and re-advertise.
-  var autoConnect: Bool? = nil
 
 
   // swift-format-ignore: AlwaysUseLowerCamelCase
   static func fromList(_ pigeonVar_list: [Any?]) -> PeripheralAndroidOptions? {
     let addManufacturerDataInScanResponse: Bool? = nilOrValue(pigeonVar_list[0])
     let addServicesInScanResponse: Bool? = nilOrValue(pigeonVar_list[1])
-    let autoConnect: Bool? = nilOrValue(pigeonVar_list[2])
 
     return PeripheralAndroidOptions(
       addManufacturerDataInScanResponse: addManufacturerDataInScanResponse,
-      addServicesInScanResponse: addServicesInScanResponse,
-      autoConnect: autoConnect
+      addServicesInScanResponse: addServicesInScanResponse
     )
   }
   func toList() -> [Any?] {
     return [
       addManufacturerDataInScanResponse,
       addServicesInScanResponse,
-      autoConnect,
     ]
   }
   static func == (lhs: PeripheralAndroidOptions, rhs: PeripheralAndroidOptions) -> Bool {
     if Swift.type(of: lhs) != Swift.type(of: rhs) {
       return false
     }
-    return UniversalBlePigeonInternal.deepEquals(lhs.addManufacturerDataInScanResponse, rhs.addManufacturerDataInScanResponse) && UniversalBlePigeonInternal.deepEquals(lhs.addServicesInScanResponse, rhs.addServicesInScanResponse) && UniversalBlePigeonInternal.deepEquals(lhs.autoConnect, rhs.autoConnect)
+    return UniversalBlePigeonInternal.deepEquals(lhs.addManufacturerDataInScanResponse, rhs.addManufacturerDataInScanResponse) && UniversalBlePigeonInternal.deepEquals(lhs.addServicesInScanResponse, rhs.addServicesInScanResponse)
   }
 
   func hash(into hasher: inout Hasher) {
     hasher.combine("PeripheralAndroidOptions")
     UniversalBlePigeonInternal.deepHash(value: addManufacturerDataInScanResponse, hasher: &hasher)
     UniversalBlePigeonInternal.deepHash(value: addServicesInScanResponse, hasher: &hasher)
-    UniversalBlePigeonInternal.deepHash(value: autoConnect, hasher: &hasher)
   }
 
   public var description: String {
-    return "PeripheralAndroidOptions(addManufacturerDataInScanResponse: \(String(describing: addManufacturerDataInScanResponse)), addServicesInScanResponse: \(String(describing: addServicesInScanResponse)), autoConnect: \(String(describing: autoConnect)))"
+    return "PeripheralAndroidOptions(addManufacturerDataInScanResponse: \(String(describing: addManufacturerDataInScanResponse)), addServicesInScanResponse: \(String(describing: addServicesInScanResponse)))"
   }
 }
 
@@ -2648,6 +2637,13 @@ protocol UniversalBlePeripheralChannel {
   func clearPendingNotifications(deviceId: String?) throws
   /// Returns max characteristic notify payload length for a connected client.
   func getMaximumNotifyLength(deviceId: String) throws -> Int64?
+  /// Sets whether `BluetoothGattServer.connect(device, autoConnect)` should be
+  /// invoked with autoConnect set to true when a central connects (Android only).
+  ///
+  /// This setting only affects future connections; changing it does not alter
+  /// or cancel background reconnection requests already registered with the
+  /// Android Bluetooth stack for previously connected peers.
+  func setAutoConnect(autoConnect: Bool) throws
 }
 
 /// Generated setup class from Pigeon to handle messages through the `binaryMessenger`.
@@ -2838,6 +2834,27 @@ class UniversalBlePeripheralChannelSetup {
       }
     } else {
       getMaximumNotifyLengthChannel.setMessageHandler(nil)
+    }
+    /// Sets whether `BluetoothGattServer.connect(device, autoConnect)` should be
+    /// invoked with autoConnect set to true when a central connects (Android only).
+    ///
+    /// This setting only affects future connections; changing it does not alter
+    /// or cancel background reconnection requests already registered with the
+    /// Android Bluetooth stack for previously connected peers.
+    let setAutoConnectChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.universal_ble.UniversalBlePeripheralChannel.setAutoConnect\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    if let api = api {
+      setAutoConnectChannel.setMessageHandler { message, reply in
+        let args = message as! [Any?]
+        let autoConnectArg = args[0] as! Bool
+        do {
+          try api.setAutoConnect(autoConnect: autoConnectArg)
+          reply(wrapResult(nil))
+        } catch {
+          reply(wrapError(error))
+        }
+      }
+    } else {
+      setAutoConnectChannel.setMessageHandler(nil)
     }
   }
 }

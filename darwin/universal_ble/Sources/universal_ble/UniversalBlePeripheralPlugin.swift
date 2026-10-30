@@ -767,6 +767,10 @@ final class UniversalBlePeripheralPlugin: NSObject, UniversalBlePeripheralChanne
     }
     return Int64(central.maximumUpdateValueLength)
   }
+
+  func setAutoConnect(autoConnect: Bool) throws {
+    // Android-only option; no-op on Darwin.
+  }
 }
 
 /// Services this peripheral advertises, and the characteristics they expose.

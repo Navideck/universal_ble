@@ -181,6 +181,10 @@ class UniversalBlePeripheralPigeon extends UniversalBlePeripheralPlatform
       );
 
   @override
+  Future<void> setAutoConnect(bool autoConnect) =>
+      _channel.setAutoConnect(autoConnect);
+
+  @override
   void setReadRequestHandler(OnPeripheralReadRequest? handler) =>
       _readRequestHandler = handler;
 

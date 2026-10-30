@@ -247,7 +247,6 @@ class UniversalBlePeripheralPlugin(
                 .setAdvertiseMode(AdvertiseSettings.ADVERTISE_MODE_LOW_LATENCY)
                 .build()
 
-            autoConnect = platformConfig?.android?.autoConnect ?: true
             val addServicesInScanResponse =
                 platformConfig?.android?.addServicesInScanResponse == true
             val addManufacturerDataInScanResponse =
@@ -291,7 +290,6 @@ class UniversalBlePeripheralPlugin(
         handler.post {
             kotlin.runCatching { bluetoothLeAdvertiser?.stopAdvertising(advertiseCallback) }
             restoreAdapterNameIfNeeded()
-            autoConnect = true
             advertisingState = PeripheralAdvertisingState.IDLE
             callback.onAdvertisingStateChange(PeripheralAdvertisingState.IDLE, null) {}
         }
@@ -396,6 +394,10 @@ class UniversalBlePeripheralPlugin(
     override fun getMaximumNotifyLength(deviceId: String): Long? {
         val mtu = synchronized(mtuByDeviceId) { mtuByDeviceId[deviceId] } ?: return null
         return (mtu - 3).coerceAtLeast(0).toLong()
+    }
+
+    override fun setAutoConnect(autoConnect: Boolean) {
+        this.autoConnect = autoConnect
     }
 
     private fun onConnectionUpdate(device: BluetoothDevice, status: Int, newState: Int) {

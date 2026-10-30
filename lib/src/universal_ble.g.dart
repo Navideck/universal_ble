@@ -1526,7 +1526,6 @@ class PeripheralAndroidOptions {
   PeripheralAndroidOptions({
     this.addManufacturerDataInScanResponse,
     this.addServicesInScanResponse,
-    this.autoConnect,
   });
 
   bool? addManufacturerDataInScanResponse;
@@ -1539,19 +1538,10 @@ class PeripheralAndroidOptions {
   /// the combined data fits within the scan response's 31-byte limit.
   bool? addServicesInScanResponse;
 
-  /// Whether `BluetoothGattServer.connect(device, autoConnect)` should be
-  /// invoked with autoConnect set to true when a central connects.
-  ///
-  /// Defaults to `true` to maintain Android's default GATT server reconnection behavior.
-  /// Set to `false` if central devices should not be automatically reconnected by
-  /// the Android Bluetooth stack when they disconnect and re-advertise.
-  bool? autoConnect;
-
   List<Object?> _toList() {
     return <Object?>[
       addManufacturerDataInScanResponse,
       addServicesInScanResponse,
-      autoConnect,
     ];
   }
 
@@ -1564,7 +1554,6 @@ class PeripheralAndroidOptions {
     return PeripheralAndroidOptions(
       addManufacturerDataInScanResponse: result[0] as bool?,
       addServicesInScanResponse: result[1] as bool?,
-      autoConnect: result[2] as bool?,
     );
   }
 
@@ -1580,9 +1569,7 @@ class PeripheralAndroidOptions {
     }
     return _deepEquals(addManufacturerDataInScanResponse,
             other.addManufacturerDataInScanResponse) &&
-        _deepEquals(
-            addServicesInScanResponse, other.addServicesInScanResponse) &&
-        _deepEquals(autoConnect, other.autoConnect);
+        _deepEquals(addServicesInScanResponse, other.addServicesInScanResponse);
   }
 
   @override
@@ -1591,7 +1578,7 @@ class PeripheralAndroidOptions {
 
   @override
   String toString() {
-    return 'PeripheralAndroidOptions(addManufacturerDataInScanResponse: $addManufacturerDataInScanResponse, addServicesInScanResponse: $addServicesInScanResponse, autoConnect: $autoConnect)';
+    return 'PeripheralAndroidOptions(addManufacturerDataInScanResponse: $addManufacturerDataInScanResponse, addServicesInScanResponse: $addServicesInScanResponse)';
   }
 }
 
@@ -3223,6 +3210,31 @@ class UniversalBlePeripheralChannel {
       isNullValid: true,
     );
     return pigeonVar_replyValue as int?;
+  }
+
+  /// Sets whether `BluetoothGattServer.connect(device, autoConnect)` should be
+  /// invoked with autoConnect set to true when a central connects (Android only).
+  ///
+  /// This setting only affects future connections; changing it does not alter
+  /// or cancel background reconnection requests already registered with the
+  /// Android Bluetooth stack for previously connected peers.
+  Future<void> setAutoConnect(bool autoConnect) async {
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.universal_ble.UniversalBlePeripheralChannel.setAutoConnect$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture =
+        pigeonVar_channel.send(<Object?>[autoConnect]);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    _extractReplyValueOrThrow(
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: true,
+    );
   }
 }
 

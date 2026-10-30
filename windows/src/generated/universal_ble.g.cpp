@@ -2494,11 +2494,9 @@ PeripheralAndroidOptions::PeripheralAndroidOptions() {}
 
 PeripheralAndroidOptions::PeripheralAndroidOptions(
   const bool* add_manufacturer_data_in_scan_response,
-  const bool* add_services_in_scan_response,
-  const bool* auto_connect)
+  const bool* add_services_in_scan_response)
  : add_manufacturer_data_in_scan_response_(add_manufacturer_data_in_scan_response ? std::optional<bool>(*add_manufacturer_data_in_scan_response) : std::nullopt),
-    add_services_in_scan_response_(add_services_in_scan_response ? std::optional<bool>(*add_services_in_scan_response) : std::nullopt),
-    auto_connect_(auto_connect ? std::optional<bool>(*auto_connect) : std::nullopt) {}
+    add_services_in_scan_response_(add_services_in_scan_response ? std::optional<bool>(*add_services_in_scan_response) : std::nullopt) {}
 
 const bool* PeripheralAndroidOptions::add_manufacturer_data_in_scan_response() const {
   return add_manufacturer_data_in_scan_response_ ? &(*add_manufacturer_data_in_scan_response_) : nullptr;
@@ -2526,25 +2524,11 @@ void PeripheralAndroidOptions::set_add_services_in_scan_response(bool value_arg)
 }
 
 
-const bool* PeripheralAndroidOptions::auto_connect() const {
-  return auto_connect_ ? &(*auto_connect_) : nullptr;
-}
-
-void PeripheralAndroidOptions::set_auto_connect(const bool* value_arg) {
-  auto_connect_ = value_arg ? std::optional<bool>(*value_arg) : std::nullopt;
-}
-
-void PeripheralAndroidOptions::set_auto_connect(bool value_arg) {
-  auto_connect_ = value_arg;
-}
-
-
 EncodableList PeripheralAndroidOptions::ToEncodableList() const {
   EncodableList list;
-  list.reserve(3);
+  list.reserve(2);
   list.push_back(add_manufacturer_data_in_scan_response_ ? EncodableValue(*add_manufacturer_data_in_scan_response_) : EncodableValue());
   list.push_back(add_services_in_scan_response_ ? EncodableValue(*add_services_in_scan_response_) : EncodableValue());
-  list.push_back(auto_connect_ ? EncodableValue(*auto_connect_) : EncodableValue());
   return list;
 }
 
@@ -2558,15 +2542,11 @@ PeripheralAndroidOptions PeripheralAndroidOptions::FromEncodableList(const Encod
   if (!encodable_add_services_in_scan_response.IsNull()) {
     decoded.set_add_services_in_scan_response(std::get<bool>(encodable_add_services_in_scan_response));
   }
-  auto& encodable_auto_connect = list[2];
-  if (!encodable_auto_connect.IsNull()) {
-    decoded.set_auto_connect(std::get<bool>(encodable_auto_connect));
-  }
   return decoded;
 }
 
 bool PeripheralAndroidOptions::operator==(const PeripheralAndroidOptions& other) const {
-  return PigeonInternalDeepEquals(add_manufacturer_data_in_scan_response_, other.add_manufacturer_data_in_scan_response_) && PigeonInternalDeepEquals(add_services_in_scan_response_, other.add_services_in_scan_response_) && PigeonInternalDeepEquals(auto_connect_, other.auto_connect_);
+  return PigeonInternalDeepEquals(add_manufacturer_data_in_scan_response_, other.add_manufacturer_data_in_scan_response_) && PigeonInternalDeepEquals(add_services_in_scan_response_, other.add_services_in_scan_response_);
 }
 
 bool PeripheralAndroidOptions::operator!=(const PeripheralAndroidOptions& other) const {
@@ -2577,7 +2557,6 @@ size_t PeripheralAndroidOptions::Hash() const {
   size_t result = 1;
   result = result * 31 + PigeonInternalDeepHash(add_manufacturer_data_in_scan_response_);
   result = result * 31 + PigeonInternalDeepHash(add_services_in_scan_response_);
-  result = result * 31 + PigeonInternalDeepHash(auto_connect_);
   return result;
 }
 
@@ -2595,13 +2574,6 @@ std::ostream& operator<<(
   os << ", add_services_in_scan_response: ";
   if (obj.add_services_in_scan_response_) {
     os << PigeonInternalToString(*obj.add_services_in_scan_response_);
-  }
-  else {
-    os << "null";
-  }
-  os << ", auto_connect: ";
-  if (obj.auto_connect_) {
-    os << PigeonInternalToString(*obj.auto_connect_);
   }
   else {
     os << "null";
@@ -5098,6 +5070,34 @@ void UniversalBlePeripheralChannel::SetUp(
           } else {
             wrapped.push_back(EncodableValue());
           }
+          reply(EncodableValue(std::move(wrapped)));
+        } catch (const std::exception& exception) {
+          reply(WrapError(exception.what()));
+        }
+      });
+    } else {
+      channel.SetMessageHandler(nullptr);
+    }
+  }
+  {
+    BasicMessageChannel<> channel(binary_messenger, "dev.flutter.pigeon.universal_ble.UniversalBlePeripheralChannel.setAutoConnect" + prepended_suffix, &GetCodec());
+    if (api != nullptr) {
+      channel.SetMessageHandler([api](const EncodableValue& message, const ::flutter::MessageReply<EncodableValue>& reply) {
+        try {
+          const auto& args = std::get<EncodableList>(message);
+          const auto& encodable_auto_connect_arg = args.at(0);
+          if (encodable_auto_connect_arg.IsNull()) {
+            reply(WrapError("auto_connect_arg unexpectedly null."));
+            return;
+          }
+          const auto& auto_connect_arg = std::get<bool>(encodable_auto_connect_arg);
+          std::optional<FlutterError> output = api->SetAutoConnect(auto_connect_arg);
+          if (output.has_value()) {
+            reply(WrapError(output.value()));
+            return;
+          }
+          EncodableList wrapped;
+          wrapped.push_back(EncodableValue());
           reply(EncodableValue(std::move(wrapped)));
         } catch (const std::exception& exception) {
           reply(WrapError(exception.what()));
