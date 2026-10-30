@@ -698,6 +698,14 @@ abstract class UniversalBlePeripheralChannel {
 
   /// Returns max characteristic notify payload length for a connected client.
   int? getMaximumNotifyLength(String deviceId);
+
+  /// Sets whether `BluetoothGattServer.connect(device, autoConnect)` should be
+  /// invoked with autoConnect set to true when a central connects (Android only).
+  ///
+  /// This setting only affects future connections; changing it does not alter
+  /// or cancel background reconnection requests already registered with the
+  /// Android Bluetooth stack for previously connected peers.
+  void setAutoConnect(bool autoConnect);
 }
 
 /// Flutter -> Native (Apple peripheral restoration only).

@@ -24,6 +24,7 @@ void main() {
     for (final method in [
       'UniversalBlePeripheralChannel.clearPendingNotifications',
       'UniversalBlePeripheralChannel.addService',
+      'UniversalBlePeripheralChannel.setAutoConnect',
       'UniversalBleDarwinPeripheralChannel.configureRestoration'
     ]) {
       messenger.setMockDecodedMessageHandler<Object?>(
@@ -62,6 +63,17 @@ void main() {
     expect(decoded.requireEncryptedNotifications, isTrue);
     expect(decoded.instanceId, 'consumerInput');
   }, skip: kIsWeb);
+
+  test('setAutoConnect forwards parameter through channel', () async {
+    final calls = <bool>[];
+    mock('UniversalBlePeripheralChannel.setAutoConnect', (message) async {
+      calls.add((message as List)[0] as bool);
+      return <Object?>[null];
+    });
+    await UniversalBlePeripheralPigeon.instance.setAutoConnect(false);
+    await UniversalBlePeripheralPigeon.instance.setAutoConnect(true);
+    expect(calls, [false, true]);
+  });
 
   test('clearing notifications accepts any MAC/Apple UUID casing', () async {
     final received = <String?>[];

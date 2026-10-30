@@ -55,6 +55,8 @@ class UniversalBlePeripheralPlugin(
     private var originalAdapterName: String? = null
     private var adapterNameOverridden = false
     private var isEnableBluetoothPromptPending = false
+    @Volatile
+    private var autoConnect: Boolean = true
 
     private data class PendingNotification(
         val device: BluetoothDevice,
@@ -394,6 +396,10 @@ class UniversalBlePeripheralPlugin(
         return (mtu - 3).coerceAtLeast(0).toLong()
     }
 
+    override fun setAutoConnect(autoConnect: Boolean) {
+        this.autoConnect = autoConnect
+    }
+
     private fun onConnectionUpdate(device: BluetoothDevice, status: Int, newState: Int) {
         Log.e(TAG, "onConnectionStateChange: $status -> $newState")
         handler.post {
@@ -465,7 +471,7 @@ class UniversalBlePeripheralPlugin(
                     synchronized(bluetoothDevicesMap) {
                         bluetoothDevicesMap[device.address] = device
                     }
-                    handler.post { gattServer?.connect(device, true) }
+                    handler.post { gattServer?.connect(device, autoConnect) }
                     onConnectionUpdate(device, status, newState)
                 }
 

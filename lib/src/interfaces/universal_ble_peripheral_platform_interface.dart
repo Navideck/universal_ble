@@ -101,6 +101,16 @@ abstract class UniversalBlePeripheralPlatform {
 
   Future<int?> getMaximumNotifyLength(String deviceId);
 
+  /// Sets whether `BluetoothGattServer.connect(device, autoConnect)` should be
+  /// invoked with autoConnect set to true when a central connects.
+  ///
+  /// This setting only affects future connections; changing it does not alter
+  /// or cancel background reconnection requests already registered with the
+  /// Android Bluetooth stack for previously connected peers.
+  ///
+  /// Supported on Android; no-op elsewhere.
+  Future<void> setAutoConnect(bool autoConnect) async {}
+
   /// Whether this platform identifies GATT clients by a Bluetooth *address* — a MAC on
   /// Android/Windows/Linux, a UUID on Apple — which is case-insensitive. Central ids are
   /// therefore canonicalised on ingestion, so every stream event, request handler and

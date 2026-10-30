@@ -3463,6 +3463,12 @@ ErrorOr<std::optional<int64_t>> UniversalBlePlugin::GetMaximumNotifyLength(
   return std::optional<int64_t>{};
 }
 
+std::optional<FlutterError> UniversalBlePlugin::SetAutoConnect(bool auto_connect) {
+  // Android-only option; no-op on Windows.
+  (void)auto_connect;
+  return std::nullopt;
+}
+
 std::optional<FlutterError> UniversalBlePlugin::StartAdvertising(
     const flutter::EncodableList &services, const std::string *local_name,
     const int64_t *timeout, const UniversalManufacturerData *manufacturer_data,
