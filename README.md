@@ -1505,6 +1505,7 @@ To opt in, declare the `Uses Bluetooth LE accessories` background mode. After en
 Notes:
 
 - Without the `bluetooth-central` background mode, `CBCentralManager` is created lazily on the first central BLE API call and state restoration is disabled.
+- To keep the `bluetooth-central` background mode without state restoration, set `UniversalBleCentralStateRestoration` to `NO` in `Info.plist`. Consider it if your app does not use restoration and also advertises with `UniversalBlePeripheral`: after a restored launch iOS may not give a peripheral manager created later the app's foreground state, so its first `startAdvertising` is reported as started while nothing is on the air, until the app's state changes (seen on iOS 17.4 and iOS 27).
 - macOS does not support CoreBluetooth state restoration; this behavior is iOS-only.
 - On relaunch, the plugin re-adopts the restored peripherals and emits `onConnectionChanged` for any that are still connected, so your Dart code can resume where it left off.
 
