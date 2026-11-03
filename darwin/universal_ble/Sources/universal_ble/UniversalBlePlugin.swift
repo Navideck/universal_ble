@@ -42,12 +42,28 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
 
   #if os(iOS)
     /// True when the host app declares the `bluetooth-central` background mode.
-    /// State restoration and eager manager creation are only enabled in that case.
     private static let hasBluetoothCentralBackgroundMode: Bool = {
       guard let modes = Bundle.main.object(forInfoDictionaryKey: "UIBackgroundModes") as? [String] else {
         return false
       }
       return modes.contains("bluetooth-central")
+    }()
+
+    /// Whether the central manager uses CoreBluetooth state restoration: when
+    /// the host app declares the `bluetooth-central` background mode, unless it
+    /// sets `UniversalBleCentralStateRestoration` to NO in its Info.plist.
+    private static let usesStateRestoration: Bool = {
+      guard hasBluetoothCentralBackgroundMode else { return false }
+      guard let value = Bundle.main.object(forInfoDictionaryKey: "UniversalBleCentralStateRestoration") else {
+        return true
+      }
+      if let boolValue = value as? Bool {
+        return boolValue
+      }
+      if let stringValue = value as? String {
+        return (stringValue as NSString).boolValue
+      }
+      return true
     }()
 
     private static var hasBluetoothPermission: Bool {
@@ -71,7 +87,7 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
   private var universalBleFilterUtil = UniversalBleFilterUtil()
   #if os(iOS)
     private lazy var manager: CBCentralManager = {
-      if Self.hasBluetoothCentralBackgroundMode {
+      if Self.usesStateRestoration {
         return CBCentralManager(
           delegate: self,
           queue: nil,
@@ -121,7 +137,7 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
     /// peripheral relaunches the app. Otherwise creation stays deferred until
     /// a central BLE API (e.g. `startScan`, `connect`) is called.
     func activateStateRestoration() {
-      guard Self.hasBluetoothCentralBackgroundMode, Self.hasBluetoothPermission else { return }
+      guard Self.usesStateRestoration, Self.hasBluetoothPermission else { return }
       _ = manager
     }
   #endif
