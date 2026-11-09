@@ -63,13 +63,13 @@ and finally the Zephyr GATT server on the fixture.
 | `FIT-CONN-003` | Immediate disconnect is followed by reconnect and a successful read       | Incomplete cleanup of the old connection              |
 | `FIT-CONN-006` | Two simultaneous connects resolve to one usable replacement connection    | Superseded native attempts disturbing the active link |
 | `FIT-CONN-007` | Sweep host disconnect before/around/after a measured peripheral deadline; verify timer telemetry and reconnect | Blocking WinRT teardown, double cleanup, and stale timers |
-| `FIT-CONN-009` | Reconnects before the old native disconnect callback has necessarily run  | Stale map entries suppressing the replacement attempt  |
+| `FIT-CONN-009` | Connects without queueing or retrying at 0–25 ms after a reported peripheral disconnect, then reads immediately | Reconnect returning before the replacement link is usable |
 | `FIT-CONN-010` | Five immediate peripheral disconnect/reconnect cycles all remain readable | State or resources leaking between connections        |
 | `FIT-CONN-013` | Five rapid cycles emit alternating disconnected/connected events in order | Missing, duplicate, stale, and out-of-order callbacks |
 
-For immediate disconnects, observation starts before the control write. A lost
-write acknowledgement is accepted only when the disconnect occurs; otherwise
-the original write error is rethrown.
+For immediate disconnects, observation starts before the fixture command.
+Windows requires both a UART acknowledgement and an observed BLE disconnect.
+The legacy BLE control path can lose its acknowledgement when the link drops.
 
 ### 2.2. Reads
 

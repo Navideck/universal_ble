@@ -3,6 +3,8 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:universal_ble/universal_ble.dart';
 
+import 'hil_serial_stub.dart' if (dart.library.io) 'hil_serial_io.dart';
+
 abstract final class HilUuid {
   static const service = '7e570001-7e57-4e57-8e57-7e5700000001';
   static const control = '7e570002-7e57-4e57-8e57-7e5700000001';
@@ -127,7 +129,7 @@ final class HilState {
 }
 
 final class HilPeripheral {
-  HilPeripheral._(this.device);
+  HilPeripheral._(this.device, this._serial);
 
   static const deviceName = 'UniversalBLE-HIL';
   static const contractRevision = 2;
@@ -138,37 +140,75 @@ final class HilPeripheral {
   static BleDevice? _discoveredDevice;
 
   final BleDevice device;
+  final HilSerial? _serial;
 
   String get deviceId => device.deviceId;
+  bool get usesWiredControl => _serial != null;
 
   static Future<HilPeripheral> open() async {
     UniversalBle.timeout = operationTimeout;
     UniversalBle.queueType = QueueType.global;
     await UniversalBle.setLogLevel(BleLogLevel.verbose);
 
-    final device = _configuredDeviceId.isEmpty || kIsWeb
-        ? _discoveredDevice ??= await _discover()
-        : BleDevice(deviceId: _configuredDeviceId, name: deviceName);
-
-    final peripheral = HilPeripheral._(device);
-    await peripheral.reconnect(timeout: scanTimeout);
-    await peripheral.reset();
-    final actualContractRevision =
-        (await peripheral.readState()).contractRevision;
-    if (actualContractRevision != contractRevision) {
-      throw StateError(
-        'HIL fixture contract mismatch: expected revision $contractRevision, '
-        'received $actualContractRevision. Build and flash the matching '
-        'universal_ble_hil_firmware image.',
-      );
+    final serial = await HilSerial.open();
+    HilPeripheral? peripheral;
+    try {
+      final address = serial?.address ?? _configuredDeviceId;
+      if (serial != null &&
+          _configuredDeviceId.isNotEmpty &&
+          UniversalBle.canonicalDeviceId(address) !=
+              UniversalBle.canonicalDeviceId(_configuredDeviceId)) {
+        throw StateError(
+            'HIL_SERIAL_PORT fixture does not match HIL_DEVICE_ID');
+      }
+      final device = serial != null
+          ? await _discoverSerialFixture(address)
+          : address.isEmpty || kIsWeb
+              ? _discoveredDevice ??= await _discover()
+              : BleDevice(deviceId: address, name: deviceName);
+      peripheral = HilPeripheral._(device, serial);
+      await peripheral.reconnect(timeout: scanTimeout);
+      await peripheral.reset();
+      final actualContractRevision =
+          (await peripheral.readState()).contractRevision;
+      if (actualContractRevision != contractRevision) {
+        throw StateError(
+          'HIL fixture contract mismatch: expected revision $contractRevision, '
+          'received $actualContractRevision. Build and flash the matching '
+          'universal_ble_hil_firmware image.',
+        );
+      }
+      return peripheral;
+    } catch (_) {
+      try {
+        if (peripheral != null) {
+          await peripheral.dispose();
+        } else {
+          await serial?.close();
+        }
+      } catch (error) {
+        debugPrintSynchronously('HIL setup cleanup failed: $error');
+      }
+      rethrow;
     }
-    return peripheral;
   }
 
-  static Future<BleDevice> _discover() async {
+  static Future<BleDevice> _discoverSerialFixture(String address) async {
+    final cached = _discoveredDevice;
+    if (cached != null &&
+        cached.deviceId == UniversalBle.canonicalDeviceId(address)) {
+      return cached;
+    }
+    return _discoveredDevice = await _discover(address: address);
+  }
+
+  static Future<BleDevice> _discover({String? address}) async {
     final result = Completer<BleDevice>();
+    final expected =
+        address == null ? null : UniversalBle.canonicalDeviceId(address);
     final subscription = UniversalBle.scanStream.listen((device) {
       if (!result.isCompleted &&
+          (expected == null || device.deviceId == expected) &&
           (device.name == deviceName || device.services.any(_isHilService))) {
         result.complete(device);
       }
@@ -194,29 +234,55 @@ final class HilPeripheral {
   Future<void> close() =>
       UniversalBle.disconnect(deviceId, timeout: operationTimeout);
 
-  Future<void> reconnect({Duration timeout = scanTimeout}) async {
+  Future<void> dispose() async {
+    try {
+      await close();
+    } finally {
+      await _serial?.close();
+    }
+  }
+
+  Future<void> reconnect({
+    Duration timeout = scanTimeout,
+    void Function(String message)? trace,
+  }) async {
     final deadline = DateTime.now().add(timeout);
     Object? lastError;
+    var attempt = 0;
     do {
+      attempt++;
+      var phase = 'connect';
       try {
+        trace?.call('attempt=$attempt connect begin');
         await UniversalBle.connect(
           deviceId,
           timeout: const Duration(seconds: 5),
         );
+        trace?.call('attempt=$attempt connect returned');
         try {
-          await UniversalBle.requestMtu(deviceId, 247);
-        } catch (_) {
+          final mtu = await UniversalBle.requestMtu(deviceId, 247);
+          trace?.call('attempt=$attempt MTU=$mtu');
+        } catch (error) {
           // MTU negotiation may fail after some disconnect sequences;
           // the connection is still usable with the default MTU.
+          trace?.call('attempt=$attempt MTU failed: $error');
         }
-        await discover();
+        phase = 'discover';
+        trace?.call('attempt=$attempt discovery begin');
+        final services = await discover();
+        trace?.call(
+            'attempt=$attempt discovery returned ${services.length} services');
         return;
       } catch (error) {
         lastError = error;
+        trace?.call('attempt=$attempt phase=$phase failed: $error');
+        trace?.call('attempt=$attempt cleanup disconnect begin');
         await UniversalBle.disconnect(
           deviceId,
           timeout: const Duration(seconds: 2),
         );
+        trace?.call(
+            'attempt=$attempt cleanup disconnect returned; retry in 1000 ms');
         await Future<void>.delayed(const Duration(seconds: 1));
       }
     } while (DateTime.now().isBefore(deadline));
@@ -254,6 +320,7 @@ final class HilPeripheral {
       );
 
   Future<void> command(int opcode, [List<int> payload = const []]) =>
+      _serial?.command([opcode, ...payload]) ??
       write(HilUuid.control, [opcode, ...payload]);
 
   Future<void> reset() => command(HilCommand.reset);
@@ -272,6 +339,12 @@ final class HilPeripheral {
 
   Future<HilTelemetry> readTelemetry() async =>
       HilTelemetry(await read(HilUuid.telemetry));
+
+  Future<HilTelemetry> readWiredTelemetry() async {
+    final serial = _serial;
+    if (serial == null) throw StateError('UART fixture control is unavailable');
+    return HilTelemetry(await serial.readTelemetry());
+  }
 
   Future<void> armIndicationOnSubscribe() =>
       command(HilCommand.indicateOnSubscribe);
