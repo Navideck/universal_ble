@@ -8,10 +8,18 @@ import 'package:integration_test/integration_test.dart';
 import 'package:universal_ble/universal_ble.dart';
 import 'package:universal_ble_hil/src/hil_peripheral.dart';
 
+abstract final class _FaultGroup {
+  static const connection = 'connection-discovery';
+  static const gatt = 'gatt-operations';
+  static const delivery = 'notifications-indications';
+  static const mtu = 'mtu-resources';
+  static const timing = 'timing-sweeps';
+}
+
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
 
-  group('UniversalBle fault injection tests (FIT)', () {
+  group('UniversalBle fault insertion tests', () {
     late HilPeripheral peripheral;
     var setupSucceeded = false;
 
@@ -27,14 +35,14 @@ void main() {
       if (setupSucceeded) {
         setupSucceeded = false;
         try {
-          await peripheral.close();
+          await peripheral.dispose();
         } catch (_) {
           // A fault scenario may deliberately leave the peripheral offline.
         }
       }
     });
 
-    group('advertising and scanning', () {
+    group('[${_FaultGroup.connection}] advertising and scanning', () {
       _pending(
         '[FIT-ADV-001] discovers a peripheral that starts advertising after the scan begins',
       );
@@ -61,7 +69,8 @@ void main() {
       );
     });
 
-    group('connection establishment and teardown', () {
+    group('[${_FaultGroup.connection}] connection establishment and teardown',
+        () {
       _pending(
         '[FIT-CONN-001] fails within the deadline when advertising stops before connection',
       );
@@ -142,7 +151,7 @@ void main() {
           var attempted = 0;
           var hostFirst = 0;
           var peripheralFirst = 0;
-          // The peripheral deadline starts inside the control-write callback.
+          // The peripheral deadline starts when the fixture accepts the plan.
           // Sweep host teardown before, around, and after that deadline. These
           // are fault offsets, not an ACK grace period. Counters prove that
           // the peripheral plan executed or was cancelled. Event ordering
@@ -161,6 +170,10 @@ void main() {
               const Duration(milliseconds: 250),
             ));
             if (armResult is _AsyncFailure) {
+              if (peripheral.usesWiredControl) {
+                Error.throwWithStackTrace(
+                    armResult.error, armResult.stackTrace);
+              }
               expect(armResult.error, isA<UniversalBleException>());
             }
             debugPrint(
@@ -216,14 +229,23 @@ void main() {
         '[FIT-CONN-008] handles two concurrent connect requests without duplicate connected events',
       );
       testWidgets(
-        '[FIT-CONN-009] reconnects while the old disconnect callback is pending',
+        '[FIT-CONN-009] reconnects immediately after a reported link loss',
         (_) async {
           UniversalBle.queueType = QueueType.none;
+          final clock = Stopwatch()..start();
+          var delayMs = 0;
+          void trace(String message) => debugPrintSynchronously(
+                'FIT-CONN-009 +${clock.elapsedMilliseconds}ms '
+                'delayMs=$delayMs fixture=${peripheral.deviceId} $message',
+              );
+          final subscription =
+              UniversalBle.connectionChangeStream(peripheral.deviceId)
+                  .listen((event) => trace('event $event'));
+          addTearDown(subscription.cancel);
 
-          // Sweep a narrow window between the native link becoming disconnected
-          // and ConnectionStatusChanged removing the old device agent. Merely
-          // finding the agent in the native map must not produce a false
-          // connected result or suppress the replacement attempt.
+          // The fixture ACK is not evidence that the link is down.
+          // Start at the host's disconnect event, without waiting for a
+          // settling period or retrying a failed connection or read.
           for (final delay in <Duration>[
             Duration.zero,
             const Duration(milliseconds: 1),
@@ -231,20 +253,29 @@ void main() {
             const Duration(milliseconds: 10),
             const Duration(milliseconds: 25),
           ]) {
-            try {
-              await peripheral.requestDisconnect(Duration.zero);
-            } catch (_) {
-              // The disconnect may win the race with the control-write ACK.
-            }
-            await Future<void>.delayed(delay);
+            delayMs = delay.inMilliseconds;
+            await _requestDisconnectAndWait(
+              peripheral,
+              Duration.zero,
+              trace: trace,
+              afterDisconnect: () async {
+                if (delay > Duration.zero) await Future<void>.delayed(delay);
 
-            await UniversalBle.connect(
-              peripheral.deviceId,
-              timeout: HilPeripheral.operationTimeout,
-            );
-            expect(
-              utf8.decode(await peripheral.read(HilUuid.read)),
-              'HIL-READ-V1',
+                trace('connect begin; queue=none, no retries');
+                await UniversalBle.connect(
+                  peripheral.deviceId,
+                  timeout: HilPeripheral.operationTimeout,
+                );
+                trace('connect returned; immediate read begin');
+                final value = utf8.decode(await peripheral.read(HilUuid.read));
+                trace('read returned: $value');
+                expect(
+                  value,
+                  'HIL-READ-V1',
+                  reason:
+                      'Reconnect delay after link loss: ${delay.inMilliseconds} ms',
+                );
+              },
             );
           }
         },
@@ -283,18 +314,38 @@ void main() {
         (_) async {
           const cycles = 5;
           final events = <bool>[];
-          final subscription = peripheral.connections.listen(events.add);
+          final clock = Stopwatch()..start();
+          var currentCycle = 0;
+          void trace(String message) => debugPrintSynchronously(
+                'FIT-CONN-013 +${clock.elapsedMilliseconds}ms '
+                'cycle=$currentCycle fixture=${peripheral.deviceId} $message',
+              );
+          final subscription =
+              UniversalBle.connectionChangeStream(peripheral.deviceId).listen(
+            (event) {
+              events.add(event.isConnected);
+              trace('event #${events.length}: $event');
+            },
+          );
           addTearDown(subscription.cancel);
 
           for (var cycle = 0; cycle < cycles; cycle++) {
-            await _requestImmediateDisconnect(peripheral);
-            await peripheral.reconnect();
+            currentCycle = cycle + 1;
+            await _requestDisconnectAndWait(
+              peripheral,
+              Duration.zero,
+              trace: trace,
+            );
+            trace('reconnect begin');
+            await peripheral.reconnect(trace: trace);
             await _waitUntil(
               () async =>
                   events.where((connected) => connected).length >= cycle + 1,
             );
+            trace('cycle complete; events=$events');
           }
           await Future<void>.delayed(const Duration(milliseconds: 300));
+          trace('final event order=$events');
 
           expect(
             events,
@@ -323,7 +374,7 @@ void main() {
                 peripheral.deviceId,
                 timeout: HilPeripheral.operationTimeout,
               );
-              final discovered = await _discoverHilPeripheral();
+              final discovered = await _discoverHilPeripheral(peripheral);
 
               // Connect immediately after discovery. Do not use
               // HilPeripheral.reconnect(), because its retry loop would hide a
@@ -372,7 +423,9 @@ void main() {
       );
     });
 
-    group('service discovery and GATT database changes', () {
+    group(
+        '[${_FaultGroup.connection}] service discovery and GATT database changes',
+        () {
       _pending(
         '[FIT-DISC-001] fails safely when the peripheral disconnects during service discovery',
       );
@@ -536,7 +589,7 @@ void main() {
       );
     });
 
-    group('read faults', () {
+    group('[${_FaultGroup.gatt}] read faults', () {
       testWidgets(
         '[FIT-READ-001] reports an ATT read error without disconnecting',
         (_) async {
@@ -681,7 +734,7 @@ void main() {
       );
     });
 
-    group('write-with-response faults', () {
+    group('[${_FaultGroup.gatt}] write-with-response faults', () {
       testWidgets(
         '[FIT-WRITE-001] reports an ATT write error without disconnecting',
         (_) async {
@@ -791,7 +844,7 @@ void main() {
       );
     });
 
-    group('write-without-response faults', () {
+    group('[${_FaultGroup.gatt}] write-without-response faults', () {
       _pending(
         '[FIT-WNR-001] remains connected when the peripheral rejects a command write',
       );
@@ -815,7 +868,7 @@ void main() {
       );
     });
 
-    group('descriptor faults', () {
+    group('[${_FaultGroup.gatt}] descriptor faults', () {
       testWidgets(
         '[FIT-DESC-001] reports an ATT descriptor read error and recovers',
         (_) async {
@@ -886,7 +939,7 @@ void main() {
       );
     });
 
-    group('notification subscription faults', () {
+    group('[${_FaultGroup.delivery}] notification subscription faults', () {
       _pending(
         '[FIT-SUB-001] fails safely when the peripheral disconnects during CCC enable',
       );
@@ -993,7 +1046,7 @@ void main() {
       );
     });
 
-    group('notification delivery faults', () {
+    group('[${_FaultGroup.delivery}] notification delivery faults', () {
       testWidgets(
         '[FIT-NOTIFY-001] receives a notification emitted immediately after CCC enable',
         (_) async {
@@ -1192,7 +1245,7 @@ void main() {
       );
     });
 
-    group('indication delivery faults', () {
+    group('[${_FaultGroup.delivery}] indication delivery faults', () {
       testWidgets(
         '[FIT-IND-001] receives an indication emitted immediately after CCC enable',
         (_) async {
@@ -1221,6 +1274,9 @@ void main() {
                 peripheral.requestIndicationScenario(reboot ? 2 : 1));
             expect(await disconnected, isNot(isA<_AsyncFailure>()));
             if (result is _AsyncFailure) {
+              if (peripheral.usesWiredControl) {
+                Error.throwWithStackTrace(result.error, result.stackTrace);
+              }
               expect(result.error, isA<UniversalBleException>());
             }
             await peripheral.reconnect();
@@ -1304,7 +1360,7 @@ void main() {
       );
     });
 
-    group('MTU, long values, and resource pressure', () {
+    group('[${_FaultGroup.mtu}] MTU, long values, and resource pressure', () {
       _unsupported(
         '[FIT-MTU-001] handles disconnect while querying the negotiated MTU',
         'Windows reads local MTU metadata; no fixture-side query callback to interrupt.',
@@ -1409,7 +1465,9 @@ void main() {
       );
     });
 
-    group('pairing, bonding, and encrypted attributes', () {
+    group(
+        '[${_FaultGroup.connection}] pairing, bonding, and encrypted attributes',
+        () {
       _unsupportedPairing(
         '[FIT-SMP-001] triggers pairing when an encrypted read is attempted',
       );
@@ -1434,7 +1492,8 @@ void main() {
       );
     });
 
-    group('deterministic timing sweeps and recovery', () {
+    group('[${_FaultGroup.timing}] deterministic timing sweeps and recovery',
+        () {
       testWidgets(
         '[FIT-RACE-001] sweeps disconnect timing across connection establishment',
         (_) async {
@@ -1443,7 +1502,7 @@ void main() {
             await peripheral
                 .armConnectFault(Duration(milliseconds: milliseconds));
             await peripheral.close();
-            await _discoverHilPeripheral();
+            await _discoverHilPeripheral(peripheral);
             // The one-shot plan survives the host disconnect and starts at
             // the next firmware connection callback. A sufficiently early
             // failure may prevent Windows from emitting any "connected" event.
@@ -1467,7 +1526,7 @@ void main() {
                 delay: const Duration(milliseconds: 300),
                 disconnectAfter: Duration(milliseconds: milliseconds));
             await peripheral.close();
-            await _discoverHilPeripheral();
+            await _discoverHilPeripheral(peripheral);
             // Connect performs uncached discovery. discoverServices() alone
             // can return Windows' cached map without reaching the fixture.
             await _connectThroughFixtureFault(peripheral);
@@ -1591,7 +1650,9 @@ Future<void> _runTimingScenarioOnce(
     await peripheral.armCccFault(
         disconnectAfter: disconnectAfter, callbackDelay: callbackDelay);
   }
-  final disconnected = _captureResult(_waitForDisconnect(peripheral));
+  final disconnected = _captureResult(peripheral.connections
+      .firstWhere((connected) => !connected)
+      .timeout(HilPeripheral.operationTimeout));
   final Future<Object?> action = switch (operation) {
     'read' => peripheral.read(HilUuid.read),
     'write' => peripheral.write(HilUuid.write, [0x41, 0x42]),
@@ -1610,16 +1671,36 @@ Future<void> _runTimingScenarioOnce(
     // A later disconnect can still precede delivery of the ATT response to Windows.
     expect(result.error, isA<UniversalBleException>());
   }
-  await peripheral.reconnect();
-  // Read before reset clears the counters. Link loss alone does not prove that
-  // the armed fixture callback ran and its scheduled disconnect executed.
-  final telemetry = await peripheral.readTelemetry();
+  // Snapshot the fault before recovery can add unrelated disconnects.
+  final scenario = '$operation disconnectAfterMs=$milliseconds';
+  final wired = peripheral.usesWiredControl;
+  late HilTelemetry telemetry;
+  if (wired) {
+    // WinRT can report disconnection before the fixture sees link teardown.
+    await _waitUntil(() async {
+      telemetry = await peripheral.readWiredTelemetry();
+      return telemetry.physicalDisconnects != 0;
+    });
+  } else {
+    await peripheral.reconnect();
+    telemetry = await peripheral.readTelemetry();
+  }
   expect(telemetry.disconnectTimersArmed, 1);
   expect(telemetry.disconnectTimersAttempted, 1);
   expect(telemetry.disconnectTimersCancelled, 0);
-  expect(telemetry.physicalDisconnects, 1);
+  expect(telemetry.physicalDisconnects, 1, reason: scenario);
   if (operation == 'enable' || operation == 'disable') {
     expect(telemetry.cccFaultsTriggered, 1);
+  }
+  if (wired) {
+    await peripheral.reconnect(
+      trace: (message) =>
+          debugPrintSynchronously('HIL timing $scenario: $message'),
+    );
+    final recovered = await peripheral.readWiredTelemetry();
+    debugPrintSynchronously('HIL timing $scenario: physical disconnects '
+        '${telemetry.physicalDisconnects} before recovery, '
+        '${recovered.physicalDisconnects} after recovery');
   }
   await peripheral.reset();
   await _verifyRecovery(peripheral);
@@ -1635,10 +1716,12 @@ Future<void> _waitForDisconnect(HilPeripheral peripheral) async {
       .timeout(HilPeripheral.operationTimeout);
 }
 
-Future<BleDevice> _discoverHilPeripheral() async {
+Future<BleDevice> _discoverHilPeripheral(HilPeripheral peripheral) async {
   final result = Completer<BleDevice>();
+  final fixtureId = UniversalBle.canonicalDeviceId(peripheral.deviceId);
   final subscription = UniversalBle.scanStream.listen((device) {
     if (!result.isCompleted &&
+        device.deviceId == fixtureId &&
         (device.name == HilPeripheral.deviceName ||
             device.services.any(_isHilService))) {
       result.complete(device);
@@ -1675,25 +1758,37 @@ Future<void> _requestImmediateDisconnect(HilPeripheral peripheral) async {
 
 Future<void> _requestDisconnectAndWait(
   HilPeripheral peripheral,
-  Duration delay,
-) async {
-  final disconnected = _waitForDisconnect(peripheral);
-  Object? commandError;
-  StackTrace? commandStackTrace;
-  try {
+  Duration delay, {
+  void Function(String message)? trace,
+  Future<void> Function()? afterDisconnect,
+}) async {
+  final disconnected = _captureResult(_waitForDisconnect(peripheral));
+  final command = _captureResult(() async {
+    trace?.call(
+        'request peripheral disconnect; delayMs=${delay.inMilliseconds}');
     await peripheral.requestDisconnect(delay);
-  } catch (error, stackTrace) {
-    commandError = error;
-    commandStackTrace = stackTrace;
-  }
+    trace?.call('fixture acknowledged disconnect command');
+  }());
 
-  try {
-    await disconnected;
-  } catch (_) {
-    if (commandError != null) {
-      Error.throwWithStackTrace(commandError, commandStackTrace!);
+  if (!peripheral.usesWiredControl) await command;
+  final event = await disconnected;
+  if (event is! _AsyncFailure) {
+    trace?.call('host observed disconnected');
+    try {
+      await afterDisconnect?.call();
+    } finally {
+      await command;
     }
-    rethrow;
+  }
+  final result = await command;
+  if (result is _AsyncFailure) {
+    trace?.call('fixture disconnect command failed: ${result.error}');
+    if (peripheral.usesWiredControl || event is _AsyncFailure) {
+      Error.throwWithStackTrace(result.error, result.stackTrace);
+    }
+  }
+  if (event is _AsyncFailure) {
+    Error.throwWithStackTrace(event.error, event.stackTrace);
   }
 }
 

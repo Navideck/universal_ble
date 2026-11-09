@@ -28,23 +28,63 @@ void main() {
       UniversalBle.onValueChange = null;
       if (setupSucceeded) {
         setupSucceeded = false;
-        await peripheral.close();
+        await peripheral.dispose();
       }
     });
 
     testWidgets('discovers the named peripheral and advertised service', (
       _,
     ) async {
-      expect(peripheral.device.name, HilPeripheral.deviceName);
-      expect(
-        peripheral.device.services,
-        anyElement(
-          predicate<String>(
-            (uuid) => BleUuidParser.compareStrings(uuid, HilUuid.service),
+      final elapsed = Stopwatch()..start();
+      void trace(String message) => debugPrintSynchronously(
+            'HIL-SCAN +${elapsed.elapsedMilliseconds}ms '
+            'fixture=${peripheral.deviceId} $message',
+          );
+      trace('disconnect before fresh scan');
+      await peripheral.close();
+      final complete = Completer<void>();
+      String? name;
+      var hasService = false;
+      int? rssi;
+      // The advertisement and scan response can arrive separately. Collect
+      // evidence only from this fixture and only during this scan.
+      final subscription = UniversalBle.scanStream.listen((device) {
+        if (device.deviceId != peripheral.deviceId || complete.isCompleted) {
+          return;
+        }
+        trace('result name=${device.name} rawName=${device.rawName} '
+            'services=${device.services} rssi=${device.rssi} '
+            'connectable=${device.connectable}');
+        if (device.name == HilPeripheral.deviceName) name = device.name;
+        hasService |= device.services.any(
+          (uuid) => BleUuidParser.compareStrings(uuid, HilUuid.service),
+        );
+        rssi = device.rssi ?? rssi;
+        if (name != null && hasService && rssi != null) {
+          trace('collected name=$name hasService=$hasService rssi=$rssi');
+          complete.complete();
+        }
+      });
+      try {
+        trace('start filtered scan; timeout=${HilPeripheral.scanTimeout}');
+        await UniversalBle.startScan(
+          scanFilter: ScanFilter(
+            withServices: const [HilUuid.service],
+            withNamePrefix: const [HilPeripheral.deviceName],
           ),
-        ),
-      );
-      expect(peripheral.device.rssi, isNotNull);
+        );
+        await complete.future.timeout(
+          HilPeripheral.scanTimeout,
+          onTimeout: () => fail(
+            'Incomplete fixture advertisement: name=$name, '
+            'hasService=$hasService, rssi=$rssi',
+          ),
+        );
+      } finally {
+        await subscription.cancel();
+        await UniversalBle.stopScan();
+        trace('scan stopped; name=$name hasService=$hasService rssi=$rssi');
+      }
     });
 
     testWidgets('performs a fresh scan through both result APIs', (_) async {
@@ -55,14 +95,17 @@ void main() {
 
       final streamResult = Completer<BleDevice>();
       final callbackResult = Completer<BleDevice>();
+      final fixtureId = UniversalBle.canonicalDeviceId(peripheral.deviceId);
       final subscription = UniversalBle.scanStream.listen((device) {
-        if (device.name == HilPeripheral.deviceName &&
+        if (device.deviceId == fixtureId &&
+            device.name == HilPeripheral.deviceName &&
             !streamResult.isCompleted) {
           streamResult.complete(device);
         }
       });
       UniversalBle.onScanResult = (device) {
-        if (device.name == HilPeripheral.deviceName &&
+        if (device.deviceId == fixtureId &&
+            device.name == HilPeripheral.deviceName &&
             !callbackResult.isCompleted) {
           callbackResult.complete(device);
         }
