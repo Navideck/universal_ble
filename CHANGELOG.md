@@ -1,4 +1,6 @@
 ## Unreleased
+
+* **Android:** Bind pending reads, writes, descriptor operations, RSSI and discovery to their submitting GATT. Stale callbacks and cleanup cannot consume replacement requests. Service discovery skips cache updates when its GATT no longer matches the registered client.
 * Android: match notification subscription completions to the exact GATT connection and descriptor, so a late callback from a replaced connection cannot complete a new subscription for the same address and UUIDs.
 
 ## 3.3.0
