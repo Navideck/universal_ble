@@ -27,6 +27,8 @@ internal class WriteCompletionTest {
     private val serviceUuid = UUID.fromString("0000fff0-0000-1000-8000-00805f9b34fb")
     private val charUuid = UUID.fromString("0000fff1-0000-1000-8000-00805f9b34fb")
 
+    private val requestGatt by lazy { mockGatt() }
+
     private fun pluginWithInlineHandler(): UniversalBlePlugin {
         val plugin = UniversalBlePlugin()
         // Completions are posted to the main looper; execute them inline so
@@ -61,6 +63,7 @@ internal class WriteCompletionTest {
     }
 
     private fun pendingFuture(acks: MutableList<Result<Unit>>) = WriteResultFuture(
+        requestGatt,
         deviceAddress,
         charUuid.toString(),
         serviceUuid.toString(),
@@ -78,7 +81,7 @@ internal class WriteCompletionTest {
         }
 
         // The ATT response of the FIRST write arrives.
-        plugin.onCharacteristicWrite(mockGatt(), mockCharacteristic(), BluetoothGatt.GATT_SUCCESS)
+        plugin.onCharacteristicWrite(requestGatt, mockCharacteristic(), BluetoothGatt.GATT_SUCCESS)
 
         assertEquals(1, firstAcks.size, "oldest pending write should be acknowledged")
         assertTrue(firstAcks[0].isSuccess)
@@ -90,7 +93,7 @@ internal class WriteCompletionTest {
         )
 
         // The second write's own response must then complete it - exactly once.
-        plugin.onCharacteristicWrite(mockGatt(), mockCharacteristic(), BluetoothGatt.GATT_SUCCESS)
+        plugin.onCharacteristicWrite(requestGatt, mockCharacteristic(), BluetoothGatt.GATT_SUCCESS)
         assertEquals(1, secondAcks.size, "second write acknowledged by its own response")
         assertEquals(1, firstAcks.size, "first write must not be acknowledged twice")
     }
@@ -106,7 +109,7 @@ internal class WriteCompletionTest {
             pending.add(pendingFuture(secondAcks))
         }
 
-        plugin.onCharacteristicWrite(mockGatt(), mockCharacteristic(), BluetoothGatt.GATT_FAILURE)
+        plugin.onCharacteristicWrite(requestGatt, mockCharacteristic(), BluetoothGatt.GATT_FAILURE)
 
         assertEquals(1, firstAcks.size, "oldest pending write should be failed")
         assertTrue(firstAcks[0].isFailure)
