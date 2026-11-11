@@ -1,3 +1,6 @@
+## Unreleased
+* Android: match notification subscription completions to the exact GATT connection and descriptor, so a late callback from a replaced connection cannot complete a new subscription for the same address and UUIDs.
+
 ## 3.3.0
 * Apple: complete service discovery when a peripheral's GATT database holds multiple services with the same UUID (#369).
 * iOS: allow turning off central state restoration via `UniversalBleCentralStateRestoration` (Boolean `NO` in `Info.plist`) while keeping the `bluetooth-central` background execution mode. When disabled, `CBCentralManager` is created without a restoration identifier and deferred lazily until first use (#370).
