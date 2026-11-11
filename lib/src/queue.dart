@@ -11,13 +11,27 @@ class Queue {
   final List<_QueuedFuture> _nextCycle = [];
   Function(int)? onRemainingItemsUpdate;
 
-  Future<T> add<T>(Future<T> Function() closure, [Duration? timeout]) {
+  Future<T> add<T>(Future<T> Function() closure,
+      [Duration? timeout, String? ownerId]) {
     if (_isCancelled) throw Exception('Queue Cancelled');
     final completer = Completer<T>();
-    _nextCycle.add(_QueuedFuture<T>(closure, completer, timeout));
+    _nextCycle.add(_QueuedFuture<T>(closure, completer, timeout, ownerId));
     _updateRemainingItems();
     if (_activeItems.isEmpty) _queueUpNext();
     return completer.future;
+  }
+
+  /// Cancel queued work for an owner without interrupting another owner's work.
+  void cancelPendingWhere(bool Function(String? ownerId) predicate) {
+    final canceled =
+        _nextCycle.where((item) => predicate(item.ownerId)).toList();
+    if (canceled.isEmpty) return;
+    _nextCycle.removeWhere(canceled.contains);
+    for (final item in canceled) {
+      item.completer.completeError(Exception('Queue Cancelled'));
+    }
+    // Let teardown reach the platform before user queue listeners can re-enter.
+    scheduleMicrotask(_updateRemainingItems);
   }
 
   void dispose() {
@@ -55,8 +69,10 @@ class _QueuedFuture<T> {
   final Future<T> Function() closure;
   Function? onComplete;
   final Duration? timeout;
+  final String? ownerId;
 
-  _QueuedFuture(this.closure, this.completer, this.timeout, {this.onComplete});
+  _QueuedFuture(this.closure, this.completer, this.timeout, this.ownerId,
+      {this.onComplete});
 
   Future<void> execute() async {
     try {
