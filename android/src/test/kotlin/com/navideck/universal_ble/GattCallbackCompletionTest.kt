@@ -248,6 +248,8 @@ internal class GattCallbackCompletionTest {
         )
         pending.add(
             SubscriptionResultFuture(
+                gatt,
+                descriptor,
                 deviceAddress,
                 charUuid.toString(),
                 serviceUuid.toString()
@@ -272,6 +274,51 @@ internal class GattCallbackCompletionTest {
     }
 
     @Test
+    fun staleSubscriptionCallbackCannotCompleteReplacementConnection() {
+        val plugin = plugin()
+        val oldGatt = mockGatt()
+        val currentGatt = mockGatt()
+        val characteristic = mockCharacteristic()
+        fun descriptor(): BluetoothGattDescriptor {
+            val descriptor = Mockito.mock(BluetoothGattDescriptor::class.java)
+            Mockito.`when`(descriptor.uuid).thenReturn(ccdCharacteristic)
+            Mockito.`when`(descriptor.characteristic).thenReturn(characteristic)
+            return descriptor
+        }
+        val oldDescriptor = descriptor()
+        val currentDescriptor = descriptor()
+        val subscriptions = mutableListOf<Result<Unit>>()
+        val pending = plugin.getField<MutableList<SubscriptionResultFuture>>(
+            "subscriptionResultFutureList"
+        )
+        pending.add(
+            SubscriptionResultFuture(
+                currentGatt, currentDescriptor, deviceAddress,
+                charUuid.toString(), serviceUuid.toString()
+            ) { subscriptions.add(it) }
+        )
+
+        // Same address and UUIDs, but callbacks from a previous connection
+        // or a replaced descriptor must not consume the current request.
+        plugin.onDescriptorWrite(oldGatt, oldDescriptor, BluetoothGatt.GATT_SUCCESS)
+        plugin.onDescriptorWrite(oldGatt, currentDescriptor, BluetoothGatt.GATT_FAILURE)
+        plugin.onDescriptorWrite(currentGatt, oldDescriptor, BluetoothGatt.GATT_SUCCESS)
+        drainMainLooper()
+        assertTrue(subscriptions.isEmpty())
+        assertEquals(1, pending.size)
+
+        plugin.onDescriptorWrite(currentGatt, currentDescriptor, BluetoothGatt.GATT_SUCCESS)
+        drainMainLooper()
+        assertEquals(1, subscriptions.size)
+        assertTrue(subscriptions.single().isSuccess)
+        assertTrue(pending.isEmpty())
+
+        plugin.onDescriptorWrite(currentGatt, currentDescriptor, BluetoothGatt.GATT_SUCCESS)
+        drainMainLooper()
+        assertEquals(1, subscriptions.size, "a duplicate callback cannot complete twice")
+    }
+
+    @Test
     fun disconnectCompletesPendingFuturesOnTheMainLooper() {
         val plugin = plugin()
         val reads = mutableListOf<Result<ByteArray>>()
@@ -285,6 +332,8 @@ internal class GattCallbackCompletionTest {
         plugin.getField<MutableList<SubscriptionResultFuture>>("subscriptionResultFutureList")
             .add(
                 SubscriptionResultFuture(
+                    mockGatt(),
+                    Mockito.mock(BluetoothGattDescriptor::class.java),
                     deviceAddress,
                     charUuid.toString(),
                     serviceUuid.toString()
