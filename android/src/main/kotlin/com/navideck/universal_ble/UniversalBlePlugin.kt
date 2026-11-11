@@ -681,6 +681,8 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
                     synchronized(subscriptionResultFutureList) {
                         subscriptionResultFutureList.add(
                             SubscriptionResultFuture(
+                                gatt,
+                                descriptor,
                                 gatt.device.address,
                                 gattCharacteristic.uuid.toString(),
                                 gattCharacteristic.service.uuid.toString(),
@@ -1936,20 +1938,14 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
             }
         }
 
-        if (descriptor?.uuid.toString() == ccdCharacteristic.toString()) {
-            val char: String? = descriptor?.characteristic?.uuid?.toString()
-            val service: String? = descriptor?.characteristic?.service?.uuid?.toString()
-            val deviceId: String? = gatt?.device?.address
-            if (deviceId != null && char != null && service != null) {
-                updateSubscriptionState(deviceId, char, service, status)
-            }
+        if (gatt != null && descriptor != null && descriptor.uuid == ccdCharacteristic) {
+            updateSubscriptionState(gatt, descriptor, status)
         }
     }
 
     private fun updateSubscriptionState(
-        deviceId: String,
-        characteristic: String,
-        service: String,
+        gatt: BluetoothGatt,
+        descriptor: BluetoothGattDescriptor,
         status: Int,
     ) {
         // Runs on a binder thread (the CCCD write callback): match and remove
@@ -1957,10 +1953,10 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
         // platform-channel replies must be sent.
         val future: SubscriptionResultFuture?
         synchronized(subscriptionResultFutureList) {
+            // A replaced connection can report the same address and UUIDs.
+            // Only the exact GATT and descriptor that submitted the request own it.
             future = subscriptionResultFutureList.firstOrNull {
-                it.deviceId == deviceId &&
-                    it.characteristicId == characteristic &&
-                    it.serviceId == service
+                it.gatt === gatt && it.descriptor === descriptor
             }
             future?.let { subscriptionResultFutureList.remove(it) }
         }

@@ -5,6 +5,7 @@ import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothDevice
 import android.bluetooth.BluetoothGatt
 import android.bluetooth.BluetoothGattCharacteristic
+import android.bluetooth.BluetoothGattDescriptor
 import android.bluetooth.BluetoothManager
 import android.bluetooth.BluetoothStatusCodes
 import android.bluetooth.le.ScanCallback.SCAN_FAILED_ALREADY_STARTED
@@ -496,6 +497,8 @@ class WriteResultFuture(
 )
 
 class SubscriptionResultFuture(
+    val gatt: BluetoothGatt,
+    val descriptor: BluetoothGattDescriptor,
     val deviceId: String,
     val characteristicId: String,
     val serviceId: String,
