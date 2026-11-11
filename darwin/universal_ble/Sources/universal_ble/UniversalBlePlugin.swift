@@ -314,12 +314,14 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
     return peripheral.state.toBleConnectionState
   }
 
-  func cleanUpConnection(deviceId: String) {
+  func cleanUpConnection(deviceId: String, peripheral: CBPeripheral? = nil) {
     let error = createFlutterError(code: .deviceDisconnected, message: "Device Disconnected")
 
     characteristicReadFutures.failAndRemoveAll(matching: deviceId, with: error)
-    characteristicWriteFutures.failAndRemoveAll(matching: deviceId, with: error)
-    pendingWriteWithoutResponse.failAndRemoveAll(matching: deviceId, with: error)
+    let writes = characteristicWriteFutures.removeWrites(deviceId: deviceId, owner: peripheral)
+    let queuedWrites = pendingWriteWithoutResponse.removeWrites(deviceId: deviceId, owner: peripheral)
+    writes.forEach { $0.fail(with: error) }
+    queuedWrites.forEach { $0.fail(with: error) }
     characteristicNotifyFutures.failAndRemoveAll(matching: deviceId, with: error)
     descriptorReadFutures.failAndRemoveAll(matching: deviceId, with: error)
     descriptorWriteFutures.failAndRemoveAll(matching: deviceId, with: error)
@@ -444,19 +446,29 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
       return
     }
 
+    // Reject unsupported operations before retiring any previous owner's work.
+    let supportsWrite = bleOutputProperty == .withResponse
+      ? gattCharacteristic.properties.contains(.write)
+      : gattCharacteristic.properties.contains(.writeWithoutResponse)
+    if !supportsWrite {
+      let code: UniversalBleErrorCode = bleOutputProperty == .withResponse
+        ? .characteristicDoesNotSupportWrite : .characteristicDoesNotSupportWriteWithoutResponse
+      completion(.failure(createFlutterError(code: code, message: "Characteristic does not support requested write type")))
+      return
+    }
+
+    // A replacement object cannot complete writes submitted by its predecessor.
+    let staleError = createFlutterError(code: .deviceDisconnected, message: "Peripheral replaced")
+    let staleWrites = characteristicWriteFutures.removeWrites(deviceId: deviceId, excludingOwner: peripheral)
+    let staleQueuedWrites = pendingWriteWithoutResponse.removeWrites(deviceId: deviceId, excludingOwner: peripheral)
+    staleWrites.forEach { $0.fail(with: staleError) }
+    staleQueuedWrites.forEach { $0.fail(with: staleError) }
+
     switch bleOutputProperty {
     case .withResponse:
-      guard gattCharacteristic.properties.contains(.write) else {
-        completion(Result.failure(createFlutterError(code: .characteristicDoesNotSupportWrite, message: "Characteristic does not support write withResponse")))
-        return
-      }
-      characteristicWriteFutures.append(CharacteristicWriteFuture(deviceId: deviceId, characteristicId: gattCharacteristic.uuid.uuidStr, serviceId: gattCharacteristic.service?.uuid.uuidStr, result: completion))
+      characteristicWriteFutures.append(CharacteristicWriteFuture(peripheral: peripheral, deviceId: deviceId, characteristicId: gattCharacteristic.uuid.uuidStr, serviceId: gattCharacteristic.service?.uuid.uuidStr, result: completion))
       peripheral.writeValue(value.data, for: gattCharacteristic, type: .withResponse)
     case .withoutResponse:
-      guard gattCharacteristic.properties.contains(.writeWithoutResponse) else {
-        completion(Result.failure(createFlutterError(code: .characteristicDoesNotSupportWriteWithoutResponse, message: "Characteristic does not support write withoutResponse")))
-        return
-      }
 
       if peripheral.canSendWriteWithoutResponse {
         peripheral.writeValue(value.data, for: gattCharacteristic, type: .withoutResponse)
@@ -464,6 +476,7 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
       } else {
         pendingWriteWithoutResponse.append(
           PendingWriteWithoutResponse(
+            peripheral: peripheral,
             deviceId: deviceId,
             characteristic: gattCharacteristic,
             data: value.data,
@@ -718,12 +731,13 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
     callbackChannel.onConnectionChanged(deviceId: peripheral.uuid.uuidString, connected: true, error: nil, errorCode: nil, nativeErrorCode: nil) { _ in }
   }
 
-  private func handlePeripheralDisconnection(deviceId: String, error: Error?) {
+  private func handlePeripheralDisconnection(peripheral: CBPeripheral, error: Error?) {
+    let deviceId = peripheral.uuid.uuidString
     autoConnectDevices.remove(deviceId)
     callbackChannel.onConnectionChanged(
       deviceId: deviceId, connected: false, error: error?.localizedDescription, errorCode: error?.connectionErrorCode, nativeErrorCode: error?.nativeCode
     ) { _ in }
-    cleanUpConnection(deviceId: deviceId)
+    cleanUpConnection(deviceId: deviceId, peripheral: peripheral)
   }
 
   public func centralManager(
@@ -737,24 +751,23 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
 
     if #available(iOS 17.0, macOS 14.0, watchOS 10.0, tvOS 17.0, *) {
       if isReconnecting {
-        cleanUpConnection(deviceId: deviceId)
+        cleanUpConnection(deviceId: deviceId, peripheral: peripheral)
         return
       }
     }
 
-    handlePeripheralDisconnection(deviceId: deviceId, error: error)
+    handlePeripheralDisconnection(peripheral: peripheral, error: error)
   }
 
   public func centralManager(_: CBCentralManager, didDisconnectPeripheral peripheral: CBPeripheral, error: Error?) {
-    let deviceId = peripheral.uuid.uuidString
-    handlePeripheralDisconnection(deviceId: deviceId, error: error)
+    handlePeripheralDisconnection(peripheral: peripheral, error: error)
   }
 
   public func centralManager(_: CBCentralManager, didFailToConnect peripheral: CBPeripheral, error: Error?) {
     callbackChannel.onConnectionChanged(
       deviceId: peripheral.uuid.uuidString, connected: false, error: error?.localizedDescription, errorCode: error?.connectionErrorCode, nativeErrorCode: error?.nativeCode
     ) { _ in }
-    cleanUpConnection(deviceId: peripheral.uuid.uuidString)
+    cleanUpConnection(deviceId: peripheral.uuid.uuidString, peripheral: peripheral)
   }
 
   public func peripheral(_ peripheral: CBPeripheral, didDiscoverServices error: Error?) {
@@ -791,19 +804,17 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
   }
 
   public func peripheralIsReady(toSendWriteWithoutResponse peripheral: CBPeripheral) {
-    let deviceId = peripheral.uuid.uuidString
     while peripheral.state == .connected && peripheral.canSendWriteWithoutResponse {
-      guard let index = pendingWriteWithoutResponse.firstIndex(where: { $0.deviceId == deviceId }) else {
+      guard let pending = pendingWriteWithoutResponse.takeFirstWrite(owner: peripheral) else {
         return
       }
-      let pending = pendingWriteWithoutResponse.remove(at: index)
-      peripheral.writeValue(pending.data, for: pending.characteristic, type: .withoutResponse)
+      pending.peripheral.writeValue(pending.data, for: pending.characteristic, type: .withoutResponse)
       pending.result(Result.success(()))
     }
   }
 
   public func peripheral(_ peripheral: CBPeripheral, didWriteValueFor characteristic: CBCharacteristic, error: Error?) {
-    guard let index = characteristicWriteFutures.firstIndex(where: {
+    guard let future = characteristicWriteFutures.takeFirstWrite(owner: peripheral, matching: {
       $0.deviceId == peripheral.uuid.uuidString &&
         $0.characteristicId == characteristic.uuid.uuidStr &&
         $0.serviceId == characteristic.service?.uuid.uuidStr
@@ -811,7 +822,6 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
       return
     }
 
-    let future = characteristicWriteFutures.remove(at: index)
     if let flutterError = error?.toFlutterError() {
       UniversalBleLogger.shared.logError("WRITE_FAILED <- \(peripheral.uuid.uuidString) \(characteristic.uuid.uuidStr): \(flutterError.message ?? "")")
       future.result(Result.failure(flutterError))
