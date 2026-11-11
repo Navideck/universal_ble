@@ -68,6 +68,26 @@ class _MockPlatform extends UniversalBlePlatformMock {
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+  for (final id in [
+    'AA:BB:CC:DD:EE:FF',
+    'ABCDEF01-2345-6789-ABCD-EF0123456789'
+  ]) {
+    test('disconnect cancellation matches mixed-case owner $id', () async {
+      final queue =
+          BleCommandQueue(queueType: QueueType.perDevice, isAddress: true);
+      final release = Completer<void>();
+      final active =
+          queue.queueCommandWithoutTimeout(() => release.future, deviceId: id);
+      final pending = queue.queueCommandWithoutTimeout(
+          () async => fail('canceled operation ran'),
+          deviceId: id.toLowerCase());
+      final canceled = expectLater(pending, throwsException);
+      await queue.runTeardown(() async => release.complete(),
+          deviceId: id.toLowerCase());
+      await active;
+      await canceled;
+    });
+  }
   const upper = 'AA:BB:CC:DD:EE:FF';
   const lower = 'aa:bb:cc:dd:ee:ff';
   const charId = '0000fff1-0000-1000-8000-00805f9b34fb';
