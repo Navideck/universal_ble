@@ -432,7 +432,7 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
                 // onReadRemoteRssi / cleanUpConnection (binder threads), so
                 // every access must hold the list's lock.
                 synchronized(rssiResultFutureList) {
-                    rssiResultFutureList.add(RssiResultFuture(deviceId, callback))
+                    rssiResultFutureList.add(RssiResultFuture(gatt, deviceId, callback))
                 }
             } else {
                 callback(
@@ -458,7 +458,7 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
         // would report one reading to a request still in flight.
         val future: RssiResultFuture?
         synchronized(rssiResultFutureList) {
-            future = rssiResultFutureList.firstOrNull { it.deviceId == deviceId }
+            future = rssiResultFutureList.firstOrNull { it.gatt === gatt }
             future?.let { rssiResultFutureList.remove(it) }
         }
         if (future == null) {
@@ -510,6 +510,7 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
                 synchronized(discoverServicesFutureList) {
                     discoverServicesFutureList.add(
                         DiscoverServicesFuture(
+                            gatt,
                             deviceId,
                             withDescriptors,
                             callback
@@ -540,10 +541,10 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
             if (status == BluetoothGatt.GATT_SUCCESS) gatt.services else null
         val pending: List<DiscoverServicesFuture>
         synchronized(discoverServicesFutureList) {
-            pending = discoverServicesFutureList.filter { it.deviceId == deviceId }
+            pending = discoverServicesFutureList.filter { it.gatt === gatt }
             discoverServicesFutureList.removeAll(pending)
         }
-        if (services != null) {
+        if (services != null && gattRegistry.find(deviceId) === gatt) {
             try {
                 setCachedServices(deviceId, services.map { it.uuid.toString() })
             } catch (e: Exception) {
@@ -552,7 +553,7 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
                 UniversalBleLogger.logError("DISCOVER_CACHE_FAILED <- $deviceId $e")
             }
         }
-        // A discovery result belongs to the device, not to a single caller, so
+        // A discovery result belongs to this GATT instance, not a single caller, so
         // every pending caller gets it. Complete on the main thread (platform
         // channel replies must be sent there), one callback at a time, so a
         // throwing handler cannot swallow the rest.
@@ -744,6 +745,7 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
             // matched (the callback finds nothing to complete), leaving the Dart
             // call awaiting forever. Every access to the list holds its lock.
             val readFuture = ReadResultFuture(
+                gatt,
                 gatt.device.address,
                 gattCharacteristic.uuid.toString(),
                 gattCharacteristic.service.uuid.toString(),
@@ -811,7 +813,8 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
         val future: ReadResultFuture?
         synchronized(readResultFutureList) {
             future = readResultFutureList.firstOrNull {
-                it.deviceId == deviceId &&
+                it.gatt === gatt &&
+                    it.deviceId == deviceId &&
                     it.characteristicId == characteristicId &&
                     it.serviceId == serviceUuid
             }
@@ -901,6 +904,7 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
 
 
             val writeFuture = WriteResultFuture(
+                gatt,
                 gatt.device.address,
                 gattCharacteristic.uuid.toString(),
                 gattCharacteristic.service.uuid.toString(),
@@ -970,7 +974,8 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
         val future: WriteResultFuture?
         synchronized(writeResultFutureList) {
             future = writeResultFutureList.firstOrNull {
-                it.deviceId == gatt?.device?.address &&
+                it.gatt === gatt &&
+                    it.deviceId == gatt?.device?.address &&
                     it.characteristicId == characteristic.uuid.toString() &&
                     it.serviceId == characteristic.service?.uuid?.toString()
             }
@@ -1052,6 +1057,7 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
             synchronized(readDescriptorResultFutureList) {
                 readDescriptorResultFutureList.add(
                     ReadDescriptorResultFuture(
+                        gatt,
                         gatt.device.address,
                         gattDescriptor.uuid.toString(),
                         gattCharacteristic.uuid.toString(),
@@ -1084,7 +1090,8 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
         val future: ReadDescriptorResultFuture?
         synchronized(readDescriptorResultFutureList) {
             future = readDescriptorResultFutureList.firstOrNull {
-                it.deviceId == gatt.device.address &&
+                it.gatt === gatt &&
+                    it.deviceId == gatt.device.address &&
                     it.descriptorId == descriptor.uuid.toString() &&
                     it.characteristicId == descriptor.characteristic.uuid.toString() &&
                     it.serviceId == descriptor.characteristic.service.uuid.toString()
@@ -1156,6 +1163,7 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
             }
 
             val writeFuture = WriteDescriptorResultFuture(
+                gatt,
                 gatt.device.address,
                 gattDescriptor.uuid.toString(),
                 gattCharacteristic.uuid.toString(),
@@ -1518,6 +1526,7 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
                 synchronized(discoverServicesFutureList) {
                     discoverServicesFutureList.add(
                         DiscoverServicesFuture(
+                            gatt,
                             device.address,
                             false
                         ) { uuids: Result<List<UniversalBleService>> ->
@@ -1571,8 +1580,8 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
 
     /**
      * Fails pending operations for [deviceId]. When [gatt] is provided (a
-     * disconnect of a specific client), only that client's MTU state is
-     * evicted so a newer client for the same address keeps its negotiation.
+     * disconnect of a specific client), only that client's requests and MTU
+     * state are cleared. A replacement GATT at the same address is unaffected.
      */
     private fun cleanUpConnection(deviceId: String, gatt: BluetoothGatt? = null) {
         val deviceDisconnectedError: FlutterError = createFlutterError(
@@ -1581,7 +1590,9 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
         )
         val pendingReads: List<ReadResultFuture>
         synchronized(readResultFutureList) {
-            pendingReads = readResultFutureList.filter { it.deviceId == deviceId }
+            pendingReads = readResultFutureList.filter {
+                if (gatt != null) it.gatt === gatt else it.deviceId == deviceId
+            }
             readResultFutureList.removeAll(pendingReads)
         }
         for (future in pendingReads) {
@@ -1595,7 +1606,9 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
         }
         val pendingWrites: List<WriteResultFuture>
         synchronized(writeResultFutureList) {
-            pendingWrites = writeResultFutureList.filter { it.deviceId == deviceId }
+            pendingWrites = writeResultFutureList.filter {
+                if (gatt != null) it.gatt === gatt else it.deviceId == deviceId
+            }
             writeResultFutureList.removeAll(pendingWrites)
         }
         for (future in pendingWrites) {
@@ -1609,7 +1622,9 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
         }
         val pendingDescriptorReads: List<ReadDescriptorResultFuture>
         synchronized(readDescriptorResultFutureList) {
-            pendingDescriptorReads = readDescriptorResultFutureList.filter { it.deviceId == deviceId }
+            pendingDescriptorReads = readDescriptorResultFutureList.filter {
+                if (gatt != null) it.gatt === gatt else it.deviceId == deviceId
+            }
             readDescriptorResultFutureList.removeAll(pendingDescriptorReads)
         }
         for (future in pendingDescriptorReads) {
@@ -1623,7 +1638,9 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
         }
         val pendingDescriptorWrites: List<WriteDescriptorResultFuture>
         synchronized(writeDescriptorResultFutureList) {
-            pendingDescriptorWrites = writeDescriptorResultFutureList.filter { it.deviceId == deviceId }
+            pendingDescriptorWrites = writeDescriptorResultFutureList.filter {
+                if (gatt != null) it.gatt === gatt else it.deviceId == deviceId
+            }
             writeDescriptorResultFutureList.removeAll(pendingDescriptorWrites)
         }
         for (future in pendingDescriptorWrites) {
@@ -1637,7 +1654,9 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
         }
         val pendingSubscriptions: List<SubscriptionResultFuture>
         synchronized(subscriptionResultFutureList) {
-            pendingSubscriptions = subscriptionResultFutureList.filter { it.deviceId == deviceId }
+            pendingSubscriptions = subscriptionResultFutureList.filter {
+                if (gatt != null) it.gatt === gatt else it.deviceId == deviceId
+            }
             subscriptionResultFutureList.removeAll(pendingSubscriptions)
         }
         for (future in pendingSubscriptions) {
@@ -1666,7 +1685,9 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
         }
         val pendingDiscoveries: List<DiscoverServicesFuture>
         synchronized(discoverServicesFutureList) {
-            pendingDiscoveries = discoverServicesFutureList.filter { it.deviceId == deviceId }
+            pendingDiscoveries = discoverServicesFutureList.filter {
+                if (gatt != null) it.gatt === gatt else it.deviceId == deviceId
+            }
             discoverServicesFutureList.removeAll(pendingDiscoveries)
         }
         for (future in pendingDiscoveries) {
@@ -1682,7 +1703,9 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
         }
         val pendingRssis: List<RssiResultFuture>
         synchronized(rssiResultFutureList) {
-            pendingRssis = rssiResultFutureList.filter { it.deviceId == deviceId }
+            pendingRssis = rssiResultFutureList.filter {
+                if (gatt != null) it.gatt === gatt else it.deviceId == deviceId
+            }
             rssiResultFutureList.removeAll(pendingRssis)
         }
         for (future in pendingRssis) {
@@ -1912,7 +1935,8 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
             val future: WriteDescriptorResultFuture?
             synchronized(writeDescriptorResultFutureList) {
                 future = writeDescriptorResultFutureList.firstOrNull {
-                    it.deviceId == gatt?.device?.address &&
+                    it.gatt === gatt &&
+                        it.deviceId == gatt?.device?.address &&
                         it.descriptorId == descriptor.uuid.toString() &&
                         it.characteristicId == descriptor.characteristic?.uuid?.toString() &&
                         it.serviceId == descriptor.characteristic?.service?.uuid?.toString()
