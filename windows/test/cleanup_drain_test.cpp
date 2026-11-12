@@ -1,7 +1,9 @@
 #include "callback_drain.h"
 
 #include <atomic>
+#include <future>
 #include <iostream>
+#include <string_view>
 #include <thread>
 #include <utility>
 
@@ -26,7 +28,40 @@ LRESULT CALLBACK ForeignWindowProc(HWND window, UINT message, WPARAM wparam,
     }                                                            \
   } while (false)
 
-int main() {
+int CheckStalledCleanup() {
+  using namespace std::chrono_literals;
+  universal_ble::AsyncOperationTracker cleanup;
+  auto lease = cleanup.TryAcquire();
+  CHECK(lease.has_value());
+  cleanup.Close();
+
+  // Model a disposal worker stuck in WinRT. The watchdog releases its lease
+  // only to let the test report a failure instead of hanging CTest.
+  std::promise<void> drain_returned;
+  auto returned = drain_returned.get_future();
+  bool watchdog_released_lease = false;
+  std::thread worker([&, owned = std::move(*lease)]() mutable {
+    watchdog_released_lease =
+        returned.wait_for(5s) == std::future_status::timeout;
+    owned.reset();
+  });
+
+  universal_ble::WaitForCallbacksWithoutMessagePump(cleanup);
+  drain_returned.set_value();
+  worker.join();
+  if (watchdog_released_lease) {
+    std::cerr << "Cleanup drain stayed blocked until the watchdog released "
+                 "the stalled disposal lease."
+              << std::endl;
+    return 1;
+  }
+  return 0;
+}
+
+int main(int argc, char **argv) {
+  if (argc == 2 && std::string_view(argv[1]) == "--stalled-cleanup") {
+    return CheckStalledCleanup();
+  }
   CHECK(SUCCEEDED(CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED)));
   WNDCLASSW cls{};
   cls.lpfnWndProc = ForeignWindowProc;
