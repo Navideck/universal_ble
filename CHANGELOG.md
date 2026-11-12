@@ -1,3 +1,6 @@
+## Unreleased
+* Disconnect bypasses blocked GATT command queues and cancels unsent commands for the target device, preserving queued work for other devices.
+
 ## 3.3.0
 * Apple: complete service discovery when a peripheral's GATT database holds multiple services with the same UUID (#369).
 * iOS: allow turning off central state restoration via `UniversalBleCentralStateRestoration` (Boolean `NO` in `Info.plist`) while keeping the `bluetooth-central` background execution mode. When disabled, `CBCentralManager` is created without a restoration identifier and deferred lazily until first use (#370).

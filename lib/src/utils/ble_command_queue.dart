@@ -40,10 +40,9 @@ class BleCommandQueue {
   /// maps to one queue whichever case a caller passes, while anything that is not an address
   /// (a custom queue id, an opaque Web token) is kept verbatim. [clearQueue] derives keys the
   /// same way, so any key this produces can always be cleared by the id that produced it.
-  String _keyFor(String id) =>
-      _isAddress && DeviceId.looksLikeAddress(id)
-          ? id.toDeviceId().canonical
-          : id;
+  String _keyFor(String id) => _isAddress && DeviceId.looksLikeAddress(id)
+      ? id.toDeviceId().canonical
+      : id;
 
   String? _queueKey(String? queueId, String? deviceId) {
     if (queueId != null) return _keyFor(queueId);
@@ -66,10 +65,12 @@ class BleCommandQueue {
       );
     }
     return switch (_resolvedQueueType) {
-      QueueType.global => _queue(queueId).add(command, timeoutDuration),
+      QueueType.global => _queue(queueId).add(command, timeoutDuration,
+          deviceId == null ? null : _keyFor(deviceId)),
       QueueType.perDevice => _queue(
           _queueKey(queueId, deviceId),
-        ).add(command, timeoutDuration),
+        ).add(command, timeoutDuration,
+            deviceId == null ? null : _keyFor(deviceId)),
       QueueType.none || QueueType.auto => command().timeout(timeoutDuration),
     };
   }
@@ -80,12 +81,29 @@ class BleCommandQueue {
     String? queueId,
   }) {
     return switch (_resolvedQueueType) {
-      QueueType.global => _queue(queueId).add(command),
+      QueueType.global => _queue(queueId)
+          .add(command, null, deviceId == null ? null : _keyFor(deviceId)),
       QueueType.perDevice => _queue(
           _queueKey(queueId, deviceId),
-        ).add(command),
+        ).add(command, null, deviceId == null ? null : _keyFor(deviceId)),
       QueueType.none || QueueType.auto => command(),
     };
+  }
+
+  /// Disconnect must reach the platform even when a pending GATT operation
+  /// can only finish after that disconnect. Cancel unsent work for this device
+  /// across queue IDs, preserving other devices in shared queues.
+  Future<T> runTeardown<T>(
+    Future<T> Function() command, {
+    required String deviceId,
+    Duration? timeout,
+  }) {
+    final ownerId = _keyFor(deviceId);
+    for (final queue in _queueMap.values.toList()) {
+      queue.cancelPendingWhere((owner) => owner == ownerId);
+    }
+    final future = Future<T>.sync(command);
+    return timeout == null ? future : future.timeout(timeout);
   }
 
   Queue _queue(String? id) {

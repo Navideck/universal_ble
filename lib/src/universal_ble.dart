@@ -268,6 +268,9 @@ class UniversalBle {
   }
 
   /// Disconnect from a device.
+  /// Bypasses command serialization and cancels unsent commands for this device,
+  /// including commands in custom queues. [queueId] is retained for compatibility
+  /// but does not delay disconnection behind queued GATT operations.
   /// Get notified of connection state changes in [onConnectionChange] listener.
   static Future<void> disconnect(
     String deviceId, {
@@ -289,11 +292,10 @@ class UniversalBle {
       );
 
       await _bleCommandQueue
-          .queueCommand(
+          .runTeardown(
         () => _platform.disconnect(deviceId),
         timeout: timeout,
         deviceId: deviceId,
-        queueId: queueId,
       )
           .catchError((error) {
         if (completer.isCompleted) return;
