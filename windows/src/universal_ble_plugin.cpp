@@ -173,10 +173,16 @@ UniversalBlePlugin::~UniversalBlePlugin() {
   ResetState();
   ClearServices();
   cleanup_operations_.Close();
-  // Disposal owns its agent/lease and finishes on MTA without a UI
-  // continuation. Pumping here would re-enter application code during engine
-  // teardown.
-  WaitForCallbacksWithoutMessagePump(cleanup_operations_);
+  // Disposal owns its WinRT objects and leases, and never accesses the plugin
+  // instance. A stalled WinRT call can outlive the engine if the DLL stays loaded.
+  DrainConnectionCleanup(cleanup_operations_, std::chrono::seconds(3), [] {
+    static const wchar_t module_anchor = L'\0';
+    HMODULE module = nullptr;
+    // Avoid stream output here: a blocked log sink could stall shutdown again.
+    return GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS |
+                                  GET_MODULE_HANDLE_EX_FLAG_PIN,
+                              &module_anchor, &module) != FALSE;
+  });
   ui_thread_handler_.Shutdown();
   callback_channel_.reset();
   peripheral_callback_channel_.reset();
@@ -2560,7 +2566,7 @@ fire_and_forget UniversalBlePlugin::DisposeConnectionAsync(
     AsyncOperationTracker::Lease cleanup_lease,
     AsyncOperationTracker::Lease connection_cleanup_lease) {
   // The coroutine frame owns the agent and leases. No plugin pointer is
-  // captured, and shutdown drains this lease before releasing plugin state.
+  // captured. Shutdown may leave this worker running with the DLL pinned.
   try {
     co_await winrt::resume_background();
     try {
