@@ -17,6 +17,21 @@ inline void WaitForCallbacksWithoutMessagePump(
   }
 }
 
+// The tracker must be closed before waiting. If the deadline expires, only
+// leave workers running when their code can stay loaded after teardown.
+template <typename KeepModuleLoaded>
+void DrainConnectionCleanup(
+    const AsyncOperationTracker &operations,
+    std::chrono::steady_clock::duration timeout,
+    KeepModuleLoaded keep_module_loaded) noexcept {
+  if (operations.WaitUntilIdleFor(timeout) || operations.IsIdle()) {
+    return;
+  }
+  if (!keep_module_loaded()) {
+    WaitForCallbacksWithoutMessagePump(operations);
+  }
+}
+
 // C++/WinRT may resume apartment-aware co_await continuations on the thread
 // which started them. Pump that thread's Windows messages while callbacks
 // drain so shutdown cannot block the continuations it is waiting for.

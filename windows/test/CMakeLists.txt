@@ -74,6 +74,9 @@ if(WIN32)
   add_test(NAME stalled_cleanup_drain_test
     COMMAND cleanup_drain_test --stalled-cleanup)
   set_tests_properties(stalled_cleanup_drain_test PROPERTIES TIMEOUT 10)
+  add_test(NAME cleanup_pin_failure_test
+    COMMAND cleanup_drain_test --pin-failure)
+  set_tests_properties(cleanup_pin_failure_test PROPERTIES TIMEOUT 10)
   add_executable(callback_drain_test callback_drain_test.cpp)
   target_compile_features(callback_drain_test PRIVATE cxx_std_20)
   target_include_directories(callback_drain_test PRIVATE ../src)

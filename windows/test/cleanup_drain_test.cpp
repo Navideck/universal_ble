@@ -28,12 +28,12 @@ LRESULT CALLBACK ForeignWindowProc(HWND window, UINT message, WPARAM wparam,
     }                                                            \
   } while (false)
 
-int CheckStalledCleanup() {
+int CheckStalledCleanup(bool pin_succeeds) {
   using namespace std::chrono_literals;
-  universal_ble::AsyncOperationTracker cleanup;
-  auto lease = cleanup.TryAcquire();
+  std::optional<universal_ble::AsyncOperationTracker> cleanup(std::in_place);
+  auto lease = cleanup->TryAcquire();
   CHECK(lease.has_value());
-  cleanup.Close();
+  cleanup->Close();
 
   // Model a disposal worker stuck in WinRT. The watchdog releases its lease
   // only to let the test report a failure instead of hanging CTest.
@@ -46,21 +46,40 @@ int CheckStalledCleanup() {
     owned.reset();
   });
 
-  universal_ble::WaitForCallbacksWithoutMessagePump(cleanup);
+  constexpr auto timeout = 250ms;
+  // Allow for scheduling delays on busy Windows runners.
+  constexpr auto latest_return = 2s;
+  using Clock = std::chrono::steady_clock;
+  std::optional<Clock::duration> time_to_pin;
+  const auto start = Clock::now();
+  universal_ble::DrainConnectionCleanup(*cleanup, timeout, [&] {
+    time_to_pin = Clock::now() - start;
+    return pin_succeeds;
+  });
+  const auto elapsed = Clock::now() - start;
+  cleanup.reset();
   drain_returned.set_value();
   worker.join();
-  if (watchdog_released_lease) {
+  if (pin_succeeds && watchdog_released_lease) {
     std::cerr << "Cleanup drain stayed blocked until the watchdog released "
                  "the stalled disposal lease."
               << std::endl;
     return 1;
   }
+  CHECK(time_to_pin.has_value());
+  CHECK(*time_to_pin >= timeout);
+  CHECK(*time_to_pin < latest_return);
+  CHECK(!pin_succeeds || elapsed < latest_return);
+  CHECK(watchdog_released_lease == !pin_succeeds);
   return 0;
 }
 
 int main(int argc, char **argv) {
   if (argc == 2 && std::string_view(argv[1]) == "--stalled-cleanup") {
-    return CheckStalledCleanup();
+    return CheckStalledCleanup(true);
+  }
+  if (argc == 2 && std::string_view(argv[1]) == "--pin-failure") {
+    return CheckStalledCleanup(false);
   }
   CHECK(SUCCEEDED(CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED)));
   WNDCLASSW cls{};
@@ -89,9 +108,17 @@ int main(int argc, char **argv) {
   });
   lease.reset();
   cleanup.Close();
-  universal_ble::WaitForCallbacksWithoutMessagePump(cleanup);
+  bool pin_attempted = false;
+  const auto pin = [&] {
+    pin_attempted = true;
+    return false;
+  };
+  universal_ble::DrainConnectionCleanup(cleanup, std::chrono::seconds(3), pin);
+  const bool idle_at_return = cleanup.IsIdle();
   worker.join();
-  CHECK(cleanup.IsIdle());
+  universal_ble::DrainConnectionCleanup(cleanup, std::chrono::seconds(0), pin);
+  CHECK(!pin_attempted);
+  CHECK(idle_at_return);
   CHECK(!cleanup.TryAcquire().has_value());
   CHECK(dispatched == 0);
 
