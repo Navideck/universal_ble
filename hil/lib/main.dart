@@ -183,7 +183,7 @@ class _HilWebRunnerPageState extends State<HilWebRunnerPage> {
           );
         });
       } finally {
-        await peripheral.close();
+        await peripheral.dispose();
       }
     } catch (error, stackTrace) {
       setState(() => _fatalError = '$error\n$stackTrace');

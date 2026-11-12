@@ -150,5 +150,6 @@
     "typeindex": "cpp",
     "future": "cpp",
     "regex": "cpp"
-  }
+  },
+  "cmake.sourceDirectory": "C:/Users/u.mehmood/Desktop/projects/universal_ble/windows"
 }

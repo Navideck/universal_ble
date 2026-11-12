@@ -1,0 +1,177 @@
+name: Windows HIL and Fault Insertion Tests
+
+on:
+  workflow_dispatch:
+    inputs:
+      test_group:
+        description: Test group to run (all includes baseline and fault insertion tests)
+        type: choice
+        default: all
+        options:
+          - all
+          - baseline
+          - connection-discovery
+          - gatt-operations
+          - notifications-indications
+          - mtu-resources
+          - timing-sweeps
+
+permissions:
+  contents: read
+
+concurrency:
+  group: windows-hil-fixture
+  cancel-in-progress: false
+
+jobs:
+  hil:
+    # Only run reviewed code from the protected default branch.
+    if: github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
+    environment: windows-hil
+    runs-on:
+      group: windows-hil
+      labels: [self-hosted, Windows, X64, universal-ble-hil]
+    timeout-minutes: 60
+    defaults:
+      run:
+        shell: pwsh
+        working-directory: hil
+    env:
+      HIL_DEVICE_ID: ${{ vars.HIL_DEVICE_ID }}
+      HIL_JLINK_SERIAL: ${{ vars.HIL_JLINK_SERIAL }}
+      # Update these together when the Flutter harness needs new firmware.
+      HIL_FIRMWARE_TAG: 'v0.2'
+      HIL_FIRMWARE_SHA256: '105e6b0a525fd91710633a11b8ee276ff4715979aeba07bdb2294519db5caea1'
+
+    steps:
+      - name: Create log directory for this attempt
+        working-directory: ${{ runner.temp }}
+        run: |
+          $logs = Join-Path $env:RUNNER_TEMP "windows-hil-$env:GITHUB_RUN_ID-$env:GITHUB_RUN_ATTEMPT"
+          New-Item -ItemType Directory -Path $logs | Out-Null
+          "HIL_LOG_DIR=$logs" >> $env:GITHUB_ENV
+
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Resolve fixture COM port from J-Link serial
+        run: |
+          if ($env:HIL_JLINK_SERIAL -notmatch '^[0-9]{6,12}$' -or
+              $env:HIL_JLINK_SERIAL.TrimStart('0') -notmatch '^[1-9][0-9]{5,11}$') {
+            throw 'Set HIL_JLINK_SERIAL to the dedicated DK onboard J-Link serial number.'
+          }
+          $serial = $env:HIL_JLINK_SERIAL.TrimStart('0')
+          $ports = @(Get-PnpDevice -PresentOnly -Class Ports | ForEach-Object {
+            if ($_.FriendlyName -notmatch '\((COM[1-9][0-9]*)\)$') { return }
+            $port = $Matches[1]
+            $id = $_.InstanceId
+            $isVcom0 = $id -match '&MI_00'
+            for ($depth = 0; $id -and $depth -lt 8; $depth++) {
+              if ($id -match '^USB\\VID_1366&PID_[0-9A-F]{4}\\0*([1-9][0-9]*)$') {
+                if ($Matches[1] -eq $serial) { [PSCustomObject]@{ Port = $port; Vcom0 = $isVcom0 } }
+                break
+              }
+              $id = (Get-PnpDeviceProperty -InstanceId $id -KeyName DEVPKEY_Device_Parent -ErrorAction SilentlyContinue).Data
+            }
+          })
+          if ($ports.Count -eq 0) {
+            throw "Expected at least one COM port for J-Link $env:HIL_JLINK_SERIAL; found 0. Check the DK USB connection and SEGGER CDC driver."
+          }
+          $selectedPort = ($ports | Where-Object { $_.Vcom0 } | Select-Object -ExpandProperty Port -First 1)
+          if (-not $selectedPort) {
+            $selectedPort = $ports[0].Port
+          }
+          Write-Host "J-Link $env:HIL_JLINK_SERIAL UART: $selectedPort (from: $($ports.Port -join ', '))"
+          "HIL_SERIAL_PORT=$selectedPort" >> $env:GITHUB_ENV
+          "HIL_JLINK_SERIAL=$serial" >> $env:GITHUB_ENV
+
+      - name: Prepare Windows test app
+        run: |
+          flutter create --platforms=windows --no-pub .
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          flutter pub get
+          exit $LASTEXITCODE
+
+      - name: Clean-flash the nRF52 DK
+        timeout-minutes: 5
+        run: |
+          # Java also ships a jlink.exe; do not resolve this tool from PATH.
+          $jlink = Join-Path $env:ProgramFiles 'SEGGER\JLink\JLink.exe'
+          if (-not (Test-Path -LiteralPath $jlink -PathType Leaf)) {
+            throw "Install SEGGER J-Link Commander at $jlink on the Windows runner."
+          }
+          $repo = 'usmanmehmood55/universal_ble_hil_firmware'
+          $tag = [Uri]::EscapeDataString($env:HIL_FIRMWARE_TAG)
+          $expectedHash = $env:HIL_FIRMWARE_SHA256
+          $dir = New-Item -ItemType Directory -Path (Join-Path $env:RUNNER_TEMP "hil-firmware-$([guid]::NewGuid())")
+          $hex = Join-Path $dir.FullName 'zephyr.hex'
+          Invoke-WebRequest -Uri "https://github.com/$repo/releases/download/$tag/zephyr.hex" -OutFile $hex
+          if ((Get-FileHash -LiteralPath $hex -Algorithm SHA256).Hash -ne $expectedHash) {
+            throw "Firmware $tag does not match the pinned SHA-256. The fixture was not erased."
+          }
+          Write-Host "Flashing $tag zephyr.hex (SHA-256: $expectedHash) via J-Link $env:HIL_JLINK_SERIAL"
+          $commands = Join-Path $dir.FullName 'flash.jlink'
+          @('erase', "loadfile `"$hex`"", 'r', 'g', 'exit') |
+            Set-Content -LiteralPath $commands -Encoding ascii
+          $PSNativeCommandUseErrorActionPreference = $false
+          & $jlink -USB $env:HIL_JLINK_SERIAL -Device NRF52832_XXAA -If SWD -Speed 4000 `
+            -AutoConnect 1 -NoGui 1 -ExitOnError 1 -CommandFile $commands 2>&1 |
+            Tee-Object -FilePath (Join-Path $env:HIL_LOG_DIR 'flash-hil.log')
+          exit $LASTEXITCODE
+
+
+      - name: Baseline
+        id: baseline
+        if: inputs.test_group == 'all' || inputs.test_group == 'baseline'
+        continue-on-error: true
+        run: ./run_windows_hil_group.ps1 -Group baseline
+
+      - name: 'Fault insertion tests: connection and discovery'
+        id: connection-discovery
+        if: inputs.test_group == 'all' || inputs.test_group == 'connection-discovery'
+        continue-on-error: true
+        run: ./run_windows_hil_group.ps1 -Group connection-discovery
+
+      - name: 'Fault insertion tests: GATT operations'
+        id: gatt-operations
+        if: inputs.test_group == 'all' || inputs.test_group == 'gatt-operations'
+        continue-on-error: true
+        run: ./run_windows_hil_group.ps1 -Group gatt-operations
+
+      - name: 'Fault insertion tests: notifications and indications'
+        id: notifications-indications
+        if: inputs.test_group == 'all' || inputs.test_group == 'notifications-indications'
+        continue-on-error: true
+        run: ./run_windows_hil_group.ps1 -Group notifications-indications
+
+      - name: 'Fault insertion tests: MTU and resource pressure'
+        id: mtu-resources
+        if: inputs.test_group == 'all' || inputs.test_group == 'mtu-resources'
+        continue-on-error: true
+        run: ./run_windows_hil_group.ps1 -Group mtu-resources
+
+      - name: 'Fault insertion tests: timing sweeps'
+        id: timing-sweeps
+        if: inputs.test_group == 'all' || inputs.test_group == 'timing-sweeps'
+        continue-on-error: true
+        run: ./run_windows_hil_group.ps1 -Group timing-sweeps
+
+      - name: Fail if any selected test group failed
+        if: >
+          steps.baseline.outcome == 'failure' ||
+          steps.connection-discovery.outcome == 'failure' ||
+          steps.gatt-operations.outcome == 'failure' ||
+          steps.notifications-indications.outcome == 'failure' ||
+          steps.mtu-resources.outcome == 'failure' ||
+          steps.timing-sweeps.outcome == 'failure'
+        run: throw 'One or more selected Windows test groups failed. See the per-group logs.'
+
+      - name: Upload test logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-hil-logs-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/windows-hil-${{ github.run_id }}-${{ github.run_attempt }}/*-hil.log
+          if-no-files-found: ignore
+          retention-days: 14
