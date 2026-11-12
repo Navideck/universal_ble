@@ -33,6 +33,8 @@ internal class GattCallbackCompletionTest {
     private val serviceUuid = UUID.fromString("0000fff0-0000-1000-8000-00805f9b34fb")
     private val charUuid = UUID.fromString("0000fff1-0000-1000-8000-00805f9b34fb")
 
+    private val requestGatt by lazy { mockGatt() }
+
     /** Runnables the plugin posted to the main looper, in submission order. */
     private val mainLooper = mutableListOf<Runnable>()
 
@@ -96,7 +98,7 @@ internal class GattCallbackCompletionTest {
         pending.add(readFuture(secondReads))
 
         plugin.onCharacteristicRead(
-            mockGatt(),
+            requestGatt,
             mockCharacteristic(),
             byteArrayOf(0x2A),
             BluetoothGatt.GATT_SUCCESS
@@ -120,7 +122,7 @@ internal class GattCallbackCompletionTest {
 
         // Its own response completes the remaining read, exactly once.
         plugin.onCharacteristicRead(
-            mockGatt(),
+            requestGatt,
             mockCharacteristic(),
             byteArrayOf(0x2B),
             BluetoothGatt.GATT_SUCCESS
@@ -141,7 +143,7 @@ internal class GattCallbackCompletionTest {
         pending.add(readFuture(secondReads))
 
         plugin.onCharacteristicRead(
-            mockGatt(),
+            requestGatt,
             mockCharacteristic(),
             byteArrayOf(),
             BluetoothGatt.GATT_FAILURE
@@ -168,10 +170,10 @@ internal class GattCallbackCompletionTest {
         val firstReadings = mutableListOf<Result<Long>>()
         val secondReadings = mutableListOf<Result<Long>>()
         val pending = plugin.getField<MutableList<RssiResultFuture>>("rssiResultFutureList")
-        pending.add(RssiResultFuture(deviceAddress) { firstReadings.add(it) })
-        pending.add(RssiResultFuture(deviceAddress) { secondReadings.add(it) })
+        pending.add(RssiResultFuture(requestGatt, deviceAddress) { firstReadings.add(it) })
+        pending.add(RssiResultFuture(requestGatt, deviceAddress) { secondReadings.add(it) })
 
-        plugin.onReadRemoteRssi(mockGatt(), -60, BluetoothGatt.GATT_SUCCESS)
+        plugin.onReadRemoteRssi(requestGatt, -60, BluetoothGatt.GATT_SUCCESS)
 
         assertEquals(0, firstReadings.size, "RSSI must not be replied on the binder thread")
         drainMainLooper()
@@ -189,10 +191,10 @@ internal class GattCallbackCompletionTest {
         val pending = plugin.getField<MutableList<DiscoverServicesFuture>>(
             "discoverServicesFutureList"
         )
-        pending.add(DiscoverServicesFuture(deviceAddress, false) { firstDiscoveries.add(it) })
-        pending.add(DiscoverServicesFuture(deviceAddress, true) { secondDiscoveries.add(it) })
+        pending.add(DiscoverServicesFuture(requestGatt, deviceAddress, false) { firstDiscoveries.add(it) })
+        pending.add(DiscoverServicesFuture(requestGatt, deviceAddress, true) { secondDiscoveries.add(it) })
 
-        plugin.onServicesDiscovered(mockGatt(), BluetoothGatt.GATT_FAILURE)
+        plugin.onServicesDiscovered(requestGatt, BluetoothGatt.GATT_FAILURE)
 
         assertEquals(0, firstDiscoveries.size, "discovery must not fail on the binder thread")
         drainMainLooper()
@@ -206,7 +208,7 @@ internal class GattCallbackCompletionTest {
     @Test
     fun discoverySuccessCompletesEveryPendingCallerOnTheMainLooper() {
         val plugin = pluginWithPreferences()
-        val gatt = mockGatt()
+        val gatt = requestGatt
         val service = Mockito.mock(BluetoothGattService::class.java)
         Mockito.`when`(service.uuid).thenReturn(serviceUuid)
         Mockito.`when`(service.characteristics).thenReturn(listOf())
@@ -217,8 +219,8 @@ internal class GattCallbackCompletionTest {
         val pending = plugin.getField<MutableList<DiscoverServicesFuture>>(
             "discoverServicesFutureList"
         )
-        pending.add(DiscoverServicesFuture(deviceAddress, false) { firstDiscoveries.add(it) })
-        pending.add(DiscoverServicesFuture(deviceAddress, false) { secondDiscoveries.add(it) })
+        pending.add(DiscoverServicesFuture(requestGatt, deviceAddress, false) { firstDiscoveries.add(it) })
+        pending.add(DiscoverServicesFuture(requestGatt, deviceAddress, false) { secondDiscoveries.add(it) })
 
         plugin.onServicesDiscovered(gatt, BluetoothGatt.GATT_SUCCESS)
 
@@ -248,6 +250,8 @@ internal class GattCallbackCompletionTest {
         )
         pending.add(
             SubscriptionResultFuture(
+                gatt,
+                descriptor,
                 deviceAddress,
                 charUuid.toString(),
                 serviceUuid.toString()
@@ -272,6 +276,51 @@ internal class GattCallbackCompletionTest {
     }
 
     @Test
+    fun staleSubscriptionCallbackCannotCompleteReplacementConnection() {
+        val plugin = plugin()
+        val oldGatt = mockGatt()
+        val currentGatt = mockGatt()
+        val characteristic = mockCharacteristic()
+        fun descriptor(): BluetoothGattDescriptor {
+            val descriptor = Mockito.mock(BluetoothGattDescriptor::class.java)
+            Mockito.`when`(descriptor.uuid).thenReturn(ccdCharacteristic)
+            Mockito.`when`(descriptor.characteristic).thenReturn(characteristic)
+            return descriptor
+        }
+        val oldDescriptor = descriptor()
+        val currentDescriptor = descriptor()
+        val subscriptions = mutableListOf<Result<Unit>>()
+        val pending = plugin.getField<MutableList<SubscriptionResultFuture>>(
+            "subscriptionResultFutureList"
+        )
+        pending.add(
+            SubscriptionResultFuture(
+                currentGatt, currentDescriptor, deviceAddress,
+                charUuid.toString(), serviceUuid.toString()
+            ) { subscriptions.add(it) }
+        )
+
+        // Same address and UUIDs, but callbacks from a previous connection
+        // or a replaced descriptor must not consume the current request.
+        plugin.onDescriptorWrite(oldGatt, oldDescriptor, BluetoothGatt.GATT_SUCCESS)
+        plugin.onDescriptorWrite(oldGatt, currentDescriptor, BluetoothGatt.GATT_FAILURE)
+        plugin.onDescriptorWrite(currentGatt, oldDescriptor, BluetoothGatt.GATT_SUCCESS)
+        drainMainLooper()
+        assertTrue(subscriptions.isEmpty())
+        assertEquals(1, pending.size)
+
+        plugin.onDescriptorWrite(currentGatt, currentDescriptor, BluetoothGatt.GATT_SUCCESS)
+        drainMainLooper()
+        assertEquals(1, subscriptions.size)
+        assertTrue(subscriptions.single().isSuccess)
+        assertTrue(pending.isEmpty())
+
+        plugin.onDescriptorWrite(currentGatt, currentDescriptor, BluetoothGatt.GATT_SUCCESS)
+        drainMainLooper()
+        assertEquals(1, subscriptions.size, "a duplicate callback cannot complete twice")
+    }
+
+    @Test
     fun disconnectCompletesPendingFuturesOnTheMainLooper() {
         val plugin = plugin()
         val reads = mutableListOf<Result<ByteArray>>()
@@ -281,17 +330,19 @@ internal class GattCallbackCompletionTest {
         plugin.getField<MutableList<ReadResultFuture>>("readResultFutureList")
             .add(readFuture(reads))
         plugin.getField<MutableList<DiscoverServicesFuture>>("discoverServicesFutureList")
-            .add(DiscoverServicesFuture(deviceAddress, false) { discoveries.add(it) })
+            .add(DiscoverServicesFuture(requestGatt, deviceAddress, false) { discoveries.add(it) })
         plugin.getField<MutableList<SubscriptionResultFuture>>("subscriptionResultFutureList")
             .add(
                 SubscriptionResultFuture(
+                    mockGatt(),
+                    Mockito.mock(BluetoothGattDescriptor::class.java),
                     deviceAddress,
                     charUuid.toString(),
                     serviceUuid.toString()
                 ) { subscriptions.add(it) }
             )
         plugin.getField<MutableList<RssiResultFuture>>("rssiResultFutureList")
-            .add(RssiResultFuture(deviceAddress) { rssis.add(it) })
+            .add(RssiResultFuture(requestGatt, deviceAddress) { rssis.add(it) })
 
         plugin.disconnect(deviceAddress)
 
@@ -430,6 +481,105 @@ internal class GattCallbackCompletionTest {
         assertTrue(plugin.getField<MutableList<ReadResultFuture>>("readResultFutureList").isEmpty())
     }
 
+    @Test
+    fun oldGattCallbacksDoNotConsumeReplacementRequests() {
+        for (status in listOf(BluetoothGatt.GATT_SUCCESS, BluetoothGatt.GATT_FAILURE)) {
+            val plugin = plugin()
+            val old = mockGatt()
+            val current = mockGatt()
+            val characteristic = mockCharacteristic()
+            val descriptor = mockDescriptor(characteristic, "00002901-0000-1000-8000-00805f9b34fb")
+            val cccd = mockDescriptor(characteristic, "00002902-0000-1000-8000-00805f9b34fb")
+            val results = mutableListOf<Boolean>()
+            seedOperations(plugin, current, descriptor, cccd, results)
+            fun deliver(gatt: BluetoothGatt) {
+                plugin.onCharacteristicRead(gatt, characteristic, byteArrayOf(1), status)
+                plugin.onCharacteristicWrite(gatt, characteristic, status)
+                plugin.onReadRemoteRssi(gatt, -60, status)
+                plugin.onServicesDiscovered(gatt, status)
+                plugin.onDescriptorRead(gatt, descriptor, status, byteArrayOf(1))
+                plugin.onDescriptorWrite(gatt, descriptor, status)
+                plugin.onDescriptorWrite(gatt, cccd, status)
+                drainMainLooper()
+            }
+            deliver(old)
+            assertTrue(results.isEmpty(), "same-address old callbacks cannot consume new requests")
+            deliver(current)
+            assertEquals(7, results.size)
+            assertTrue(results.all { it == (status == BluetoothGatt.GATT_SUCCESS) })
+            deliver(current)
+            assertEquals(7, results.size, "duplicate callbacks cannot reply twice")
+        }
+    }
+
+    @Test
+    fun oldGattCleanupPreservesReplacementRequests() {
+        val plugin = plugin()
+        val old = mockGatt()
+        val current = mockGatt()
+        val characteristic = mockCharacteristic()
+        val descriptor = mockDescriptor(characteristic, "00002901-0000-1000-8000-00805f9b34fb")
+        val cccd = mockDescriptor(characteristic, "00002902-0000-1000-8000-00805f9b34fb")
+        val oldResults = mutableListOf<Boolean>()
+        val currentResults = mutableListOf<Boolean>()
+        seedOperations(plugin, old, descriptor, cccd, oldResults)
+        seedOperations(plugin, current, descriptor, cccd, currentResults)
+        val cleanup = UniversalBlePlugin::class.java.getDeclaredMethod(
+            "cleanUpConnection", String::class.java, BluetoothGatt::class.java
+        ).apply { isAccessible = true }
+        cleanup.invoke(plugin, deviceAddress, old)
+        drainMainLooper()
+        assertEquals(List(7) { false }, oldResults)
+        assertTrue(currentResults.isEmpty(), "old disconnect cannot fail the replacement's work")
+        cleanup.invoke(plugin, deviceAddress, null)
+        drainMainLooper()
+        assertEquals(List(7) { false }, currentResults, "explicit device cleanup still clears all owners")
+        assertEquals(7, oldResults.size)
+    }
+
+    @Test
+    fun oldDiscoveryCannotOverwriteReplacementServiceCache() {
+        val plugin = pluginWithPreferences()
+        val current = mockGatt()
+        val old = mockGatt()
+        plugin.gattRegistry().put(current)
+        val cache = plugin.getField<MutableMap<String, List<String>>>("cachedServicesMap")
+        cache[deviceAddress] = listOf("current-service")
+        plugin.onServicesDiscovered(old, BluetoothGatt.GATT_SUCCESS)
+        drainMainLooper()
+        assertEquals(listOf("current-service"), cache[deviceAddress])
+    }
+
+    private fun mockDescriptor(characteristic: BluetoothGattCharacteristic, uuid: String): BluetoothGattDescriptor {
+        val descriptor = Mockito.mock(BluetoothGattDescriptor::class.java)
+        Mockito.`when`(descriptor.uuid).thenReturn(UUID.fromString(uuid))
+        Mockito.`when`(descriptor.characteristic).thenReturn(characteristic)
+        return descriptor
+    }
+
+    private fun seedOperations(
+        plugin: UniversalBlePlugin,
+        gatt: BluetoothGatt,
+        descriptor: BluetoothGattDescriptor,
+        cccd: BluetoothGattDescriptor,
+        results: MutableList<Boolean>,
+    ) {
+        plugin.getField<MutableList<ReadResultFuture>>("readResultFutureList")
+            .add(ReadResultFuture(gatt, deviceAddress, charUuid.toString(), serviceUuid.toString()) { results.add(it.isSuccess) })
+        plugin.getField<MutableList<WriteResultFuture>>("writeResultFutureList")
+            .add(WriteResultFuture(gatt, deviceAddress, charUuid.toString(), serviceUuid.toString()) { results.add(it.isSuccess) })
+        plugin.getField<MutableList<RssiResultFuture>>("rssiResultFutureList")
+            .add(RssiResultFuture(gatt, deviceAddress) { results.add(it.isSuccess) })
+        plugin.getField<MutableList<DiscoverServicesFuture>>("discoverServicesFutureList")
+            .add(DiscoverServicesFuture(gatt, deviceAddress, false) { results.add(it.isSuccess) })
+        plugin.getField<MutableList<ReadDescriptorResultFuture>>("readDescriptorResultFutureList")
+            .add(ReadDescriptorResultFuture(gatt, deviceAddress, descriptor.uuid.toString(), charUuid.toString(), serviceUuid.toString()) { results.add(it.isSuccess) })
+        plugin.getField<MutableList<WriteDescriptorResultFuture>>("writeDescriptorResultFutureList")
+            .add(WriteDescriptorResultFuture(gatt, deviceAddress, descriptor.uuid.toString(), charUuid.toString(), serviceUuid.toString()) { results.add(it.isSuccess) })
+        plugin.getField<MutableList<SubscriptionResultFuture>>("subscriptionResultFutureList")
+            .add(SubscriptionResultFuture(gatt, cccd, deviceAddress, charUuid.toString(), serviceUuid.toString()) { results.add(it.isSuccess) })
+    }
+
     /** A gatt whose [serviceUuid] service exposes [characteristic] under [charUuid]. */
     private fun mockGattWithService(
         characteristic: BluetoothGattCharacteristic
@@ -443,6 +593,7 @@ internal class GattCallbackCompletionTest {
     }
 
     private fun readFuture(reads: MutableList<Result<ByteArray>>) = ReadResultFuture(
+        requestGatt,
         deviceAddress,
         charUuid.toString(),
         serviceUuid.toString(),

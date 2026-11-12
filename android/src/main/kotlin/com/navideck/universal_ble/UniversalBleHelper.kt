@@ -5,6 +5,7 @@ import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothDevice
 import android.bluetooth.BluetoothGatt
 import android.bluetooth.BluetoothGattCharacteristic
+import android.bluetooth.BluetoothGattDescriptor
 import android.bluetooth.BluetoothManager
 import android.bluetooth.BluetoothStatusCodes
 import android.bluetooth.le.ScanCallback.SCAN_FAILED_ALREADY_STARTED
@@ -470,6 +471,7 @@ fun Int.parseHciErrorCode(): String? {
 
 // Future result classes
 class DiscoverServicesFuture(
+    val gatt: BluetoothGatt,
     val deviceId: String,
     val withDescriptors: Boolean,
     val result: (Result<List<UniversalBleService>>) -> Unit,
@@ -482,6 +484,7 @@ class MtuResultFuture(
 )
 
 class ReadResultFuture(
+    val gatt: BluetoothGatt,
     val deviceId: String,
     val characteristicId: String,
     val serviceId: String,
@@ -489,6 +492,7 @@ class ReadResultFuture(
 )
 
 class WriteResultFuture(
+    val gatt: BluetoothGatt,
     val deviceId: String,
     val characteristicId: String,
     val serviceId: String,
@@ -496,6 +500,8 @@ class WriteResultFuture(
 )
 
 class SubscriptionResultFuture(
+    val gatt: BluetoothGatt,
+    val descriptor: BluetoothGattDescriptor,
     val deviceId: String,
     val characteristicId: String,
     val serviceId: String,
@@ -503,11 +509,13 @@ class SubscriptionResultFuture(
 )
 
 class RssiResultFuture(
+    val gatt: BluetoothGatt,
     val deviceId: String,
     val result: (Result<Long>) -> Unit,
 )
 
 class ReadDescriptorResultFuture(
+    val gatt: BluetoothGatt,
     val deviceId: String,
     val descriptorId: String,
     val characteristicId: String,
@@ -516,6 +524,7 @@ class ReadDescriptorResultFuture(
 )
 
 class WriteDescriptorResultFuture(
+    val gatt: BluetoothGatt,
     val deviceId: String,
     val descriptorId: String,
     val characteristicId: String,
