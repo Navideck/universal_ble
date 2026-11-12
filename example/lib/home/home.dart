@@ -1,7 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:universal_ble/universal_ble.dart';
 import 'package:universal_ble_example/data/mock_universal_ble.dart';
 import 'package:universal_ble_example/home/widgets/android_scan_options_widget.dart';

@@ -15,6 +15,8 @@ dependencies:
   universal_ble:
     path: ../
 
+  material_ui: any
+  cupertino_ui: any
 dev_dependencies:
   integration_test:
     sdk: flutter

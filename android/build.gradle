@@ -47,7 +47,8 @@ android {
     }
 
     dependencies {
-        testImplementation 'org.jetbrains.kotlin:kotlin-test'
+        testImplementation 'org.jetbrains.kotlin:kotlin-test-junit5:2.2.10'
+        testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
         testImplementation 'org.mockito:mockito-core:5.12.0'
     }
 
