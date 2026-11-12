@@ -66,19 +66,24 @@ jobs:
             if ($_.FriendlyName -notmatch '\((COM[1-9][0-9]*)\)$') { return }
             $port = $Matches[1]
             $id = $_.InstanceId
+            $isVcom0 = $id -match '&MI_00'
             for ($depth = 0; $id -and $depth -lt 8; $depth++) {
               if ($id -match '^USB\\VID_1366&PID_[0-9A-F]{4}\\0*([1-9][0-9]*)$') {
-                if ($Matches[1] -eq $serial) { $port }
+                if ($Matches[1] -eq $serial) { [PSCustomObject]@{ Port = $port; Vcom0 = $isVcom0 } }
                 break
               }
               $id = (Get-PnpDeviceProperty -InstanceId $id -KeyName DEVPKEY_Device_Parent -ErrorAction SilentlyContinue).Data
             }
           })
-          if ($ports.Count -ne 1) {
-            throw "Expected one COM port for J-Link $env:HIL_JLINK_SERIAL; found $($ports.Count): $($ports -join ', '). Check the DK USB connection and SEGGER CDC driver."
+          if ($ports.Count -eq 0) {
+            throw "Expected at least one COM port for J-Link $env:HIL_JLINK_SERIAL; found 0. Check the DK USB connection and SEGGER CDC driver."
           }
-          Write-Host "J-Link $env:HIL_JLINK_SERIAL UART: $($ports[0])"
-          "HIL_SERIAL_PORT=$($ports[0])" >> $env:GITHUB_ENV
+          $selectedPort = ($ports | Where-Object { $_.Vcom0 } | Select-Object -ExpandProperty Port -First 1)
+          if (-not $selectedPort) {
+            $selectedPort = $ports[0].Port
+          }
+          Write-Host "J-Link $env:HIL_JLINK_SERIAL UART: $selectedPort (from: $($ports.Port -join ', '))"
+          "HIL_SERIAL_PORT=$selectedPort" >> $env:GITHUB_ENV
           "HIL_JLINK_SERIAL=$serial" >> $env:GITHUB_ENV
 
       - name: Prepare Windows test app
