@@ -22,6 +22,7 @@ try {
   $writer = [IO.StreamWriter]::new($stream)
   $writer.AutoFlush = $true
   $port.Open()
+  $port.DiscardInBuffer()
   $port.WriteLine('')
   while ($true) {
     $line = $reader.ReadLine()
@@ -31,7 +32,7 @@ try {
     do {
       $received = $port.ReadLine().TrimEnd([char]13)
       $writer.WriteLine($received)
-    } until ($received.StartsWith($prefix, [StringComparison]::Ordinal))
+    } until ($received.IndexOf($prefix, [StringComparison]::Ordinal) -ge 0)
   }
 } finally {
   $port.Dispose()
@@ -174,8 +175,9 @@ class HilSerial {
   void _onLine(String line) {
     final prefix = 'HIL $_pendingId ';
     final pending = _pending;
-    if (pending != null && !pending.isCompleted && line.startsWith(prefix)) {
-      pending.complete(line.substring(prefix.length));
+    final index = line.indexOf(prefix);
+    if (pending != null && !pending.isCompleted && index >= 0) {
+      pending.complete(line.substring(index + prefix.length));
     } else {
       debugPrintSynchronously('HIL fixture: $line');
     }
