@@ -343,59 +343,15 @@ struct BluetoothDeviceAgent {
   }
 };
 
-// Track GATT request deferrals independently of Flutter reply delivery.
-class PeripheralDeferrals {
-public:
-  uint64_t Add(Deferral deferral) {
-    std::lock_guard<std::mutex> lock(mutex_);
-    const auto id = next_id_++;
-    pending_.emplace(id, std::move(deferral));
-    return id;
-  }
-
-  void Complete(uint64_t id) noexcept {
-    std::unordered_map<uint64_t, Deferral>::node_type entry;
-    {
-      std::lock_guard<std::mutex> lock(mutex_);
-      entry = pending_.extract(id);
-    }
-    if (!entry.empty()) {
-      CompleteNative(entry.mapped());
-    }
-  }
-
-  void CompleteAll() noexcept {
-    std::unordered_map<uint64_t, Deferral> pending;
-    {
-      std::lock_guard<std::mutex> lock(mutex_);
-      pending.swap(pending_);
-    }
-    for (const auto &entry : pending) {
-      CompleteNative(entry.second);
-    }
-  }
-
-private:
-  static void CompleteNative(const Deferral &deferral) noexcept {
-    try {
-      deferral.Complete();
-    } catch (...) {
-    }
-  }
-
-  std::mutex mutex_;
-  std::unordered_map<uint64_t, Deferral> pending_;
-  uint64_t next_id_ = 0;
-};
-
-class UniversalBlePlugin : public UniversalBlePlatformChannel,
+class UniversalBlePlugin : public flutter::Plugin,
+                           public UniversalBlePlatformChannel,
                            public UniversalBlePeripheralChannel {
 public:
   static void RegisterWithRegistrar(flutter::PluginRegistrarWindows *registrar);
 
   UniversalBlePlugin(flutter::PluginRegistrarWindows *registrar);
 
-  static void Shutdown(std::shared_ptr<UniversalBlePlugin> core);
+  ~UniversalBlePlugin();
 
   // Disallow copy and assign.
   UniversalBlePlugin(const UniversalBlePlugin &) = delete;
@@ -421,9 +377,7 @@ private:
         .count();
   }
 
-  void FinishNativeShutdown();
-  std::shared_ptr<PeripheralDeferrals> peripheral_deferrals_ =
-      std::make_shared<PeripheralDeferrals>();
+  flutter::PluginRegistrarWindows *registrar_;
   bool initialized_ = false;
 
   // Per plugin instance (one per FlutterEngine): the callback channels. Events
@@ -438,10 +392,9 @@ private:
   // Both are safe because the destructor shuts this handler down before it
   // resets the channels, and Shutdown drops still-queued callbacks instead of
   // running them.
-  std::shared_ptr<UniversalBleUiThreadHandler> ui_thread_handler_;
+  UniversalBleUiThreadHandler ui_thread_handler_;
   AsyncOperationTracker callback_operations_;
   AsyncOperationTracker initialization_operations_;
-  AsyncOperationTracker initialization_publications_;
   AsyncOperationTracker cleanup_operations_;
   // Protected by connected_devices_mutex_; leases outlive map removal.
   std::unordered_map<uint64_t, AsyncOperationTracker> connection_cleanup_;
@@ -494,22 +447,22 @@ private:
       std::string device_id, std::string service, std::string characteristic,
       BleInputProperty ble_input_property,
       std::function<void(std::optional<FlutterError> reply)> result);
-  fire_and_forget PairAsync(std::string device_id,
+  fire_and_forget PairAsync(const std::string &device_id,
                             std::function<void(ErrorOr<bool> reply)> result);
   fire_and_forget CustomPairAsync(
-      std::string device_id,
+      const std::string &device_id,
       std::function<void(ErrorOr<bool> reply)> result);
   static fire_and_forget GetSystemDevicesAsync(
       std::vector<std::string> with_services,
       std::function<void(ErrorOr<flutter::EncodableList> reply)> result);
   static fire_and_forget IsPairedAsync(
-      std::string device_id,
+      const std::string &device_id,
       std::function<void(ErrorOr<bool> reply)> result);
   fire_and_forget DiscoverServicesAsync(
-      std::string device_id, bool with_descriptors,
+      const std::string &device_id, bool with_descriptors,
       std::function<void(ErrorOr<flutter::EncodableList> reply)> result);
 
-  static void PairingRequestedHandler(
+  void PairingRequestedHandler(
       DeviceInformationCustomPairing sender,
       const DevicePairingRequestedEventArgs &event_args);
 
@@ -610,15 +563,15 @@ private:
 
   // Peripheral helpers
   void DisposeAdvertisementPublisher();  // Requires peripheral_mutex_.
-  fire_and_forget PeripheralAddServiceAsync(PeripheralService service);
+  fire_and_forget PeripheralAddServiceAsync(const PeripheralService &service);
   fire_and_forget PeripheralReadRequestedAsync(
-      GattLocalCharacteristic local_char,
+      GattLocalCharacteristic const &local_char,
       GattReadRequestedEventArgs args);
   fire_and_forget PeripheralWriteRequestedAsync(
-      GattLocalCharacteristic local_char,
+      GattLocalCharacteristic const &local_char,
       GattWriteRequestedEventArgs args);
   fire_and_forget PeripheralSubscribedClientsChanged(
-      GattLocalCharacteristic local_char, IInspectable const &args);
+      GattLocalCharacteristic const &local_char, IInspectable const &args);
   void PeripheralAdvertisementStatusChanged(
       GattServiceProvider const &sender,
       GattServiceProviderAdvertisementStatusChangedEventArgs const &args);
