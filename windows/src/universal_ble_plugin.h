@@ -539,8 +539,7 @@ private:
       const std::shared_ptr<BluetoothDeviceAgent> &device_agent);
   static void DisposeGattMap(
       std::unordered_map<std::string, GattServiceObject> gatt_map,
-      const std::vector<GattDeviceService> *retained_services = nullptr,
-      bool log_errors = true);
+      const std::vector<GattDeviceService> *retained_services = nullptr);
 
   event_token RegisterGattValueChangedHandler(
       const std::shared_ptr<BluetoothDeviceAgent> &device_agent,

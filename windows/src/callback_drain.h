@@ -25,7 +25,7 @@ void DrainConnectionCleanup(
     const AsyncOperationTracker &operations,
     std::chrono::steady_clock::duration timeout,
     KeepModuleLoaded keep_module_loaded) noexcept {
-  if (operations.WaitUntilIdleFor(timeout) || operations.IsIdle()) {
+  if (operations.WaitUntilIdleFor(timeout)) {
     return;
   }
   if (!keep_module_loaded()) {

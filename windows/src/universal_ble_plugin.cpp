@@ -2573,20 +2573,41 @@ fire_and_forget UniversalBlePlugin::DisposeConnectionAsync(
     try {
       device_agent->device.ConnectionStatusChanged(
           device_agent->connection_status_changed_token);
+    } catch (const hresult_error &err) {
+      UniversalBleLogger::LogError("DisposeConnection hresult_error: " +
+                                   to_string(err.message()));
     } catch (...) {
+      UniversalBleLogger::LogWarning(
+          "DisposeConnection: failed to remove connection status handler");
     }
     try {
       device_agent->device.GattServicesChanged(
           device_agent->gatt_services_changed_token);
+    } catch (const hresult_error &err) {
+      UniversalBleLogger::LogError(
+          "DisposeConnection GattServicesChanged hresult_error: " +
+          to_string(err.message()));
     } catch (...) {
+      UniversalBleLogger::LogWarning(
+          "DisposeConnection: failed to remove GATT services handler");
     }
     DisposeServices(device_agent);
     try {
       device_agent->device.Close();
+    } catch (const hresult_error &err) {
+      UniversalBleLogger::LogError("DisposeConnection close hresult_error: " +
+                                   to_string(err.message()));
     } catch (...) {
+      UniversalBleLogger::LogWarning(
+          "DisposeConnection: failed to close Bluetooth device");
     }
   } catch (...) {
-    // Do not close WinRT objects on the UI apartment if scheduling fails.
+    // Includes failed thread-pool submission and exceptions from diagnostics.
+    // Do not continue cleanup on the caller's UI apartment if scheduling fails.
+    try {
+      log_and_swallow_unknown("DisposeConnectionAsync");
+    } catch (...) {
+    }
   }
   // Release every old object before allowing another discovery for the address.
   device_agent.reset();
@@ -2638,24 +2659,46 @@ fire_and_forget UniversalBlePlugin::DisposePartialConnectionAsync(
     if (device && connection_status_changed_token.has_value()) {
       try {
         device.ConnectionStatusChanged(connection_status_changed_token.value());
+      } catch (const hresult_error &err) {
+        UniversalBleLogger::LogError(
+            "DisposePartialConnection ConnectionStatusChanged "
+            "hresult_error hr=" +
+            std::to_string(err.code()) + " msg=" + to_string(err.message()));
       } catch (...) {
+        UniversalBleLogger::LogWarning("DisposePartialConnection: failed to "
+                                       "remove connection status handler");
       }
     }
     if (device && gatt_services_changed_token.has_value()) {
       try {
         device.GattServicesChanged(gatt_services_changed_token.value());
+      } catch (const hresult_error &err) {
+        UniversalBleLogger::LogError(
+            "DisposePartialConnection GattServicesChanged hresult_error hr=" +
+            std::to_string(err.code()) + " msg=" + to_string(err.message()));
       } catch (...) {
+        UniversalBleLogger::LogWarning(
+            "DisposePartialConnection: failed to remove GATT services handler");
       }
     }
-    DisposeGattMap(std::move(gatt_map), nullptr, false);
+    DisposeGattMap(std::move(gatt_map));
     if (device) {
       try {
         device.Close();
+      } catch (const hresult_error &err) {
+        UniversalBleLogger::LogError(
+            "DisposePartialConnection close hresult_error: " +
+            to_string(err.message()));
       } catch (...) {
+        log_and_swallow_unknown("DisposePartialConnection close");
       }
     }
   } catch (...) {
-    // Do not close WinRT objects on the UI apartment if scheduling fails.
+    // Do not continue cleanup on the caller's UI apartment if scheduling fails.
+    try {
+      log_and_swallow_unknown("DisposePartialConnectionAsync");
+    } catch (...) {
+    }
   }
   device = nullptr;
   connection_cleanup_lease.reset();
@@ -2663,12 +2706,12 @@ fire_and_forget UniversalBlePlugin::DisposePartialConnectionAsync(
 
 void UniversalBlePlugin::DisposeServices(
     const std::shared_ptr<BluetoothDeviceAgent> &device_agent) {
-  DisposeGattMap(device_agent->TakeGattMap(), nullptr, false);
+  DisposeGattMap(device_agent->TakeGattMap());
 }
 
 void UniversalBlePlugin::DisposeGattMap(
     std::unordered_map<std::string, GattServiceObject> gatt_map,
-    const std::vector<GattDeviceService> *retained_services, bool log_errors) {
+    const std::vector<GattDeviceService> *retained_services) {
   for (auto &[service_id, service] : gatt_map) {
     for (auto &[char_id, characteristic] : service.characteristics) {
       if (characteristic.subscription_token.has_value() &&
@@ -2677,18 +2720,12 @@ void UniversalBlePlugin::DisposeGattMap(
           characteristic.obj.ValueChanged(
               characteristic.subscription_token.value());
         } catch (const hresult_error &err) {
-          if (log_errors) {
-            UniversalBleLogger::LogError("DisposeServices hresult_error unsub " +
-                                         to_string(err.message()));
-          }
+          UniversalBleLogger::LogError("DisposeServices hresult_error unsub " +
+                                       to_string(err.message()));
         } catch (const std::exception &ex) {
-          if (log_errors) {
-            log_and_swallow("DisposeServices unsub std::exception", ex);
-          }
+          log_and_swallow("DisposeServices unsub std::exception", ex);
         } catch (...) {
-          if (log_errors) {
-            log_and_swallow_unknown("DisposeServices unsub");
-          }
+          log_and_swallow_unknown("DisposeServices unsub");
         }
         characteristic.subscription_token = std::nullopt;
       }
@@ -2701,19 +2738,13 @@ void UniversalBlePlugin::DisposeGattMap(
       try {
         service.obj.Close();
       } catch (const hresult_error &err) {
-        if (log_errors) {
-          UniversalBleLogger::LogError("DisposeServices hresult_error close " +
-                                       service_id + ": " +
-                                       to_string(err.message()));
-        }
+        UniversalBleLogger::LogError("DisposeServices hresult_error close " +
+                                     service_id + ": " +
+                                     to_string(err.message()));
       } catch (const std::exception &ex) {
-        if (log_errors) {
-          log_and_swallow("DisposeServices close std::exception", ex);
-        }
+        log_and_swallow("DisposeServices close std::exception", ex);
       } catch (...) {
-        if (log_errors) {
-          log_and_swallow_unknown("DisposeServices close");
-        }
+        log_and_swallow_unknown("DisposeServices close");
       }
     }
   }
