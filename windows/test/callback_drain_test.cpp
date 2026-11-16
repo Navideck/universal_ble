@@ -83,5 +83,16 @@ int main() {
   CHECK(resumed.load());
   CHECK(tracker.IsIdle());
   CHECK(!tracker.TryAcquire().has_value());
+
+  AsyncOperationTracker blocked;
+  auto stalled = blocked.TryAcquire();
+  CHECK(stalled.has_value());
+  blocked.Close();
+  const auto deadline =
+      std::chrono::steady_clock::now() + std::chrono::milliseconds(25);
+  CHECK(!universal_ble::WaitForCallbacksWithMessagePumpUntil(blocked, deadline));
+  CHECK(!blocked.IsIdle());
+  stalled.reset();
+  CHECK(universal_ble::WaitForCallbacksWithMessagePumpUntil(blocked, deadline));
   return 0;
 }

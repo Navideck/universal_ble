@@ -32,6 +32,7 @@ struct CompletionState {
   HANDLE release_operation = CreateEventW(nullptr, TRUE, FALSE, nullptr);
   HANDLE callback_entered = CreateEventW(nullptr, TRUE, FALSE, nullptr);
   HANDLE release_callback = CreateEventW(nullptr, TRUE, FALSE, nullptr);
+  HANDLE finished = CreateEventW(nullptr, TRUE, FALSE, nullptr);
   std::mutex mutex;
   std::vector<std::function<void()>> ui_work;
   std::atomic<int> publications{0};
@@ -40,6 +41,7 @@ struct CompletionState {
     CloseHandle(release_operation);
     CloseHandle(callback_entered);
     CloseHandle(release_callback);
+    CloseHandle(finished);
   }
 };
 
@@ -55,8 +57,9 @@ class Initializer {
 public:
   Initializer(std::shared_ptr<CompletionState> state) : state_(state) {
     const auto initialization_operations = initialization_operations_;
+    const auto publications = publications_;
     PendingEnumeration(state).Completed(
-        [this, state, initialization_operations](const auto &operation,
+        [this, state, initialization_operations, publications](const auto &operation,
                                                  const auto &) {
           const auto callback = initialization_operations.TryAcquire();
           if (!callback.has_value()) {
@@ -67,13 +70,14 @@ public:
           SetEvent(state->callback_entered);
           WaitForSingleObject(state->release_callback, INFINITE);
           operation.GetResults();
-          std::lock_guard<std::mutex> lock(state->mutex);
-          state->ui_work.push_back([this, initialization_operations] {
-            const auto callback = initialization_operations.TryAcquire();
-            if (!callback.has_value())
-              return;
-            ++state_->publications;
-          });
+          universal_ble::QueueInitializationPublication(
+              publications,
+              [state](auto task) {
+                std::lock_guard<std::mutex> lock(state->mutex);
+                state->ui_work.push_back(std::move(task));
+              },
+              [this] { ++state_->publications; });
+          SetEvent(state->finished);
         });
   }
 
@@ -83,9 +87,11 @@ public:
     // the actual plugin in a Flutter runner.
     callback_operations_.Close();
     initialization_operations_.Close();
-    while (!initialization_operations_.WaitUntilIdleFor(
-        std::chrono::milliseconds(10))) {
-    }
+    publications_.Close();
+    universal_ble::DrainConnectionCleanup(initialization_operations_,
+                                          std::chrono::milliseconds(25),
+                                          [] { return true; });
+    universal_ble::WaitForCallbacksWithoutMessagePump(publications_);
     WaitForCallbacksWithMessagePump(callback_operations_);
   }
 
@@ -93,6 +99,7 @@ private:
   std::shared_ptr<CompletionState> state_;
   AsyncOperationTracker callback_operations_;
   AsyncOperationTracker initialization_operations_;
+  AsyncOperationTracker publications_;
 };
 
 bool Check(bool condition, const char *expression, int line) {
@@ -151,21 +158,17 @@ int main() {
   CHECK(sent);
   PostQuitMessage(37);
 
-  // Pause a completion after it acquires its lease. Destruction must wait
-  // without dispatching either posted or cross-thread sent window messages.
+  // An admitted enumeration can outlive destruction without publishing or
+  // dispatching posted or cross-thread sent window messages.
   auto active = std::make_shared<CompletionState>();
   initializer = std::make_unique<Initializer>(active);
   SetEvent(active->release_operation);
   CHECK(WaitForSingleObject(active->callback_entered, 2000) == WAIT_OBJECT_0);
-  std::thread release([active] {
-    std::this_thread::sleep_for(std::chrono::milliseconds(100));
-    SetEvent(active->release_callback);
-  });
   initializer.reset();
-  release.join();
+  SetEvent(active->release_callback);
+  CHECK(WaitForSingleObject(active->finished, 2000) == WAIT_OBJECT_0);
   CHECK(foreign_messages_dispatched == 0);
-  // A queued publication must also ignore a destroyed owner.
-  RunUiWork(active);
+  CHECK(active->ui_work.empty());
   CHECK(active->publications == 0);
   MSG message{};
   CHECK(PeekMessageW(&message, foreign_window, kForeignMessage, kForeignMessage,
@@ -173,6 +176,17 @@ int main() {
   CHECK(foreign_messages_dispatched == 1);
   CHECK(PeekMessageW(&message, nullptr, WM_QUIT, WM_QUIT, PM_REMOVE));
   CHECK(message.wParam == 37);
+
+  // Queue a real publication before closing its owner, then deliver it late.
+  auto queued = std::make_shared<CompletionState>();
+  initializer = std::make_unique<Initializer>(queued);
+  SetEvent(queued->release_callback);
+  SetEvent(queued->release_operation);
+  CHECK(WaitForSingleObject(queued->finished, 2000) == WAIT_OBJECT_0);
+  CHECK(queued->ui_work.size() == 1);
+  initializer.reset();
+  RunUiWork(queued);
+  CHECK(queued->publications == 0);
 
   // Successful initialization is still published while the owner is alive.
   auto success = std::make_shared<CompletionState>();
