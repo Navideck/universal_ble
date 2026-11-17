@@ -176,6 +176,9 @@ UniversalBlePlugin::~UniversalBlePlugin() {
   // Disposal owns its WinRT objects and leases, and never accesses the plugin
   // instance. A stalled WinRT call can outlive the engine if the DLL
   // stays loaded.
+  // Keep disposal failure logs to diagnose handler removal and Close()
+  // failures. If the DLL is pinned at the deadline, those logs may reach
+  // stdout after engine teardown.
   DrainConnectionCleanup(cleanup_operations_, std::chrono::seconds(3), [] {
     static const wchar_t module_anchor = L'\0';
     HMODULE module = nullptr;
