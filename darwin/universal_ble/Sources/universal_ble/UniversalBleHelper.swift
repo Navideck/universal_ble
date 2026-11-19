@@ -365,13 +365,16 @@ class CharacteristicReadFuture: DeviceFuture {
     }
 }
 
-class CharacteristicWriteFuture: DeviceFuture {
+class CharacteristicWriteFuture: DeviceFuture, OwnedWriteRequest {
+    let peripheral: CBPeripheral
+    var writeOwner: AnyObject { peripheral }
     let deviceId: String
     let characteristicId: String
     let serviceId: String?
     let result: (Result<Void, Error>) -> Void
 
-    init(deviceId: String, characteristicId: String, serviceId: String?, result: @escaping (Result<Void, Error>) -> Void) {
+    init(peripheral: CBPeripheral, deviceId: String, characteristicId: String, serviceId: String?, result: @escaping (Result<Void, Error>) -> Void) {
+        self.peripheral = peripheral
         self.deviceId = deviceId
         self.characteristicId = characteristicId
         self.serviceId = serviceId
@@ -383,13 +386,16 @@ class CharacteristicWriteFuture: DeviceFuture {
     }
 }
 
-class PendingWriteWithoutResponse: DeviceFuture {
+class PendingWriteWithoutResponse: DeviceFuture, OwnedWriteRequest {
+    let peripheral: CBPeripheral
+    var writeOwner: AnyObject { peripheral }
     let deviceId: String
     let characteristic: CBCharacteristic
     let data: Data
     let result: (Result<Void, Error>) -> Void
 
-    init(deviceId: String, characteristic: CBCharacteristic, data: Data, result: @escaping (Result<Void, Error>) -> Void) {
+    init(peripheral: CBPeripheral, deviceId: String, characteristic: CBCharacteristic, data: Data, result: @escaping (Result<Void, Error>) -> Void) {
+        self.peripheral = peripheral
         self.deviceId = deviceId
         self.characteristic = characteristic
         self.data = data
