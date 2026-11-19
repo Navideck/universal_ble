@@ -1320,6 +1320,10 @@ plugin, not acknowledged by the remote device.
 
 Run `./darwin/test/run_peripheral_reliability_tests.sh` on macOS for native
 characteristic, restored-identity, and notification-FIFO regression checks.
+`./darwin/universal_ble/Tests/run_write_ownership_test.sh` and
+`./darwin/universal_ble/Tests/run_discovery_progress_test.sh` compile their
+helpers standalone with `swiftc` for the Apple write-ownership and
+discovery-progress bookkeeping.
 
 ### Android GATT Server Auto-Reconnection
 
