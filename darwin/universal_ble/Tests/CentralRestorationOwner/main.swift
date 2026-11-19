@@ -90,5 +90,53 @@ do {
   check(owners.owner(of: identifier) == nil, "edge: releasing an unclaimed identifier does nothing")
 }
 
+// 6. Claims that race across threads: exactly one engine wins, every time.
+//    Without the owner's lock two claims can both see the identifier as free and
+//    both report success, which is the two-managers bug. With it, the outcome is
+//    deterministic — the loser sees a live owner — so this is an invariant test,
+//    not a timing test. The engines stay in `engines` so the winner remains live
+//    while the result is checked, and each round starts from a fresh owner map so
+//    a round cannot inherit a winner from the previous one.
+//
+//    Release is deliberately not raced here: releasing an identifier while
+//    other engines claim it has a different legal outcome per interleaving (a
+//    claim that lands after the release wins), so asserting on it would be flaky
+//    rather than meaningful. `claim` alone is the invariant worth pinning down.
+do {
+  let rounds = 500
+  let enginesPerRound = 8
+  var roundsWithOneWinner = 0
+  var roundsWithCorrectOwner = 0
+
+  for _ in 0..<rounds {
+    let owners = UniversalBleCentralRestorationOwner()
+    let engines = (0..<enginesPerRound).map { _ in Engine() }
+    let resultsLock = NSLock()
+    var winners: [Int] = []
+    let group = DispatchGroup()
+    let queue = DispatchQueue(label: "central-restoration-claim", attributes: .concurrent)
+
+    for (index, engine) in engines.enumerated() {
+      queue.async(group: group) {
+        let won = owners.claim(identifier, for: engine)
+        if won {
+          resultsLock.lock()
+          winners.append(index)
+          resultsLock.unlock()
+        }
+      }
+    }
+    group.wait()
+
+    if winners.count == 1 { roundsWithOneWinner += 1 }
+    if let winner = winners.first, owners.owner(of: identifier) === engines[winner] {
+      roundsWithCorrectOwner += 1
+    }
+  }
+
+  check(roundsWithOneWinner == rounds, "concurrency: one of \(enginesPerRound) racing claims wins in each of \(rounds) rounds")
+  check(roundsWithCorrectOwner == rounds, "concurrency: the engine that won the race is the owner in each of \(rounds) rounds")
+}
+
 print("\(checks - failures)/\(checks) passed")
 exit(failures == 0 ? 0 : 1)

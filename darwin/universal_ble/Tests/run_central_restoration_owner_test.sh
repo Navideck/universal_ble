@@ -4,7 +4,9 @@
 # plugin's build (the podspec and Package.swift take Sources/ only).
 set -euo pipefail
 here="$(cd "$(dirname "$0")" && pwd)"
-bin="$(mktemp -d)/central_restoration_owner_test"
+test_dir="$(mktemp -d)"
+trap 'rm -rf "$test_dir"' EXIT
+bin="$test_dir/central_restoration_owner_test"
 xcrun swiftc -O -o "$bin" \
   "$here/../Sources/universal_ble/UniversalBleCentralRestorationOwner.swift" \
   "$here/CentralRestorationOwner/main.swift"
