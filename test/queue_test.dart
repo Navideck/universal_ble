@@ -66,7 +66,7 @@ void main() {
 
       final future = queue.add(
         () => Future<void>.delayed(const Duration(seconds: 5)),
-        const Duration(milliseconds: 50),
+        timeout: const Duration(milliseconds: 50),
       );
 
       await expectLater(future, throwsA(isA<TimeoutException>()));

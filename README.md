@@ -267,7 +267,7 @@ List<String> withNamePrefix;
 
 ##### Connectable Only
 
-Use the `connectableOnly` parameter to filter out non-connectable devices (such as beacons). When set to `true`, only connectable devices are included. Devices with unknown (`null`) connectability also pass this filter, so this option is a no-op on platforms that do not report connectability (Linux and Web, which always report `null`).
+Use the `connectableOnly` parameter to filter out non-connectable devices (such as beacons). When set to `true`, only connectable devices are included. Devices with unknown (`null`) connectability also pass this filter, so this option is a no-op on platforms that cannot answer the question: Linux and Web (which always report `null`), Android below API 26 (where the platform API does not exist), and Windows hosts that do not expose `IBluetoothLEAdvertisementReceivedEventArgs2`.
 
 ```dart
 bool? connectableOnly;
@@ -834,6 +834,33 @@ UniversalBle.write(deviceId, service, char, value1, queueId: '1');
 UniversalBle.write(deviceId, service, char, value2, queueId: '2');
 ```
 
+`disconnect` does not take part in queueing: it always runs as soon as it is called, never waits behind commands queued for the device (including commands in custom queues), and cancels the ones that have not been submitted to the platform yet. A command that is already running is not interrupted — it runs to completion, so only waiting commands are cancelled. Cancelled commands fail with a `UniversalBleException` whose `code` is `UniversalBleErrorCode.operationCancelled`, and whose `details` hold the canonical (lower-case) device id. `disconnect`'s own `queueId` argument is therefore deprecated and ignored — queued work for other devices, or under other `queueId`s, is untouched:
+
+```dart
+// The first write is submitted and starts; the second one waits behind it.
+final running = UniversalBle.write(deviceId, service, char, value1);
+final queued = UniversalBle.write(deviceId, service, char, value2);
+await UniversalBle.disconnect(deviceId); // starts immediately
+
+// `queued` fails with `operationCancelled`; `running` was already submitted.
+```
+
+Because a cancelled command completes its future with an error, a command you start without awaiting it reports an unhandled async error whenever a `disconnect` cancels it. Await the command or attach an error handler:
+
+```dart
+unawaited(
+  UniversalBle.write(deviceId, service, char, value).catchError((Object e) {
+    if (e is UniversalBleException &&
+        e.code == UniversalBleErrorCode.operationCancelled) {
+      return; // Expected when a disconnect wins the race.
+    }
+    throw e;
+  }),
+);
+```
+
+Concurrent `disconnect` calls for one device are not coalesced: each dispatches its own platform disconnect, so the platform (and `onConnectionChange`) sees one event per call.
+
 You can also completely disable the queue and batch all commands, even for the same device, by using:
 
 ```dart
@@ -855,8 +882,8 @@ UniversalBle.onQueueUpdate = (String id, int remainingItems) {
 To clear a queue:
 
 ```dart
-// Clear global queue
-UniversalBle.clearQueue(BleCommandQueue.globalQueueId);
+// Clear the global queue (its id is 'global')
+UniversalBle.clearQueue('global');
 
 // Clear a per-device queue (when queueType is perDevice)
 UniversalBle.clearQueue(deviceId);

@@ -27,8 +27,20 @@ private val characteristicInstanceIds:
 private val descriptorValueReadMap: MutableMap<BluetoothGattDescriptor, ByteArray> =
     IdentityHashMap()
 
-/** Per-client CCCD values, keyed by `device|instance|descriptor`. */
-private val cccdValues: MutableMap<String, ByteArray> = HashMap()
+/**
+ * Per-client CCCD value, identified by the client, the characteristic instance
+ * and the descriptor. A structured key is used instead of a delimited string so
+ * a caller-supplied [PeripheralCharacteristic.instanceId] cannot break it apart:
+ * an id containing the delimiter would otherwise be mistaken for another
+ * characteristic's entry when a service is removed.
+ */
+private data class CccdKey(
+    val deviceId: String?,
+    val characteristicIdentity: String?,
+    val descriptorUuid: String,
+)
+
+private val cccdValues: MutableMap<CccdKey, ByteArray> = HashMap()
 
 /**
  * Instances a client subscribed to, keyed by client address. Values are stable
@@ -55,6 +67,70 @@ fun clearPeripheralCaches() {
         subscribedCharDevicesMap.clear()
     }
 }
+
+/**
+ * Drops the cached state that belongs to [service] only: its characteristic
+ * lookups and instance ids, configured descriptor values, per-client CCCD
+ * values and subscriptions. Other registered services keep theirs — including
+ * when they expose the same characteristic UUID, which HID and vendor services
+ * routinely do.
+ *
+ * Call this whenever [service] leaves the GATT server. Its characteristics are
+ * then no longer registered, so a cached lookup must not keep resolving them:
+ * a later registration of the same UUID would otherwise notify through orphaned
+ * objects and the central would receive nothing.
+ */
+fun clearPeripheralCaches(service: BluetoothGattService) {
+    // Identities are read before the maps holding them are touched: the CCCD and
+    // subscription keys are built from them.
+    val removedCharacteristics = service.characteristics.orEmpty().toList()
+    val removedIdentities = removedCharacteristics.map(::identityOf).toSet()
+    synchronized(bluetoothGattCharacteristics) {
+        bluetoothGattCharacteristics.entries.removeAll { it.value.service === service }
+        // A UUID alias may have pointed at a characteristic of this service while
+        // another registered service exposes the same UUID: re-point the alias at
+        // the survivor, so that service stays reachable by UUID.
+        removedCharacteristics.forEach { removed ->
+            val alias = removed.uuid.toString().lowercase()
+            if (bluetoothGattCharacteristics.containsKey(alias)) return@forEach
+            val survivor = bluetoothGattCharacteristics.values.firstOrNull {
+                it.uuid.toString().equals(alias, ignoreCase = true)
+            }
+            if (survivor != null) bluetoothGattCharacteristics[alias] = survivor
+        }
+    }
+    synchronized(characteristicInstanceIds) {
+        characteristicInstanceIds.keys.removeAll { it.service === service }
+    }
+    synchronized(descriptorValueReadMap) {
+        descriptorValueReadMap.keys.removeAll { it.characteristic?.service === service }
+    }
+    if (removedIdentities.isEmpty()) return
+    // Whatever identity another cached characteristic still exposes must keep its
+    // CCCD values and subscriptions: two services can share a UUID, and the
+    // remaining registration is still alive and still subscribed.
+    val surviving = synchronized(bluetoothGattCharacteristics) {
+        bluetoothGattCharacteristics.values.toList()
+    }
+    val droppedIdentities = removedIdentities - surviving.map(::identityOf).toSet()
+    if (droppedIdentities.isEmpty()) return
+    synchronized(cccdValues) {
+        cccdValues.keys.removeAll { it.characteristicIdentity in droppedIdentities }
+    }
+    synchronized(subscribedCharDevicesMap) {
+        subscribedCharDevicesMap.values.forEach { ids ->
+            ids.removeAll { it.lowercase() in droppedIdentities }
+        }
+        subscribedCharDevicesMap.values.removeAll { it.isEmpty() }
+    }
+}
+
+/**
+ * The identity CCCD values and subscriptions are keyed by for [characteristic]:
+ * its instance id when it declared one, its UUID otherwise.
+ */
+private fun identityOf(characteristic: BluetoothGattCharacteristic): String =
+    (characteristic.instanceId() ?: characteristic.uuid.toString()).lowercase()
 
 fun Activity.havePermission(permissions: Array<String>): Boolean {
     for (perm in permissions) {
@@ -190,8 +266,8 @@ fun BluetoothGattDescriptor.storeClientValue(deviceId: String?, value: ByteArray
     }
 }
 
-private fun cccdKey(deviceId: String?, instanceId: String?, descriptorUuid: String): String =
-    "${deviceId?.lowercase()}|${instanceId?.lowercase()}|${descriptorUuid.lowercase()}"
+private fun cccdKey(deviceId: String?, instanceId: String?, descriptorUuid: String): CccdKey =
+    CccdKey(deviceId?.lowercase(), instanceId?.lowercase(), descriptorUuid.lowercase())
 
 /** Stable identity of a registered characteristic, if it declared one. */
 fun BluetoothGattCharacteristic.instanceId(): String? =

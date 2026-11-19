@@ -40,10 +40,9 @@ class BleCommandQueue {
   /// maps to one queue whichever case a caller passes, while anything that is not an address
   /// (a custom queue id, an opaque Web token) is kept verbatim. [clearQueue] derives keys the
   /// same way, so any key this produces can always be cleared by the id that produced it.
-  String _keyFor(String id) =>
-      _isAddress && DeviceId.looksLikeAddress(id)
-          ? id.toDeviceId().canonical
-          : id;
+  String _keyFor(String id) => _isAddress && DeviceId.looksLikeAddress(id)
+      ? id.toDeviceId().canonical
+      : id;
 
   String? _queueKey(String? queueId, String? deviceId) {
     if (queueId != null) return _keyFor(queueId);
@@ -66,10 +65,18 @@ class BleCommandQueue {
       );
     }
     return switch (_resolvedQueueType) {
-      QueueType.global => _queue(queueId).add(command, timeoutDuration),
+      QueueType.global => _queue(queueId).add(
+          command,
+          timeout: timeoutDuration,
+          ownerId: deviceId == null ? null : _keyFor(deviceId),
+        ),
       QueueType.perDevice => _queue(
           _queueKey(queueId, deviceId),
-        ).add(command, timeoutDuration),
+        ).add(
+          command,
+          timeout: timeoutDuration,
+          ownerId: deviceId == null ? null : _keyFor(deviceId),
+        ),
       QueueType.none || QueueType.auto => command().timeout(timeoutDuration),
     };
   }
@@ -80,12 +87,56 @@ class BleCommandQueue {
     String? queueId,
   }) {
     return switch (_resolvedQueueType) {
-      QueueType.global => _queue(queueId).add(command),
+      QueueType.global => _queue(queueId).add(
+          command,
+          ownerId: deviceId == null ? null : _keyFor(deviceId),
+        ),
       QueueType.perDevice => _queue(
           _queueKey(queueId, deviceId),
-        ).add(command),
+        ).add(
+          command,
+          ownerId: deviceId == null ? null : _keyFor(deviceId),
+        ),
       QueueType.none || QueueType.auto => command(),
     };
+  }
+
+  /// Disconnect must reach the platform even when a pending GATT operation
+  /// can only finish after that disconnect. Cancel unsent work for this device
+  /// across queue IDs, preserving other devices in shared queues.
+  ///
+  /// Cancellation happens before [command] is dispatched and synchronously, so
+  /// a command that is still waiting is cancelled even if the caller's own
+  /// cancellation trigger (a state lookup, say) has not completed yet.
+  /// Queues that lost work are then notified, also synchronously, after
+  /// [command] has been dispatched, so listeners cannot re-enter the queue
+  /// ahead of the teardown. A queue that [clearQueue] removed during that
+  /// dispatch is gone from the map and is therefore not notified.
+  Future<T> runTeardown<T>(
+    Future<T> Function() command, {
+    required String deviceId,
+    Duration? timeout,
+  }) {
+    final ownerId = _keyFor(deviceId);
+    final cancelledQueues = <String>[];
+    UniversalBleException cancelledError(String? owner) =>
+        UniversalBleException(
+          code: UniversalBleErrorCode.operationCancelled,
+          message: 'Command cancelled by disconnect',
+          details: owner,
+        );
+    for (final entry in _queueMap.entries.toList()) {
+      final cancelled = entry.value.cancelPendingWhere(
+        (owner) => owner == ownerId,
+        cancelledError: cancelledError,
+      );
+      if (cancelled) cancelledQueues.add(entry.key);
+    }
+    final future = Future<T>.sync(command);
+    for (final queueKey in cancelledQueues) {
+      _queueMap[queueKey]?.notifyRemainingItems();
+    }
+    return timeout == null ? future : future.timeout(timeout);
   }
 
   Queue _queue(String? id) {
@@ -94,7 +145,13 @@ class BleCommandQueue {
   }
 
   Queue _newQueue(String id) {
-    final queue = Queue();
+    final queue = Queue(
+      cancelledError: (ownerId) => UniversalBleException(
+        code: UniversalBleErrorCode.operationCancelled,
+        message: 'Queue Cancelled',
+        details: ownerId,
+      ),
+    );
     queue.onRemainingItemsUpdate = (int items) {
       try {
         onQueueUpdate?.call(id, items);
