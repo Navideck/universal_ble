@@ -6,6 +6,10 @@ import 'package:universal_ble/src/utils/universal_ble_error_parser.dart';
 class UniversalBleException implements Exception {
   final UniversalBleErrorCode code;
   final String message;
+
+  /// Extra context for [code]. For a command cancelled by `disconnect` or
+  /// `clearQueue`, this is the canonical (lower-case) device id of the owner
+  /// whose command was cancelled; on Web it is the opaque id verbatim.
   final dynamic details;
 
   UniversalBleException({
