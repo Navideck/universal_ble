@@ -89,11 +89,23 @@ class UniversalBle {
   /// Emits the raw characteristic bytes for each update. The platform
   /// timestamp is not surfaced here; set [onValueChange] to receive a
   /// [BleCharacteristicValue] that also carries it.
+  ///
+  /// A GATT database may expose the same characteristic UUID in several
+  /// services. Pass [serviceId] to receive only the values of that service's
+  /// characteristic; without it every characteristic with this UUID on the
+  /// device is reported, which is the historical behaviour. A platform that
+  /// cannot report the owning service still emits its values here, since they
+  /// are not known to come from another service.
   static Stream<Uint8List> characteristicValueStream(
     String deviceId,
-    String characteristicId,
-  ) =>
-      _platform.characteristicValueStream(deviceId, characteristicId);
+    String characteristicId, {
+    String? serviceId,
+  }) =>
+      _platform.characteristicValueStream(
+        deviceId,
+        characteristicId,
+        serviceId: serviceId,
+      );
 
   /// Pairing state stream
   static Stream<bool> pairingStateStream(String deviceId) =>
@@ -544,6 +556,11 @@ class UniversalBle {
   ///
   /// Subscription state is updated when [subscribeNotifications], [subscribeIndications],
   /// or [unsubscribe] completes, and is automatically cleared when the device disconnects.
+  ///
+  /// The state is tracked per characteristic UUID, not per service: when a device exposes the
+  /// same characteristic UUID in several services, subscribing to one of them reports all of
+  /// them as subscribed, and unsubscribing one clears the flag for all. Values, in contrast,
+  /// are routed per service by [characteristicValueStream].
   static bool isSubscribed(String deviceId, String characteristic) =>
       CacheHandler.instance.isSubscribed(
         canonicalDeviceId(deviceId),
@@ -551,6 +568,9 @@ class UniversalBle {
       );
 
   /// Returns the list of characteristic UUIDs currently subscribed to on [deviceId].
+  ///
+  /// The list carries no service information, so a characteristic UUID exposed by several
+  /// services appears once regardless of which instance is subscribed (see [isSubscribed]).
   static List<String> getSubscribedCharacteristics(String deviceId) =>
       CacheHandler.instance.getSubscribedCharacteristics(
         canonicalDeviceId(deviceId),

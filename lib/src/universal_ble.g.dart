@@ -2769,8 +2769,14 @@ abstract class UniversalBleCallbackChannel {
 
   Future<void> onScanResult(UniversalBleScanResult result);
 
+  /// [characteristicId] alone does not identify a characteristic: the GATT
+  /// database may hold several characteristics with the same UUID in different
+  /// services. [serviceId] is the UUID of the service that owns the
+  /// characteristic, so a notification from service A cannot be delivered as if
+  /// it came from service B. It is `null` on a platform that cannot report the
+  /// owning service.
   Future<void> onValueChanged(String deviceId, String characteristicId,
-      Uint8List value, int? timestamp);
+      String? serviceId, Uint8List value, int? timestamp);
 
   /// [errorCode] classifies a failed connection or an unexpected disconnect
   /// (`deviceDisconnected`, `connectionTimeout`, `connectionFailed`, ...),
@@ -2875,11 +2881,12 @@ abstract class UniversalBleCallbackChannel {
           final List<Object?> args = message! as List<Object?>;
           final String arg_deviceId = args[0]! as String;
           final String arg_characteristicId = args[1]! as String;
-          final Uint8List arg_value = args[2]! as Uint8List;
-          final int? arg_timestamp = args[3] as int?;
+          final String? arg_serviceId = args[2] as String?;
+          final Uint8List arg_value = args[3]! as Uint8List;
+          final int? arg_timestamp = args[4] as int?;
           try {
-            await api.onValueChanged(
-                arg_deviceId, arg_characteristicId, arg_value, arg_timestamp);
+            await api.onValueChanged(arg_deviceId, arg_characteristicId,
+                arg_serviceId, arg_value, arg_timestamp);
             return wrapResponse(empty: true);
           } on PlatformException catch (e) {
             return wrapResponse(error: e);

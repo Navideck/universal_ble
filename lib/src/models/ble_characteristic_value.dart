@@ -9,6 +9,15 @@ class BleCharacteristicValue {
   /// Characteristic id, normalized (short UUIDs expanded to their 128-bit form).
   final String characteristicId;
 
+  /// Service id, normalized (short UUIDs expanded to their 128-bit form), of
+  /// the service that owns the characteristic.
+  ///
+  /// A GATT database may hold several characteristics with the same
+  /// [characteristicId] in different services, so this identifies which one
+  /// produced the value. It is `null` on a platform that cannot report the
+  /// owning service.
+  final String? serviceId;
+
   /// The characteristic value.
   final Uint8List value;
 
@@ -19,12 +28,13 @@ class BleCharacteristicValue {
   const BleCharacteristicValue({
     required this.deviceId,
     required this.characteristicId,
+    this.serviceId,
     required this.value,
     this.timestamp,
   });
 
   @override
   String toString() => 'BleCharacteristicValue(deviceId: $deviceId, '
-      'characteristicId: $characteristicId, value: $value, '
-      'timestamp: $timestamp)';
+      'serviceId: $serviceId, characteristicId: $characteristicId, '
+      'value: $value, timestamp: $timestamp)';
 }

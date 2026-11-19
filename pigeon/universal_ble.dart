@@ -627,10 +627,17 @@ abstract class UniversalBleCallbackChannel {
   @asyncCallback
   void onScanResult(UniversalBleScanResult result);
 
+  /// [characteristicId] alone does not identify a characteristic: the GATT
+  /// database may hold several characteristics with the same UUID in different
+  /// services. [serviceId] is the UUID of the service that owns the
+  /// characteristic, so a notification from service A cannot be delivered as if
+  /// it came from service B. It is `null` on a platform that cannot report the
+  /// owning service.
   @asyncCallback
   void onValueChanged(
     String deviceId,
     String characteristicId,
+    String? serviceId,
     Uint8List value,
     int? timestamp,
   );

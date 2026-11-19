@@ -545,11 +545,13 @@ private:
 
   event_token RegisterGattValueChangedHandler(
       const std::shared_ptr<BluetoothDeviceAgent> &device_agent,
-      const std::string &device_id, const std::string &characteristic_id,
+      const std::string &device_id, const std::string &service_id,
+      const std::string &characteristic_id,
       const GattCharacteristic &characteristic);
   void GattCharacteristicValueChanged(
       const std::weak_ptr<BluetoothDeviceAgent> &device_agent,
-      const std::string &device_id, const std::string &characteristic_id,
+      const std::string &device_id, const std::string &service_id,
+      const std::string &characteristic_id,
       const GattValueChangedEventArgs &args);
   // Peripheral runtime state
   std::map<std::string, PeripheralGattServiceProviderObject *>

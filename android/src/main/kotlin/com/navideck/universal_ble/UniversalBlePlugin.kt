@@ -2083,6 +2083,9 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
             callbackChannel?.onValueChanged(
                 deviceIdArg = gatt.device.address,
                 characteristicIdArg = characteristic.uuid.toString(),
+                // The same characteristic UUID may exist in several services;
+                // the owning service tells the two instances apart.
+                serviceIdArg = characteristic.service?.uuid?.toString(),
                 valueArg = value,
                 timestampArg = System.currentTimeMillis()
             ) {}

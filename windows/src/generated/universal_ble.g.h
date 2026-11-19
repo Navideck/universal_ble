@@ -1717,9 +1717,16 @@ class UniversalBleCallbackChannel {
     const UniversalBleScanResult& result,
     std::function<void(void)>&& on_success,
     std::function<void(const FlutterError&)>&& on_error);
+  // [characteristicId] alone does not identify a characteristic: the GATT
+  // database may hold several characteristics with the same UUID in different
+  // services. [serviceId] is the UUID of the service that owns the
+  // characteristic, so a notification from service A cannot be delivered as if
+  // it came from service B. It is `null` on a platform that cannot report the
+  // owning service.
   void OnValueChanged(
     const std::string& device_id,
     const std::string& characteristic_id,
+    const std::string* service_id,
     const std::vector<uint8_t>& value,
     const int64_t* timestamp,
     std::function<void(void)>&& on_success,

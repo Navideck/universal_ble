@@ -2330,7 +2330,7 @@ fire_and_forget UniversalBlePlugin::RefreshGattServicesAsync(
               }
               characteristic->second.subscription_token =
                   RegisterGattValueChangedHandler(device_agent, device_id,
-                                                  characteristic_id,
+                                                  service_id, characteristic_id,
                                                   characteristic->second.obj);
             }
           } catch (...) {
@@ -3121,7 +3121,8 @@ fire_and_forget UniversalBlePlugin::SetNotifiableAsync(
       stage = "register-handler";
       provisional_subscription_token =
           std::make_optional(RegisterGattValueChangedHandler(
-              device_agent, device_id, characteristic, gatt_characteristic));
+              device_agent, device_id, service, characteristic,
+              gatt_characteristic));
       if (!device_agent->UpdateNotificationOperationToken(
               service, characteristic, provisional_subscription_token)) {
         gatt_characteristic.ValueChanged(
@@ -3310,12 +3311,13 @@ fire_and_forget UniversalBlePlugin::SetNotifiableAsync(
 
 event_token UniversalBlePlugin::RegisterGattValueChangedHandler(
     const std::shared_ptr<BluetoothDeviceAgent> &device_agent,
-    const std::string &device_id, const std::string &characteristic_id,
+    const std::string &device_id, const std::string &service_id,
+    const std::string &characteristic_id,
     const GattCharacteristic &characteristic) {
   const auto notification_callback_operations = callback_operations_;
   return characteristic.ValueChanged(
       [this, notification_callback_operations,
-       weak_device_agent = std::weak_ptr(device_agent), device_id,
+       weak_device_agent = std::weak_ptr(device_agent), device_id, service_id,
        characteristic_id](const GattCharacteristic &,
                           const GattValueChangedEventArgs &args) {
         const auto callback = notification_callback_operations.TryAcquire();
@@ -3323,13 +3325,14 @@ event_token UniversalBlePlugin::RegisterGattValueChangedHandler(
           return;
         }
         GattCharacteristicValueChanged(weak_device_agent, device_id,
-                                       characteristic_id, args);
+                                       service_id, characteristic_id, args);
       });
 }
 
 void UniversalBlePlugin::GattCharacteristicValueChanged(
     const std::weak_ptr<BluetoothDeviceAgent> &weak_device_agent,
-    const std::string &device_id, const std::string &characteristic_id,
+    const std::string &device_id, const std::string &service_id,
+    const std::string &characteristic_id,
     const GattValueChangedEventArgs &args) {
   try {
     const auto device_agent = weak_device_agent.lock();
@@ -3345,14 +3348,15 @@ void UniversalBlePlugin::GattCharacteristicValueChanged(
         " len=" + std::to_string(bytes.size()));
 
     const auto timestamp = GetCurrentTimestampMillis();
-    PostCentralReport([weak_device_agent, device_id, characteristic_id, bytes,
+    PostCentralReport([weak_device_agent, device_id, service_id,
+                       characteristic_id, bytes,
                        timestamp](UniversalBleCallbackChannel *channel) {
       const auto current_device_agent = weak_device_agent.lock();
       if (!current_device_agent || !current_device_agent->IsActive()) {
         return;
       }
-      channel->OnValueChanged(device_id, characteristic_id, bytes, &timestamp,
-                              SuccessCallback, ErrorCallback);
+      channel->OnValueChanged(device_id, characteristic_id, &service_id, bytes,
+                              &timestamp, SuccessCallback, ErrorCallback);
     });
   } catch (const hresult_error &err) {
     UniversalBleLogger::LogError(

@@ -334,10 +334,17 @@ class UniversalBlePigeonChannel extends UniversalBlePlatform
   Future<void> onValueChanged(
     String deviceId,
     String characteristicId,
+    String? serviceId,
     Uint8List value,
     int? timestamp,
   ) async =>
-      updateCharacteristicValue(deviceId, characteristicId, value, timestamp);
+      updateCharacteristicValue(
+        deviceId,
+        characteristicId,
+        value,
+        timestamp,
+        serviceId: serviceId,
+      );
 
   @override
   Future<void> onPairStateChange(

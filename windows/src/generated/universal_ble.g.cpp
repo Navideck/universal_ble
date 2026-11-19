@@ -4654,6 +4654,7 @@ void UniversalBleCallbackChannel::OnScanResult(
 void UniversalBleCallbackChannel::OnValueChanged(
   const std::string& device_id_arg,
   const std::string& characteristic_id_arg,
+  const std::string* service_id_arg,
   const std::vector<uint8_t>& value_arg,
   const int64_t* timestamp_arg,
   std::function<void(void)>&& on_success,
@@ -4663,6 +4664,7 @@ void UniversalBleCallbackChannel::OnValueChanged(
   EncodableValue encoded_api_arguments = EncodableValue(EncodableList{
     EncodableValue(device_id_arg),
     EncodableValue(characteristic_id_arg),
+    service_id_arg ? EncodableValue(*service_id_arg) : EncodableValue(),
     EncodableValue(value_arg),
     timestamp_arg ? EncodableValue(*timestamp_arg) : EncodableValue(),
   });

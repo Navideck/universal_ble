@@ -405,6 +405,7 @@ class UniversalBleWeb extends UniversalBlePlatform {
           characteristic,
           event.buffer.asUint8List(),
           DateTime.now().millisecondsSinceEpoch,
+          serviceId: service,
         );
       });
     } else {
