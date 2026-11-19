@@ -123,6 +123,20 @@ internal class DisconnectCloseTest {
     }
 
     @Test
+    fun supersededClientConnectIsNotReported() {
+        val plugin = plugin()
+        val oldGatt = mockGatt()
+        val newGatt = mockGatt()
+        plugin.gattRegistry().put(newGatt)
+
+        plugin.onConnectionStateChange(
+            oldGatt, BluetoothGatt.GATT_SUCCESS, BluetoothGatt.STATE_CONNECTED
+        )
+
+        assertTrue(connectionChanges.isEmpty(), "a replaced client cannot report a connection")
+    }
+
+    @Test
     fun supersededClientClosesWithoutTouchingTheNewOne() {
         val plugin = plugin()
         val oldGatt = mockGatt()

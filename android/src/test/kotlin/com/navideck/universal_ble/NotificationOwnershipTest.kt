@@ -1,0 +1,133 @@
+package com.navideck.universal_ble
+
+import android.bluetooth.BluetoothDevice
+import android.bluetooth.BluetoothGatt
+import android.bluetooth.BluetoothGattCharacteristic
+import android.os.Handler
+import java.util.UUID
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertTrue
+import org.mockito.Mockito
+
+/*
+ * A notification carries no pending request to match against, so delivery is a
+ * policy question: only the client registered for the address owns the
+ * connection the app sees. A client replaced by a newer connect() can keep
+ * reporting during its teardown, and those values must not be presented as the
+ * current connection's (#381).
+ */
+internal class NotificationOwnershipTest {
+    private val address = "AA:BB:CC:DD:EE:FF"
+    private val charUuid = UUID.fromString("0000fff1-0000-1000-8000-00805f9b34fb")
+
+    /** Runnables the plugin posted to the main looper, in submission order. */
+    private val mainLooper = mutableListOf<Runnable>()
+
+    // (deviceId, characteristicId) of every onValueChanged delivered to Dart.
+    private val delivered = mutableListOf<Pair<String, String>>()
+
+    private val callbackChannel: UniversalBleCallbackChannel =
+        Mockito.mock(UniversalBleCallbackChannel::class.java) { invocation ->
+            if (invocation.method.name == "onValueChanged") {
+                delivered.add(
+                    invocation.getArgument<String>(0) to
+                        invocation.getArgument<String>(1)
+                )
+            }
+            null
+        }
+
+    private fun plugin(): UniversalBlePlugin {
+        val handler = Mockito.mock(Handler::class.java)
+        Mockito.doAnswer { invocation ->
+            mainLooper.add(invocation.getArgument(0))
+            true
+        }.`when`(handler).post(Mockito.any())
+        return UniversalBlePlugin().also {
+            it.setField("mainThreadHandler", handler)
+            it.setField("callbackChannel", callbackChannel)
+        }
+    }
+
+    private fun drainMainLooper() {
+        while (mainLooper.isNotEmpty()) {
+            mainLooper.removeAt(0).run()
+        }
+    }
+
+    private fun mockGatt(): BluetoothGatt {
+        val device = Mockito.mock(BluetoothDevice::class.java)
+        Mockito.`when`(device.address).thenReturn(address)
+        val gatt = Mockito.mock(BluetoothGatt::class.java)
+        Mockito.`when`(gatt.device).thenReturn(device)
+        return gatt
+    }
+
+    private fun characteristic(): BluetoothGattCharacteristic {
+        val characteristic = Mockito.mock(BluetoothGattCharacteristic::class.java)
+        Mockito.`when`(characteristic.uuid).thenReturn(charUuid)
+        return characteristic
+    }
+
+    @Test
+    fun registeredClientDeliversItsNotifications() {
+        val plugin = plugin()
+        val gatt = mockGatt()
+        plugin.gattRegistry().put(gatt)
+
+        plugin.onCharacteristicChanged(gatt, characteristic(), byteArrayOf(0x01))
+        drainMainLooper()
+
+        assertEquals(listOf(address to charUuid.toString()), delivered)
+    }
+
+    @Test
+    fun supersededClientNotificationsAreDropped() {
+        val plugin = plugin()
+        val current = mockGatt()
+        // Same address, not the registered client: a connect() replaced it.
+        val superseded = mockGatt()
+        plugin.gattRegistry().put(current)
+
+        plugin.onCharacteristicChanged(superseded, characteristic(), byteArrayOf(0x01))
+        drainMainLooper()
+        assertTrue(delivered.isEmpty(), "a replaced client cannot report values for the address")
+
+        plugin.onCharacteristicChanged(current, characteristic(), byteArrayOf(0x02))
+        drainMainLooper()
+        assertEquals(1, delivered.size, "the registered client still delivers")
+    }
+
+    @Test
+    fun notificationsAfterDisconnectAreDropped() {
+        val plugin = plugin()
+        val gatt = mockGatt()
+        plugin.gattRegistry().put(gatt)
+
+        plugin.disconnect(address)
+        drainMainLooper()
+
+        plugin.onCharacteristicChanged(gatt, characteristic(), byteArrayOf(0x01))
+        drainMainLooper()
+        assertTrue(delivered.isEmpty(), "the app closed this connection; no client owns it now")
+    }
+
+    @Test
+    fun autoConnectClientKeepsDeliveringAcrossALinkLoss() {
+        val plugin = plugin()
+        val gatt = mockGatt()
+        plugin.gattRegistry().put(gatt)
+        plugin.getField<MutableSet<String>>("autoConnectDevices").add(address)
+
+        // autoConnect keeps the client registered so Android can reconnect it.
+        plugin.onConnectionStateChange(
+            gatt, BluetoothGatt.GATT_SUCCESS, BluetoothGatt.STATE_DISCONNECTED
+        )
+        drainMainLooper()
+        plugin.onCharacteristicChanged(gatt, characteristic(), byteArrayOf(0x01))
+        drainMainLooper()
+
+        assertEquals(1, delivered.size)
+    }
+}

@@ -1332,7 +1332,7 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
     ) {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
         val deviceId = gatt?.device?.address ?: return
-        if (!gattRegistry.isKnown(deviceId)) return
+        if (!isCurrentClient(gatt)) return
         UniversalBleLogger.logDebug(
             "onConnectionUpdated -> $deviceId interval=$interval latency=$latency timeout=$timeout status=$status"
         )
@@ -1349,13 +1349,23 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
         }
     }
 
+    /**
+     * Whether [gatt] is still the client registered for its device address, i.e.
+     * the connection whose state and values the app should see. A client that a
+     * newer `connect()` replaced is not, and neither is one `disconnect()` has
+     * already removed from the registry.
+     *
+     * An `autoConnect` client deliberately stays registered while Android keeps
+     * it open, so it keeps reporting once the link recovers.
+     */
+    private fun isCurrentClient(gatt: BluetoothGatt?): Boolean =
+        gatt != null && gattRegistry.find(gatt.device.address) === gatt
+
     override fun onMtuChanged(gatt: BluetoothGatt?, mtu: Int, status: Int) {
         val deviceId = gatt?.device?.address ?: return
-        if (closingGatts.contains(gatt)) return
-        val current = gattRegistry.find(deviceId)
         // Only the registered client may report or cache an MTU; a stale client
         // that was already removed must not populate state for a new connection.
-        if (current !== gatt) return
+        if (!isCurrentClient(gatt)) return
         UniversalBleLogger.logDebug("MTU_CHANGED <- $deviceId mtu=$mtu status=$status")
         completeMtu(gatt, if (status == BluetoothGatt.GATT_SUCCESS) {
             Result.success(mtu.toLong())
@@ -1876,6 +1886,14 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
         )
 
         if (newState == BluetoothGatt.STATE_CONNECTED) {
+            // A client replaced by a newer connect() must not report a
+            // connection for the address it no longer owns.
+            if (!isCurrentClient(gatt)) {
+                UniversalBleLogger.logDebug(
+                    "CONNECTED ignored from a superseded client <- ${gatt.device.address}"
+                )
+                return
+            }
             connectedGatts.add(gatt)
             mainThreadHandler?.post {
                 callbackChannel?.onConnectionChanged(
@@ -1923,6 +1941,14 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
         characteristic: BluetoothGattCharacteristic,
         value: ByteArray,
     ) {
+        // A replaced client can keep notifying during its teardown; its values
+        // belong to the connection it used to be, not to the one registered now.
+        if (!isCurrentClient(gatt)) {
+            UniversalBleLogger.logVerbose(
+                "NOTIFY ignored from a superseded client <- ${gatt.device.address} ${characteristic.uuid}"
+            )
+            return
+        }
         UniversalBleLogger.logVerbose(
             "NOTIFY <- ${gatt.device.address} ${characteristic.uuid} len=${value.size}"
         )
