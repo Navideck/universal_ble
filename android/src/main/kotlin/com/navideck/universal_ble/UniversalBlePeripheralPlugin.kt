@@ -57,6 +57,19 @@ class UniversalBlePeripheralPlugin(
     private var originalAdapterName: String? = null
     private var adapterNameOverridden = false
     private var isEnableBluetoothPromptPending = false
+    private var disposed = false
+
+    /**
+     * Identifier of the current adapter session, bumped by every observed
+     * [BluetoothAdapter.ACTION_STATE_CHANGED]. [gattServerSession] records the
+     * session [gattServer] was opened in, so a server older than the current
+     * session is known to have died with the adapter even though it is still
+     * non-null here.
+     */
+    private var adapterSession: Long = 0
+
+    /** The adapter session [gattServer] was opened in, or -1 when there is none. */
+    private var gattServerSession: Long = -1
     @Volatile
     private var autoConnect: Boolean = true
 
@@ -105,8 +118,18 @@ class UniversalBlePeripheralPlugin(
     }
 
     fun dispose() {
-        applicationContext.unregisterReceiver(adapterStateReceiver)
+        // Detaching twice must not throw: onDetachedFromEngine is not guaranteed
+        // to be the last caller, and a failed teardown must not leave the
+        // receiver registered.
+        if (disposed) return
+        disposed = true
+        kotlin.runCatching {
+            applicationContext.unregisterReceiver(adapterStateReceiver)
+        }.onFailure {
+            UniversalBleLogger.logWarning("Failed to unregister the adapter receiver: ${it.message}")
+        }
         resetPeripheralState()
+        handler.removeCallbacksAndMessages(null)
         isEnableBluetoothPromptPending = false
     }
 
@@ -115,8 +138,14 @@ class UniversalBlePeripheralPlugin(
      * session: the GATT server and advertiser themselves, connected clients,
      * negotiated MTUs, queued and in-flight notifications, and the peripheral
      * caches. The next peripheral call re-opens them lazily.
+     *
+     * What it takes away is reported to Dart, because nothing else will: every
+     * dropped client is disconnected, and an advertiser that is gone while the
+     * state still says ADVERTISING is moved to [PeripheralAdvertisingState.IDLE].
+     * Runs on the main thread, like its callers (the adapter receiver, `dispose`
+     * and the platform-channel handlers).
      */
-    private fun resetPeripheralState() {
+    private fun resetPeripheralState(advertisingMessage: String? = null) {
         kotlin.runCatching { bluetoothLeAdvertiser?.stopAdvertising(advertiseCallback) }
         restoreAdapterNameIfNeeded()
         // Queued notifications belong to the server that is being dropped, so
@@ -129,21 +158,41 @@ class UniversalBlePeripheralPlugin(
         }
         kotlin.runCatching { gattServer?.close() }
         gattServer = null
+        gattServerSession = -1
         bluetoothLeAdvertiser = null
-        synchronized(bluetoothDevicesMap) {
+        val droppedClients = synchronized(bluetoothDevicesMap) {
+            val devices = bluetoothDevicesMap.values.toList()
             bluetoothDevicesMap.clear()
+            devices
         }
         synchronized(mtuByDeviceId) { mtuByDeviceId.clear() }
         clearPeripheralCaches()
+        droppedClients.forEach { device ->
+            callback.onConnectionStateChange(device.address, false) {}
+        }
+        val wasAdvertising = advertisingState == PeripheralAdvertisingState.STARTING ||
+            advertisingState == PeripheralAdvertisingState.ADVERTISING ||
+            advertisingState == PeripheralAdvertisingState.STOPPING
+        if (wasAdvertising) {
+            advertisingState = PeripheralAdvertisingState.IDLE
+            callback.onAdvertisingStateChange(PeripheralAdvertisingState.IDLE, advertisingMessage) {}
+        }
     }
 
     /**
-     * Drops the adapter-bound state when Bluetooth is turning off. See
-     * [adapterStateReceiver].
+     * Drops the adapter-bound state when Bluetooth goes off, and starts a new
+     * adapter session on every transition. See [adapterStateReceiver].
      */
     internal fun onAdapterStateChanged(state: Int) {
-        if (state == BluetoothAdapter.STATE_TURNING_OFF || state == BluetoothAdapter.STATE_OFF) {
-            resetPeripheralState()
+        // Any transition ends the session the current server was opened in: the
+        // stack kills it on an adapter restart, and one opened while Bluetooth
+        // was off is dead once it comes back on.
+        adapterSession++
+        when (state) {
+            BluetoothAdapter.STATE_ON -> restoreAdapterNameIfNeeded()
+            BluetoothAdapter.STATE_TURNING_OFF,
+            BluetoothAdapter.STATE_OFF,
+            -> resetPeripheralState("Bluetooth turned off")
         }
     }
 
@@ -180,6 +229,7 @@ class UniversalBlePeripheralPlugin(
             )
         gattServer = bluetoothManager.openGattServer(applicationContext, gattServerCallback)
             ?: throw UnsupportedOperationException("gattServer is null, check Bluetooth is ON.")
+        gattServerSession = adapterSession
     }
 
     private fun requireGattServer(): BluetoothGattServer {
@@ -221,39 +271,77 @@ class UniversalBlePeripheralPlugin(
     override fun addService(service: PeripheralService) {
         // The service is rebuilt per attempt: the characteristics of a refused
         // registration are not on the server and must not be reused.
-        addServiceWithRetry { service.toGattService() }
+        addServiceWithRetry(buildService = { service.toGattService() })
     }
 
     /**
-     * Registers the service built by [buildService]. When the server rejects
-     * the registration, drops the cached server, advertiser and per-server
-     * state, then retries once with a freshly built service.
+     * Registers the service built by [buildService]. When a server left over
+     * from a *previous* adapter session rejects the registration — the stack
+     * dropped it without failing loudly (#384) — drop the cached server,
+     * advertiser and per-server state, then retry once with a freshly built
+     * service.
      *
-     * A server left over from a previous adapter session rejects every
-     * registration without failing loudly (#384), so re-opening it is the only
-     * way back. The retry happens exactly once: a genuine rejection still
-     * fails, with the error of the original attempt.
+     * A rejection on a server from the current session is not evidence that the
+     * server is dead: Android refuses to register a service UUID it already
+     * holds (hot restart, a duplicated `addService`), and re-opening the server
+     * for that would unregister every other service, disconnect every client
+     * and silently stop advertising. The retry therefore only runs when
+     * [gattServerSession] is older than [adapterSession]. It happens once: a
+     * genuine rejection still fails, with the error of the original attempt.
+     *
+     * [rejection] builds the error for a refused registration; tests inject it
+     * to tell the original rejection from the retry's.
      */
-    internal fun addServiceWithRetry(buildService: () -> BluetoothGattService) {
-        val rejected = registerService(buildService()) ?: return
+    internal fun addServiceWithRetry(
+        buildService: () -> BluetoothGattService,
+        rejection: (String) -> IllegalStateException = ::IllegalStateException,
+    ) {
+        val rejected = registerService(buildService(), rejection) ?: return
+        if (!isServerFromAPreviousAdapterSession()) {
+            UniversalBleLogger.logError(
+                "GATT server rejected a service; it belongs to the current adapter session, " +
+                    "so it is kept as is",
+            )
+            throw rejected
+        }
         UniversalBleLogger.logWarning(
-            "GATT server rejected a service, re-opening it and retrying once",
+            "A GATT server from a previous adapter session rejected a service, " +
+                "re-opening it and retrying once",
         )
-        resetPeripheralState()
-        registerService(buildService()) ?: return
+        resetPeripheralState("Bluetooth was restarted")
+        // The retry can fail on its own, e.g. when the adapter disappears between
+        // the two attempts and no server can be opened. The caller then still
+        // gets the rejection that started the retry.
+        val retried = kotlin.runCatching { registerService(buildService(), rejection) }
+        retried.exceptionOrNull()?.let { retryFailure ->
+            UniversalBleLogger.logWarning(
+                "Retrying on a fresh GATT server failed: ${retryFailure.message}",
+            )
+            rejected.addSuppressed(retryFailure)
+            throw rejected
+        }
+        if (retried.getOrNull() == null) return
         UniversalBleLogger.logError("GATT server rejected a service after re-opening it")
         throw rejected
     }
 
+    /** Whether [gattServer] was opened before an adapter restart we observed. */
+    private fun isServerFromAPreviousAdapterSession(): Boolean =
+        gattServerSession in 0 until adapterSession
+
     /**
-     * Adds [gattService] to the server, returning the rejection error or null on
-     * success. A rejected service's characteristics are dropped from the caches
-     * so that a later registration of the same UUID cannot resolve them.
+     * Adds [gattService] to the server, returning the rejection error built by
+     * [rejection] or null on success. A rejected service's characteristics are
+     * dropped from the caches so that a later registration of the same UUID
+     * cannot resolve them.
      */
-    private fun registerService(gattService: BluetoothGattService): IllegalStateException? {
+    private fun registerService(
+        gattService: BluetoothGattService,
+        rejection: (String) -> IllegalStateException,
+    ): IllegalStateException? {
         if (requireGattServer().addService(gattService)) return null
         clearPeripheralCaches(gattService)
-        return IllegalStateException("Service registration rejected")
+        return rejection("Service registration rejected")
     }
 
     override fun removeService(serviceId: String) {
@@ -261,11 +349,16 @@ class UniversalBlePeripheralPlugin(
             synchronized(pendingNotifications) {
                 pendingNotifications.removeAll { it.characteristic.service === service }
             }
-            requireGattServer().removeService(service)
             // The service and its characteristics are no longer registered, so
             // nothing may keep resolving them: a later registration of the same
-            // UUID would notify through these orphaned objects (#385).
-            clearPeripheralCaches(service)
+            // UUID would notify through these orphaned objects (#385). Done even
+            // when the server call throws, so the caches never describe a
+            // service the app believes to be gone.
+            try {
+                requireGattServer().removeService(service)
+            } finally {
+                clearPeripheralCaches(service)
+            }
         }
     }
 
@@ -273,8 +366,11 @@ class UniversalBlePeripheralPlugin(
         // Queued notifications are dropped before the caches that resolve their
         // characteristics, so none can be re-queued for services that are gone.
         clearPendingNotifications(null)
-        requireGattServer().clearServices()
-        clearPeripheralCaches()
+        try {
+            requireGattServer().clearServices()
+        } finally {
+            clearPeripheralCaches()
+        }
     }
 
     override fun getServices(): List<String> =
@@ -795,11 +891,28 @@ class UniversalBlePeripheralPlugin(
         }
     }
 
+    /**
+     * Restores the adapter name a [startAdvertising] call overrode. The override
+     * is only forgotten once the write succeeded: it now also runs while
+     * Bluetooth is turning off, where the write legitimately fails, and the next
+     * [BluetoothAdapter.STATE_ON] retries it. Leaving the flags set would make
+     * the next local name look like it was already saved.
+     */
     private fun restoreAdapterNameIfNeeded() {
         if (!adapterNameOverridden) return
         val adapter = bluetoothManager.adapter ?: return
-        kotlin.runCatching {
-            adapter.name = originalAdapterName
+        val name = originalAdapterName
+        if (name == null) {
+            // There was no original name to write back.
+            adapterNameOverridden = false
+            return
+        }
+        val restored = kotlin.runCatching { adapter.setName(name) }.getOrDefault(false)
+        if (!restored) {
+            UniversalBleLogger.logWarning(
+                "Failed to restore the adapter name to \"$name\", retrying on the next STATE_ON",
+            )
+            return
         }
         adapterNameOverridden = false
         originalAdapterName = null
