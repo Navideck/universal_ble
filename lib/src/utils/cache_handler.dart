@@ -101,7 +101,8 @@ class CacheHandler {
   /// Retrieves the subscribed characteristic UUIDs for a specific device.
   ///
   /// Each UUID is reported once even when several services expose it, unless [serviceId]
-  /// narrows the answer to one service.
+  /// narrows the answer to one service. The list is sorted, so the order does not depend on
+  /// which service a characteristic was subscribed through first.
   List<String> getSubscribedCharacteristics(
     String deviceId, {
     String? serviceId,
@@ -110,14 +111,18 @@ class CacheHandler {
     if (services == null) return [];
     if (serviceId != null) {
       try {
-        return services[BleUuidParser.string(serviceId)]?.toList() ?? [];
+        final characteristics = services[BleUuidParser.string(serviceId)];
+        return characteristics == null
+            ? []
+            : (characteristics.toList()..sort());
       } catch (_) {
         return [];
       }
     }
     return {
       for (final characteristics in services.values) ...characteristics,
-    }.toList();
+    }.toList()
+      ..sort();
   }
 
   /// Resets the cache for a specific device, removing all stored services and subscriptions.

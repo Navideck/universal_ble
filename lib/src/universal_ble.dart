@@ -574,8 +574,9 @@ class UniversalBle {
 
   /// Returns the characteristic UUIDs currently subscribed to on [deviceId].
   ///
-  /// Each UUID appears once even when several services expose it. Pass [serviceId] to list
-  /// only the characteristics subscribed in that service.
+  /// Each UUID appears once even when several services expose it, and the list is sorted so
+  /// the order does not depend on which service a characteristic was subscribed through
+  /// first. Pass [serviceId] to list only the characteristics subscribed in that service.
   static List<String> getSubscribedCharacteristics(
     String deviceId, {
     String? serviceId,

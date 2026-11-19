@@ -111,7 +111,8 @@ void main() {
     );
     expect(
       UniversalBle.getSubscribedCharacteristics(deviceId),
-      containsAll([charId, otherCharId]),
+      // Sorted, so the order does not follow service insertion order.
+      [otherCharId, charId],
     );
   });
 
@@ -171,7 +172,11 @@ void main() {
     );
   });
 
-  test('an unusable service id answers false instead of throwing', () {
+  test('an unusable service id answers false instead of throwing', () async {
+    // Subscribe first, so the service id is parsed rather than short-circuited by the
+    // "no subscriptions for this device" guard.
+    await UniversalBle.subscribeNotifications(deviceId, serviceA, charId);
+
     expect(
       UniversalBle.isSubscribed(deviceId, charId, serviceId: 'not-a-uuid'),
       isFalse,
@@ -179,6 +184,11 @@ void main() {
     expect(
       UniversalBle.getSubscribedCharacteristics(deviceId, serviceId: 'nope'),
       isEmpty,
+    );
+    // The valid subscription is untouched by the failed lookups.
+    expect(
+      UniversalBle.isSubscribed(deviceId, charId, serviceId: serviceA),
+      isTrue,
     );
   });
 }
