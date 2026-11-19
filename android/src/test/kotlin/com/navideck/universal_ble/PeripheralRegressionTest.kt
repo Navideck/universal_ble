@@ -397,7 +397,7 @@ internal class PeripheralRegressionTest {
     @Test fun droppingTheSessionReportsEveryClientAndTheAdvertisingState() {
         val server = Mockito.mock(BluetoothGattServer::class.java)
         val plugin = peripheralPlugin(server)
-        val device = plugin.connectedDevice()
+        plugin.connectedDevice()
         plugin.setField("advertisingState", PeripheralAdvertisingState.ADVERTISING)
 
         plugin.onAdapterStateChanged(BluetoothAdapter.STATE_TURNING_OFF)
