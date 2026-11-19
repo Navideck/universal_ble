@@ -213,4 +213,33 @@ internal class DisconnectCloseTest {
         assertTrue(connectionChanges.isEmpty())
     }
 
+    @Test
+    fun replacedClientDisconnectDoesNotReportOrFailTheNewConnection() {
+        val plugin = plugin()
+        // connect() replaced the client, so the old one is never in closingGatts.
+        val replaced = mockGatt()
+        val current = mockGatt()
+        plugin.gattRegistry().put(current)
+        val reads = mutableListOf<Result<ByteArray>>()
+        plugin.getField<MutableList<ReadResultFuture>>("readResultFutureList").add(
+            ReadResultFuture(current, deviceAddress, charUuid.toString(), serviceUuid.toString()) {
+                reads.add(it)
+            }
+        )
+
+        plugin.onConnectionStateChange(
+            replaced, BluetoothGatt.GATT_SUCCESS, BluetoothGatt.STATE_DISCONNECTED
+        )
+
+        assertTrue(
+            connectionChanges.isEmpty(),
+            "the replaced client's disconnect is not the current connection's"
+        )
+        assertTrue(reads.isEmpty(), "the current connection's read is still in flight")
+        assertEquals(
+            1,
+            plugin.getField<MutableList<ReadResultFuture>>("readResultFutureList").size
+        )
+        Mockito.verify(replaced).close()
+    }
 }

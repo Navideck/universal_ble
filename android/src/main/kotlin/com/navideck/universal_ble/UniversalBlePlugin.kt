@@ -1914,9 +1914,11 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
             val wasConnected = connectedGatts.remove(gatt)
             val shouldAutoConnect = autoConnectDevices.contains(deviceId)
             val closingByRequest = closingGatts.remove(gatt)
-            // disconnect() already dropped this client from the cache, so a known gatt is a newer
-            // connect() whose pending operations and connection state must be left alone.
-            val superseded = closingByRequest && gattRegistry.isKnown(deviceId)
+            // A client the registry no longer holds was replaced, whether by a
+            // newer connect() or by disconnect(): its requests and its
+            // connection state are not the current connection's to fail or
+            // report. Same rule as the close fallback timer in cleanConnection().
+            val superseded = gattRegistry.find(deviceId)?.let { it !== gatt } == true
 
             if (!superseded) {
                 // Always clean up internal state (futures, etc.)
