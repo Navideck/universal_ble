@@ -1,8 +1,13 @@
 package com.navideck.universal_ble
 
+import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothDevice
 import android.bluetooth.BluetoothGatt
+import android.bluetooth.BluetoothGattCallback
+import android.bluetooth.BluetoothManager
+import android.content.Context
 import android.os.Handler
+import java.util.UUID
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertSame
@@ -19,6 +24,8 @@ import org.mockito.Mockito
  */
 internal class DisconnectCloseTest {
     private val deviceAddress = "AA:BB:CC:DD:EE:FF"
+    private val serviceUuid = UUID.fromString("0000fff0-0000-1000-8000-00805f9b34fb")
+    private val charUuid = UUID.fromString("0000fff1-0000-1000-8000-00805f9b34fb")
 
     // (deviceId, connected, error, errorCode, nativeErrorCode) of every onConnectionChanged
     // delivered to Dart.
@@ -152,4 +159,58 @@ internal class DisconnectCloseTest {
         assertTrue(connectionChanges.isEmpty())
         assertSame(newGatt, plugin.gattRegistry().find(deviceAddress))
     }
+
+    @Test
+    fun connectThatReportsBeforeItIsRegisteredIsStillDelivered() {
+        val plugin = plugin()
+        val gatt = mockGatt()
+        val device = Mockito.mock(BluetoothDevice::class.java)
+        Mockito.`when`(device.address).thenReturn(deviceAddress)
+        // connectGatt() is given no Handler, so the stack can report CONNECTED
+        // on a binder thread before connectGatt() returns — i.e. before
+        // connect() has published the client it just created.
+        Mockito.`when`(
+            device.connectGatt(
+                Mockito.any(Context::class.java),
+                Mockito.anyBoolean(),
+                Mockito.any(BluetoothGattCallback::class.java),
+            )
+        ).thenAnswer {
+            plugin.onConnectionStateChange(
+                gatt, BluetoothGatt.GATT_SUCCESS, BluetoothGatt.STATE_CONNECTED
+            )
+            gatt
+        }
+        val adapter = Mockito.mock(BluetoothAdapter::class.java)
+        Mockito.`when`(adapter.getRemoteDevice(deviceAddress)).thenReturn(device)
+        val manager = Mockito.mock(BluetoothManager::class.java)
+        Mockito.`when`(manager.adapter).thenReturn(adapter)
+        plugin.setField("bluetoothManager", manager)
+        plugin.setField("context", Mockito.mock(Context::class.java))
+
+        plugin.connect(deviceAddress, null, null)
+
+        assertEquals(
+            listOf(listOf<Any?>(deviceAddress, true, null, null, null)),
+            connectionChanges,
+            "a link that reports before it is registered still belongs to this connect()",
+        )
+        assertSame(gatt, plugin.gattRegistry().find(deviceAddress))
+    }
+
+    @Test
+    fun connectStateFromAClientBeingClosedIsDropped() {
+        val plugin = plugin()
+        val gatt = mockGatt()
+        // disconnect() is tearing this client down; it must not come back as a
+        // connection for the address.
+        closingGatts(plugin).add(gatt)
+
+        plugin.onConnectionStateChange(
+            gatt, BluetoothGatt.GATT_SUCCESS, BluetoothGatt.STATE_CONNECTED
+        )
+
+        assertTrue(connectionChanges.isEmpty())
+    }
+
 }

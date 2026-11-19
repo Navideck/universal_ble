@@ -1887,8 +1887,17 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
 
         if (newState == BluetoothGatt.STATE_CONNECTED) {
             // A client replaced by a newer connect() must not report a
-            // connection for the address it no longer owns.
-            if (!isCurrentClient(gatt)) {
+            // connection for the address it no longer owns, and neither may one
+            // disconnect() is tearing down.
+            //
+            // A client that is not registered at all is *not* superseded:
+            // connectGatt() is given no Handler, so the stack can deliver this
+            // callback on a binder thread before connect() reaches
+            // gattRegistry.put(gatt). Dropping that event would leave Dart's
+            // connect() waiting for a link that is in fact up, and its timeout
+            // then tears the link down.
+            val owner = gattRegistry.find(gatt.device.address)
+            if ((owner != null && owner !== gatt) || closingGatts.contains(gatt)) {
                 UniversalBleLogger.logDebug(
                     "CONNECTED ignored from a superseded client <- ${gatt.device.address}"
                 )
