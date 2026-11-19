@@ -1,6 +1,6 @@
 ## Unreleased
 
-* Apple: Bind pending writes to the submitting peripheral object so stale write/ready callbacks and disconnect cleanup cannot consume a replacement peripheral’s requests. A disconnection also fails the writes of an owner that is no longer connected, so a predecessor object’s write is settled even when the app never writes to that device again. The unsupported-write rejection keeps the per-case `withResponse`/`withoutResponse` message Android emits.
+* Apple: bind pending writes to the submitting peripheral object. A write or `peripheralIsReady` callback, and the cleanup after a disconnection, are matched to a request by object identity, so they cannot consume a replacement peripheral’s request. A pending write is now failed with `deviceDisconnected` when its owner is not the object the plugin routes the device’s callbacks to, or when that owner is not connected; that happens when the device disconnects, when `connect` runs, and when the app writes to it again, and covers a superseded object whose `state` still reads `.connected`. A write submitted through a replaced peripheral therefore fails right away with the message “Peripheral replaced” instead of waiting for the Dart timeout. The unsupported-write rejection keeps the per-case `withResponse`/`withoutResponse` message Android emits (#378).
 
 ## 3.3.0
 * Windows: allow app shutdown to continue when background connection disposal stalls in WinRT (#375).
