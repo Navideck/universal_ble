@@ -20,8 +20,10 @@ import android.bluetooth.le.AdvertiseCallback
 import android.bluetooth.le.AdvertiseData
 import android.bluetooth.le.AdvertiseSettings
 import android.bluetooth.le.BluetoothLeAdvertiser
+import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.os.Handler
 import android.os.ParcelUuid
 import android.util.Log
@@ -75,27 +77,74 @@ class UniversalBlePeripheralPlugin(
     private val pendingNotifications: ArrayDeque<PendingNotification> = ArrayDeque()
     private val notificationsInFlight: MutableSet<String> = HashSet()
 
+    /**
+     * A [BluetoothGattServer] and a [BluetoothLeAdvertiser] do not survive an
+     * adapter restart: the stack drops them, but they stay non-null here, so
+     * every later registration is rejected (#384). Drop the adapter-bound state
+     * when Bluetooth goes off, and the next peripheral call re-opens it.
+     */
+    private val adapterStateReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) {
+            if (intent.action != BluetoothAdapter.ACTION_STATE_CHANGED) return
+            val state = intent.getIntExtra(BluetoothAdapter.EXTRA_STATE, BluetoothAdapter.ERROR)
+            // Run where the plugin already serialises its work.
+            handler.post { onAdapterStateChanged(state) }
+        }
+    }
+
+    init {
+        applicationContext.registerReceiverCompat(
+            adapterStateReceiver,
+            IntentFilter(BluetoothAdapter.ACTION_STATE_CHANGED),
+            exported = true,
+        )
+    }
 
     fun attachActivity(activity: Activity?) {
         this.activity = activity
     }
 
     fun dispose() {
+        applicationContext.unregisterReceiver(adapterStateReceiver)
+        resetPeripheralState()
+        isEnableBluetoothPromptPending = false
+    }
+
+    /**
+     * Drops the peripheral state that only exists for the current adapter
+     * session: the GATT server and advertiser themselves, connected clients,
+     * negotiated MTUs, queued and in-flight notifications, and the peripheral
+     * caches. The next peripheral call re-opens them lazily.
+     */
+    private fun resetPeripheralState() {
         kotlin.runCatching { bluetoothLeAdvertiser?.stopAdvertising(advertiseCallback) }
         restoreAdapterNameIfNeeded()
-        gattServer?.close()
+        // Queued notifications belong to the server that is being dropped, so
+        // discard them before the caches that resolve their characteristics.
+        clearPendingNotifications(null)
+        synchronized(pendingNotifications) {
+            // The old server will never report these as sent, and a leftover
+            // marker would block that client's queue forever.
+            notificationsInFlight.clear()
+        }
+        kotlin.runCatching { gattServer?.close() }
         gattServer = null
         bluetoothLeAdvertiser = null
         synchronized(bluetoothDevicesMap) {
             bluetoothDevicesMap.clear()
         }
         synchronized(mtuByDeviceId) { mtuByDeviceId.clear() }
-        synchronized(pendingNotifications) {
-            pendingNotifications.clear()
-            notificationsInFlight.clear()
-        }
         clearPeripheralCaches()
-        isEnableBluetoothPromptPending = false
+    }
+
+    /**
+     * Drops the adapter-bound state when Bluetooth is turning off. See
+     * [adapterStateReceiver].
+     */
+    internal fun onAdapterStateChanged(state: Int) {
+        if (state == BluetoothAdapter.STATE_TURNING_OFF || state == BluetoothAdapter.STATE_OFF) {
+            resetPeripheralState()
+        }
     }
 
     fun handleActivityResult(requestCode: Int, resultCode: Int, data: Intent?): Boolean {
@@ -170,7 +219,30 @@ class UniversalBlePeripheralPlugin(
     }
 
     override fun addService(service: PeripheralService) {
-        registerService(service.toGattService())?.let { throw it }
+        // The service is rebuilt per attempt: the characteristics of a refused
+        // registration are not on the server and must not be reused.
+        addServiceWithRetry { service.toGattService() }
+    }
+
+    /**
+     * Registers the service built by [buildService]. When the server rejects
+     * the registration, drops the cached server, advertiser and per-server
+     * state, then retries once with a freshly built service.
+     *
+     * A server left over from a previous adapter session rejects every
+     * registration without failing loudly (#384), so re-opening it is the only
+     * way back. The retry happens exactly once: a genuine rejection still
+     * fails, with the error of the original attempt.
+     */
+    internal fun addServiceWithRetry(buildService: () -> BluetoothGattService) {
+        val rejected = registerService(buildService()) ?: return
+        UniversalBleLogger.logWarning(
+            "GATT server rejected a service, re-opening it and retrying once",
+        )
+        resetPeripheralState()
+        registerService(buildService()) ?: return
+        UniversalBleLogger.logError("GATT server rejected a service after re-opening it")
+        throw rejected
     }
 
     /**

@@ -165,4 +165,108 @@ internal class PeripheralRegressionTest {
         assertEquals<Set<String>?>(setOf("report-2"), subscribedCharDevicesMap[deviceAddress])
         Mockito.verify(server).removeService(removedService)
     }
+
+    // #384: a server left over from a previous adapter session rejects every
+    // registration, so one retry on a freshly opened server is allowed.
+    @Test fun addServiceRetriesOnceOnAFreshGattServer() {
+        val staleServer = Mockito.mock(BluetoothGattServer::class.java)
+        val freshServer = Mockito.mock(BluetoothGattServer::class.java)
+        val plugin = peripheralPlugin(staleServer)
+        val manager = Mockito.mock(BluetoothManager::class.java)
+        val adapter = Mockito.mock(BluetoothAdapter::class.java)
+        Mockito.`when`(adapter.bluetoothLeAdvertiser)
+            .thenReturn(Mockito.mock(BluetoothLeAdvertiser::class.java))
+        Mockito.`when`(manager.adapter).thenReturn(adapter)
+        Mockito.`when`(manager.openGattServer(Mockito.any(), Mockito.any())).thenReturn(freshServer)
+        plugin.setField("bluetoothManager", manager)
+        val staleService = Mockito.mock(BluetoothGattService::class.java)
+        val freshService = Mockito.mock(BluetoothGattService::class.java)
+        Mockito.`when`(staleServer.addService(staleService)).thenReturn(false)
+        Mockito.`when`(freshServer.addService(freshService)).thenReturn(true)
+        val attempts = ArrayDeque(listOf(staleService, freshService))
+
+        plugin.addServiceWithRetry { attempts.removeFirst() }
+
+        assertTrue(attempts.isEmpty())
+        assertSame(freshServer, plugin.field<BluetoothGattServer>("gattServer"))
+        Mockito.verify(staleServer).close()
+        Mockito.verify(manager, Mockito.times(1)).openGattServer(Mockito.any(), Mockito.any())
+    }
+
+    // #384: a genuine rejection is not an endless recovery attempt.
+    @Test fun addServiceSurfacesTheOriginalRejectionAfterOneRetry() {
+        val staleServer = Mockito.mock(BluetoothGattServer::class.java)
+        val freshServer = Mockito.mock(BluetoothGattServer::class.java)
+        val plugin = peripheralPlugin(staleServer)
+        val manager = Mockito.mock(BluetoothManager::class.java)
+        val adapter = Mockito.mock(BluetoothAdapter::class.java)
+        Mockito.`when`(adapter.bluetoothLeAdvertiser)
+            .thenReturn(Mockito.mock(BluetoothLeAdvertiser::class.java))
+        Mockito.`when`(manager.adapter).thenReturn(adapter)
+        Mockito.`when`(manager.openGattServer(Mockito.any(), Mockito.any())).thenReturn(freshServer)
+        plugin.setField("bluetoothManager", manager)
+        val attempts = mutableListOf<BluetoothGattService>()
+        Mockito.`when`(staleServer.addService(Mockito.any())).thenReturn(false)
+        Mockito.`when`(freshServer.addService(Mockito.any())).thenReturn(false)
+
+        val error = assertFailsWith<IllegalStateException> {
+            plugin.addServiceWithRetry {
+                // toGattService() registers the characteristics it builds; the
+                // refused attempt must not leave them behind.
+                val gattService = Mockito.mock(BluetoothGattService::class.java)
+                val characteristic = mockCharacteristic(report, gattService)
+                Mockito.`when`(gattService.characteristics).thenReturn(listOf(characteristic))
+                characteristics()[report] = characteristic
+                attempts.add(gattService)
+                gattService
+            }
+        }
+
+        assertEquals("Service registration rejected", error.message)
+        assertEquals(2, attempts.size)
+        Mockito.verify(manager, Mockito.times(1)).openGattServer(Mockito.any(), Mockito.any())
+        // The refused characteristics must not stay resolvable either.
+        assertTrue(characteristics().isEmpty())
+    }
+
+    // #384: Bluetooth going off invalidates the server, the advertiser and the
+    // state that belongs to that adapter session.
+    @Test fun bluetoothOffDropsTheAdapterBoundState() {
+        val server = Mockito.mock(BluetoothGattServer::class.java)
+        val plugin = peripheralPlugin(server)
+        val characteristic = mockCharacteristic(report, mockService(hid))
+        characteristics()[report] = characteristic
+        plugin.field<MutableMap<String, BluetoothDevice>>("bluetoothDevicesMap")[deviceAddress] =
+            Mockito.mock(BluetoothDevice::class.java)
+        plugin.field<MutableMap<String, Int>>("mtuByDeviceId")[deviceAddress] = 247
+
+        plugin.onAdapterStateChanged(BluetoothAdapter.STATE_TURNING_OFF)
+
+        assertNull(plugin.field<BluetoothGattServer?>("gattServer"))
+        assertNull(plugin.field<BluetoothLeAdvertiser?>("bluetoothLeAdvertiser"))
+        assertTrue(plugin.field<MutableMap<String, BluetoothDevice>>("bluetoothDevicesMap").isEmpty())
+        assertTrue(plugin.field<MutableMap<String, Int>>("mtuByDeviceId").isEmpty())
+        assertNull(report.findGattCharacteristic())
+        Mockito.verify(server).close()
+    }
+
+    @Test fun bluetoothOnKeepsTheInitialisedServer() {
+        val server = Mockito.mock(BluetoothGattServer::class.java)
+        val plugin = peripheralPlugin(server)
+
+        plugin.onAdapterStateChanged(BluetoothAdapter.STATE_ON)
+
+        assertSame(server, plugin.field<BluetoothGattServer>("gattServer"))
+        Mockito.verify(server, Mockito.never()).close()
+    }
+
+    @Test fun disposeUnregistersTheAdapterReceiver() {
+        val context = Mockito.mock(Context::class.java)
+        val plugin = peripheralPlugin(Mockito.mock(BluetoothGattServer::class.java))
+        plugin.setField("applicationContext", context)
+
+        plugin.dispose()
+
+        Mockito.verify(context).unregisterReceiver(Mockito.any())
+    }
 }
