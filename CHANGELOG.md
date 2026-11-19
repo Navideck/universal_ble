@@ -1,5 +1,6 @@
 ## 3.3.0
 * Android: report an unknown (`null`) connectability state instead of crashing on the first scan result on Android 7.x and older. `ScanResult.isConnectable()` is API 26+, so reading it unguarded on the plugin's `minSdkVersion 21` threw `NoSuchMethodError` for every result on API 21-25 (#383).
+* Windows: read `BluetoothLEAdvertisementReceivedEventArgs.IsConnectable` through a queried `IBluetoothLEAdvertisementReceivedEventArgs2` instead of the C++/WinRT `require` projection. When the interface is missing or the event arguments outlive the scan, the unguarded call dereferenced null instead of throwing, so it killed the process with an access violation that the `catch (...)` and Dart code could never see. A failed query now reports "not connectable", as a scan response already does (#373).
 * Windows: allow app shutdown to continue when background connection disposal stalls in WinRT (#375).
 * Apple: complete service discovery when a peripheral's GATT database holds multiple services with the same UUID (#369).
 * iOS: allow turning off central state restoration via `UniversalBleCentralStateRestoration` (Boolean `NO` in `Info.plist`) while keeping the `bluetooth-central` background execution mode. When disabled, `CBCentralManager` is created without a restoration identifier and deferred lazily until first use (#370).

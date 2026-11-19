@@ -1858,14 +1858,28 @@ void UniversalBlePlugin::BluetoothLeWatcherReceived(
     // shipped with every Windows 10.
     const bool is_scan_response =
         args.AdvertisementType() == BluetoothLEAdvertisementType::ScanResponse;
+    // IsConnectable lives on the secondary interface
+    // IBluetoothLEAdvertisementReceivedEventArgs2, which C++/WinRT reaches
+    // through `require`: its conversion is noexcept and returns null when the
+    // QueryInterface fails, so the call faults on a null vtable instead of
+    // throwing, and an access violation bypasses the catch below and kills the
+    // process (#373). Query the interface explicitly and fall back to
+    // "not connectable", which is what the field means when the answer is not
+    // available.
+    bool connectable = false;
+    const auto connectable_args =
+        args.try_as<IBluetoothLEAdvertisementReceivedEventArgs2>();
+    if (connectable_args != nullptr) {
+      connectable = connectable_args.IsConnectable();
+    }
     // A scan response reports IsConnectable == false by definition, so trust
     // that flag only for regular advertisements; PushUniversalScanResult
     // derives the connectable state of a scan response from the cache.
     if (!is_scan_response) {
-      universal_scan_result.set_connectable(args.IsConnectable());
+      universal_scan_result.set_connectable(connectable);
     }
     // Filter Device
-    PushUniversalScanResult(universal_scan_result, args.IsConnectable(),
+    PushUniversalScanResult(universal_scan_result, connectable,
                             is_scan_response);
   } catch (...) {
     UniversalBleLogger::LogError("ScanResultErrorInParsing");
