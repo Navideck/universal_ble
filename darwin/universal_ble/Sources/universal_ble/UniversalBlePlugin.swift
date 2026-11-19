@@ -66,12 +66,15 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
       return true
     }()
 
-    /// One owner per restoration identifier per process. CoreBluetooth marks a
-    /// second manager created with an identifier already in use as unsupported,
-    /// so when several FlutterEngines run in one process only the first live one
-    /// restores; later engines get a manager without restoration. Owners are
-    /// weak: when an engine is torn down its identifier becomes available again.
-    private static let restorationOwners = NSMapTable<NSString, BleCentralDarwin>.strongToWeakObjects()
+    /// Which engine of the process owns [stateRestorationIdentifier]. One
+    /// owner per identifier per process: CoreBluetooth marks a second manager
+    /// created with an identifier already in use as unsupported, so when
+    /// several FlutterEngines run in one process only the first live one
+    /// restores and later engines get a manager without restoration. The
+    /// bookkeeping lives in `UniversalBleCentralRestorationOwner` so it can be
+    /// tested without CoreBluetooth; ownership is weak and released when the
+    /// owning engine is torn down.
+    private static let restorationOwners = UniversalBleCentralRestorationOwner()
 
     private static var hasBluetoothPermission: Bool {
       CBCentralManager.authorization == .allowedAlways
@@ -93,21 +96,24 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
   var callbackChannel: UniversalBleCallbackChannel
   private var universalBleFilterUtil = UniversalBleFilterUtil()
   #if os(iOS)
-    private var restorationIdentifier: String?
+    /// Whether the manager has been created. `claimRestoration` must run
+    /// before that is the case.
+    private var managerIsCreated = false
     private lazy var manager: CBCentralManager = {
-      if restorationIdentifier == nil, Self.usesStateRestoration {
-        _ = claimRestoration(Self.stateRestorationIdentifier)
-      }
-      if let identifier = restorationIdentifier {
-        return CBCentralManager(
+      let manager: CBCentralManager
+      if Self.usesStateRestoration, claimRestoration(Self.stateRestorationIdentifier) {
+        manager = CBCentralManager(
           delegate: self,
           queue: nil,
           options: [
-            CBCentralManagerOptionRestoreIdentifierKey: identifier,
+            CBCentralManagerOptionRestoreIdentifierKey: Self.stateRestorationIdentifier,
           ]
         )
+      } else {
+        manager = CBCentralManager(delegate: self, queue: nil)
       }
-      return CBCentralManager(delegate: self, queue: nil)
+      managerIsCreated = true
+      return manager
     }()
   #else
     // macOS does not support CoreBluetooth state restoration.
@@ -146,9 +152,15 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
     /// `bluetooth-central` background mode and Bluetooth permission is already
     /// granted, so CoreBluetooth can deliver `willRestoreState:` when a managed
     /// peripheral relaunches the app. Otherwise creation stays deferred until
-    /// a central BLE API (e.g. `startScan`, `connect`) is called. Only the
-    /// engine that owns the restoration identifier creates it early; other
-    /// engines of the process could not restore anyway.
+    /// a central BLE API (e.g. `startScan`, `connect`) is called.
+    ///
+    /// Restoration belongs to the first engine that registers, not to the first
+    /// one to use BLE: this runs from `register(with:)` for every engine that
+    /// has the background mode and permission, so a background or headless
+    /// engine created before the UI engine holds the identifier and re-adopts
+    /// restored peripherals, while the UI engine gets a manager without
+    /// restoration. Only the owning engine creates its manager early; the
+    /// others could not restore anyway.
     func activateStateRestoration() {
       guard Self.usesStateRestoration, Self.hasBluetoothPermission,
             claimRestoration(Self.stateRestorationIdentifier) else { return }
@@ -157,13 +169,31 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
 
     /// Takes ownership of [identifier] for this engine unless another live
     /// engine of the process already owns it.
+    ///
+    /// Must run before [manager] is created, which both call sites guarantee:
+    /// one is inside the manager's lazy initialiser, the other runs at
+    /// registration. Claiming after the manager exists would leave the engine
+    /// holding an identifier its live manager does not use, and no other engine
+    /// of the process could restore until this one is torn down.
     private func claimRestoration(_ identifier: String) -> Bool {
-      if let owner = Self.restorationOwners.object(forKey: identifier as NSString), owner !== self {
+      assert(!managerIsCreated, "claimRestoration must run before the manager is created")
+      guard Self.restorationOwners.claim(identifier, for: self) else {
+        UniversalBleLogger.shared.logInfo(
+          "central state restoration identifier \(identifier) is owned by another live engine; " +
+            "this engine creates a manager without restoration"
+        )
         return false
       }
-      Self.restorationOwners.setObject(self, forKey: identifier as NSString)
-      restorationIdentifier = identifier
       return true
+    }
+
+    deinit {
+      // Weak ownership already frees the identifier when this engine's plugin is
+      // deallocated; releasing it here keeps that path explicit. CoreBluetooth
+      // owns the manager's lifetime, and whether it drops the identifier along
+      // with a manager it still holds for in-flight connections is a
+      // real-device check (see README).
+      Self.restorationOwners.release(Self.stateRestorationIdentifier, heldBy: self)
     }
   #endif
 

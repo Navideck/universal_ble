@@ -1,5 +1,5 @@
 ## Unreleased
-* iOS: when several FlutterEngines run in one process, only the first live engine creates its `CBCentralManager` with the central state restoration identifier; later engines get a manager without one instead of one CoreBluetooth reports as unsupported, and only the owning engine creates its manager at launch. Ownership is released when that engine is torn down, mirroring the peripheral restoration owner.
+* iOS: when several FlutterEngines run in one process, only the first engine that registers creates its `CBCentralManager` with the central state restoration identifier — not the first engine that uses Bluetooth; later engines get a manager without one instead of one CoreBluetooth reports as unsupported, and only the owning engine creates its manager at launch. A denied claim is logged at info level, and ownership is released when that engine is torn down, mirroring the peripheral restoration owner.
 
 ## 3.3.0
 * Windows: allow app shutdown to continue when background connection disposal stalls in WinRT (#375).
