@@ -276,6 +276,34 @@ internal class PeripheralRegressionTest {
         assertContentEquals(byteArrayOf(0, 0), removedDescriptor.getClientValue(deviceAddress))
     }
 
+    // M2: two services may expose the same characteristic UUID without instance
+    // ids, so both characteristics share one identity. Removing one must not take
+    // the surviving registration's subscription or CCCD value with it.
+    @Test fun removingAServiceKeepsTheStateOfAUuidOnlySharedCharacteristic() {
+        val server = Mockito.mock(BluetoothGattServer::class.java)
+        val plugin = peripheralPlugin(server)
+        val removedService = Mockito.mock(BluetoothGattService::class.java)
+        val keptService = Mockito.mock(BluetoothGattService::class.java)
+        val removedCharacteristic = mockCharacteristic(report, removedService)
+        val keptCharacteristic = mockCharacteristic(report, keptService)
+        val keptDescriptor = mockDescriptor(keptCharacteristic)
+        Mockito.`when`(removedService.uuid).thenReturn(UUID.fromString(hid))
+        Mockito.`when`(removedService.characteristics).thenReturn(listOf(removedCharacteristic))
+        Mockito.`when`(keptService.uuid).thenReturn(UUID.fromString(otherService))
+        Mockito.`when`(keptService.characteristics).thenReturn(listOf(keptCharacteristic))
+        // Neither declares an instance id, so both are identified by the UUID.
+        characteristics()[report] = removedCharacteristic
+        characteristics()["other"] = keptCharacteristic
+        subscribedCharDevicesMap[deviceAddress] = mutableSetOf(report)
+        keptDescriptor.storeClientValue(deviceAddress, byteArrayOf(1, 0))
+
+        plugin.removeService(hid)
+
+        assertSame(keptCharacteristic, report.findGattCharacteristic())
+        assertEquals<Set<String>?>(setOf(report), subscribedCharDevicesMap[deviceAddress])
+        assertContentEquals(byteArrayOf(1, 0), keptDescriptor.getClientValue(deviceAddress))
+    }
+
     // m2: a caller-supplied instance id may contain the old key delimiter. The
     // structured key means it can neither be read as, nor delete, another
     // characteristic's CCCD entry.
