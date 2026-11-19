@@ -267,7 +267,7 @@ List<String> withNamePrefix;
 
 ##### Connectable Only
 
-Use the `connectableOnly` parameter to filter out non-connectable devices (such as beacons). When set to `true`, only connectable devices are included. Devices with unknown (`null`) connectability also pass this filter, so this option is a no-op on platforms that do not report connectability (Linux and Web, which always report `null`).
+Use the `connectableOnly` parameter to filter out non-connectable devices (such as beacons). When set to `true`, only connectable devices are included. Devices with unknown (`null`) connectability also pass this filter, so this option is a no-op on platforms that do not report connectability (Linux and Web, which always report `null`, and Android below API 26, where the platform API does not exist).
 
 ```dart
 bool? connectableOnly;

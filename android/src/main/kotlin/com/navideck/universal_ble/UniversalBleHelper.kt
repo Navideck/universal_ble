@@ -165,6 +165,12 @@ val ScanResult.serviceDataUuids: List<UUID>
         return scanRecord?.serviceData?.keys?.map { it.uuid } ?: emptyList()
     }
 
+/// Whether the advertisement asks for a connectable peripheral.
+/// [ScanResult.isConnectable] is API 26+, so older releases report `null`
+/// (unknown) instead of throwing `NoSuchMethodError` on the first scan result.
+internal fun ScanResult.connectableOrNull(sdkInt: Int = Build.VERSION.SDK_INT): Boolean? =
+    if (sdkInt >= Build.VERSION_CODES.O) isConnectable else null
+
 fun <T> SparseArray<T>.toList(): List<Pair<Int, T>> {
     return (0 until size).map { index ->
         keyAt(index) to valueAt(index)
