@@ -1,4 +1,5 @@
 ## 3.3.0
+* Android peripheral: `removeService` and `clearServices` now drop the cached state that described the services they took off the server — characteristic lookups, instance ids, descriptor and per-client CCCD values, and subscriptions — so a service registered again in the same session notifies through its new characteristics instead of orphaned ones, and `findService` no longer resolves the old registration (#385).
 * Windows: allow app shutdown to continue when background connection disposal stalls in WinRT (#375).
 * Apple: complete service discovery when a peripheral's GATT database holds multiple services with the same UUID (#369).
 * iOS: allow turning off central state restoration via `UniversalBleCentralStateRestoration` (Boolean `NO` in `Info.plist`) while keeping the `bluetooth-central` background execution mode. When disabled, `CBCentralManager` is created without a restoration identifier and deferred lazily until first use (#370).

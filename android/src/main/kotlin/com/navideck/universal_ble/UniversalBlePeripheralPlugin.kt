@@ -170,7 +170,18 @@ class UniversalBlePeripheralPlugin(
     }
 
     override fun addService(service: PeripheralService) {
-        check(requireGattServer().addService(service.toGattService())) { "Service registration rejected" }
+        registerService(service.toGattService())?.let { throw it }
+    }
+
+    /**
+     * Adds [gattService] to the server, returning the rejection error or null on
+     * success. A rejected service's characteristics are dropped from the caches
+     * so that a later registration of the same UUID cannot resolve them.
+     */
+    private fun registerService(gattService: BluetoothGattService): IllegalStateException? {
+        if (requireGattServer().addService(gattService)) return null
+        clearPeripheralCaches(gattService)
+        return IllegalStateException("Service registration rejected")
     }
 
     override fun removeService(serviceId: String) {
@@ -179,12 +190,19 @@ class UniversalBlePeripheralPlugin(
                 pendingNotifications.removeAll { it.characteristic.service === service }
             }
             requireGattServer().removeService(service)
+            // The service and its characteristics are no longer registered, so
+            // nothing may keep resolving them: a later registration of the same
+            // UUID would notify through these orphaned objects (#385).
+            clearPeripheralCaches(service)
         }
     }
 
     override fun clearServices() {
+        // Queued notifications are dropped before the caches that resolve their
+        // characteristics, so none can be re-queued for services that are gone.
         clearPendingNotifications(null)
         requireGattServer().clearServices()
+        clearPeripheralCaches()
     }
 
     override fun getServices(): List<String> =

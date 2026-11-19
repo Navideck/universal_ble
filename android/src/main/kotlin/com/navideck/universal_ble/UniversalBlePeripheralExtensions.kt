@@ -56,6 +56,44 @@ fun clearPeripheralCaches() {
     }
 }
 
+/**
+ * Drops the cached state that belongs to [service] only: its characteristic
+ * lookups and instance ids, configured descriptor values, per-client CCCD
+ * values and subscriptions. Other registered services keep theirs.
+ *
+ * Call this whenever [service] leaves the GATT server. Its characteristics are
+ * then no longer registered, so a cached lookup must not keep resolving them:
+ * a later registration of the same UUID would otherwise notify through orphaned
+ * objects and the central would receive nothing.
+ */
+fun clearPeripheralCaches(service: BluetoothGattService) {
+    // Read the instance ids before dropping the map that holds them: the CCCD
+    // and subscription keys below are built from those ids.
+    val identities = service.characteristics.orEmpty()
+        .map { (it.instanceId() ?: it.uuid.toString()).lowercase() }
+        .toSet()
+    synchronized(bluetoothGattCharacteristics) {
+        bluetoothGattCharacteristics.entries.removeAll { it.value.service === service }
+    }
+    synchronized(characteristicInstanceIds) {
+        characteristicInstanceIds.keys.removeAll { it.service === service }
+    }
+    synchronized(descriptorValueReadMap) {
+        descriptorValueReadMap.keys.removeAll { it.characteristic?.service === service }
+    }
+    if (identities.isEmpty()) return
+    synchronized(cccdValues) {
+        // Keys are built by [cccdKey]: `device|instance|descriptor`.
+        cccdValues.keys.removeAll { key -> key.split('|').getOrNull(1) in identities }
+    }
+    synchronized(subscribedCharDevicesMap) {
+        subscribedCharDevicesMap.values.forEach { ids ->
+            ids.removeAll { it.lowercase() in identities }
+        }
+        subscribedCharDevicesMap.values.removeAll { it.isEmpty() }
+    }
+}
+
 fun Activity.havePermission(permissions: Array<String>): Boolean {
     for (perm in permissions) {
         if (checkCallingOrSelfPermission(perm) != PackageManager.PERMISSION_GRANTED) {
