@@ -298,13 +298,13 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
     autoConnectDevices.remove(deviceId)
     guard let peripheral = peripheralCache.find(deviceId, manager: manager) else {
       callbackChannel.onConnectionChanged(deviceId: deviceId, connected: false, error: nil, errorCode: nil, nativeErrorCode: nil) { _ in }
-      cleanUpConnection(deviceId: deviceId)
+      cleanUpConnectionForDevice(deviceId: deviceId)
       return
     }
     if peripheral.state != CBPeripheralState.disconnected {
       manager.cancelPeripheralConnection(peripheral)
     }
-    cleanUpConnection(deviceId: deviceId)
+    cleanUpConnectionForDevice(deviceId: deviceId)
   }
 
   func getConnectionState(deviceId: String) throws -> BleConnectionState {
@@ -314,12 +314,46 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
     return peripheral.state.toBleConnectionState
   }
 
-  func cleanUpConnection(deviceId: String, peripheral: CBPeripheral? = nil) {
+  /// Fails the pending work of `deviceId`, including the writes submitted by
+  /// `peripheral`.
+  ///
+  /// `peripheral` is required so that no call site can silently fall back to
+  /// removing writes by device id alone. A caller that holds no peripheral
+  /// object uses `cleanUpConnectionForDevice(deviceId:)` instead.
+  func cleanUpConnection(deviceId: String, peripheral: CBPeripheral) {
+    cleanUpConnection(deviceId: deviceId, writeOwner: peripheral)
+    // A disconnection is reported for one object per UUID. A write submitted
+    // through a predecessor object with the same UUID has no callback left to
+    // settle it, and retirement on the write path only happens if the app
+    // writes to this device again, so settle those writes here.
+    failWritesOfDisconnectedOwners(deviceId: deviceId)
+  }
+
+  /// Device-wide variant: fails every pending write for `deviceId`, whichever
+  /// peripheral object submitted it. Only an explicit `disconnect` uses it,
+  /// because the caller has no object to attribute the writes to.
+  func cleanUpConnectionForDevice(deviceId: String) {
+    cleanUpConnection(deviceId: deviceId, writeOwner: nil)
+  }
+
+  private func failWritesOfDisconnectedOwners(deviceId: String) {
+    let error = createFlutterError(code: .deviceDisconnected, message: "Device Disconnected")
+    let abandoned = characteristicWriteFutures.removeWrites(deviceId: deviceId) { request in
+      (request.writeOwner as? CBPeripheral)?.state == .disconnected
+    }
+    let abandonedQueued = pendingWriteWithoutResponse.removeWrites(deviceId: deviceId) { request in
+      (request.writeOwner as? CBPeripheral)?.state == .disconnected
+    }
+    abandoned.forEach { $0.fail(with: error) }
+    abandonedQueued.forEach { $0.fail(with: error) }
+  }
+
+  private func cleanUpConnection(deviceId: String, writeOwner: CBPeripheral?) {
     let error = createFlutterError(code: .deviceDisconnected, message: "Device Disconnected")
 
     characteristicReadFutures.failAndRemoveAll(matching: deviceId, with: error)
-    let writes = characteristicWriteFutures.removeWrites(deviceId: deviceId, owner: peripheral)
-    let queuedWrites = pendingWriteWithoutResponse.removeWrites(deviceId: deviceId, owner: peripheral)
+    let writes = characteristicWriteFutures.removeWrites(deviceId: deviceId, owner: writeOwner)
+    let queuedWrites = pendingWriteWithoutResponse.removeWrites(deviceId: deviceId, owner: writeOwner)
     writes.forEach { $0.fail(with: error) }
     queuedWrites.forEach { $0.fail(with: error) }
     characteristicNotifyFutures.failAndRemoveAll(matching: deviceId, with: error)
@@ -453,7 +487,11 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
     if !supportsWrite {
       let code: UniversalBleErrorCode = bleOutputProperty == .withResponse
         ? .characteristicDoesNotSupportWrite : .characteristicDoesNotSupportWriteWithoutResponse
-      completion(.failure(createFlutterError(code: code, message: "Characteristic does not support requested write type")))
+      // Keep the per-case message Android emits so the two platforms agree.
+      let message = bleOutputProperty == .withResponse
+        ? "Characteristic does not support write withResponse"
+        : "Characteristic does not support write withoutResponse"
+      completion(.failure(createFlutterError(code: code, message: message)))
       return
     }
 
@@ -819,6 +857,11 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
         $0.characteristicId == characteristic.uuid.uuidStr &&
         $0.serviceId == characteristic.service?.uuid.uuidStr
     }) else {
+      // Routine after a write owner is retired: the callback belongs to a
+      // peripheral object whose pending write was already settled elsewhere.
+      UniversalBleLogger.shared.logDebug(
+        "WRITE_CALLBACK_IGNORED <- \(peripheral.uuid.uuidString) \(characteristic.uuid.uuidStr): no matching write owner"
+      )
       return
     }
 

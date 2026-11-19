@@ -15,11 +15,18 @@ extension Array where Element: OwnedWriteRequest {
 
   // Remove before invoking completions: a completion may enqueue more work.
   mutating func removeWrites(deviceId: String, owner: AnyObject? = nil, excludingOwner: AnyObject? = nil) -> [Element] {
-    func matches(_ request: Element) -> Bool {
-      guard request.deviceId.caseInsensitiveCompare(deviceId) == .orderedSame else { return false }
+    removeWrites(deviceId: deviceId) { request in
       if let owner = owner, request.writeOwner !== owner { return false }
       if let excludingOwner = excludingOwner, request.writeOwner === excludingOwner { return false }
       return true
+    }
+  }
+
+  /// Removes the writes for `deviceId` that satisfy `predicate` in addition to
+  /// matching the device, e.g. the writes of an owner that has disconnected.
+  mutating func removeWrites(deviceId: String, matching predicate: (Element) -> Bool) -> [Element] {
+    func matches(_ request: Element) -> Bool {
+      request.deviceId.caseInsensitiveCompare(deviceId) == .orderedSame && predicate(request)
     }
     let removed = filter(matches)
     removeAll(where: matches)
