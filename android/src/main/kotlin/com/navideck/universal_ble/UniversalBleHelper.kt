@@ -168,6 +168,9 @@ val ScanResult.serviceDataUuids: List<UUID>
 /// Whether the advertisement asks for a connectable peripheral.
 /// [ScanResult.isConnectable] is API 26+, so older releases report `null`
 /// (unknown) instead of throwing `NoSuchMethodError` on the first scan result.
+/// The SDK level is a parameter so both branches are reachable from JVM tests;
+/// lint cannot follow the `Int` comparison to prove the API call is guarded.
+@SuppressLint("NewApi")
 internal fun ScanResult.connectableOrNull(sdkInt: Int = Build.VERSION.SDK_INT): Boolean? =
     if (sdkInt >= Build.VERSION_CODES.O) isConnectable else null
 

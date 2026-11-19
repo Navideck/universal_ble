@@ -22,10 +22,20 @@ internal class ScanResultConnectableTest {
     }
 
     @Test
-    fun reportsPlatformValueFromApi26() {
+    fun reportsConnectableFromApi26() {
         val scanResult = mock(ScanResult::class.java)
         `when`(scanResult.isConnectable).thenReturn(true)
 
         assertEquals(true, scanResult.connectableOrNull(sdkInt = Build.VERSION_CODES.O))
+    }
+
+    @Test
+    fun reportsNonConnectableFromApi26() {
+        // A guard that returned a constant instead of the platform value would
+        // keep the connectable case green, so the false case is pinned too.
+        val scanResult = mock(ScanResult::class.java)
+        `when`(scanResult.isConnectable).thenReturn(false)
+
+        assertEquals(false, scanResult.connectableOrNull(sdkInt = Build.VERSION_CODES.O))
     }
 }
