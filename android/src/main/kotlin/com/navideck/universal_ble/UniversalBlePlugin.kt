@@ -36,11 +36,13 @@ import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import androidx.core.content.edit
 
-// Bluetooth Core caps an attribute value at 512 bytes, and Android 13+ throws
-// IllegalArgumentException from writeCharacteristic/writeDescriptor for longer
-// values. Reject them here with a classified error instead of letting the
-// exception escape with the pending result still registered, which made every
-// later write complete one behind.
+// Bluetooth Core caps an attribute value at 512 bytes. Android 15+ throws
+// IllegalArgumentException from writeCharacteristic(characteristic, value,
+// writeType) for a longer value; writeDescriptor does not length-check, so the
+// guard there only turns a value that cannot work into a clear error. Reject
+// them with a classified error instead of letting the exception escape with the
+// pending result still registered, which made every later write complete one
+// behind.
 private const val MAX_ATTRIBUTE_VALUE_SIZE = 512
 
 @SuppressLint("MissingPermission")
@@ -906,17 +908,6 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
         var writeFuture: WriteResultFuture? = null
         try {
             UniversalBleLogger.logDebug("WRITE -> $deviceId $service $characteristic len=${value.size} property=$bleOutputProperty")
-            if (value.size > MAX_ATTRIBUTE_VALUE_SIZE) {
-                callback(
-                    Result.failure(
-                        createFlutterError(
-                            UniversalBleErrorCode.INVALID_ATTRIBUTE_LENGTH,
-                            "Value is ${value.size} bytes, longer than the $MAX_ATTRIBUTE_VALUE_SIZE-byte attribute limit",
-                        )
-                    )
-                )
-                return
-            }
             val gatt = gattRegistry.get(deviceId)
             val gattCharacteristic = gatt.getCharacteristic(service, characteristic)
             if (gattCharacteristic == null) {
@@ -960,6 +951,19 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
                 writeType = BluetoothGattCharacteristic.WRITE_TYPE_NO_RESPONSE
             }
 
+            // Checked after the lookups so a caller still gets deviceNotFound,
+            // characteristicNotFound and the write-support errors it got before.
+            if (value.size > MAX_ATTRIBUTE_VALUE_SIZE) {
+                callback(
+                    Result.failure(
+                        createFlutterError(
+                            UniversalBleErrorCode.INVALID_ATTRIBUTE_LENGTH,
+                            "Value is ${value.size} bytes, longer than the $MAX_ATTRIBUTE_VALUE_SIZE-byte attribute limit",
+                        )
+                    )
+                )
+                return
+            }
 
             val future = WriteResultFuture(
                 gatt,
@@ -1004,10 +1008,11 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
             writeFuture?.let(::withdrawWriteFuture)
             callback(Result.failure(e))
         } catch (e: Exception) {
-            // A value the stack refuses (an oversized attribute on API 33+, for
-            // example) throws instead of returning a status. Fail this call and
-            // unregister its result: otherwise the next completion is delivered
-            // to the orphaned future and every later write lags by one.
+            // A write the stack refuses by throwing (a characteristic whose
+            // service is gone, for example) never reaches onCharacteristicWrite.
+            // Fail this call and unregister its result: otherwise the next
+            // completion is delivered to the orphaned future and every later
+            // write lags by one.
             writeFuture?.let(::withdrawWriteFuture)
             callback(
                 Result.failure(
@@ -1216,17 +1221,6 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
         var writeFuture: WriteDescriptorResultFuture? = null
         try {
             UniversalBleLogger.logDebug("WRITE_DESCRIPTOR -> $deviceId $service $characteristic $descriptor len=${value.size}")
-            if (value.size > MAX_ATTRIBUTE_VALUE_SIZE) {
-                callback(
-                    Result.failure(
-                        createFlutterError(
-                            UniversalBleErrorCode.INVALID_ATTRIBUTE_LENGTH,
-                            "Value is ${value.size} bytes, longer than the $MAX_ATTRIBUTE_VALUE_SIZE-byte attribute limit",
-                        )
-                    )
-                )
-                return
-            }
             val gatt = gattRegistry.get(deviceId)
             val gattCharacteristic = gatt.getCharacteristic(service, characteristic)
             if (gattCharacteristic == null) {
@@ -1247,6 +1241,21 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
                         createFlutterError(
                             UniversalBleErrorCode.CHARACTERISTIC_NOT_FOUND,
                             "Descriptor not found"
+                        )
+                    )
+                )
+                return
+            }
+
+            // Checked after the lookups so a caller still gets deviceNotFound and
+            // the not-found errors it got before. writeDescriptor does not throw
+            // for a long value, but a value over the attribute cap cannot work.
+            if (value.size > MAX_ATTRIBUTE_VALUE_SIZE) {
+                callback(
+                    Result.failure(
+                        createFlutterError(
+                            UniversalBleErrorCode.INVALID_ATTRIBUTE_LENGTH,
+                            "Value is ${value.size} bytes, longer than the $MAX_ATTRIBUTE_VALUE_SIZE-byte attribute limit",
                         )
                     )
                 )
