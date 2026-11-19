@@ -1,7 +1,6 @@
 ## Unreleased
 
-* Android: bind pending reads, writes, descriptor operations, RSSI, service discovery and notification subscriptions to their submitting GATT, so a callback or cleanup from a replaced client cannot consume a newer request for the same address. A discovery from a superseded client no longer updates the service cache, and a CCCD callback whose descriptor was rebuilt by a discovery still completes its subscription.
-* Android: ignore connection state, connection parameters and notifications reported by a GATT client that a newer `connect()` replaced, so values from a client that is being torn down are no longer delivered as the current connection's (#381).
+* Android: bind pending reads, writes, descriptor operations, RSSI, service discovery and notification subscriptions to their submitting GATT, so a callback or cleanup from a replaced client cannot consume a newer request for the same address. A discovery from a superseded client no longer updates the service cache, and a CCCD callback whose descriptor was rebuilt by a discovery still completes its subscription. Connection state, connection parameters and notifications reported by a client that a newer `connect()` replaced are ignored, as are notifications from the client `disconnect()` is closing until its `STATE_DISCONNECTED` arrives, so a link that is being torn down no longer reports values, or a stale `disconnected` event, as the current connection's (#381).
 
 ## 3.3.0
 * Windows: allow app shutdown to continue when background connection disposal stalls in WinRT (#375).

@@ -11,6 +11,7 @@ import android.os.Handler
 import java.util.UUID
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertSame
 import kotlin.test.assertTrue
 import org.mockito.Mockito
 
@@ -225,6 +226,9 @@ internal class GattCallbackCompletionTest {
         )
         pending.add(DiscoverServicesFuture(requestGatt, deviceAddress, false) { firstDiscoveries.add(it) })
         pending.add(DiscoverServicesFuture(requestGatt, deviceAddress, false) { secondDiscoveries.add(it) })
+        // Only the client the registry holds may publish the service cache, so
+        // register the gatt that reports the discovery.
+        plugin.gattRegistry().put(gatt)
 
         plugin.onServicesDiscovered(gatt, BluetoothGatt.GATT_SUCCESS)
 
@@ -237,6 +241,8 @@ internal class GattCallbackCompletionTest {
             listOf(serviceUuid.toString()),
             firstDiscoveries[0].getOrThrow().map { it.uuid }
         )
+        Mockito.verify(preferencesEditor)
+            .putStringSet(deviceAddress, setOf(serviceUuid.toString()))
     }
 
     @Test
@@ -638,6 +644,37 @@ internal class GattCallbackCompletionTest {
         drainMainLooper()
         assertEquals(List(7) { false }, currentResults, "explicit device cleanup still clears all owners")
         assertEquals(7, oldResults.size)
+    }
+
+    @Test
+    fun cleanupKeepsARequestWhoseClientIsRegisteredWhileItIsSwept() {
+        val plugin = plugin()
+        val old = mockGatt()
+        val current = mockGatt()
+        val results = mutableListOf<Result<ByteArray>>()
+        val items = mutableListOf(
+            ReadResultFuture(
+                current, deviceAddress, charUuid.toString(), serviceUuid.toString()
+            ) { results.add(it) }
+        )
+        // A connect() publishes the replacement while this sweep is running:
+        // the requests that client owns must survive, so the registry has to be
+        // read at match time rather than once when the sweep starts.
+        plugin.setField("readResultFutureList", object : MutableList<ReadResultFuture> by items {
+            override fun iterator(): MutableIterator<ReadResultFuture> {
+                plugin.gattRegistry().put(current)
+                return items.iterator()
+            }
+        })
+        val cleanup = UniversalBlePlugin::class.java.getDeclaredMethod(
+            "cleanUpConnection", String::class.java, BluetoothGatt::class.java
+        ).apply { isAccessible = true }
+
+        cleanup.invoke(plugin, deviceAddress, old)
+        drainMainLooper()
+
+        assertTrue(results.isEmpty(), "the replacement's read is still in flight")
+        assertSame(current, plugin.gattRegistry().find(deviceAddress))
     }
 
     @Test

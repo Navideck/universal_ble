@@ -1636,15 +1636,20 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
      * calls they still owe a reply.
      */
     private fun cleanUpConnection(deviceId: String, gatt: BluetoothGatt? = null) {
-        val replacement = if (gatt == null) null else gattRegistry.find(deviceId)
-
         /** Whether a pending operation belongs to the connection being cleaned up. */
         fun owns(futureGatt: BluetoothGatt, futureDeviceId: String): Boolean {
             if (futureDeviceId != deviceId) return false
             // Device-wide cleanup fails every operation for the address.
             if (gatt == null) return true
             if (futureGatt === gatt) return true
-            return futureGatt !== replacement
+            // Read the registry at match time rather than once up front: a
+            // connect() can publish a replacement while these lists are being
+            // swept, and that client's requests must survive. Reading it under
+            // each list's lock is safe because a future only enters a list
+            // after its own gatt was published to the registry, so an entry
+            // whose gatt is not visible here cannot be in the list being
+            // filtered.
+            return futureGatt !== gattRegistry.find(deviceId)
         }
 
         val deviceDisconnectedError: FlutterError = createFlutterError(
@@ -2230,7 +2235,13 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
  */
 private fun BluetoothGattDescriptor.sameAttributeAs(
     other: BluetoothGattDescriptor,
-): Boolean =
-    uuid == other.uuid &&
-        characteristic?.uuid == other.characteristic?.uuid &&
-        characteristic?.service?.uuid == other.characteristic?.service?.uuid
+): Boolean {
+    // A descriptor the framework did not resolve through a characteristic
+    // cannot be identified: matching two of them would treat any CCCD as this
+    // one.
+    val characteristic = characteristic ?: return false
+    val otherCharacteristic = other.characteristic ?: return false
+    return uuid == other.uuid &&
+        characteristic.uuid == otherCharacteristic.uuid &&
+        characteristic.service?.uuid == otherCharacteristic.service?.uuid
+}
