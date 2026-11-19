@@ -76,9 +76,8 @@ internal class GattCallbackCompletionTest {
 
     private fun pluginWithPreferences(): UniversalBlePlugin {
         // Service discovery caches the discovered UUIDs in SharedPreferences.
-        val editor = Mockito.mock(SharedPreferences.Editor::class.java)
         val preferences = Mockito.mock(SharedPreferences::class.java)
-        Mockito.`when`(preferences.edit()).thenReturn(editor)
+        Mockito.`when`(preferences.edit()).thenReturn(preferencesEditor)
         val context = Mockito.mock(Context::class.java)
         Mockito.`when`(
             context.getSharedPreferences(Mockito.anyString(), Mockito.anyInt())
@@ -86,6 +85,11 @@ internal class GattCallbackCompletionTest {
         val plugin = plugin()
         plugin.setField("context", context)
         return plugin
+    }
+
+    /** The editor a cached-services write would use; a test can assert it stays untouched. */
+    private val preferencesEditor: SharedPreferences.Editor by lazy {
+        Mockito.mock(SharedPreferences.Editor::class.java)
     }
 
     @Test
@@ -252,9 +256,7 @@ internal class GattCallbackCompletionTest {
             SubscriptionResultFuture(
                 gatt,
                 descriptor,
-                deviceAddress,
-                charUuid.toString(),
-                serviceUuid.toString()
+                deviceAddress
             ) { subscriptions.add(it) }
         )
 
@@ -295,16 +297,14 @@ internal class GattCallbackCompletionTest {
         )
         pending.add(
             SubscriptionResultFuture(
-                currentGatt, currentDescriptor, deviceAddress,
-                charUuid.toString(), serviceUuid.toString()
+                currentGatt, currentDescriptor, deviceAddress
             ) { subscriptions.add(it) }
         )
 
         // Same address and UUIDs, but callbacks from a previous connection
-        // or a replaced descriptor must not consume the current request.
+        // must not consume the current request.
         plugin.onDescriptorWrite(oldGatt, oldDescriptor, BluetoothGatt.GATT_SUCCESS)
         plugin.onDescriptorWrite(oldGatt, currentDescriptor, BluetoothGatt.GATT_FAILURE)
-        plugin.onDescriptorWrite(currentGatt, oldDescriptor, BluetoothGatt.GATT_SUCCESS)
         drainMainLooper()
         assertTrue(subscriptions.isEmpty())
         assertEquals(1, pending.size)
@@ -318,6 +318,45 @@ internal class GattCallbackCompletionTest {
         plugin.onDescriptorWrite(currentGatt, currentDescriptor, BluetoothGatt.GATT_SUCCESS)
         drainMainLooper()
         assertEquals(1, subscriptions.size, "a duplicate callback cannot complete twice")
+    }
+
+    @Test
+    fun rebuiltDescriptorStillCompletesItsSubscription() {
+        val plugin = plugin()
+        val gatt = mockGatt()
+        val characteristic = mockCharacteristic()
+        val submitted = mockDescriptor(characteristic, "00002902-0000-1000-8000-00805f9b34fb")
+        // A discoverServices() completing between the CCCD write and its
+        // callback rebuilds the service tree, so the framework reports a new
+        // descriptor object for the same attribute.
+        val rebuilt = mockDescriptor(characteristic, "00002902-0000-1000-8000-00805f9b34fb")
+        val results = mutableListOf<Result<Unit>>()
+        val pending = plugin.getField<MutableList<SubscriptionResultFuture>>(
+            "subscriptionResultFutureList"
+        )
+        pending.add(SubscriptionResultFuture(gatt, submitted, deviceAddress) { results.add(it) })
+
+        // The CCCD of another characteristic carries the same descriptor UUID
+        // and is a different attribute.
+        val otherCharacteristic = Mockito.mock(BluetoothGattCharacteristic::class.java)
+        Mockito.`when`(otherCharacteristic.uuid)
+            .thenReturn(UUID.fromString("0000fff2-0000-1000-8000-00805f9b34fb"))
+        Mockito.`when`(otherCharacteristic.service).thenReturn(
+            Mockito.mock(BluetoothGattService::class.java)
+        )
+        plugin.onDescriptorWrite(
+            gatt,
+            mockDescriptor(otherCharacteristic, "00002902-0000-1000-8000-00805f9b34fb"),
+            BluetoothGatt.GATT_SUCCESS
+        )
+        drainMainLooper()
+        assertTrue(results.isEmpty(), "another characteristic's CCCD is not this request")
+
+        plugin.onDescriptorWrite(gatt, rebuilt, BluetoothGatt.GATT_SUCCESS)
+        drainMainLooper()
+        assertEquals(1, results.size)
+        assertTrue(results.single().isSuccess)
+        assertTrue(pending.isEmpty())
     }
 
     @Test
@@ -336,9 +375,7 @@ internal class GattCallbackCompletionTest {
                 SubscriptionResultFuture(
                     mockGatt(),
                     Mockito.mock(BluetoothGattDescriptor::class.java),
-                    deviceAddress,
-                    charUuid.toString(),
-                    serviceUuid.toString()
+                    deviceAddress
                 ) { subscriptions.add(it) }
             )
         plugin.getField<MutableList<RssiResultFuture>>("rssiResultFutureList")
@@ -517,6 +554,7 @@ internal class GattCallbackCompletionTest {
         val plugin = plugin()
         val old = mockGatt()
         val current = mockGatt()
+        plugin.gattRegistry().put(current)
         val characteristic = mockCharacteristic()
         val descriptor = mockDescriptor(characteristic, "00002901-0000-1000-8000-00805f9b34fb")
         val cccd = mockDescriptor(characteristic, "00002902-0000-1000-8000-00805f9b34fb")
@@ -538,16 +576,60 @@ internal class GattCallbackCompletionTest {
     }
 
     @Test
+    fun cleanupFailsOperationsLeftByAClientThatIsNoLongerRegistered() {
+        val plugin = plugin()
+        val current = mockGatt()
+        val superseded = mockGatt()
+        plugin.gattRegistry().put(current)
+        val characteristic = mockCharacteristic()
+        val cccd = mockDescriptor(characteristic, "00002902-0000-1000-8000-00805f9b34fb")
+        // A client replaced by a newer connect() that never reported
+        // STATE_DISCONNECTED keeps its futures registered (#277).
+        val orphanResults = mutableListOf<Boolean>()
+        plugin.getField<MutableList<ReadResultFuture>>("readResultFutureList")
+            .add(
+                ReadResultFuture(
+                    superseded, deviceAddress, charUuid.toString(), serviceUuid.toString()
+                ) { orphanResults.add(it.isSuccess) }
+            )
+        plugin.getField<MutableList<SubscriptionResultFuture>>("subscriptionResultFutureList")
+            .add(SubscriptionResultFuture(superseded, cccd, deviceAddress) {
+                orphanResults.add(it.isSuccess)
+            })
+
+        plugin.disconnect(deviceAddress)
+        drainMainLooper()
+
+        assertEquals(
+            List(2) { false },
+            orphanResults,
+            "cleanup for the address must not leave a superseded client's operations pending"
+        )
+        assertTrue(plugin.getField<MutableList<ReadResultFuture>>("readResultFutureList").isEmpty())
+        assertTrue(
+            plugin.getField<MutableList<SubscriptionResultFuture>>(
+                "subscriptionResultFutureList"
+            ).isEmpty()
+        )
+    }
+
+    @Test
     fun oldDiscoveryCannotOverwriteReplacementServiceCache() {
         val plugin = pluginWithPreferences()
         val current = mockGatt()
         val old = mockGatt()
         plugin.gattRegistry().put(current)
+        // Stub the discovered services: Mockito's default empty list would make
+        // the cache guard look exercised when it is not.
+        val discovered = Mockito.mock(BluetoothGattService::class.java)
+        Mockito.`when`(discovered.uuid).thenReturn(serviceUuid)
+        Mockito.`when`(old.services).thenReturn(listOf(discovered))
         val cache = plugin.getField<MutableMap<String, List<String>>>("cachedServicesMap")
         cache[deviceAddress] = listOf("current-service")
         plugin.onServicesDiscovered(old, BluetoothGatt.GATT_SUCCESS)
         drainMainLooper()
         assertEquals(listOf("current-service"), cache[deviceAddress])
+        Mockito.verifyNoInteractions(preferencesEditor)
     }
 
     private fun mockDescriptor(characteristic: BluetoothGattCharacteristic, uuid: String): BluetoothGattDescriptor {
@@ -577,7 +659,7 @@ internal class GattCallbackCompletionTest {
         plugin.getField<MutableList<WriteDescriptorResultFuture>>("writeDescriptorResultFutureList")
             .add(WriteDescriptorResultFuture(gatt, deviceAddress, descriptor.uuid.toString(), charUuid.toString(), serviceUuid.toString()) { results.add(it.isSuccess) })
         plugin.getField<MutableList<SubscriptionResultFuture>>("subscriptionResultFutureList")
-            .add(SubscriptionResultFuture(gatt, cccd, deviceAddress, charUuid.toString(), serviceUuid.toString()) { results.add(it.isSuccess) })
+            .add(SubscriptionResultFuture(gatt, cccd, deviceAddress) { results.add(it.isSuccess) })
     }
 
     /** A gatt whose [serviceUuid] service exposes [characteristic] under [charUuid]. */

@@ -685,8 +685,6 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
                                 gatt,
                                 descriptor,
                                 gatt.device.address,
-                                gattCharacteristic.uuid.toString(),
-                                gattCharacteristic.service.uuid.toString(),
                                 callback
                             )
                         )
@@ -1580,10 +1578,26 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
 
     /**
      * Fails pending operations for [deviceId]. When [gatt] is provided (a
-     * disconnect of a specific client), only that client's requests and MTU
-     * state are cleared. A replacement GATT at the same address is unaffected.
+     * disconnect of a specific client), that client's requests and MTU state
+     * are cleared, along with those of any client that is no longer registered
+     * for the address. A replacement GATT at the same address is unaffected.
+     *
+     * Superseded clients are swept because their own `STATE_DISCONNECTED` may
+     * never arrive (#277), and this is then the last chance to fail the Dart
+     * calls they still owe a reply.
      */
     private fun cleanUpConnection(deviceId: String, gatt: BluetoothGatt? = null) {
+        val replacement = if (gatt == null) null else gattRegistry.find(deviceId)
+
+        /** Whether a pending operation belongs to the connection being cleaned up. */
+        fun owns(futureGatt: BluetoothGatt, futureDeviceId: String): Boolean {
+            if (futureDeviceId != deviceId) return false
+            // Device-wide cleanup fails every operation for the address.
+            if (gatt == null) return true
+            if (futureGatt === gatt) return true
+            return futureGatt !== replacement
+        }
+
         val deviceDisconnectedError: FlutterError = createFlutterError(
             UniversalBleErrorCode.DEVICE_DISCONNECTED,
             "Device Disconnected",
@@ -1591,7 +1605,7 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
         val pendingReads: List<ReadResultFuture>
         synchronized(readResultFutureList) {
             pendingReads = readResultFutureList.filter {
-                if (gatt != null) it.gatt === gatt else it.deviceId == deviceId
+                owns(it.gatt, it.deviceId)
             }
             readResultFutureList.removeAll(pendingReads)
         }
@@ -1607,7 +1621,7 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
         val pendingWrites: List<WriteResultFuture>
         synchronized(writeResultFutureList) {
             pendingWrites = writeResultFutureList.filter {
-                if (gatt != null) it.gatt === gatt else it.deviceId == deviceId
+                owns(it.gatt, it.deviceId)
             }
             writeResultFutureList.removeAll(pendingWrites)
         }
@@ -1623,7 +1637,7 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
         val pendingDescriptorReads: List<ReadDescriptorResultFuture>
         synchronized(readDescriptorResultFutureList) {
             pendingDescriptorReads = readDescriptorResultFutureList.filter {
-                if (gatt != null) it.gatt === gatt else it.deviceId == deviceId
+                owns(it.gatt, it.deviceId)
             }
             readDescriptorResultFutureList.removeAll(pendingDescriptorReads)
         }
@@ -1639,7 +1653,7 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
         val pendingDescriptorWrites: List<WriteDescriptorResultFuture>
         synchronized(writeDescriptorResultFutureList) {
             pendingDescriptorWrites = writeDescriptorResultFutureList.filter {
-                if (gatt != null) it.gatt === gatt else it.deviceId == deviceId
+                owns(it.gatt, it.deviceId)
             }
             writeDescriptorResultFutureList.removeAll(pendingDescriptorWrites)
         }
@@ -1655,7 +1669,7 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
         val pendingSubscriptions: List<SubscriptionResultFuture>
         synchronized(subscriptionResultFutureList) {
             pendingSubscriptions = subscriptionResultFutureList.filter {
-                if (gatt != null) it.gatt === gatt else it.deviceId == deviceId
+                owns(it.gatt, it.deviceId)
             }
             subscriptionResultFutureList.removeAll(pendingSubscriptions)
         }
@@ -1671,7 +1685,7 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
         val pendingMtus: List<MtuResultFuture>
         synchronized(mtuResultFutureList) {
             pendingMtus = mtuResultFutureList.filter {
-                if (gatt != null) it.gatt === gatt else it.deviceId == deviceId
+                owns(it.gatt, it.deviceId)
             }
             mtuResultFutureList.removeAll(pendingMtus)
             if (gatt != null) {
@@ -1686,7 +1700,7 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
         val pendingDiscoveries: List<DiscoverServicesFuture>
         synchronized(discoverServicesFutureList) {
             pendingDiscoveries = discoverServicesFutureList.filter {
-                if (gatt != null) it.gatt === gatt else it.deviceId == deviceId
+                owns(it.gatt, it.deviceId)
             }
             discoverServicesFutureList.removeAll(pendingDiscoveries)
         }
@@ -1704,7 +1718,7 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
         val pendingRssis: List<RssiResultFuture>
         synchronized(rssiResultFutureList) {
             pendingRssis = rssiResultFutureList.filter {
-                if (gatt != null) it.gatt === gatt else it.deviceId == deviceId
+                owns(it.gatt, it.deviceId)
             }
             rssiResultFutureList.removeAll(pendingRssis)
         }
@@ -1981,6 +1995,13 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
             // Only the exact GATT and descriptor that submitted the request own it.
             future = subscriptionResultFutureList.firstOrNull {
                 it.gatt === gatt && it.descriptor === descriptor
+            } ?: subscriptionResultFutureList.firstOrNull {
+                // A discoverServices() completing between the CCCD write and its
+                // callback rebuilds the service tree, so the framework reports a
+                // fresh descriptor object for the same attribute. Match on that
+                // identity instead; without it the caller would await forever.
+                // The GATT check keeps a replaced connection out.
+                it.gatt === gatt && it.descriptor.sameAttributeAs(descriptor)
             }
             future?.let { subscriptionResultFutureList.remove(it) }
         }
@@ -2124,3 +2145,16 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
             ?: false
     }
 }
+
+/**
+ * Whether [other] addresses the same attribute as this descriptor. The
+ * framework resolves the descriptor it reports through the GATT client's
+ * current service list, so a `discoverServices()` completing between a CCCD
+ * write and its callback hands back new objects for the same attribute.
+ */
+private fun BluetoothGattDescriptor.sameAttributeAs(
+    other: BluetoothGattDescriptor,
+): Boolean =
+    uuid == other.uuid &&
+        characteristic?.uuid == other.characteristic?.uuid &&
+        characteristic?.service?.uuid == other.characteristic?.service?.uuid

@@ -499,12 +499,15 @@ class WriteResultFuture(
     val result: (Result<Unit>) -> Unit,
 )
 
+/**
+ * A CCCD write awaiting its callback. [gatt] and [descriptor] identify the
+ * request; the attribute UUIDs are read from [descriptor] when matching, so
+ * they are not duplicated here.
+ */
 class SubscriptionResultFuture(
     val gatt: BluetoothGatt,
     val descriptor: BluetoothGattDescriptor,
     val deviceId: String,
-    val characteristicId: String,
-    val serviceId: String,
     val result: (Result<Unit>) -> Unit,
 )
 

@@ -1,7 +1,6 @@
 ## Unreleased
 
-* **Android:** Bind pending reads, writes, descriptor operations, RSSI and discovery to their submitting GATT. Stale callbacks and cleanup cannot consume replacement requests. Service discovery skips cache updates when its GATT no longer matches the registered client.
-* Android: match notification subscription completions to the exact GATT connection and descriptor, so a late callback from a replaced connection cannot complete a new subscription for the same address and UUIDs.
+* Android: bind pending reads, writes, descriptor operations, RSSI, service discovery and notification subscriptions to their submitting GATT, so a callback or cleanup from a replaced client cannot consume a newer request for the same address. A discovery from a superseded client no longer updates the service cache, and a CCCD callback whose descriptor was rebuilt by a discovery still completes its subscription.
 
 ## 3.3.0
 * Apple: complete service discovery when a peripheral's GATT database holds multiple services with the same UUID (#369).
