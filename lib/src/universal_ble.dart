@@ -287,7 +287,8 @@ class UniversalBle {
     Duration? timeout,
     @Deprecated(
       "Ignored: disconnect bypasses the command queue and cancels unsent "
-      "commands for the device instead of queueing behind them",
+      "commands for the device instead of queueing behind them. Remove the "
+      "argument; it is scheduled for removal in 4.0.0.",
     )
     String? queueId,
   }) async {
