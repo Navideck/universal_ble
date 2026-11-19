@@ -4,6 +4,8 @@ import android.bluetooth.*
 import android.bluetooth.le.BluetoothLeAdvertiser
 import android.content.Context
 import android.os.Handler
+import io.flutter.embedding.engine.plugins.FlutterPlugin
+import io.flutter.plugin.common.BinaryMessenger
 import java.util.UUID
 import kotlin.test.*
 import org.mockito.Mockito
@@ -579,5 +581,26 @@ internal class PeripheralRegressionTest {
 
         // A second unregisterReceiver throws on a real context.
         Mockito.verify(context, Mockito.times(1)).unregisterReceiver(Mockito.any())
+    }
+
+    // m3: a detached engine may have no adapter. That must not abort the teardown
+    // before the peripheral plugin, and its receiver, are released.
+    @Test fun detachingWithoutAnAdapterStillReleasesThePeripheralPlugin() {
+        val plugin = UniversalBlePlugin()
+        val context = Mockito.mock(Context::class.java)
+        val manager = Mockito.mock(BluetoothManager::class.java)
+        Mockito.`when`(manager.adapter).thenReturn(null)
+        val peripheral = Mockito.mock(UniversalBlePeripheralPlugin::class.java)
+        plugin.setField("context", context)
+        plugin.setField("bluetoothManager", manager)
+        plugin.setField("peripheralPlugin", peripheral)
+        plugin.setField("mainThreadHandler", Mockito.mock(Handler::class.java))
+        val binding = Mockito.mock(FlutterPlugin.FlutterPluginBinding::class.java)
+        Mockito.`when`(binding.binaryMessenger).thenReturn(Mockito.mock(BinaryMessenger::class.java))
+
+        plugin.onDetachedFromEngine(binding)
+
+        Mockito.verify(peripheral).dispose()
+        Mockito.verify(context).unregisterReceiver(Mockito.any())
     }
 }
