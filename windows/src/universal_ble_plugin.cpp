@@ -6,9 +6,11 @@
 #include <flutter/plugin_registrar_windows.h>
 
 #include <algorithm>
+#include <atomic>
 #include <cctype>
 #include <iomanip>
 #include <memory>
+#include <optional>
 #include <regex>
 #include <sstream>
 #include <utility>
@@ -100,6 +102,16 @@ IPropertyValue lookup_i_property_value(
 NotificationFailureLog &notification_failure_log() {
   static auto *log = new NotificationFailureLog();
   return *log;
+}
+
+// Whether the missing-interface warning below still has to be logged. The
+// advertisement callback runs once per received packet and a scan can deliver
+// thousands of them, so the fallback would otherwise either spam the log or
+// stay silent. It is logged once per process: #373 only reproduces on affected
+// hosts, so a silent fallback leaves nothing to confirm it with in the field.
+bool should_log_missing_connectable_interface() {
+  static std::atomic_bool logged{false};
+  return !logged.exchange(true);
 }
 
 const char *async_status_to_string(const AsyncStatus status) {
@@ -347,12 +359,18 @@ std::optional<FlutterError> UniversalBlePlugin::StartScan(
     if (!bluetooth_le_watcher_) {
       bluetooth_le_watcher_ = BluetoothLEAdvertisementWatcher();
       bluetooth_le_watcher_.ScanningMode(BluetoothLEScanningMode::Active);
+      // Guarded defensively: AllowExtendedAdvertisements requires
+      // UniversalApiContract v10 (Windows 10 2004+), which not every supported
+      // host provides. The #373 field dump showed construction and StartScan
+      // completing on Windows 10 1909 before the advertisement callback ran, so
+      // this call is not what faults on the affected host, and the guard stays
+      // for hosts where the property is genuinely unavailable. Scans continue
+      // with legacy advertisements only.
       try {
         bluetooth_le_watcher_.AllowExtendedAdvertisements(true);
       } catch (const hresult_error &err) {
-        // Expected on Windows builds before 10.0.19041 (the property requires
-        // UniversalApiContract v10) or on adapters without Bluetooth 5 support.
-        // Scans continue with legacy advertisements only.
+        // Expected on Windows builds before 10.0.19041, or on adapters without
+        // Bluetooth 5 support.
         UniversalBleLogger::LogWarning(
             "Extended advertisements unavailable hr=" +
             std::to_string(err.code()) + " msg=" + to_string(err.message()));
@@ -1387,9 +1405,9 @@ void UniversalBlePlugin::PairingRequestedHandler(
 // Android, BlueZ, CoreBluetooth and bleak all merge the two packets of a
 // device into one result.
 void UniversalBlePlugin::PushUniversalScanResult(
-    UniversalBleScanResult scan_result, const bool is_connectable,
-    const bool is_scan_response) {
-  if (is_connectable) {
+    UniversalBleScanResult scan_result,
+    const std::optional<bool> is_connectable, const bool is_scan_response) {
+  if (is_connectable.value_or(false)) {
     connectable_heard_.insert_or_assign(scan_result.device_id(), true);
   }
 
@@ -1412,9 +1430,17 @@ void UniversalBlePlugin::PushUniversalScanResult(
       connectable_heard_.get(scan_result.device_id()).value_or(false) ||
       (it.has_value() && it.value().connectable() != nullptr &&
        *it.value().connectable());
-  const bool device_is_connectable = DeriveConnectableState(
+  const std::optional<bool> device_is_connectable = DeriveConnectableState(
       is_connectable, is_scan_response, address_heard_connectable);
-  scan_result.set_connectable(device_is_connectable);
+  if (device_is_connectable.has_value()) {
+    scan_result.set_connectable(*device_is_connectable);
+  } else {
+    // Unknown stays unknown: the packet did not answer the question, and a
+    // concrete `false` would make `connectableOnly` drop every device on a host
+    // where the query fails (#373). The cast selects the Pigeon pointer setter,
+    // whose null value means "no value".
+    scan_result.set_connectable(static_cast<const bool *>(nullptr));
+  }
 
   if (it.has_value()) {
     const UniversalBleScanResult &current_scan_result = it.value();
@@ -1461,10 +1487,15 @@ void UniversalBlePlugin::PushUniversalScanResult(
 
     // A changed connectable state is an update in itself: a device whose
     // connectability state changes must reach the caller, even when the packet
-    // carries nothing else new.
+    // carries nothing else new. Comparing the optional values makes "unknown"
+    // a state of its own, so a host that stops answering is visible instead of
+    // being read as a change to `false`.
+    const std::optional<bool> current_connectable =
+        current_scan_result.connectable() == nullptr
+            ? std::nullopt
+            : std::optional<bool>(*current_scan_result.connectable());
     const bool connectable_changed =
-        current_scan_result.connectable() == nullptr ||
-        *scan_result.connectable() != *current_scan_result.connectable();
+        current_connectable != device_is_connectable;
 
     // if nothing to update then return
     if (!ShouldUpdateScanResult(plan, is_scan_response, connectable_changed)) {
@@ -1852,20 +1883,39 @@ void UniversalBlePlugin::BluetoothLeWatcherReceived(
     // The scan-response flag comes from the advertisement type and not from
     // BluetoothLEAdvertisementReceivedEventArgs::IsScanResponse: the property
     // exists only since Windows 10 2004 (UniversalApiContract v10), so on
-    // older releases - including supported LTSC builds - projecting it inside
-    // this callback can throw, and the catch around this block would then drop
-    // every advertisement. BluetoothLEAdvertisementType::ScanResponse has
-    // shipped with every Windows 10.
+    // older releases - including supported LTSC builds - reading it inside
+    // this callback fails instead of returning a value, and the catch around
+    // this block would then drop every advertisement.
+    // BluetoothLEAdvertisementType::ScanResponse has shipped with every
+    // Windows 10.
     const bool is_scan_response =
         args.AdvertisementType() == BluetoothLEAdvertisementType::ScanResponse;
+    // IsConnectable lives on the secondary interface
+    // IBluetoothLEAdvertisementReceivedEventArgs2, which C++/WinRT reaches
+    // through `require`: its conversion is noexcept, so a failed
+    // QueryInterface leaves a null object instead of throwing, and calling the
+    // property then faults on a null vtable. The access violation bypasses the
+    // catch below and kills the process (#373). Query the interface explicitly
+    // and keep the state unknown (null) when the query fails: the answer is
+    // unavailable, so the caller is told nothing rather than "not connectable".
+    std::optional<bool> connectable;
+    const auto connectable_args =
+        args.try_as<IBluetoothLEAdvertisementReceivedEventArgs2>();
+    if (connectable_args) {
+      connectable = connectable_args.IsConnectable();
+    } else if (should_log_missing_connectable_interface()) {
+      UniversalBleLogger::LogWarning(
+          "IBluetoothLEAdvertisementReceivedEventArgs2 unavailable; reporting "
+          "connectability as unknown (#373)");
+    }
     // A scan response reports IsConnectable == false by definition, so trust
     // that flag only for regular advertisements; PushUniversalScanResult
     // derives the connectable state of a scan response from the cache.
-    if (!is_scan_response) {
-      universal_scan_result.set_connectable(args.IsConnectable());
+    if (!is_scan_response && connectable.has_value()) {
+      universal_scan_result.set_connectable(*connectable);
     }
     // Filter Device
-    PushUniversalScanResult(universal_scan_result, args.IsConnectable(),
+    PushUniversalScanResult(universal_scan_result, connectable,
                             is_scan_response);
   } catch (...) {
     UniversalBleLogger::LogError("ScanResultErrorInParsing");

@@ -114,23 +114,50 @@ int main() {
   // Connectable advertisements report connectable.
   CHECK(DeriveConnectableState(/*is_connectable=*/true,
                                /*is_scan_response=*/false,
-                               /*address_heard_connectable=*/false));
+                               /*address_heard_connectable=*/false) == true);
 
   // Non-connectable advertisements (e.g. beacons) report non-connectable.
-  CHECK(!DeriveConnectableState(/*is_connectable=*/false,
-                                /*is_scan_response=*/false,
-                                /*address_heard_connectable=*/false));
+  CHECK(DeriveConnectableState(/*is_connectable=*/false,
+                               /*is_scan_response=*/false,
+                               /*address_heard_connectable=*/false) == false);
 
   // An answered scan request inherits connectable if heard connectable.
   CHECK(DeriveConnectableState(/*is_connectable=*/false,
                                /*is_scan_response=*/true,
-                               /*address_heard_connectable=*/true));
+                               /*address_heard_connectable=*/true) == true);
 
   // A scan response for an address never heard connectable reports
   // non-connectable.
-  CHECK(!DeriveConnectableState(/*is_connectable=*/false,
-                                /*is_scan_response=*/true,
-                                /*address_heard_connectable=*/false));
+  CHECK(DeriveConnectableState(/*is_connectable=*/false,
+                               /*is_scan_response=*/true,
+                               /*address_heard_connectable=*/false) == false);
+
+  // An advertisement whose connectability could not be read stays unknown
+  // instead of being reported as "not connectable": a concrete `false` would
+  // make connectableOnly drop every device on an affected host (#373).
+  CHECK(DeriveConnectableState(/*is_connectable=*/std::nullopt,
+                               /*is_scan_response=*/false,
+                               /*address_heard_connectable=*/false) ==
+        std::nullopt);
+
+  // Unknown also stays unknown when nothing in the cache can answer for it.
+  CHECK(DeriveConnectableState(/*is_connectable=*/std::nullopt,
+                               /*is_scan_response=*/true,
+                               /*address_heard_connectable=*/false) ==
+        std::nullopt);
+
+  // A scan response with an unanswered flag still inherits connectability from
+  // the cache: that answer comes from the cache, not from the packet.
+  CHECK(DeriveConnectableState(/*is_connectable=*/std::nullopt,
+                               /*is_scan_response=*/true,
+                               /*address_heard_connectable=*/true) == true);
+
+  // An unanswered scan response must not promote a device already known to be
+  // non-connectable either.
+  CHECK(DeriveConnectableState(/*is_connectable=*/std::nullopt,
+                               /*is_scan_response=*/false,
+                               /*address_heard_connectable=*/true) ==
+        std::nullopt);
 
   return 0;
 }

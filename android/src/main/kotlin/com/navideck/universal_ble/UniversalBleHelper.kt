@@ -5,6 +5,7 @@ import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothDevice
 import android.bluetooth.BluetoothGatt
 import android.bluetooth.BluetoothGattCharacteristic
+import android.bluetooth.BluetoothGattDescriptor
 import android.bluetooth.BluetoothManager
 import android.bluetooth.BluetoothStatusCodes
 import android.bluetooth.le.ScanCallback.SCAN_FAILED_ALREADY_STARTED
@@ -164,6 +165,15 @@ val ScanResult.serviceDataUuids: List<UUID>
     get() {
         return scanRecord?.serviceData?.keys?.map { it.uuid } ?: emptyList()
     }
+
+/// Whether the advertisement asks for a connectable peripheral.
+/// [ScanResult.isConnectable] is API 26+, so older releases report `null`
+/// (unknown) instead of throwing `NoSuchMethodError` on the first scan result.
+/// The SDK level is a parameter so both branches are reachable from JVM tests;
+/// lint cannot follow the `Int` comparison to prove the API call is guarded.
+@SuppressLint("NewApi")
+internal fun ScanResult.connectableOrNull(sdkInt: Int = Build.VERSION.SDK_INT): Boolean? =
+    if (sdkInt >= Build.VERSION_CODES.O) isConnectable else null
 
 fun <T> SparseArray<T>.toList(): List<Pair<Int, T>> {
     return (0 until size).map { index ->
@@ -470,6 +480,7 @@ fun Int.parseHciErrorCode(): String? {
 
 // Future result classes
 class DiscoverServicesFuture(
+    val gatt: BluetoothGatt,
     val deviceId: String,
     val withDescriptors: Boolean,
     val result: (Result<List<UniversalBleService>>) -> Unit,
@@ -482,6 +493,7 @@ class MtuResultFuture(
 )
 
 class ReadResultFuture(
+    val gatt: BluetoothGatt,
     val deviceId: String,
     val characteristicId: String,
     val serviceId: String,
@@ -489,25 +501,33 @@ class ReadResultFuture(
 )
 
 class WriteResultFuture(
+    val gatt: BluetoothGatt,
     val deviceId: String,
     val characteristicId: String,
     val serviceId: String,
     val result: (Result<Unit>) -> Unit,
 )
 
+/**
+ * A CCCD write awaiting its callback. [gatt] and [descriptor] identify the
+ * request; the attribute UUIDs are read from [descriptor] when matching, so
+ * they are not duplicated here.
+ */
 class SubscriptionResultFuture(
+    val gatt: BluetoothGatt,
+    val descriptor: BluetoothGattDescriptor,
     val deviceId: String,
-    val characteristicId: String,
-    val serviceId: String,
     val result: (Result<Unit>) -> Unit,
 )
 
 class RssiResultFuture(
+    val gatt: BluetoothGatt,
     val deviceId: String,
     val result: (Result<Long>) -> Unit,
 )
 
 class ReadDescriptorResultFuture(
+    val gatt: BluetoothGatt,
     val deviceId: String,
     val descriptorId: String,
     val characteristicId: String,
@@ -516,6 +536,7 @@ class ReadDescriptorResultFuture(
 )
 
 class WriteDescriptorResultFuture(
+    val gatt: BluetoothGatt,
     val deviceId: String,
     val descriptorId: String,
     val characteristicId: String,

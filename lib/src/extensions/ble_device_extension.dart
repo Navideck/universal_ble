@@ -35,8 +35,17 @@ extension BleDeviceExtension on BleDevice {
   );
 
   /// Disconnects from the device.
-  Future<void> disconnect({Duration? timeout, String? queueId}) =>
-      UniversalBle.disconnect(deviceId, timeout: timeout, queueId: queueId);
+  /// [queueId] is deprecated and ignored: disconnect bypasses the command queue
+  /// and cancels unsent commands for the device.
+  Future<void> disconnect({
+    Duration? timeout,
+    @Deprecated(
+      "Ignored: disconnect bypasses the command queue and cancels unsent "
+      "commands for the device instead of queueing behind them",
+    )
+    String? queueId,
+  }) =>
+      UniversalBle.disconnect(deviceId, timeout: timeout);
 
   /// Requests an MTU (Maximum Transmission Unit) value for the connection.
   ///
