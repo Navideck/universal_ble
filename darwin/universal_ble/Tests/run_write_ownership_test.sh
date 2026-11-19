@@ -1,4 +1,8 @@
 #!/bin/bash
+# The Apple write-ownership bookkeeping, tested on its own with Xcode's swiftc.
+# Unlike run_discovery_progress_test.sh this helper needs no CoreBluetooth, but
+# either way it is not part of the plugin's build (the podspec and Package.swift
+# take Sources/ only).
 set -euo pipefail
 here="$(cd "$(dirname "$0")" && pwd)"
 test_dir="$(mktemp -d)"
