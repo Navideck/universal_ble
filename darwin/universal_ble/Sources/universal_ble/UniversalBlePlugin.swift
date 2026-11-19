@@ -69,11 +69,14 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
     /// Which engine of the process owns [stateRestorationIdentifier]. One
     /// owner per identifier per process: CoreBluetooth marks a second manager
     /// created with an identifier already in use as unsupported, so when
-    /// several FlutterEngines run in one process only the first live one
-    /// restores and later engines get a manager without restoration. The
-    /// bookkeeping lives in `UniversalBleCentralRestorationOwner` so it can be
-    /// tested without CoreBluetooth; ownership is weak and released when the
-    /// owning engine is torn down.
+    /// several FlutterEngines run in one process only one of them restores and
+    /// the others get a manager without restoration. The bookkeeping lives in
+    /// `UniversalBleCentralRestorationOwner` so it can be tested without
+    /// CoreBluetooth; ownership is weak, so it ends when the owning engine is
+    /// deallocated. An engine that has already created its manager never
+    /// regains restoration after that: its manager stays without an identifier
+    /// for its lifetime, and only an engine that registers later can pick the
+    /// identifier up.
     private static let restorationOwners = UniversalBleCentralRestorationOwner()
 
     private static var hasBluetoothPermission: Bool {
@@ -110,6 +113,15 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
           ]
         )
       } else {
+        // The only place a denied claim is logged: `activateStateRestoration`
+        // also claims, but it creates nothing when it loses, and this engine
+        // reaches the denial again here, at the decision that matters.
+        if Self.usesStateRestoration {
+          UniversalBleLogger.shared.logInfo(
+            "central state restoration identifier \(Self.stateRestorationIdentifier) is owned by another live engine; " +
+              "creating a manager without restoration"
+          )
+        }
         manager = CBCentralManager(delegate: self, queue: nil)
       }
       managerIsCreated = true
@@ -155,12 +167,16 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
     /// a central BLE API (e.g. `startScan`, `connect`) is called.
     ///
     /// Restoration belongs to the first engine that registers, not to the first
-    /// one to use BLE: this runs from `register(with:)` for every engine that
-    /// has the background mode and permission, so a background or headless
-    /// engine created before the UI engine holds the identifier and re-adopts
-    /// restored peripherals, while the UI engine gets a manager without
-    /// restoration. Only the owning engine creates its manager early; the
-    /// others could not restore anyway.
+    /// one to use BLE. That holds whenever authorization is already granted:
+    /// this runs from `register(with:)` for every engine that has the background
+    /// mode and permission, so a background or headless engine created before
+    /// the UI engine holds the identifier and re-adopts restored peripherals,
+    /// while the UI engine gets a manager without restoration. Only the owning
+    /// engine creates its manager early; the others could not restore anyway.
+    ///
+    /// On a fresh install it is the first engine to *use* BLE instead: while
+    /// authorization is `.notDetermined` no engine claims at registration, and
+    /// the first engine whose manager is created after the grant wins.
     func activateStateRestoration() {
       guard Self.usesStateRestoration, Self.hasBluetoothPermission,
             claimRestoration(Self.stateRestorationIdentifier) else { return }
@@ -176,24 +192,18 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
     /// holding an identifier its live manager does not use, and no other engine
     /// of the process could restore until this one is torn down.
     private func claimRestoration(_ identifier: String) -> Bool {
-      assert(!managerIsCreated, "claimRestoration must run before the manager is created")
-      guard Self.restorationOwners.claim(identifier, for: self) else {
-        UniversalBleLogger.shared.logInfo(
-          "central state restoration identifier \(identifier) is owned by another live engine; " +
-            "this engine creates a manager without restoration"
+      // A late claim would take an identifier this engine's live manager does
+      // not use, keeping it from every other engine of the process. That cannot
+      // happen through the two call sites above, but is refused rather than
+      // asserted so a future call site cannot do it silently in release builds.
+      guard !managerIsCreated else {
+        UniversalBleLogger.shared.logError(
+          "claimRestoration(\(identifier)) ran after this engine created its central manager; " +
+            "the identifier was not claimed"
         )
         return false
       }
-      return true
-    }
-
-    deinit {
-      // Weak ownership already frees the identifier when this engine's plugin is
-      // deallocated; releasing it here keeps that path explicit. CoreBluetooth
-      // owns the manager's lifetime, and whether it drops the identifier along
-      // with a manager it still holds for in-flight connections is a
-      // real-device check (see README).
-      Self.restorationOwners.release(Self.stateRestorationIdentifier, heldBy: self)
+      return Self.restorationOwners.claim(identifier, for: self)
     }
   #endif
 
