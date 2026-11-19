@@ -28,7 +28,12 @@ void main() {
       UniversalBle.onValueChange = null;
       if (setupSucceeded) {
         setupSucceeded = false;
-        await peripheral.dispose();
+        try {
+          await peripheral.dispose();
+        } catch (_) {
+          // A failure scenario may deliberately leave the peripheral offline;
+          // the test result, not teardown, decides the outcome.
+        }
       }
     });
 
