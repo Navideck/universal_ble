@@ -105,10 +105,13 @@ class BleCommandQueue {
   /// can only finish after that disconnect. Cancel unsent work for this device
   /// across queue IDs, preserving other devices in shared queues.
   ///
-  /// Queues that lost work are notified only after [command] has been
-  /// dispatched, and synchronously, so listeners cannot re-enter the queue
-  /// ahead of the teardown and no notification outlives a queue that
-  /// [clearQueue] disposed meanwhile.
+  /// Cancellation happens before [command] is dispatched and synchronously, so
+  /// a command that is still waiting is cancelled even if the caller's own
+  /// cancellation trigger (a state lookup, say) has not completed yet.
+  /// Queues that lost work are then notified, also synchronously, after
+  /// [command] has been dispatched, so listeners cannot re-enter the queue
+  /// ahead of the teardown. A queue that [clearQueue] removed during that
+  /// dispatch is gone from the map and is therefore not notified.
   Future<T> runTeardown<T>(
     Future<T> Function() command, {
     required String deviceId,
@@ -116,10 +119,18 @@ class BleCommandQueue {
   }) {
     final ownerId = _keyFor(deviceId);
     final cancelledQueues = <String>[];
+    UniversalBleException cancelledError(String? owner) =>
+        UniversalBleException(
+          code: UniversalBleErrorCode.operationCancelled,
+          message: 'Command cancelled by disconnect',
+          details: owner,
+        );
     for (final entry in _queueMap.entries.toList()) {
-      if (entry.value.cancelPendingWhere((owner) => owner == ownerId)) {
-        cancelledQueues.add(entry.key);
-      }
+      final cancelled = entry.value.cancelPendingWhere(
+        (owner) => owner == ownerId,
+        cancelledError: cancelledError,
+      );
+      if (cancelled) cancelledQueues.add(entry.key);
     }
     final future = Future<T>.sync(command);
     for (final queueKey in cancelledQueues) {

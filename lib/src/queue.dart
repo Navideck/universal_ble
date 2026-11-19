@@ -46,17 +46,26 @@ class Queue {
 
   /// Cancel queued work for an owner without interrupting another owner's work.
   ///
+  /// [cancelledError] overrides how the error reported to the cancelled
+  /// commands is built, so a caller can name its own cause (a disconnect) while
+  /// the queue's default error stays generic.
+  ///
   /// Returns whether anything was cancelled. Listeners are not notified here:
   /// the caller notifies with [notifyRemainingItems] once the command that
   /// motivated the cancellation has reached the platform, so listeners cannot
   /// re-enter the queue ahead of it.
-  bool cancelPendingWhere(bool Function(String? ownerId) predicate) {
+  bool cancelPendingWhere(
+    bool Function(String? ownerId) predicate, {
+    QueueCancelledError? cancelledError,
+  }) {
     final canceled =
         _nextCycle.where((item) => predicate(item.ownerId)).toList();
     if (canceled.isEmpty) return false;
     _nextCycle.removeWhere(canceled.contains);
     for (final item in canceled) {
-      item.completer.completeError(_cancelledError(item.ownerId));
+      item.completer.completeError(
+        cancelledError?.call(item.ownerId) ?? _cancelledError(item.ownerId),
+      );
     }
     return true;
   }

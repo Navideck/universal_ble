@@ -271,9 +271,16 @@ class UniversalBle {
   /// Bypasses command serialization and cancels unsent commands for this device,
   /// including commands in custom queues. Cancelled commands fail with a
   /// [UniversalBleException] whose code is
-  /// [UniversalBleErrorCode.operationCancelled].
+  /// [UniversalBleErrorCode.operationCancelled] and whose `details` hold the
+  /// canonical (lower-case) device id. A command that is already running is not
+  /// interrupted; it runs to completion, and only commands still waiting are
+  /// cancelled.
   /// [queueId] is deprecated and ignored: disconnection never waits behind
   /// queued GATT operations.
+  ///
+  /// Concurrent calls are not coalesced: each one dispatches its own platform
+  /// disconnect, so the platform and [onConnectionChange] see one event per
+  /// call.
   /// Get notified of connection state changes in [onConnectionChange] listener.
   static Future<void> disconnect(
     String deviceId, {
@@ -285,12 +292,20 @@ class UniversalBle {
     String? queueId,
   }) async {
     timeout ??= const Duration(seconds: 60);
-    BleConnectionState? connectionState;
-    try {
-      connectionState = await _platform.getConnectionState(deviceId);
-    } catch (e) {
-      UniversalLogger.logError("Get connection state failed: $e");
-    }
+    // Started before the teardown and awaited after it: awaiting it first would
+    // let a command that is already in flight finish during the lookup and
+    // dispatch the next queued one, which the teardown would then no longer
+    // find to cancel.
+    final Future<BleConnectionState?> connectionStateFuture =
+        Future<BleConnectionState?>.sync(
+      () => _platform.getConnectionState(deviceId),
+    ).then<BleConnectionState?>(
+      (state) => state,
+      onError: (Object error) {
+        UniversalLogger.logError("Get connection state failed: $error");
+        return null;
+      },
+    );
 
     try {
       Completer<bool> completer = _connectionEventCompleter(
@@ -309,6 +324,7 @@ class UniversalBle {
         completer.completeError(ConnectionException(error));
       });
 
+      final connectionState = await connectionStateFuture;
       if (connectionState == BleConnectionState.disconnected ||
           connectionState == BleConnectionState.disconnecting) {
         // Device was already disconnected, but we still called platform disconnect
@@ -881,6 +897,7 @@ class UniversalBle {
     return await _bleCommandQueue.queueCommand(
       () => _platform.getConnectionState(deviceId),
       timeout: timeout,
+      deviceId: deviceId,
       queueId: queueId,
     );
   }
