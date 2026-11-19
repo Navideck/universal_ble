@@ -51,11 +51,15 @@ extension BleCharacteristicExtension on BleCharacteristic {
 
   /// Returns whether this characteristic is currently subscribed to.
   ///
-  /// Subscription state is tracked per characteristic UUID, not per service, so a
-  /// same-UUID characteristic in another service reports the same answer.
+  /// The answer is scoped to this characteristic's service, so a same-UUID
+  /// characteristic in another service reports its own state.
   bool get isSubscribed =>
       metaData?.deviceId != null &&
-      UniversalBle.isSubscribed(metaData!.deviceId, uuid);
+      UniversalBle.isSubscribed(
+        metaData!.deviceId,
+        uuid,
+        serviceId: metaData!.serviceId,
+      );
 
   /// Reads the current value of the characteristic.
   Future<Uint8List> read({Duration? timeout, String? queueId}) =>

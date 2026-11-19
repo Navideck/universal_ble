@@ -44,40 +44,81 @@ class CacheHandler {
   bool hasDiscoveredServices(String deviceId) =>
       _servicesDiscovered.contains(deviceId);
 
-  /// Internal cache to store subscribed characteristic UUIDs for each device.
-  final Map<String, Set<String>> _subscriptionsCache = {};
+  /// Internal cache of subscribed characteristics, grouped by service, for each device.
+  ///
+  /// Keyed deviceId -> serviceId -> characteristicId. A GATT database may expose the same
+  /// characteristic UUID in several services (one Battery Service per battery), and each
+  /// instance has its own CCC descriptor, so the service has to be part of the key: without it,
+  /// unsubscribing one instance clears the state that describes another.
+  final Map<String, Map<String, Set<String>>> _subscriptionsCache = {};
 
-  /// Updates the subscription state of a characteristic for a specific device.
+  /// Updates the subscription state of a characteristic instance for a specific device.
   void updateSubscription(
     String deviceId,
+    String serviceId,
     String characteristicId,
     bool isSubscribed,
   ) {
+    final normalizedServiceId = BleUuidParser.string(serviceId);
     final normalizedCharId = BleUuidParser.string(characteristicId);
     if (isSubscribed) {
-      (_subscriptionsCache[deviceId] ??= {}).add(normalizedCharId);
-    } else {
-      _subscriptionsCache[deviceId]?.remove(normalizedCharId);
-      if (_subscriptionsCache[deviceId]?.isEmpty ?? false) {
-        _subscriptionsCache.remove(deviceId);
-      }
+      ((_subscriptionsCache[deviceId] ??= {})[normalizedServiceId] ??= {})
+          .add(normalizedCharId);
+      return;
     }
+    final services = _subscriptionsCache[deviceId];
+    final characteristics = services?[normalizedServiceId];
+    if (services == null || characteristics == null) return;
+    characteristics.remove(normalizedCharId);
+    if (characteristics.isEmpty) services.remove(normalizedServiceId);
+    if (services.isEmpty) _subscriptionsCache.remove(deviceId);
   }
 
   /// Checks if a characteristic is subscribed to on a specific device.
-  bool isSubscribed(String deviceId, String characteristicId) {
+  ///
+  /// Without [serviceId] any service that exposes this characteristic counts, which is the
+  /// answer a caller that only knows the UUID gets. Pass [serviceId] to ask about one instance.
+  bool isSubscribed(
+    String deviceId,
+    String characteristicId, {
+    String? serviceId,
+  }) {
     try {
       final normalizedCharId = BleUuidParser.string(characteristicId);
-      return _subscriptionsCache[deviceId]?.contains(normalizedCharId) ??
-          false;
+      final services = _subscriptionsCache[deviceId];
+      if (services == null) return false;
+      if (serviceId != null) {
+        return services[BleUuidParser.string(serviceId)]
+                ?.contains(normalizedCharId) ??
+            false;
+      }
+      return services.values.any((e) => e.contains(normalizedCharId));
     } catch (_) {
       return false;
     }
   }
 
-  /// Retrieves the list of subscribed characteristic UUIDs for a specific device.
-  List<String> getSubscribedCharacteristics(String deviceId) =>
-      _subscriptionsCache[deviceId]?.toList() ?? [];
+  /// Retrieves the subscribed characteristic UUIDs for a specific device.
+  ///
+  /// Each UUID is reported once even when several services expose it, unless [serviceId]
+  /// narrows the answer to one service.
+  List<String> getSubscribedCharacteristics(
+    String deviceId, {
+    String? serviceId,
+  }) {
+    final services = _subscriptionsCache[deviceId];
+    if (services == null) return [];
+    if (serviceId != null) {
+      try {
+        return services[BleUuidParser.string(serviceId)]?.toList() ?? [];
+      } catch (_) {
+        return [];
+      }
+    }
+    return {
+      for (final characteristics in services.values) ...characteristics,
+    }.toList();
+  }
 
   /// Resets the cache for a specific device, removing all stored services and subscriptions.
   void resetDeviceCache(String deviceId) {

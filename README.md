@@ -620,9 +620,19 @@ bool isSubscribed = characteristic.notifications.isSubscribed;
 // Or globally via UniversalBle
 bool isSubscribed = UniversalBle.isSubscribed(deviceId, characteristicId);
 
+// Ask about one characteristic instance when several services expose the same UUID
+bool isSubscribedInService =
+    UniversalBle.isSubscribed(deviceId, characteristicId, serviceId: serviceId);
+
 // Get all subscribed characteristic UUIDs for a device
 List<String> subscribedChars = UniversalBle.getSubscribedCharacteristics(deviceId);
+
+// Or only those subscribed in one service
+List<String> subscribedInService =
+    UniversalBle.getSubscribedCharacteristics(deviceId, serviceId: serviceId);
 ```
+
+Without `serviceId`, the answer covers any service that exposes the characteristic, so a device with the same UUID in two services reports subscribed when either instance is. Pass `serviceId` to ask about one instance; `BleCharacteristic.isSubscribed` does that automatically.
 
 ### Pairing
 

@@ -552,28 +552,37 @@ class UniversalBle {
   static String canonicalDeviceId(String deviceId) =>
       DeviceId.of(deviceId, isAddress: _platform.hasAddressDeviceIds).canonical;
 
-  /// Returns whether this app is currently subscribed to notifications/indications for [characteristic].
+  /// Returns whether this app is currently subscribed to notifications/indications for
+  /// [characteristic].
   ///
   /// Subscription state is updated when [subscribeNotifications], [subscribeIndications],
   /// or [unsubscribe] completes, and is automatically cleared when the device disconnects.
   ///
-  /// The state is tracked per characteristic UUID, not per service: when a device exposes the
-  /// same characteristic UUID in several services, subscribing to one of them reports all of
-  /// them as subscribed, and unsubscribing one clears the flag for all. Values, in contrast,
-  /// are routed per service by [characteristicValueStream].
-  static bool isSubscribed(String deviceId, String characteristic) =>
+  /// The state is tracked per characteristic instance. Pass [serviceId] to ask about the
+  /// characteristic of one service; without it, any service that exposes this characteristic
+  /// counts, which is the answer a caller that only knows the UUID gets.
+  static bool isSubscribed(
+    String deviceId,
+    String characteristic, {
+    String? serviceId,
+  }) =>
       CacheHandler.instance.isSubscribed(
         canonicalDeviceId(deviceId),
         characteristic,
+        serviceId: serviceId,
       );
 
-  /// Returns the list of characteristic UUIDs currently subscribed to on [deviceId].
+  /// Returns the characteristic UUIDs currently subscribed to on [deviceId].
   ///
-  /// The list carries no service information, so a characteristic UUID exposed by several
-  /// services appears once regardless of which instance is subscribed (see [isSubscribed]).
-  static List<String> getSubscribedCharacteristics(String deviceId) =>
+  /// Each UUID appears once even when several services expose it. Pass [serviceId] to list
+  /// only the characteristics subscribed in that service.
+  static List<String> getSubscribedCharacteristics(
+    String deviceId, {
+    String? serviceId,
+  }) =>
       CacheHandler.instance.getSubscribedCharacteristics(
         canonicalDeviceId(deviceId),
+        serviceId: serviceId,
       );
 
   /// Read a characteristic value.
@@ -1102,6 +1111,7 @@ class UniversalBle {
     );
     CacheHandler.instance.updateSubscription(
       canonicalDeviceId(deviceId),
+      service,
       characteristic,
       bleInputProperty != BleInputProperty.disabled,
     );
