@@ -4,6 +4,7 @@
 * Android: ignore connection state, connection parameters and notifications reported by a GATT client that a newer `connect()` replaced, so values from a client that is being torn down are no longer delivered as the current connection's (#381).
 
 ## 3.3.0
+* Windows: allow app shutdown to continue when background connection disposal stalls in WinRT (#375).
 * Apple: complete service discovery when a peripheral's GATT database holds multiple services with the same UUID (#369).
 * iOS: allow turning off central state restoration via `UniversalBleCentralStateRestoration` (Boolean `NO` in `Info.plist`) while keeping the `bluetooth-central` background execution mode. When disabled, `CBCentralManager` is created without a restoration identifier and deferred lazily until first use (#370).
 
