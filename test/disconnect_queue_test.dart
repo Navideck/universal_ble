@@ -53,6 +53,47 @@ void main() {
     }
   });
 
+  test("disconnect ignores queueId instead of waiting behind that queue",
+      () async {
+    final platform = _DisconnectPlatform();
+    UniversalBle.setInstance(platform);
+    UniversalBle.queueType = QueueType.global;
+    UniversalBle.timeout = null;
+    const deviceId = 'AA:BB:CC:DD:EE:FF';
+    try {
+      final active =
+          UniversalBle.read(deviceId, '180d', '2a37', queueId: 'sync');
+      await platform.started.future;
+      final queued =
+          UniversalBle.read(deviceId, '180d', '2a38', queueId: 'sync');
+      final cancelled = expectLater(
+        queued,
+        throwsA(
+          isA<UniversalBleException>()
+              .having((e) => e.code, 'code',
+                  UniversalBleErrorCode.operationCancelled)
+              .having((e) => e.details, 'details', 'aa:bb:cc:dd:ee:ff'),
+        ),
+      );
+      // Pins the deprecated argument as a no-op: were it honoured, the
+      // disconnect would sit behind `active` on the 'sync' queue.
+      // ignore: deprecated_member_use_from_same_package
+      await UniversalBle.disconnect(deviceId, queueId: 'sync')
+          .timeout(const Duration(seconds: 1));
+      expect(platform.disconnected, isTrue);
+      await cancelled;
+      await active;
+    } finally {
+      if (!platform.readFinished.isCompleted) {
+        platform.readFinished.complete(Uint8List(0));
+      }
+      UniversalBle.clearQueue();
+      UniversalBle.setInstance(_DisconnectPlatform());
+      UniversalBle.queueType = QueueType.auto;
+      UniversalBle.timeout = const Duration(seconds: 10);
+    }
+  });
+
   test('queue listeners cannot re-enter before native teardown starts',
       () async {
     final queue = BleCommandQueue(queueType: QueueType.global, isAddress: true);
@@ -64,8 +105,10 @@ void main() {
     final canceled = expectLater(pending, throwsException);
     var nativeStarted = false;
     var updates = 0;
+    final nativeStartedWhenNotified = <bool>[];
     queue.onQueueUpdate = (_, __) {
-      expect(nativeStarted, isTrue);
+      // Record rather than assert: `BleCommandQueue` swallows listener errors.
+      nativeStartedWhenNotified.add(nativeStarted);
       updates++;
       unawaited(queue.runTeardown(() async {}, deviceId: 'AA:BB:CC:DD:EE:FF'));
     };
@@ -76,6 +119,8 @@ void main() {
     await running;
     await canceled;
     await Future<void>.delayed(Duration.zero);
+    expect(nativeStartedWhenNotified, isNotEmpty);
+    expect(nativeStartedWhenNotified, everyElement(isTrue));
     expect(updates, greaterThan(0));
     expect(updates, lessThan(5));
   });
@@ -99,7 +144,9 @@ void main() {
     await Future.wait([...active, ...canceled]);
   });
 
-  test('teardown preserves in-flight work with queueing disabled', () async {
+  test(
+      'teardown does not interfere with in-flight work when queueing is disabled',
+      () async {
     final queue = BleCommandQueue(queueType: QueueType.none);
     final release = Completer<String>();
     final active = queue.queueCommandWithoutTimeout(() => release.future,

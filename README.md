@@ -834,6 +834,14 @@ UniversalBle.write(deviceId, service, char, value1, queueId: '1');
 UniversalBle.write(deviceId, service, char, value2, queueId: '2');
 ```
 
+`disconnect` is the one command that does not take part in queueing: it always runs as soon as it is called, never waits behind commands queued for the device (including commands in custom queues), and cancels the ones that have not started yet. Cancelled commands fail with a `UniversalBleException` whose `code` is `UniversalBleErrorCode.operationCancelled`, and their `details` hold the device id. `disconnect`'s own `queueId` argument is therefore deprecated and ignored — queued work for other devices, or under other `queueId`s, is untouched:
+
+```dart
+// Both writes may be cancelled instead of delaying the disconnect.
+UniversalBle.write(deviceId, service, char, value, queueId: 'sync');
+await UniversalBle.disconnect(deviceId); // starts immediately
+```
+
 You can also completely disable the queue and batch all commands, even for the same device, by using:
 
 ```dart

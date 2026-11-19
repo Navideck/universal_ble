@@ -65,12 +65,18 @@ class BleCommandQueue {
       );
     }
     return switch (_resolvedQueueType) {
-      QueueType.global => _queue(queueId).add(command, timeoutDuration,
-          deviceId == null ? null : _keyFor(deviceId)),
+      QueueType.global => _queue(queueId).add(
+          command,
+          timeout: timeoutDuration,
+          ownerId: deviceId == null ? null : _keyFor(deviceId),
+        ),
       QueueType.perDevice => _queue(
           _queueKey(queueId, deviceId),
-        ).add(command, timeoutDuration,
-            deviceId == null ? null : _keyFor(deviceId)),
+        ).add(
+          command,
+          timeout: timeoutDuration,
+          ownerId: deviceId == null ? null : _keyFor(deviceId),
+        ),
       QueueType.none || QueueType.auto => command().timeout(timeoutDuration),
     };
   }
@@ -81,11 +87,16 @@ class BleCommandQueue {
     String? queueId,
   }) {
     return switch (_resolvedQueueType) {
-      QueueType.global => _queue(queueId)
-          .add(command, null, deviceId == null ? null : _keyFor(deviceId)),
+      QueueType.global => _queue(queueId).add(
+          command,
+          ownerId: deviceId == null ? null : _keyFor(deviceId),
+        ),
       QueueType.perDevice => _queue(
           _queueKey(queueId, deviceId),
-        ).add(command, null, deviceId == null ? null : _keyFor(deviceId)),
+        ).add(
+          command,
+          ownerId: deviceId == null ? null : _keyFor(deviceId),
+        ),
       QueueType.none || QueueType.auto => command(),
     };
   }
@@ -93,16 +104,27 @@ class BleCommandQueue {
   /// Disconnect must reach the platform even when a pending GATT operation
   /// can only finish after that disconnect. Cancel unsent work for this device
   /// across queue IDs, preserving other devices in shared queues.
+  ///
+  /// Queues that lost work are notified only after [command] has been
+  /// dispatched, and synchronously, so listeners cannot re-enter the queue
+  /// ahead of the teardown and no notification outlives a queue that
+  /// [clearQueue] disposed meanwhile.
   Future<T> runTeardown<T>(
     Future<T> Function() command, {
     required String deviceId,
     Duration? timeout,
   }) {
     final ownerId = _keyFor(deviceId);
-    for (final queue in _queueMap.values.toList()) {
-      queue.cancelPendingWhere((owner) => owner == ownerId);
+    final cancelledQueues = <String>[];
+    for (final entry in _queueMap.entries.toList()) {
+      if (entry.value.cancelPendingWhere((owner) => owner == ownerId)) {
+        cancelledQueues.add(entry.key);
+      }
     }
     final future = Future<T>.sync(command);
+    for (final queueKey in cancelledQueues) {
+      _queueMap[queueKey]?.notifyRemainingItems();
+    }
     return timeout == null ? future : future.timeout(timeout);
   }
 
@@ -112,7 +134,13 @@ class BleCommandQueue {
   }
 
   Queue _newQueue(String id) {
-    final queue = Queue();
+    final queue = Queue(
+      cancelledError: (ownerId) => UniversalBleException(
+        code: UniversalBleErrorCode.operationCancelled,
+        message: 'Queue Cancelled',
+        details: ownerId,
+      ),
+    );
     queue.onRemainingItemsUpdate = (int items) {
       try {
         onQueueUpdate?.call(id, items);

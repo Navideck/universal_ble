@@ -269,12 +269,19 @@ class UniversalBle {
 
   /// Disconnect from a device.
   /// Bypasses command serialization and cancels unsent commands for this device,
-  /// including commands in custom queues. [queueId] is retained for compatibility
-  /// but does not delay disconnection behind queued GATT operations.
+  /// including commands in custom queues. Cancelled commands fail with a
+  /// [UniversalBleException] whose code is
+  /// [UniversalBleErrorCode.operationCancelled].
+  /// [queueId] is deprecated and ignored: disconnection never waits behind
+  /// queued GATT operations.
   /// Get notified of connection state changes in [onConnectionChange] listener.
   static Future<void> disconnect(
     String deviceId, {
     Duration? timeout,
+    @Deprecated(
+      "Ignored: disconnect bypasses the command queue and cancels unsent "
+      "commands for the device instead of queueing behind them",
+    )
     String? queueId,
   }) async {
     timeout ??= const Duration(seconds: 60);

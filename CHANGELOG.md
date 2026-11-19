@@ -1,5 +1,5 @@
 ## Unreleased
-* Disconnect bypasses blocked GATT command queues and cancels unsent commands for the target device, preserving queued work for other devices.
+* Disconnect bypasses blocked GATT command queues and cancels unsent commands for the target device, preserving queued work for other devices. Two consequences are visible to callers: `disconnect`'s `queueId` argument is now ignored (and deprecated with an annotation), so a disconnect no longer waits behind that queue, and the cancelled commands fail with a `UniversalBleException` carrying `UniversalBleErrorCode.operationCancelled` and the device id in `details`, instead of a bare `Exception('Queue Cancelled')`. That typed error now also covers commands cancelled by `clearQueue()` and `dispose()`.
 
 ## 3.3.0
 * Apple: complete service discovery when a peripheral's GATT database holds multiple services with the same UUID (#369).
