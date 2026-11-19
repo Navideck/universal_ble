@@ -1,6 +1,8 @@
 #ifndef FLUTTER_PLUGIN_UNIVERSAL_BLE_SCAN_RESULT_MERGE_H_
 #define FLUTTER_PLUGIN_UNIVERSAL_BLE_SCAN_RESULT_MERGE_H_
 
+#include <optional>
+
 namespace universal_ble {
 
 // Which fields a scan packet actually carries. A field counts as present only
@@ -65,9 +67,21 @@ inline bool ShouldUpdateScanResult(const ScanBackfillPlan &plan,
 // Determines whether the scan result is connectable. On Windows, a scan
 // response always reports IsConnectable == false; it inherits connectability
 // if the device was already seen advertising connectably.
-inline bool DeriveConnectableState(bool is_connectable, bool is_scan_response,
-                                   bool address_heard_connectable) {
-  return is_connectable || (is_scan_response && address_heard_connectable);
+//
+// An advertisement whose connectability could not be read carries no value
+// (see BluetoothLeWatcherReceived), and unknown stays unknown: the caller keeps
+// the field null instead of inventing a state, so `connectableOnly` does not
+// drop devices the host cannot classify. A scan response for a device already
+// heard connectable still resolves to connectable, because that answer comes
+// from the cache rather than from the packet.
+inline std::optional<bool> DeriveConnectableState(
+    const std::optional<bool> is_connectable, const bool is_scan_response,
+    const bool address_heard_connectable) {
+  if (is_connectable.value_or(false) ||
+      (is_scan_response && address_heard_connectable)) {
+    return true;
+  }
+  return is_connectable;
 }
 
 }  // namespace universal_ble

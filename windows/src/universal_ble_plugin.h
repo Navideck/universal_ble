@@ -25,6 +25,7 @@
 #include <atomic>
 #include <memory>
 #include <mutex>
+#include <optional>
 #include <utility>
 #include <unordered_set>
 #include <vector>
@@ -470,7 +471,8 @@ private:
   void SetupDeviceWatcher();
   void DisposeDeviceWatcher();
   void PushUniversalScanResult(UniversalBleScanResult scan_result,
-                               bool is_connectable, bool is_scan_response);
+                               std::optional<bool> is_connectable,
+                               bool is_scan_response);
   void BluetoothLeWatcherReceived(
       const BluetoothLEAdvertisementWatcher &sender,
       const BluetoothLEAdvertisementReceivedEventArgs &args);

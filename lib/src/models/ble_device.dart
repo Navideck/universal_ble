@@ -18,7 +18,9 @@ class BleDevice {
   /// Whether the device is connectable based on its advertising flags.
   ///
   /// Can be `null` if the platform or advertising packet does not indicate
-  /// connectability (e.g. Linux and Web always report `null`).
+  /// connectability (e.g. Linux and Web always report `null`, as does Android
+  /// below API 26, where `ScanResult.isConnectable()` does not exist, and
+  /// Windows when the event arguments do not expose `IsConnectable`).
   bool? connectable;
 
   /// List of services advertised by the device.
