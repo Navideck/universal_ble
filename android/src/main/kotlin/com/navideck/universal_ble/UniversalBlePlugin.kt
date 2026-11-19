@@ -138,7 +138,9 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
         // Release only the clients this engine created. The snapshot avoids mutating
         // the map while clients are released.
         if (closeGattOnDetach) gattRegistry.snapshot().forEach(::cleanConnection)
-        bluetoothManager.adapter.bluetoothLeScanner?.stopScan(scanCallback)
+        // A detached engine may have no adapter; a null one must not abort the
+        // teardown before the receiver and the peripheral plugin are released.
+        bluetoothManager.adapter?.bluetoothLeScanner?.stopScan(scanCallback)
         context.unregisterReceiver(broadcastReceiver)
         peripheralPlugin.dispose()
         UniversalBlePeripheralChannel.setUp(binding.binaryMessenger, null)
