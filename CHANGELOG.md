@@ -3,6 +3,7 @@
 * Apple: Bind pending writes to the submitting peripheral object so stale write/ready callbacks and disconnect cleanup cannot consume a replacement peripheral’s requests. A disconnection also fails the writes of an owner that is no longer connected, so a predecessor object’s write is settled even when the app never writes to that device again. The unsupported-write rejection keeps the per-case `withResponse`/`withoutResponse` message Android emits.
 
 ## 3.3.0
+* Windows: allow app shutdown to continue when background connection disposal stalls in WinRT (#375).
 * Apple: complete service discovery when a peripheral's GATT database holds multiple services with the same UUID (#369).
 * iOS: allow turning off central state restoration via `UniversalBleCentralStateRestoration` (Boolean `NO` in `Info.plist`) while keeping the `bluetooth-central` background execution mode. When disabled, `CBCentralManager` is created without a restoration identifier and deferred lazily until first use (#370).
 

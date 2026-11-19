@@ -17,6 +17,22 @@ inline void WaitForCallbacksWithoutMessagePump(
   }
 }
 
+// Close admission before waiting. Workers that outlive the drain must own
+// their state and avoid caller-owned resources. If pinning fails, keep
+// waiting because a host could otherwise unload the running worker code.
+template <typename KeepModuleLoaded>
+void DrainConnectionCleanup(
+    const AsyncOperationTracker &operations,
+    std::chrono::steady_clock::duration timeout,
+    KeepModuleLoaded keep_module_loaded) noexcept {
+  if (operations.WaitUntilIdleFor(timeout)) {
+    return;
+  }
+  if (!keep_module_loaded()) {
+    WaitForCallbacksWithoutMessagePump(operations);
+  }
+}
+
 // C++/WinRT may resume apartment-aware co_await continuations on the thread
 // which started them. Pump that thread's Windows messages while callbacks
 // drain so shutdown cannot block the continuations it is waiting for.
