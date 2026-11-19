@@ -1,10 +1,40 @@
+<#
+.SYNOPSIS
+    Runs one Windows hardware-in-the-loop test group against the nRF52 fixture.
+
+.DESCRIPTION
+    Starts a worker copy of this script, enforces a wall-clock budget, and
+    writes the group log to $env:HIL_LOG_DIR, or next to this script when that
+    variable is unset.
+
+    -TimeoutSeconds is the single authority for the group budget. The CI
+    workflow passes an explicit value per group; timing-sweeps needs the largest
+    budget because its declared per-test timeouts add up to 34 minutes.
+
+.PARAMETER Group
+    Test group to run. The worker maps every group except `baseline` to the
+    fault-injection suite and filters it with --plain-name.
+
+.PARAMETER TimeoutSeconds
+    Budget for the whole group, including the Flutter test build of the test
+    bundle. The CI workflow warms the CMake/MSVC build once before the timed
+    groups so this budget is not spent on a cold build.
+
+.PARAMETER Worker
+    Internal. Runs the test without the outer timeout wrapper.
+
+.NOTES
+    Invoke with an explicit execution policy when local scripts are restricted,
+    for example:
+        pwsh -NoProfile -ExecutionPolicy Bypass -File ./run_windows_hil_group.ps1 -Group baseline
+#>
 param(
     [Parameter(Mandatory)]
     [ValidateSet('baseline', 'connection-discovery', 'gatt-operations',
         'notifications-indications', 'mtu-resources', 'timing-sweeps')]
     [string]$Group,
     [ValidateRange(1, 3600)]
-    [int]$TimeoutSeconds = 480,
+    [int]$TimeoutSeconds = 1800,
     [switch]$Worker
 )
 
