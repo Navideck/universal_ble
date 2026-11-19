@@ -581,7 +581,7 @@ characteristic.onValueReceived.listen((value) {
 });
 ```
 
-Values are matched by device, characteristic UUID and service, so a peripheral that exposes the same characteristic UUID in more than one service reports each service's values only on that service's characteristic.
+Values are matched by device, characteristic UUID and service, so a peripheral that exposes the same characteristic UUID in more than one service reports each service's values only on that service's characteristic, where the platform reports the owning service. A platform that cannot report it still emits every value with that UUID, since a value of unknown owner is not known to come from another service.
 
 ### Notifications
 

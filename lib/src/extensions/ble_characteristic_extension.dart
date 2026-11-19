@@ -10,7 +10,10 @@ extension BleCharacteristicExtension on BleCharacteristic {
   ///
   /// Values are matched by device, characteristic UUID and the UUID of the
   /// service this characteristic belongs to, so a characteristic with the same
-  /// UUID in another service of the device does not report here.
+  /// UUID in another service of the device does not report here, where the
+  /// platform reports the owning service. A platform that cannot report it
+  /// still emits every value with this UUID, since a value of unknown owner is
+  /// not known to come from another service.
   Stream<Uint8List> get onValueReceived =>
       UniversalBle.characteristicValueStream(
         _metaData.deviceId,
@@ -47,6 +50,9 @@ extension BleCharacteristicExtension on BleCharacteristic {
       );
 
   /// Returns whether this characteristic is currently subscribed to.
+  ///
+  /// Subscription state is tracked per characteristic UUID, not per service, so a
+  /// same-UUID characteristic in another service reports the same answer.
   bool get isSubscribed =>
       metaData?.deviceId != null &&
       UniversalBle.isSubscribed(metaData!.deviceId, uuid);

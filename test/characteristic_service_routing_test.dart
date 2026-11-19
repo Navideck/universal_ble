@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:universal_ble/src/universal_ble_pigeon/universal_ble_pigeon_channel.dart';
 import 'package:universal_ble/universal_ble.dart';
 
 import 'universal_ble_test_mock.dart';
@@ -15,6 +16,10 @@ import 'universal_ble_test_mock.dart';
 class _MockPlatform extends UniversalBlePlatformMock {}
 
 void main() {
+  // The Pigeon-boundary test builds UniversalBlePigeonChannel, whose
+  // constructor registers the callback channel.
+  TestWidgetsFlutterBinding.ensureInitialized();
+
   const deviceId = 'AA:BB:CC:DD:EE:FF';
   const charId = '7cdef16c-8a17-4465-90a9-6c901764b0b2';
   const serviceA = 'e7613013-2607-4819-9883-a9fbcf683bdd';
@@ -210,5 +215,31 @@ void main() {
 
     expect(received.single.value, [11]);
     expect(received.single.serviceId, isNull);
+  });
+
+  test('the Pigeon callback forwards the owning service', () async {
+    // The tests above push through updateCharacteristicValue, the platform-side
+    // entry point. This one starts at the callback the native side invokes, so
+    // dropping the service on the way in fails here rather than only in the
+    // native tests.
+    final pigeonChannel = UniversalBlePigeonChannel.instance;
+    UniversalBle.setInstance(pigeonChannel);
+    final received = <BleCharacteristicValue>[];
+    pigeonChannel.onValueChange = received.add;
+    addTearDown(() => pigeonChannel.onValueChange = null);
+
+    await pigeonChannel.onValueChanged(
+      deviceId,
+      charId,
+      serviceA,
+      Uint8List.fromList([11]),
+      1,
+    );
+
+    final update = received.single;
+    expect(update.deviceId, deviceId.toLowerCase());
+    expect(update.characteristicId, charId);
+    expect(update.serviceId, serviceA);
+    expect(update.value, [11]);
   });
 }
