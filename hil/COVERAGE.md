@@ -71,6 +71,13 @@ For immediate disconnects, observation starts before the fixture command.
 Windows requires both a UART acknowledgement and an observed BLE disconnect.
 The legacy BLE control path can lose its acknowledgement when the link drops.
 
+Windows therefore runs the whole suite on the wired UART control path. The BLE
+control characteristic shares the link whose faults are under test, so a command
+sent over it can be lost exactly when the fixture needs to act, and no
+`HIL_CONTROL=ble` fallback exists: an acknowledgement would then be
+indistinguishable from a fault. Android and the interactive Web runner still use
+the BLE control characteristic because neither has a wired path to the fixture.
+
 ### 2.2. Reads
 
 | Test           | What it does                                                                  | What it catches                                             |
