@@ -89,11 +89,23 @@ class UniversalBle {
   /// Emits the raw characteristic bytes for each update. The platform
   /// timestamp is not surfaced here; set [onValueChange] to receive a
   /// [BleCharacteristicValue] that also carries it.
+  ///
+  /// A GATT database may expose the same characteristic UUID in several
+  /// services. Pass [serviceId] to receive only the values of that service's
+  /// characteristic; without it every characteristic with this UUID on the
+  /// device is reported, which is the historical behaviour. A platform that
+  /// cannot report the owning service still emits its values here, since they
+  /// are not known to come from another service.
   static Stream<Uint8List> characteristicValueStream(
     String deviceId,
-    String characteristicId,
-  ) =>
-      _platform.characteristicValueStream(deviceId, characteristicId);
+    String characteristicId, {
+    String? serviceId,
+  }) =>
+      _platform.characteristicValueStream(
+        deviceId,
+        characteristicId,
+        serviceId: serviceId,
+      );
 
   /// Pairing state stream
   static Stream<bool> pairingStateStream(String deviceId) =>

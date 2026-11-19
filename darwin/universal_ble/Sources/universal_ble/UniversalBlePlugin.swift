@@ -1091,6 +1091,9 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
         callbackChannel.onValueChanged(
           deviceId: peripheral.uuid.uuidString,
           characteristicId: characteristic.uuid.uuidStr,
+          // The same characteristic UUID may exist in several services; the
+          // owning service tells the two instances apart.
+          serviceId: characteristic.service?.uuid.uuidStr,
           value: FlutterStandardTypedData(bytes: characteristicValue),
           timestamp: Int64(Date().timeIntervalSince1970 * 1000)
         ) { _ in }

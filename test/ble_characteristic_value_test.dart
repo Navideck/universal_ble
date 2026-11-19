@@ -11,16 +11,20 @@ void main() {
   const deviceId = 'AA:BB:CC:DD:EE:FF';
   const charId = '0000fff1-0000-1000-8000-00805f9b34fb';
 
+  const serviceId = 'e7613013-2607-4819-9883-a9fbcf683bdd';
+
   test('onValueChange receives a BleCharacteristicValue with all fields',
       () async {
     final platform = _MockPlatform();
     final received = <BleCharacteristicValue>[];
     platform.onValueChange = received.add;
     platform.updateCharacteristicValue(
-        deviceId, charId, Uint8List.fromList([1, 2, 3]), 1234567890);
+        deviceId, charId, Uint8List.fromList([1, 2, 3]), 1234567890,
+        serviceId: serviceId);
     final update = received.single;
     expect(update.deviceId, deviceId.toLowerCase());
     expect(update.characteristicId, charId);
+    expect(update.serviceId, serviceId);
     expect(update.value, [1, 2, 3]);
     expect(update.timestamp, 1234567890);
   });

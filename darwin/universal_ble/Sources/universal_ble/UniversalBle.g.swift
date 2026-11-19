@@ -2480,7 +2480,13 @@ protocol UniversalBleCallbackChannelProtocol {
   /// instead of swallowing every failure after the first (#325).
   func onPairStateChange(deviceId deviceIdArg: String, isPaired isPairedArg: Bool, isFailure isFailureArg: Bool, completion: @escaping (Result<Void, PigeonError>) -> Void)
   func onScanResult(result resultArg: UniversalBleScanResult, completion: @escaping (Result<Void, PigeonError>) -> Void)
-  func onValueChanged(deviceId deviceIdArg: String, characteristicId characteristicIdArg: String, value valueArg: FlutterStandardTypedData, timestamp timestampArg: Int64?, completion: @escaping (Result<Void, PigeonError>) -> Void)
+  /// [characteristicId] alone does not identify a characteristic: the GATT
+  /// database may hold several characteristics with the same UUID in different
+  /// services. [serviceId] is the UUID of the service that owns the
+  /// characteristic, so a notification from service A cannot be delivered as if
+  /// it came from service B. It is `null` on a platform that cannot report the
+  /// owning service.
+  func onValueChanged(deviceId deviceIdArg: String, characteristicId characteristicIdArg: String, serviceId serviceIdArg: String?, value valueArg: FlutterStandardTypedData, timestamp timestampArg: Int64?, completion: @escaping (Result<Void, PigeonError>) -> Void)
   /// [errorCode] classifies a failed connection or an unexpected disconnect
   /// (`deviceDisconnected`, `connectionTimeout`, `connectionFailed`, ...),
   /// mapped on the native side from `CBError.Code` (Apple) or the GATT
@@ -2556,10 +2562,16 @@ class UniversalBleCallbackChannel: UniversalBleCallbackChannelProtocol {
       }
     }
   }
-  func onValueChanged(deviceId deviceIdArg: String, characteristicId characteristicIdArg: String, value valueArg: FlutterStandardTypedData, timestamp timestampArg: Int64?, completion: @escaping (Result<Void, PigeonError>) -> Void) {
+  /// [characteristicId] alone does not identify a characteristic: the GATT
+  /// database may hold several characteristics with the same UUID in different
+  /// services. [serviceId] is the UUID of the service that owns the
+  /// characteristic, so a notification from service A cannot be delivered as if
+  /// it came from service B. It is `null` on a platform that cannot report the
+  /// owning service.
+  func onValueChanged(deviceId deviceIdArg: String, characteristicId characteristicIdArg: String, serviceId serviceIdArg: String?, value valueArg: FlutterStandardTypedData, timestamp timestampArg: Int64?, completion: @escaping (Result<Void, PigeonError>) -> Void) {
     let channelName: String = "dev.flutter.pigeon.universal_ble.UniversalBleCallbackChannel.onValueChanged\(messageChannelSuffix)"
     let channel = FlutterBasicMessageChannel(name: channelName, binaryMessenger: binaryMessenger, codec: codec)
-    channel.sendMessage([deviceIdArg, characteristicIdArg, valueArg, timestampArg] as [Any?]) { response in
+    channel.sendMessage([deviceIdArg, characteristicIdArg, serviceIdArg, valueArg, timestampArg] as [Any?]) { response in
       guard let listResponse = response as? [Any?] else {
         completion(.failure(createConnectionError(withChannelName: channelName)))
         return

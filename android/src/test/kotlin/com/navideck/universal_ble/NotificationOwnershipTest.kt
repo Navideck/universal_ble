@@ -3,6 +3,7 @@ package com.navideck.universal_ble
 import android.bluetooth.BluetoothDevice
 import android.bluetooth.BluetoothGatt
 import android.bluetooth.BluetoothGattCharacteristic
+import android.bluetooth.BluetoothGattService
 import android.os.Handler
 import java.util.UUID
 import kotlin.test.Test
@@ -20,19 +21,24 @@ import org.mockito.Mockito
 internal class NotificationOwnershipTest {
     private val address = "AA:BB:CC:DD:EE:FF"
     private val charUuid = UUID.fromString("0000fff1-0000-1000-8000-00805f9b34fb")
+    private val serviceUuid = UUID.fromString("0000fff0-0000-1000-8000-00805f9b34fb")
 
     /** Runnables the plugin posted to the main looper, in submission order. */
     private val mainLooper = mutableListOf<Runnable>()
 
-    // (deviceId, characteristicId) of every onValueChanged delivered to Dart.
-    private val delivered = mutableListOf<Pair<String, String>>()
+    // (deviceId, characteristicId, serviceId) of every onValueChanged delivered
+    // to Dart.
+    private val delivered = mutableListOf<Triple<String, String, String?>>()
 
     private val callbackChannel: UniversalBleCallbackChannel =
         Mockito.mock(UniversalBleCallbackChannel::class.java) { invocation ->
             if (invocation.method.name == "onValueChanged") {
                 delivered.add(
-                    invocation.getArgument<String>(0) to
-                        invocation.getArgument<String>(1)
+                    Triple(
+                        invocation.getArgument<String>(0),
+                        invocation.getArgument<String>(1),
+                        invocation.getArgument<String?>(2)
+                    )
                 )
             }
             null
@@ -65,8 +71,11 @@ internal class NotificationOwnershipTest {
     }
 
     private fun characteristic(): BluetoothGattCharacteristic {
+        val service = Mockito.mock(BluetoothGattService::class.java)
+        Mockito.`when`(service.uuid).thenReturn(serviceUuid)
         val characteristic = Mockito.mock(BluetoothGattCharacteristic::class.java)
         Mockito.`when`(characteristic.uuid).thenReturn(charUuid)
+        Mockito.`when`(characteristic.service).thenReturn(service)
         return characteristic
     }
 
@@ -79,7 +88,12 @@ internal class NotificationOwnershipTest {
         plugin.onCharacteristicChanged(gatt, characteristic(), byteArrayOf(0x01))
         drainMainLooper()
 
-        assertEquals(listOf(address to charUuid.toString()), delivered)
+        // The owning service is reported too: the same characteristic UUID can
+        // exist in several services and only the handle tells them apart (#391).
+        val expected = listOf<Triple<String, String, String?>>(
+            Triple(address, charUuid.toString(), serviceUuid.toString())
+        )
+        assertEquals(expected, delivered)
     }
 
     @Test

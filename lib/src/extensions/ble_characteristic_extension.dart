@@ -5,9 +5,18 @@ import 'package:universal_ble/universal_ble.dart';
 
 /// Extension methods for [BleCharacteristic] to simplify common operations.
 extension BleCharacteristicExtension on BleCharacteristic {
-  /// A stream of [Uint8List] that emits values received from the characteristic.
+  /// A stream of [Uint8List] that emits values received from this
+  /// characteristic.
+  ///
+  /// Values are matched by device, characteristic UUID and the UUID of the
+  /// service this characteristic belongs to, so a characteristic with the same
+  /// UUID in another service of the device does not report here.
   Stream<Uint8List> get onValueReceived =>
-      UniversalBle.characteristicValueStream(_metaData.deviceId, uuid);
+      UniversalBle.characteristicValueStream(
+        _metaData.deviceId,
+        uuid,
+        serviceId: _metaData.serviceId,
+      );
 
   /// Subscribes to notifications for this characteristic.
   ///

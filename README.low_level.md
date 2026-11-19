@@ -53,14 +53,16 @@ UniversalBle.subscribeNotifications(deviceId, serviceId, characteristicId);
 // Subscribe to a characteristic indications
 UniversalBle.subscribeIndications(deviceId, serviceId, characteristicId);
 
-// Get characteristic notifications/indications updates using stream
-UniversalBle.characteristicValueStream(deviceId, characteristicId).listen((Uint8List value) {
-  debugPrint('OnValueChange $deviceId, $characteristicId, ${hex.encode(value)}');
+// Get characteristic notifications/indications updates using stream.
+// Pass serviceId when several services expose the same characteristic UUID;
+// without it every characteristic with that UUID on the device is reported.
+UniversalBle.characteristicValueStream(deviceId, characteristicId, serviceId: serviceId).listen((Uint8List value) {
+  debugPrint('OnValueChange $deviceId, $serviceId, $characteristicId, ${hex.encode(value)}');
 });
 
 // Or set a handler to get updates of all characteristics
 UniversalBle.onValueChange = (BleCharacteristicValue update) {
-  debugPrint('onValueChange ${update.deviceId}, ${update.characteristicId}, ${hex.encode(update.value)}');
+  debugPrint('onValueChange ${update.deviceId}, ${update.serviceId}, ${update.characteristicId}, ${hex.encode(update.value)}');
 }
 
 // Unsubscribe from notifications/indications

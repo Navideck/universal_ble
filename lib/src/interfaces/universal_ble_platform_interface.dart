@@ -198,13 +198,23 @@ abstract class UniversalBlePlatform {
 
   Stream<Uint8List> characteristicValueStream(
     String deviceId,
-    String characteristicId,
-  ) {
+    String characteristicId, {
+    String? serviceId,
+  }) {
     final target = _deviceId(deviceId).canonical;
     characteristicId = BleUuidParser.string(characteristicId);
+    final serviceFilter =
+        serviceId == null ? null : BleUuidParser.string(serviceId);
     return _valueStreamController.stream
         .where((e) =>
-            e.deviceId == target && e.characteristicId == characteristicId)
+            e.deviceId == target &&
+            e.characteristicId == characteristicId &&
+            // A value whose owning service the platform could not report is not
+            // known to come from another service, so it matches any filter.
+            // Dropping it would silently lose values on those platforms.
+            (serviceFilter == null ||
+                e.serviceId == null ||
+                e.serviceId == serviceFilter))
         .map((e) => e.value);
   }
 
@@ -266,10 +276,16 @@ abstract class UniversalBlePlatform {
     String deviceId,
     String characteristicId,
     Uint8List value,
-    int? timestamp,
-  ) {
+    int? timestamp, {
+    String? serviceId,
+  }) {
     deviceId = _deviceId(deviceId).canonical;
     characteristicId = BleUuidParser.string(characteristicId);
+    // A platform that reports an unusable service id still has usable values;
+    // keep them and treat the owning service as unknown rather than dropping
+    // the update on a format error.
+    final normalizedServiceId =
+        serviceId == null ? null : BleUuidParser.stringOrNull(serviceId);
     // StandardMessageCodec decodes typed data as a view into the complete
     // platform-message buffer. Normalize that view before exposing it so
     // consumers which pass `value.buffer` to another binary API cannot
@@ -281,6 +297,7 @@ abstract class UniversalBlePlatform {
     final update = BleCharacteristicValue(
       deviceId: deviceId,
       characteristicId: characteristicId,
+      serviceId: normalizedServiceId,
       value: normalizedValue,
       timestamp: timestamp,
     );
