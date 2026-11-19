@@ -7,6 +7,33 @@ import 'package:universal_ble/src/utils/device_id.dart';
 /// [DeviceId] is the one place device-id case conversion lives: the canonical form the Dart layer
 /// emits/matches/keys by, and the native form channel calls take.
 void main() {
+  // The two sides of the casing rule at the command queue: an address owner is
+  // folded, an opaque (Web) token is not.
+  test('disconnect cancels a differently cased address owner', () async {
+    final queue = BleCommandQueue(queueType: QueueType.global, isAddress: true);
+    final release = Completer<void>();
+    final active = queue.queueCommandWithoutTimeout(() => release.future,
+        deviceId: 'AA:BB:CC:DD:EE:FF');
+    var ran = false;
+    final pending = queue.queueCommandWithoutTimeout(() async {
+      ran = true;
+    }, deviceId: 'AA:BB:CC:DD:EE:FF');
+    final cancelled = expectLater(
+      pending,
+      throwsA(
+        isA<UniversalBleException>()
+            .having(
+                (e) => e.code, 'code', UniversalBleErrorCode.operationCancelled)
+            .having((e) => e.details, 'details', 'aa:bb:cc:dd:ee:ff'),
+      ),
+    );
+    await queue.runTeardown(() async => release.complete(),
+        deviceId: 'aa:bb:cc:dd:ee:ff');
+    await active;
+    await cancelled;
+    expect(ran, isFalse);
+  });
+
   test('disconnect preserves differently cased opaque Web owners', () async {
     final queue =
         BleCommandQueue(queueType: QueueType.global, isAddress: false);

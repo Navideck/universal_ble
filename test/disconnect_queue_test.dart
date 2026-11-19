@@ -27,6 +27,39 @@ class _DisconnectPlatform extends UniversalBlePlatformMock {
   }
 }
 
+class _SlowStatePlatform extends UniversalBlePlatformMock {
+  final readStarted = Completer<void>();
+  final readFinished = Completer<Uint8List>();
+  final stateStarted = Completer<void>();
+  final stateRelease = Completer<void>();
+  final reads = <String>[];
+  bool disconnected = false;
+
+  @override
+  Future<BleConnectionState> getConnectionState(String id) async {
+    stateStarted.complete();
+    await stateRelease.future;
+    return BleConnectionState.connected;
+  }
+
+  @override
+  Future<Uint8List> readValue(String id, String service, String characteristic,
+      {Duration? timeout}) {
+    reads.add(characteristic);
+    // Only the first read is held open: a second one means a queued command was
+    // submitted after the in-flight one completed, past the teardown.
+    if (reads.length > 1) return Future.value(Uint8List(0));
+    readStarted.complete();
+    return readFinished.future;
+  }
+
+  @override
+  Future<void> disconnect(String id) async {
+    disconnected = true;
+    updateConnection(id, false);
+  }
+}
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   test('public disconnect releases a read waiting for native disconnect',
@@ -94,15 +127,80 @@ void main() {
     }
   });
 
+  test('disconnect cancels queued work even while the state lookup is slow',
+      () async {
+    // Reproduces the ordering bug: `disconnect` awaits `getConnectionState`
+    // first, so an in-flight command finishing during that lookup dispatches the
+    // next queued command to the platform, which the teardown then cannot see.
+    final platform = _SlowStatePlatform();
+    UniversalBle.setInstance(platform);
+    UniversalBle.queueType = QueueType.global;
+    UniversalBle.timeout = null;
+    const deviceId = 'AA:BB:CC:DD:EE:FF';
+    try {
+      final active = UniversalBle.read(deviceId, '180d', '2a37');
+      await platform.readStarted.future;
+      final queued = UniversalBle.read(deviceId, '180d', '2a38');
+      final cancelled = expectLater(
+        queued,
+        throwsA(
+          isA<UniversalBleException>()
+              .having((e) => e.code, 'code',
+                  UniversalBleErrorCode.operationCancelled)
+              .having((e) => e.message, 'message',
+                  'Command cancelled by disconnect')
+              .having((e) => e.details, 'details', 'aa:bb:cc:dd:ee:ff'),
+        ),
+      );
+
+      final disconnect =
+          UniversalBle.disconnect(deviceId).timeout(const Duration(seconds: 1));
+      await platform.stateStarted.future;
+      // The in-flight read completes while the state lookup is still pending.
+      // `queued` must already have been cancelled, so it is never submitted.
+      platform.readFinished.complete(Uint8List(0));
+      await active;
+      await pumpEventQueue();
+      expect(platform.reads, hasLength(1));
+
+      platform.stateRelease.complete();
+      await disconnect;
+      expect(platform.disconnected, isTrue);
+      await cancelled;
+      expect(platform.reads, hasLength(1));
+    } finally {
+      if (!platform.readFinished.isCompleted) {
+        platform.readFinished.complete(Uint8List(0));
+      }
+      if (!platform.stateRelease.isCompleted) {
+        platform.stateRelease.complete();
+      }
+      UniversalBle.clearQueue();
+      UniversalBle.setInstance(_DisconnectPlatform());
+      UniversalBle.queueType = QueueType.auto;
+      UniversalBle.timeout = const Duration(seconds: 10);
+    }
+  });
+
   test('queue listeners cannot re-enter before native teardown starts',
       () async {
     final queue = BleCommandQueue(queueType: QueueType.global, isAddress: true);
     final release = Completer<void>();
     final running =
         queue.queueCommand(() => release.future, deviceId: 'AA:BB:CC:DD:EE:FF');
-    final pending = queue.queueCommand(() async => fail('canceled command ran'),
-        deviceId: 'AA:BB:CC:DD:EE:FF');
-    final canceled = expectLater(pending, throwsException);
+    var ran = false;
+    final pending = queue.queueCommand(() async {
+      ran = true;
+    }, deviceId: 'AA:BB:CC:DD:EE:FF');
+    final canceled = expectLater(
+      pending,
+      throwsA(
+        isA<UniversalBleException>()
+            .having(
+                (e) => e.code, 'code', UniversalBleErrorCode.operationCancelled)
+            .having((e) => e.details, 'details', 'aa:bb:cc:dd:ee:ff'),
+      ),
+    );
     var nativeStarted = false;
     var updates = 0;
     final nativeStartedWhenNotified = <bool>[];
@@ -119,6 +217,7 @@ void main() {
     await running;
     await canceled;
     await Future<void>.delayed(Duration.zero);
+    expect(ran, isFalse);
     expect(nativeStartedWhenNotified, isNotEmpty);
     expect(nativeStartedWhenNotified, everyElement(isTrue));
     expect(updates, greaterThan(0));
@@ -131,17 +230,25 @@ void main() {
     final release = Completer<void>();
     final active = <Future<void>>[];
     final canceled = <Future<void>>[];
+    final ran = <String>[];
     for (final id in ['first', 'second']) {
       active.add(queue.queueCommand(() => release.future,
           deviceId: 'other', queueId: id));
       canceled.add(expectLater(
-          queue.queueCommand(() async => fail('canceled command ran'),
-              deviceId: 'AA:BB:CC:DD:EE:FF', queueId: id),
-          throwsException));
+          queue.queueCommand(() async {
+            ran.add(id);
+          }, deviceId: 'AA:BB:CC:DD:EE:FF', queueId: id),
+          throwsA(
+            isA<UniversalBleException>()
+                .having((e) => e.code, 'code',
+                    UniversalBleErrorCode.operationCancelled)
+                .having((e) => e.details, 'details', 'aa:bb:cc:dd:ee:ff'),
+          )));
     }
     await queue.runTeardown(() async => release.complete(),
         deviceId: 'aa:bb:cc:dd:ee:ff');
     await Future.wait([...active, ...canceled]);
+    expect(ran, isEmpty);
   });
 
   test(
@@ -156,17 +263,28 @@ void main() {
     expect(await active, 'native result');
   });
 
-  for (final type in [QueueType.global, QueueType.perDevice, QueueType.auto]) {
+  // `auto` is not here: it resolves to `perDevice` only on Android, Web and
+  // Linux, and to `none` elsewhere, so on those hosts nothing is queued and so
+  // nothing can be cancelled. The `none` case is covered below.
+  for (final type in [QueueType.global, QueueType.perDevice]) {
     test('$type teardown cancels target across custom queues only', () async {
       final queue = BleCommandQueue(queueType: type, isAddress: true);
       final release = Completer<void>();
       final running = queue.queueCommandWithoutTimeout(() => release.future,
           deviceId: 'AA:BB:CC:DD:EE:FF', queueId: 'shared');
-      final pending = queue.queueCommandWithoutTimeout(
-          () async => fail('retired command ran'),
-          deviceId: 'aa:bb:cc:dd:ee:ff',
-          queueId: 'shared');
-      final canceled = expectLater(pending, throwsException);
+      var ran = false;
+      final pending = queue.queueCommandWithoutTimeout(() async {
+        ran = true;
+      }, deviceId: 'aa:bb:cc:dd:ee:ff', queueId: 'shared');
+      final canceled = expectLater(
+        pending,
+        throwsA(
+          isA<UniversalBleException>()
+              .having((e) => e.code, 'code',
+                  UniversalBleErrorCode.operationCancelled)
+              .having((e) => e.details, 'details', 'aa:bb:cc:dd:ee:ff'),
+        ),
+      );
       final other = queue.queueCommandWithoutTimeout(() async => 'other',
           deviceId: '11:22:33:44:55:66', queueId: 'shared');
       await queue.runTeardown(() async {
@@ -174,6 +292,7 @@ void main() {
       }, deviceId: 'Aa:Bb:Cc:Dd:Ee:Ff');
       await running;
       await canceled;
+      expect(ran, isFalse);
       expect(await other, 'other');
     });
   }

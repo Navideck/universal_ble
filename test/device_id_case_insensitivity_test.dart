@@ -78,14 +78,24 @@ void main() {
       final release = Completer<void>();
       final active =
           queue.queueCommandWithoutTimeout(() => release.future, deviceId: id);
-      final pending = queue.queueCommandWithoutTimeout(
-          () async => fail('canceled operation ran'),
-          deviceId: id.toLowerCase());
-      final canceled = expectLater(pending, throwsException);
+      var ran = false;
+      final pending = queue.queueCommandWithoutTimeout(() async {
+        ran = true;
+      }, deviceId: id.toLowerCase());
+      final canceled = expectLater(
+        pending,
+        throwsA(
+          isA<UniversalBleException>()
+              .having((e) => e.code, 'code',
+                  UniversalBleErrorCode.operationCancelled)
+              .having((e) => e.details, 'details', id.toLowerCase()),
+        ),
+      );
       await queue.runTeardown(() async => release.complete(),
           deviceId: id.toLowerCase());
       await active;
       await canceled;
+      expect(ran, isFalse);
     });
   }
   const upper = 'AA:BB:CC:DD:EE:FF';
