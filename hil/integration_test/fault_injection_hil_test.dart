@@ -123,11 +123,11 @@ void main() {
           await Future.wait([
             UniversalBle.connect(
               peripheral.deviceId,
-              timeout: HilPeripheral.operationTimeout,
+              timeout: HilPeripheral.connectTimeout,
             ),
             UniversalBle.connect(
               peripheral.deviceId,
-              timeout: HilPeripheral.operationTimeout,
+              timeout: HilPeripheral.connectTimeout,
             ),
           ]);
           await Future<void>.delayed(const Duration(seconds: 1));
@@ -264,7 +264,7 @@ void main() {
                 trace('connect begin; queue=none, no retries');
                 await UniversalBle.connect(
                   peripheral.deviceId,
-                  timeout: HilPeripheral.operationTimeout,
+                  timeout: HilPeripheral.connectTimeout,
                 );
                 trace('connect returned; immediate read begin');
                 final value = utf8.decode(await peripheral.read(HilUuid.read));
@@ -381,7 +381,7 @@ void main() {
               // failed first connection attempt.
               await UniversalBle.connect(
                 discovered.deviceId,
-                timeout: HilPeripheral.operationTimeout,
+                timeout: HilPeripheral.connectTimeout,
               );
 
               final services = await UniversalBle.discoverServices(
@@ -1615,7 +1615,7 @@ void _unsupportedPairing(String description) => _unsupported(description,
 
 Future<void> _connectThroughFixtureFault(HilPeripheral peripheral) async {
   final result = await _captureResult(UniversalBle.connect(peripheral.deviceId,
-      timeout: HilPeripheral.operationTimeout));
+      timeout: HilPeripheral.connectTimeout));
   if (result is _AsyncFailure) {
     expect(result.error, isA<UniversalBleException>());
   }

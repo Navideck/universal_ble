@@ -136,6 +136,12 @@ final class HilPeripheral {
   static const maxWriteLength = 384;
   static const _configuredDeviceId = String.fromEnvironment('HIL_DEVICE_ID');
   static const operationTimeout = Duration(seconds: 10);
+  // WinRT initiates BLE connections via uncached GATT service discovery, which
+  // can take ~8s before returning Unreachable on some adapters and then succeed
+  // on the plugin's readiness retry (~10s total, or longer under injected
+  // connect/discovery faults). Keep connect bounded without cutting off the
+  // plugin's own retry loop.
+  static const connectTimeout = Duration(seconds: 25);
   static const scanTimeout = Duration(seconds: 30);
   static BleDevice? _discoveredDevice;
 
@@ -253,10 +259,14 @@ final class HilPeripheral {
       attempt++;
       var phase = 'connect';
       try {
+        final remaining = deadline.difference(DateTime.now());
+        if (remaining <= Duration.zero) break;
+        final attemptTimeout =
+            remaining < connectTimeout ? remaining : connectTimeout;
         trace?.call('attempt=$attempt connect begin');
         await UniversalBle.connect(
           deviceId,
-          timeout: const Duration(seconds: 5),
+          timeout: attemptTimeout,
         );
         trace?.call('attempt=$attempt connect returned');
         try {
