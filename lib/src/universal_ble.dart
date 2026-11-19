@@ -603,6 +603,12 @@ class UniversalBle {
 
   /// Write a characteristic value.
   /// To write a characteristic value without response, set [withoutResponse] to `true`.
+  ///
+  /// A GATT attribute value is capped at 512 bytes by the Bluetooth Core spec,
+  /// so [value] must not be longer. Android reports a longer value as
+  /// [UniversalBleErrorCode.invalidAttributeLength] before it reaches the stack
+  /// (Android 15+ would otherwise throw); other platforms report the same limit
+  /// from their own stack.
   static Future<void> write(
     String deviceId,
     String service,
@@ -629,6 +635,10 @@ class UniversalBle {
   }
 
   /// Write a characteristic descriptor value.
+  ///
+  /// A GATT attribute value is capped at 512 bytes by the Bluetooth Core spec,
+  /// so [value] must not be longer; Android reports a longer one as
+  /// [UniversalBleErrorCode.invalidAttributeLength].
   static Future<void> writeDescriptor(
     String deviceId,
     String service,

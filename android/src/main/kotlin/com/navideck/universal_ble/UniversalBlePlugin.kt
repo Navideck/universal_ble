@@ -36,6 +36,15 @@ import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import androidx.core.content.edit
 
+// Bluetooth Core caps an attribute value at 512 bytes. Android 15+ throws
+// IllegalArgumentException from writeCharacteristic(characteristic, value,
+// writeType) for a longer value; writeDescriptor does not length-check, so the
+// guard there only turns a value that cannot work into a clear error. Reject
+// them with a classified error instead of letting the exception escape with the
+// pending result still registered, which made every later write complete one
+// behind.
+private const val MAX_ATTRIBUTE_VALUE_SIZE = 512
+
 @SuppressLint("MissingPermission")
 class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(), FlutterPlugin,
     UniversalBleAndroidChannel,
@@ -896,6 +905,7 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
         bleOutputProperty: BleOutputProperty,
         callback: (Result<Unit>) -> Unit,
     ) {
+        var writeFuture: WriteResultFuture? = null
         try {
             UniversalBleLogger.logDebug("WRITE -> $deviceId $service $characteristic len=${value.size} property=$bleOutputProperty")
             val gatt = gattRegistry.get(deviceId)
@@ -941,20 +951,34 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
                 writeType = BluetoothGattCharacteristic.WRITE_TYPE_NO_RESPONSE
             }
 
+            // Checked after the lookups so a caller still gets deviceNotFound,
+            // characteristicNotFound and the write-support errors it got before.
+            if (value.size > MAX_ATTRIBUTE_VALUE_SIZE) {
+                callback(
+                    Result.failure(
+                        createFlutterError(
+                            UniversalBleErrorCode.INVALID_ATTRIBUTE_LENGTH,
+                            "Value is ${value.size} bytes, longer than the $MAX_ATTRIBUTE_VALUE_SIZE-byte attribute limit",
+                        )
+                    )
+                )
+                return
+            }
 
-            val writeFuture = WriteResultFuture(
+            val future = WriteResultFuture(
                 gatt,
                 gatt.device.address,
                 gattCharacteristic.uuid.toString(),
                 gattCharacteristic.service.uuid.toString(),
                 callback
             )
+            writeFuture = future
 
             // Wait for the result. The list is mutated both here (main thread)
             // and in onCharacteristicWrite / cleanUpConnection (Bluetooth
             // binder threads), so every access must hold the lock.
             synchronized(writeResultFutureList) {
-                writeResultFutureList.add(writeFuture)
+                writeResultFutureList.add(future)
             }
 
             val result = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -969,9 +993,7 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
             }
 
             if (result != BluetoothGatt.GATT_SUCCESS) {
-                synchronized(writeResultFutureList) {
-                    writeResultFutureList.remove(writeFuture)
-                }
+                withdrawWriteFuture(future)
                 callback(
                     Result.failure(
                         createFlutterError(
@@ -983,7 +1005,30 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
                 )
             }
         } catch (e: FlutterError) {
+            writeFuture?.let(::withdrawWriteFuture)
             callback(Result.failure(e))
+        } catch (e: Exception) {
+            // A write the stack refuses by throwing (a characteristic whose
+            // service is gone, for example) never reaches onCharacteristicWrite.
+            // Fail this call and unregister its result: otherwise the next
+            // completion is delivered to the orphaned future and every later
+            // write lags by one.
+            writeFuture?.let(::withdrawWriteFuture)
+            callback(
+                Result.failure(
+                    createFlutterError(
+                        UniversalBleErrorCode.WRITE_FAILED,
+                        "Failed to write: ${e.message}",
+                        e.toString()
+                    )
+                )
+            )
+        }
+    }
+
+    private fun withdrawWriteFuture(future: WriteResultFuture) {
+        synchronized(writeResultFutureList) {
+            writeResultFutureList.remove(future)
         }
     }
 
@@ -1173,6 +1218,7 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
         value: ByteArray,
         callback: (Result<Unit>) -> Unit,
     ) {
+        var writeFuture: WriteDescriptorResultFuture? = null
         try {
             UniversalBleLogger.logDebug("WRITE_DESCRIPTOR -> $deviceId $service $characteristic $descriptor len=${value.size}")
             val gatt = gattRegistry.get(deviceId)
@@ -1201,7 +1247,22 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
                 return
             }
 
-            val writeFuture = WriteDescriptorResultFuture(
+            // Checked after the lookups so a caller still gets deviceNotFound and
+            // the not-found errors it got before. writeDescriptor does not throw
+            // for a long value, but a value over the attribute cap cannot work.
+            if (value.size > MAX_ATTRIBUTE_VALUE_SIZE) {
+                callback(
+                    Result.failure(
+                        createFlutterError(
+                            UniversalBleErrorCode.INVALID_ATTRIBUTE_LENGTH,
+                            "Value is ${value.size} bytes, longer than the $MAX_ATTRIBUTE_VALUE_SIZE-byte attribute limit",
+                        )
+                    )
+                )
+                return
+            }
+
+            val future = WriteDescriptorResultFuture(
                 gatt,
                 gatt.device.address,
                 gattDescriptor.uuid.toString(),
@@ -1209,9 +1270,10 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
                 gattCharacteristic.service.uuid.toString(),
                 callback
             )
+            writeFuture = future
 
             synchronized(writeDescriptorResultFutureList) {
-                writeDescriptorResultFutureList.add(writeFuture)
+                writeDescriptorResultFutureList.add(future)
             }
 
             val status = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -1224,9 +1286,7 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
             }
 
             if (status != BluetoothGatt.GATT_SUCCESS) {
-                synchronized(writeDescriptorResultFutureList) {
-                    writeDescriptorResultFutureList.remove(writeFuture)
-                }
+                withdrawWriteDescriptorFuture(future)
                 callback(
                     Result.failure(
                         createFlutterError(
@@ -1238,8 +1298,12 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
                 )
             }
         } catch (e: FlutterError) {
+            writeFuture?.let(::withdrawWriteDescriptorFuture)
             callback(Result.failure(e))
         } catch (e: Exception) {
+            // Withdraw the pending result before failing the call, so a refused
+            // descriptor write cannot consume the next completion.
+            writeFuture?.let(::withdrawWriteDescriptorFuture)
             callback(
                 Result.failure(
                     createFlutterError(
@@ -1249,6 +1313,12 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
                     )
                 )
             )
+        }
+    }
+
+    private fun withdrawWriteDescriptorFuture(future: WriteDescriptorResultFuture) {
+        synchronized(writeDescriptorResultFutureList) {
+            writeDescriptorResultFutureList.remove(future)
         }
     }
 
