@@ -614,6 +614,9 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
         bleInputProperty: BleInputProperty,
         callback: (Result<Unit>) -> Unit,
     ) {
+        // Assigned once the CCCD request is registered; declared out here so the
+        // error paths below can withdraw it too.
+        var pendingFuture: SubscriptionResultFuture? = null
         try {
             UniversalBleLogger.logDebug("SET_NOTIFY -> $deviceId $service $characteristic input=$bleInputProperty")
             val gatt = gattRegistry.get(deviceId)
@@ -641,32 +644,68 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
                 else -> BluetoothGattDescriptor.DISABLE_NOTIFICATION_VALUE to false
             }
 
+            // Register before issuing the CCCD write, as readValue does: the
+            // write's callback arrives on a binder thread and a future added
+            // afterwards is never matched (updateSubscriptionState finds
+            // nothing to complete), leaving the Dart call awaiting forever.
+            // Every access to the list holds its lock.
+            val pending: SubscriptionResultFuture? =
+                if (descriptor == null) null else SubscriptionResultFuture(
+                    gatt,
+                    descriptor,
+                    gatt.device.address,
+                    callback,
+                )
+            if (pending != null) {
+                synchronized(subscriptionResultFutureList) {
+                    subscriptionResultFutureList.add(pending)
+                }
+                pendingFuture = pending
+            }
+
+            /** Withdraws [pending] so a later callback cannot reply twice. */
+            fun withdraw(): Boolean = removeSubscriptionFuture(pending)
+
+            fun fail(error: FlutterError) {
+                if (!withdraw()) return
+                callback(Result.failure(error))
+            }
+
             if (descriptor != null) {
                 // Some devices do not need CCCD to update
                 @Suppress("DEPRECATION")
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                    val status = gatt.writeDescriptor(descriptor, value)
+                    val status = try {
+                        gatt.writeDescriptor(descriptor, value)
+                    } catch (e: Exception) {
+                        // A callback or disconnect may already own the reply.
+                        if (!withdraw()) return
+                        throw e
+                    }
                     if (status != BluetoothStatusCodes.SUCCESS) {
-                        callback(
-                            Result.failure(
-                                createFlutterError(
-                                    status.parseBluetoothStatusCodeError()
-                                        ?: UniversalBleErrorCode.FAILED,
-                                    "Failed to update descriptor"
-                                )
+                        fail(
+                            createFlutterError(
+                                status.parseBluetoothStatusCodeError()
+                                    ?: UniversalBleErrorCode.FAILED,
+                                "Failed to update descriptor"
                             )
                         )
                         return
                     }
                 } else {
                     descriptor.value = value
-                    if (!gatt.writeDescriptor(descriptor)) {
-                        callback(
-                            Result.failure(
-                                createFlutterError(
-                                    UniversalBleErrorCode.FAILED,
-                                    "Failed to update descriptor"
-                                )
+                    val started = try {
+                        gatt.writeDescriptor(descriptor)
+                    } catch (e: Exception) {
+                        // A callback or disconnect may already own the reply.
+                        if (!withdraw()) return
+                        throw e
+                    }
+                    if (!started) {
+                        fail(
+                            createFlutterError(
+                                UniversalBleErrorCode.FAILED,
+                                "Failed to update descriptor"
                             )
                         )
                         return
@@ -677,43 +716,43 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
             }
 
             if (gatt.setCharacteristicNotification(gattCharacteristic, enable)) {
-                if (descriptor != null) {
-                    // Completed by updateSubscriptionState on a binder thread.
-                    synchronized(subscriptionResultFutureList) {
-                        subscriptionResultFutureList.add(
-                            SubscriptionResultFuture(
-                                gatt,
-                                descriptor,
-                                gatt.device.address,
-                                callback
-                            )
-                        )
-                    }
-                } else {
-                    callback(Result.success(Unit))
-                }
+                // With a CCCD the pending future is completed by
+                // updateSubscriptionState on a binder thread; without one this
+                // call is the whole request.
+                if (pending == null) callback(Result.success(Unit))
             } else {
-                callback(
-                    Result.failure(
-                        createFlutterError(
-                            UniversalBleErrorCode.FAILED,
-                            "Failed to update subscription state"
-                        )
+                fail(
+                    createFlutterError(
+                        UniversalBleErrorCode.FAILED,
+                        "Failed to update subscription state"
                     )
                 )
             }
         } catch (e: FlutterError) {
-            callback(Result.failure(e))
+            if (removeSubscriptionFuture(pendingFuture)) callback(Result.failure(e))
         } catch (e: Exception) {
-            callback(
-                Result.failure(
-                    createFlutterError(
-                        UniversalBleErrorCode.FAILED,
-                        "Failed to update subscription state",
-                        e.toString()
+            if (removeSubscriptionFuture(pendingFuture)) {
+                callback(
+                    Result.failure(
+                        createFlutterError(
+                            UniversalBleErrorCode.FAILED,
+                            "Failed to update subscription state",
+                            e.toString()
+                        )
                     )
                 )
-            )
+            }
+        }
+    }
+
+    /**
+     * Removes [future] while it is still registered. False means a callback (or
+     * a device cleanup) already owns the reply, which must not be sent twice.
+     */
+    private fun removeSubscriptionFuture(future: SubscriptionResultFuture?): Boolean {
+        if (future == null) return true
+        synchronized(subscriptionResultFutureList) {
+            return subscriptionResultFutureList.remove(future)
         }
     }
 

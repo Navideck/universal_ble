@@ -519,6 +519,71 @@ internal class GattCallbackCompletionTest {
     }
 
     @Test
+    fun setNotifiableRegistersTheFutureBeforeTheCccdWriteCanRespond() {
+        val plugin = plugin()
+        val results = mutableListOf<Result<Unit>>()
+        val characteristic = mockCharacteristic()
+        val cccd = mockDescriptor(characteristic, "00002902-0000-1000-8000-00805f9b34fb")
+        Mockito.`when`(characteristic.getDescriptor(ccdCharacteristic)).thenReturn(cccd)
+        val gatt = mockGattWithService(characteristic)
+        Mockito.`when`(gatt.setCharacteristicNotification(characteristic, true)).thenReturn(true)
+        // The stack can answer on a binder thread before writeDescriptor()
+        // returns; a future registered only afterwards would never be matched
+        // and the Dart call would await forever.
+        Mockito.`when`(gatt.writeDescriptor(cccd)).thenAnswer {
+            plugin.onDescriptorWrite(gatt, cccd, BluetoothGatt.GATT_SUCCESS)
+            true
+        }
+        plugin.gattRegistry().put(gatt)
+        val pending = plugin.getField<MutableList<SubscriptionResultFuture>>(
+            "subscriptionResultFutureList"
+        )
+
+        plugin.setNotifiable(
+            deviceAddress,
+            serviceUuid.toString(),
+            charUuid.toString(),
+            BleInputProperty.NOTIFICATION,
+        ) { results.add(it) }
+        drainMainLooper()
+
+        assertEquals(1, results.size, "a response must complete the subscription in flight")
+        assertTrue(results[0].isSuccess)
+        assertTrue(
+            pending.isEmpty(),
+            "the completed future must leave the list, and must not be registered twice"
+        )
+    }
+
+    @Test
+    fun rejectedSubscriptionLeavesNoPendingFuture() {
+        val plugin = plugin()
+        val results = mutableListOf<Result<Unit>>()
+        val characteristic = mockCharacteristic()
+        val cccd = mockDescriptor(characteristic, "00002902-0000-1000-8000-00805f9b34fb")
+        Mockito.`when`(characteristic.getDescriptor(ccdCharacteristic)).thenReturn(cccd)
+        val gatt = mockGattWithService(characteristic)
+        Mockito.`when`(gatt.writeDescriptor(cccd)).thenReturn(false)
+        plugin.gattRegistry().put(gatt)
+
+        plugin.setNotifiable(
+            deviceAddress,
+            serviceUuid.toString(),
+            charUuid.toString(),
+            BleInputProperty.NOTIFICATION,
+        ) { results.add(it) }
+
+        assertEquals(1, results.size)
+        assertTrue(results[0].isFailure)
+        assertTrue(
+            plugin.getField<MutableList<SubscriptionResultFuture>>(
+                "subscriptionResultFutureList"
+            ).isEmpty(),
+            "a write the stack refused must not stay registered for a later callback"
+        )
+    }
+
+    @Test
     fun oldGattCallbacksDoNotConsumeReplacementRequests() {
         for (status in listOf(BluetoothGatt.GATT_SUCCESS, BluetoothGatt.GATT_FAILURE)) {
             val plugin = plugin()
