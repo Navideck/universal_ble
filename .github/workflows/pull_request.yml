@@ -20,6 +20,47 @@ jobs:
       - run: cmake --build build/windows-tests --config Debug
       - run: ctest --test-dir build/windows-tests -C Debug --output-on-failure
 
+  apple:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+
+      # Nothing else builds the Apple sources. They are shared by iOS and macOS
+      # and import Flutter's macOS or iOS module behind `#if os(...)`, so each
+      # platform's branch is typechecked against its own engine framework.
+      - name: Download the Apple engine frameworks
+        run: flutter precache --macos --ios
+
+      - name: Typecheck the Apple sources
+        run: |
+          set -euo pipefail
+          flutter_root="$(dirname "$(dirname "$(command -v flutter)")")"
+          engine="$flutter_root/bin/cache/artifacts/engine"
+          sources=(darwin/universal_ble/Sources/universal_ble/*.swift)
+
+          xcrun swiftc -typecheck \
+            -target "$(uname -m)-apple-macos10.15" \
+            -sdk "$(xcrun --sdk macosx --show-sdk-path)" \
+            -F "$engine/darwin-x64" \
+            "${sources[@]}"
+
+          xcrun swiftc -typecheck \
+            -target arm64-apple-ios13.1 \
+            -sdk "$(xcrun --sdk iphoneos --show-sdk-path)" \
+            -F "$engine/ios/Flutter.xcframework/ios-arm64" \
+            "${sources[@]}"
+
+      # Each helper compiles one source file with counted checks; they are not
+      # part of the plugin build.
+      - name: Run the Apple helper tests
+        run: |
+          bash darwin/universal_ble/Tests/run_write_ownership_test.sh
+          bash darwin/universal_ble/Tests/run_discovery_progress_test.sh
+          bash darwin/universal_ble/Tests/run_central_restoration_owner_test.sh
+
   test:
     runs-on: ubuntu-latest
 
