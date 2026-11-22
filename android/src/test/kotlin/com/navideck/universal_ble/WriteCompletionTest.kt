@@ -29,7 +29,7 @@ internal class WriteCompletionTest {
 
     private val requestGatt by lazy { mockGatt(deviceAddress) }
 
-    private fun pendingWrites(plugin: UniversalBlePlugin): MutableList<WriteResultFuture> =
+    private fun pendingWrites(plugin: UniversalBlePlugin): PendingOperations<WriteResultFuture> =
         plugin.pendingWrites()
 
     private fun pendingFuture(acks: MutableList<Result<Unit>>) = WriteResultFuture(

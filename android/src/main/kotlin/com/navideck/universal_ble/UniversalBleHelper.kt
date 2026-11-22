@@ -478,35 +478,45 @@ fun Int.parseHciErrorCode(): String? {
     }
 }
 
-// Future result classes
+// Future result classes. Each implements [PendingOperation], so one collection
+// can register, match, sweep and fail them.
+
 class DiscoverServicesFuture(
-    val gatt: BluetoothGatt,
-    val deviceId: String,
+    override val gatt: BluetoothGatt,
+    override val deviceId: String,
     val withDescriptors: Boolean,
     val result: (Result<List<UniversalBleService>>) -> Unit,
-)
+) : PendingOperation {
+    override fun fail(error: FlutterError) = result(Result.failure(error))
+}
 
 class MtuResultFuture(
-    val deviceId: String,
-    val gatt: BluetoothGatt,
+    override val deviceId: String,
+    override val gatt: BluetoothGatt,
     val result: (Result<Long>) -> Unit,
-)
+) : PendingOperation {
+    override fun fail(error: FlutterError) = result(Result.failure(error))
+}
 
 class ReadResultFuture(
-    val gatt: BluetoothGatt,
-    val deviceId: String,
+    override val gatt: BluetoothGatt,
+    override val deviceId: String,
     val characteristicId: String,
     val serviceId: String,
     val result: (Result<ByteArray>) -> Unit,
-)
+) : PendingOperation {
+    override fun fail(error: FlutterError) = result(Result.failure(error))
+}
 
 class WriteResultFuture(
-    val gatt: BluetoothGatt,
-    val deviceId: String,
+    override val gatt: BluetoothGatt,
+    override val deviceId: String,
     val characteristicId: String,
     val serviceId: String,
     val result: (Result<Unit>) -> Unit,
-)
+) : PendingOperation {
+    override fun fail(error: FlutterError) = result(Result.failure(error))
+}
 
 /**
  * A CCCD write awaiting its callback. [gatt] and [descriptor] identify the
@@ -514,35 +524,43 @@ class WriteResultFuture(
  * they are not duplicated here.
  */
 class SubscriptionResultFuture(
-    val gatt: BluetoothGatt,
+    override val gatt: BluetoothGatt,
     val descriptor: BluetoothGattDescriptor,
-    val deviceId: String,
+    override val deviceId: String,
     val result: (Result<Unit>) -> Unit,
-)
+) : PendingOperation {
+    override fun fail(error: FlutterError) = result(Result.failure(error))
+}
 
 class RssiResultFuture(
-    val gatt: BluetoothGatt,
-    val deviceId: String,
+    override val gatt: BluetoothGatt,
+    override val deviceId: String,
     val result: (Result<Long>) -> Unit,
-)
+) : PendingOperation {
+    override fun fail(error: FlutterError) = result(Result.failure(error))
+}
 
 class ReadDescriptorResultFuture(
-    val gatt: BluetoothGatt,
-    val deviceId: String,
+    override val gatt: BluetoothGatt,
+    override val deviceId: String,
     val descriptorId: String,
     val characteristicId: String,
     val serviceId: String,
     val result: (Result<ByteArray>) -> Unit,
-)
+) : PendingOperation {
+    override fun fail(error: FlutterError) = result(Result.failure(error))
+}
 
 class WriteDescriptorResultFuture(
-    val gatt: BluetoothGatt,
-    val deviceId: String,
+    override val gatt: BluetoothGatt,
+    override val deviceId: String,
     val descriptorId: String,
     val characteristicId: String,
     val serviceId: String,
     val result: (Result<Unit>) -> Unit,
-)
+) : PendingOperation {
+    override fun fail(error: FlutterError) = result(Result.failure(error))
+}
 
 // Android 14+ negotiates once per connection. Older releases can request an
 // increase, but an MTU already meeting the requested size needs no new exchange.

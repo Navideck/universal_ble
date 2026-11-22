@@ -609,7 +609,8 @@ internal class GattCallbackCompletionTest {
         val old = mockGatt(deviceAddress)
         val current = mockGatt(deviceAddress)
         val results = mutableListOf<Result<ByteArray>>()
-        val items = mutableListOf(
+        val reads = plugin.pendingReads()
+        reads.add(
             ReadResultFuture(
                 current, deviceAddress, charUuid.toString(), serviceUuid.toString()
             ) { results.add(it) }
@@ -617,12 +618,7 @@ internal class GattCallbackCompletionTest {
         // A connect() publishes the replacement while this sweep is running:
         // the requests that client owns must survive, so the registry has to be
         // read at match time rather than once when the sweep starts.
-        plugin.setField("readResultFutureList", object : MutableList<ReadResultFuture> by items {
-            override fun iterator(): MutableIterator<ReadResultFuture> {
-                plugin.gattRegistry().put(current)
-                return items.iterator()
-            }
-        })
+        reads.beforeDrain = { plugin.gattRegistry().put(current) }
         val cleanup = UniversalBlePlugin::class.java.getDeclaredMethod(
             "cleanUpConnection", String::class.java, BluetoothGatt::class.java
         ).apply { isAccessible = true }

@@ -38,26 +38,26 @@ internal fun UniversalBlePlugin.attachConnectedGatt(gatt: BluetoothGatt) {
 // The pending-operation lists, typed, so a test does not spell out a reflection
 // key every time. They are the live lists, not copies.
 
-internal fun UniversalBlePlugin.pendingReads(): MutableList<ReadResultFuture> =
-    getField("readResultFutureList")
+internal fun UniversalBlePlugin.pendingReads(): PendingOperations<ReadResultFuture> =
+    getField("readOperations")
 
-internal fun UniversalBlePlugin.pendingWrites(): MutableList<WriteResultFuture> =
-    getField("writeResultFutureList")
+internal fun UniversalBlePlugin.pendingWrites(): PendingOperations<WriteResultFuture> =
+    getField("writeOperations")
 
-internal fun UniversalBlePlugin.pendingDescriptorReads(): MutableList<ReadDescriptorResultFuture> =
-    getField("readDescriptorResultFutureList")
+internal fun UniversalBlePlugin.pendingDescriptorReads(): PendingOperations<ReadDescriptorResultFuture> =
+    getField("descriptorReadOperations")
 
-internal fun UniversalBlePlugin.pendingDescriptorWrites(): MutableList<WriteDescriptorResultFuture> =
-    getField("writeDescriptorResultFutureList")
+internal fun UniversalBlePlugin.pendingDescriptorWrites(): PendingOperations<WriteDescriptorResultFuture> =
+    getField("descriptorWriteOperations")
 
-internal fun UniversalBlePlugin.pendingSubscriptions(): MutableList<SubscriptionResultFuture> =
-    getField("subscriptionResultFutureList")
+internal fun UniversalBlePlugin.pendingSubscriptions(): PendingOperations<SubscriptionResultFuture> =
+    getField("subscriptionOperations")
 
-internal fun UniversalBlePlugin.pendingMtus(): MutableList<MtuResultFuture> =
-    getField("mtuResultFutureList")
+internal fun UniversalBlePlugin.pendingMtus(): PendingOperations<MtuResultFuture> =
+    getField("mtuOperations")
 
-internal fun UniversalBlePlugin.pendingRssis(): MutableList<RssiResultFuture> =
-    getField("rssiResultFutureList")
+internal fun UniversalBlePlugin.pendingRssis(): PendingOperations<RssiResultFuture> =
+    getField("rssiOperations")
 
-internal fun UniversalBlePlugin.pendingDiscoveries(): MutableList<DiscoverServicesFuture> =
-    getField("discoverServicesFutureList")
+internal fun UniversalBlePlugin.pendingDiscoveries(): PendingOperations<DiscoverServicesFuture> =
+    getField("discoveryOperations")

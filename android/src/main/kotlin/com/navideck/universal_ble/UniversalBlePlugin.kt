@@ -72,23 +72,26 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
     // Flutter Futures
     private var bluetoothEnableRequestFuture: ((Result<Boolean>) -> Unit)? = null
     private var bluetoothDisableRequestFuture: ((Result<Boolean>) -> Unit)? = null
-    private val discoverServicesFutureList = mutableListOf<DiscoverServicesFuture>()
-    private val mtuResultFutureList = mutableListOf<MtuResultFuture>()
-    // Protected by mtuResultFutureList's lock. An observed MTU belongs to this
-    // GATT client, never to a later connection using the same device address.
+    private val discoveryOperations = pendingOperations<DiscoverServicesFuture>("Discover services")
+    private val mtuOperations = pendingOperations<MtuResultFuture>("MTU")
+    // Protected by mtuOperations' lock. An observed MTU belongs to this GATT
+    // client, never to a later connection using the same device address.
     private val negotiatedMtus = WeakHashMap<BluetoothGatt, Int>()
-    private val readResultFutureList = mutableListOf<ReadResultFuture>()
-    private val writeResultFutureList = mutableListOf<WriteResultFuture>()
-    private val readDescriptorResultFutureList = mutableListOf<ReadDescriptorResultFuture>()
-    private val writeDescriptorResultFutureList = mutableListOf<WriteDescriptorResultFuture>()
-    private val subscriptionResultFutureList = mutableListOf<SubscriptionResultFuture>()
+    private val readOperations = pendingOperations<ReadResultFuture>("Read")
+    private val writeOperations = pendingOperations<WriteResultFuture>("Write")
+    private val descriptorReadOperations =
+        pendingOperations<ReadDescriptorResultFuture>("Read descriptor")
+    private val descriptorWriteOperations =
+        pendingOperations<WriteDescriptorResultFuture>("Write descriptor")
+    private val subscriptionOperations =
+        pendingOperations<SubscriptionResultFuture>("Subscription")
     private val pairResultFutures = mutableMapOf<String, (Result<Boolean>) -> Unit>()
 
     // Addresses seen go through BOND_BONDING. A return to BOND_NONE while an address is in here is a
     // failed/declined bond (an event), not a steady BOND_NONE, so onBondStateUpdate() marks it as a failure
     // instead of letting Dart's pairing-state dedup swallow it (#325).
     private val bondingAttempts = mutableSetOf<String>()
-    private val rssiResultFutureList = mutableListOf<RssiResultFuture>()
+    private val rssiOperations = pendingOperations<RssiResultFuture>("RSSI")
 
     // Per plugin instance (one per FlutterEngine): the GATT clients this engine
     // owns and the link state of each (see [GattRegistry]). A connect() here
@@ -432,12 +435,7 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
         try {
             val gatt = gattRegistry.get(deviceId).gatt
             if (gatt.readRemoteRssi()) {
-                // Pending futures are mutated both here (main thread) and in
-                // onReadRemoteRssi / cleanUpConnection (binder threads), so
-                // every access must hold the list's lock.
-                synchronized(rssiResultFutureList) {
-                    rssiResultFutureList.add(RssiResultFuture(gatt, deviceId, callback))
-                }
+                rssiOperations.add(RssiResultFuture(gatt, deviceId, callback))
             } else {
                 callback(
                     Result.failure(
@@ -460,11 +458,7 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
         // there). Every readRemoteRssi() has its own response, so this callback
         // belongs to the oldest pending request only — completing every match
         // would report one reading to a request still in flight.
-        val future: RssiResultFuture?
-        synchronized(rssiResultFutureList) {
-            future = rssiResultFutureList.firstOrNull { it.gatt === gatt }
-            future?.let { rssiResultFutureList.remove(it) }
-        }
+        val future = rssiOperations.takeOldest { it.gatt === gatt }
         if (future == null) {
             return
         }
@@ -508,19 +502,14 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
                 return
             }
             if (gatt.discoverServices()) {
-                // Pending futures are mutated both here (main thread) and in
-                // onServicesDiscovered / cleanUpConnection (binder threads), so
-                // every access must hold the list's lock.
-                synchronized(discoverServicesFutureList) {
-                    discoverServicesFutureList.add(
-                        DiscoverServicesFuture(
-                            gatt,
-                            deviceId,
-                            withDescriptors,
-                            callback
-                        )
+                discoveryOperations.add(
+                    DiscoverServicesFuture(
+                        gatt,
+                        deviceId,
+                        withDescriptors,
+                        callback
                     )
-                }
+                )
             } else {
                 callback(
                     Result.failure(
@@ -543,11 +532,7 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
         // without a result would never complete.
         val services: List<BluetoothGattService>? =
             if (status == BluetoothGatt.GATT_SUCCESS) gatt.services else null
-        val pending: List<DiscoverServicesFuture>
-        synchronized(discoverServicesFutureList) {
-            pending = discoverServicesFutureList.filter { it.gatt === gatt }
-            discoverServicesFutureList.removeAll(pending)
-        }
+        val pending = discoveryOperations.drainMatching { it.gatt === gatt }
         if (services != null && gattRegistry.find(deviceId)?.gatt === gatt) {
             try {
                 setCachedServices(deviceId, services.map { it.uuid.toString() })
@@ -665,7 +650,7 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
                 // write the stack accepts on a disconnected autoConnect client
                 // can be dropped without a callback, and the stranded entry
                 // would then consume the next subscription's completion (#394).
-                if (!subscriptionResultFutureList.addIfLinkedUp(gatt, pending)) {
+                if (!subscriptionOperations.addIfLinkedUp(gatt, pending, ::isLinkUp)) {
                     callback(Result.failure(deviceDisconnectedError()))
                     return
                 }
@@ -760,9 +745,7 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
      */
     private fun removeSubscriptionFuture(future: SubscriptionResultFuture?): Boolean {
         if (future == null) return true
-        synchronized(subscriptionResultFutureList) {
-            return subscriptionResultFutureList.remove(future)
-        }
+        return subscriptionOperations.remove(future)
     }
 
     override fun readValue(
@@ -799,7 +782,7 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
                 gattCharacteristic.service.uuid.toString(),
                 callback
             )
-            if (!readResultFutureList.addIfLinkedUp(gatt, readFuture)) {
+            if (!readOperations.addIfLinkedUp(gatt, readFuture, ::isLinkUp)) {
                 callback(Result.failure(deviceDisconnectedError()))
                 return
             }
@@ -808,15 +791,11 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
                 gatt.readCharacteristic(gattCharacteristic)
             } catch (e: Exception) {
                 // A callback or disconnect may already own the reply.
-                synchronized(readResultFutureList) {
-                    if (!readResultFutureList.remove(readFuture)) return
-                }
+                if (!readOperations.remove(readFuture)) return
                 throw e
             }
             if (!started) {
-                synchronized(readResultFutureList) {
-                    if (!readResultFutureList.remove(readFuture)) return
-                }
+                if (!readOperations.remove(readFuture)) return
                 callback(
                     Result.failure(
                         createFlutterError(
@@ -859,15 +838,11 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
         val deviceId = gatt.device.address
         val characteristicId = characteristic.uuid.toString()
         val serviceUuid = characteristic.service?.uuid?.toString()
-        val future: ReadResultFuture?
-        synchronized(readResultFutureList) {
-            future = readResultFutureList.firstOrNull {
-                it.gatt === gatt &&
-                    it.deviceId == deviceId &&
-                    it.characteristicId == characteristicId &&
-                    it.serviceId == serviceUuid
-            }
-            future?.let { readResultFutureList.remove(it) }
+        val future = readOperations.takeOldest {
+            it.gatt === gatt &&
+                it.deviceId == deviceId &&
+                it.characteristicId == characteristicId &&
+                it.serviceId == serviceUuid
         }
         if (status != BluetoothGatt.GATT_SUCCESS) {
             UniversalBleLogger.logError(
@@ -984,7 +959,7 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
             // onCharacteristicWrite. The orphaned entry would take the next
             // write's completion, and after the reconnect every write would lag
             // by one and time out (#394).
-            if (!writeResultFutureList.addIfLinkedUp(gatt, future)) {
+            if (!writeOperations.addIfLinkedUp(gatt, future, ::isLinkUp)) {
                 callback(Result.failure(deviceDisconnectedError()))
                 return
             }
@@ -1036,10 +1011,11 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
     }
 
     private fun withdrawWriteFuture(future: WriteResultFuture) {
-        synchronized(writeResultFutureList) {
-            writeResultFutureList.remove(future)
-        }
+        writeOperations.remove(future)
     }
+
+    private fun <T : PendingOperation> pendingOperations(label: String) =
+        PendingOperations<T>({ action: () -> Unit -> postToMainLooper(action) }, label)
 
     // Deliver on the main looper. Platform-channel replies must be sent there,
     // and because matching futures are removed from their list before delivery,
@@ -1064,15 +1040,11 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
         // OLDEST pending write on this characteristic — completing every match
         // would acknowledge later writes that are still in flight (or not yet
         // accepted natively) with this operation's status.
-        val future: WriteResultFuture?
-        synchronized(writeResultFutureList) {
-            future = writeResultFutureList.firstOrNull {
-                it.gatt === gatt &&
-                    it.deviceId == gatt?.device?.address &&
-                    it.characteristicId == characteristic.uuid.toString() &&
-                    it.serviceId == characteristic.service?.uuid?.toString()
-            }
-            future?.let { writeResultFutureList.remove(it) }
+        val future = writeOperations.takeOldest {
+            it.gatt === gatt &&
+                it.deviceId == gatt?.device?.address &&
+                it.characteristicId == characteristic.uuid.toString() &&
+                it.serviceId == characteristic.service?.uuid?.toString()
         }
         if (status != BluetoothGatt.GATT_SUCCESS) {
             UniversalBleLogger.logError(
@@ -1147,7 +1119,7 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
             // Register before issuing the read, as readValue does: the response
             // can otherwise arrive before the future is pending, and the link
             // check shares the lock with the disconnect cleanup (#394).
-            if (!readDescriptorResultFutureList.addIfLinkedUp(gatt, readFuture)) {
+            if (!descriptorReadOperations.addIfLinkedUp(gatt, readFuture, ::isLinkUp)) {
                 callback(Result.failure(deviceDisconnectedError()))
                 return
             }
@@ -1156,15 +1128,11 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
                 gatt.readDescriptor(gattDescriptor)
             } catch (e: Exception) {
                 // A callback or disconnect may already own the reply.
-                synchronized(readDescriptorResultFutureList) {
-                    if (!readDescriptorResultFutureList.remove(readFuture)) return
-                }
+                if (!descriptorReadOperations.remove(readFuture)) return
                 throw e
             }
             if (!started) {
-                synchronized(readDescriptorResultFutureList) {
-                    if (!readDescriptorResultFutureList.remove(readFuture)) return
-                }
+                if (!descriptorReadOperations.remove(readFuture)) return
                 callback(
                     Result.failure(
                         createFlutterError(
@@ -1195,16 +1163,12 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
         status: Int,
         value: ByteArray,
     ) {
-        val future: ReadDescriptorResultFuture?
-        synchronized(readDescriptorResultFutureList) {
-            future = readDescriptorResultFutureList.firstOrNull {
-                it.gatt === gatt &&
-                    it.deviceId == gatt.device.address &&
-                    it.descriptorId == descriptor.uuid.toString() &&
-                    it.characteristicId == descriptor.characteristic.uuid.toString() &&
-                    it.serviceId == descriptor.characteristic.service.uuid.toString()
-            }
-            future?.let { readDescriptorResultFutureList.remove(it) }
+        val future = descriptorReadOperations.takeOldest {
+            it.gatt === gatt &&
+                it.deviceId == gatt.device.address &&
+                it.descriptorId == descriptor.uuid.toString() &&
+                it.characteristicId == descriptor.characteristic.uuid.toString() &&
+                it.serviceId == descriptor.characteristic.service.uuid.toString()
         }
         if (future != null) {
             postToMainLooper {
@@ -1298,7 +1262,7 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
             // Same rule as writeValue: only register while the link is up, under
             // the lock the disconnect cleanup takes, so a request the stack
             // accepts and then drops cannot survive as a stale entry (#394).
-            if (!writeDescriptorResultFutureList.addIfLinkedUp(gatt, future)) {
+            if (!descriptorWriteOperations.addIfLinkedUp(gatt, future, ::isLinkUp)) {
                 callback(Result.failure(deviceDisconnectedError()))
                 return
             }
@@ -1345,9 +1309,7 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
     }
 
     private fun withdrawWriteDescriptorFuture(future: WriteDescriptorResultFuture) {
-        synchronized(writeDescriptorResultFutureList) {
-            writeDescriptorResultFutureList.remove(future)
-        }
+        descriptorWriteOperations.remove(future)
     }
 
     override fun requestMtu(deviceId: String, expectedMtu: Long, callback: (Result<Long>) -> Unit) {
@@ -1360,16 +1322,16 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
         }
         var reusedMtu: Int? = null
         var shouldRequest = false
-        synchronized(mtuResultFutureList) {
+        mtuOperations.withLock {
             val cached = negotiatedMtus[gatt]
             // Android 14+ ignores subsequent negotiations. Earlier versions
             // can still request an increase when the observed MTU is smaller.
             if (cached != null && canReuseNegotiatedMtu(cached, expectedMtu.toInt(), Build.VERSION.SDK_INT)) {
                 reusedMtu = cached
             } else {
-                val alreadyPending = mtuResultFutureList.any { it.gatt === gatt }
+                val alreadyPending = mtuOperations.any { it.gatt === gatt }
                 // Register before requestMtu: its callback can arrive immediately.
-                mtuResultFutureList.add(MtuResultFuture(deviceId, gatt, callback))
+                mtuOperations.add(MtuResultFuture(deviceId, gatt, callback))
                 shouldRequest = !alreadyPending
             }
         }
@@ -1408,11 +1370,9 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
     }
 
     private fun completeMtu(gatt: BluetoothGatt, result: Result<Long>) {
-        val pending: List<MtuResultFuture>
-        synchronized(mtuResultFutureList) {
+        val pending = mtuOperations.withLock {
             result.getOrNull()?.let { negotiatedMtus[gatt] = it.toInt() }
-            pending = mtuResultFutureList.filter { it.gatt === gatt }
-            mtuResultFutureList.removeAll(pending)
+            mtuOperations.drainMatching { it.gatt === gatt }
         }
         // GATT callbacks run on Binder threads. Match the main-looper delivery
         // used by other BLE completions, after removing requests under the lock.
@@ -1503,36 +1463,17 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
     /**
      * Whether [gatt] has a link the platform can deliver operations on.
      *
-     * `connectedGatts` is updated from `onConnectionStateChange` on a binder
-     * thread, so an operation must read this inside the same lock that the
-     * disconnect cleanup takes: either the check sees the link already gone and
-     * refuses the call, or the pending result is registered in time for the
-     * cleanup to sweep it. Reading it outside that lock leaves a window where
-     * the check passes, cleanup sweeps, and the result is added afterwards —
-     * stranded until a later callback completes it one behind (#394).
+     * Client state is updated from `onConnectionStateChange` on a binder
+     * thread, so an operation must read this inside the lock its pending
+     * collection takes (see [PendingOperations.addIfLinkedUp]): either the
+     * check sees the link already gone and refuses the call, or the pending
+     * result is registered in time for the cleanup sweep to fail it. Reading it
+     * outside that lock leaves a window where the check passes, cleanup sweeps,
+     * and the result is added afterwards — stranded until a later callback
+     * completes it one behind (#394).
      */
     private fun isLinkUp(gatt: BluetoothGatt): Boolean =
         gattRegistry.find(gatt)?.isLinkUp == true
-
-    /**
-     * Adds [future] to this pending list while holding its lock, but only if
-     * [gatt] still has a live link. Returns whether it was added; a caller that
-     * gets false must fail its call with `deviceDisconnected` instead of
-     * submitting the operation.
-     *
-     * Adding under the list's own lock is what closes the race described in
-     * [isLinkUp]: the disconnect cleanup sweeps the same list under the same
-     * lock.
-     */
-    private fun <T> MutableList<T>.addIfLinkedUp(gatt: BluetoothGatt, future: T): Boolean =
-        synchronized(this) {
-            if (isLinkUp(gatt)) {
-                add(future)
-                true
-            } else {
-                false
-            }
-        }
 
     private fun deviceDisconnectedError(): FlutterError = createFlutterError(
         UniversalBleErrorCode.DEVICE_DISCONNECTED,
@@ -1710,21 +1651,19 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
 
             if (gatt.discoverServices()) {
                 // Completed by onServicesDiscovered on a binder thread.
-                synchronized(discoverServicesFutureList) {
-                    discoverServicesFutureList.add(
-                        DiscoverServicesFuture(
-                            gatt,
-                            device.address,
-                            false
-                        ) { uuids: Result<List<UniversalBleService>> ->
-                            if (uuids.isSuccess) {
-                                updateCallback(uuids.getOrNull()?.map { it.uuid })
-                            } else {
-                                updateCallback(null)
-                            }
+                discoveryOperations.add(
+                    DiscoverServicesFuture(
+                        gatt,
+                        device.address,
+                        false
+                    ) { uuids: Result<List<UniversalBleService>> ->
+                        if (uuids.isSuccess) {
+                            updateCallback(uuids.getOrNull()?.map { it.uuid })
+                        } else {
+                            updateCallback(null)
                         }
-                    )
-                }
+                    }
+                )
                 return
             }
         }
@@ -1795,7 +1734,7 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
         failPendingOperations(::owns)
         // The observed MTU belonged to the link that is gone; the next
         // connection negotiates its own.
-        synchronized(mtuResultFutureList) {
+        mtuOperations.withLock {
             if (gatt != null) {
                 negotiatedMtus.remove(gatt)
             } else {
@@ -1816,130 +1755,15 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
         owns: (futureGatt: BluetoothGatt, futureDeviceId: String) -> Boolean,
     ) {
         val error: FlutterError = deviceDisconnectedError()
-        val pendingReads: List<ReadResultFuture>
-        synchronized(readResultFutureList) {
-            pendingReads = readResultFutureList.filter {
-                owns(it.gatt, it.deviceId)
-            }
-            readResultFutureList.removeAll(pendingReads)
-        }
-        for (future in pendingReads) {
-            postToMainLooper {
-                try {
-                    future.result(Result.failure(error))
-                } catch (e: Exception) {
-                    UniversalBleLogger.logError("Read completion delivery failed: $e")
-                }
-            }
-        }
-        val pendingWrites: List<WriteResultFuture>
-        synchronized(writeResultFutureList) {
-            pendingWrites = writeResultFutureList.filter {
-                owns(it.gatt, it.deviceId)
-            }
-            writeResultFutureList.removeAll(pendingWrites)
-        }
-        for (future in pendingWrites) {
-            postToMainLooper {
-                try {
-                    future.result(Result.failure(error))
-                } catch (e: Exception) {
-                    UniversalBleLogger.logError("Write completion delivery failed: $e")
-                }
-            }
-        }
-        val pendingDescriptorReads: List<ReadDescriptorResultFuture>
-        synchronized(readDescriptorResultFutureList) {
-            pendingDescriptorReads = readDescriptorResultFutureList.filter {
-                owns(it.gatt, it.deviceId)
-            }
-            readDescriptorResultFutureList.removeAll(pendingDescriptorReads)
-        }
-        for (future in pendingDescriptorReads) {
-            postToMainLooper {
-                try {
-                    future.result(Result.failure(error))
-                } catch (e: Exception) {
-                    UniversalBleLogger.logError("Read descriptor completion delivery failed: $e")
-                }
-            }
-        }
-        val pendingDescriptorWrites: List<WriteDescriptorResultFuture>
-        synchronized(writeDescriptorResultFutureList) {
-            pendingDescriptorWrites = writeDescriptorResultFutureList.filter {
-                owns(it.gatt, it.deviceId)
-            }
-            writeDescriptorResultFutureList.removeAll(pendingDescriptorWrites)
-        }
-        for (future in pendingDescriptorWrites) {
-            postToMainLooper {
-                try {
-                    future.result(Result.failure(error))
-                } catch (e: Exception) {
-                    UniversalBleLogger.logError("Write descriptor completion delivery failed: $e")
-                }
-            }
-        }
-        val pendingSubscriptions: List<SubscriptionResultFuture>
-        synchronized(subscriptionResultFutureList) {
-            pendingSubscriptions = subscriptionResultFutureList.filter {
-                owns(it.gatt, it.deviceId)
-            }
-            subscriptionResultFutureList.removeAll(pendingSubscriptions)
-        }
-        for (future in pendingSubscriptions) {
-            postToMainLooper {
-                try {
-                    future.result(Result.failure(error))
-                } catch (e: Exception) {
-                    UniversalBleLogger.logError("Subscription completion delivery failed: $e")
-                }
-            }
-        }
-        val pendingMtus: List<MtuResultFuture>
-        synchronized(mtuResultFutureList) {
-            pendingMtus = mtuResultFutureList.filter {
-                owns(it.gatt, it.deviceId)
-            }
-            mtuResultFutureList.removeAll(pendingMtus)
-        }
-        for (future in pendingMtus) {
-            postMtuResult(future.result, Result.failure(error))
-        }
-        val pendingDiscoveries: List<DiscoverServicesFuture>
-        synchronized(discoverServicesFutureList) {
-            pendingDiscoveries = discoverServicesFutureList.filter {
-                owns(it.gatt, it.deviceId)
-            }
-            discoverServicesFutureList.removeAll(pendingDiscoveries)
-        }
-        for (future in pendingDiscoveries) {
-            postToMainLooper {
-                try {
-                    future.result(Result.failure(error))
-                } catch (e: Exception) {
-                    UniversalBleLogger.logError(
-                        "Discover services completion delivery failed: $e"
-                    )
-                }
-            }
-        }
-        val pendingRssis: List<RssiResultFuture>
-        synchronized(rssiResultFutureList) {
-            pendingRssis = rssiResultFutureList.filter {
-                owns(it.gatt, it.deviceId)
-            }
-            rssiResultFutureList.removeAll(pendingRssis)
-        }
-        for (future in pendingRssis) {
-            postToMainLooper {
-                try {
-                    future.result(Result.failure(error))
-                } catch (e: Exception) {
-                    UniversalBleLogger.logError("RSSI completion delivery failed: $e")
-                }
-            }
-        }
+        val matches = { future: PendingOperation -> owns(future.gatt, future.deviceId) }
+        readOperations.failMatching(error, matches)
+        writeOperations.failMatching(error, matches)
+        descriptorReadOperations.failMatching(error, matches)
+        descriptorWriteOperations.failMatching(error, matches)
+        subscriptionOperations.failMatching(error, matches)
+        mtuOperations.failMatching(error, matches)
+        discoveryOperations.failMatching(error, matches)
+        rssiOperations.failMatching(error, matches)
     }
 
     private fun cleanConnection(gatt: BluetoothGatt) {
@@ -2205,16 +2029,12 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
         // testOptions.unitTests.returnDefaultValues, which would also make
         // every other unstubbed android.jar call in the suite fail silently.
         if (descriptor != null) {
-            val future: WriteDescriptorResultFuture?
-            synchronized(writeDescriptorResultFutureList) {
-                future = writeDescriptorResultFutureList.firstOrNull {
-                    it.gatt === gatt &&
-                        it.deviceId == gatt?.device?.address &&
-                        it.descriptorId == descriptor.uuid.toString() &&
-                        it.characteristicId == descriptor.characteristic?.uuid?.toString() &&
-                        it.serviceId == descriptor.characteristic?.service?.uuid?.toString()
-                }
-                future?.let { writeDescriptorResultFutureList.remove(it) }
+            val future = descriptorWriteOperations.takeOldest {
+                it.gatt === gatt &&
+                    it.deviceId == gatt?.device?.address &&
+                    it.descriptorId == descriptor.uuid.toString() &&
+                    it.characteristicId == descriptor.characteristic?.uuid?.toString() &&
+                    it.serviceId == descriptor.characteristic?.service?.uuid?.toString()
             }
             if (future != null) {
                 postToMainLooper {
@@ -2248,21 +2068,17 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
         // Runs on a binder thread (the CCCD write callback): match and remove
         // under the lock, then complete on the main thread, where
         // platform-channel replies must be sent.
-        val future: SubscriptionResultFuture?
-        synchronized(subscriptionResultFutureList) {
-            // A replaced connection can report the same address and UUIDs.
-            // Only the exact GATT and descriptor that submitted the request own it.
-            future = subscriptionResultFutureList.firstOrNull {
-                it.gatt === gatt && it.descriptor === descriptor
-            } ?: subscriptionResultFutureList.firstOrNull {
-                // A discoverServices() completing between the CCCD write and its
-                // callback rebuilds the service tree, so the framework reports a
-                // fresh descriptor object for the same attribute. Match on that
-                // identity instead; without it the caller would await forever.
-                // The GATT check keeps a replaced connection out.
-                it.gatt === gatt && it.descriptor.sameAttributeAs(descriptor)
-            }
-            future?.let { subscriptionResultFutureList.remove(it) }
+        // A replaced connection can report the same address and UUIDs. Only the
+        // exact GATT and descriptor that submitted the request own it.
+        val future = subscriptionOperations.takeOldest {
+            it.gatt === gatt && it.descriptor === descriptor
+        } ?: subscriptionOperations.takeOldest {
+            // A discoverServices() completing between the CCCD write and its
+            // callback rebuilds the service tree, so the framework reports a
+            // fresh descriptor object for the same attribute. Match on that
+            // identity instead; without it the caller would await forever.
+            // The GATT check keeps a replaced connection out.
+            it.gatt === gatt && it.descriptor.sameAttributeAs(descriptor)
         }
         if (future == null) {
             return
