@@ -431,7 +431,7 @@ internal class GattCallbackCompletionTest {
             )
             true
         }
-        plugin.gattRegistry().put(gatt)
+        plugin.attachConnectedGatt(gatt)
 
         plugin.readValue(deviceAddress, serviceUuid.toString(), charUuid.toString()) {
             reads.add(it)
@@ -454,7 +454,7 @@ internal class GattCallbackCompletionTest {
         val characteristic = mockCharacteristic()
         val gatt = mockGattWithService(characteristic)
         Mockito.`when`(gatt.readCharacteristic(characteristic)).thenReturn(false)
-        plugin.gattRegistry().put(gatt)
+        plugin.attachConnectedGatt(gatt)
 
         plugin.readValue(deviceAddress, serviceUuid.toString(), charUuid.toString()) {
             reads.add(it)
@@ -483,7 +483,7 @@ internal class GattCallbackCompletionTest {
                 if (throwsOnRead) throw IllegalStateException("GATT client closed")
                 false
             }
-            plugin.gattRegistry().put(gatt)
+            plugin.attachConnectedGatt(gatt)
 
             plugin.readValue(deviceAddress, serviceUuid.toString(), charUuid.toString()) {
                 reads.add(it)
@@ -509,7 +509,7 @@ internal class GattCallbackCompletionTest {
         val gatt = mockGattWithService(characteristic)
         Mockito.`when`(gatt.readCharacteristic(characteristic))
             .thenThrow(IllegalStateException("Read failed"))
-        plugin.gattRegistry().put(gatt)
+        plugin.attachConnectedGatt(gatt)
 
         plugin.readValue(deviceAddress, serviceUuid.toString(), charUuid.toString()) {
             reads.add(it)
@@ -540,7 +540,7 @@ internal class GattCallbackCompletionTest {
             plugin.onDescriptorWrite(gatt, cccd, BluetoothGatt.GATT_SUCCESS)
             true
         }
-        plugin.gattRegistry().put(gatt)
+        plugin.attachConnectedGatt(gatt)
         val pending = plugin.getField<MutableList<SubscriptionResultFuture>>(
             "subscriptionResultFutureList"
         )
@@ -570,7 +570,7 @@ internal class GattCallbackCompletionTest {
         Mockito.`when`(characteristic.getDescriptor(ccdCharacteristic)).thenReturn(cccd)
         val gatt = mockGattWithService(characteristic)
         Mockito.`when`(gatt.writeDescriptor(cccd)).thenReturn(false)
-        plugin.gattRegistry().put(gatt)
+        plugin.attachConnectedGatt(gatt)
 
         plugin.setNotifiable(
             deviceAddress,

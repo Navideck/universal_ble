@@ -348,6 +348,8 @@ You can enable automatic reconnection by setting the `autoConnect` parameter to 
 await bleDevice.connect(autoConnect: true);
 ```
 
+While the link is down — after the plugin reports a disconnection and before the system reconnects the client — a read, write, descriptor access or subscription to that device fails right away on Android with `UniversalBleErrorCode.deviceDisconnected` instead of waiting for the request timeout. Wait for the next connected event on `connectionStream` before issuing requests again; requests are not queued across the gap.
+
 #### Background connection events (iOS/macOS)
 
 By default, a suspended app does not get woken for connection events. Set `AppleConnectionOptions` to have the system alert the user and relaunch your app into the background when a connection event occurs while the app is suspended — e.g. to keep reacting to a previously paired peripheral (auto-reconnect) during a workout while the phone is locked. Requires the `bluetooth-central` background mode on iOS.

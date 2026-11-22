@@ -67,7 +67,7 @@ internal class WriteRefusalTest {
     }
 
     private fun pluginWithGatt(): UniversalBlePlugin =
-        pluginWithInlineHandler().also { it.gattRegistry().put(gatt) }
+        pluginWithInlineHandler().also { it.attachConnectedGatt(gatt) }
 
     private fun UniversalBlePlugin.pendingWrites(): List<WriteResultFuture> =
         getField("writeResultFutureList")
