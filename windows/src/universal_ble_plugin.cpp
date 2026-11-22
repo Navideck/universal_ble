@@ -586,6 +586,11 @@ void UniversalBlePlugin::ReadValue(
                                                          characteristic);
     const GattCharacteristic gatt_characteristic =
         gatt_characteristic_lease.characteristic.obj;
+    if (!HasLiveLink(bluetooth_agent)) {
+      result(create_flutter_error(UniversalBleErrorCode::kDeviceDisconnected,
+                                  "Device Disconnected"));
+      return;
+    }
 
     const auto properties = gatt_characteristic.CharacteristicProperties();
     if ((properties & GattCharacteristicProperties::Read) ==
@@ -679,6 +684,11 @@ void UniversalBlePlugin::WriteValue(
                                                          characteristic);
     const GattCharacteristic gatt_characteristic =
         gatt_characteristic_lease.characteristic.obj;
+    if (!HasLiveLink(bluetooth_agent)) {
+      result(create_flutter_error(UniversalBleErrorCode::kDeviceDisconnected,
+                                  "Device Disconnected"));
+      return;
+    }
     const auto properties = gatt_characteristic.CharacteristicProperties();
 
     auto write_option = GattWriteOption::WriteWithResponse;
@@ -785,6 +795,11 @@ void UniversalBlePlugin::ReadDescriptorValue(
                                                          characteristic);
     const GattCharacteristic gatt_characteristic =
         gatt_characteristic_lease.characteristic.obj;
+    if (!HasLiveLink(bluetooth_agent)) {
+      result(create_flutter_error(UniversalBleErrorCode::kDeviceDisconnected,
+                                  "Device Disconnected"));
+      return;
+    }
 
     gatt_characteristic
         .GetDescriptorsForUuidAsync(uuid_to_guid(descriptor),
@@ -920,6 +935,11 @@ void UniversalBlePlugin::WriteDescriptorValue(
                                                          characteristic);
     const GattCharacteristic gatt_characteristic =
         gatt_characteristic_lease.characteristic.obj;
+    if (!HasLiveLink(bluetooth_agent)) {
+      result(create_flutter_error(UniversalBleErrorCode::kDeviceDisconnected,
+                                  "Device Disconnected"));
+      return;
+    }
 
     gatt_characteristic
         .GetDescriptorsForUuidAsync(uuid_to_guid(descriptor),
@@ -2442,6 +2462,22 @@ std::shared_ptr<BluetoothDeviceAgent> UniversalBlePlugin::GetConnectedDevice(
   return it == connected_devices_.end() ? nullptr : it->second;
 }
 
+bool UniversalBlePlugin::HasLiveLink(
+    const std::shared_ptr<BluetoothDeviceAgent> &device_agent) {
+  if (!device_agent || !device_agent->IsActive()) return false;
+  try {
+    return device_agent->device.ConnectionStatus() ==
+           BluetoothConnectionStatus::Connected;
+  } catch (const hresult_error &err) {
+    UniversalBleLogger::LogWarning(
+        "HasLiveLink: ConnectionStatus hresult_error hr=" +
+        std::to_string(err.code()));
+  } catch (...) {
+    UniversalBleLogger::LogWarning("HasLiveLink: ConnectionStatus failed");
+  }
+  return true;
+}
+
 void UniversalBlePlugin::InvalidateConnectAttempt(
     const uint64_t bluetooth_address) {
   std::lock_guard<std::mutex> lock(connected_devices_mutex_);
@@ -3071,6 +3107,13 @@ fire_and_forget UniversalBlePlugin::SetNotifiableAsync(
 
     stage = "lookup-characteristic";
     auto gatt_char = device_agent->FetchCharacteristic(service, characteristic);
+
+    stage = "check-link";
+    if (!HasLiveLink(device_agent)) {
+      reply(create_flutter_error(UniversalBleErrorCode::kDeviceDisconnected,
+                                 "Device Disconnected"));
+      co_return;
+    }
 
     const auto properties = gatt_char.obj.CharacteristicProperties();
     auto descriptor_value =
