@@ -579,7 +579,7 @@ class UniversalBleLinux extends UniversalBlePlatform {
     if (!device.connected) {
       throw UniversalBleException(
         code: UniversalBleErrorCode.deviceDisconnected,
-        message: 'Device not connected',
+        message: 'Device Disconnected',
       );
     }
     return device;
