@@ -1,11 +1,8 @@
 package com.navideck.universal_ble
 
-import android.bluetooth.BluetoothDevice
 import android.bluetooth.BluetoothGatt
 import android.bluetooth.BluetoothGattCharacteristic
 import android.bluetooth.BluetoothGattDescriptor
-import android.bluetooth.BluetoothGattService
-import android.os.Handler
 import java.util.UUID
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -28,70 +25,19 @@ import org.mockito.Mockito
  * connection callbacks.
  */
 internal class LinkLossOperationTest {
-    private val deviceAddress = "AA:BB:CC:DD:EE:FF"
-    private val serviceUuid = UUID.fromString("0000fff0-0000-1000-8000-00805f9b34fb")
-    private val charUuid = UUID.fromString("0000fff1-0000-1000-8000-00805f9b34fb")
-    private val cccdUuid = UUID.fromString("00002902-0000-1000-8000-00805f9b34fb")
-    private val descriptorUuid = UUID.fromString("00002901-0000-1000-8000-00805f9b34fb")
+    private val deviceAddress = GattIds.ADDRESS
+    private val serviceUuid = GattIds.SERVICE
+    private val charUuid = GattIds.CHARACTERISTIC
+    private val cccdUuid = GattIds.CCCD
+    private val descriptorUuid = GattIds.DESCRIPTOR
 
-    private val service = Mockito.mock(BluetoothGattService::class.java)
-    private val characteristic = Mockito.mock(BluetoothGattCharacteristic::class.java)
-    private val gatt = Mockito.mock(BluetoothGatt::class.java)
-
-    init {
-        val device = Mockito.mock(BluetoothDevice::class.java)
-        Mockito.`when`(device.address).thenReturn(deviceAddress)
-        Mockito.`when`(gatt.device).thenReturn(device)
-
-        Mockito.`when`(service.uuid).thenReturn(serviceUuid)
-        Mockito.`when`(characteristic.uuid).thenReturn(charUuid)
-        Mockito.`when`(characteristic.service).thenReturn(service)
-        Mockito.`when`(characteristic.properties).thenReturn(
-            BluetoothGattCharacteristic.PROPERTY_READ or
-                BluetoothGattCharacteristic.PROPERTY_WRITE or
-                BluetoothGattCharacteristic.PROPERTY_WRITE_NO_RESPONSE,
-        )
-        Mockito.`when`(service.getCharacteristic(charUuid)).thenReturn(characteristic)
-        Mockito.`when`(gatt.getService(serviceUuid)).thenReturn(service)
-        // JVM tests run with Build.VERSION.SDK_INT == 0, so the pre-33 overloads
-        // are the ones reached. The stack accepts each operation unless a test
-        // says otherwise, as it does on a live link.
-        Mockito.`when`(
-            gatt.writeCharacteristic(Mockito.any(BluetoothGattCharacteristic::class.java))
-        ).thenReturn(true)
-        Mockito.`when`(
-            gatt.readCharacteristic(Mockito.any(BluetoothGattCharacteristic::class.java))
-        ).thenReturn(true)
-        Mockito.`when`(
-            gatt.readDescriptor(Mockito.any(BluetoothGattDescriptor::class.java))
-        ).thenReturn(true)
-        Mockito.`when`(
-            gatt.writeDescriptor(Mockito.any(BluetoothGattDescriptor::class.java))
-        ).thenReturn(true)
-        Mockito.`when`(
-            gatt.setCharacteristicNotification(
-                Mockito.any(BluetoothGattCharacteristic::class.java),
-                Mockito.anyBoolean(),
-            )
-        ).thenReturn(true)
-    }
-
-    private fun plugin(): UniversalBlePlugin {
-        val plugin = UniversalBlePlugin()
-        // Completions are posted to the main looper; run them inline so the test
-        // observes them synchronously.
-        val handler = Mockito.mock(Handler::class.java)
-        Mockito.doAnswer { invocation ->
-            invocation.getArgument<Runnable>(0).run()
-            true
-        }.`when`(handler).post(Mockito.any())
-        plugin.setField("mainThreadHandler", handler)
-        return plugin
-    }
+    private val fixture = GattFixture().also { it.acceptOperations() }
+    private val gatt get() = fixture.gatt
+    private val characteristic get() = fixture.characteristic
 
     /** A plugin with an autoConnect client that has reported STATE_CONNECTED. */
     private fun connectedAutoConnectPlugin(): UniversalBlePlugin {
-        val plugin = plugin()
+        val plugin = pluginWithInlineLooper()
         plugin.autoConnectDevices().add(deviceAddress)
         plugin.gattRegistry().put(gatt)
         report(plugin, BluetoothGatt.STATE_CONNECTED)
@@ -101,21 +47,6 @@ internal class LinkLossOperationTest {
     private fun report(plugin: UniversalBlePlugin, state: Int, status: Int = BluetoothGatt.GATT_SUCCESS) {
         plugin.onConnectionStateChange(gatt, status, state)
     }
-
-    private fun UniversalBlePlugin.pendingWrites(): MutableList<WriteResultFuture> =
-        getField("writeResultFutureList")
-
-    private fun UniversalBlePlugin.pendingDescriptorWrites(): MutableList<WriteDescriptorResultFuture> =
-        getField("writeDescriptorResultFutureList")
-
-    private fun UniversalBlePlugin.pendingReads(): MutableList<ReadResultFuture> =
-        getField("readResultFutureList")
-
-    private fun UniversalBlePlugin.pendingDescriptorReads(): MutableList<ReadDescriptorResultFuture> =
-        getField("readDescriptorResultFutureList")
-
-    private fun UniversalBlePlugin.pendingSubscriptions(): MutableList<SubscriptionResultFuture> =
-        getField("subscriptionResultFutureList")
 
     private fun errorCode(result: Result<*>): String? =
         (result.exceptionOrNull() as? FlutterError)?.code
@@ -224,13 +155,10 @@ internal class LinkLossOperationTest {
 
     @Test
     fun theBackstopTouchesOnlyTheReconnectingClient() {
-        val plugin = plugin()
+        val plugin = pluginWithInlineLooper()
         val reconnecting = gatt
-        val other = Mockito.mock(BluetoothGatt::class.java)
-        val otherDevice = Mockito.mock(BluetoothDevice::class.java)
-        val otherAddress = "11:22:33:44:55:66"
-        Mockito.`when`(otherDevice.address).thenReturn(otherAddress)
-        Mockito.`when`(other.device).thenReturn(otherDevice)
+        val otherAddress = GattIds.OTHER_ADDRESS
+        val other = mockGatt(otherAddress)
         plugin.autoConnectDevices().add(deviceAddress)
         plugin.gattRegistry().put(other)
         plugin.connectedGatts().add(other)
@@ -275,14 +203,8 @@ internal class LinkLossOperationTest {
     @Test
     fun readsDescriptorWritesAndSubscriptionsAreRefusedAfterALinkLoss() {
         val plugin = connectedAutoConnectPlugin()
-        val cccd = Mockito.mock(BluetoothGattDescriptor::class.java)
-        Mockito.`when`(cccd.uuid).thenReturn(cccdUuid)
-        Mockito.`when`(cccd.characteristic).thenReturn(characteristic)
-        Mockito.`when`(characteristic.getDescriptor(cccdUuid)).thenReturn(cccd)
-        val descriptor = Mockito.mock(BluetoothGattDescriptor::class.java)
-        Mockito.`when`(descriptor.uuid).thenReturn(descriptorUuid)
-        Mockito.`when`(descriptor.characteristic).thenReturn(characteristic)
-        Mockito.`when`(characteristic.getDescriptor(descriptorUuid)).thenReturn(descriptor)
+        fixture.descriptor(cccdUuid)
+        fixture.descriptor(descriptorUuid)
 
         report(plugin, BluetoothGatt.STATE_DISCONNECTED)
 

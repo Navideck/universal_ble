@@ -38,34 +38,18 @@ internal class DisconnectCloseTest {
             null
         }
 
-    private fun plugin(): UniversalBlePlugin {
-        val plugin = UniversalBlePlugin()
-        // Callbacks are posted to the main looper; run them inline.
-        val handler = Mockito.mock(Handler::class.java)
-        Mockito.doAnswer { invocation ->
-            invocation.getArgument<Runnable>(0).run()
-            true
-        }.`when`(handler).post(any())
-        plugin.setField("mainThreadHandler", handler)
-        plugin.setField("callbackChannel", callbackChannel)
-        return plugin
-    }
+    private fun plugin(): UniversalBlePlugin =
+        pluginWithInlineLooper().also { it.setField("callbackChannel", callbackChannel) }
 
     private fun closingGatts(plugin: UniversalBlePlugin): MutableSet<BluetoothGatt> =
         plugin.getField("closingGatts")
 
-    private fun mockGatt(): BluetoothGatt {
-        val device = Mockito.mock(BluetoothDevice::class.java)
-        Mockito.`when`(device.address).thenReturn(deviceAddress)
-        val gatt = Mockito.mock(BluetoothGatt::class.java)
-        Mockito.`when`(gatt.device).thenReturn(device)
-        return gatt
-    }
+
 
     @Test
     fun closingClientIsClosedAndReportedOnDisconnect() {
         val plugin = plugin()
-        val gatt = mockGatt()
+        val gatt = mockGatt(deviceAddress)
         closingGatts(plugin).add(gatt)
 
         plugin.onConnectionStateChange(
@@ -80,7 +64,7 @@ internal class DisconnectCloseTest {
     @Test
     fun peerDisconnectAfterConnectReportsDeviceDisconnected() {
         val plugin = plugin()
-        val gatt = mockGatt()
+        val gatt = mockGatt(deviceAddress)
         plugin.gattRegistry().put(gatt)
 
         plugin.onConnectionStateChange(
@@ -108,7 +92,7 @@ internal class DisconnectCloseTest {
     @Test
     fun disconnectBeforeConnectReportsConnectionFailed() {
         val plugin = plugin()
-        val gatt = mockGatt()
+        val gatt = mockGatt(deviceAddress)
         plugin.gattRegistry().put(gatt)
 
         plugin.onConnectionStateChange(
@@ -132,8 +116,8 @@ internal class DisconnectCloseTest {
     @Test
     fun supersededClientConnectIsNotReported() {
         val plugin = plugin()
-        val oldGatt = mockGatt()
-        val newGatt = mockGatt()
+        val oldGatt = mockGatt(deviceAddress)
+        val newGatt = mockGatt(deviceAddress)
         plugin.gattRegistry().put(newGatt)
 
         plugin.onConnectionStateChange(
@@ -146,8 +130,8 @@ internal class DisconnectCloseTest {
     @Test
     fun supersededClientClosesWithoutTouchingTheNewOne() {
         val plugin = plugin()
-        val oldGatt = mockGatt()
-        val newGatt = mockGatt()
+        val oldGatt = mockGatt(deviceAddress)
+        val newGatt = mockGatt(deviceAddress)
         closingGatts(plugin).add(oldGatt)
         plugin.gattRegistry().put(newGatt)
 
@@ -163,7 +147,7 @@ internal class DisconnectCloseTest {
     @Test
     fun connectThatReportsBeforeItIsRegisteredIsStillDelivered() {
         val plugin = plugin()
-        val gatt = mockGatt()
+        val gatt = mockGatt(deviceAddress)
         val device = Mockito.mock(BluetoothDevice::class.java)
         Mockito.`when`(device.address).thenReturn(deviceAddress)
         // connectGatt() is given no Handler, so the stack can report CONNECTED
@@ -201,7 +185,7 @@ internal class DisconnectCloseTest {
     @Test
     fun connectStateFromAClientBeingClosedIsDropped() {
         val plugin = plugin()
-        val gatt = mockGatt()
+        val gatt = mockGatt(deviceAddress)
         // disconnect() is tearing this client down; it must not come back as a
         // connection for the address.
         closingGatts(plugin).add(gatt)
@@ -217,11 +201,11 @@ internal class DisconnectCloseTest {
     fun replacedClientDisconnectDoesNotReportOrFailTheNewConnection() {
         val plugin = plugin()
         // connect() replaced the client, so the old one is never in closingGatts.
-        val replaced = mockGatt()
-        val current = mockGatt()
+        val replaced = mockGatt(deviceAddress)
+        val current = mockGatt(deviceAddress)
         plugin.gattRegistry().put(current)
         val reads = mutableListOf<Result<ByteArray>>()
-        plugin.getField<MutableList<ReadResultFuture>>("readResultFutureList").add(
+        plugin.pendingReads().add(
             ReadResultFuture(current, deviceAddress, charUuid.toString(), serviceUuid.toString()) {
                 reads.add(it)
             }
@@ -238,7 +222,7 @@ internal class DisconnectCloseTest {
         assertTrue(reads.isEmpty(), "the current connection's read is still in flight")
         assertEquals(
             1,
-            plugin.getField<MutableList<ReadResultFuture>>("readResultFutureList").size
+            plugin.pendingReads().size
         )
         Mockito.verify(replaced).close()
     }

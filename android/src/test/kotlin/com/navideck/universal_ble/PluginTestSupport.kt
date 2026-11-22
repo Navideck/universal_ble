@@ -43,3 +43,30 @@ internal fun UniversalBlePlugin.attachConnectedGatt(gatt: BluetoothGatt) {
     gattRegistry().put(gatt)
     connectedGatts().add(gatt)
 }
+
+// The pending-operation lists, typed, so a test does not spell out a reflection
+// key every time. They are the live lists, not copies.
+
+internal fun UniversalBlePlugin.pendingReads(): MutableList<ReadResultFuture> =
+    getField("readResultFutureList")
+
+internal fun UniversalBlePlugin.pendingWrites(): MutableList<WriteResultFuture> =
+    getField("writeResultFutureList")
+
+internal fun UniversalBlePlugin.pendingDescriptorReads(): MutableList<ReadDescriptorResultFuture> =
+    getField("readDescriptorResultFutureList")
+
+internal fun UniversalBlePlugin.pendingDescriptorWrites(): MutableList<WriteDescriptorResultFuture> =
+    getField("writeDescriptorResultFutureList")
+
+internal fun UniversalBlePlugin.pendingSubscriptions(): MutableList<SubscriptionResultFuture> =
+    getField("subscriptionResultFutureList")
+
+internal fun UniversalBlePlugin.pendingMtus(): MutableList<MtuResultFuture> =
+    getField("mtuResultFutureList")
+
+internal fun UniversalBlePlugin.pendingRssis(): MutableList<RssiResultFuture> =
+    getField("rssiResultFutureList")
+
+internal fun UniversalBlePlugin.pendingDiscoveries(): MutableList<DiscoverServicesFuture> =
+    getField("discoverServicesFutureList")
