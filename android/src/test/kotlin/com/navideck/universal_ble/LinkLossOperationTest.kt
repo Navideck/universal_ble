@@ -243,20 +243,56 @@ internal class LinkLossOperationTest {
                 otherResult.add(it)
             }
         )
+
+        report(plugin, BluetoothGatt.STATE_DISCONNECTED)
+
+        // Registered after the disconnect sweep, so only the reconnect backstop
+        // can fail it. A write registered before the sweep would be failed by
+        // cleanUpConnection and would not exercise the backstop at all.
         val reconnectingResult = mutableListOf<Result<Unit>>()
         plugin.pendingWrites().add(
             WriteResultFuture(
                 reconnecting, deviceAddress, charUuid.toString(), serviceUuid.toString()
             ) { reconnectingResult.add(it) }
         )
+        assertEquals(0, reconnectingResult.size, "the entry must outlive the disconnect sweep")
 
-        report(plugin, BluetoothGatt.STATE_DISCONNECTED)
         report(plugin, BluetoothGatt.STATE_CONNECTED)
 
         assertEquals(0, otherResult.size, "another device's write is still in flight")
         assertEquals(1, plugin.pendingWrites().size)
         assertEquals(1, reconnectingResult.size)
         assertDeviceDisconnected(reconnectingResult.single())
+    }
+
+    @Test
+    fun theBackstopRunsBeforeTheNewLinkAcceptsRequests() {
+        val plugin = connectedAutoConnectPlugin()
+        report(plugin, BluetoothGatt.STATE_DISCONNECTED)
+
+        // A request submitted while the sweep holds the list lock must still be
+        // refused: the link may only be marked up after the stale entries are
+        // gone, or the sweep would also fail a write the stack just accepted.
+        val stale = mutableListOf<ReadResultFuture>()
+        stale.add(
+            ReadResultFuture(gatt, deviceAddress, charUuid.toString(), serviceUuid.toString()) {}
+        )
+        val linkUpDuringSweep = mutableListOf<Boolean>()
+        plugin.setField("readResultFutureList", object : MutableList<ReadResultFuture> by stale {
+            override fun iterator(): MutableIterator<ReadResultFuture> {
+                linkUpDuringSweep.add(plugin.connectedGatts().contains(gatt))
+                return stale.iterator()
+            }
+        })
+
+        report(plugin, BluetoothGatt.STATE_CONNECTED)
+
+        assertTrue(linkUpDuringSweep.isNotEmpty(), "the reconnect must sweep the stale entry")
+        assertTrue(
+            linkUpDuringSweep.none { it },
+            "the backstop must sweep before marking the link up",
+        )
+        assertTrue(plugin.connectedGatts().contains(gatt), "the new link is up afterwards")
     }
 
     @Test
@@ -334,5 +370,55 @@ internal class LinkLossOperationTest {
             .readDescriptor(Mockito.any(BluetoothGattDescriptor::class.java))
         Mockito.verify(gatt, Mockito.never())
             .writeDescriptor(Mockito.any(BluetoothGattDescriptor::class.java))
+    }
+
+    @Test
+    fun aSubscriptionWithoutACccdIsAlsoRefusedAfterALinkLoss() {
+        // No CCCD is stubbed, so setNotifiable() takes its "some devices do not
+        // need CCCD" path: there is no pending result to sweep, and the local
+        // setCharacteristicNotification() would report success on a linkless
+        // client.
+        val plugin = connectedAutoConnectPlugin()
+        report(plugin, BluetoothGatt.STATE_DISCONNECTED)
+
+        val subscriptions = mutableListOf<Result<Unit>>()
+        plugin.setNotifiable(
+            deviceAddress,
+            serviceUuid.toString(),
+            charUuid.toString(),
+            BleInputProperty.NOTIFICATION,
+        ) { subscriptions.add(it) }
+
+        assertEquals(1, subscriptions.size)
+        assertDeviceDisconnected(subscriptions.single())
+        Mockito.verify(gatt, Mockito.never()).setCharacteristicNotification(
+            Mockito.any(BluetoothGattCharacteristic::class.java),
+            Mockito.anyBoolean(),
+        )
+    }
+
+    @Test
+    fun mtuDiscoveryAndRssiAreRefusedAfterALinkLoss() {
+        val plugin = connectedAutoConnectPlugin()
+        report(plugin, BluetoothGatt.STATE_DISCONNECTED)
+
+        val mtus = mutableListOf<Result<Long>>()
+        plugin.requestMtu(deviceAddress, 247L) { mtus.add(it) }
+        assertEquals(1, mtus.size)
+        assertDeviceDisconnected(mtus.single())
+
+        val rssis = mutableListOf<Result<Long>>()
+        plugin.readRssi(deviceAddress) { rssis.add(it) }
+        assertEquals(1, rssis.size)
+        assertDeviceDisconnected(rssis.single())
+
+        val discoveries = mutableListOf<Result<List<UniversalBleService>>>()
+        plugin.discoverServices(deviceAddress, false, null) { discoveries.add(it) }
+        assertEquals(1, discoveries.size)
+        assertDeviceDisconnected(discoveries.single())
+
+        Mockito.verify(gatt, Mockito.never()).requestMtu(Mockito.anyInt())
+        Mockito.verify(gatt, Mockito.never()).readRemoteRssi()
+        Mockito.verify(gatt, Mockito.never()).discoverServices()
     }
 }
