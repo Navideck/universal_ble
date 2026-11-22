@@ -38,8 +38,7 @@ internal class LinkLossOperationTest {
     /** A plugin with an autoConnect client that has reported STATE_CONNECTED. */
     private fun connectedAutoConnectPlugin(): UniversalBlePlugin {
         val plugin = pluginWithInlineLooper()
-        plugin.autoConnectDevices().add(deviceAddress)
-        plugin.gattRegistry().put(gatt)
+        plugin.gattRegistry().put(gatt, autoConnect = true)
         report(plugin, BluetoothGatt.STATE_CONNECTED)
         return plugin
     }
@@ -91,8 +90,9 @@ internal class LinkLossOperationTest {
         assertEquals(1, acks.size, "the write must fail instead of waiting for the Dart timeout")
         assertDeviceDisconnected(acks.single())
         assertTrue(plugin.pendingWrites().isEmpty(), "a refused write must not stay pending")
-        assertTrue(
-            plugin.awaitingReconnectGatts().contains(gatt),
+        assertEquals(
+            GattClient.State.AWAITING_RECONNECT,
+            plugin.gattClient(gatt)?.state,
             "autoConnect keeps the client open for the system to reconnect",
         )
         Mockito.verify(gatt, Mockito.never())
@@ -109,8 +109,9 @@ internal class LinkLossOperationTest {
 
         // Android reconnects the same BluetoothGatt instance.
         report(plugin, BluetoothGatt.STATE_CONNECTED)
-        assertTrue(
-            plugin.awaitingReconnectGatts().isEmpty(),
+        assertEquals(
+            GattClient.State.CONNECTED,
+            plugin.gattClient(gatt)?.state,
             "the client is connected again, so nothing is waiting for a reconnect",
         )
         val acks = mutableListOf<Result<Unit>>()
@@ -159,11 +160,9 @@ internal class LinkLossOperationTest {
         val reconnecting = gatt
         val otherAddress = GattIds.OTHER_ADDRESS
         val other = mockGatt(otherAddress)
-        plugin.autoConnectDevices().add(deviceAddress)
-        plugin.gattRegistry().put(other)
-        plugin.connectedGatts().add(other)
-        plugin.gattRegistry().put(reconnecting)
-        plugin.connectedGatts().add(reconnecting)
+        plugin.gattRegistry().put(other).setState(GattClient.State.CONNECTED)
+        plugin.gattRegistry().put(reconnecting, autoConnect = true)
+            .setState(GattClient.State.CONNECTED)
 
         val otherResult = mutableListOf<Result<Unit>>()
         plugin.pendingWrites().add(

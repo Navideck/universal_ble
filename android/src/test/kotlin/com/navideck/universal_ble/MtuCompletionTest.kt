@@ -26,7 +26,7 @@ internal class MtuCompletionTest {
 
     @AfterTest
     fun clearConnections() {
-        plugin.gattRegistry().snapshot().forEach { plugin.gattRegistry().remove(it) }
+        plugin.gattRegistry().snapshot().forEach { plugin.gattRegistry().finishClose(it) }
     }
 
     @Test

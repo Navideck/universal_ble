@@ -21,17 +21,9 @@ internal fun <T> UniversalBlePlugin.getField(name: String): T {
 
 internal fun UniversalBlePlugin.gattRegistry(): GattRegistry = getField("gattRegistry")
 
-@Suppress("UNCHECKED_CAST")
-internal fun UniversalBlePlugin.connectedGatts(): MutableSet<BluetoothGatt> =
-    getField("connectedGatts")
-
-@Suppress("UNCHECKED_CAST")
-internal fun UniversalBlePlugin.awaitingReconnectGatts(): MutableSet<BluetoothGatt> =
-    getField("awaitingReconnectGatts")
-
-@Suppress("UNCHECKED_CAST")
-internal fun UniversalBlePlugin.autoConnectDevices(): MutableSet<String> =
-    getField("autoConnectDevices")
+/** The plugin's tracked client for [gatt], if any. */
+internal fun UniversalBlePlugin.gattClient(gatt: BluetoothGatt): GattClient? =
+    gattRegistry().find(gatt)
 
 /**
  * Registers [gatt] as the plugin's client and marks its link up, as a
@@ -40,8 +32,7 @@ internal fun UniversalBlePlugin.autoConnectDevices(): MutableSet<String> =
  * instead of reaching the stack (#394).
  */
 internal fun UniversalBlePlugin.attachConnectedGatt(gatt: BluetoothGatt) {
-    gattRegistry().put(gatt)
-    connectedGatts().add(gatt)
+    gattRegistry().put(gatt).setState(GattClient.State.CONNECTED)
 }
 
 // The pending-operation lists, typed, so a test does not spell out a reflection

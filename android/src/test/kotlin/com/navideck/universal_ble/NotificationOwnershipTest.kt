@@ -108,8 +108,7 @@ internal class NotificationOwnershipTest {
     fun autoConnectClientKeepsDeliveringAcrossALinkLoss() {
         val plugin = plugin()
         val gatt = mockGatt(address)
-        plugin.gattRegistry().put(gatt)
-        plugin.getField<MutableSet<String>>("autoConnectDevices").add(address)
+        plugin.gattRegistry().put(gatt, autoConnect = true)
 
         // autoConnect keeps the client registered so Android can reconnect it.
         plugin.onConnectionStateChange(

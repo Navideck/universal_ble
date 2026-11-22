@@ -631,7 +631,7 @@ internal class GattCallbackCompletionTest {
         drainMainLooper()
 
         assertTrue(results.isEmpty(), "the replacement's read is still in flight")
-        assertSame(current, plugin.gattRegistry().find(deviceAddress))
+        assertSame(current, plugin.gattRegistry().find(deviceAddress)?.gatt)
     }
 
     @Test

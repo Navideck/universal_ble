@@ -10,6 +10,7 @@ import android.os.Handler
 import java.util.UUID
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNull
 import kotlin.test.assertSame
 import kotlin.test.assertTrue
 import org.mockito.ArgumentMatchers.any
@@ -41,16 +42,13 @@ internal class DisconnectCloseTest {
     private fun plugin(): UniversalBlePlugin =
         pluginWithInlineLooper().also { it.setField("callbackChannel", callbackChannel) }
 
-    private fun closingGatts(plugin: UniversalBlePlugin): MutableSet<BluetoothGatt> =
-        plugin.getField("closingGatts")
-
 
 
     @Test
     fun closingClientIsClosedAndReportedOnDisconnect() {
         val plugin = plugin()
         val gatt = mockGatt(deviceAddress)
-        closingGatts(plugin).add(gatt)
+        plugin.gattRegistry().beginClose(plugin.gattRegistry().put(gatt))
 
         plugin.onConnectionStateChange(
             gatt, BluetoothGatt.GATT_SUCCESS, BluetoothGatt.STATE_DISCONNECTED
@@ -58,7 +56,7 @@ internal class DisconnectCloseTest {
 
         Mockito.verify(gatt).close()
         assertEquals(listOf(listOf<Any?>(deviceAddress, false, null, null, null)), connectionChanges)
-        assertTrue(closingGatts(plugin).isEmpty())
+        assertNull(plugin.gattRegistry().find(gatt))
     }
 
     @Test
@@ -132,7 +130,7 @@ internal class DisconnectCloseTest {
         val plugin = plugin()
         val oldGatt = mockGatt(deviceAddress)
         val newGatt = mockGatt(deviceAddress)
-        closingGatts(plugin).add(oldGatt)
+        plugin.gattRegistry().beginClose(plugin.gattRegistry().put(oldGatt))
         plugin.gattRegistry().put(newGatt)
 
         plugin.onConnectionStateChange(
@@ -141,7 +139,7 @@ internal class DisconnectCloseTest {
 
         Mockito.verify(oldGatt).close()
         assertTrue(connectionChanges.isEmpty())
-        assertSame(newGatt, plugin.gattRegistry().find(deviceAddress))
+        assertSame(newGatt, plugin.gattRegistry().find(deviceAddress)?.gatt)
     }
 
     @Test
@@ -179,7 +177,7 @@ internal class DisconnectCloseTest {
             connectionChanges,
             "a link that reports before it is registered still belongs to this connect()",
         )
-        assertSame(gatt, plugin.gattRegistry().find(deviceAddress))
+        assertSame(gatt, plugin.gattRegistry().find(deviceAddress)?.gatt)
     }
 
     @Test
@@ -188,7 +186,7 @@ internal class DisconnectCloseTest {
         val gatt = mockGatt(deviceAddress)
         // disconnect() is tearing this client down; it must not come back as a
         // connection for the address.
-        closingGatts(plugin).add(gatt)
+        plugin.gattRegistry().beginClose(plugin.gattRegistry().put(gatt))
 
         plugin.onConnectionStateChange(
             gatt, BluetoothGatt.GATT_SUCCESS, BluetoothGatt.STATE_CONNECTED
@@ -200,7 +198,7 @@ internal class DisconnectCloseTest {
     @Test
     fun replacedClientDisconnectDoesNotReportOrFailTheNewConnection() {
         val plugin = plugin()
-        // connect() replaced the client, so the old one is never in closingGatts.
+        // connect() replaced the client, so the old one is never tracked as closing.
         val replaced = mockGatt(deviceAddress)
         val current = mockGatt(deviceAddress)
         plugin.gattRegistry().put(current)

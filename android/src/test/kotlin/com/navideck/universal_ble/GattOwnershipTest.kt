@@ -51,7 +51,7 @@ internal class GattOwnershipTest {
         background.put(gatt)
 
         assertTrue(background.isKnown(address))
-        assertSame(gatt, background.find(address))
+        assertSame(gatt, background.find(address)?.gatt)
         assertFalse(ui.isKnown(address))
         assertNull(ui.find(address))
     }
@@ -77,10 +77,10 @@ internal class GattOwnershipTest {
         first.put(firstGatt)
         second.put(secondGatt)
 
-        first.remove(firstGatt)
+        first.finishClose(first.find(firstGatt)!!)
 
         assertNull(first.find(address))
-        assertSame(secondGatt, second.find(address))
+        assertSame(secondGatt, second.find(address)?.gatt)
     }
 
     @Test
@@ -91,9 +91,9 @@ internal class GattOwnershipTest {
         registry.put(oldGatt)
         registry.put(newGatt)
 
-        registry.remove(oldGatt)
+        registry.finishClose(registry.find(oldGatt)!!)
 
-        assertSame(newGatt, registry.find(address))
+        assertSame(newGatt, registry.find(address)?.gatt)
     }
 
     @Test
