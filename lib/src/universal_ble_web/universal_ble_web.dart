@@ -368,6 +368,7 @@ class UniversalBleWeb extends UniversalBlePlatform {
       "SET_NOTIFY -> $deviceId $service $characteristic input=${bleInputProperty.name}",
       withTimestamp: true,
     );
+    await _requireConnectedDevice(deviceId);
     final bleCharacteristic = await _getBleCharacteristic(
       deviceId: deviceId,
       serviceId: service,
@@ -426,6 +427,7 @@ class UniversalBleWeb extends UniversalBlePlatform {
       "WRITE -> $deviceId $service $characteristic len=${value.length} property=${bleOutputProperty.name}",
       withTimestamp: true,
     );
+    await _requireConnectedDevice(deviceId);
     final bleCharacteristic = await _getBleCharacteristic(
       deviceId: deviceId,
       serviceId: service,
@@ -460,6 +462,7 @@ class UniversalBleWeb extends UniversalBlePlatform {
       "READ -> $deviceId $service $characteristic",
       withTimestamp: true,
     );
+    await _requireConnectedDevice(deviceId);
     var bleCharacteristic = await _getBleCharacteristic(
       deviceId: deviceId,
       serviceId: service,
@@ -490,6 +493,7 @@ class UniversalBleWeb extends UniversalBlePlatform {
       "READ_DESCRIPTOR -> $deviceId $service $characteristic $descriptor",
       withTimestamp: true,
     );
+    await _requireConnectedDevice(deviceId);
     var bleDescriptor = await _getBleDescriptor(
       deviceId: deviceId,
       serviceId: service,
@@ -519,6 +523,7 @@ class UniversalBleWeb extends UniversalBlePlatform {
       "WRITE_DESCRIPTOR -> $deviceId $service $characteristic $descriptor len=${value.length}",
       withTimestamp: true,
     );
+    await _requireConnectedDevice(deviceId);
     var bleDescriptor = await _getBleDescriptor(
       deviceId: deviceId,
       serviceId: service,
@@ -676,6 +681,31 @@ class UniversalBleWeb extends UniversalBlePlatform {
   }
 
   BluetoothDevice? _getDeviceById(String id) => _bluetoothDeviceList[id];
+
+  /// [deviceId]'s device, provided its GATT link is up.
+  ///
+  /// Web Bluetooth rejects a GATT operation on a disconnected device with a
+  /// generic `NetworkError`, and the service cache is cleared on disconnection,
+  /// so without this the call would surface an unclassified error — or
+  /// "characteristic not found" — instead of naming the condition, as Android
+  /// and Apple do.
+  Future<void> _requireConnectedDevice(String deviceId) async {
+    final device = _getDeviceById(deviceId);
+    if (device == null) {
+      throw UniversalBleException(
+        code: UniversalBleErrorCode.deviceNotFound,
+        message: '$deviceId Not Found',
+      );
+    }
+    // `connected` is seeded with the current GATT state, so the first event is
+    // the live value (the same way getConnectionState reads it).
+    if (!await device.connected.first) {
+      throw UniversalBleException(
+        code: UniversalBleErrorCode.deviceDisconnected,
+        message: 'Device $deviceId is not connected',
+      );
+    }
+  }
 
   /// Get services and their characteristics.
   /// Services and characteristics are cached.
