@@ -775,35 +775,32 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
             // call awaiting forever. Every access to the list holds its lock.
             // The link check shares the lock, so a disconnected client cannot
             // leave a read that the stack drops without a callback (#394).
-            val readFuture = ReadResultFuture(
+            submitGattRequest(
                 gatt,
-                gatt.device.address,
-                gattCharacteristic.uuid.toString(),
-                gattCharacteristic.service.uuid.toString(),
-                callback
-            )
-            if (!readOperations.addIfLinkedUp(gatt, readFuture, ::isLinkUp)) {
-                callback(Result.failure(deviceDisconnectedError()))
-                return
-            }
-
-            val started = try {
-                gatt.readCharacteristic(gattCharacteristic)
-            } catch (e: Exception) {
-                // A callback or disconnect may already own the reply.
-                if (!readOperations.remove(readFuture)) return
-                throw e
-            }
-            if (!started) {
-                if (!readOperations.remove(readFuture)) return
-                callback(
-                    Result.failure(
-                        createFlutterError(
-                            UniversalBleErrorCode.CHARACTERISTIC_NOT_FOUND,
-                            "$characteristic not found",
-                        )
+                readOperations,
+                ReadResultFuture(
+                    gatt,
+                    gatt.device.address,
+                    gattCharacteristic.uuid.toString(),
+                    gattCharacteristic.service.uuid.toString(),
+                    callback
+                ),
+                issue = {
+                    if (gatt.readCharacteristic(gattCharacteristic)) {
+                        BluetoothGatt.GATT_SUCCESS
+                    } else {
+                        BluetoothGatt.GATT_FAILURE
+                    }
+                },
+                statusError = {
+                    createFlutterError(
+                        UniversalBleErrorCode.CHARACTERISTIC_NOT_FOUND,
+                        "$characteristic not found",
                     )
-                )
+                },
+            )?.let { failure ->
+                callback(Result.failure(failure))
+                return
             }
         } catch (e: FlutterError) {
             callback(Result.failure(e))
@@ -881,7 +878,6 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
         bleOutputProperty: BleOutputProperty,
         callback: (Result<Unit>) -> Unit,
     ) {
-        var writeFuture: WriteResultFuture? = null
         try {
             UniversalBleLogger.logDebug("WRITE -> $deviceId $service $characteristic len=${value.size} property=$bleOutputProperty")
             val gatt = gattRegistry.get(deviceId).gatt
@@ -941,63 +937,48 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
                 return
             }
 
-            val future = WriteResultFuture(
+            submitGattRequest(
                 gatt,
-                gatt.device.address,
-                gattCharacteristic.uuid.toString(),
-                gattCharacteristic.service.uuid.toString(),
-                callback
-            )
-
-            // Wait for the result. The list is mutated both here (main thread)
-            // and in onCharacteristicWrite / cleanUpConnection (Bluetooth
-            // binder threads), so every access must hold the lock.
-            //
-            // Register only while the link is up, and under that same lock: an
-            // autoConnect client stays open after a link loss, so the stack can
-            // accept a write and then drop it without ever calling
-            // onCharacteristicWrite. The orphaned entry would take the next
-            // write's completion, and after the reconnect every write would lag
-            // by one and time out (#394).
-            if (!writeOperations.addIfLinkedUp(gatt, future, ::isLinkUp)) {
-                callback(Result.failure(deviceDisconnectedError()))
-                return
-            }
-            writeFuture = future
-
-            val result = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                gatt.writeCharacteristic(gattCharacteristic, value, writeType)
-            } else {
-                @Suppress("DEPRECATION")
-                gattCharacteristic.value = value
-                gattCharacteristic.writeType = writeType
-                @Suppress("DEPRECATION")
-                val status = gatt.writeCharacteristic(gattCharacteristic)
-                if (status) BluetoothGatt.GATT_SUCCESS else BluetoothGatt.GATT_FAILURE
-            }
-
-            if (result != BluetoothGatt.GATT_SUCCESS) {
-                withdrawWriteFuture(future)
-                callback(
-                    Result.failure(
-                        createFlutterError(
-                            gattStatusToUniversalBleErrorCode(result),
-                            "Failed to write",
-                            result.toString()
-                        )
+                writeOperations,
+                WriteResultFuture(
+                    gatt,
+                    gatt.device.address,
+                    gattCharacteristic.uuid.toString(),
+                    gattCharacteristic.service.uuid.toString(),
+                    callback
+                ),
+                issue = {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                        gatt.writeCharacteristic(gattCharacteristic, value, writeType)
+                    } else {
+                        @Suppress("DEPRECATION")
+                        gattCharacteristic.value = value
+                        gattCharacteristic.writeType = writeType
+                        @Suppress("DEPRECATION")
+                        if (gatt.writeCharacteristic(gattCharacteristic)) {
+                            BluetoothGatt.GATT_SUCCESS
+                        } else {
+                            BluetoothGatt.GATT_FAILURE
+                        }
+                    }
+                },
+                statusError = { status ->
+                    createFlutterError(
+                        gattStatusToUniversalBleErrorCode(status),
+                        "Failed to write",
+                        status.toString()
                     )
-                )
+                },
+            )?.let { failure ->
+                callback(Result.failure(failure))
             }
         } catch (e: FlutterError) {
-            writeFuture?.let(::withdrawWriteFuture)
             callback(Result.failure(e))
         } catch (e: Exception) {
             // A write the stack refuses by throwing (a characteristic whose
             // service is gone, for example) never reaches onCharacteristicWrite.
-            // Fail this call and unregister its result: otherwise the next
-            // completion is delivered to the orphaned future and every later
-            // write lags by one.
-            writeFuture?.let(::withdrawWriteFuture)
+            // The submission already unregistered its result, so the next
+            // completion cannot be delivered to the orphaned future.
             callback(
                 Result.failure(
                     createFlutterError(
@@ -1010,12 +991,48 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
         }
     }
 
-    private fun withdrawWriteFuture(future: WriteResultFuture) {
-        writeOperations.remove(future)
-    }
-
     private fun <T : PendingOperation> pendingOperations(label: String) =
         PendingOperations<T>({ action: () -> Unit -> postToMainLooper(action) }, label)
+
+    /**
+     * Registers [pending] for a GATT request and submits it with [issue].
+     *
+     * Returns null when the request is pending, i.e. the platform is expected
+     * to report it through a callback, or the failure to deliver when it was
+     * refused. A request is registered only while its client's link is up, and
+     * under the pending collection's lock, so a disconnect cannot sweep the
+     * list in between and strand it (#394). A stack call that refuses the
+     * request, by returning a non-success [BluetoothGatt] status or by
+     * throwing, has its registration withdrawn here: otherwise the next
+     * completion would be delivered to the orphaned entry and every later
+     * operation would lag by one (#387).
+     *
+     * Callers keep their own error mapping: [statusError] turns a refusal into
+     * the code that operation has always reported.
+     */
+    private fun <T : PendingOperation> submitGattRequest(
+        gatt: BluetoothGatt,
+        operations: PendingOperations<T>,
+        pending: T,
+        issue: () -> Int,
+        statusError: (Int) -> FlutterError,
+    ): FlutterError? {
+        if (!operations.addIfLinkedUp(gatt, pending, ::isLinkUp)) {
+            return deviceDisconnectedError()
+        }
+        val status = try {
+            issue()
+        } catch (e: Exception) {
+            // A callback (or a disconnect sweep) may already own the reply.
+            if (!operations.remove(pending)) return null
+            throw e
+        }
+        if (status == BluetoothGatt.GATT_SUCCESS) return null
+        // A sweep or callback may have claimed the reply while the stack call
+        // was running; in that case it already answered for this request.
+        if (!operations.remove(pending)) return null
+        return statusError(status)
+    }
 
     // Deliver on the main looper. Platform-channel replies must be sent there,
     // and because matching futures are removed from their list before delivery,
@@ -1108,39 +1125,35 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
                 )
                 return
             }
-            val readFuture = ReadDescriptorResultFuture(
-                gatt,
-                gatt.device.address,
-                gattDescriptor.uuid.toString(),
-                gattCharacteristic.uuid.toString(),
-                gattCharacteristic.service.uuid.toString(),
-                callback
-            )
             // Register before issuing the read, as readValue does: the response
-            // can otherwise arrive before the future is pending, and the link
-            // check shares the lock with the disconnect cleanup (#394).
-            if (!descriptorReadOperations.addIfLinkedUp(gatt, readFuture, ::isLinkUp)) {
-                callback(Result.failure(deviceDisconnectedError()))
-                return
-            }
-
-            val started = try {
-                gatt.readDescriptor(gattDescriptor)
-            } catch (e: Exception) {
-                // A callback or disconnect may already own the reply.
-                if (!descriptorReadOperations.remove(readFuture)) return
-                throw e
-            }
-            if (!started) {
-                if (!descriptorReadOperations.remove(readFuture)) return
-                callback(
-                    Result.failure(
-                        createFlutterError(
-                            UniversalBleErrorCode.READ_FAILED,
-                            "Failed to read descriptor"
-                        )
+            // can otherwise arrive before the future is pending (#394).
+            submitGattRequest(
+                gatt,
+                descriptorReadOperations,
+                ReadDescriptorResultFuture(
+                    gatt,
+                    gatt.device.address,
+                    gattDescriptor.uuid.toString(),
+                    gattCharacteristic.uuid.toString(),
+                    gattCharacteristic.service.uuid.toString(),
+                    callback
+                ),
+                issue = {
+                    if (gatt.readDescriptor(gattDescriptor)) {
+                        BluetoothGatt.GATT_SUCCESS
+                    } else {
+                        BluetoothGatt.GATT_FAILURE
+                    }
+                },
+                statusError = {
+                    createFlutterError(
+                        UniversalBleErrorCode.READ_FAILED,
+                        "Failed to read descriptor"
                     )
-                )
+                },
+            )?.let { failure ->
+                callback(Result.failure(failure))
+                return
             }
         } catch (e: FlutterError) {
             callback(Result.failure(e))
@@ -1206,7 +1219,6 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
         value: ByteArray,
         callback: (Result<Unit>) -> Unit,
     ) {
-        var writeFuture: WriteDescriptorResultFuture? = null
         try {
             UniversalBleLogger.logDebug("WRITE_DESCRIPTOR -> $deviceId $service $characteristic $descriptor len=${value.size}")
             val gatt = gattRegistry.get(deviceId).gatt
@@ -1250,52 +1262,46 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
                 return
             }
 
-            val future = WriteDescriptorResultFuture(
+            submitGattRequest(
                 gatt,
-                gatt.device.address,
-                gattDescriptor.uuid.toString(),
-                gattCharacteristic.uuid.toString(),
-                gattCharacteristic.service.uuid.toString(),
-                callback
-            )
-
-            // Same rule as writeValue: only register while the link is up, under
-            // the lock the disconnect cleanup takes, so a request the stack
-            // accepts and then drops cannot survive as a stale entry (#394).
-            if (!descriptorWriteOperations.addIfLinkedUp(gatt, future, ::isLinkUp)) {
-                callback(Result.failure(deviceDisconnectedError()))
-                return
-            }
-            writeFuture = future
-
-            val status = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                gatt.writeDescriptor(gattDescriptor, value)
-            } else {
-                @Suppress("DEPRECATION")
-                gattDescriptor.value = value
-                @Suppress("DEPRECATION")
-                if (gatt.writeDescriptor(gattDescriptor)) BluetoothGatt.GATT_SUCCESS else BluetoothGatt.GATT_FAILURE
-            }
-
-            if (status != BluetoothGatt.GATT_SUCCESS) {
-                withdrawWriteDescriptorFuture(future)
-                callback(
-                    Result.failure(
-                        createFlutterError(
-                            gattStatusToUniversalBleErrorCode(status),
-                            "Failed to write descriptor",
-                            status.toString()
-                        )
+                descriptorWriteOperations,
+                WriteDescriptorResultFuture(
+                    gatt,
+                    gatt.device.address,
+                    gattDescriptor.uuid.toString(),
+                    gattCharacteristic.uuid.toString(),
+                    gattCharacteristic.service.uuid.toString(),
+                    callback
+                ),
+                issue = {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                        gatt.writeDescriptor(gattDescriptor, value)
+                    } else {
+                        @Suppress("DEPRECATION")
+                        gattDescriptor.value = value
+                        @Suppress("DEPRECATION")
+                        if (gatt.writeDescriptor(gattDescriptor)) {
+                            BluetoothGatt.GATT_SUCCESS
+                        } else {
+                            BluetoothGatt.GATT_FAILURE
+                        }
+                    }
+                },
+                statusError = { status ->
+                    createFlutterError(
+                        gattStatusToUniversalBleErrorCode(status),
+                        "Failed to write descriptor",
+                        status.toString()
                     )
-                )
+                },
+            )?.let { failure ->
+                callback(Result.failure(failure))
             }
         } catch (e: FlutterError) {
-            writeFuture?.let(::withdrawWriteDescriptorFuture)
             callback(Result.failure(e))
         } catch (e: Exception) {
-            // Withdraw the pending result before failing the call, so a refused
-            // descriptor write cannot consume the next completion.
-            writeFuture?.let(::withdrawWriteDescriptorFuture)
+            // The submission unregistered the pending result before rethrowing,
+            // so a refused descriptor write cannot consume the next completion.
             callback(
                 Result.failure(
                     createFlutterError(
@@ -1306,10 +1312,6 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
                 )
             )
         }
-    }
-
-    private fun withdrawWriteDescriptorFuture(future: WriteDescriptorResultFuture) {
-        descriptorWriteOperations.remove(future)
     }
 
     override fun requestMtu(deviceId: String, expectedMtu: Long, callback: (Result<Long>) -> Unit) {
