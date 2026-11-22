@@ -483,6 +483,13 @@ private:
                                             const IInspectable &args);
   std::shared_ptr<BluetoothDeviceAgent> GetConnectedDevice(
       uint64_t bluetooth_address);
+  /// Whether [device_agent] still has a live link.
+  ///
+  /// The agent stays registered until WinRT reports the drop, so a request
+  /// submitted in between would otherwise be issued and fail with an unrelated
+  /// GATT status (Unreachable maps to `failed`). A status read that throws
+  /// counts as connected: the operation itself reports the real error.
+  bool HasLiveLink(const std::shared_ptr<BluetoothDeviceAgent> &device_agent);
   void InvalidateConnectAttempt(uint64_t bluetooth_address);
   std::shared_ptr<BluetoothDeviceAgent> RemoveConnectedDevice(
       uint64_t bluetooth_address,
