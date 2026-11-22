@@ -37,13 +37,6 @@ internal class PendingOperations<T : PendingOperation>(
 ) {
     private val pending = mutableListOf<T>()
 
-    /**
-     * Runs immediately before a drain, inside the collection's lock. Unit tests
-     * use it to publish a state change mid-sweep (a `connect()` completing
-     * while a disconnect cleans up); production never sets it.
-     */
-    internal var beforeDrain: (() -> Unit)? = null
-
     /** Adds [future] under the lock. */
     fun add(future: T) {
         synchronized(this) { pending.add(future) }
@@ -88,9 +81,12 @@ internal class PendingOperations<T : PendingOperation>(
         match
     }
 
-    /** Removes and returns every operation matching [predicate]. */
+    /**
+     * Removes and returns every operation matching [predicate], read under the
+     * lock. Callers must evaluate the predicate against current state: the
+     * registry can change between the sweep of one collection and the next.
+     */
     fun drainMatching(predicate: (T) -> Boolean): List<T> = synchronized(this) {
-        beforeDrain?.invoke()
         val matches = pending.filter(predicate)
         pending.removeAll(matches)
         matches

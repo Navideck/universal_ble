@@ -670,28 +670,39 @@ internal class GattCallbackCompletionTest {
 
     @Test
     fun cleanupKeepsARequestWhoseClientIsRegisteredWhileItIsSwept() {
-        val plugin = plugin()
+        // Completions run inline, so the read fails while the sweep is still
+        // going. Its callback publishes the replacement, and the write that
+        // client owns is swept afterwards: the registry has to be read at match
+        // time rather than once when the sweep starts.
+        val plugin = pluginWithInlineLooper()
         val old = mockGatt(deviceAddress)
         val current = mockGatt(deviceAddress)
-        val results = mutableListOf<Result<ByteArray>>()
-        val reads = plugin.pendingReads()
-        reads.add(
+        val oldReads = mutableListOf<Result<ByteArray>>()
+        val currentWrites = mutableListOf<Result<Unit>>()
+        plugin.pendingReads().add(
             ReadResultFuture(
-                current, deviceAddress, charUuid.toString(), serviceUuid.toString()
-            ) { results.add(it) }
+                old, deviceAddress, charUuid.toString(), serviceUuid.toString()
+            ) { result ->
+                oldReads.add(result)
+                // A connect() publishes the replacement mid-sweep.
+                plugin.gattRegistry().put(current)
+            }
         )
-        // A connect() publishes the replacement while this sweep is running:
-        // the requests that client owns must survive, so the registry has to be
-        // read at match time rather than once when the sweep starts.
-        reads.beforeDrain = { plugin.gattRegistry().put(current) }
+        plugin.pendingWrites().add(
+            WriteResultFuture(
+                current, deviceAddress, charUuid.toString(), serviceUuid.toString()
+            ) { currentWrites.add(it) }
+        )
         val cleanup = UniversalBlePlugin::class.java.getDeclaredMethod(
             "cleanUpConnection", String::class.java, BluetoothGatt::class.java
         ).apply { isAccessible = true }
 
         cleanup.invoke(plugin, deviceAddress, old)
-        drainMainLooper()
 
-        assertTrue(results.isEmpty(), "the replacement's read is still in flight")
+        assertEquals(1, oldReads.size, "the old client's read is failed")
+        assertTrue(oldReads.single().isFailure)
+        assertTrue(currentWrites.isEmpty(), "the replacement's write is still in flight")
+        assertEquals(1, plugin.pendingWrites().size)
         assertSame(current, plugin.gattRegistry().find(deviceAddress)?.gatt)
     }
 
