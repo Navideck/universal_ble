@@ -155,6 +155,37 @@ internal class LinkLossOperationTest {
     }
 
     @Test
+    fun aRequestSubmittedDuringTheDisconnectSweepIsRefused() {
+        // The disconnect report is posted after the sweep and before the client
+        // leaves the active slot, so a request submitted from it lands in the
+        // middle of the teardown. The link is already gone: the request must be
+        // refused with deviceDisconnected, not handed to the stack where it can
+        // be dropped without a callback (#394).
+        lateinit var plugin: UniversalBlePlugin
+        val reads = mutableListOf<Result<ByteArray>>()
+        val channel = Mockito.mock(UniversalBleCallbackChannel::class.java) { invocation ->
+            if (invocation.method.name == "onConnectionChanged") {
+                plugin.readValue(
+                    deviceAddress,
+                    serviceUuid.toString(),
+                    charUuid.toString(),
+                ) { reads.add(it) }
+            }
+            null
+        }
+        plugin = pluginWithInlineLooper().also { it.setField("callbackChannel", channel) }
+        plugin.gattRegistry().put(gatt).setState(GattClient.State.CONNECTED)
+
+        report(plugin, BluetoothGatt.STATE_DISCONNECTED)
+
+        assertEquals(1, reads.size, "the request must be answered, not left to its timeout")
+        assertDeviceDisconnected(reads.single())
+        assertTrue(plugin.pendingReads().isEmpty())
+        Mockito.verify(gatt, Mockito.never())
+            .readCharacteristic(Mockito.any(BluetoothGattCharacteristic::class.java))
+    }
+
+    @Test
     fun theBackstopTouchesOnlyTheReconnectingClient() {
         val plugin = pluginWithInlineLooper()
         val reconnecting = gatt

@@ -42,8 +42,6 @@ internal class DisconnectCloseTest {
     private fun plugin(): UniversalBlePlugin =
         pluginWithInlineLooper().also { it.setField("callbackChannel", callbackChannel) }
 
-
-
     @Test
     fun closingClientIsClosedAndReportedOnDisconnect() {
         val plugin = plugin()
@@ -85,6 +83,74 @@ internal class DisconnectCloseTest {
             ),
             connectionChanges,
         )
+    }
+
+    @Test
+    fun explicitDisconnectAfterConnectReportsDeviceDisconnected() {
+        val plugin = plugin()
+        val gatt = mockGatt(deviceAddress)
+        plugin.gattRegistry().put(gatt)
+        plugin.onConnectionStateChange(
+            gatt, BluetoothGatt.GATT_SUCCESS, BluetoothGatt.STATE_CONNECTED
+        )
+
+        // disconnect() moves the client to CLOSING before the stack answers, and
+        // a locally initiated teardown can still carry a non-zero status. The
+        // report belongs to a link that was up, so it keeps its specific code.
+        plugin.disconnect(deviceAddress)
+        plugin.onConnectionStateChange(
+            gatt, BluetoothGatt.GATT_FAILURE, BluetoothGatt.STATE_DISCONNECTED
+        )
+
+        assertEquals(
+            listOf(
+                listOf<Any?>(deviceAddress, true, null, null, null),
+                listOf<Any?>(
+                    deviceAddress,
+                    false,
+                    "Unknown Error 257",
+                    UniversalBleErrorCode.DEVICE_DISCONNECTED,
+                    257L,
+                ),
+            ),
+            connectionChanges,
+        )
+    }
+
+    @Test
+    fun connectClosesTheClientItReplaces() {
+        val plugin = plugin()
+        val previous = mockGatt(deviceAddress)
+        val replacement = mockGatt(deviceAddress)
+        // A link loss left this client open for autoConnect to reconnect it: it
+        // is no longer connected, and nothing will ever report on it again.
+        plugin.gattRegistry().put(previous, autoConnect = true)
+
+        val device = Mockito.mock(BluetoothDevice::class.java)
+        Mockito.`when`(device.address).thenReturn(deviceAddress)
+        Mockito.`when`(
+            device.connectGatt(
+                Mockito.any(Context::class.java),
+                Mockito.anyBoolean(),
+                Mockito.any(BluetoothGattCallback::class.java),
+            )
+        ).thenReturn(replacement)
+        val adapter = Mockito.mock(BluetoothAdapter::class.java)
+        Mockito.`when`(adapter.getRemoteDevice(deviceAddress)).thenReturn(device)
+        val manager = Mockito.mock(BluetoothManager::class.java)
+        Mockito.`when`(manager.adapter).thenReturn(adapter)
+        plugin.setField("bluetoothManager", manager)
+        plugin.setField("context", Mockito.mock(Context::class.java))
+
+        plugin.connect(deviceAddress, null, null)
+
+        assertSame(replacement, plugin.gattRegistry().find(deviceAddress)?.gatt)
+        Mockito.verify(previous).disconnect()
+        plugin.onConnectionStateChange(
+            previous, BluetoothGatt.GATT_SUCCESS, BluetoothGatt.STATE_DISCONNECTED
+        )
+        Mockito.verify(previous).close()
+        assertNull(plugin.gattRegistry().find(previous), "the replaced client is released")
     }
 
     @Test

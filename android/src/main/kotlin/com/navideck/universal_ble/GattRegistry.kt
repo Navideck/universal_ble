@@ -2,6 +2,7 @@ package com.navideck.universal_ble
 
 import android.bluetooth.BluetoothGatt
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicReference
 
 /**
@@ -33,6 +34,15 @@ internal class GattClient(val gatt: BluetoothGatt) {
 
     private val stateRef = AtomicReference(State.CONNECTING)
 
+    /**
+     * Whether the link came up since the previous disconnect. Android reports a
+     * failed connection attempt and a peer disconnect the same way, so the
+     * disconnect report reads this to tell them apart. [state] cannot answer it:
+     * a `disconnect()` has already moved the client to [State.CLOSING], and the
+     * `STATE_DISCONNECTED` that follows belongs to a link that was up.
+     */
+    private val linkCameUp = AtomicBoolean(false)
+
     /** Whether Android may reconnect this client after a link loss. */
     @Volatile
     var autoConnect: Boolean = false
@@ -45,8 +55,16 @@ internal class GattClient(val gatt: BluetoothGatt) {
     val isLinkUp: Boolean get() = state == State.CONNECTED
 
     fun setState(next: State) {
+        if (next == State.CONNECTED) linkCameUp.set(true)
         stateRef.set(next)
     }
+
+    /**
+     * Reads and clears whether the link had come up, i.e. whether the disconnect
+     * being reported ended a live link rather than a failed attempt. Called once
+     * per `STATE_DISCONNECTED`.
+     */
+    fun takeLinkWasUp(): Boolean = linkCameUp.getAndSet(false)
 
     /**
      * Moves the client from [expected] to [next], returning false when another
@@ -67,11 +85,13 @@ internal class GattClient(val gatt: BluetoothGatt) {
  *
  * [active] maps an address to the client its callbacks and API calls currently
  * belong to. [clients] tracks every client the plugin still owes a teardown,
- * including ones that were replaced or are closing, so a late callback can
- * still be attributed (and ignored) and its close is still driven. A connect()
- * can publish a replacement only after the previous client's link is gone, and
- * that client may still be waiting for its own STATE_DISCONNECTED — the reason
- * the two maps exist.
+ * including ones that are closing, so a late callback can still be attributed
+ * (and ignored) and its close is still driven. A connect() can publish a
+ * replacement only after the previous client's link is gone, and that client
+ * may still be waiting for its own STATE_DISCONNECTED — the reason the two maps
+ * exist. `connect()` tears the client it replaces down, so [clients] does not
+ * accumulate replaced entries: everything it holds besides the active client is
+ * on its way to [GattClient.State.CLOSED].
  */
 internal class GattRegistry {
     private val active = ConcurrentHashMap<String, GattClient>()
@@ -103,14 +123,6 @@ internal class GattRegistry {
         active[client.address] = client
         return client
     }
-
-    /**
-     * Every client tracked for [deviceId], in any state. Used by `disconnect()`
-     * and detach to withdraw autoConnect from clients that a replacement has
-     * already taken out of the active slot.
-     */
-    fun forAddress(deviceId: String): List<GattClient> =
-        clients.values.filter { it.address == deviceId }
 
     /**
      * Starts closing [client]: it leaves the active slot immediately, so API

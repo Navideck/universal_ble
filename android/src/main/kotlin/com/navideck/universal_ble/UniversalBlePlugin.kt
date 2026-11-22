@@ -338,7 +338,8 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
         // Note: platformConfig carries platform-specific connection options
         // If already connected, send connected message,
         // if connecting, do nothing
-        gattRegistry.find(deviceId)?.let { existing ->
+        val replaced = gattRegistry.find(deviceId)
+        replaced?.let { existing ->
             val currentState =
                 bluetoothManager.getConnectionState(existing.gatt.device, BluetoothProfile.GATT)
             if (currentState == BluetoothGatt.STATE_CONNECTED) {
@@ -353,10 +354,6 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
                     "Connection already in progress"
                 )
             }
-            // The client below replaces this one: it inherits the address's
-            // reconnect decision, and is no longer the client that can report
-            // the reconnect.
-            existing.autoConnect = shouldAutoConnect
         }
 
         val remoteDevice = bluetoothManager.adapter.getRemoteDevice(deviceId)
@@ -371,12 +368,15 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
             remoteDevice.connectGatt(context, shouldAutoConnect, this)
         }
         gattRegistry.put(gatt, shouldAutoConnect)
+        // The client this one replaces cannot report the new link, and its own
+        // link is down (a connected or connecting one returned above), so tear
+        // it down here. Leaving it open would keep a tracked client — and an
+        // autoConnect attempt Android never stops — that nothing would ever
+        // close.
+        if (replaced != null && replaced.gatt !== gatt) cleanConnection(replaced.gatt)
     }
 
     override fun disconnect(deviceId: String) {
-        // An explicit disconnect cancels the address's autoConnect, for the
-        // active client and for any client a replacement left behind.
-        gattRegistry.forAddress(deviceId).forEach { it.autoConnect = false }
         val client = gattRegistry.find(deviceId)
         if (client == null) {
             cleanUpConnection(deviceId)
@@ -384,6 +384,8 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
                 callbackChannel?.onConnectionChanged(deviceId, false, null, null, null) {}
             }
         } else {
+            // cleanConnection() also cancels the client's autoConnect, so an
+            // explicit disconnect is not followed by an automatic reconnect.
             cleanConnection(client.gatt)
         }
     }
@@ -1768,7 +1770,12 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
 
     private fun cleanConnection(gatt: BluetoothGatt) {
         val deviceId = gatt.device.address
-        val client = gattRegistry.find(gatt) ?: gattRegistry.put(gatt)
+        // A client the registry no longer tracks was closed already (a late
+        // STATE_DISCONNECTED, after the fallback timer or another path ran). It
+        // still gets a client so the teardown below stays idempotent, but that
+        // client is never published: doing so would evict a newer connection
+        // from the active slot and make a live link look superseded.
+        val client = gattRegistry.find(gatt) ?: GattClient(gatt)
         client.autoConnect = false
         gattRegistry.beginClose(client)
         cleanUpConnection(deviceId, gatt)
@@ -1952,15 +1959,31 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
             val deviceId = gatt.device.address
             val client = gattRegistry.find(gatt)
             // Android reports a failed connection attempt the same way, so only
-            // a client that reached CONNECTED owes a disconnect report.
-            val wasConnected = client?.state == GattClient.State.CONNECTED
+            // a client whose link came up owes a disconnect report. Read before
+            // the state below changes: disconnect() has already moved it to
+            // CLOSING by the time this callback arrives.
+            val wasConnected = client?.takeLinkWasUp() == true
             val closingByRequest = client?.state == GattClient.State.CLOSING
+            // Only a client that still reads autoConnect keeps its link open for
+            // Android to reconnect it.
+            val keepOpen = !closingByRequest && client?.autoConnect == true
             // A client the registry no longer holds as active was replaced,
             // whether by a newer connect() or by disconnect(): its requests and
             // its connection state are not the current connection's to fail or
             // report. Same rule as the close fallback timer in cleanConnection().
             val active = gattRegistry.find(deviceId)
             val superseded = active != null && active.gatt !== gatt
+
+            // Take the link down before the sweep, as the old connected-set based
+            // code did: a request submitted while the sweep runs must be refused
+            // with `deviceDisconnected`, not registered in a list that was
+            // already swept and then dropped by the stack without a callback
+            // (#394). The client stays in the active slot until the sweep is
+            // done, so `owns` can still tell its requests apart from a
+            // replacement published meanwhile.
+            client?.setState(
+                if (keepOpen) GattClient.State.AWAITING_RECONNECT else GattClient.State.CLOSING
+            )
 
             if (!superseded) {
                 // Always clean up internal state (futures, etc.)
@@ -1980,9 +2003,7 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
 
             // Only keep the client open when autoConnect should let Android
             // reconnect it; its next STATE_CONNECTED starts a new link.
-            if (!closingByRequest && client?.autoConnect == true) {
-                client.setState(GattClient.State.AWAITING_RECONNECT)
-            } else if (client == null || gattRegistry.finishClose(client)) {
+            if (!keepOpen && (client == null || gattRegistry.finishClose(client))) {
                 gatt.disconnect()
                 UniversalBleLogger.logDebug("Closing gatt for $deviceId")
                 gatt.close()
