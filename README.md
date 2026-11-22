@@ -348,7 +348,7 @@ You can enable automatic reconnection by setting the `autoConnect` parameter to 
 await bleDevice.connect(autoConnect: true);
 ```
 
-While the link is down — after the plugin reports a disconnection and before the system reconnects the client — a read, write, descriptor access or subscription to that device fails right away with `UniversalBleErrorCode.deviceDisconnected` instead of waiting for the request timeout. Wait for the next connected event on `connectionStream` before issuing requests again; requests are not queued across the gap.
+While the link is down — after the plugin reports a disconnection and before the system reconnects the client — a read, write, descriptor access or subscription to that device fails right away instead of waiting for the request timeout (see [Disconnected device](#disconnected-device)).
 
 #### Background connection events (iOS/macOS)
 
@@ -995,6 +995,12 @@ try {
 The error parser automatically converts platform-specific error formats (strings, numeric codes, PlatformExceptions) into the unified `UniversalBleErrorCode` enum, ensuring consistent error handling across all platforms.
 
 When a peripheral refuses a characteristic or descriptor read/write, or a subscription, Android, Apple and Windows report the ATT error as the matching `UniversalBleErrorCode` (`insufficientEncryption`, `insufficientAuthentication`, `readNotPermitted`, ...) instead of a generic `failed`/`unknownError`. The raw native code is available in `UniversalBleException.details`. Service/characteristic discovery at connect time, and the Linux and Web backends, may still report a generic code.
+
+### Disconnected device
+
+A read, write, descriptor access or subscription to a device whose link is down fails right away with `UniversalBleErrorCode.deviceDisconnected`, instead of waiting for the request timeout or reaching the stack. This holds whether or not the connection was made with `autoConnect`. Wait for the next connected event on `connectionStream` before issuing requests again; requests are not queued across the gap.
+
+On Linux and Web the disconnect check runs before the characteristic lookup, because BlueZ drops a device's GATT object tree with the link and Web clears its service cache on disconnection. Those two platforms therefore report `deviceDisconnected` for a request on a disconnected device even when the characteristic no longer exists, while Android, Windows and Apple still report `characteristicNotFound` for an unknown characteristic. Do not rely on `characteristicNotFound` alone as a "services changed, re-discover" signal on Linux or Web.
 
 ## Peripheral Mode
 

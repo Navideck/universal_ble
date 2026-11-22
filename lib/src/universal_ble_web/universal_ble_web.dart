@@ -697,12 +697,15 @@ class UniversalBleWeb extends UniversalBlePlatform {
         message: '$deviceId Not Found',
       );
     }
-    // `connected` is seeded with the current GATT state, so the first event is
-    // the live value (the same way getConnectionState reads it).
-    if (!await device.connected.first) {
+    // Read the browser's own GATT flag instead of the `connected` stream: the
+    // stream is seeded from it, but only updates once the browser dispatches
+    // `gattserverdisconnected`, which happens in a task — so it still reports
+    // `true` right after `disconnect()` or a drop detected in the same turn.
+    // ignore: invalid_use_of_visible_for_testing_member
+    if (device.gatt?.connected != true) {
       throw UniversalBleException(
         code: UniversalBleErrorCode.deviceDisconnected,
-        message: 'Device $deviceId is not connected',
+        message: 'Device Disconnected',
       );
     }
   }
