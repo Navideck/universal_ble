@@ -521,6 +521,71 @@ internal class GattCallbackCompletionTest {
     }
 
     @Test
+    fun aThrowingCccdWriteFailsTheSubscriptionExactlyOnce() {
+        val plugin = plugin()
+        val results = mutableListOf<Result<Unit>>()
+        val characteristic = mockCharacteristic(serviceUuid, charUuid)
+        val cccd = mockDescriptor(characteristic, "00002902-0000-1000-8000-00805f9b34fb")
+        Mockito.`when`(characteristic.getDescriptor(ccdCharacteristic)).thenReturn(cccd)
+        val gatt = mockGattWithService(characteristic)
+        // A descriptor the framework has rebuilt out from under the call, or a
+        // closed client, throws instead of returning a status.
+        Mockito.`when`(gatt.writeDescriptor(cccd))
+            .thenThrow(IllegalStateException("GATT client closed"))
+        plugin.attachConnectedGatt(gatt)
+
+        plugin.setNotifiable(
+            deviceAddress,
+            serviceUuid.toString(),
+            charUuid.toString(),
+            BleInputProperty.NOTIFICATION,
+        ) { results.add(it) }
+        drainMainLooper()
+
+        assertEquals(1, results.size, "a throwing CCCD write must answer the call once")
+        assertTrue(results.single().isFailure)
+        assertTrue(
+            plugin.pendingSubscriptions().isEmpty(),
+            "the withdraw happens before the reply, not instead of it"
+        )
+    }
+
+    @Test
+    fun aWriteSweptWhileTheStackRefusesItIsNotAnsweredTwice() {
+        val plugin = plugin()
+        val writes = mutableListOf<Result<Unit>>()
+        val characteristic = mockCharacteristic(serviceUuid, charUuid)
+        Mockito.`when`(characteristic.properties).thenReturn(
+            BluetoothGattCharacteristic.PROPERTY_WRITE,
+        )
+        val gatt = mockGattWithService(characteristic)
+        // A binder-thread disconnect can sweep the write before the synchronous
+        // refusal is handled. The sweep owns the reply from then on.
+        Mockito.`when`(gatt.writeCharacteristic(characteristic)).thenAnswer {
+            plugin.onConnectionStateChange(
+                gatt, BluetoothGatt.GATT_SUCCESS, BluetoothGatt.STATE_DISCONNECTED
+            )
+            false
+        }
+        plugin.attachConnectedGatt(gatt)
+
+        plugin.writeValue(
+            deviceAddress,
+            serviceUuid.toString(),
+            charUuid.toString(),
+            ByteArray(4),
+            BleOutputProperty.WITH_RESPONSE,
+        ) { writes.add(it) }
+
+        drainMainLooper()
+        assertEquals(1, writes.size, "one write must send exactly one reply")
+        assertEquals(
+            UniversalBleErrorCode.DEVICE_DISCONNECTED.raw.toString(),
+            (writes.single().exceptionOrNull() as FlutterError).code,
+        )
+    }
+
+    @Test
     fun rejectedSubscriptionLeavesNoPendingFuture() {
         val plugin = plugin()
         val results = mutableListOf<Result<Unit>>()

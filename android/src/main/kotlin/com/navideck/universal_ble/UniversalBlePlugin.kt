@@ -11,7 +11,6 @@ import android.bluetooth.BluetoothGattDescriptor
 import android.bluetooth.BluetoothGattService
 import android.bluetooth.BluetoothManager
 import android.bluetooth.BluetoothProfile
-import android.bluetooth.BluetoothStatusCodes
 import android.bluetooth.le.ScanCallback
 import android.bluetooth.le.ScanFilter
 import android.bluetooth.le.ScanResult
@@ -603,15 +602,14 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
         bleInputProperty: BleInputProperty,
         callback: (Result<Unit>) -> Unit,
     ) {
-        // Assigned once the CCCD request is registered; declared out here so the
-        // error paths below can withdraw it too.
-        var pendingFuture: SubscriptionResultFuture? = null
+        // Assigned once the CCCD request is registered. Every failure below
+        // withdraws it before replying, so the Dart call gets exactly one
+        // answer: from here, from the CCCD callback, or from a disconnect.
+        var pending: SubscriptionResultFuture? = null
         try {
             UniversalBleLogger.logDebug("SET_NOTIFY -> $deviceId $service $characteristic input=$bleInputProperty")
             val gatt = gattRegistry.get(deviceId).gatt
-            val gattCharacteristic: BluetoothGattCharacteristic? =
-                gatt.getCharacteristic(service, characteristic)
-
+            val gattCharacteristic = gatt.getCharacteristic(service, characteristic)
             if (gattCharacteristic == null) {
                 callback(
                     Result.failure(
@@ -623,89 +621,49 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
                 )
                 return
             }
-
-            val descriptor: BluetoothGattDescriptor? =
-                gattCharacteristic.getDescriptor(ccdCharacteristic)
-
+            val descriptor = gattCharacteristic.getDescriptor(ccdCharacteristic)
             val (value, enable) = when (bleInputProperty) {
                 BleInputProperty.NOTIFICATION -> BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE to true
                 BleInputProperty.INDICATION -> BluetoothGattDescriptor.ENABLE_INDICATION_VALUE to true
                 else -> BluetoothGattDescriptor.DISABLE_NOTIFICATION_VALUE to false
             }
 
-            // Register before issuing the CCCD write, as readValue does: the
-            // write's callback arrives on a binder thread and a future added
-            // afterwards is never matched (updateSubscriptionState finds
-            // nothing to complete), leaving the Dart call awaiting forever.
-            // Every access to the list holds its lock.
-            val pending: SubscriptionResultFuture? =
-                if (descriptor == null) null else SubscriptionResultFuture(
+            /** Withdraws the pending request, then answers the Dart call once. */
+            fun fail(error: FlutterError) {
+                val future = pending
+                if (!removeSubscriptionFuture(future)) return
+                if (future == null) callback(Result.failure(error)) else future.fail(error)
+            }
+
+            if (descriptor != null) {
+                pending = SubscriptionResultFuture(
                     gatt,
                     descriptor,
                     gatt.device.address,
                     callback,
                 )
-            if (pending != null) {
-                // Only register while the link is up (see writeValue): a CCCD
-                // write the stack accepts on a disconnected autoConnect client
-                // can be dropped without a callback, and the stranded entry
-                // would then consume the next subscription's completion (#394).
+                // Register before issuing the CCCD write, as readValue does: the
+                // write's callback arrives on a binder thread and a future added
+                // afterwards is never matched, leaving the Dart call awaiting
+                // forever. The link check shares the lock, so a disconnected
+                // autoConnect client cannot leave an entry the stack drops
+                // without a callback (#394).
                 if (!subscriptionOperations.addIfLinkedUp(gatt, pending, ::isLinkUp)) {
                     callback(Result.failure(deviceDisconnectedError()))
                     return
                 }
-                pendingFuture = pending
-            }
-
-            /** Withdraws [pending] so a later callback cannot reply twice. */
-            fun withdraw(): Boolean = removeSubscriptionFuture(pending)
-
-            fun fail(error: FlutterError) {
-                if (!withdraw()) return
-                callback(Result.failure(error))
-            }
-
-            if (descriptor != null) {
-                // Some devices do not need CCCD to update
-                @Suppress("DEPRECATION")
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                    val status = try {
-                        gatt.writeDescriptor(descriptor, value)
-                    } catch (e: Exception) {
-                        // A callback or disconnect may already own the reply.
-                        if (!withdraw()) return
-                        throw e
-                    }
-                    if (status != BluetoothStatusCodes.SUCCESS) {
-                        fail(
-                            createFlutterError(
-                                status.parseBluetoothStatusCodeError()
-                                    ?: UniversalBleErrorCode.FAILED,
-                                "Failed to update descriptor"
-                            )
+                val status = writeCccdDescriptor(gatt, descriptor, value)
+                if (status != BluetoothGatt.GATT_SUCCESS) {
+                    fail(
+                        createFlutterError(
+                            cccDescriptorErrorCode(status),
+                            "Failed to update descriptor"
                         )
-                        return
-                    }
-                } else {
-                    descriptor.value = value
-                    val started = try {
-                        gatt.writeDescriptor(descriptor)
-                    } catch (e: Exception) {
-                        // A callback or disconnect may already own the reply.
-                        if (!withdraw()) return
-                        throw e
-                    }
-                    if (!started) {
-                        fail(
-                            createFlutterError(
-                                UniversalBleErrorCode.FAILED,
-                                "Failed to update descriptor"
-                            )
-                        )
-                        return
-                    }
+                    )
+                    return
                 }
             } else {
+                // Some devices do not need CCCD to update.
                 UniversalBleLogger.logDebug("CCCD Descriptor not found")
             }
 
@@ -722,22 +680,62 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
                     )
                 )
             }
-        } catch (e: FlutterError) {
-            if (removeSubscriptionFuture(pendingFuture)) callback(Result.failure(e))
         } catch (e: Exception) {
-            if (removeSubscriptionFuture(pendingFuture)) {
-                callback(
-                    Result.failure(
-                        createFlutterError(
-                            UniversalBleErrorCode.FAILED,
-                            "Failed to update subscription state",
-                            e.toString()
-                        )
-                    )
+            val error = if (e is FlutterError) {
+                e
+            } else {
+                createFlutterError(
+                    UniversalBleErrorCode.FAILED,
+                    "Failed to update subscription state",
+                    e.toString()
                 )
+            }
+            // A CCCD callback or a disconnect sweep may already have answered;
+            // withdrawing first keeps this path from replying twice.
+            if (pending == null || subscriptionOperations.remove(pending)) {
+                callback(Result.failure(error))
             }
         }
     }
+
+    /**
+     * Writes [value] to the CCCD, or to the descriptor that enables indications
+     * or notifications, and returns the status the stack reported. The API 33+
+     * overload reports one; the deprecated one only a boolean, mapped here.
+     * A throwing call propagates to the caller's single error path.
+     *
+     * [value] is nullable because the values come from static arrays in the
+     * platform jar, which JVM tests see as null. The deprecated overload only
+     * stores the array, and the API 33+ overload — unreachable there, because
+     * the test JVM reports SDK_INT 0 — needs the non-null value a device has.
+     */
+    @Suppress("DEPRECATION")
+    private fun writeCccdDescriptor(
+        gatt: BluetoothGatt,
+        descriptor: BluetoothGattDescriptor,
+        value: ByteArray?,
+    ): Int = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+        gatt.writeDescriptor(descriptor, checkNotNull(value))
+    } else {
+        descriptor.value = value
+        if (gatt.writeDescriptor(descriptor)) {
+            BluetoothGatt.GATT_SUCCESS
+        } else {
+            BluetoothGatt.GATT_FAILURE
+        }
+    }
+
+    /**
+     * The error a refused CCCD write reports. The pre-33 overload only says
+     * whether the request started, so it keeps the generic code; API 33+
+     * carries a status that names the reason.
+     */
+    private fun cccDescriptorErrorCode(status: Int): UniversalBleErrorCode =
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            status.parseBluetoothStatusCodeError() ?: UniversalBleErrorCode.FAILED
+        } else {
+            UniversalBleErrorCode.FAILED
+        }
 
     /**
      * Removes [future] while it is still registered. False means a callback (or
