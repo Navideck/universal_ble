@@ -44,45 +44,22 @@ internal class NotificationOwnershipTest {
             null
         }
 
-    private fun plugin(): UniversalBlePlugin {
-        val handler = Mockito.mock(Handler::class.java)
-        Mockito.doAnswer { invocation ->
-            mainLooper.add(invocation.getArgument(0))
-            true
-        }.`when`(handler).post(Mockito.any())
-        return UniversalBlePlugin().also {
-            it.setField("mainThreadHandler", handler)
+    private fun plugin(): UniversalBlePlugin =
+        pluginWithRecordedLooper(mainLooper).also {
             it.setField("callbackChannel", callbackChannel)
         }
-    }
 
-    private fun drainMainLooper() {
-        while (mainLooper.isNotEmpty()) {
-            mainLooper.removeAt(0).run()
-        }
-    }
+    private fun drainMainLooper() = drainPosts(mainLooper)
 
-    private fun mockGatt(): BluetoothGatt {
-        val device = Mockito.mock(BluetoothDevice::class.java)
-        Mockito.`when`(device.address).thenReturn(address)
-        val gatt = Mockito.mock(BluetoothGatt::class.java)
-        Mockito.`when`(gatt.device).thenReturn(device)
-        return gatt
-    }
 
-    private fun characteristic(): BluetoothGattCharacteristic {
-        val service = Mockito.mock(BluetoothGattService::class.java)
-        Mockito.`when`(service.uuid).thenReturn(serviceUuid)
-        val characteristic = Mockito.mock(BluetoothGattCharacteristic::class.java)
-        Mockito.`when`(characteristic.uuid).thenReturn(charUuid)
-        Mockito.`when`(characteristic.service).thenReturn(service)
-        return characteristic
-    }
+
+    private fun characteristic(): BluetoothGattCharacteristic =
+        mockCharacteristic(serviceUuid, charUuid)
 
     @Test
     fun registeredClientDeliversItsNotifications() {
         val plugin = plugin()
-        val gatt = mockGatt()
+        val gatt = mockGatt(address)
         plugin.gattRegistry().put(gatt)
 
         plugin.onCharacteristicChanged(gatt, characteristic(), byteArrayOf(0x01))
@@ -99,9 +76,9 @@ internal class NotificationOwnershipTest {
     @Test
     fun supersededClientNotificationsAreDropped() {
         val plugin = plugin()
-        val current = mockGatt()
+        val current = mockGatt(address)
         // Same address, not the registered client: a connect() replaced it.
-        val superseded = mockGatt()
+        val superseded = mockGatt(address)
         plugin.gattRegistry().put(current)
 
         plugin.onCharacteristicChanged(superseded, characteristic(), byteArrayOf(0x01))
@@ -116,7 +93,7 @@ internal class NotificationOwnershipTest {
     @Test
     fun notificationsAfterDisconnectAreDropped() {
         val plugin = plugin()
-        val gatt = mockGatt()
+        val gatt = mockGatt(address)
         plugin.gattRegistry().put(gatt)
 
         plugin.disconnect(address)
@@ -130,9 +107,8 @@ internal class NotificationOwnershipTest {
     @Test
     fun autoConnectClientKeepsDeliveringAcrossALinkLoss() {
         val plugin = plugin()
-        val gatt = mockGatt()
-        plugin.gattRegistry().put(gatt)
-        plugin.getField<MutableSet<String>>("autoConnectDevices").add(address)
+        val gatt = mockGatt(address)
+        plugin.gattRegistry().put(gatt, autoConnect = true)
 
         // autoConnect keeps the client registered so Android can reconnect it.
         plugin.onConnectionStateChange(

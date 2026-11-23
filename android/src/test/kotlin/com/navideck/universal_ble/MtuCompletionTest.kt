@@ -14,32 +14,19 @@ import org.mockito.Mockito
 internal class MtuCompletionTest {
     private val address = "AA:BB:CC:DD:EE:FF"
     private val posted = ConcurrentLinkedQueue<Runnable>()
-    private val plugin = UniversalBlePlugin().also {
-        val handler = Mockito.mock(Handler::class.java)
-        Mockito.doAnswer { call ->
-            posted.add(call.getArgument<Runnable>(0))
-            true
-        }.`when`(handler).post(Mockito.any())
-        it.setField("mainThreadHandler", handler)
-    }
+    private val plugin = pluginWithRecordedLooper(posted)
 
-    private fun gatt(id: String = address): BluetoothGatt {
-        val device = Mockito.mock(BluetoothDevice::class.java)
-        Mockito.`when`(device.address).thenReturn(id)
-        return Mockito.mock(BluetoothGatt::class.java).also {
-            Mockito.`when`(it.device).thenReturn(device)
+    private fun gatt(id: String = address): BluetoothGatt =
+        mockGatt(id).also {
             Mockito.`when`(it.requestMtu(Mockito.anyInt())).thenReturn(true)
             plugin.attachConnectedGatt(it)
         }
-    }
 
-    private fun drainMain() {
-        while (true) (posted.poll() ?: return).run()
-    }
+    private fun drainMain() = drainPosts(posted)
 
     @AfterTest
     fun clearConnections() {
-        plugin.gattRegistry().snapshot().forEach { plugin.gattRegistry().remove(it) }
+        plugin.gattRegistry().snapshot().forEach { plugin.gattRegistry().finishClose(it) }
     }
 
     @Test
