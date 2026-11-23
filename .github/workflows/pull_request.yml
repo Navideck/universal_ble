@@ -32,26 +32,10 @@ jobs:
       # and import Flutter's macOS or iOS module behind `#if os(...)`, so each
       # platform's branch is typechecked against its own engine framework.
       - name: Download the Apple engine frameworks
-        run: flutter precache --macos --ios
+        run: bash .github/scripts/typecheck_apple.sh --download-only
 
       - name: Typecheck the Apple sources
-        run: |
-          set -euo pipefail
-          flutter_root="$(dirname "$(dirname "$(command -v flutter)")")"
-          engine="$flutter_root/bin/cache/artifacts/engine"
-          sources=(darwin/universal_ble/Sources/universal_ble/*.swift)
-
-          xcrun swiftc -typecheck \
-            -target "$(uname -m)-apple-macos10.15" \
-            -sdk "$(xcrun --sdk macosx --show-sdk-path)" \
-            -F "$engine/darwin-x64" \
-            "${sources[@]}"
-
-          xcrun swiftc -typecheck \
-            -target arm64-apple-ios13.1 \
-            -sdk "$(xcrun --sdk iphoneos --show-sdk-path)" \
-            -F "$engine/ios/Flutter.xcframework/ios-arm64" \
-            "${sources[@]}"
+        run: bash .github/scripts/typecheck_apple.sh
 
       # Each helper compiles one source file with counted checks; they are not
       # part of the plugin build.
