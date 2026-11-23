@@ -348,7 +348,7 @@ You can enable automatic reconnection by setting the `autoConnect` parameter to 
 await bleDevice.connect(autoConnect: true);
 ```
 
-While the link is down — after the plugin reports a disconnection and before the system reconnects the client — a read, write, descriptor access or subscription to that device fails right away instead of waiting for the request timeout (see [Disconnected device](#disconnected-device)).
+While the link is down — after the plugin reports a disconnection and before the system reconnects the client — a read, write, descriptor access, subscription, MTU request, service discovery or RSSI read for that device fails right away instead of waiting for the request timeout (see [Disconnected device](#disconnected-device)).
 
 #### Background connection events (iOS/macOS)
 
@@ -998,7 +998,7 @@ When a peripheral refuses a characteristic or descriptor read/write, or a subscr
 
 ### Disconnected device
 
-A read, write, descriptor access or subscription to a device whose link is down fails right away with `UniversalBleErrorCode.deviceDisconnected`, instead of waiting for the request timeout or reaching the stack. This holds whether or not the connection was made with `autoConnect`. Wait for the next connected event on `connectionStream` before issuing requests again; requests are not queued across the gap.
+A read, write, descriptor access or subscription to a device whose link is down fails right away with `UniversalBleErrorCode.deviceDisconnected`, instead of waiting for the request timeout or reaching the stack. On Android the same applies to MTU requests, service discovery and RSSI reads. This holds whether or not the connection was made with `autoConnect`, and it relies on the system reporting the disconnection: if it never does, the plugin cannot tell the link is down. Wait for the next connected event on `connectionStream` before issuing requests again; requests are not queued across the gap.
 
 On Linux and Web the disconnect check runs before the characteristic lookup, because BlueZ drops a device's GATT object tree with the link and Web clears its service cache on disconnection. Those two platforms therefore report `deviceDisconnected` for a request on a disconnected device even when the characteristic no longer exists, while Android, Windows and Apple still report `characteristicNotFound` for an unknown characteristic. Do not rely on `characteristicNotFound` alone as a "services changed, re-discover" signal on Linux or Web.
 

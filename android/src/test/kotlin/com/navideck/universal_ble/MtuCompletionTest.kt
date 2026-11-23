@@ -19,7 +19,7 @@ internal class MtuCompletionTest {
     private fun gatt(id: String = address): BluetoothGatt =
         mockGatt(id).also {
             Mockito.`when`(it.requestMtu(Mockito.anyInt())).thenReturn(true)
-            plugin.gattRegistry().put(it)
+            plugin.attachConnectedGatt(it)
         }
 
     private fun drainMain() = drainPosts(posted)

@@ -435,9 +435,24 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
     override fun readRssi(deviceId: String, callback: (Result<Long>) -> Unit) {
         try {
             val gatt = gattRegistry.get(deviceId).gatt
-            if (gatt.readRemoteRssi()) {
-                rssiOperations.add(RssiResultFuture(gatt, deviceId, callback))
-            } else {
+            // Register before readRemoteRssi, as readValue does: its callback
+            // arrives on a binder thread, so the entry must already be in the
+            // collection the disconnect cleanup sweeps — and only while the link
+            // is up (#394).
+            val future = RssiResultFuture(gatt, deviceId, callback)
+            if (!rssiOperations.addIfLinkedUp(gatt, future, ::isLinkUp)) {
+                callback(Result.failure(deviceDisconnectedError()))
+                return
+            }
+            val started = try {
+                gatt.readRemoteRssi()
+            } catch (e: Exception) {
+                // A callback or disconnect may already own the reply.
+                if (!rssiOperations.remove(future)) return
+                throw e
+            }
+            if (!started) {
+                if (!rssiOperations.remove(future)) return
                 callback(
                     Result.failure(
                         createFlutterError(
@@ -491,7 +506,18 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
     ) {
         try {
             val gatt = gattRegistry.get(deviceId).gatt
+            // Register before discoverServices, as readValue does: the result
+            // arrives on a binder thread, so the entry must already be in the
+            // collection the disconnect cleanup sweeps — and only while the link
+            // is up (#394).
+            val future = DiscoverServicesFuture(gatt, deviceId, withDescriptors, callback)
+            if (!discoveryOperations.addIfLinkedUp(gatt, future, ::isLinkUp)) {
+                callback(Result.failure(deviceDisconnectedError()))
+                return
+            }
             if (platformConfig?.android?.clearGattCache == true && !gatt.refreshGattCache()) {
+                // A callback or disconnect may already own the reply.
+                if (!discoveryOperations.remove(future)) return
                 callback(
                     Result.failure(
                         createFlutterError(
@@ -502,16 +528,8 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
                 )
                 return
             }
-            if (gatt.discoverServices()) {
-                discoveryOperations.add(
-                    DiscoverServicesFuture(
-                        gatt,
-                        deviceId,
-                        withDescriptors,
-                        callback
-                    )
-                )
-            } else {
+            if (!gatt.discoverServices()) {
+                if (!discoveryOperations.remove(future)) return
                 callback(
                     Result.failure(
                         createFlutterError(
@@ -664,6 +682,13 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
                     )
                     return
                 }
+            } else if (!isLinkUp(gatt)) {
+                // No CCCD to write, so there is no pending result to sweep, but
+                // setCharacteristicNotification() still succeeds locally on a
+                // linkless client and would report a subscription the stack
+                // cannot deliver. Refuse it like any other request (#394).
+                callback(Result.failure(deviceDisconnectedError()))
+                return
             } else {
                 // Some devices do not need CCCD to update.
                 UniversalBleLogger.logDebug("CCCD Descriptor not found")
@@ -1324,18 +1349,31 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
         }
         var reusedMtu: Int? = null
         var shouldRequest = false
+        var linkUp = false
         mtuOperations.withLock {
-            val cached = negotiatedMtus[gatt]
-            // Android 14+ ignores subsequent negotiations. Earlier versions
-            // can still request an increase when the observed MTU is smaller.
-            if (cached != null && canReuseNegotiatedMtu(cached, expectedMtu.toInt(), Build.VERSION.SDK_INT)) {
-                reusedMtu = cached
-            } else {
-                val alreadyPending = mtuOperations.any { it.gatt === gatt }
-                // Register before requestMtu: its callback can arrive immediately.
-                mtuOperations.add(MtuResultFuture(deviceId, gatt, callback))
-                shouldRequest = !alreadyPending
+            // Only serve or register while the link is up, under the lock the
+            // disconnect cleanup takes (see writeValue): the stack accepts a
+            // request on a linkless autoConnect client and then drops it
+            // without a callback, and the stranded entry would be completed by
+            // the reconnected link's first MTU change (#394).
+            linkUp = isLinkUp(gatt)
+            if (linkUp) {
+                val cached = negotiatedMtus[gatt]
+                // Android 14+ ignores subsequent negotiations. Earlier versions
+                // can still request an increase when the observed MTU is smaller.
+                if (cached != null && canReuseNegotiatedMtu(cached, expectedMtu.toInt(), Build.VERSION.SDK_INT)) {
+                    reusedMtu = cached
+                } else {
+                    val alreadyPending = mtuOperations.any { it.gatt === gatt }
+                    // Register before requestMtu: its callback can arrive immediately.
+                    mtuOperations.add(MtuResultFuture(deviceId, gatt, callback))
+                    shouldRequest = !alreadyPending
+                }
             }
+        }
+        if (!linkUp) {
+            postMtuResult(callback, Result.failure(deviceDisconnectedError()))
+            return
         }
         reusedMtu?.let {
             // Deliver outside the lock, like every other completion path.
@@ -1945,11 +1983,16 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
             // new link's first callback and every later operation would lag by
             // one. Fail whatever is still attributed to this client — and only
             // to it (#394).
+            //
+            // Sweep before the link is marked up: the submission gate reads
+            // the client state, so a request that lands in a pending collection
+            // after this point belongs to the new link and must not be failed
+            // here.
             val reconnected = client.state == GattClient.State.AWAITING_RECONNECT
-            client.setState(GattClient.State.CONNECTED)
             if (reconnected) {
                 failPendingOperations { futureGatt, _ -> futureGatt === gatt }
             }
+            client.setState(GattClient.State.CONNECTED)
             mainThreadHandler?.post {
                 callbackChannel?.onConnectionChanged(
                     gatt.device.address, true, status.parseHciErrorCode(), status.toConnectionErrorCode(), status.toGattErrorCode()
