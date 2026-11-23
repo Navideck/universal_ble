@@ -19,10 +19,9 @@
 //                       #396's state guard settles all four with
 //                       deviceDisconnected.
 //   AFTER_DISCONNECT    The disconnect has completed. CoreBluetooth has
-//                       discarded CBPeripheral.services, so the characteristic
-//                       lookup fails before the state guard runs and the caller
-//                       gets characteristicNotFound. The requests are still
-//                       refused locally, never handed to CoreBluetooth.
+//                       discarded CBPeripheral.services, but the state check
+//                       runs before the lookup, so all four are refused with
+//                       deviceDisconnected instead of characteristicNotFound.
 //
 // Observed on macOS 26.6.2 and iPadOS 26.6.1, 2026-11-23.
 //
@@ -238,10 +237,9 @@ void main() {
     print('DISCONNECTED ${await UniversalBle.getConnectionState(deviceId)}');
 
     // --- Disconnected: the plugin must refuse these itself, not hand them to
-    // CoreBluetooth and wait for the timeout. Which code that is depends on
-    // whether CoreBluetooth has invalidated the attribute tree yet: the guard
-    // reports deviceDisconnected while it is cached, and the lookup reports
-    // characteristicNotFound once it is gone. ---
+    // CoreBluetooth and wait for the timeout. The state check runs before the
+    // lookup, so they report deviceDisconnected even though CoreBluetooth has
+    // already discarded the attribute tree. ---
     final afterDrop = <String>[];
     Future<void> refused(String label, Future<Object?> Function() action) async {
       try {
@@ -254,12 +252,10 @@ void main() {
         print('$label: ${e.code} "${e.message}"');
         expect(
           e.code,
-          anyOf(
-            UniversalBleErrorCode.deviceDisconnected,
-            UniversalBleErrorCode.characteristicNotFound,
-          ),
-          reason: '$label must be refused by the plugin, got ${e.code}',
+          UniversalBleErrorCode.deviceDisconnected,
+          reason: '$label must report deviceDisconnected, got ${e.code}',
         );
+        expect(e.message, contains('Disconnected'));
         afterDrop.add('$label=${e.code}');
       } on TimeoutException catch (_) {
         fail('$label reached CoreBluetooth and never completed');
