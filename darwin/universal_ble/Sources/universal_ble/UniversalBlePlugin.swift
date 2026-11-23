@@ -549,6 +549,10 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
       completion(Result.failure(createFlutterError(code: .characteristicNotFound, message: "Unknown characteristic:\(characteristic)")))
       return
     }
+    guard peripheral.state == .connected else {
+      completion(Result.failure(createFlutterError(code: .deviceDisconnected, message: "Device Disconnected")))
+      return
+    }
 
     if bleInputProperty == .notification && !gattCharacteristic.properties.contains(.notify) {
       completion(Result.failure(createFlutterError(code: .characteristicDoesNotSupportNotify, message: "Characteristic does not support notify")))
@@ -573,6 +577,10 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
     }
     guard let gattCharacteristic = peripheral.getCharacteristic(characteristic, of: service) else {
       completion(Result.failure(createFlutterError(code: .characteristicNotFound, message: "Unknown characteristic:\(characteristic)")))
+      return
+    }
+    guard peripheral.state == .connected else {
+      completion(Result.failure(createFlutterError(code: .deviceDisconnected, message: "Device Disconnected")))
       return
     }
     if !gattCharacteristic.properties.contains(.read) {
@@ -657,6 +665,10 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
       completion(Result.failure(createFlutterError(code: .characteristicNotFound, message: "Descriptor not found:\(descriptor)")))
       return
     }
+    guard peripheral.state == .connected else {
+      completion(Result.failure(createFlutterError(code: .deviceDisconnected, message: "Device Disconnected")))
+      return
+    }
     peripheral.readValue(for: gattDescriptor)
     descriptorReadFutures.append(DescriptorReadFuture(
       deviceId: deviceId,
@@ -675,6 +687,10 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
     }
     guard let gattDescriptor = peripheral.getDescriptor(descriptor, for: characteristic, of: service) else {
       completion(Result.failure(createFlutterError(code: .characteristicNotFound, message: "Descriptor not found:\(descriptor)")))
+      return
+    }
+    guard peripheral.state == .connected else {
+      completion(Result.failure(createFlutterError(code: .deviceDisconnected, message: "Device Disconnected")))
       return
     }
 

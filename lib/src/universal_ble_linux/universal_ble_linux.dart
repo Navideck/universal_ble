@@ -245,7 +245,9 @@ class UniversalBleLinux extends UniversalBlePlatform {
     String service,
     String characteristic,
   ) {
-    final device = _findDeviceById(deviceId);
+    // Every GATT request resolves its characteristic here, so the link check
+    // covers reads, writes, descriptors and subscriptions in one place.
+    final device = _findConnectedDevice(deviceId);
     final s = device.gattServices.cast<BlueZGattService?>().firstWhere(
           (s) => s?.uuid.toString() == service,
           orElse: () => null,
@@ -463,13 +465,7 @@ class UniversalBleLinux extends UniversalBlePlatform {
 
   @override
   Future<int> requestMtu(String deviceId, int expectedMtu) async {
-    final device = _findDeviceById(deviceId);
-    if (!device.connected) {
-      throw UniversalBleException(
-        code: UniversalBleErrorCode.deviceDisconnected,
-        message: 'Device not connected',
-      );
-    }
+    final device = _findConnectedDevice(deviceId);
     for (BlueZGattService service in device.gattServices) {
       for (BlueZGattCharacteristic characteristic in service.characteristics) {
         int? mtu = characteristic.mtu;
@@ -567,6 +563,23 @@ class UniversalBleLinux extends UniversalBlePlatform {
       throw UniversalBleException(
         code: UniversalBleErrorCode.deviceNotFound,
         message: 'Unknown deviceId:$deviceId',
+      );
+    }
+    return device;
+  }
+
+  /// [deviceId]'s device, provided its link is up.
+  ///
+  /// BlueZ drops a device's GATT object tree when the link goes down, so a
+  /// request submitted while disconnected otherwise fails as "characteristic
+  /// not found" — as if the device had changed its services. Name the real
+  /// condition instead, as Android and Apple do.
+  BlueZDevice _findConnectedDevice(String deviceId) {
+    final device = _findDeviceById(deviceId);
+    if (!device.connected) {
+      throw UniversalBleException(
+        code: UniversalBleErrorCode.deviceDisconnected,
+        message: 'Device Disconnected',
       );
     }
     return device;
