@@ -29,7 +29,7 @@ internal class MtuCompletionTest {
         return Mockito.mock(BluetoothGatt::class.java).also {
             Mockito.`when`(it.device).thenReturn(device)
             Mockito.`when`(it.requestMtu(Mockito.anyInt())).thenReturn(true)
-            plugin.gattRegistry().put(it)
+            plugin.attachConnectedGatt(it)
         }
     }
 
