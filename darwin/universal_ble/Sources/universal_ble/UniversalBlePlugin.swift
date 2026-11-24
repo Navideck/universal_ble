@@ -545,10 +545,7 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
       return
     }
 
-    // Check the link before the characteristic lookup: a settled disconnection
-    // discards the peripheral's attribute tree, so the lookup would otherwise
-    // report characteristicNotFound for a device that is known and simply
-    // disconnected. Linux and Web check first for the same reason.
+    // A settled disconnection discards the attribute tree: check the link first.
     guard peripheral.state == .connected else {
       completion(Result.failure(createFlutterError(code: .deviceDisconnected, message: "Device Disconnected")))
       return
@@ -579,10 +576,7 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
       completion(Result.failure(createFlutterError(code: .deviceNotFound, message: "Unknown deviceId:\(self)")))
       return
     }
-    // Check the link before the characteristic lookup: a settled disconnection
-    // discards the peripheral's attribute tree, so the lookup would otherwise
-    // report characteristicNotFound for a device that is known and simply
-    // disconnected. Linux and Web check first for the same reason.
+    // A settled disconnection discards the attribute tree: check the link first.
     guard peripheral.state == .connected else {
       completion(Result.failure(createFlutterError(code: .deviceDisconnected, message: "Device Disconnected")))
       return
@@ -605,10 +599,7 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
       completion(Result.failure(createFlutterError(code: .deviceNotFound, message: "Unknown deviceId:\(self)")))
       return
     }
-    // Check the link before the characteristic lookup: a settled disconnection
-    // discards the peripheral's attribute tree, so the lookup would otherwise
-    // report characteristicNotFound for a device that is known and simply
-    // disconnected. Linux and Web check first for the same reason.
+    // A settled disconnection discards the attribute tree: check the link first.
     guard peripheral.state == .connected else {
       completion(Result.failure(createFlutterError(code: .deviceDisconnected, message: "Device Disconnected")))
       return
@@ -673,8 +664,7 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
       completion(Result.failure(createFlutterError(code: .deviceNotFound, message: "Unknown deviceId:\(deviceId)")))
       return
     }
-    // Check the link before the descriptor lookup, for the same reason the
-    // characteristic paths do.
+    // Same precedence as the characteristic paths.
     guard peripheral.state == .connected else {
       completion(Result.failure(createFlutterError(code: .deviceDisconnected, message: "Device Disconnected")))
       return
@@ -699,8 +689,7 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
       completion(Result.failure(createFlutterError(code: .deviceNotFound, message: "Unknown deviceId:\(deviceId)")))
       return
     }
-    // Check the link before the descriptor lookup, for the same reason the
-    // characteristic paths do.
+    // Same precedence as the characteristic paths.
     guard peripheral.state == .connected else {
       completion(Result.failure(createFlutterError(code: .deviceDisconnected, message: "Device Disconnected")))
       return

@@ -629,11 +629,7 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
         try {
             UniversalBleLogger.logDebug("SET_NOTIFY -> $deviceId $service $characteristic input=$bleInputProperty")
             val gatt = gattRegistry.get(deviceId).gatt
-            // Refuse a request on a link that is already down before looking
-            // anything up: an autoConnect client keeps its cached services
-            // across a link loss, so the lookup would otherwise decide the
-            // answer for a device that is known and simply disconnected. The
-            // submission gate re-checks under its lock to close the race (#394).
+            // A disconnected device reports that, whatever the cache holds.
             if (!isLinkUp(gatt)) {
                 callback(Result.failure(deviceDisconnectedError()))
                 return
@@ -791,11 +787,7 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
         try {
             UniversalBleLogger.logDebug("READ -> $deviceId $service $characteristic")
             val gatt = gattRegistry.get(deviceId).gatt
-            // Refuse a request on a link that is already down before looking
-            // anything up: an autoConnect client keeps its cached services
-            // across a link loss, so the lookup would otherwise decide the
-            // answer for a device that is known and simply disconnected. The
-            // submission gate re-checks under its lock to close the race (#394).
+            // A disconnected device reports that, whatever the cache holds.
             if (!isLinkUp(gatt)) {
                 callback(Result.failure(deviceDisconnectedError()))
                 return
@@ -924,11 +916,7 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
         try {
             UniversalBleLogger.logDebug("WRITE -> $deviceId $service $characteristic len=${value.size} property=$bleOutputProperty")
             val gatt = gattRegistry.get(deviceId).gatt
-            // Refuse a request on a link that is already down before looking
-            // anything up: an autoConnect client keeps its cached services
-            // across a link loss, so the lookup would otherwise decide the
-            // answer for a device that is known and simply disconnected. The
-            // submission gate re-checks under its lock to close the race (#394).
+            // A disconnected device reports that, whatever the cache holds.
             if (!isLinkUp(gatt)) {
                 callback(Result.failure(deviceDisconnectedError()))
                 return
@@ -1153,11 +1141,7 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
         try {
             UniversalBleLogger.logDebug("READ_DESCRIPTOR -> $deviceId $service $characteristic $descriptor")
             val gatt = gattRegistry.get(deviceId).gatt
-            // Refuse a request on a link that is already down before looking
-            // anything up: an autoConnect client keeps its cached services
-            // across a link loss, so the lookup would otherwise decide the
-            // answer for a device that is known and simply disconnected. The
-            // submission gate re-checks under its lock to close the race (#394).
+            // A disconnected device reports that, whatever the cache holds.
             if (!isLinkUp(gatt)) {
                 callback(Result.failure(deviceDisconnectedError()))
                 return
@@ -1283,11 +1267,7 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
         try {
             UniversalBleLogger.logDebug("WRITE_DESCRIPTOR -> $deviceId $service $characteristic $descriptor len=${value.size}")
             val gatt = gattRegistry.get(deviceId).gatt
-            // Refuse a request on a link that is already down before looking
-            // anything up: an autoConnect client keeps its cached services
-            // across a link loss, so the lookup would otherwise decide the
-            // answer for a device that is known and simply disconnected. The
-            // submission gate re-checks under its lock to close the race (#394).
+            // A disconnected device reports that, whatever the cache holds.
             if (!isLinkUp(gatt)) {
                 callback(Result.failure(deviceDisconnectedError()))
                 return
@@ -1556,6 +1536,11 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
      * outside that lock leaves a window where the check passes, cleanup sweeps,
      * and the result is added afterwards — stranded until a later callback
      * completes it one behind (#394).
+     *
+     * Requests check it before the characteristic lookup: an autoConnect client
+     * keeps its cached services across a link loss, so a lookup-first order
+     * would report a missing characteristic for a device that is known and
+     * simply disconnected. The submission gate still re-checks under its lock.
      */
     private fun isLinkUp(gatt: BluetoothGatt): Boolean =
         gattRegistry.find(gatt)?.isLinkUp == true
