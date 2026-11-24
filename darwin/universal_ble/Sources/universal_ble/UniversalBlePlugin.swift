@@ -499,7 +499,7 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
 
     guard peripheral.state == .connected else {
       completion(
-        Result.failure(createFlutterError(code: .deviceDisconnected, message: "Device is not connected"))
+        Result.failure(createFlutterError(code: .deviceDisconnected, message: "Device Disconnected"))
       )
       return
     }
@@ -746,6 +746,10 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
       completion(Result.failure(createFlutterError(code: .deviceNotFound, message: "Unknown deviceId:\(self)")))
       return
     }
+    guard peripheral.state == .connected else {
+      completion(Result.failure(createFlutterError(code: .deviceDisconnected, message: "Device Disconnected")))
+      return
+    }
     let mtu = peripheral.maximumWriteValueLength(for: CBCharacteristicWriteType.withoutResponse)
     let GATT_HEADER_LENGTH = 3
     let mtuResult = Int64(mtu + GATT_HEADER_LENGTH)
@@ -764,6 +768,10 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
     UniversalBleLogger.shared.logDebug("READ_RSSI -> \(deviceId)")
     guard let peripheral = peripheralCache.find(deviceId, manager: manager) else {
       completion(Result.failure(createFlutterError(code: .deviceNotFound, message: "Unknown deviceId:\(deviceId)")))
+      return
+    }
+    guard peripheral.state == .connected else {
+      completion(Result.failure(createFlutterError(code: .deviceDisconnected, message: "Device Disconnected")))
       return
     }
     peripheral.readRSSI()

@@ -175,6 +175,13 @@ void main() {
     // ignore: avoid_print
     print('UNSUBSCRIBE_OK $notifyCharacteristic');
 
+    final mtu = await UniversalBle.requestMtu(deviceId, 185);
+    // ignore: avoid_print
+    print('MTU_OK $mtu');
+    final rssi = await UniversalBle.readRssi(deviceId);
+    // ignore: avoid_print
+    print('RSSI_OK $rssi');
+
     // --- Race the same requests against disconnect(): the peripheral is in
     // .disconnecting and still holds its attribute tree, the window #396's
     // state guard exists for. ---
@@ -223,6 +230,8 @@ void main() {
           notifyCharacteristic,
         ),
       ),
+      race('requestMtu', () => UniversalBle.requestMtu(deviceId, 185)),
+      race('readRssi', () => UniversalBle.readRssi(deviceId)),
     ]);
     await disconnectFuture;
     // ignore: avoid_print
@@ -293,6 +302,8 @@ void main() {
         notifyCharacteristic,
       ),
     );
+    await refused('requestMtu', () => UniversalBle.requestMtu(deviceId, 185));
+    await refused('readRssi', () => UniversalBle.readRssi(deviceId));
     // ignore: avoid_print
     print('AFTER_DISCONNECT ${afterDrop.join(" ")}');
   });
