@@ -963,8 +963,8 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
                 writeType = BluetoothGattCharacteristic.WRITE_TYPE_NO_RESPONSE
             }
 
-            // Checked after the lookups so a caller still gets deviceNotFound,
-            // characteristicNotFound and the write-support errors it got before.
+            // Checked after the link check and the lookups so a wrong device,
+            // attribute or operation outranks a payload that is too long.
             if (value.size > MAX_ATTRIBUTE_VALUE_SIZE) {
                 callback(
                     Result.failure(
@@ -1297,9 +1297,10 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
                 return
             }
 
-            // Checked after the lookups so a caller still gets deviceNotFound and
-            // the not-found errors it got before. writeDescriptor does not throw
-            // for a long value, but a value over the attribute cap cannot work.
+            // Checked after the link check and the lookups so a wrong device or
+            // attribute outranks a payload that is too long. writeDescriptor does
+            // not throw for a long value, but a value over the attribute cap
+            // cannot work.
             if (value.size > MAX_ATTRIBUTE_VALUE_SIZE) {
                 callback(
                     Result.failure(

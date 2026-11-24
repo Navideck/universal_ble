@@ -716,6 +716,11 @@ class UniversalBle {
   /// **Best Practices:** Design for default ATT MTU (23 bytes), treat requests as
   /// opportunistic, and implement fragmentation for larger payloads.
   ///
+  /// Throws [UniversalBleException] if:
+  /// - The device is not connected (`deviceDisconnected`). This includes
+  ///   iOS/macOS, where the value is computed locally rather than requested.
+  /// - The request fails
+  ///
   /// **Timeout:** [timeout] bounds each step separately, so on iOS/macOS and
   /// Linux a call that has to discover the services first can take up to roughly
   /// twice [timeout] before it settles. Pass a [timeout] that accounts for both.

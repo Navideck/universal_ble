@@ -431,4 +431,77 @@ internal class LinkLossOperationTest {
             "a live link keeps reporting a missing characteristic as such",
         )
     }
+
+    @Test
+    fun anUnknownDescriptorOnADroppedLinkStillReportsDisconnected() {
+        // The descriptor paths check the link before the characteristic and
+        // descriptor lookups too, so an unknown attribute cannot shadow the
+        // connection the caller has to fix.
+        val plugin = connectedAutoConnectPlugin()
+        report(plugin, BluetoothGatt.STATE_DISCONNECTED)
+
+        val unknown = UUID.randomUUID().toString()
+        val descriptorReads = mutableListOf<Result<ByteArray>>()
+        plugin.readDescriptorValue(
+            deviceAddress,
+            serviceUuid.toString(),
+            charUuid.toString(),
+            unknown,
+        ) { descriptorReads.add(it) }
+        assertEquals(1, descriptorReads.size)
+        assertDeviceDisconnected(descriptorReads.single())
+
+        val descriptorWrites = mutableListOf<Result<Unit>>()
+        plugin.writeDescriptorValue(
+            deviceAddress,
+            serviceUuid.toString(),
+            charUuid.toString(),
+            unknown,
+            ByteArray(2),
+        ) { descriptorWrites.add(it) }
+        assertEquals(1, descriptorWrites.size)
+        assertDeviceDisconnected(descriptorWrites.single())
+
+        Mockito.verify(gatt, Mockito.never())
+            .readDescriptor(Mockito.any(BluetoothGattDescriptor::class.java))
+        Mockito.verify(gatt, Mockito.never())
+            .writeDescriptor(Mockito.any(BluetoothGattDescriptor::class.java))
+    }
+
+    @Test
+    fun anUnknownDescriptorOnALiveLinkStillReportsNotFound() {
+        val plugin = connectedAutoConnectPlugin()
+
+        val unknown = UUID.randomUUID().toString()
+        val descriptorReads = mutableListOf<Result<ByteArray>>()
+        plugin.readDescriptorValue(
+            deviceAddress,
+            serviceUuid.toString(),
+            charUuid.toString(),
+            unknown,
+        ) { descriptorReads.add(it) }
+
+        assertEquals(1, descriptorReads.size)
+        assertEquals(
+            UniversalBleErrorCode.CHARACTERISTIC_NOT_FOUND.raw.toString(),
+            errorCode(descriptorReads.single()),
+            "a live link keeps reporting a missing descriptor as such",
+        )
+
+        val descriptorWrites = mutableListOf<Result<Unit>>()
+        plugin.writeDescriptorValue(
+            deviceAddress,
+            serviceUuid.toString(),
+            charUuid.toString(),
+            unknown,
+            ByteArray(2),
+        ) { descriptorWrites.add(it) }
+
+        assertEquals(1, descriptorWrites.size)
+        assertEquals(
+            UniversalBleErrorCode.CHARACTERISTIC_NOT_FOUND.raw.toString(),
+            errorCode(descriptorWrites.single()),
+            "a live link keeps reporting a missing descriptor as such",
+        )
+    }
 }

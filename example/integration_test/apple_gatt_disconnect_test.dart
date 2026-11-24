@@ -100,6 +100,17 @@ void main() {
     print('DEVICE $deviceId ${target.name}');
 
     await UniversalBle.connect(deviceId);
+    // A failed assertion below must not leave the peripheral connected: the next
+    // run would start from a different state. Ignore a disconnect that finds it
+    // already down.
+    addTearDown(() async {
+      try {
+        await UniversalBle.disconnect(deviceId);
+      } catch (_) {
+        // Already disconnected, which is the state the test sometimes leaves it
+        // in on purpose.
+      }
+    });
     // ignore: avoid_print
     print('CONNECTED ${await UniversalBle.getConnectionState(deviceId)}');
 
@@ -195,6 +206,10 @@ void main() {
         raced.add('$label=${e.code}');
       } on TimeoutException catch (_) {
         raced.add('$label=TIMEOUT');
+      } catch (e) {
+        // Record the type instead of aborting the whole run: this window is
+        // expected to produce a range of platform errors.
+        raced.add('$label=${e.runtimeType}');
       }
     }
 
@@ -268,6 +283,10 @@ void main() {
         afterDrop.add('$label=${e.code}');
       } on TimeoutException catch (_) {
         fail('$label reached CoreBluetooth and never completed');
+      } catch (e) {
+        fail(
+          '$label threw ${e.runtimeType} instead of a UniversalBleException: $e',
+        );
       }
     }
 
