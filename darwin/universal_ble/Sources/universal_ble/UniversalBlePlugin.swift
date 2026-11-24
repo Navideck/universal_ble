@@ -499,7 +499,7 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
 
     guard peripheral.state == .connected else {
       completion(
-        Result.failure(createFlutterError(code: .deviceDisconnected, message: "Device is not connected"))
+        Result.failure(createFlutterError(code: .deviceDisconnected, message: "Device Disconnected"))
       )
       return
     }
@@ -545,12 +545,13 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
       return
     }
 
-    guard let gattCharacteristic = peripheral.getCharacteristic(characteristic, of: service) else {
-      completion(Result.failure(createFlutterError(code: .characteristicNotFound, message: "Unknown characteristic:\(characteristic)")))
-      return
-    }
+    // A settled disconnection discards the attribute tree: check the link first.
     guard peripheral.state == .connected else {
       completion(Result.failure(createFlutterError(code: .deviceDisconnected, message: "Device Disconnected")))
+      return
+    }
+    guard let gattCharacteristic = peripheral.getCharacteristic(characteristic, of: service) else {
+      completion(Result.failure(createFlutterError(code: .characteristicNotFound, message: "Unknown characteristic:\(characteristic)")))
       return
     }
 
@@ -575,12 +576,13 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
       completion(Result.failure(createFlutterError(code: .deviceNotFound, message: "Unknown deviceId:\(self)")))
       return
     }
-    guard let gattCharacteristic = peripheral.getCharacteristic(characteristic, of: service) else {
-      completion(Result.failure(createFlutterError(code: .characteristicNotFound, message: "Unknown characteristic:\(characteristic)")))
-      return
-    }
+    // A settled disconnection discards the attribute tree: check the link first.
     guard peripheral.state == .connected else {
       completion(Result.failure(createFlutterError(code: .deviceDisconnected, message: "Device Disconnected")))
+      return
+    }
+    guard let gattCharacteristic = peripheral.getCharacteristic(characteristic, of: service) else {
+      completion(Result.failure(createFlutterError(code: .characteristicNotFound, message: "Unknown characteristic:\(characteristic)")))
       return
     }
     if !gattCharacteristic.properties.contains(.read) {
@@ -597,12 +599,13 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
       completion(Result.failure(createFlutterError(code: .deviceNotFound, message: "Unknown deviceId:\(self)")))
       return
     }
-    guard let gattCharacteristic = peripheral.getCharacteristic(characteristic, of: service) else {
-      completion(Result.failure(createFlutterError(code: .characteristicNotFound, message: "Unknown characteristic:\(characteristic)")))
-      return
-    }
+    // A settled disconnection discards the attribute tree: check the link first.
     guard peripheral.state == .connected else {
       completion(Result.failure(createFlutterError(code: .deviceDisconnected, message: "Device Disconnected")))
+      return
+    }
+    guard let gattCharacteristic = peripheral.getCharacteristic(characteristic, of: service) else {
+      completion(Result.failure(createFlutterError(code: .characteristicNotFound, message: "Unknown characteristic:\(characteristic)")))
       return
     }
 
@@ -661,12 +664,13 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
       completion(Result.failure(createFlutterError(code: .deviceNotFound, message: "Unknown deviceId:\(deviceId)")))
       return
     }
-    guard let gattDescriptor = peripheral.getDescriptor(descriptor, for: characteristic, of: service) else {
-      completion(Result.failure(createFlutterError(code: .characteristicNotFound, message: "Descriptor not found:\(descriptor)")))
-      return
-    }
+    // Same precedence as the characteristic paths.
     guard peripheral.state == .connected else {
       completion(Result.failure(createFlutterError(code: .deviceDisconnected, message: "Device Disconnected")))
+      return
+    }
+    guard let gattDescriptor = peripheral.getDescriptor(descriptor, for: characteristic, of: service) else {
+      completion(Result.failure(createFlutterError(code: .characteristicNotFound, message: "Descriptor not found:\(descriptor)")))
       return
     }
     peripheral.readValue(for: gattDescriptor)
@@ -685,12 +689,13 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
       completion(Result.failure(createFlutterError(code: .deviceNotFound, message: "Unknown deviceId:\(deviceId)")))
       return
     }
-    guard let gattDescriptor = peripheral.getDescriptor(descriptor, for: characteristic, of: service) else {
-      completion(Result.failure(createFlutterError(code: .characteristicNotFound, message: "Descriptor not found:\(descriptor)")))
-      return
-    }
+    // Same precedence as the characteristic paths.
     guard peripheral.state == .connected else {
       completion(Result.failure(createFlutterError(code: .deviceDisconnected, message: "Device Disconnected")))
+      return
+    }
+    guard let gattDescriptor = peripheral.getDescriptor(descriptor, for: characteristic, of: service) else {
+      completion(Result.failure(createFlutterError(code: .characteristicNotFound, message: "Descriptor not found:\(descriptor)")))
       return
     }
 
@@ -730,6 +735,10 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
       completion(Result.failure(createFlutterError(code: .deviceNotFound, message: "Unknown deviceId:\(self)")))
       return
     }
+    guard peripheral.state == .connected else {
+      completion(Result.failure(createFlutterError(code: .deviceDisconnected, message: "Device Disconnected")))
+      return
+    }
     let mtu = peripheral.maximumWriteValueLength(for: CBCharacteristicWriteType.withoutResponse)
     let GATT_HEADER_LENGTH = 3
     let mtuResult = Int64(mtu + GATT_HEADER_LENGTH)
@@ -748,6 +757,10 @@ private class BleCentralDarwin: NSObject, UniversalBlePlatformChannel, CBCentral
     UniversalBleLogger.shared.logDebug("READ_RSSI -> \(deviceId)")
     guard let peripheral = peripheralCache.find(deviceId, manager: manager) else {
       completion(Result.failure(createFlutterError(code: .deviceNotFound, message: "Unknown deviceId:\(deviceId)")))
+      return
+    }
+    guard peripheral.state == .connected else {
+      completion(Result.failure(createFlutterError(code: .deviceDisconnected, message: "Device Disconnected")))
       return
     }
     peripheral.readRSSI()

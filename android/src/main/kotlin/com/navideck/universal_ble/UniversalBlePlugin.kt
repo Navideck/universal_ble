@@ -629,6 +629,11 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
         try {
             UniversalBleLogger.logDebug("SET_NOTIFY -> $deviceId $service $characteristic input=$bleInputProperty")
             val gatt = gattRegistry.get(deviceId).gatt
+            // A disconnected device reports that, whatever the cache holds.
+            if (!isLinkUp(gatt)) {
+                callback(Result.failure(deviceDisconnectedError()))
+                return
+            }
             val gattCharacteristic = gatt.getCharacteristic(service, characteristic)
             if (gattCharacteristic == null) {
                 callback(
@@ -782,6 +787,11 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
         try {
             UniversalBleLogger.logDebug("READ -> $deviceId $service $characteristic")
             val gatt = gattRegistry.get(deviceId).gatt
+            // A disconnected device reports that, whatever the cache holds.
+            if (!isLinkUp(gatt)) {
+                callback(Result.failure(deviceDisconnectedError()))
+                return
+            }
             val gattCharacteristic = gatt.getCharacteristic(service, characteristic)
             if (gattCharacteristic == null) {
                 callback(
@@ -906,6 +916,11 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
         try {
             UniversalBleLogger.logDebug("WRITE -> $deviceId $service $characteristic len=${value.size} property=$bleOutputProperty")
             val gatt = gattRegistry.get(deviceId).gatt
+            // A disconnected device reports that, whatever the cache holds.
+            if (!isLinkUp(gatt)) {
+                callback(Result.failure(deviceDisconnectedError()))
+                return
+            }
             val gattCharacteristic = gatt.getCharacteristic(service, characteristic)
             if (gattCharacteristic == null) {
                 callback(
@@ -948,8 +963,8 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
                 writeType = BluetoothGattCharacteristic.WRITE_TYPE_NO_RESPONSE
             }
 
-            // Checked after the lookups so a caller still gets deviceNotFound,
-            // characteristicNotFound and the write-support errors it got before.
+            // Checked after the link check and the lookups so a wrong device,
+            // attribute or operation outranks a payload that is too long.
             if (value.size > MAX_ATTRIBUTE_VALUE_SIZE) {
                 callback(
                     Result.failure(
@@ -1126,6 +1141,11 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
         try {
             UniversalBleLogger.logDebug("READ_DESCRIPTOR -> $deviceId $service $characteristic $descriptor")
             val gatt = gattRegistry.get(deviceId).gatt
+            // A disconnected device reports that, whatever the cache holds.
+            if (!isLinkUp(gatt)) {
+                callback(Result.failure(deviceDisconnectedError()))
+                return
+            }
             val gattCharacteristic = gatt.getCharacteristic(service, characteristic)
             if (gattCharacteristic == null) {
                 callback(
@@ -1247,6 +1267,11 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
         try {
             UniversalBleLogger.logDebug("WRITE_DESCRIPTOR -> $deviceId $service $characteristic $descriptor len=${value.size}")
             val gatt = gattRegistry.get(deviceId).gatt
+            // A disconnected device reports that, whatever the cache holds.
+            if (!isLinkUp(gatt)) {
+                callback(Result.failure(deviceDisconnectedError()))
+                return
+            }
             val gattCharacteristic = gatt.getCharacteristic(service, characteristic)
             if (gattCharacteristic == null) {
                 callback(
@@ -1272,9 +1297,10 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
                 return
             }
 
-            // Checked after the lookups so a caller still gets deviceNotFound and
-            // the not-found errors it got before. writeDescriptor does not throw
-            // for a long value, but a value over the attribute cap cannot work.
+            // Checked after the link check and the lookups so a wrong device or
+            // attribute outranks a payload that is too long. writeDescriptor does
+            // not throw for a long value, but a value over the attribute cap
+            // cannot work.
             if (value.size > MAX_ATTRIBUTE_VALUE_SIZE) {
                 callback(
                     Result.failure(
@@ -1511,6 +1537,11 @@ class UniversalBlePlugin : UniversalBlePlatformChannel, BluetoothGattCallback(),
      * outside that lock leaves a window where the check passes, cleanup sweeps,
      * and the result is added afterwards — stranded until a later callback
      * completes it one behind (#394).
+     *
+     * Requests check it before the characteristic lookup: an autoConnect client
+     * keeps its cached services across a link loss, so a lookup-first order
+     * would report a missing characteristic for a device that is known and
+     * simply disconnected. The submission gate still re-checks under its lock.
      */
     private fun isLinkUp(gatt: BluetoothGatt): Boolean =
         gattRegistry.find(gatt)?.isLinkUp == true
