@@ -179,6 +179,14 @@ struct BluetoothDeviceAgent {
     return services;
   }
 
+  // Whether the current service map exposes a service. A GATT refresh uses this
+  // to keep a denied service the connection was already using instead of
+  // dropping it from the replacement map.
+  bool HasService(const std::string &service_uuid) const {
+    std::lock_guard<std::mutex> lock(gatt_mutex);
+    return gatt_map.find(service_uuid) != gatt_map.end();
+  }
+
   GattMapLease SnapshotGattMapForOperation() {
     std::lock_guard<std::mutex> lock(gatt_mutex);
     if (!IsActive()) {

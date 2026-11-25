@@ -56,6 +56,7 @@ list(APPEND PLUGIN_SOURCES
   "src/universal_ble_filter_util.h"
   "src/universal_ble_thread_safe.h"
   "src/enum_parser.h"
+  "src/gatt_discovery_policy.h"
   "src/helper/universal_ble_logger.cpp"
   "src/helper/universal_ble_logger.h"
 )
