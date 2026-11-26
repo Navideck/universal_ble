@@ -700,9 +700,10 @@ private:
       const int64_t *timeout,
       const UniversalManufacturerData *manufacturer_data,
       const PeripheralPlatformConfig *platform_config) override;
-  std::optional<FlutterError> UpdateCharacteristic(
+  void UpdateCharacteristic(
       const std::string &characteristic_id, const std::string *characteristic_instance_id,
-      const std::vector<uint8_t> &value, const std::string *device_id) override;
+      const std::vector<uint8_t> &value, const std::string *device_id,
+      std::function<void(std::optional<FlutterError> reply)> result) override;
   ErrorOr<flutter::EncodableList> GetSubscribedClients(
       const std::string &characteristic_id, const std::string *characteristic_instance_id) override;
   std::optional<FlutterError> ClearPendingNotifications(const std::string *device_id) override;

@@ -404,6 +404,25 @@ enum class PeripheralAdvertisingState(val raw: Int) {
   }
 }
 
+/**
+ * Desired connection latency for a subscribed central on Apple platforms.
+ *
+ * Maps to CoreBluetooth `CBPeripheralManagerConnectionLatency`. A lower
+ * latency trades radio time for responsiveness; Apple negotiates a higher
+ * latency (and therefore lower throughput) when nothing asks for otherwise.
+ */
+enum class PeripheralConnectionLatency(val raw: Int) {
+  LOW(0),
+  MEDIUM(1),
+  HIGH(2);
+
+  companion object {
+    fun ofRaw(raw: Int): PeripheralConnectionLatency? {
+      return values().firstOrNull { it.raw == raw }
+    }
+  }
+}
+
 /** Unified error codes for all platforms */
 enum class UniversalBleErrorCode(val raw: Int) {
   UNKNOWN_ERROR(0),
@@ -1897,135 +1916,140 @@ private open class UniversalBlePigeonCodec : StandardMessageCodec() {
       }
       143.toByte() -> {
         return (readValue(buffer) as Long?)?.let {
-          UniversalBleErrorCode.ofRaw(it.toInt())
+          PeripheralConnectionLatency.ofRaw(it.toInt())
         }
       }
       144.toByte() -> {
-        return (readValue(buffer) as? List<Any?>)?.let {
-          UniversalBleScanResult.fromList(it)
+        return (readValue(buffer) as Long?)?.let {
+          UniversalBleErrorCode.ofRaw(it.toInt())
         }
       }
       145.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          UniversalDevicePickerResult.fromList(it)
+          UniversalBleScanResult.fromList(it)
         }
       }
       146.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          UniversalBleService.fromList(it)
+          UniversalDevicePickerResult.fromList(it)
         }
       }
       147.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          UniversalBleCharacteristic.fromList(it)
+          UniversalBleService.fromList(it)
         }
       }
       148.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          UniversalBleDescriptor.fromList(it)
+          UniversalBleCharacteristic.fromList(it)
         }
       }
       149.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          BleConnectionParametersChange.fromList(it)
+          UniversalBleDescriptor.fromList(it)
         }
       }
       150.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          AndroidOptions.fromList(it)
+          BleConnectionParametersChange.fromList(it)
         }
       }
       151.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          UniversalScanConfig.fromList(it)
+          AndroidOptions.fromList(it)
         }
       }
       152.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          UniversalScanFilter.fromList(it)
+          UniversalScanConfig.fromList(it)
         }
       }
       153.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          ManufacturerDataFilter.fromList(it)
+          UniversalScanFilter.fromList(it)
         }
       }
       154.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          UniversalManufacturerData.fromList(it)
+          ManufacturerDataFilter.fromList(it)
         }
       }
       155.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          AppleConnectionOptions.fromList(it)
+          UniversalManufacturerData.fromList(it)
         }
       }
       156.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          AppleAccessoryPickerItem.fromList(it)
+          AppleConnectionOptions.fromList(it)
         }
       }
       157.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          AppleAccessorySetupOptions.fromList(it)
+          AppleAccessoryPickerItem.fromList(it)
         }
       }
       158.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          AndroidConnectionOptions.fromList(it)
+          AppleAccessorySetupOptions.fromList(it)
         }
       }
       159.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          ConnectionPlatformConfig.fromList(it)
+          AndroidConnectionOptions.fromList(it)
         }
       }
       160.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          AndroidDiscoverServicesOptions.fromList(it)
+          ConnectionPlatformConfig.fromList(it)
         }
       }
       161.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          AppleDiscoverServicesOptions.fromList(it)
+          AndroidDiscoverServicesOptions.fromList(it)
         }
       }
       162.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          DiscoverServicesPlatformConfig.fromList(it)
+          AppleDiscoverServicesOptions.fromList(it)
         }
       }
       163.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          PeripheralAndroidOptions.fromList(it)
+          DiscoverServicesPlatformConfig.fromList(it)
         }
       }
       164.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          PeripheralPlatformConfig.fromList(it)
+          PeripheralAndroidOptions.fromList(it)
         }
       }
       165.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          PeripheralService.fromList(it)
+          PeripheralPlatformConfig.fromList(it)
         }
       }
       166.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          PeripheralCharacteristic.fromList(it)
+          PeripheralService.fromList(it)
         }
       }
       167.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          PeripheralDescriptor.fromList(it)
+          PeripheralCharacteristic.fromList(it)
         }
       }
       168.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          PeripheralReadRequestResult.fromList(it)
+          PeripheralDescriptor.fromList(it)
         }
       }
       169.toByte() -> {
+        return (readValue(buffer) as? List<Any?>)?.let {
+          PeripheralReadRequestResult.fromList(it)
+        }
+      }
+      170.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
           PeripheralWriteRequestResult.fromList(it)
         }
@@ -2091,112 +2115,116 @@ private open class UniversalBlePigeonCodec : StandardMessageCodec() {
         stream.write(142)
         writeValue(stream, value.raw.toLong())
       }
-      is UniversalBleErrorCode -> {
+      is PeripheralConnectionLatency -> {
         stream.write(143)
         writeValue(stream, value.raw.toLong())
       }
-      is UniversalBleScanResult -> {
+      is UniversalBleErrorCode -> {
         stream.write(144)
-        writeValue(stream, value.toList())
+        writeValue(stream, value.raw.toLong())
       }
-      is UniversalDevicePickerResult -> {
+      is UniversalBleScanResult -> {
         stream.write(145)
         writeValue(stream, value.toList())
       }
-      is UniversalBleService -> {
+      is UniversalDevicePickerResult -> {
         stream.write(146)
         writeValue(stream, value.toList())
       }
-      is UniversalBleCharacteristic -> {
+      is UniversalBleService -> {
         stream.write(147)
         writeValue(stream, value.toList())
       }
-      is UniversalBleDescriptor -> {
+      is UniversalBleCharacteristic -> {
         stream.write(148)
         writeValue(stream, value.toList())
       }
-      is BleConnectionParametersChange -> {
+      is UniversalBleDescriptor -> {
         stream.write(149)
         writeValue(stream, value.toList())
       }
-      is AndroidOptions -> {
+      is BleConnectionParametersChange -> {
         stream.write(150)
         writeValue(stream, value.toList())
       }
-      is UniversalScanConfig -> {
+      is AndroidOptions -> {
         stream.write(151)
         writeValue(stream, value.toList())
       }
-      is UniversalScanFilter -> {
+      is UniversalScanConfig -> {
         stream.write(152)
         writeValue(stream, value.toList())
       }
-      is ManufacturerDataFilter -> {
+      is UniversalScanFilter -> {
         stream.write(153)
         writeValue(stream, value.toList())
       }
-      is UniversalManufacturerData -> {
+      is ManufacturerDataFilter -> {
         stream.write(154)
         writeValue(stream, value.toList())
       }
-      is AppleConnectionOptions -> {
+      is UniversalManufacturerData -> {
         stream.write(155)
         writeValue(stream, value.toList())
       }
-      is AppleAccessoryPickerItem -> {
+      is AppleConnectionOptions -> {
         stream.write(156)
         writeValue(stream, value.toList())
       }
-      is AppleAccessorySetupOptions -> {
+      is AppleAccessoryPickerItem -> {
         stream.write(157)
         writeValue(stream, value.toList())
       }
-      is AndroidConnectionOptions -> {
+      is AppleAccessorySetupOptions -> {
         stream.write(158)
         writeValue(stream, value.toList())
       }
-      is ConnectionPlatformConfig -> {
+      is AndroidConnectionOptions -> {
         stream.write(159)
         writeValue(stream, value.toList())
       }
-      is AndroidDiscoverServicesOptions -> {
+      is ConnectionPlatformConfig -> {
         stream.write(160)
         writeValue(stream, value.toList())
       }
-      is AppleDiscoverServicesOptions -> {
+      is AndroidDiscoverServicesOptions -> {
         stream.write(161)
         writeValue(stream, value.toList())
       }
-      is DiscoverServicesPlatformConfig -> {
+      is AppleDiscoverServicesOptions -> {
         stream.write(162)
         writeValue(stream, value.toList())
       }
-      is PeripheralAndroidOptions -> {
+      is DiscoverServicesPlatformConfig -> {
         stream.write(163)
         writeValue(stream, value.toList())
       }
-      is PeripheralPlatformConfig -> {
+      is PeripheralAndroidOptions -> {
         stream.write(164)
         writeValue(stream, value.toList())
       }
-      is PeripheralService -> {
+      is PeripheralPlatformConfig -> {
         stream.write(165)
         writeValue(stream, value.toList())
       }
-      is PeripheralCharacteristic -> {
+      is PeripheralService -> {
         stream.write(166)
         writeValue(stream, value.toList())
       }
-      is PeripheralDescriptor -> {
+      is PeripheralCharacteristic -> {
         stream.write(167)
         writeValue(stream, value.toList())
       }
-      is PeripheralReadRequestResult -> {
+      is PeripheralDescriptor -> {
         stream.write(168)
         writeValue(stream, value.toList())
       }
-      is PeripheralWriteRequestResult -> {
+      is PeripheralReadRequestResult -> {
         stream.write(169)
+        writeValue(stream, value.toList())
+      }
+      is PeripheralWriteRequestResult -> {
+        stream.write(170)
         writeValue(stream, value.toList())
       }
       else -> super.writeValue(stream, value)
@@ -2918,7 +2946,16 @@ interface UniversalBlePeripheralChannel {
   fun clearServices()
   fun getServices(): List<String>
   fun startAdvertising(services: List<String>, localName: String?, timeout: Long?, manufacturerData: UniversalManufacturerData?, platformConfig: PeripheralPlatformConfig?)
-  fun updateCharacteristic(characteristicId: String, characteristicInstanceId: String?, value: ByteArray, deviceId: String?)
+  /**
+   * Sends [value] to the clients subscribed to [characteristicId].
+   *
+   * The reply is sent once every targeted client's notification is settled:
+   * accepted by the platform queue (Apple, when `updateValue` returns `true`),
+   * sent (`onNotificationSent` on Android) or completed (`NotifyValueAsync` on
+   * Windows). A failure is reported once all of them have settled and at least
+   * one failed.
+   */
+  fun updateCharacteristic(characteristicId: String, characteristicInstanceId: String?, value: ByteArray, deviceId: String?, callback: (Result<Unit>) -> Unit)
   /**
    * Returns peripheral-client device ids currently subscribed to the
    * characteristic identified by [characteristicId] (and, when supplied,
@@ -3092,13 +3129,14 @@ interface UniversalBlePeripheralChannel {
             val characteristicInstanceIdArg = args[1] as String?
             val valueArg = args[2] as ByteArray
             val deviceIdArg = args[3] as String?
-            val wrapped: List<Any?> = try {
-              api.updateCharacteristic(characteristicIdArg, characteristicInstanceIdArg, valueArg, deviceIdArg)
-              listOf(null)
-            } catch (exception: Throwable) {
-              UniversalBlePigeonUtils.wrapError(exception)
+            api.updateCharacteristic(characteristicIdArg, characteristicInstanceIdArg, valueArg, deviceIdArg) { result: Result<Unit> ->
+              val error = result.exceptionOrNull()
+              if (error != null) {
+                reply.reply(UniversalBlePigeonUtils.wrapError(error))
+              } else {
+                reply.reply(UniversalBlePigeonUtils.wrapResult(null))
+              }
             }
-            reply.reply(wrapped)
           }
         } else {
           channel.setMessageHandler(null)
@@ -3179,12 +3217,14 @@ interface UniversalBlePeripheralChannel {
   }
 }
 /**
- * Flutter -> Native (Apple peripheral restoration only).
+ * Flutter -> Native (Apple peripheral-only APIs).
  *
  * Generated interface from Pigeon that represents a handler of messages from Flutter.
  */
 interface UniversalBleDarwinPeripheralChannel {
   fun configureRestoration(restorationIdentifier: String)
+  /** Sets the connection latency CoreBluetooth negotiates with [deviceId]. */
+  fun setDesiredConnectionLatency(deviceId: String, latency: PeripheralConnectionLatency)
 
   companion object {
     /** The codec used by UniversalBleDarwinPeripheralChannel. */
@@ -3203,6 +3243,25 @@ interface UniversalBleDarwinPeripheralChannel {
             val restorationIdentifierArg = args[0] as String
             val wrapped: List<Any?> = try {
               api.configureRestoration(restorationIdentifierArg)
+              listOf(null)
+            } catch (exception: Throwable) {
+              UniversalBlePigeonUtils.wrapError(exception)
+            }
+            reply.reply(wrapped)
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.universal_ble.UniversalBleDarwinPeripheralChannel.setDesiredConnectionLatency$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { message, reply ->
+            val args = message as List<Any?>
+            val deviceIdArg = args[0] as String
+            val latencyArg = args[1] as PeripheralConnectionLatency
+            val wrapped: List<Any?> = try {
+              api.setDesiredConnectionLatency(deviceIdArg, latencyArg)
               listOf(null)
             } catch (exception: Throwable) {
               UniversalBlePigeonUtils.wrapError(exception)

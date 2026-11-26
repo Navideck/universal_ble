@@ -230,6 +230,17 @@ enum PeripheralAdvertisingState {
   error;
 }
 
+/// Desired connection latency for a subscribed central on Apple platforms.
+///
+/// Maps to CoreBluetooth `CBPeripheralManagerConnectionLatency`. A lower
+/// latency trades radio time for responsiveness; Apple negotiates a higher
+/// latency (and therefore lower throughput) when nothing asks for otherwise.
+enum PeripheralConnectionLatency {
+  low,
+  medium,
+  high;
+}
+
 /// Unified error codes for all platforms
 enum UniversalBleErrorCode {
   unknownError,
@@ -2009,86 +2020,89 @@ class _PigeonCodec extends StandardMessageCodec {
     } else if (value is PeripheralAdvertisingState) {
       buffer.putUint8(142);
       writeValue(buffer, value.index);
-    } else if (value is UniversalBleErrorCode) {
+    } else if (value is PeripheralConnectionLatency) {
       buffer.putUint8(143);
       writeValue(buffer, value.index);
-    } else if (value is UniversalBleScanResult) {
+    } else if (value is UniversalBleErrorCode) {
       buffer.putUint8(144);
-      writeValue(buffer, value.encode());
-    } else if (value is UniversalDevicePickerResult) {
+      writeValue(buffer, value.index);
+    } else if (value is UniversalBleScanResult) {
       buffer.putUint8(145);
       writeValue(buffer, value.encode());
-    } else if (value is UniversalBleService) {
+    } else if (value is UniversalDevicePickerResult) {
       buffer.putUint8(146);
       writeValue(buffer, value.encode());
-    } else if (value is UniversalBleCharacteristic) {
+    } else if (value is UniversalBleService) {
       buffer.putUint8(147);
       writeValue(buffer, value.encode());
-    } else if (value is UniversalBleDescriptor) {
+    } else if (value is UniversalBleCharacteristic) {
       buffer.putUint8(148);
       writeValue(buffer, value.encode());
-    } else if (value is BleConnectionParametersChange) {
+    } else if (value is UniversalBleDescriptor) {
       buffer.putUint8(149);
       writeValue(buffer, value.encode());
-    } else if (value is AndroidOptions) {
+    } else if (value is BleConnectionParametersChange) {
       buffer.putUint8(150);
       writeValue(buffer, value.encode());
-    } else if (value is UniversalScanConfig) {
+    } else if (value is AndroidOptions) {
       buffer.putUint8(151);
       writeValue(buffer, value.encode());
-    } else if (value is UniversalScanFilter) {
+    } else if (value is UniversalScanConfig) {
       buffer.putUint8(152);
       writeValue(buffer, value.encode());
-    } else if (value is ManufacturerDataFilter) {
+    } else if (value is UniversalScanFilter) {
       buffer.putUint8(153);
       writeValue(buffer, value.encode());
-    } else if (value is UniversalManufacturerData) {
+    } else if (value is ManufacturerDataFilter) {
       buffer.putUint8(154);
       writeValue(buffer, value.encode());
-    } else if (value is AppleConnectionOptions) {
+    } else if (value is UniversalManufacturerData) {
       buffer.putUint8(155);
       writeValue(buffer, value.encode());
-    } else if (value is AppleAccessoryPickerItem) {
+    } else if (value is AppleConnectionOptions) {
       buffer.putUint8(156);
       writeValue(buffer, value.encode());
-    } else if (value is AppleAccessorySetupOptions) {
+    } else if (value is AppleAccessoryPickerItem) {
       buffer.putUint8(157);
       writeValue(buffer, value.encode());
-    } else if (value is AndroidConnectionOptions) {
+    } else if (value is AppleAccessorySetupOptions) {
       buffer.putUint8(158);
       writeValue(buffer, value.encode());
-    } else if (value is ConnectionPlatformConfig) {
+    } else if (value is AndroidConnectionOptions) {
       buffer.putUint8(159);
       writeValue(buffer, value.encode());
-    } else if (value is AndroidDiscoverServicesOptions) {
+    } else if (value is ConnectionPlatformConfig) {
       buffer.putUint8(160);
       writeValue(buffer, value.encode());
-    } else if (value is AppleDiscoverServicesOptions) {
+    } else if (value is AndroidDiscoverServicesOptions) {
       buffer.putUint8(161);
       writeValue(buffer, value.encode());
-    } else if (value is DiscoverServicesPlatformConfig) {
+    } else if (value is AppleDiscoverServicesOptions) {
       buffer.putUint8(162);
       writeValue(buffer, value.encode());
-    } else if (value is PeripheralAndroidOptions) {
+    } else if (value is DiscoverServicesPlatformConfig) {
       buffer.putUint8(163);
       writeValue(buffer, value.encode());
-    } else if (value is PeripheralPlatformConfig) {
+    } else if (value is PeripheralAndroidOptions) {
       buffer.putUint8(164);
       writeValue(buffer, value.encode());
-    } else if (value is PeripheralService) {
+    } else if (value is PeripheralPlatformConfig) {
       buffer.putUint8(165);
       writeValue(buffer, value.encode());
-    } else if (value is PeripheralCharacteristic) {
+    } else if (value is PeripheralService) {
       buffer.putUint8(166);
       writeValue(buffer, value.encode());
-    } else if (value is PeripheralDescriptor) {
+    } else if (value is PeripheralCharacteristic) {
       buffer.putUint8(167);
       writeValue(buffer, value.encode());
-    } else if (value is PeripheralReadRequestResult) {
+    } else if (value is PeripheralDescriptor) {
       buffer.putUint8(168);
       writeValue(buffer, value.encode());
-    } else if (value is PeripheralWriteRequestResult) {
+    } else if (value is PeripheralReadRequestResult) {
       buffer.putUint8(169);
+      writeValue(buffer, value.encode());
+    } else if (value is PeripheralWriteRequestResult) {
+      buffer.putUint8(170);
       writeValue(buffer, value.encode());
     } else {
       super.writeValue(buffer, value);
@@ -2144,58 +2158,61 @@ class _PigeonCodec extends StandardMessageCodec {
         return value == null ? null : PeripheralAdvertisingState.values[value];
       case 143:
         final value = readValue(buffer) as int?;
-        return value == null ? null : UniversalBleErrorCode.values[value];
+        return value == null ? null : PeripheralConnectionLatency.values[value];
       case 144:
-        return UniversalBleScanResult.decode(readValue(buffer)!);
+        final value = readValue(buffer) as int?;
+        return value == null ? null : UniversalBleErrorCode.values[value];
       case 145:
-        return UniversalDevicePickerResult.decode(readValue(buffer)!);
+        return UniversalBleScanResult.decode(readValue(buffer)!);
       case 146:
-        return UniversalBleService.decode(readValue(buffer)!);
+        return UniversalDevicePickerResult.decode(readValue(buffer)!);
       case 147:
-        return UniversalBleCharacteristic.decode(readValue(buffer)!);
+        return UniversalBleService.decode(readValue(buffer)!);
       case 148:
-        return UniversalBleDescriptor.decode(readValue(buffer)!);
+        return UniversalBleCharacteristic.decode(readValue(buffer)!);
       case 149:
-        return BleConnectionParametersChange.decode(readValue(buffer)!);
+        return UniversalBleDescriptor.decode(readValue(buffer)!);
       case 150:
-        return AndroidOptions.decode(readValue(buffer)!);
+        return BleConnectionParametersChange.decode(readValue(buffer)!);
       case 151:
-        return UniversalScanConfig.decode(readValue(buffer)!);
+        return AndroidOptions.decode(readValue(buffer)!);
       case 152:
-        return UniversalScanFilter.decode(readValue(buffer)!);
+        return UniversalScanConfig.decode(readValue(buffer)!);
       case 153:
-        return ManufacturerDataFilter.decode(readValue(buffer)!);
+        return UniversalScanFilter.decode(readValue(buffer)!);
       case 154:
-        return UniversalManufacturerData.decode(readValue(buffer)!);
+        return ManufacturerDataFilter.decode(readValue(buffer)!);
       case 155:
-        return AppleConnectionOptions.decode(readValue(buffer)!);
+        return UniversalManufacturerData.decode(readValue(buffer)!);
       case 156:
-        return AppleAccessoryPickerItem.decode(readValue(buffer)!);
+        return AppleConnectionOptions.decode(readValue(buffer)!);
       case 157:
-        return AppleAccessorySetupOptions.decode(readValue(buffer)!);
+        return AppleAccessoryPickerItem.decode(readValue(buffer)!);
       case 158:
-        return AndroidConnectionOptions.decode(readValue(buffer)!);
+        return AppleAccessorySetupOptions.decode(readValue(buffer)!);
       case 159:
-        return ConnectionPlatformConfig.decode(readValue(buffer)!);
+        return AndroidConnectionOptions.decode(readValue(buffer)!);
       case 160:
-        return AndroidDiscoverServicesOptions.decode(readValue(buffer)!);
+        return ConnectionPlatformConfig.decode(readValue(buffer)!);
       case 161:
-        return AppleDiscoverServicesOptions.decode(readValue(buffer)!);
+        return AndroidDiscoverServicesOptions.decode(readValue(buffer)!);
       case 162:
-        return DiscoverServicesPlatformConfig.decode(readValue(buffer)!);
+        return AppleDiscoverServicesOptions.decode(readValue(buffer)!);
       case 163:
-        return PeripheralAndroidOptions.decode(readValue(buffer)!);
+        return DiscoverServicesPlatformConfig.decode(readValue(buffer)!);
       case 164:
-        return PeripheralPlatformConfig.decode(readValue(buffer)!);
+        return PeripheralAndroidOptions.decode(readValue(buffer)!);
       case 165:
-        return PeripheralService.decode(readValue(buffer)!);
+        return PeripheralPlatformConfig.decode(readValue(buffer)!);
       case 166:
-        return PeripheralCharacteristic.decode(readValue(buffer)!);
+        return PeripheralService.decode(readValue(buffer)!);
       case 167:
-        return PeripheralDescriptor.decode(readValue(buffer)!);
+        return PeripheralCharacteristic.decode(readValue(buffer)!);
       case 168:
-        return PeripheralReadRequestResult.decode(readValue(buffer)!);
+        return PeripheralDescriptor.decode(readValue(buffer)!);
       case 169:
+        return PeripheralReadRequestResult.decode(readValue(buffer)!);
+      case 170:
         return PeripheralWriteRequestResult.decode(readValue(buffer)!);
       default:
         return super.readValueOfType(type, buffer);
@@ -3131,6 +3148,13 @@ class UniversalBlePeripheralChannel {
     );
   }
 
+  /// Sends [value] to the clients subscribed to [characteristicId].
+  ///
+  /// The reply is sent once every targeted client's notification is settled:
+  /// accepted by the platform queue (Apple, when `updateValue` returns `true`),
+  /// sent (`onNotificationSent` on Android) or completed (`NotifyValueAsync` on
+  /// Windows). A failure is reported once all of them have settled and at least
+  /// one failed.
   Future<void> updateCharacteristic(
       String characteristicId,
       String? characteristicInstanceId,
@@ -3245,7 +3269,7 @@ class UniversalBlePeripheralChannel {
   }
 }
 
-/// Flutter -> Native (Apple peripheral restoration only).
+/// Flutter -> Native (Apple peripheral-only APIs).
 class UniversalBleDarwinPeripheralChannel {
   /// Constructor for [UniversalBleDarwinPeripheralChannel]. The [binaryMessenger] named argument is
   /// available for dependency injection. If it is left null, the default
@@ -3272,6 +3296,27 @@ class UniversalBleDarwinPeripheralChannel {
     );
     final Future<Object?> pigeonVar_sendFuture =
         pigeonVar_channel.send(<Object?>[restorationIdentifier]);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    _extractReplyValueOrThrow(
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: true,
+    );
+  }
+
+  /// Sets the connection latency CoreBluetooth negotiates with [deviceId].
+  Future<void> setDesiredConnectionLatency(
+      String deviceId, PeripheralConnectionLatency latency) async {
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.universal_ble.UniversalBleDarwinPeripheralChannel.setDesiredConnectionLatency$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture =
+        pigeonVar_channel.send(<Object?>[deviceId, latency]);
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     _extractReplyValueOrThrow(

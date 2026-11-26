@@ -46,29 +46,55 @@ struct PeripheralReliabilityTests {
     }
     var queue = PeripheralNotificationQueue<Int>()
     var delivered = [Int]()
+    var settled = [Int]()
     queue.append(1)
-    queue.drain { _ in false }
+    queue.drain({ _ in false }, onSent: { settled.append($0) })
     queue.append(2)
-    queue.drain {
+    queue.drain({
       delivered.append($0)
       return true
-    }
+    }, onSent: { settled.append($0) })
     precondition(delivered.isEmpty, "New release must not bypass blocked press")
+    precondition(settled.isEmpty, "A blocked element is not settled until it is sent")
+    precondition(queue.pending.count == 2, "A refused element stays queued")
     queue.resume()
-    queue.drain {
+    queue.drain({
       delivered.append($0)
       return true
-    }
+    }, onSent: { settled.append($0) })
     precondition(delivered == [1, 2])
+    precondition(settled == [1, 2], "Each accepted element is reported exactly once")
     queue.append(3)
     queue.drain { _ in false }
-    queue.removeAll { $0 == 3 }
+    let dropped = queue.removeAll { $0 == 3 }
+    precondition(dropped == [3], "removeAll(where:) must return what it discarded")
     queue.append(4)
-    queue.drain {
+    queue.drain({
       delivered.append($0)
       return true
-    }
+    }, onSent: { settled.append($0) })
     precondition(delivered == [1, 2, 4], "Old session input must be discarded")
+    precondition(settled == [1, 2, 4], "A discarded element is never reported as sent")
+
+    var cleared = PeripheralNotificationQueue<Int>()
+    cleared.append(7)
+    cleared.append(8)
+    let removedAll = cleared.removeAll()
+    precondition(removedAll == [7, 8], "removeAll must return what it discarded")
+    precondition(cleared.isEmpty && cleared.pending.isEmpty)
+    cleared.append(9)
+    cleared.drain({ $0 == 9 }, onSent: { settled.append($0) })
+    precondition(settled == [1, 2, 4, 9], "The queue must be reusable after removal")
+
+    var headIndexed = PeripheralNotificationQueue<Int>()
+    for value in 0..<200 { headIndexed.append(value) }
+    var drained = [Int]()
+    headIndexed.drain({
+      drained.append($0)
+      return true
+    })
+    precondition(drained == Array(0..<200) && headIndexed.isEmpty)
+    precondition(headIndexed.pending.isEmpty)
 
     var reports = PeripheralNotificationQueue<(central: Int, characteristic: Int)>()
     reports.append((1, 1))

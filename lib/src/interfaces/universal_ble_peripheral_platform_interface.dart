@@ -111,6 +111,15 @@ abstract class UniversalBlePeripheralPlatform {
   /// Supported on Android; no-op elsewhere.
   Future<void> setAutoConnect(bool autoConnect) async {}
 
+  /// Sets the connection latency CoreBluetooth negotiates with a subscribed
+  /// central (`CBPeripheralManager.setDesiredConnectionLatency(_:for:)`).
+  ///
+  /// Supported on iOS and macOS; no-op elsewhere.
+  Future<void> setDesiredConnectionLatency(
+    String deviceId,
+    PeripheralConnectionLatency latency,
+  ) async {}
+
   /// Whether this platform identifies GATT clients by a Bluetooth *address* — a MAC on
   /// Android/Windows/Linux, a UUID on Apple — which is case-insensitive. Central ids are
   /// therefore canonicalised on ingestion, so every stream event, request handler and

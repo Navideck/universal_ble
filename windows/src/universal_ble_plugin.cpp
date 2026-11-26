@@ -3760,35 +3760,40 @@ void UniversalBlePlugin::DisposeAdvertisementPublisher() {
   }
 }
 
-std::optional<FlutterError> UniversalBlePlugin::UpdateCharacteristic(
+void UniversalBlePlugin::UpdateCharacteristic(
     const std::string &characteristic_id, const std::string *characteristic_instance_id,
-    const std::vector<uint8_t> &value, const std::string *device_id) {
+    const std::vector<uint8_t> &value, const std::string *device_id,
+    std::function<void(std::optional<FlutterError> reply)> result) {
   if (characteristic_instance_id != nullptr) {
-    return FlutterError("not-supported",
+    result(FlutterError("not-supported",
                         "Windows does not support characteristic instance IDs",
-                        nullptr);
+                        nullptr));
+    return;
   }
   GattLocalCharacteristic local_char = nullptr;
   IBuffer buffer = nullptr;
   {
     std::lock_guard<std::mutex> lock(peripheral_mutex_);
     if (device_id != nullptr) {
-      return FlutterError("not-supported",
+      result(FlutterError("not-supported",
                           "Windows does not support targeting a specific "
                           "device for notifications",
-                          nullptr);
+                          nullptr));
+      return;
     }
     bool ambiguous_match = false;
     auto *characteristic_object = FindPeripheralGattCharacteristicObject(
         characteristic_id, &ambiguous_match);
     if (ambiguous_match) {
-      return FlutterError("ambiguous-characteristic",
+      result(FlutterError("ambiguous-characteristic",
                           "Characteristic UUID exists in multiple services; "
                           "cannot update uniquely",
-                          nullptr);
+                          nullptr));
+      return;
     }
     if (characteristic_object == nullptr) {
-      return FlutterError("not-found", "Characteristic not found", nullptr);
+      result(FlutterError("not-found", "Characteristic not found", nullptr));
+      return;
     }
     IBuffer bytes = from_bytevc(value);
     DataWriter writer;
@@ -3799,32 +3804,44 @@ std::optional<FlutterError> UniversalBlePlugin::UpdateCharacteristic(
   }
 
   try {
-    // NotifyValueAsync completes only once the value has been handed to every
-    // subscribed client, so waiting for it costs the platform thread a full
-    // GATT round trip (and blocks it for good when a client link is wedged).
-    // Apple and Android queue the update and return, so submit it and report
-    // the per-client outcome from the completion handler instead. Consecutive
-    // calls are still submitted from the platform thread in call order, but
-    // Windows does not promise that overlapping operations are serialized or
-    // delivered in that order.
+    // NotifyValueAsync completes once the value has been handed to every
+    // subscribed client; waiting for it on the platform thread would block a
+    // full GATT round trip (and block it for good when a client link is wedged).
+    // Submit it and reply from the completion handler instead, so awaiting the
+    // Dart future is a real backpressure signal.
     const auto value_size = buffer.Length();
+    // Captured by copy, not moved: the catch path below still has to reply with
+    // the same callback, and a moved-from std::function would throw
+    // std::bad_function_call instead.
     local_char.NotifyValueAsync(buffer).Completed(
-        [characteristic_id, value_size](
+        [characteristic_id, value_size, result](
             const IAsyncOperation<IVectorView<GattClientNotificationResult>>
                 &sender,
             const AsyncStatus status) {
           LogPeripheralNotificationResult(characteristic_id, value_size, sender,
                                           status);
+          if (status == AsyncStatus::Completed) {
+            safe_reply("UpdateCharacteristic", result, std::nullopt);
+          } else {
+            safe_reply(
+                "UpdateCharacteristic", result,
+                FlutterError(
+                    "failed",
+                    "Failed to notify subscribed clients for characteristic "
+                    "update",
+                    nullptr));
+          }
         });
   } catch (...) {
     // Starting the operation failed (for example the characteristic object is
     // no longer valid); that is still reported synchronously.
-    return FlutterError(
-        "failed",
-        "Failed to notify subscribed clients for characteristic update",
-        nullptr);
+    safe_reply("UpdateCharacteristic", result,
+               FlutterError(
+                   "failed",
+                   "Failed to notify subscribed clients for characteristic "
+                   "update",
+                   nullptr));
   }
-  return std::nullopt;
 }
 
 // Runs on a WinRT thread pool thread, possibly after this plugin is gone, which

@@ -90,6 +90,7 @@ Looking for Bluetooth Classic? Check [universal_bluetooth_classic](https://pub.d
 | getSubscribedClients          |   ✔️    | ✔️  |  ✔️   |   ✔️    |  🚧   | —  |
 | getMaximumNotifyLength        |   ✔️    | ✔️  |  ✔️   |   ✔️    |  🚧   | —  |
 | setAutoConnect                |   ✔️    | —  |  —   |   —    |  —   | —  |
+| setDesiredConnectionLatency   |    —    | ✔️  |  ✔️   |   —    |  —   | —  |
 | event streams\*\*\*           |   ✔️    | ✔️  |  ✔️   |   ✔️    |  🚧   | —  |
 
 \* `getAvailabilityState` returns a snapshot. Listen to `advertisingStateStream`, `connectionStateStream`, and related streams for runtime updates.
@@ -1212,9 +1213,30 @@ await UniversalBlePeripheral.updateCharacteristicValue(
   value: Uint8List.fromList([88]),
   deviceId: deviceId,
 );
+
+// Pace a bulk transfer by awaiting each chunk. The future completes once the
+// platform accepted (Apple) or sent (Android/Windows) the notification.
+for (final chunk in chunks) {
+  await UniversalBlePeripheral.updateCharacteristicValue(
+    characteristicId: batteryLevelChar,
+    value: chunk,
+  );
+}
 ```
 
-On Windows, the returned future completes after submitting the notification. Awaiting it or selecting `QueueType.perDevice` or `QueueType.global` serializes submission only: notification operations can still overlap, and delivery order is not guaranteed. Transport failures and truncated values are logged when `UniversalBle.setLogLevel(BleLogLevel.error)` (or a more verbose level) is enabled. Repeated failures for a characteristic are suppressed until a successful update.
+On Android, Apple and Windows the returned future is a backpressure signal: it
+completes when the notification has been settled by the platform — Android on
+`onNotificationSent` (failing on a non-success GATT status), Apple when
+`CBPeripheralManager.updateValue` accepts the value (immediately or after
+`peripheralManagerIsReady(toUpdateSubscribers:)`), Windows when
+`NotifyValueAsync` completes. Failing an update that can never be sent — through
+`clearPendingNotifications`, `removeService`, central unsubscription or a
+Bluetooth reset — also completes it with an error. On Windows, transport
+failures and truncated values are additionally logged when
+`UniversalBle.setLogLevel(BleLogLevel.error)` (or a more verbose level) is
+enabled; repeated failures for a characteristic are suppressed until a
+successful update. Selecting `QueueType.perDevice` or `QueueType.global` still
+serializes submission, but awaiting the future is what paces the radio.
 
 ### Subscribed Clients and Notify Length
 
@@ -1332,13 +1354,27 @@ before replacement. Install listeners before configuration, then query
 `getSubscribedClients` to reconcile readiness. Explicit force-quit recovery and
 background discoverability are governed by CoreBluetooth and are not guaranteed.
 
-Apple notifications remain FIFO while CoreBluetooth applies backpressure. Use
-`await UniversalBlePeripheral.clearPendingNotifications(deviceId)` at an explicit
-session boundary or suspension to discard unsent updates, then publish neutral
-state before new input. Native unsubscription, service removal, and adapter loss
-also invalidate pending Apple updates. Packets already accepted by the OS cannot
-be recalled. Completion of `updateCharacteristicValue` means accepted by the
-plugin, not acknowledged by the remote device.
+Apple notifications remain FIFO while CoreBluetooth applies backpressure.
+Use `await UniversalBlePeripheral.clearPendingNotifications(deviceId)` at an
+explicit session boundary or suspension to discard unsent updates, then publish
+neutral state before new input. `updateCharacteristicValue` completes once
+`CBPeripheralManager.updateValue` accepts the value — immediately, or later from
+`peripheralManagerIsReady(toUpdateSubscribers:)` when the transmit queue was
+full — so awaiting it between chunks paces a bulk transfer. It fails when a
+queued update is discarded: `clearPendingNotifications`, service removal,
+central unsubscription or adapter loss. Packets already accepted by the OS
+cannot be recalled, and remote acknowledgement remains a link-layer concern.
+
+Apple negotiates a high connection latency by default, which caps notification
+throughput. Ask for the low-latency mode before a bulk transfer (iOS and macOS;
+no-op elsewhere):
+
+```dart
+await UniversalBlePeripheral.setDesiredConnectionLatency(
+  deviceId,
+  PeripheralConnectionLatency.low,
+);
+```
 
 Run `./darwin/test/run_peripheral_reliability_tests.sh` on macOS for native
 characteristic, restored-identity, and notification-FIFO regression checks.

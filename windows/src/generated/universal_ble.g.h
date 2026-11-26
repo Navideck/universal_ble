@@ -183,6 +183,17 @@ enum class PeripheralAdvertisingState {
   kError = 4
 };
 
+// Desired connection latency for a subscribed central on Apple platforms.
+//
+// Maps to CoreBluetooth `CBPeripheralManagerConnectionLatency`. A lower
+// latency trades radio time for responsiveness; Apple negotiates a higher
+// latency (and therefore lower throughput) when nothing asks for otherwise.
+enum class PeripheralConnectionLatency {
+  kLow = 0,
+  kMedium = 1,
+  kHigh = 2
+};
+
 // Unified error codes for all platforms
 enum class UniversalBleErrorCode {
   kUnknownError = 0,
@@ -1774,11 +1785,19 @@ class UniversalBlePeripheralChannel {
     const int64_t* timeout,
     const UniversalManufacturerData* manufacturer_data,
     const PeripheralPlatformConfig* platform_config) = 0;
-  virtual std::optional<FlutterError> UpdateCharacteristic(
+  // Sends [value] to the clients subscribed to [characteristicId].
+  //
+  // The reply is sent once every targeted client's notification is settled:
+  // accepted by the platform queue (Apple, when `updateValue` returns `true`),
+  // sent (`onNotificationSent` on Android) or completed (`NotifyValueAsync` on
+  // Windows). A failure is reported once all of them have settled and at least
+  // one failed.
+  virtual void UpdateCharacteristic(
     const std::string& characteristic_id,
     const std::string* characteristic_instance_id,
     const std::vector<uint8_t>& value,
-    const std::string* device_id) = 0;
+    const std::string* device_id,
+    std::function<void(std::optional<FlutterError> reply)> result) = 0;
   // Returns peripheral-client device ids currently subscribed to the
   // characteristic identified by [characteristicId] (and, when supplied,
   // [characteristicInstanceId]).
@@ -1812,7 +1831,7 @@ class UniversalBlePeripheralChannel {
  protected:
   UniversalBlePeripheralChannel() = default;
 };
-// Flutter -> Native (Apple peripheral restoration only).
+// Flutter -> Native (Apple peripheral-only APIs).
 //
 // Generated interface from Pigeon that represents a handler of messages from Flutter.
 class UniversalBleDarwinPeripheralChannel {
@@ -1821,6 +1840,10 @@ class UniversalBleDarwinPeripheralChannel {
   UniversalBleDarwinPeripheralChannel& operator=(const UniversalBleDarwinPeripheralChannel&) = delete;
   virtual ~UniversalBleDarwinPeripheralChannel() {}
   virtual std::optional<FlutterError> ConfigureRestoration(const std::string& restoration_identifier) = 0;
+  // Sets the connection latency CoreBluetooth negotiates with [deviceId].
+  virtual std::optional<FlutterError> SetDesiredConnectionLatency(
+    const std::string& device_id,
+    const PeripheralConnectionLatency& latency) = 0;
 
   // The codec used by UniversalBleDarwinPeripheralChannel.
   static const ::flutter::StandardMessageCodec& GetCodec();
