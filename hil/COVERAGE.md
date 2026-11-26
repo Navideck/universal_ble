@@ -1,7 +1,7 @@
 # Hardware-in-the-loop coverage
 
-The Windows HIL suite implements 85 tests against a physical nRF52 peripheral:
-25 baseline tests and 60 fault injection tests (FIT). Skipped scenarios are not
+The Windows HIL suite implements 86 tests against a physical nRF52 peripheral:
+26 baseline tests and 60 fault injection tests (FIT). Skipped scenarios are not
 included in these counts. Firmware contract revision 2 (v2) is required.
 
 The calls start at the public Dart API and go through the operation queue,
@@ -43,13 +43,19 @@ and finally the Zephyr GATT server on the fixture.
 - This catches incomplete cleanup, bad replacement ownership, missing events,
   and GATT state that no longer works after reconnecting.
 
-### 1.5. Concurrency, refresh, and platform results (6 tests)
+### 1.5. Concurrency, refresh, and platform results (7 tests)
 
 - Verifies recovery from overlapping subscriptions, a valid MTU result, and
   `notImplemented` for Windows RSSI without disconnecting. It also verifies
   that system-device enumeration, client capability queries, connection
   priority handling, and ordinary service changes leave the active connection
   readable and writable.
+- Verifies that a database holding a service Windows reserves for itself (HID
+  over GATT, `0x1812`) still connects, that discovery leaves the reserved
+  service out, and that a later service change is still installed on top of it.
+  This catches an `AccessDenied` answer being treated as a fatal discovery
+  error, and a service refresh that keeps the old map when it meets a denied
+  service that discovery never reported (#400).
 - This catches subscription races, invalid MTU completion, incorrect error
   mapping, and operations that damage an otherwise usable connection.
 

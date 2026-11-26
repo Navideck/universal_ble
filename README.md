@@ -458,6 +458,8 @@ If you don't call this method then it will be automatically called when you try 
 
 Discovers the services offered by the device. Returns a `Future<List<BleService>>`. After discovery services are cached and each call of this method updates the cache.
 
+On Windows, a service Windows denies access to is left out of discovery. The OS reserves some services for itself — HID over GATT, `00001812-0000-1000-8000-00805f9b34fb`, is the common one — and answers `AccessDenied` when an app asks for their characteristics, paired or not, so those services are skipped instead of failing the connection. Their characteristics cannot be reached through this plugin. A service an earlier discovery reported stays reported if a later GATT refresh is denied access to it, rather than disappearing from the connection.
+
 ```dart
 List<BleService> services = await bleDevice.discoverServices();
 for (var service in services) {

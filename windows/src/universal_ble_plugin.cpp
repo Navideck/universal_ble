@@ -18,6 +18,7 @@
 #include "advertisement_uuid.h"
 #include "enum_parser.h"
 #include "callback_drain.h"
+#include "gatt_discovery_policy.h"
 #include "generated/universal_ble.g.h"
 #include "helper/universal_ble_logger.h"
 #include "helper/universal_enum.h"
@@ -2141,6 +2142,7 @@ fire_and_forget UniversalBlePlugin::ConnectAsync(uint64_t bluetooth_address,
 
     UniversalBleLogger::LogInfo("ConnectionLog: Services discovered");
     std::optional<std::string> gatt_discovery_error;
+    size_t denied_service_count = 0;
     auto gatt_services = services_result.Services();
     for (GattDeviceService &&service : gatt_services) {
       try {
@@ -2149,6 +2151,13 @@ fire_and_forget UniversalBlePlugin::ConnectAsync(uint64_t bluetooth_address,
         std::string service_uuid = guid_to_uuid(service.Uuid());
         auto characteristics_result = co_await service.GetCharacteristicsAsync(
             BluetoothCacheMode::Uncached);
+        if (classify_discovery_status(characteristics_result.Status()) ==
+            GattDiscoveryAction::kSkipDenied) {
+          ++denied_service_count;
+          UniversalBleLogger::LogInfo("Skipping denied service " +
+                                      service_uuid);
+          continue;
+        }
         auto characteristics_result_error =
             gatt_communication_status_to_error(characteristics_result.Status());
 
@@ -2194,6 +2203,16 @@ fire_and_forget UniversalBlePlugin::ConnectAsync(uint64_t bluetooth_address,
       NotifyConnectFailureIfCurrent(bluetooth_address, connect_generation,
                                     gatt_discovery_error.value());
       co_return;
+    }
+
+    if (denied_service_count > 0 && gatt_map.empty()) {
+      // AccessDenied is not exclusive to OS-reserved services. If the whole
+      // database was denied, the connection is up but exposes nothing, and the
+      // per-service info lines are the only trace of why.
+      UniversalBleLogger::LogWarning(
+          "All " + std::to_string(denied_service_count) +
+          " discovered services were denied access; the connection exposes no "
+          "services");
     }
 
     const auto connection_callback_operations = callback_operations_;
@@ -2315,6 +2334,23 @@ fire_and_forget UniversalBlePlugin::RefreshGattServicesAsync(
           const auto characteristics_result =
               co_await service.GetCharacteristicsAsync(
                   BluetoothCacheMode::Cached);
+          if (classify_discovery_status(characteristics_result.Status()) ==
+              GattDiscoveryAction::kSkipDenied) {
+            // A denied service the map already exposes is in use: its
+            // characteristics, reads and subscriptions are live. Dropping it
+            // would silently break them, so the previous map is kept instead of
+            // installing a partial one. A service discovery never reported is
+            // skipped the same way as at connect time.
+            if (device_agent->HasService(service_uuid)) {
+              discovery_error =
+                  "Failed to refresh characteristics for service " +
+                  service_uuid + ": AccessDenied";
+              break;
+            }
+            UniversalBleLogger::LogInfo("Skipping denied service " +
+                                        service_uuid);
+            continue;
+          }
           const auto characteristics_error = gatt_communication_status_to_error(
               characteristics_result.Status());
           if (characteristics_error.has_value()) {
