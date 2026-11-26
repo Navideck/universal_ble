@@ -159,6 +159,44 @@ internal class PeripheralRegressionTest {
         Mockito.verify(characteristic).setValue(value)
     }
 
+    // #403: below API 33 the payload travels in the shared characteristic value.
+    // A second update queued behind an in-flight notification must not overwrite
+    // it before that drain runs, or the wrong chunk is transmitted.
+    @Test fun queuedUpdateDoesNotOverwriteInFlightCharacteristicValue() {
+        val server = Mockito.mock(BluetoothGattServer::class.java)
+        val plugin = peripheralPlugin(server)
+        val characteristic = mockCharacteristic(report, mockService(hid))
+        Mockito.`when`(characteristic.properties).thenReturn(BluetoothGattCharacteristic.PROPERTY_NOTIFY)
+        characteristics()[report] = characteristic
+        val device = plugin.connectedDevice()
+        subscribedCharDevicesMap[deviceAddress] = mutableSetOf(report)
+        @Suppress("DEPRECATION")
+        Mockito.`when`(server.notifyCharacteristicChanged(device, characteristic, false)).thenReturn(true)
+
+        val first = byteArrayOf(1, 2, 3)
+        val second = byteArrayOf(4, 5, 6)
+        plugin.updateCharacteristic(report, null, first, deviceAddress)
+        // The first notification is in flight now. Queueing the second must leave
+        // characteristic.value alone until the native queue accepts it.
+        plugin.updateCharacteristic(report, null, second, deviceAddress)
+
+        Mockito.verify(characteristic, Mockito.times(1)).setValue(first)
+        Mockito.verify(characteristic, Mockito.never()).setValue(second)
+
+        // What onNotificationSent does: release the marker, then drain the queue.
+        plugin.field<MutableSet<String>>("notificationsInFlight").remove(deviceAddress)
+        val drain = UniversalBlePeripheralPlugin::class.java
+            .getDeclaredMethod("drainNotifications", String::class.java)
+        drain.isAccessible = true
+        drain.invoke(plugin, deviceAddress)
+
+        // setValue is the same mock invocation as characteristic.value = second.
+        Mockito.verify(characteristic, Mockito.times(1)).setValue(first)
+        Mockito.verify(characteristic, Mockito.times(1)).setValue(second)
+        @Suppress("DEPRECATION")
+        Mockito.verify(server, Mockito.times(2)).notifyCharacteristicChanged(device, characteristic, false)
+    }
+
     // #385: a service registered a second time must resolve to the new
     // characteristics, not the ones the server no longer holds.
     @Test fun clearServicesForgetsTheRegisteredCharacteristics() {

@@ -16,6 +16,7 @@ import android.bluetooth.BluetoothGattServerCallback
 import android.bluetooth.BluetoothGattService
 import android.bluetooth.BluetoothManager
 import android.bluetooth.BluetoothProfile
+import android.bluetooth.BluetoothStatusCodes
 import android.bluetooth.le.AdvertiseCallback
 import android.bluetooth.le.AdvertiseData
 import android.bluetooth.le.AdvertiseSettings
@@ -86,6 +87,11 @@ class UniversalBlePeripheralPlugin(
      * returns false while the previous one is in flight), so they are drained
      * FIFO from [BluetoothGattServerCallback.onNotificationSent]. Ordering matters:
      * a HID release must never overtake the press it releases.
+     *
+     * This monitor also guards the transmit itself. Below API 33 the payload
+     * travels in the shared [BluetoothGattCharacteristic.value], so the check,
+     * the dequeue, that assignment and the notify call must not interleave with
+     * another drain or with an update (#403).
      */
     private val pendingNotifications: ArrayDeque<PendingNotification> = ArrayDeque()
     private val notificationsInFlight: MutableSet<String> = HashSet()
@@ -491,7 +497,6 @@ class UniversalBlePeripheralPlugin(
         val characteristic =
             characteristicId.findGattCharacteristic(characteristicInstanceId)
                 ?: throw Exception("Characteristic not found")
-        characteristic.value = value.copyOf()
         val targetDevices = synchronized(bluetoothDevicesMap) {
             if (deviceId != null) {
                 val dev = bluetoothDevicesMap[deviceId]
@@ -505,13 +510,25 @@ class UniversalBlePeripheralPlugin(
         }
         val indicate =
             (characteristic.properties and BluetoothGattCharacteristic.PROPERTY_INDICATE) != 0
+        // Resolved before taking pendingNotifications: isSubscribed takes
+        // subscribedCharDevicesMap, and the descriptor/cleanup paths take those two
+        // monitors in the opposite order, so nesting them here would deadlock.
+        val subscribedDevices = targetDevices.filter { isSubscribed(it.address, characteristic) }
         synchronized(pendingNotifications) {
-            targetDevices.filter { isSubscribed(it.address, characteristic) }.forEach { device ->
+            if (subscribedDevices.isEmpty()) {
+                // Nobody to notify: the value is only the static one a read returns.
+                // Written under this monitor so it cannot land between another
+                // drain's value assignment and its notify call.
+                @Suppress("DEPRECATION")
+                characteristic.value = value.copyOf()
+                return
+            }
+            subscribedDevices.forEach { device ->
                 pendingNotifications.addLast(
                     PendingNotification(device, characteristic, value.copyOf(), indicate)
                 )
             }
-            targetDevices.forEach { drainNotifications(it.address) }
+            subscribedDevices.forEach { drainNotifications(it.address) }
         }
     }
 
@@ -523,24 +540,39 @@ class UniversalBlePeripheralPlugin(
     }
 
     private fun drainNotifications(deviceAddress: String) {
-        if (notificationsInFlight.contains(deviceAddress)) return
-        val next: PendingNotification
-        val server: BluetoothGattServer
         synchronized(pendingNotifications) {
+            if (notificationsInFlight.contains(deviceAddress)) return
             val index = pendingNotifications.indexOfFirst { it.device.address == deviceAddress }
             if (index < 0) return
-            next = pendingNotifications.removeAt(index)
-            server = gattServer ?: return
+            val next = pendingNotifications.removeAt(index)
+            val server = gattServer ?: run {
+                // Nothing to send on; keep the payload for the next drain.
+                pendingNotifications.addFirst(next)
+                return
+            }
             notificationsInFlight.add(deviceAddress)
-        }
-        next.characteristic.value = next.value
-        val sent = kotlin.runCatching {
-            server.notifyCharacteristicChanged(next.device, next.characteristic, next.indicate)
-        }.getOrDefault(false)
-        if (!sent) {
-            // Native queue still busy. Put the payload back at the front and wait
-            // for onNotificationSent to retry; never drop a release.
-            synchronized(pendingNotifications) {
+            // The in-flight check, the dequeue, the value assignment and the send
+            // all happen under this monitor. Below API 33 the value is carried by
+            // the shared characteristic, so another thread writing it in between
+            // would transmit the wrong chunk (#403).
+            val sent = kotlin.runCatching {
+                @Suppress("DEPRECATION")
+                next.characteristic.value = next.value
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                    server.notifyCharacteristicChanged(
+                        next.device,
+                        next.characteristic,
+                        next.indicate,
+                        next.value,
+                    ) == BluetoothStatusCodes.SUCCESS
+                } else {
+                    @Suppress("DEPRECATION")
+                    server.notifyCharacteristicChanged(next.device, next.characteristic, next.indicate)
+                }
+            }.getOrDefault(false)
+            if (!sent) {
+                // Native queue still busy. Put the payload back at the front and wait
+                // for onNotificationSent to retry; never drop a release.
                 notificationsInFlight.remove(deviceAddress)
                 pendingNotifications.addFirst(next)
             }
