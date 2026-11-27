@@ -946,6 +946,11 @@ UniversalBle.timeout = null;
 
 You can also specify the `timeout` parameter when sending a command. This will override the global timeout.
 
+Peripheral commands use a separate timeout, `UniversalBlePeripheral.timeout`,
+also 10 seconds by default. See
+[Characteristic Updates](#characteristic-updates) for what a notification
+timeout does and does not recall, and how to recover.
+
 ## Error Handling
 
 Universal BLE provides a unified and type-safe error handling system across all platforms. All errors are represented using the `UniversalBleException` base class with typed error codes from the `UniversalBleErrorCode` enum.
@@ -1238,6 +1243,43 @@ enabled; repeated failures for a characteristic are suppressed until a
 successful update. Selecting `QueueType.perDevice` or `QueueType.global` still
 serializes submission, but awaiting the future is what paces the radio.
 
+Once it runs, the update is bounded by the peripheral command timeout: 10
+seconds by default, configurable with:
+
+```dart
+UniversalBlePeripheral.timeout = const Duration(seconds: 5);
+// Disable the timeout
+UniversalBlePeripheral.timeout = null;
+```
+
+The bound starts when the command reaches the front of its queue, so with
+`QueueType.global` or `QueueType.perDevice` the time spent waiting behind
+earlier commands is not counted; `QueueType.none` (the `QueueType.auto` default
+on Apple and Windows) bounds the call as submitted.
+
+A timeout means only that the caller stops waiting: a packet the OS already
+accepted cannot be recalled, and work still queued natively may yet be
+delivered. To recover, await the failure (a `TimeoutException`) and then call
+`UniversalBlePeripheral.clearPendingNotifications(deviceId)`, which drops what
+is still waiting — the Dart queue, plus the platform's pending queue on Android
+and Apple. Nothing already handed to the OS is withdrawn: Android keeps the
+in-flight marker until `onNotificationSent` arrives, so later updates for that
+client wait behind it, and Windows has no plugin-owned queue, so an operation
+already running there cannot be cancelled. A link that is truly wedged is
+settled when the central disconnects or the Bluetooth adapter resets (off/on);
+either path fails every pending update.
+
+No native timeout is added on top. Android's `onNotificationSent` carries no
+packet identity, so a native watchdog that cleared the in-flight marker and
+re-sent could not tell a lost callback from a slow link: it could mark a later
+packet complete early (double sends, out-of-order notifications) or drop a
+packet the stack did send. Apple's `peripheralManagerIsReady(toUpdateSubscribers:)`
+is already the documented readiness signal, and its `updateValue` return value
+reports acceptance. A stack that never settles a notification is
+indistinguishable from one that is still sending, so the Dart-side timeout is
+the caller-facing guarantee; a truncated bulk transfer is recovered through the
+session boundary above rather than a blind re-send.
+
 ### Subscribed Clients and Notify Length
 
 Useful to restore in-app state after a process restart (subscription callbacks are not replayed).
@@ -1364,6 +1406,9 @@ full — so awaiting it between chunks paces a bulk transfer. It fails when a
 queued update is discarded: `clearPendingNotifications`, service removal,
 central unsubscription or adapter loss. Packets already accepted by the OS
 cannot be recalled, and remote acknowledgement remains a link-layer concern.
+The wait is bounded by the peripheral command timeout (10 s by default); see
+[Characteristic Updates](#characteristic-updates) for what a timeout does and
+does not recall, and how to recover.
 
 Apple negotiates a high connection latency by default, which caps notification
 throughput. Ask for the low-latency mode before a bulk transfer (iOS and macOS;
