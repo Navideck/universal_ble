@@ -1,0 +1,263 @@
+name: Windows HIL and Fault Insertion Tests
+
+# This job needs a self-hosted runner with a physical nRF52 DK attached. Safety
+# of that hardware depends on two organization settings that this file cannot
+# enforce:
+#
+#   1. The `windows-hil` runner group must restrict workflow access to this
+#      repository and to
+#      Navideck/universal_ble/.github/workflows/windows_hil.yml@refs/heads/main.
+#   2. The `windows-hil` environment must allow deployments only from the
+#      protected default branch and require a maintainer reviewer.
+#
+# The `if:` on the job below is an accident guard, not a security control:
+# `workflow_dispatch` runs the workflow file of the selected ref, so anyone with
+# write access could dispatch a branch whose copy of this file drops the guard
+# and still asks for the hardware runner. Only the runner group's
+# workflow-access allowlist and the environment's deployment rules keep the
+# fixture out of reach; do not treat this file as sufficient on its own.
+
+on:
+  workflow_dispatch:
+    inputs:
+      test_group:
+        description: Test group to run (all includes baseline and fault insertion tests)
+        type: choice
+        default: all
+        options:
+          - all
+          - baseline
+          - connection-discovery
+          - gatt-operations
+          - notifications-indications
+          - mtu-resources
+          - timing-sweeps
+
+permissions:
+  contents: read
+
+concurrency:
+  group: windows-hil-fixture
+  cancel-in-progress: false
+
+jobs:
+  hil:
+    # Accident guard only; see the header comment. A dispatched branch can
+    # weaken this copy of the file, which is why the runner group allowlist and
+    # the environment rules are the load-bearing controls. The second clause
+    # also requires the default-branch copy of this workflow file, so a dispatch
+    # from a feature branch is refused even if that branch owns the YAML it runs.
+    # Update the owner, repository, path and ref when this workflow is deployed
+    # under another name or on a default branch other than `main`.
+    if: >
+      github.ref == format('refs/heads/{0}', github.event.repository.default_branch) &&
+      github.workflow_ref ==
+      'Navideck/universal_ble/.github/workflows/windows_hil.yml@refs/heads/main'
+    environment: windows-hil
+    runs-on:
+      group: windows-hil
+      labels: [self-hosted, Windows, X64, universal-ble-hil]
+    # Per-group budgets below total 180 minutes when every group is selected;
+    # app preparation (15), the warm build (25) and the flash (10) add 50 more
+    # at their own caps, so this covers the worst case. It does not include the
+    # time an environment reviewer takes to approve the deployment.
+    timeout-minutes: 240
+    defaults:
+      run:
+        shell: pwsh
+        working-directory: hil
+    env:
+      HIL_DEVICE_ID: ${{ vars.HIL_DEVICE_ID }}
+      HIL_JLINK_SERIAL: ${{ vars.HIL_JLINK_SERIAL }}
+      # Update these together when the Flutter harness needs new firmware.
+      HIL_FIRMWARE_TAG: 'v0.3'
+      HIL_FIRMWARE_SHA256: 'e6cc6de3d1c397a49fce132b65e807f90570aa97f9b7aa1d2e4ea7c8f3da07b3'
+
+    steps:
+      - name: Create log directory for this attempt
+        working-directory: ${{ runner.temp }}
+        run: |
+          $logs = Join-Path $env:RUNNER_TEMP "windows-hil-$env:GITHUB_RUN_ID-$env:GITHUB_RUN_ATTEMPT"
+          New-Item -ItemType Directory -Path $logs | Out-Null
+          "HIL_LOG_DIR=$logs" >> $env:GITHUB_ENV
+
+      # Mask first: every later step prints step output, and the serial is used
+      # in several messages and command lines. This runs before checkout, so it
+      # cannot use the `hil` working directory yet.
+      - name: Mask the J-Link serial
+        working-directory: ${{ runner.temp }}
+        run: |
+          if ($env:HIL_JLINK_SERIAL) { "::add-mask::$env:HIL_JLINK_SERIAL" }
+
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+
+      - name: Resolve fixture COM port from J-Link serial
+        run: |
+          if ($env:HIL_JLINK_SERIAL -notmatch '^[0-9]{6,12}$' -or
+              $env:HIL_JLINK_SERIAL.TrimStart('0') -notmatch '^[1-9][0-9]{5,11}$') {
+            throw 'Set HIL_JLINK_SERIAL to the dedicated DK onboard J-Link serial number.'
+          }
+          # The PnP instance id drops leading zeros; SEGGER's -USB argument
+          # uses the serial as printed by J-Link, which keeps them. Match with
+          # the stripped form and select the probe with the value as configured.
+          $serial = $env:HIL_JLINK_SERIAL.TrimStart('0')
+          $ports = @(Get-PnpDevice -PresentOnly -Class Ports | ForEach-Object {
+            if ($_.FriendlyName -notmatch '\((COM[1-9][0-9]*)\)$') { return }
+            $port = $Matches[1]
+            $id = $_.InstanceId
+            $isVcom0 = $id -match '&MI_00'
+            for ($depth = 0; $id -and $depth -lt 8; $depth++) {
+              if ($id -match '^USB\\VID_1366&PID_[0-9A-F]{4}\\0*([1-9][0-9]*)$') {
+                if ($Matches[1] -eq $serial) { [PSCustomObject]@{ Port = $port; Vcom0 = $isVcom0 } }
+                break
+              }
+              $id = (Get-PnpDeviceProperty -InstanceId $id -KeyName DEVPKEY_Device_Parent -ErrorAction SilentlyContinue).Data
+            }
+          })
+          if ($ports.Count -eq 0) {
+            throw "Expected at least one COM port for the configured J-Link serial; found 0. Check the DK USB connection and SEGGER CDC driver."
+          }
+          # The fixture's console is VCOM0. Guessing another interface would
+          # silently talk to the wrong endpoint, so fail with what was found.
+          $selectedPort = ($ports | Where-Object { $_.Vcom0 } | Select-Object -ExpandProperty Port -First 1)
+          if (-not $selectedPort) {
+            throw "J-Link probe exposes no VCOM0 interface; discovered: '$($ports.Port -join ', ')'. Reconnect the DK or reinstall the SEGGER CDC driver."
+          }
+          Write-Host "J-Link UART: $selectedPort (from: $($ports.Port -join ', '))"
+          "HIL_SERIAL_PORT=$selectedPort" >> $env:GITHUB_ENV
+
+      - name: Prepare Windows test app
+        timeout-minutes: 15
+        run: |
+          # Generated runners are not stored in Git, and this runner is
+          # persistent: drop a generated app and CMake tree from an earlier
+          # checkout instead of reusing a stale cache.
+          foreach ($path in @('windows', 'build', '.metadata')) {
+            if (Test-Path -LiteralPath $path) {
+              Remove-Item -LiteralPath $path -Recurse -Force
+            }
+          }
+          flutter create --platforms=windows --no-pub .
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          flutter pub get
+          exit $LASTEXITCODE
+
+      - name: Warm the Windows build
+        timeout-minutes: 25
+        run: |
+          # The timed groups below no longer pay for a cold CMake/MSVC build of
+          # the plugin. The test build still relinks its own bundle, so this
+          # shortens the first group's wall clock rather than eliminating it.
+          flutter build windows --debug --no-pub
+          exit $LASTEXITCODE
+
+      - name: Clean-flash the nRF52 DK
+        timeout-minutes: 10
+        run: |
+          # Java also ships a jlink.exe; do not resolve this tool from PATH.
+          $jlink = Join-Path $env:ProgramFiles 'SEGGER\JLink\JLink.exe'
+          if (-not (Test-Path -LiteralPath $jlink -PathType Leaf)) {
+            throw "Install SEGGER J-Link Commander at $jlink on the Windows runner."
+          }
+          $repo = 'Navideck/universal_ble_hil_firmware'
+          $tag = [Uri]::EscapeDataString($env:HIL_FIRMWARE_TAG)
+          $expectedHash = $env:HIL_FIRMWARE_SHA256
+          $dir = New-Item -ItemType Directory -Path (Join-Path $env:RUNNER_TEMP "hil-firmware-$([guid]::NewGuid())")
+          $hex = Join-Path $dir.FullName 'zephyr.hex'
+          Invoke-WebRequest -Uri "https://github.com/$repo/releases/download/$tag/zephyr.hex" -OutFile $hex
+          if ((Get-FileHash -LiteralPath $hex -Algorithm SHA256).Hash -ne $expectedHash) {
+            throw "Firmware $tag does not match the pinned SHA-256. The fixture was not erased."
+          }
+          Write-Host "Flashing $tag zephyr.hex (SHA-256: $expectedHash)"
+          $commands = Join-Path $dir.FullName 'flash.jlink'
+          @('erase', "loadfile `"$hex`"", 'r', 'g', 'exit') |
+            Set-Content -LiteralPath $commands -Encoding ascii
+          $PSNativeCommandUseErrorActionPreference = $false
+          # HIL_JLINK_SERIAL keeps the configured value here: it is the serial
+          # SEGGER expects, leading zeros included.
+          # nRF52832 on a PCA10040 board (the nRF52 DK).
+          & $jlink -USB $env:HIL_JLINK_SERIAL -Device NRF52832_XXAA -If SWD -Speed 4000 `
+            -AutoConnect 1 -NoGui 1 -ExitOnError 1 -CommandFile $commands 2>&1 |
+            Tee-Object -FilePath (Join-Path $env:HIL_LOG_DIR 'flash-hil.log')
+          exit $LASTEXITCODE
+
+      # Per-group budgets: each one exceeds the sum of that group's declared
+      # per-test timeouts. timing-sweeps is the largest because its declared
+      # per-test bounds add up to 34 minutes: four 4-minute sweep bodies (one of
+      # which four generated tests reuse) plus a 6-minute seed replay.
+      #   baseline                  20 min
+      #   connection-discovery      30 min
+      #   gatt-operations           30 min
+      #   notifications-indications 30 min
+      #   mtu-resources             25 min
+      #   timing-sweeps             45 min
+      # The script budget is the single wall-clock authority; a group that
+      # exceeds it is killed and reported as a timeout.
+      - name: Baseline
+        id: baseline
+        if: contains(fromJSON('["all", "baseline"]'), inputs.test_group || 'all')
+        continue-on-error: true
+        run: |
+          pwsh -NoProfile -NonInteractive -ExecutionPolicy Bypass -File ./run_windows_hil_group.ps1 -Group baseline -TimeoutSeconds 1200
+          exit $LASTEXITCODE
+
+      - name: 'Fault insertion tests: connection and discovery'
+        id: connection-discovery
+        if: contains(fromJSON('["all", "connection-discovery"]'), inputs.test_group || 'all')
+        continue-on-error: true
+        run: |
+          pwsh -NoProfile -NonInteractive -ExecutionPolicy Bypass -File ./run_windows_hil_group.ps1 -Group connection-discovery -TimeoutSeconds 1800
+          exit $LASTEXITCODE
+
+      - name: 'Fault insertion tests: GATT operations'
+        id: gatt-operations
+        if: contains(fromJSON('["all", "gatt-operations"]'), inputs.test_group || 'all')
+        continue-on-error: true
+        run: |
+          pwsh -NoProfile -NonInteractive -ExecutionPolicy Bypass -File ./run_windows_hil_group.ps1 -Group gatt-operations -TimeoutSeconds 1800
+          exit $LASTEXITCODE
+
+      - name: 'Fault insertion tests: notifications and indications'
+        id: notifications-indications
+        if: contains(fromJSON('["all", "notifications-indications"]'), inputs.test_group || 'all')
+        continue-on-error: true
+        run: |
+          pwsh -NoProfile -NonInteractive -ExecutionPolicy Bypass -File ./run_windows_hil_group.ps1 -Group notifications-indications -TimeoutSeconds 1800
+          exit $LASTEXITCODE
+
+      - name: 'Fault insertion tests: MTU and resource pressure'
+        id: mtu-resources
+        if: contains(fromJSON('["all", "mtu-resources"]'), inputs.test_group || 'all')
+        continue-on-error: true
+        run: |
+          pwsh -NoProfile -NonInteractive -ExecutionPolicy Bypass -File ./run_windows_hil_group.ps1 -Group mtu-resources -TimeoutSeconds 1500
+          exit $LASTEXITCODE
+
+      - name: 'Fault insertion tests: timing sweeps'
+        id: timing-sweeps
+        if: contains(fromJSON('["all", "timing-sweeps"]'), inputs.test_group || 'all')
+        continue-on-error: true
+        run: |
+          pwsh -NoProfile -NonInteractive -ExecutionPolicy Bypass -File ./run_windows_hil_group.ps1 -Group timing-sweeps -TimeoutSeconds 2700
+          exit $LASTEXITCODE
+
+      - name: Fail if any selected test group failed
+        if: >
+          steps.baseline.outcome == 'failure' ||
+          steps.connection-discovery.outcome == 'failure' ||
+          steps.gatt-operations.outcome == 'failure' ||
+          steps.notifications-indications.outcome == 'failure' ||
+          steps.mtu-resources.outcome == 'failure' ||
+          steps.timing-sweeps.outcome == 'failure'
+        run: throw 'One or more selected Windows test groups failed. See the per-group logs.'
+
+      - name: Upload test logs
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: windows-hil-logs-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/windows-hil-${{ github.run_id }}-${{ github.run_attempt }}/*-hil.log
+          if-no-files-found: warn
+          retention-days: 14
