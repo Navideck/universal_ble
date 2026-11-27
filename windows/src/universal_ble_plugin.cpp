@@ -18,6 +18,7 @@
 #include "advertisement_uuid.h"
 #include "enum_parser.h"
 #include "callback_drain.h"
+#include "gatt_discovery_policy.h"
 #include "generated/universal_ble.g.h"
 #include "helper/universal_ble_logger.h"
 #include "helper/universal_enum.h"
@@ -581,6 +582,12 @@ void UniversalBlePlugin::ReadValue(
       return;
     }
 
+    if (!HasLiveLink(bluetooth_agent)) {
+      result(create_flutter_error(UniversalBleErrorCode::kDeviceDisconnected,
+                                  "Device Disconnected"));
+      return;
+    }
+
     const auto gatt_characteristic_lease =
         bluetooth_agent->FetchCharacteristicForOperation(service,
                                                          characteristic);
@@ -674,6 +681,12 @@ void UniversalBlePlugin::WriteValue(
                                   "Unknown devicesId:" + device_id));
       return;
     }
+    if (!HasLiveLink(bluetooth_agent)) {
+      result(create_flutter_error(UniversalBleErrorCode::kDeviceDisconnected,
+                                  "Device Disconnected"));
+      return;
+    }
+
     const auto gatt_characteristic_lease =
         bluetooth_agent->FetchCharacteristicForOperation(service,
                                                          characteristic);
@@ -777,6 +790,12 @@ void UniversalBlePlugin::ReadDescriptorValue(
     if (!bluetooth_agent) {
       result(create_flutter_error(UniversalBleErrorCode::kDeviceNotFound,
                                   "Unknown deviceId:" + device_id));
+      return;
+    }
+
+    if (!HasLiveLink(bluetooth_agent)) {
+      result(create_flutter_error(UniversalBleErrorCode::kDeviceDisconnected,
+                                  "Device Disconnected"));
       return;
     }
 
@@ -915,6 +934,12 @@ void UniversalBlePlugin::WriteDescriptorValue(
                                   "Unknown devicesId:" + device_id));
       return;
     }
+    if (!HasLiveLink(bluetooth_agent)) {
+      result(create_flutter_error(UniversalBleErrorCode::kDeviceDisconnected,
+                                  "Device Disconnected"));
+      return;
+    }
+
     const auto gatt_characteristic_lease =
         bluetooth_agent->FetchCharacteristicForOperation(service,
                                                          characteristic);
@@ -2117,6 +2142,7 @@ fire_and_forget UniversalBlePlugin::ConnectAsync(uint64_t bluetooth_address,
 
     UniversalBleLogger::LogInfo("ConnectionLog: Services discovered");
     std::optional<std::string> gatt_discovery_error;
+    size_t denied_service_count = 0;
     auto gatt_services = services_result.Services();
     for (GattDeviceService &&service : gatt_services) {
       try {
@@ -2125,6 +2151,13 @@ fire_and_forget UniversalBlePlugin::ConnectAsync(uint64_t bluetooth_address,
         std::string service_uuid = guid_to_uuid(service.Uuid());
         auto characteristics_result = co_await service.GetCharacteristicsAsync(
             BluetoothCacheMode::Uncached);
+        if (classify_discovery_status(characteristics_result.Status()) ==
+            GattDiscoveryAction::kSkipDenied) {
+          ++denied_service_count;
+          UniversalBleLogger::LogInfo("Skipping denied service " +
+                                      service_uuid);
+          continue;
+        }
         auto characteristics_result_error =
             gatt_communication_status_to_error(characteristics_result.Status());
 
@@ -2170,6 +2203,16 @@ fire_and_forget UniversalBlePlugin::ConnectAsync(uint64_t bluetooth_address,
       NotifyConnectFailureIfCurrent(bluetooth_address, connect_generation,
                                     gatt_discovery_error.value());
       co_return;
+    }
+
+    if (denied_service_count > 0 && gatt_map.empty()) {
+      // AccessDenied is not exclusive to OS-reserved services. If the whole
+      // database was denied, the connection is up but exposes nothing, and the
+      // per-service info lines are the only trace of why.
+      UniversalBleLogger::LogWarning(
+          "All " + std::to_string(denied_service_count) +
+          " discovered services were denied access; the connection exposes no "
+          "services");
     }
 
     const auto connection_callback_operations = callback_operations_;
@@ -2291,6 +2334,23 @@ fire_and_forget UniversalBlePlugin::RefreshGattServicesAsync(
           const auto characteristics_result =
               co_await service.GetCharacteristicsAsync(
                   BluetoothCacheMode::Cached);
+          if (classify_discovery_status(characteristics_result.Status()) ==
+              GattDiscoveryAction::kSkipDenied) {
+            // A denied service the map already exposes is in use: its
+            // characteristics, reads and subscriptions are live. Dropping it
+            // would silently break them, so the previous map is kept instead of
+            // installing a partial one. A service discovery never reported is
+            // skipped the same way as at connect time.
+            if (device_agent->HasService(service_uuid)) {
+              discovery_error =
+                  "Failed to refresh characteristics for service " +
+                  service_uuid + ": AccessDenied";
+              break;
+            }
+            UniversalBleLogger::LogInfo("Skipping denied service " +
+                                        service_uuid);
+            continue;
+          }
           const auto characteristics_error = gatt_communication_status_to_error(
               characteristics_result.Status());
           if (characteristics_error.has_value()) {
@@ -2440,6 +2500,22 @@ std::shared_ptr<BluetoothDeviceAgent> UniversalBlePlugin::GetConnectedDevice(
   std::lock_guard<std::mutex> lock(connected_devices_mutex_);
   const auto it = connected_devices_.find(bluetooth_address);
   return it == connected_devices_.end() ? nullptr : it->second;
+}
+
+bool UniversalBlePlugin::HasLiveLink(
+    const std::shared_ptr<BluetoothDeviceAgent> &device_agent) {
+  if (!device_agent || !device_agent->IsActive()) return false;
+  try {
+    return device_agent->device.ConnectionStatus() ==
+           BluetoothConnectionStatus::Connected;
+  } catch (const hresult_error &err) {
+    UniversalBleLogger::LogWarning(
+        "HasLiveLink: ConnectionStatus hresult_error hr=" +
+        std::to_string(err.code()));
+  } catch (...) {
+    UniversalBleLogger::LogWarning("HasLiveLink: ConnectionStatus failed");
+  }
+  return true;
 }
 
 void UniversalBlePlugin::InvalidateConnectAttempt(
@@ -3069,6 +3145,13 @@ fire_and_forget UniversalBlePlugin::SetNotifiableAsync(
       co_return;
     }
 
+    stage = "check-link";
+    if (!HasLiveLink(device_agent)) {
+      reply(create_flutter_error(UniversalBleErrorCode::kDeviceDisconnected,
+                                 "Device Disconnected"));
+      co_return;
+    }
+
     stage = "lookup-characteristic";
     auto gatt_char = device_agent->FetchCharacteristic(service, characteristic);
 
@@ -3677,35 +3760,40 @@ void UniversalBlePlugin::DisposeAdvertisementPublisher() {
   }
 }
 
-std::optional<FlutterError> UniversalBlePlugin::UpdateCharacteristic(
+void UniversalBlePlugin::UpdateCharacteristic(
     const std::string &characteristic_id, const std::string *characteristic_instance_id,
-    const std::vector<uint8_t> &value, const std::string *device_id) {
+    const std::vector<uint8_t> &value, const std::string *device_id,
+    std::function<void(std::optional<FlutterError> reply)> result) {
   if (characteristic_instance_id != nullptr) {
-    return FlutterError("not-supported",
+    result(FlutterError("not-supported",
                         "Windows does not support characteristic instance IDs",
-                        nullptr);
+                        nullptr));
+    return;
   }
   GattLocalCharacteristic local_char = nullptr;
   IBuffer buffer = nullptr;
   {
     std::lock_guard<std::mutex> lock(peripheral_mutex_);
     if (device_id != nullptr) {
-      return FlutterError("not-supported",
+      result(FlutterError("not-supported",
                           "Windows does not support targeting a specific "
                           "device for notifications",
-                          nullptr);
+                          nullptr));
+      return;
     }
     bool ambiguous_match = false;
     auto *characteristic_object = FindPeripheralGattCharacteristicObject(
         characteristic_id, &ambiguous_match);
     if (ambiguous_match) {
-      return FlutterError("ambiguous-characteristic",
+      result(FlutterError("ambiguous-characteristic",
                           "Characteristic UUID exists in multiple services; "
                           "cannot update uniquely",
-                          nullptr);
+                          nullptr));
+      return;
     }
     if (characteristic_object == nullptr) {
-      return FlutterError("not-found", "Characteristic not found", nullptr);
+      result(FlutterError("not-found", "Characteristic not found", nullptr));
+      return;
     }
     IBuffer bytes = from_bytevc(value);
     DataWriter writer;
@@ -3716,32 +3804,44 @@ std::optional<FlutterError> UniversalBlePlugin::UpdateCharacteristic(
   }
 
   try {
-    // NotifyValueAsync completes only once the value has been handed to every
-    // subscribed client, so waiting for it costs the platform thread a full
-    // GATT round trip (and blocks it for good when a client link is wedged).
-    // Apple and Android queue the update and return, so submit it and report
-    // the per-client outcome from the completion handler instead. Consecutive
-    // calls are still submitted from the platform thread in call order, but
-    // Windows does not promise that overlapping operations are serialized or
-    // delivered in that order.
+    // NotifyValueAsync completes once the value has been handed to every
+    // subscribed client; waiting for it on the platform thread would block a
+    // full GATT round trip (and block it for good when a client link is wedged).
+    // Submit it and reply from the completion handler instead, so awaiting the
+    // Dart future is a real backpressure signal.
     const auto value_size = buffer.Length();
+    // Captured by copy, not moved: the catch path below still has to reply with
+    // the same callback, and a moved-from std::function would throw
+    // std::bad_function_call instead.
     local_char.NotifyValueAsync(buffer).Completed(
-        [characteristic_id, value_size](
+        [characteristic_id, value_size, result](
             const IAsyncOperation<IVectorView<GattClientNotificationResult>>
                 &sender,
             const AsyncStatus status) {
           LogPeripheralNotificationResult(characteristic_id, value_size, sender,
                                           status);
+          if (status == AsyncStatus::Completed) {
+            safe_reply("UpdateCharacteristic", result, std::nullopt);
+          } else {
+            safe_reply(
+                "UpdateCharacteristic", result,
+                FlutterError(
+                    "failed",
+                    "Failed to notify subscribed clients for characteristic "
+                    "update",
+                    nullptr));
+          }
         });
   } catch (...) {
     // Starting the operation failed (for example the characteristic object is
     // no longer valid); that is still reported synchronously.
-    return FlutterError(
-        "failed",
-        "Failed to notify subscribed clients for characteristic update",
-        nullptr);
+    safe_reply("UpdateCharacteristic", result,
+               FlutterError(
+                   "failed",
+                   "Failed to notify subscribed clients for characteristic "
+                   "update",
+                   nullptr));
   }
-  return std::nullopt;
 }
 
 // Runs on a WinRT thread pool thread, possibly after this plugin is gone, which

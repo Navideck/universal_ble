@@ -94,4 +94,13 @@ if(WIN32)
   endif()
   add_test(NAME initialization_lifetime_test COMMAND initialization_lifetime_test)
   set_tests_properties(initialization_lifetime_test PROPERTIES TIMEOUT 10)
+
+  # Covers the GATT status policy discovery uses: Windows denies access to some
+  # services (it reserves HID over GATT, 0x1812, for itself), so AccessDenied is
+  # skipped while every other status still ends discovery (#400).
+  add_executable(gatt_discovery_policy_test gatt_discovery_policy_test.cpp)
+  target_compile_features(gatt_discovery_policy_test PRIVATE cxx_std_20)
+  target_include_directories(gatt_discovery_policy_test PRIVATE ../src)
+  target_link_libraries(gatt_discovery_policy_test PRIVATE windowsapp)
+  add_test(NAME gatt_discovery_policy_test COMMAND gatt_discovery_policy_test)
 endif()

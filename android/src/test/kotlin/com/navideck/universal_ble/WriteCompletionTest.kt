@@ -27,40 +27,10 @@ internal class WriteCompletionTest {
     private val serviceUuid = UUID.fromString("0000fff0-0000-1000-8000-00805f9b34fb")
     private val charUuid = UUID.fromString("0000fff1-0000-1000-8000-00805f9b34fb")
 
-    private val requestGatt by lazy { mockGatt() }
+    private val requestGatt by lazy { mockGatt(deviceAddress) }
 
-    private fun pluginWithInlineHandler(): UniversalBlePlugin {
-        val plugin = UniversalBlePlugin()
-        // Completions are posted to the main looper; execute them inline so
-        // the test observes them synchronously.
-        val handler = Mockito.mock(Handler::class.java)
-        Mockito.doAnswer { invocation ->
-            invocation.getArgument<Runnable>(0).run()
-            true
-        }.`when`(handler).post(Mockito.any())
-        plugin.setField("mainThreadHandler", handler)
-        return plugin
-    }
-
-    private fun pendingWrites(plugin: UniversalBlePlugin): MutableList<WriteResultFuture> =
-        plugin.getField("writeResultFutureList")
-
-    private fun mockGatt(): BluetoothGatt {
-        val device = Mockito.mock(BluetoothDevice::class.java)
-        Mockito.`when`(device.address).thenReturn(deviceAddress)
-        val gatt = Mockito.mock(BluetoothGatt::class.java)
-        Mockito.`when`(gatt.device).thenReturn(device)
-        return gatt
-    }
-
-    private fun mockCharacteristic(): BluetoothGattCharacteristic {
-        val service = Mockito.mock(BluetoothGattService::class.java)
-        Mockito.`when`(service.uuid).thenReturn(serviceUuid)
-        val characteristic = Mockito.mock(BluetoothGattCharacteristic::class.java)
-        Mockito.`when`(characteristic.uuid).thenReturn(charUuid)
-        Mockito.`when`(characteristic.service).thenReturn(service)
-        return characteristic
-    }
+    private fun pendingWrites(plugin: UniversalBlePlugin): PendingOperations<WriteResultFuture> =
+        plugin.pendingWrites()
 
     private fun pendingFuture(acks: MutableList<Result<Unit>>) = WriteResultFuture(
         requestGatt,
@@ -71,7 +41,7 @@ internal class WriteCompletionTest {
 
     @Test
     fun oneWriteCompletionMustNotAckOtherPendingWrites() {
-        val plugin = pluginWithInlineHandler()
+        val plugin = pluginWithInlineLooper()
         val firstAcks = mutableListOf<Result<Unit>>()
         val secondAcks = mutableListOf<Result<Unit>>()
         val pending = pendingWrites(plugin)
@@ -81,7 +51,7 @@ internal class WriteCompletionTest {
         }
 
         // The ATT response of the FIRST write arrives.
-        plugin.onCharacteristicWrite(requestGatt, mockCharacteristic(), BluetoothGatt.GATT_SUCCESS)
+        plugin.onCharacteristicWrite(requestGatt, mockCharacteristic(serviceUuid, charUuid), BluetoothGatt.GATT_SUCCESS)
 
         assertEquals(1, firstAcks.size, "oldest pending write should be acknowledged")
         assertTrue(firstAcks[0].isSuccess)
@@ -93,14 +63,14 @@ internal class WriteCompletionTest {
         )
 
         // The second write's own response must then complete it - exactly once.
-        plugin.onCharacteristicWrite(requestGatt, mockCharacteristic(), BluetoothGatt.GATT_SUCCESS)
+        plugin.onCharacteristicWrite(requestGatt, mockCharacteristic(serviceUuid, charUuid), BluetoothGatt.GATT_SUCCESS)
         assertEquals(1, secondAcks.size, "second write acknowledged by its own response")
         assertEquals(1, firstAcks.size, "first write must not be acknowledged twice")
     }
 
     @Test
     fun failedCompletionMustFailOnlyTheOldestPendingWrite() {
-        val plugin = pluginWithInlineHandler()
+        val plugin = pluginWithInlineLooper()
         val firstAcks = mutableListOf<Result<Unit>>()
         val secondAcks = mutableListOf<Result<Unit>>()
         val pending = pendingWrites(plugin)
@@ -109,7 +79,7 @@ internal class WriteCompletionTest {
             pending.add(pendingFuture(secondAcks))
         }
 
-        plugin.onCharacteristicWrite(requestGatt, mockCharacteristic(), BluetoothGatt.GATT_FAILURE)
+        plugin.onCharacteristicWrite(requestGatt, mockCharacteristic(serviceUuid, charUuid), BluetoothGatt.GATT_FAILURE)
 
         assertEquals(1, firstAcks.size, "oldest pending write should be failed")
         assertTrue(firstAcks[0].isFailure)

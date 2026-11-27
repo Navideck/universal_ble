@@ -84,8 +84,56 @@ internal class PeripheralRegressionTest {
         plugin.setField("bluetoothDevicesMap", HashMap<String, BluetoothDevice>())
         plugin.setField("mtuByDeviceId", HashMap<String, Int>())
         plugin.setField("pendingNotifications", ArrayDeque<Any>())
-        plugin.setField("notificationsInFlight", HashSet<String>())
+        plugin.setField("notificationsInFlight", HashMap<String, Any>())
+        plugin.setField("notificationRetries", HashMap<String, Runnable>())
+        plugin.setField("notificationRetryAttempts", HashMap<String, Int>())
         return plugin
+    }
+
+    /** Makes settlement (posted by the plugin) run immediately in unit tests. */
+    private fun UniversalBlePeripheralPlugin.runPostedRunnablesImmediately() {
+        val handler = field<Handler>("handler")
+        Mockito.`when`(handler.post(Mockito.any(Runnable::class.java))).thenAnswer {
+            (it.arguments[0] as Runnable).run()
+            true
+        }
+    }
+
+    /** A runnable the plugin posted with a delay, captured so a test can run it. */
+    private data class DelayedPost(val delayMillis: Long, val runnable: Runnable)
+
+    /**
+     * Captures `handler.postDelayed` calls instead of waiting for a clock, so a
+     * retry test decides when the retry happens. The returned list grows as the
+     * plugin schedules more retries.
+     */
+    private fun UniversalBlePeripheralPlugin.captureDelayedRunnables(): MutableList<DelayedPost> {
+        val posted = mutableListOf<DelayedPost>()
+        val handler = field<Handler>("handler")
+        Mockito.`when`(handler.postDelayed(Mockito.any(Runnable::class.java), Mockito.anyLong()))
+            .thenAnswer {
+                posted.add(DelayedPost(it.getArgument(1), it.getArgument(0)))
+                true
+            }
+        return posted
+    }
+
+    private fun UniversalBlePeripheralPlugin.pendingRetries(): Map<String, Runnable> =
+        field("notificationRetries")
+
+    private fun UniversalBlePeripheralPlugin.retryAttempts(): Map<String, Int> =
+        field("notificationRetryAttempts")
+
+    /**
+     * Drives the private disconnect cleanup directly: the callback that normally
+     * reaches it also logs through `android.util.Log`, which the JVM unit tests
+     * do not mock.
+     */
+    private fun UniversalBlePeripheralPlugin.cleanConnection(device: BluetoothDevice) {
+        val method = UniversalBlePeripheralPlugin::class.java
+            .getDeclaredMethod("cleanConnection", BluetoothDevice::class.java)
+        method.isAccessible = true
+        method.invoke(this, device)
     }
 
     private fun UniversalBlePeripheralPlugin.setField(name: String, value: Any?) {
@@ -127,6 +175,79 @@ internal class PeripheralRegressionTest {
         return device
     }
 
+    /** A notify characteristic subscribed by [deviceAddress], registered as "report-1". */
+    private fun UniversalBlePeripheralPlugin.subscribedNotifyCharacteristic():
+        BluetoothGattCharacteristic {
+        val service = mockService(hid)
+        val characteristic = Mockito.mock(BluetoothGattCharacteristic::class.java)
+        Mockito.`when`(characteristic.uuid).thenReturn(UUID.fromString(report))
+        Mockito.`when`(characteristic.service).thenReturn(service)
+        Mockito.`when`(characteristic.properties)
+            .thenReturn(BluetoothGattCharacteristic.PROPERTY_NOTIFY)
+        characteristics()[report] = characteristic
+        characteristics()["report-1"] = characteristic
+        characteristicInstanceIds()[characteristic] = "report-1"
+        subscribedCharDevicesMap[deviceAddress] = mutableSetOf("report-1")
+        connectedDevice()
+        return characteristic
+    }
+
+    /**
+     * Two notify characteristics, each in its own service, subscribed by
+     * [deviceAddress] as "report-1" and "report-2".
+     */
+    private fun UniversalBlePeripheralPlugin.subscribedNotifyCharacteristics():
+        Pair<BluetoothGattCharacteristic, BluetoothGattCharacteristic> {
+        val firstService = mockService(hid)
+        val secondService = mockService(otherService)
+        val first = mockCharacteristic(report, firstService)
+        val second = mockCharacteristic(otherReport, secondService)
+        listOf(first, second).forEach {
+            Mockito.`when`(it.properties).thenReturn(BluetoothGattCharacteristic.PROPERTY_NOTIFY)
+        }
+        characteristics()[report] = first
+        characteristics()["report-1"] = first
+        characteristicInstanceIds()[first] = "report-1"
+        characteristics()[otherReport] = second
+        characteristics()["report-2"] = second
+        characteristicInstanceIds()[second] = "report-2"
+        subscribedCharDevicesMap[deviceAddress] = mutableSetOf("report-1", "report-2")
+        connectedDevice()
+        return first to second
+    }
+
+    /** The pre-API-33 path the JVM tests take: the stack accepts the notification. */
+    private fun BluetoothGattServer.acceptNotifications() {
+        Mockito.`when`(
+            notifyCharacteristicChanged(
+                Mockito.any(BluetoothDevice::class.java),
+                Mockito.any(BluetoothGattCharacteristic::class.java),
+                Mockito.anyBoolean(),
+            ),
+        ).thenReturn(true)
+    }
+
+    /** The client's native transmit queue is still busy, so the stack refuses. */
+    private fun BluetoothGattServer.refuseNotifications() {
+        Mockito.`when`(
+            notifyCharacteristicChanged(
+                Mockito.any(BluetoothDevice::class.java),
+                Mockito.any(BluetoothGattCharacteristic::class.java),
+                Mockito.anyBoolean(),
+            ),
+        ).thenReturn(false)
+    }
+
+    private fun BluetoothGattServer.notifyCalls(): Int =
+        Mockito.mockingDetails(this).invocations
+            .count { it.method.name == "notifyCharacteristicChanged" }
+
+    /** Every value the plugin assigned to [characteristic], in order. */
+    private fun valuesSetOn(characteristic: BluetoothGattCharacteristic): List<List<Int>> =
+        Mockito.mockingDetails(characteristic).invocations
+            .filter { it.method.name == "setValue" }
+            .map { invocation -> (invocation.arguments[0] as ByteArray).map(Byte::toInt) }
+
     @Test fun findsServiceByItsServiceUuid() {
         val service = Mockito.mock(BluetoothGattService::class.java)
         Mockito.`when`(service.uuid).thenReturn(UUID.fromString(hid))
@@ -155,8 +276,393 @@ internal class PeripheralRegressionTest {
         Mockito.`when`(characteristic.properties).thenReturn(BluetoothGattCharacteristic.PROPERTY_READ)
         characteristics()[report] = characteristic
         val value = byteArrayOf(42)
-        plugin.updateCharacteristic(report, null, value, null)
+        val results = mutableListOf<Result<Unit>>()
+        plugin.updateCharacteristic(report, null, value, null) { results.add(it) }
         Mockito.verify(characteristic).setValue(value)
+        assertEquals(1, results.size)
+        assertTrue(results.single().isSuccess)
+    }
+
+    @Test fun acceptedNotificationCompletesOnlyAfterOnNotificationSent() {
+        val server = Mockito.mock(BluetoothGattServer::class.java)
+        val plugin = peripheralPlugin(server).also { it.runPostedRunnablesImmediately() }
+        plugin.subscribedNotifyCharacteristic()
+        server.acceptNotifications()
+        val results = mutableListOf<Result<Unit>>()
+
+        plugin.updateCharacteristic(report, "report-1", byteArrayOf(1), deviceAddress) {
+            results.add(it)
+        }
+
+        assertTrue(results.isEmpty(), "The callback must wait until the packet is sent")
+        plugin.handleNotificationSent(plugin.connectedDevice(), BluetoothGatt.GATT_SUCCESS)
+        assertEquals(1, results.size)
+        assertTrue(results.single().isSuccess)
+    }
+
+    @Test fun failedNotificationSentFailsTheCallback() {
+        val server = Mockito.mock(BluetoothGattServer::class.java)
+        val plugin = peripheralPlugin(server).also { it.runPostedRunnablesImmediately() }
+        plugin.subscribedNotifyCharacteristic()
+        server.acceptNotifications()
+        val results = mutableListOf<Result<Unit>>()
+        plugin.updateCharacteristic(report, "report-1", byteArrayOf(1), deviceAddress) {
+            results.add(it)
+        }
+
+        plugin.handleNotificationSent(plugin.connectedDevice(), BluetoothGatt.GATT_FAILURE)
+
+        assertEquals(1, results.size)
+        assertTrue(results.single().isFailure)
+    }
+
+    // #403: a queued update must not overwrite the value the stack is sending
+    // for the packet already in flight.
+    @Test fun queuedUpdateDoesNotOverwriteInFlightCharacteristicValue() {
+        val server = Mockito.mock(BluetoothGattServer::class.java)
+        val plugin = peripheralPlugin(server).also { it.runPostedRunnablesImmediately() }
+        val characteristic = plugin.subscribedNotifyCharacteristic()
+        server.acceptNotifications()
+        val results = mutableListOf<Result<Unit>>()
+
+        plugin.updateCharacteristic(report, "report-1", byteArrayOf(1), deviceAddress) {
+            results.add(it)
+        }
+        assertEquals(listOf(listOf(1)), valuesSetOn(characteristic))
+
+        plugin.updateCharacteristic(report, "report-1", byteArrayOf(2), deviceAddress) {
+            results.add(it)
+        }
+        assertEquals(
+            listOf(listOf(1)),
+            valuesSetOn(characteristic),
+        )
+        assertTrue(results.isEmpty(), "The second packet waits for the first to be sent")
+
+        plugin.handleNotificationSent(plugin.connectedDevice(), BluetoothGatt.GATT_SUCCESS)
+        assertEquals(
+            listOf(listOf(1), listOf(2)),
+            valuesSetOn(characteristic),
+        )
+        assertEquals(1, results.size)
+        assertTrue(results.single().isSuccess)
+
+        plugin.handleNotificationSent(plugin.connectedDevice(), BluetoothGatt.GATT_SUCCESS)
+        assertEquals(2, results.size)
+        assertTrue(results[1].isSuccess)
+    }
+
+    @Test fun clearPendingNotificationsFailsQueuedUpdatesButKeepsTheOneInFlight() {
+        val server = Mockito.mock(BluetoothGattServer::class.java)
+        val plugin = peripheralPlugin(server).also { it.runPostedRunnablesImmediately() }
+        plugin.subscribedNotifyCharacteristic()
+        server.acceptNotifications()
+        val results = mutableListOf<Result<Unit>>()
+        plugin.updateCharacteristic(report, "report-1", byteArrayOf(1), deviceAddress) {
+            results.add(it)
+        }
+        plugin.updateCharacteristic(report, "report-1", byteArrayOf(2), deviceAddress) {
+            results.add(it)
+        }
+
+        plugin.clearPendingNotifications(deviceAddress)
+
+        assertEquals(1, results.size, "Only the queued update is cancelled")
+        assertTrue(results.single().isFailure)
+        plugin.handleNotificationSent(plugin.connectedDevice(), BluetoothGatt.GATT_SUCCESS)
+        assertEquals(2, results.size)
+        assertTrue(results[1].isSuccess, "The in-flight packet is still settled by its callback")
+    }
+
+    // #406: a refused send leaves nothing for onNotificationSent to report, so
+    // without its own retry the client's queue waits for an unrelated update.
+    @Test fun refusedNotificationIsRetriedWithoutAnotherUpdate() {
+        val server = Mockito.mock(BluetoothGattServer::class.java)
+        val plugin = peripheralPlugin(server).also { it.runPostedRunnablesImmediately() }
+        val retries = plugin.captureDelayedRunnables()
+        val characteristic = plugin.subscribedNotifyCharacteristic()
+        server.refuseNotifications()
+        val results = mutableListOf<Result<Unit>>()
+
+        plugin.updateCharacteristic(report, "report-1", byteArrayOf(1), deviceAddress) {
+            results.add(it)
+        }
+
+        assertEquals(1, retries.size, "The refusal schedules exactly one retry")
+        assertEquals(10L, retries.single().delayMillis, "The first retry uses the base delay")
+        assertTrue(plugin.pendingRetries().containsKey(deviceAddress))
+        assertEquals(mapOf(deviceAddress to 1), plugin.retryAttempts())
+        assertEquals(1, server.notifyCalls())
+        assertTrue(results.isEmpty(), "The Dart callback waits for the retry")
+
+        // The stack has room now: the same payload goes out again.
+        server.acceptNotifications()
+        retries.removeAt(0).runnable.run()
+
+        assertEquals(listOf(listOf(1), listOf(1)), valuesSetOn(characteristic))
+        assertTrue(results.isEmpty(), "The callback still waits for onNotificationSent")
+
+        plugin.handleNotificationSent(plugin.connectedDevice(), BluetoothGatt.GATT_SUCCESS)
+
+        assertEquals(1, results.size)
+        assertTrue(results.single().isSuccess)
+        assertTrue(plugin.pendingRetries().isEmpty())
+        assertTrue(plugin.retryAttempts().isEmpty(), "The next refusal starts from the base delay")
+    }
+
+    // #406: one client, one retry — several queued updates must not post one each.
+    @Test fun queuedUpdatesForOneClientShareARejectedRetry() {
+        val server = Mockito.mock(BluetoothGattServer::class.java)
+        val plugin = peripheralPlugin(server).also { it.runPostedRunnablesImmediately() }
+        val retries = plugin.captureDelayedRunnables()
+        plugin.subscribedNotifyCharacteristic()
+        server.refuseNotifications()
+        val results = mutableListOf<Result<Unit>>()
+
+        repeat(3) { index ->
+            plugin.updateCharacteristic(report, "report-1", byteArrayOf(index.toByte()), deviceAddress) {
+                results.add(it)
+            }
+        }
+
+        assertEquals(1, retries.size, "The updates coalesce into a single retry")
+        assertEquals(mapOf(deviceAddress to 1), plugin.retryAttempts())
+        assertEquals(3, server.notifyCalls(), "Each update tried the send once")
+        assertTrue(results.isEmpty())
+    }
+
+    // #406: the backoff doubles per consecutive refusal, then stays at the cap.
+    @Test fun refusedRetriesBackOffAndCap() {
+        val server = Mockito.mock(BluetoothGattServer::class.java)
+        val plugin = peripheralPlugin(server).also { it.runPostedRunnablesImmediately() }
+        val retries = plugin.captureDelayedRunnables()
+        plugin.subscribedNotifyCharacteristic()
+        server.refuseNotifications()
+        val results = mutableListOf<Result<Unit>>()
+        plugin.updateCharacteristic(report, "report-1", byteArrayOf(1), deviceAddress) {
+            results.add(it)
+        }
+
+        val delays = mutableListOf<Long>()
+        // Each run is refused again and schedules the next attempt.
+        repeat(8) {
+            val retry = retries.removeAt(0)
+            delays.add(retry.delayMillis)
+            retry.runnable.run()
+        }
+
+        assertEquals(listOf(10L, 20L, 40L, 80L, 160L, 320L, 500L, 500L), delays)
+        assertEquals(1, retries.size, "Only the latest retry is live")
+        assertEquals(
+            7,
+            plugin.retryAttempts()[deviceAddress],
+            "The counter stops at the ceiling instead of overflowing",
+        )
+        assertTrue(results.isEmpty())
+    }
+
+    // #406: a client that unsubscribes while the payload waits must not receive
+    // it, and the retry must not loop forever.
+    @Test fun retryDropsThePayloadOfAClientThatUnsubscribed() {
+        val server = Mockito.mock(BluetoothGattServer::class.java)
+        val plugin = peripheralPlugin(server).also { it.runPostedRunnablesImmediately() }
+        val retries = plugin.captureDelayedRunnables()
+        plugin.subscribedNotifyCharacteristic()
+        server.refuseNotifications()
+        val results = mutableListOf<Result<Unit>>()
+        plugin.updateCharacteristic(report, "report-1", byteArrayOf(1), deviceAddress) {
+            results.add(it)
+        }
+        assertEquals(1, server.notifyCalls())
+
+        // The central writes the CCCD off before the retry fires.
+        subscribedCharDevicesMap.remove(deviceAddress)
+        retries.removeAt(0).runnable.run()
+
+        assertEquals(1, results.size)
+        assertTrue(results.single().isFailure)
+        assertEquals("Central unsubscribed", results.single().exceptionOrNull()?.message)
+        assertEquals(1, server.notifyCalls(), "The stale payload is not sent again")
+        assertTrue(plugin.pendingRetries().isEmpty())
+        assertTrue(plugin.retryAttempts().isEmpty())
+
+        // Resubscribing does not resurrect it either.
+        subscribedCharDevicesMap[deviceAddress] = mutableSetOf("report-1")
+        server.acceptNotifications()
+        retries.forEach { it.runnable.run() }
+        assertEquals(1, server.notifyCalls())
+        assertEquals(1, results.size)
+    }
+
+    // #406: resetting the peripheral takes the retry with the queue it belongs to.
+    @Test fun peripheralResetCancelsThePendingRetry() {
+        val server = Mockito.mock(BluetoothGattServer::class.java)
+        val plugin = peripheralPlugin(server).also { it.runPostedRunnablesImmediately() }
+        val retries = plugin.captureDelayedRunnables()
+        plugin.subscribedNotifyCharacteristic()
+        server.refuseNotifications()
+        val results = mutableListOf<Result<Unit>>()
+        plugin.updateCharacteristic(report, "report-1", byteArrayOf(1), deviceAddress) {
+            results.add(it)
+        }
+        val retry = retries.single()
+        assertTrue(plugin.pendingRetries().containsKey(deviceAddress))
+
+        plugin.onAdapterStateChanged(BluetoothAdapter.STATE_TURNING_OFF)
+
+        assertEquals(1, results.size, "The queued payload is failed by the cleanup")
+        assertTrue(results.single().isFailure)
+        assertTrue(plugin.pendingRetries().isEmpty())
+        assertTrue(plugin.retryAttempts().isEmpty())
+        Mockito.verify(plugin.field<Handler>("handler")).removeCallbacks(retry.runnable)
+
+        // A retry that still fires against the torn-down state is a no-op.
+        retry.runnable.run()
+        assertEquals(1, server.notifyCalls())
+    }
+
+    // #406: a per-client cancel takes the retry too, matching the id's case.
+    @Test fun clearPendingNotificationsCancelsTheRetry() {
+        val server = Mockito.mock(BluetoothGattServer::class.java)
+        val plugin = peripheralPlugin(server).also { it.runPostedRunnablesImmediately() }
+        val retries = plugin.captureDelayedRunnables()
+        plugin.subscribedNotifyCharacteristic()
+        server.refuseNotifications()
+        val results = mutableListOf<Result<Unit>>()
+        plugin.updateCharacteristic(report, "report-1", byteArrayOf(1), deviceAddress) {
+            results.add(it)
+        }
+        val retry = retries.single()
+
+        plugin.clearPendingNotifications(deviceAddress.lowercase())
+
+        assertEquals(1, results.size)
+        assertTrue(results.single().isFailure)
+        assertTrue(plugin.pendingRetries().isEmpty())
+        assertTrue(plugin.retryAttempts().isEmpty())
+        Mockito.verify(plugin.field<Handler>("handler")).removeCallbacks(retry.runnable)
+    }
+
+    // #406: a disconnect takes the client's queue and its retry apart together.
+    @Test fun disconnectCancelsThePendingRetry() {
+        val server = Mockito.mock(BluetoothGattServer::class.java)
+        val plugin = peripheralPlugin(server).also { it.runPostedRunnablesImmediately() }
+        val retries = plugin.captureDelayedRunnables()
+        plugin.subscribedNotifyCharacteristic()
+        server.refuseNotifications()
+        val results = mutableListOf<Result<Unit>>()
+        plugin.updateCharacteristic(report, "report-1", byteArrayOf(1), deviceAddress) {
+            results.add(it)
+        }
+        val retry = retries.single()
+
+        plugin.cleanConnection(plugin.connectedDevice())
+
+        assertEquals(1, results.size, "The queued payload is failed by the disconnect")
+        assertTrue(results.single().isFailure)
+        assertTrue(plugin.pendingRetries().isEmpty())
+        assertTrue(plugin.retryAttempts().isEmpty())
+        Mockito.verify(plugin.field<Handler>("handler")).removeCallbacks(retry.runnable)
+
+        retry.runnable.run()
+        assertEquals(1, server.notifyCalls(), "A retry against the torn-down queue sends nothing")
+    }
+
+    // #406: removing a service must take the retry only when nothing else of the
+    // client is queued, so another service's refused payload is still retried.
+    @Test fun removeServiceCancelsTheRetryOnlyWhenNothingElseIsQueued() {
+        val server = Mockito.mock(BluetoothGattServer::class.java)
+        val plugin = peripheralPlugin(server).also { it.runPostedRunnablesImmediately() }
+        val retries = plugin.captureDelayedRunnables()
+        plugin.subscribedNotifyCharacteristics()
+        server.refuseNotifications()
+        val results = mutableListOf<Result<Unit>>()
+        plugin.updateCharacteristic(report, "report-1", byteArrayOf(1), deviceAddress) {
+            results.add(it)
+        }
+        plugin.updateCharacteristic(otherReport, "report-2", byteArrayOf(2), deviceAddress) {
+            results.add(it)
+        }
+        val retry = retries.single()
+
+        plugin.removeService(hid)
+
+        assertEquals(1, results.size, "Only the removed service's payload is failed")
+        assertTrue(results.single().isFailure)
+        assertEquals("Service removed", results.single().exceptionOrNull()?.message)
+        assertTrue(
+            plugin.pendingRetries().containsKey(deviceAddress),
+            "The other service's payload still needs its retry",
+        )
+        Mockito.verify(plugin.field<Handler>("handler"), Mockito.never())
+            .removeCallbacks(retry.runnable)
+
+        plugin.removeService(otherService)
+
+        assertEquals(2, results.size)
+        assertTrue(results[1].isFailure)
+        assertTrue(plugin.pendingRetries().isEmpty())
+        assertTrue(plugin.retryAttempts().isEmpty())
+        Mockito.verify(plugin.field<Handler>("handler")).removeCallbacks(retry.runnable)
+    }
+
+    // #406: dropping the characteristic the client unsubscribed from must not
+    // stop the client's other characteristics from draining, and the backoff
+    // keeps counting across the drop.
+    @Test fun retryDropsTheUnsubscribedCharacteristicAndDrainsTheOther() {
+        val server = Mockito.mock(BluetoothGattServer::class.java)
+        val plugin = peripheralPlugin(server).also { it.runPostedRunnablesImmediately() }
+        val retries = plugin.captureDelayedRunnables()
+        plugin.subscribedNotifyCharacteristics()
+        server.refuseNotifications()
+        val results = mutableListOf<Result<Unit>>()
+        plugin.updateCharacteristic(report, "report-1", byteArrayOf(1), deviceAddress) {
+            results.add(it)
+        }
+        plugin.updateCharacteristic(otherReport, "report-2", byteArrayOf(2), deviceAddress) {
+            results.add(it)
+        }
+        assertEquals(2, server.notifyCalls())
+        // The client drops the first characteristic while its payload waits,
+        // without the queue dropping it (the window this retry covers).
+        subscribedCharDevicesMap[deviceAddress] = mutableSetOf("report-2")
+
+        retries.removeAt(0).runnable.run()
+
+        assertEquals(1, results.size)
+        assertTrue(results.single().isFailure)
+        assertEquals("Central unsubscribed", results.single().exceptionOrNull()?.message)
+        assertEquals(3, server.notifyCalls(), "The other characteristic is attempted again")
+        assertEquals(1, retries.size, "The other characteristic's refusal keeps retrying")
+        assertEquals(20L, retries.single().delayMillis, "The backoff continues across the drop")
+
+        server.acceptNotifications()
+        retries.removeAt(0).runnable.run()
+        assertEquals(4, server.notifyCalls())
+        assertEquals(1, results.size, "The retried payload still waits for onNotificationSent")
+        plugin.handleNotificationSent(plugin.connectedDevice(), BluetoothGatt.GATT_SUCCESS)
+
+        assertEquals(2, results.size)
+        assertTrue(results[1].isSuccess)
+        assertTrue(plugin.pendingRetries().isEmpty())
+        assertTrue(plugin.retryAttempts().isEmpty())
+    }
+
+    @Test fun resetFailsTheNotificationInFlight() {
+        val server = Mockito.mock(BluetoothGattServer::class.java)
+        val plugin = peripheralPlugin(server).also { it.runPostedRunnablesImmediately() }
+        plugin.subscribedNotifyCharacteristic()
+        server.acceptNotifications()
+        val results = mutableListOf<Result<Unit>>()
+        plugin.updateCharacteristic(report, "report-1", byteArrayOf(1), deviceAddress) {
+            results.add(it)
+        }
+
+        plugin.onAdapterStateChanged(BluetoothAdapter.STATE_TURNING_OFF)
+
+        assertEquals(1, results.size)
+        assertTrue(results.single().isFailure)
+        assertTrue(plugin.field<Map<String, Any>>("notificationsInFlight").isEmpty())
     }
 
     // #385: a service registered a second time must resolve to the new

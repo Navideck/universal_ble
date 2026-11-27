@@ -232,13 +232,44 @@ class UniversalBlePeripheral {
   /// `getCapabilities().supportsTargetedCharacteristicUpdate`); omit it to
   /// notify every subscribed client.
   ///
-  /// The returned future completes once the update has been handed to the
-  /// platform, not once it has been transmitted. On Windows and Android a
-  /// transport failure is not reported through this future (Windows logs it
-  /// when `UniversalBle.setLogLevel` enables error output), while Apple reports
-  /// a full transmit queue. On Windows, [QueueType.perDevice] and
-  /// [QueueType.global] serialize submission only; awaiting this future does
-  /// not prevent overlapping transmissions or guarantee their delivery order.
+  /// The returned future completes once the platform has accepted or sent the
+  /// notification, which provides backpressure for bulk transfers: awaiting it
+  /// between chunks paces them instead of filling a native queue.
+  ///
+  /// - Apple completes when `CBPeripheralManager.updateValue` accepts the value
+  ///   (immediately or after `peripheralManagerIsReady(toUpdateSubscribers:)`).
+  /// - Android completes when `onNotificationSent` reports the packet, failing on
+  ///   a non-success GATT status.
+  /// - Windows completes when `NotifyValueAsync` completes, failing when it does
+  ///   not.
+  ///
+  /// It completes once every targeted client has settled; when several fail, the
+  /// first error is reported. `clearPendingNotifications`, removing a service, a
+  /// central unsubscribing and a Bluetooth reset fail updates that could never
+  /// be sent.
+  ///
+  /// The future is bounded by the peripheral command timeout — 10 seconds by
+  /// default, configurable with `UniversalBlePeripheral.timeout` and disabled
+  /// with `null` — and fails with a `TimeoutException` when the platform never
+  /// settles the update. The bound starts when the command reaches the front of
+  /// its queue, so time spent waiting behind earlier commands in
+  /// [QueueType.global] or [QueueType.perDevice] is not counted. A timeout only
+  /// stops the caller waiting: a packet the OS already accepted cannot be
+  /// recalled, and work still queued natively may yet be delivered. Recovery is
+  /// caller-driven: await the failure, then use [clearPendingNotifications] to
+  /// drop what is still waiting — the Dart queue, plus the platform's pending
+  /// queue on Android and Apple. Nothing already handed to the OS is withdrawn:
+  /// Android keeps the in-flight marker until `onNotificationSent` arrives, so
+  /// later updates for that client wait behind it, and Windows has no
+  /// plugin-owned queue. A link that is truly wedged is settled when the central
+  /// disconnects or the adapter resets (Bluetooth off/on), which fails every
+  /// pending update.
+  ///
+  /// No native timeout is added on top: Android's `onNotificationSent` carries
+  /// no packet identity, so a watchdog that cleared the in-flight marker and
+  /// re-sent could not tell a lost callback from a slow link, and Apple's
+  /// `peripheralManagerIsReady(toUpdateSubscribers:)` is already the documented
+  /// readiness signal. The Dart-side timeout is the caller-facing guarantee.
   static Future<void> updateCharacteristicValue({
     required String characteristicId,
     String? instanceId,
@@ -300,6 +331,18 @@ class UniversalBlePeripheral {
   /// No-op on other platforms.
   static Future<void> setAutoConnect(bool autoConnect) =>
       _platform.setAutoConnect(autoConnect);
+
+  /// Sets the connection latency CoreBluetooth negotiates for a central
+  /// (`CBPeripheralManager.setDesiredConnectionLatency(_:for:)`).
+  ///
+  /// Use [PeripheralConnectionLatency.low] before a bulk transfer: Apple
+  /// otherwise negotiates a higher latency, which caps notification throughput.
+  /// Supported on iOS and macOS; no-op elsewhere.
+  static Future<void> setDesiredConnectionLatency(
+    String deviceId,
+    PeripheralConnectionLatency latency,
+  ) =>
+      _platform.setDesiredConnectionLatency(deviceId, latency);
 
   static UniversalBlePeripheralPlatform _defaultPlatform() {
     if (!BleCapabilities.supportsPeripheralApi) {

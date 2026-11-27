@@ -143,6 +143,13 @@ enum PeripheralAttributePermission {
 
 enum PeripheralAdvertisingState { idle, starting, advertising, stopping, error }
 
+/// Desired connection latency for a subscribed central on Apple platforms.
+///
+/// Maps to CoreBluetooth `CBPeripheralManagerConnectionLatency`. A lower
+/// latency trades radio time for responsiveness; Apple negotiates a higher
+/// latency (and therefore lower throughput) when nothing asks for otherwise.
+enum PeripheralConnectionLatency { low, medium, high }
+
 /// Central/GATT models
 class UniversalBleService {
   String uuid;
@@ -685,6 +692,14 @@ abstract class UniversalBlePeripheralChannel {
     PeripheralPlatformConfig? platformConfig,
   );
 
+  /// Sends [value] to the clients subscribed to [characteristicId].
+  ///
+  /// The reply is sent once every targeted client's notification is settled:
+  /// accepted by the platform queue (Apple, when `updateValue` returns `true`),
+  /// sent (`onNotificationSent` on Android) or completed (`NotifyValueAsync` on
+  /// Windows). A failure is reported once all of them have settled and at least
+  /// one failed.
+  @asyncCallback
   void updateCharacteristic(
     String characteristicId,
     String? characteristicInstanceId,
@@ -715,10 +730,16 @@ abstract class UniversalBlePeripheralChannel {
   void setAutoConnect(bool autoConnect);
 }
 
-/// Flutter -> Native (Apple peripheral restoration only).
+/// Flutter -> Native (Apple peripheral-only APIs).
 @HostApi()
 abstract class UniversalBleDarwinPeripheralChannel {
   void configureRestoration(String restorationIdentifier);
+
+  /// Sets the connection latency CoreBluetooth negotiates with [deviceId].
+  void setDesiredConnectionLatency(
+    String deviceId,
+    PeripheralConnectionLatency latency,
+  );
 }
 
 /// Flutter -> Native (Android only)

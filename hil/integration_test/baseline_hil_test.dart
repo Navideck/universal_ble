@@ -604,6 +604,94 @@ void main() {
     );
 
     testWidgets(
+      'connects and refreshes while the database holds an OS-reserved service',
+      (_) async {
+        // Windows reserves HID over GATT (0x1812) for its own driver and
+        // answers GetCharacteristicsAsync with AccessDenied for it whether or
+        // not the device is paired, so the fixture adds that service on
+        // request. Discovery must skip it instead of failing the connection
+        // (#400).
+        await peripheral.setHidService(enabled: true);
+        try {
+          // The fixture registers the service 25 ms after the write, which
+          // raises Service Changed. Give that refresh time to run against the
+          // reserved service before the connection is replaced.
+          await Future<void>.delayed(const Duration(seconds: 1));
+
+          // Connect-time discovery meets AccessDenied on the reserved service.
+          // Before the fix the connect failed with "Failed to get
+          // characteristics for service 00001812-...".
+          await UniversalBle.disconnect(
+            peripheral.deviceId,
+            timeout: HilPeripheral.operationTimeout,
+          );
+          await peripheral.reconnect();
+
+          expect(
+            await UniversalBle.getConnectionState(peripheral.deviceId),
+            BleConnectionState.connected,
+          );
+          final services = await peripheral.discover(withDescriptors: false);
+          // A fixture that failed to register the HID service would also leave
+          // 0x1812 absent here, and it reports that only on its own UART. This
+          // assertion therefore says the OS denies the service, not that the
+          // fixture registered it.
+          expect(
+            services.map((service) => service.uuid),
+            isNot(contains(BleUuidParser.string('1812'))),
+            reason: 'Windows denies app access to the reserved HID service; '
+                'if it is listed, the OS no longer reserves 0x1812 and the '
+                'fixture no longer reproduces #400',
+          );
+          expect(
+            services.map((service) => service.uuid),
+            contains(BleUuidParser.string(HilUuid.service)),
+          );
+          expect(
+              utf8.decode(await peripheral.read(HilUuid.read)), 'HIL-READ-V1');
+
+          // A later, ordinary change must still be installed while the
+          // reserved service is in the database: that proves the refresh
+          // walked past it instead of keeping the old map.
+          await peripheral.setAuxiliaryService(enabled: true);
+          await _eventually(
+            () async => (await peripheral.discover()).any(
+              (service) => BleUuidParser.compareStrings(
+                service.uuid,
+                HilUuid.auxiliaryService,
+              ),
+            ),
+          );
+          expect(
+            (await peripheral.discover(withDescriptors: false))
+                .map((service) => service.uuid),
+            isNot(contains(BleUuidParser.string('1812'))),
+          );
+          expect(
+              utf8.decode(await peripheral.read(HilUuid.read)), 'HIL-READ-V1');
+        } finally {
+          // The fixture's reset clears the request flags without unregistering
+          // either service, so remove them while the link is still up. Each
+          // disable stands alone: a failed reconnect above leaves no link, and
+          // the first failure must not skip the other service.
+          try {
+            await peripheral.setAuxiliaryService(enabled: false);
+          } catch (_) {
+            // Without a link the auxiliary service stays registered; reset()
+            // only clears the flag that asked for it.
+          }
+          try {
+            await peripheral.setHidService(enabled: false);
+          } catch (_) {
+            // Same as above for the HID service.
+          }
+        }
+      },
+      skip: defaultTargetPlatform != TargetPlatform.windows,
+      timeout: const Timeout(Duration(minutes: 2)),
+    );
+
+    testWidgets(
       'reports that connected RSSI reads are unsupported on Windows',
       (_) async {
         if (defaultTargetPlatform == TargetPlatform.windows) {

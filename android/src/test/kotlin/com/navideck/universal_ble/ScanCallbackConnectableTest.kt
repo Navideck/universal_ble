@@ -26,14 +26,8 @@ internal class ScanCallbackConnectableTest {
     private val scanResults = mutableListOf<UniversalBleScanResult>()
 
     private fun plugin(): UniversalBlePlugin {
-        val plugin = UniversalBlePlugin()
         // Callbacks are posted to the main looper; run them inline.
-        val handler = Mockito.mock(Handler::class.java)
-        Mockito.doAnswer { invocation ->
-            invocation.getArgument<Runnable>(0).run()
-            true
-        }.`when`(handler).post(any())
-        plugin.setField("mainThreadHandler", handler)
+        val plugin = pluginWithInlineLooper()
         plugin.setField(
             "callbackChannel",
             Mockito.mock(UniversalBleCallbackChannel::class.java) { invocation ->

@@ -11,9 +11,9 @@ interactive Web runner retain the BLE control path.
 
 ## 1. Current coverage
 
-The Windows suite contains 85 implemented hardware tests:
+The Windows suite contains 86 implemented hardware tests:
 
-- 25 baseline tests for ordinary BLE behavior;
+- 26 baseline tests for ordinary BLE behavior;
 - 60 fault injection tests for hostile peripheral behavior, timing, and
   lifecycle races.
 

@@ -62,6 +62,9 @@ void main() {
     tearDown(() {
       UniversalBlePeripheral.clearQueue();
       UniversalBlePeripheral.queueType = QueueType.global;
+      // Restore the documented default so a test's short timeout cannot leak
+      // into the next one.
+      UniversalBlePeripheral.timeout = const Duration(seconds: 10);
     });
 
     test('serializes updateCharacteristicValue in global queue mode', () async {
@@ -157,6 +160,88 @@ void main() {
 
       release.complete();
       await first;
+    });
+
+    test(
+        'updateCharacteristicValue times out when the native reply never arrives',
+        () async {
+      UniversalBlePeripheral.queueType = QueueType.perDevice;
+      UniversalBlePeripheral.timeout = const Duration(milliseconds: 50);
+      mockPlatform.notifyCompleter = Completer<void>();
+
+      final update = UniversalBlePeripheral.updateCharacteristicValue(
+        characteristicId: 'fa5a0003',
+        value: Uint8List.fromList([1]),
+        deviceId: 'device-1',
+      );
+
+      await expectLater(update, throwsA(isA<TimeoutException>()));
+    });
+
+    test('a timed-out update does not wedge the peripheral queue', () async {
+      UniversalBlePeripheral.queueType = QueueType.perDevice;
+      UniversalBlePeripheral.timeout = const Duration(milliseconds: 50);
+      mockPlatform.notifyCompleter = Completer<void>();
+
+      final stuck = UniversalBlePeripheral.updateCharacteristicValue(
+        characteristicId: 'fa5a0003',
+        value: Uint8List.fromList([1]),
+        deviceId: 'device-1',
+      );
+      // Queued behind the update that will time out; the queue must run it once
+      // the timeout settles the first command.
+      final next = UniversalBlePeripheral.updateCharacteristicValue(
+        characteristicId: 'fa5a0003',
+        value: Uint8List.fromList([2, 3]),
+        deviceId: 'device-1',
+      );
+      // The mock reads the gate when the platform call starts, so this only
+      // releases the second update: the first already captured the completer
+      // above, which never completes.
+      mockPlatform.notifyCompleter = null;
+
+      await expectLater(stuck, throwsA(isA<TimeoutException>()));
+      await next;
+
+      expect(mockPlatform.callLog, ['update:device-1:1', 'update:device-1:2']);
+    });
+
+    test('a command without a queue is bounded by the same timeout', () async {
+      UniversalBlePeripheral.queueType = QueueType.none;
+      UniversalBlePeripheral.timeout = const Duration(milliseconds: 50);
+      mockPlatform.notifyCompleter = Completer<void>();
+
+      final update = UniversalBlePeripheral.updateCharacteristicValue(
+        characteristicId: 'fa5a0003',
+        value: Uint8List.fromList([1]),
+        deviceId: 'device-1',
+      );
+
+      await expectLater(update, throwsA(isA<TimeoutException>()));
+    });
+
+    test('timeout = null disables the peripheral command timeout', () async {
+      UniversalBlePeripheral.queueType = QueueType.perDevice;
+      UniversalBlePeripheral.timeout = const Duration(milliseconds: 50);
+      UniversalBlePeripheral.timeout = null;
+
+      final release = Completer<void>();
+      mockPlatform.notifyCompleter = release;
+      var settled = false;
+      final update = UniversalBlePeripheral.updateCharacteristicValue(
+        characteristicId: 'fa5a0003',
+        value: Uint8List.fromList([1]),
+        deviceId: 'device-1',
+      ).whenComplete(() => settled = true);
+
+      // Longer than the 50 ms timeout the test configured first.
+      await Future<void>.delayed(const Duration(milliseconds: 150));
+      expect(settled, isFalse,
+          reason: 'null must disable the timeout, not fall back to a default');
+
+      release.complete();
+      await update;
+      expect(settled, isTrue);
     });
   });
 }

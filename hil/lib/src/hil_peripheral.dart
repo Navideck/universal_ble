@@ -47,6 +47,7 @@ abstract final class HilCommand {
   static const notifyPressure = 0x14;
   static const armConnectFault = 0x15;
   static const armDiscoveryFault = 0x16;
+  static const setHidService = 0x17;
 }
 
 final class HilTelemetry {
@@ -434,6 +435,13 @@ final class HilPeripheral {
 
   Future<void> setAuxiliaryService({required bool enabled}) =>
       command(HilCommand.setAuxiliaryService, [enabled ? 1 : 0]);
+
+  /// Adds or removes the fixture's minimal HID over GATT service (0x1812).
+  /// Windows reserves that service for its own driver and denies app access to
+  /// its characteristics, so it exercises how a host treats a restricted
+  /// service.
+  Future<void> setHidService({required bool enabled}) =>
+      command(HilCommand.setHidService, [enabled ? 1 : 0]);
 
   Future<void> scheduleAuxiliaryService({
     required bool enabled,

@@ -20,6 +20,31 @@ jobs:
       - run: cmake --build build/windows-tests --config Debug
       - run: ctest --test-dir build/windows-tests -C Debug --output-on-failure
 
+  apple:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+
+      # Nothing else builds the Apple sources. They are shared by iOS and macOS
+      # and import Flutter's macOS or iOS module behind `#if os(...)`, so each
+      # platform's branch is typechecked against its own engine framework.
+      - name: Download the Apple engine frameworks
+        run: bash .github/scripts/typecheck_apple.sh --download-only
+
+      - name: Typecheck the Apple sources
+        run: bash .github/scripts/typecheck_apple.sh
+
+      # Each helper compiles one source file with counted checks; they are not
+      # part of the plugin build.
+      - name: Run the Apple helper tests
+        run: |
+          bash darwin/universal_ble/Tests/run_write_ownership_test.sh
+          bash darwin/universal_ble/Tests/run_discovery_progress_test.sh
+          bash darwin/universal_ble/Tests/run_central_restoration_owner_test.sh
+
   test:
     runs-on: ubuntu-latest
 

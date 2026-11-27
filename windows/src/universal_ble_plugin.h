@@ -179,6 +179,14 @@ struct BluetoothDeviceAgent {
     return services;
   }
 
+  // Whether the current service map exposes a service. A GATT refresh uses this
+  // to keep a denied service the connection was already using instead of
+  // dropping it from the replacement map.
+  bool HasService(const std::string &service_uuid) const {
+    std::lock_guard<std::mutex> lock(gatt_mutex);
+    return gatt_map.find(service_uuid) != gatt_map.end();
+  }
+
   GattMapLease SnapshotGattMapForOperation() {
     std::lock_guard<std::mutex> lock(gatt_mutex);
     if (!IsActive()) {
@@ -483,6 +491,13 @@ private:
                                             const IInspectable &args);
   std::shared_ptr<BluetoothDeviceAgent> GetConnectedDevice(
       uint64_t bluetooth_address);
+  /// Whether [device_agent] still has a live link.
+  ///
+  /// The agent stays registered until WinRT reports the drop, so a request
+  /// submitted in between would otherwise be issued and fail with an unrelated
+  /// GATT status (Unreachable maps to `failed`). A status read that throws
+  /// counts as connected: the operation itself reports the real error.
+  bool HasLiveLink(const std::shared_ptr<BluetoothDeviceAgent> &device_agent);
   void InvalidateConnectAttempt(uint64_t bluetooth_address);
   std::shared_ptr<BluetoothDeviceAgent> RemoveConnectedDevice(
       uint64_t bluetooth_address,
@@ -685,9 +700,10 @@ private:
       const int64_t *timeout,
       const UniversalManufacturerData *manufacturer_data,
       const PeripheralPlatformConfig *platform_config) override;
-  std::optional<FlutterError> UpdateCharacteristic(
+  void UpdateCharacteristic(
       const std::string &characteristic_id, const std::string *characteristic_instance_id,
-      const std::vector<uint8_t> &value, const std::string *device_id) override;
+      const std::vector<uint8_t> &value, const std::string *device_id,
+      std::function<void(std::optional<FlutterError> reply)> result) override;
   ErrorOr<flutter::EncodableList> GetSubscribedClients(
       const std::string &characteristic_id, const std::string *characteristic_instance_id) override;
   std::optional<FlutterError> ClearPendingNotifications(const std::string *device_id) override;

@@ -90,6 +90,7 @@ Looking for Bluetooth Classic? Check [universal_bluetooth_classic](https://pub.d
 | getSubscribedClients          |   ✔️    | ✔️  |  ✔️   |   ✔️    |  🚧   | —  |
 | getMaximumNotifyLength        |   ✔️    | ✔️  |  ✔️   |   ✔️    |  🚧   | —  |
 | setAutoConnect                |   ✔️    | —  |  —   |   —    |  —   | —  |
+| setDesiredConnectionLatency   |    —    | ✔️  |  ✔️   |   —    |  —   | —  |
 | event streams\*\*\*           |   ✔️    | ✔️  |  ✔️   |   ✔️    |  🚧   | —  |
 
 \* `getAvailabilityState` returns a snapshot. Listen to `advertisingStateStream`, `connectionStateStream`, and related streams for runtime updates.
@@ -348,6 +349,8 @@ You can enable automatic reconnection by setting the `autoConnect` parameter to 
 await bleDevice.connect(autoConnect: true);
 ```
 
+While the link is down — after the plugin reports a disconnection and before the system reconnects the client — a read, write, descriptor access, subscription, MTU request, service discovery or RSSI read for that device fails right away instead of waiting for the request timeout (see [Disconnected device](#disconnected-device)).
+
 #### Background connection events (iOS/macOS)
 
 By default, a suspended app does not get woken for connection events. Set `AppleConnectionOptions` to have the system alert the user and relaunch your app into the background when a connection event occurs while the app is suspended — e.g. to keep reacting to a previously paired peripheral (auto-reconnect) during a workout while the phone is locked. Requires the `bluetooth-central` background mode on iOS.
@@ -455,6 +458,8 @@ If you don't call this method then it will be automatically called when you try 
 #### DiscoverServices
 
 Discovers the services offered by the device. Returns a `Future<List<BleService>>`. After discovery services are cached and each call of this method updates the cache.
+
+On Windows, a service Windows denies access to is left out of discovery. The OS reserves some services for itself — HID over GATT, `00001812-0000-1000-8000-00805f9b34fb`, is the common one — and answers `AccessDenied` when an app asks for their characteristics, paired or not, so those services are skipped instead of failing the connection. Their characteristics cannot be reached through this plugin. A service an earlier discovery reported stays reported if a later GATT refresh is denied access to it, rather than disappearing from the connection.
 
 ```dart
 List<BleService> services = await bleDevice.discoverServices();
@@ -941,6 +946,11 @@ UniversalBle.timeout = null;
 
 You can also specify the `timeout` parameter when sending a command. This will override the global timeout.
 
+Peripheral commands use a separate timeout, `UniversalBlePeripheral.timeout`,
+also 10 seconds by default. See
+[Characteristic Updates](#characteristic-updates) for what a notification
+timeout does and does not recall, and how to recover.
+
 ## Error Handling
 
 Universal BLE provides a unified and type-safe error handling system across all platforms. All errors are represented using the `UniversalBleException` base class with typed error codes from the `UniversalBleErrorCode` enum.
@@ -993,6 +1003,12 @@ try {
 The error parser automatically converts platform-specific error formats (strings, numeric codes, PlatformExceptions) into the unified `UniversalBleErrorCode` enum, ensuring consistent error handling across all platforms.
 
 When a peripheral refuses a characteristic or descriptor read/write, or a subscription, Android, Apple and Windows report the ATT error as the matching `UniversalBleErrorCode` (`insufficientEncryption`, `insufficientAuthentication`, `readNotPermitted`, ...) instead of a generic `failed`/`unknownError`. The raw native code is available in `UniversalBleException.details`. Service/characteristic discovery at connect time, and the Linux and Web backends, may still report a generic code.
+
+### Disconnected device
+
+A read, write, descriptor access or subscription to a device whose link is down fails right away with `UniversalBleErrorCode.deviceDisconnected`, instead of waiting for the request timeout or reaching the stack. On Android and Apple the same applies to MTU requests, service discovery and RSSI reads. This holds whether or not the connection was made with `autoConnect`, and it relies on the system reporting the disconnection: if it never does, the plugin cannot tell the link is down. Wait for the next connected event on `connectionStream` before issuing requests again; requests are not queued across the gap.
+
+Every platform runs this check before the characteristic or descriptor lookup, so a known device whose link is down reports `deviceDisconnected` even when its cached attribute tree no longer holds the characteristic. On a live link an unknown characteristic or descriptor still reports `characteristicNotFound`. That code is not a reliable "services changed, re-discover" signal on Android: a read the stack refuses to start — because another operation is in flight on the same link (callers can run parallel queues with `queueId`), or because the link dropped between the check and the call — is reported as `characteristicNotFound` too. A device the plugin has already forgotten reports `deviceNotFound`: Android closes a client that `autoConnect` does not keep open, and Windows removes its device agent when the connection-status callback reports the drop.
 
 ## Peripheral Mode
 
@@ -1202,9 +1218,67 @@ await UniversalBlePeripheral.updateCharacteristicValue(
   value: Uint8List.fromList([88]),
   deviceId: deviceId,
 );
+
+// Pace a bulk transfer by awaiting each chunk. The future completes once the
+// platform accepted (Apple) or sent (Android/Windows) the notification.
+for (final chunk in chunks) {
+  await UniversalBlePeripheral.updateCharacteristicValue(
+    characteristicId: batteryLevelChar,
+    value: chunk,
+  );
+}
 ```
 
-On Windows, the returned future completes after submitting the notification. Awaiting it or selecting `QueueType.perDevice` or `QueueType.global` serializes submission only: notification operations can still overlap, and delivery order is not guaranteed. Transport failures and truncated values are logged when `UniversalBle.setLogLevel(BleLogLevel.error)` (or a more verbose level) is enabled. Repeated failures for a characteristic are suppressed until a successful update.
+On Android, Apple and Windows the returned future is a backpressure signal: it
+completes when the notification has been settled by the platform — Android on
+`onNotificationSent` (failing on a non-success GATT status), Apple when
+`CBPeripheralManager.updateValue` accepts the value (immediately or after
+`peripheralManagerIsReady(toUpdateSubscribers:)`), Windows when
+`NotifyValueAsync` completes. Failing an update that can never be sent — through
+`clearPendingNotifications`, `removeService`, central unsubscription or a
+Bluetooth reset — also completes it with an error. On Windows, transport
+failures and truncated values are additionally logged when
+`UniversalBle.setLogLevel(BleLogLevel.error)` (or a more verbose level) is
+enabled; repeated failures for a characteristic are suppressed until a
+successful update. Selecting `QueueType.perDevice` or `QueueType.global` still
+serializes submission, but awaiting the future is what paces the radio.
+
+Once it runs, the update is bounded by the peripheral command timeout: 10
+seconds by default, configurable with:
+
+```dart
+UniversalBlePeripheral.timeout = const Duration(seconds: 5);
+// Disable the timeout
+UniversalBlePeripheral.timeout = null;
+```
+
+The bound starts when the command reaches the front of its queue, so with
+`QueueType.global` or `QueueType.perDevice` the time spent waiting behind
+earlier commands is not counted; `QueueType.none` (the `QueueType.auto` default
+on Apple and Windows) bounds the call as submitted.
+
+A timeout means only that the caller stops waiting: a packet the OS already
+accepted cannot be recalled, and work still queued natively may yet be
+delivered. To recover, await the failure (a `TimeoutException`) and then call
+`UniversalBlePeripheral.clearPendingNotifications(deviceId)`, which drops what
+is still waiting — the Dart queue, plus the platform's pending queue on Android
+and Apple. Nothing already handed to the OS is withdrawn: Android keeps the
+in-flight marker until `onNotificationSent` arrives, so later updates for that
+client wait behind it, and Windows has no plugin-owned queue, so an operation
+already running there cannot be cancelled. A link that is truly wedged is
+settled when the central disconnects or the Bluetooth adapter resets (off/on);
+either path fails every pending update.
+
+No native timeout is added on top. Android's `onNotificationSent` carries no
+packet identity, so a native watchdog that cleared the in-flight marker and
+re-sent could not tell a lost callback from a slow link: it could mark a later
+packet complete early (double sends, out-of-order notifications) or drop a
+packet the stack did send. Apple's `peripheralManagerIsReady(toUpdateSubscribers:)`
+is already the documented readiness signal, and its `updateValue` return value
+reports acceptance. A stack that never settles a notification is
+indistinguishable from one that is still sending, so the Dart-side timeout is
+the caller-facing guarantee; a truncated bulk transfer is recovered through the
+session boundary above rather than a blind re-send.
 
 ### Subscribed Clients and Notify Length
 
@@ -1322,13 +1396,30 @@ before replacement. Install listeners before configuration, then query
 `getSubscribedClients` to reconcile readiness. Explicit force-quit recovery and
 background discoverability are governed by CoreBluetooth and are not guaranteed.
 
-Apple notifications remain FIFO while CoreBluetooth applies backpressure. Use
-`await UniversalBlePeripheral.clearPendingNotifications(deviceId)` at an explicit
-session boundary or suspension to discard unsent updates, then publish neutral
-state before new input. Native unsubscription, service removal, and adapter loss
-also invalidate pending Apple updates. Packets already accepted by the OS cannot
-be recalled. Completion of `updateCharacteristicValue` means accepted by the
-plugin, not acknowledged by the remote device.
+Apple notifications remain FIFO while CoreBluetooth applies backpressure.
+Use `await UniversalBlePeripheral.clearPendingNotifications(deviceId)` at an
+explicit session boundary or suspension to discard unsent updates, then publish
+neutral state before new input. `updateCharacteristicValue` completes once
+`CBPeripheralManager.updateValue` accepts the value — immediately, or later from
+`peripheralManagerIsReady(toUpdateSubscribers:)` when the transmit queue was
+full — so awaiting it between chunks paces a bulk transfer. It fails when a
+queued update is discarded: `clearPendingNotifications`, service removal,
+central unsubscription or adapter loss. Packets already accepted by the OS
+cannot be recalled, and remote acknowledgement remains a link-layer concern.
+The wait is bounded by the peripheral command timeout (10 s by default); see
+[Characteristic Updates](#characteristic-updates) for what a timeout does and
+does not recall, and how to recover.
+
+Apple negotiates a high connection latency by default, which caps notification
+throughput. Ask for the low-latency mode before a bulk transfer (iOS and macOS;
+no-op elsewhere):
+
+```dart
+await UniversalBlePeripheral.setDesiredConnectionLatency(
+  deviceId,
+  PeripheralConnectionLatency.low,
+);
+```
 
 Run `./darwin/test/run_peripheral_reliability_tests.sh` on macOS for native
 characteristic, restored-identity, and notification-FIFO regression checks.

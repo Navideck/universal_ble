@@ -167,6 +167,19 @@ class _RequestDeviceWidgetState extends State<RequestDeviceWidget> {
                     color: Colors.grey[700],
                   ),
             ),
+            if (isIOS) ...[
+              const SizedBox(height: 8),
+              Text(
+                'This example omits the NSAccessorySetupKitSupports keys to get '
+                'the broad Bluetooth prompt on a first install, which means the '
+                'AccessorySetupKit picker cannot be shown. Add the keys from '
+                'example/README.md to try that flow: iOS may terminate an app '
+                'that opens the picker with undeclared discovery identifiers.',
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: Colors.orange[800],
+                    ),
+              ),
+            ],
             const SizedBox(height: 12),
             Wrap(
               spacing: 8,

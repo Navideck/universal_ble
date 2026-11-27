@@ -25,18 +25,8 @@ import org.mockito.Mockito
 internal class GattOwnershipTest {
     private val address = "AA:BB:CC:DD:EE:FF"
 
-    private fun plugin(): UniversalBlePlugin {
-        val plugin = UniversalBlePlugin()
-        // Callbacks are posted to the main looper; run them inline.
-        val handler = Mockito.mock(Handler::class.java)
-        Mockito.doAnswer { invocation ->
-            invocation.getArgument<Runnable>(0).run()
-            true
-        }.`when`(handler).post(any())
-        plugin.setField("mainThreadHandler", handler)
-        plugin.setField("bluetoothManager", bluetoothManager())
-        return plugin
-    }
+    private fun plugin(): UniversalBlePlugin =
+        pluginWithInlineLooper().also { it.setField("bluetoothManager", bluetoothManager()) }
 
     // Reports the device as connected at the OS level (as if another engine had
     // opened the link), which is exactly when the stale cache used to win.
@@ -51,23 +41,17 @@ internal class GattOwnershipTest {
         return manager
     }
 
-    private fun mockGatt(): BluetoothGatt {
-        val device = Mockito.mock(BluetoothDevice::class.java)
-        Mockito.`when`(device.address).thenReturn(address)
-        val gatt = Mockito.mock(BluetoothGatt::class.java)
-        Mockito.`when`(gatt.device).thenReturn(device)
-        return gatt
-    }
+
 
     @Test
     fun aClientRegisteredInOneRegistryIsUnknownToAnother() {
         val background = GattRegistry()
         val ui = GattRegistry()
-        val gatt = mockGatt()
+        val gatt = mockGatt(address)
         background.put(gatt)
 
         assertTrue(background.isKnown(address))
-        assertSame(gatt, background.find(address))
+        assertSame(gatt, background.find(address)?.gatt)
         assertFalse(ui.isKnown(address))
         assertNull(ui.find(address))
     }
@@ -76,7 +60,7 @@ internal class GattOwnershipTest {
     fun connectionStateIgnoresAClientOwnedByAnotherEngine() {
         val backgroundEngine = plugin()
         val uiEngine = plugin()
-        backgroundEngine.gattRegistry().put(mockGatt())
+        backgroundEngine.gattRegistry().put(mockGatt(address))
 
         // The OS reports CONNECTED for both, but only the owning engine may
         // claim it; the other reports DISCONNECTED instead of a dead client.
@@ -88,28 +72,28 @@ internal class GattOwnershipTest {
     fun releasingOneRegistrysClientLeavesAnothersUntouched() {
         val first = GattRegistry()
         val second = GattRegistry()
-        val firstGatt = mockGatt()
-        val secondGatt = mockGatt()
+        val firstGatt = mockGatt(address)
+        val secondGatt = mockGatt(address)
         first.put(firstGatt)
         second.put(secondGatt)
 
-        first.remove(firstGatt)
+        first.finishClose(first.find(firstGatt)!!)
 
         assertNull(first.find(address))
-        assertSame(secondGatt, second.find(address))
+        assertSame(secondGatt, second.find(address)?.gatt)
     }
 
     @Test
     fun removingAReplacedClientDoesNotEvictTheNewerOne() {
         val registry = GattRegistry()
-        val oldGatt = mockGatt()
-        val newGatt = mockGatt()
+        val oldGatt = mockGatt(address)
+        val newGatt = mockGatt(address)
         registry.put(oldGatt)
         registry.put(newGatt)
 
-        registry.remove(oldGatt)
+        registry.finishClose(registry.find(oldGatt)!!)
 
-        assertSame(newGatt, registry.find(address))
+        assertSame(newGatt, registry.find(address)?.gatt)
     }
 
     @Test
