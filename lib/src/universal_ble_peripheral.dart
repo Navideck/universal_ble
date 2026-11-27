@@ -247,6 +247,22 @@ class UniversalBlePeripheral {
   /// first error is reported. `clearPendingNotifications`, removing a service, a
   /// central unsubscribing and a Bluetooth reset fail updates that could never
   /// be sent.
+  ///
+  /// The future is bounded by the peripheral command timeout — 10 seconds by
+  /// default, configurable with `UniversalBlePeripheral.timeout` and disabled
+  /// with `null` — and fails with a `TimeoutException` when the platform never
+  /// settles the update. A timeout only stops the caller waiting: a packet the
+  /// OS already accepted cannot be recalled, and work still queued natively may
+  /// yet be delivered. Recovery is caller-driven: await the failure, then use
+  /// [clearPendingNotifications] to discard unsent work. A link that is truly
+  /// wedged is settled when the central disconnects or the adapter resets
+  /// (Bluetooth off/on), which fails every pending update.
+  ///
+  /// No native timeout is added on top: Android's `onNotificationSent` carries
+  /// no packet identity, so a watchdog that cleared the in-flight marker and
+  /// re-sent could not tell a lost callback from a slow link, and Apple's
+  /// `peripheralManagerIsReady(toUpdateSubscribers:)` is already the documented
+  /// readiness signal. The Dart-side timeout is the caller-facing guarantee.
   static Future<void> updateCharacteristicValue({
     required String characteristicId,
     String? instanceId,
