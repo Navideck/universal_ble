@@ -25,7 +25,8 @@ void main() {
       'UniversalBlePeripheralChannel.clearPendingNotifications',
       'UniversalBlePeripheralChannel.addService',
       'UniversalBlePeripheralChannel.setAutoConnect',
-      'UniversalBleDarwinPeripheralChannel.configureRestoration'
+      'UniversalBleDarwinPeripheralChannel.configureRestoration',
+      'UniversalBleDarwinPeripheralChannel.setDesiredConnectionLatency'
     ]) {
       messenger.setMockDecodedMessageHandler<Object?>(
           BasicMessageChannel<Object?>('$prefix$method',
@@ -137,5 +138,75 @@ void main() {
         platform.addService(service), throwsA(isA<PlatformException>()));
     await platform.addService(service);
     expect(attempts, 2);
+  });
+
+  test('setDesiredConnectionLatency forwards on Apple and is a no-op elsewhere',
+      () async {
+    final calls = <(String, PeripheralConnectionLatency)>[];
+    mock('UniversalBleDarwinPeripheralChannel.setDesiredConnectionLatency',
+        (message) async {
+      final args = message as List;
+      calls.add((args[0] as String, args[1] as PeripheralConnectionLatency));
+      return <Object?>[null];
+    });
+
+    debugDefaultTargetPlatformOverride = TargetPlatform.android;
+    await UniversalBlePeripheralPigeon.instance.setDesiredConnectionLatency(
+      'aa:bb:cc:dd:ee:ff',
+      PeripheralConnectionLatency.low,
+    );
+    expect(calls, isEmpty);
+
+    debugDefaultTargetPlatformOverride = TargetPlatform.macOS;
+    await UniversalBlePeripheralPigeon.instance.setDesiredConnectionLatency(
+      'abcdef01-2345-6789-abcd-ef0123456789',
+      PeripheralConnectionLatency.low,
+    );
+    if (kIsWeb) {
+      expect(calls, isEmpty);
+    } else {
+      expect(calls, [
+        (
+          'ABCDEF01-2345-6789-ABCD-EF0123456789',
+          PeripheralConnectionLatency.low
+        )
+      ]);
+    }
+  });
+
+  test('updateCharacteristicValue awaits the native settlement reply', () async {
+    final reply = Completer<Object?>();
+    mock('UniversalBlePeripheralChannel.updateCharacteristic',
+        (message) => reply.future);
+
+    var completed = false;
+    final update = UniversalBlePeripheralPigeon.instance
+        .updateCharacteristicValue(
+          characteristicId: '2a4d',
+          value: Uint8List.fromList([1, 2, 3]),
+        )
+        .whenComplete(() => completed = true);
+
+    await Future<void>.delayed(Duration.zero);
+    expect(completed, isFalse,
+        reason: 'The future must not complete before the native reply');
+
+    reply.complete(<Object?>[null]);
+    await update;
+    expect(completed, isTrue);
+  });
+
+  test('updateCharacteristicValue surfaces a native settlement failure',
+      () async {
+    mock('UniversalBlePeripheralChannel.updateCharacteristic',
+        (message) async => throw PlatformException(code: 'failed'));
+
+    await expectLater(
+      UniversalBlePeripheralPigeon.instance.updateCharacteristicValue(
+        characteristicId: '2a4d',
+        value: Uint8List.fromList([1, 2, 3]),
+      ),
+      throwsA(isA<PlatformException>()),
+    );
   });
 }

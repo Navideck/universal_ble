@@ -232,13 +232,21 @@ class UniversalBlePeripheral {
   /// `getCapabilities().supportsTargetedCharacteristicUpdate`); omit it to
   /// notify every subscribed client.
   ///
-  /// The returned future completes once the update has been handed to the
-  /// platform, not once it has been transmitted. On Windows and Android a
-  /// transport failure is not reported through this future (Windows logs it
-  /// when `UniversalBle.setLogLevel` enables error output), while Apple reports
-  /// a full transmit queue. On Windows, [QueueType.perDevice] and
-  /// [QueueType.global] serialize submission only; awaiting this future does
-  /// not prevent overlapping transmissions or guarantee their delivery order.
+  /// The returned future completes once the platform has accepted or sent the
+  /// notification, which provides backpressure for bulk transfers: awaiting it
+  /// between chunks paces them instead of filling a native queue.
+  ///
+  /// - Apple completes when `CBPeripheralManager.updateValue` accepts the value
+  ///   (immediately or after `peripheralManagerIsReady(toUpdateSubscribers:)`).
+  /// - Android completes when `onNotificationSent` reports the packet, failing on
+  ///   a non-success GATT status.
+  /// - Windows completes when `NotifyValueAsync` completes, failing when it does
+  ///   not.
+  ///
+  /// It completes once every targeted client has settled; when several fail, the
+  /// first error is reported. `clearPendingNotifications`, removing a service, a
+  /// central unsubscribing and a Bluetooth reset fail updates that could never
+  /// be sent.
   static Future<void> updateCharacteristicValue({
     required String characteristicId,
     String? instanceId,
@@ -300,6 +308,18 @@ class UniversalBlePeripheral {
   /// No-op on other platforms.
   static Future<void> setAutoConnect(bool autoConnect) =>
       _platform.setAutoConnect(autoConnect);
+
+  /// Sets the connection latency CoreBluetooth negotiates for a central
+  /// (`CBPeripheralManager.setDesiredConnectionLatency(_:for:)`).
+  ///
+  /// Use [PeripheralConnectionLatency.low] before a bulk transfer: Apple
+  /// otherwise negotiates a higher latency, which caps notification throughput.
+  /// Supported on iOS and macOS; no-op elsewhere.
+  static Future<void> setDesiredConnectionLatency(
+    String deviceId,
+    PeripheralConnectionLatency latency,
+  ) =>
+      _platform.setDesiredConnectionLatency(deviceId, latency);
 
   static UniversalBlePeripheralPlatform _defaultPlatform() {
     if (!BleCapabilities.supportsPeripheralApi) {

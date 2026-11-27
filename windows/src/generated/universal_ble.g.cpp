@@ -3395,84 +3395,89 @@ EncodableValue PigeonInternalCodecSerializer::ReadValueOfType(
     case 143: {
         const auto& encodable_enum_arg = ReadValue(stream);
         const int64_t enum_arg_value = encodable_enum_arg.IsNull() ? 0 : encodable_enum_arg.LongValue();
-        return encodable_enum_arg.IsNull() ? EncodableValue() : CustomEncodableValue(static_cast<UniversalBleErrorCode>(enum_arg_value));
+        return encodable_enum_arg.IsNull() ? EncodableValue() : CustomEncodableValue(static_cast<PeripheralConnectionLatency>(enum_arg_value));
       }
     case 144: {
-        return CustomEncodableValue(UniversalBleScanResult::FromEncodableList(std::get<EncodableList>(ReadValue(stream))));
+        const auto& encodable_enum_arg = ReadValue(stream);
+        const int64_t enum_arg_value = encodable_enum_arg.IsNull() ? 0 : encodable_enum_arg.LongValue();
+        return encodable_enum_arg.IsNull() ? EncodableValue() : CustomEncodableValue(static_cast<UniversalBleErrorCode>(enum_arg_value));
       }
     case 145: {
-        return CustomEncodableValue(UniversalDevicePickerResult::FromEncodableList(std::get<EncodableList>(ReadValue(stream))));
+        return CustomEncodableValue(UniversalBleScanResult::FromEncodableList(std::get<EncodableList>(ReadValue(stream))));
       }
     case 146: {
-        return CustomEncodableValue(UniversalBleService::FromEncodableList(std::get<EncodableList>(ReadValue(stream))));
+        return CustomEncodableValue(UniversalDevicePickerResult::FromEncodableList(std::get<EncodableList>(ReadValue(stream))));
       }
     case 147: {
-        return CustomEncodableValue(UniversalBleCharacteristic::FromEncodableList(std::get<EncodableList>(ReadValue(stream))));
+        return CustomEncodableValue(UniversalBleService::FromEncodableList(std::get<EncodableList>(ReadValue(stream))));
       }
     case 148: {
-        return CustomEncodableValue(UniversalBleDescriptor::FromEncodableList(std::get<EncodableList>(ReadValue(stream))));
+        return CustomEncodableValue(UniversalBleCharacteristic::FromEncodableList(std::get<EncodableList>(ReadValue(stream))));
       }
     case 149: {
-        return CustomEncodableValue(BleConnectionParametersChange::FromEncodableList(std::get<EncodableList>(ReadValue(stream))));
+        return CustomEncodableValue(UniversalBleDescriptor::FromEncodableList(std::get<EncodableList>(ReadValue(stream))));
       }
     case 150: {
-        return CustomEncodableValue(AndroidOptions::FromEncodableList(std::get<EncodableList>(ReadValue(stream))));
+        return CustomEncodableValue(BleConnectionParametersChange::FromEncodableList(std::get<EncodableList>(ReadValue(stream))));
       }
     case 151: {
-        return CustomEncodableValue(UniversalScanConfig::FromEncodableList(std::get<EncodableList>(ReadValue(stream))));
+        return CustomEncodableValue(AndroidOptions::FromEncodableList(std::get<EncodableList>(ReadValue(stream))));
       }
     case 152: {
-        return CustomEncodableValue(UniversalScanFilter::FromEncodableList(std::get<EncodableList>(ReadValue(stream))));
+        return CustomEncodableValue(UniversalScanConfig::FromEncodableList(std::get<EncodableList>(ReadValue(stream))));
       }
     case 153: {
-        return CustomEncodableValue(ManufacturerDataFilter::FromEncodableList(std::get<EncodableList>(ReadValue(stream))));
+        return CustomEncodableValue(UniversalScanFilter::FromEncodableList(std::get<EncodableList>(ReadValue(stream))));
       }
     case 154: {
-        return CustomEncodableValue(UniversalManufacturerData::FromEncodableList(std::get<EncodableList>(ReadValue(stream))));
+        return CustomEncodableValue(ManufacturerDataFilter::FromEncodableList(std::get<EncodableList>(ReadValue(stream))));
       }
     case 155: {
-        return CustomEncodableValue(AppleConnectionOptions::FromEncodableList(std::get<EncodableList>(ReadValue(stream))));
+        return CustomEncodableValue(UniversalManufacturerData::FromEncodableList(std::get<EncodableList>(ReadValue(stream))));
       }
     case 156: {
-        return CustomEncodableValue(AppleAccessoryPickerItem::FromEncodableList(std::get<EncodableList>(ReadValue(stream))));
+        return CustomEncodableValue(AppleConnectionOptions::FromEncodableList(std::get<EncodableList>(ReadValue(stream))));
       }
     case 157: {
-        return CustomEncodableValue(AppleAccessorySetupOptions::FromEncodableList(std::get<EncodableList>(ReadValue(stream))));
+        return CustomEncodableValue(AppleAccessoryPickerItem::FromEncodableList(std::get<EncodableList>(ReadValue(stream))));
       }
     case 158: {
-        return CustomEncodableValue(AndroidConnectionOptions::FromEncodableList(std::get<EncodableList>(ReadValue(stream))));
+        return CustomEncodableValue(AppleAccessorySetupOptions::FromEncodableList(std::get<EncodableList>(ReadValue(stream))));
       }
     case 159: {
-        return CustomEncodableValue(ConnectionPlatformConfig::FromEncodableList(std::get<EncodableList>(ReadValue(stream))));
+        return CustomEncodableValue(AndroidConnectionOptions::FromEncodableList(std::get<EncodableList>(ReadValue(stream))));
       }
     case 160: {
-        return CustomEncodableValue(AndroidDiscoverServicesOptions::FromEncodableList(std::get<EncodableList>(ReadValue(stream))));
+        return CustomEncodableValue(ConnectionPlatformConfig::FromEncodableList(std::get<EncodableList>(ReadValue(stream))));
       }
     case 161: {
-        return CustomEncodableValue(AppleDiscoverServicesOptions::FromEncodableList(std::get<EncodableList>(ReadValue(stream))));
+        return CustomEncodableValue(AndroidDiscoverServicesOptions::FromEncodableList(std::get<EncodableList>(ReadValue(stream))));
       }
     case 162: {
-        return CustomEncodableValue(DiscoverServicesPlatformConfig::FromEncodableList(std::get<EncodableList>(ReadValue(stream))));
+        return CustomEncodableValue(AppleDiscoverServicesOptions::FromEncodableList(std::get<EncodableList>(ReadValue(stream))));
       }
     case 163: {
-        return CustomEncodableValue(PeripheralAndroidOptions::FromEncodableList(std::get<EncodableList>(ReadValue(stream))));
+        return CustomEncodableValue(DiscoverServicesPlatformConfig::FromEncodableList(std::get<EncodableList>(ReadValue(stream))));
       }
     case 164: {
-        return CustomEncodableValue(PeripheralPlatformConfig::FromEncodableList(std::get<EncodableList>(ReadValue(stream))));
+        return CustomEncodableValue(PeripheralAndroidOptions::FromEncodableList(std::get<EncodableList>(ReadValue(stream))));
       }
     case 165: {
-        return CustomEncodableValue(PeripheralService::FromEncodableList(std::get<EncodableList>(ReadValue(stream))));
+        return CustomEncodableValue(PeripheralPlatformConfig::FromEncodableList(std::get<EncodableList>(ReadValue(stream))));
       }
     case 166: {
-        return CustomEncodableValue(PeripheralCharacteristic::FromEncodableList(std::get<EncodableList>(ReadValue(stream))));
+        return CustomEncodableValue(PeripheralService::FromEncodableList(std::get<EncodableList>(ReadValue(stream))));
       }
     case 167: {
-        return CustomEncodableValue(PeripheralDescriptor::FromEncodableList(std::get<EncodableList>(ReadValue(stream))));
+        return CustomEncodableValue(PeripheralCharacteristic::FromEncodableList(std::get<EncodableList>(ReadValue(stream))));
       }
     case 168: {
-        return CustomEncodableValue(PeripheralReadRequestResult::FromEncodableList(std::get<EncodableList>(ReadValue(stream))));
+        return CustomEncodableValue(PeripheralDescriptor::FromEncodableList(std::get<EncodableList>(ReadValue(stream))));
       }
     case 169: {
+        return CustomEncodableValue(PeripheralReadRequestResult::FromEncodableList(std::get<EncodableList>(ReadValue(stream))));
+      }
+    case 170: {
         return CustomEncodableValue(PeripheralWriteRequestResult::FromEncodableList(std::get<EncodableList>(ReadValue(stream))));
       }
     default:
@@ -3554,138 +3559,143 @@ void PigeonInternalCodecSerializer::WriteValue(
       WriteValue(EncodableValue(static_cast<int>(std::any_cast<PeripheralAdvertisingState>(*custom_value))), stream);
       return;
     }
-    if (custom_value->type() == typeid(UniversalBleErrorCode)) {
+    if (custom_value->type() == typeid(PeripheralConnectionLatency)) {
       stream->WriteByte(143);
+      WriteValue(EncodableValue(static_cast<int>(std::any_cast<PeripheralConnectionLatency>(*custom_value))), stream);
+      return;
+    }
+    if (custom_value->type() == typeid(UniversalBleErrorCode)) {
+      stream->WriteByte(144);
       WriteValue(EncodableValue(static_cast<int>(std::any_cast<UniversalBleErrorCode>(*custom_value))), stream);
       return;
     }
     if (custom_value->type() == typeid(UniversalBleScanResult)) {
-      stream->WriteByte(144);
+      stream->WriteByte(145);
       WriteValue(EncodableValue(std::any_cast<UniversalBleScanResult>(*custom_value).ToEncodableList()), stream);
       return;
     }
     if (custom_value->type() == typeid(UniversalDevicePickerResult)) {
-      stream->WriteByte(145);
+      stream->WriteByte(146);
       WriteValue(EncodableValue(std::any_cast<UniversalDevicePickerResult>(*custom_value).ToEncodableList()), stream);
       return;
     }
     if (custom_value->type() == typeid(UniversalBleService)) {
-      stream->WriteByte(146);
+      stream->WriteByte(147);
       WriteValue(EncodableValue(std::any_cast<UniversalBleService>(*custom_value).ToEncodableList()), stream);
       return;
     }
     if (custom_value->type() == typeid(UniversalBleCharacteristic)) {
-      stream->WriteByte(147);
+      stream->WriteByte(148);
       WriteValue(EncodableValue(std::any_cast<UniversalBleCharacteristic>(*custom_value).ToEncodableList()), stream);
       return;
     }
     if (custom_value->type() == typeid(UniversalBleDescriptor)) {
-      stream->WriteByte(148);
+      stream->WriteByte(149);
       WriteValue(EncodableValue(std::any_cast<UniversalBleDescriptor>(*custom_value).ToEncodableList()), stream);
       return;
     }
     if (custom_value->type() == typeid(BleConnectionParametersChange)) {
-      stream->WriteByte(149);
+      stream->WriteByte(150);
       WriteValue(EncodableValue(std::any_cast<BleConnectionParametersChange>(*custom_value).ToEncodableList()), stream);
       return;
     }
     if (custom_value->type() == typeid(AndroidOptions)) {
-      stream->WriteByte(150);
+      stream->WriteByte(151);
       WriteValue(EncodableValue(std::any_cast<AndroidOptions>(*custom_value).ToEncodableList()), stream);
       return;
     }
     if (custom_value->type() == typeid(UniversalScanConfig)) {
-      stream->WriteByte(151);
+      stream->WriteByte(152);
       WriteValue(EncodableValue(std::any_cast<UniversalScanConfig>(*custom_value).ToEncodableList()), stream);
       return;
     }
     if (custom_value->type() == typeid(UniversalScanFilter)) {
-      stream->WriteByte(152);
+      stream->WriteByte(153);
       WriteValue(EncodableValue(std::any_cast<UniversalScanFilter>(*custom_value).ToEncodableList()), stream);
       return;
     }
     if (custom_value->type() == typeid(ManufacturerDataFilter)) {
-      stream->WriteByte(153);
+      stream->WriteByte(154);
       WriteValue(EncodableValue(std::any_cast<ManufacturerDataFilter>(*custom_value).ToEncodableList()), stream);
       return;
     }
     if (custom_value->type() == typeid(UniversalManufacturerData)) {
-      stream->WriteByte(154);
+      stream->WriteByte(155);
       WriteValue(EncodableValue(std::any_cast<UniversalManufacturerData>(*custom_value).ToEncodableList()), stream);
       return;
     }
     if (custom_value->type() == typeid(AppleConnectionOptions)) {
-      stream->WriteByte(155);
+      stream->WriteByte(156);
       WriteValue(EncodableValue(std::any_cast<AppleConnectionOptions>(*custom_value).ToEncodableList()), stream);
       return;
     }
     if (custom_value->type() == typeid(AppleAccessoryPickerItem)) {
-      stream->WriteByte(156);
+      stream->WriteByte(157);
       WriteValue(EncodableValue(std::any_cast<AppleAccessoryPickerItem>(*custom_value).ToEncodableList()), stream);
       return;
     }
     if (custom_value->type() == typeid(AppleAccessorySetupOptions)) {
-      stream->WriteByte(157);
+      stream->WriteByte(158);
       WriteValue(EncodableValue(std::any_cast<AppleAccessorySetupOptions>(*custom_value).ToEncodableList()), stream);
       return;
     }
     if (custom_value->type() == typeid(AndroidConnectionOptions)) {
-      stream->WriteByte(158);
+      stream->WriteByte(159);
       WriteValue(EncodableValue(std::any_cast<AndroidConnectionOptions>(*custom_value).ToEncodableList()), stream);
       return;
     }
     if (custom_value->type() == typeid(ConnectionPlatformConfig)) {
-      stream->WriteByte(159);
+      stream->WriteByte(160);
       WriteValue(EncodableValue(std::any_cast<ConnectionPlatformConfig>(*custom_value).ToEncodableList()), stream);
       return;
     }
     if (custom_value->type() == typeid(AndroidDiscoverServicesOptions)) {
-      stream->WriteByte(160);
+      stream->WriteByte(161);
       WriteValue(EncodableValue(std::any_cast<AndroidDiscoverServicesOptions>(*custom_value).ToEncodableList()), stream);
       return;
     }
     if (custom_value->type() == typeid(AppleDiscoverServicesOptions)) {
-      stream->WriteByte(161);
+      stream->WriteByte(162);
       WriteValue(EncodableValue(std::any_cast<AppleDiscoverServicesOptions>(*custom_value).ToEncodableList()), stream);
       return;
     }
     if (custom_value->type() == typeid(DiscoverServicesPlatformConfig)) {
-      stream->WriteByte(162);
+      stream->WriteByte(163);
       WriteValue(EncodableValue(std::any_cast<DiscoverServicesPlatformConfig>(*custom_value).ToEncodableList()), stream);
       return;
     }
     if (custom_value->type() == typeid(PeripheralAndroidOptions)) {
-      stream->WriteByte(163);
+      stream->WriteByte(164);
       WriteValue(EncodableValue(std::any_cast<PeripheralAndroidOptions>(*custom_value).ToEncodableList()), stream);
       return;
     }
     if (custom_value->type() == typeid(PeripheralPlatformConfig)) {
-      stream->WriteByte(164);
+      stream->WriteByte(165);
       WriteValue(EncodableValue(std::any_cast<PeripheralPlatformConfig>(*custom_value).ToEncodableList()), stream);
       return;
     }
     if (custom_value->type() == typeid(PeripheralService)) {
-      stream->WriteByte(165);
+      stream->WriteByte(166);
       WriteValue(EncodableValue(std::any_cast<PeripheralService>(*custom_value).ToEncodableList()), stream);
       return;
     }
     if (custom_value->type() == typeid(PeripheralCharacteristic)) {
-      stream->WriteByte(166);
+      stream->WriteByte(167);
       WriteValue(EncodableValue(std::any_cast<PeripheralCharacteristic>(*custom_value).ToEncodableList()), stream);
       return;
     }
     if (custom_value->type() == typeid(PeripheralDescriptor)) {
-      stream->WriteByte(167);
+      stream->WriteByte(168);
       WriteValue(EncodableValue(std::any_cast<PeripheralDescriptor>(*custom_value).ToEncodableList()), stream);
       return;
     }
     if (custom_value->type() == typeid(PeripheralReadRequestResult)) {
-      stream->WriteByte(168);
+      stream->WriteByte(169);
       WriteValue(EncodableValue(std::any_cast<PeripheralReadRequestResult>(*custom_value).ToEncodableList()), stream);
       return;
     }
     if (custom_value->type() == typeid(PeripheralWriteRequestResult)) {
-      stream->WriteByte(169);
+      stream->WriteByte(170);
       WriteValue(EncodableValue(std::any_cast<PeripheralWriteRequestResult>(*custom_value).ToEncodableList()), stream);
       return;
     }
@@ -4978,14 +4988,15 @@ void UniversalBlePeripheralChannel::SetUp(
           const auto& value_arg = std::get<std::vector<uint8_t>>(encodable_value_arg);
           const auto& encodable_device_id_arg = args.at(3);
           const auto* device_id_arg = std::get_if<std::string>(&encodable_device_id_arg);
-          std::optional<FlutterError> output = api->UpdateCharacteristic(characteristic_id_arg, characteristic_instance_id_arg, value_arg, device_id_arg);
-          if (output.has_value()) {
-            reply(WrapError(output.value()));
-            return;
-          }
-          EncodableList wrapped;
-          wrapped.push_back(EncodableValue());
-          reply(EncodableValue(std::move(wrapped)));
+          api->UpdateCharacteristic(characteristic_id_arg, characteristic_instance_id_arg, value_arg, device_id_arg, [reply](std::optional<FlutterError>&& output) {
+            if (output.has_value()) {
+              reply(WrapError(output.value()));
+              return;
+            }
+            EncodableList wrapped;
+            wrapped.push_back(EncodableValue());
+            reply(EncodableValue(std::move(wrapped)));
+          });
         } catch (const std::exception& exception) {
           reply(WrapError(exception.what()));
         }
@@ -5157,6 +5168,40 @@ void UniversalBleDarwinPeripheralChannel::SetUp(
           }
           const auto& restoration_identifier_arg = std::get<std::string>(encodable_restoration_identifier_arg);
           std::optional<FlutterError> output = api->ConfigureRestoration(restoration_identifier_arg);
+          if (output.has_value()) {
+            reply(WrapError(output.value()));
+            return;
+          }
+          EncodableList wrapped;
+          wrapped.push_back(EncodableValue());
+          reply(EncodableValue(std::move(wrapped)));
+        } catch (const std::exception& exception) {
+          reply(WrapError(exception.what()));
+        }
+      });
+    } else {
+      channel.SetMessageHandler(nullptr);
+    }
+  }
+  {
+    BasicMessageChannel<> channel(binary_messenger, "dev.flutter.pigeon.universal_ble.UniversalBleDarwinPeripheralChannel.setDesiredConnectionLatency" + prepended_suffix, &GetCodec());
+    if (api != nullptr) {
+      channel.SetMessageHandler([api](const EncodableValue& message, const ::flutter::MessageReply<EncodableValue>& reply) {
+        try {
+          const auto& args = std::get<EncodableList>(message);
+          const auto& encodable_device_id_arg = args.at(0);
+          if (encodable_device_id_arg.IsNull()) {
+            reply(WrapError("device_id_arg unexpectedly null."));
+            return;
+          }
+          const auto& device_id_arg = std::get<std::string>(encodable_device_id_arg);
+          const auto& encodable_latency_arg = args.at(1);
+          if (encodable_latency_arg.IsNull()) {
+            reply(WrapError("latency_arg unexpectedly null."));
+            return;
+          }
+          const auto& latency_arg = std::any_cast<const PeripheralConnectionLatency&>(std::get<CustomEncodableValue>(encodable_latency_arg));
+          std::optional<FlutterError> output = api->SetDesiredConnectionLatency(device_id_arg, latency_arg);
           if (output.has_value()) {
             reply(WrapError(output.value()));
             return;

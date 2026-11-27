@@ -185,6 +185,21 @@ class UniversalBlePeripheralPigeon extends UniversalBlePeripheralPlatform
       _channel.setAutoConnect(autoConnect);
 
   @override
+  Future<void> setDesiredConnectionLatency(
+    String deviceId,
+    PeripheralConnectionLatency latency,
+  ) async {
+    if (!kIsWeb &&
+        (defaultTargetPlatform == TargetPlatform.iOS ||
+            defaultTargetPlatform == TargetPlatform.macOS)) {
+      await UniversalBleDarwinPeripheralChannel().setDesiredConnectionLatency(
+        deviceId.toDeviceId(isAddress: hasAddressDeviceIds).native,
+        latency,
+      );
+    }
+  }
+
+  @override
   void setReadRequestHandler(OnPeripheralReadRequest? handler) =>
       _readRequestHandler = handler;
 

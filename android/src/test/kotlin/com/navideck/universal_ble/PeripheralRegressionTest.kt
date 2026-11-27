@@ -84,8 +84,17 @@ internal class PeripheralRegressionTest {
         plugin.setField("bluetoothDevicesMap", HashMap<String, BluetoothDevice>())
         plugin.setField("mtuByDeviceId", HashMap<String, Int>())
         plugin.setField("pendingNotifications", ArrayDeque<Any>())
-        plugin.setField("notificationsInFlight", HashSet<String>())
+        plugin.setField("notificationsInFlight", HashMap<String, Any>())
         return plugin
+    }
+
+    /** Makes settlement (posted by the plugin) run immediately in unit tests. */
+    private fun UniversalBlePeripheralPlugin.runPostedRunnablesImmediately() {
+        val handler = field<Handler>("handler")
+        Mockito.`when`(handler.post(Mockito.any(Runnable::class.java))).thenAnswer {
+            (it.arguments[0] as Runnable).run()
+            true
+        }
     }
 
     private fun UniversalBlePeripheralPlugin.setField(name: String, value: Any?) {
@@ -127,6 +136,40 @@ internal class PeripheralRegressionTest {
         return device
     }
 
+    /** A notify characteristic subscribed by [deviceAddress], registered as "report-1". */
+    private fun UniversalBlePeripheralPlugin.subscribedNotifyCharacteristic():
+        BluetoothGattCharacteristic {
+        val service = mockService(hid)
+        val characteristic = Mockito.mock(BluetoothGattCharacteristic::class.java)
+        Mockito.`when`(characteristic.uuid).thenReturn(UUID.fromString(report))
+        Mockito.`when`(characteristic.service).thenReturn(service)
+        Mockito.`when`(characteristic.properties)
+            .thenReturn(BluetoothGattCharacteristic.PROPERTY_NOTIFY)
+        characteristics()[report] = characteristic
+        characteristics()["report-1"] = characteristic
+        characteristicInstanceIds()[characteristic] = "report-1"
+        subscribedCharDevicesMap[deviceAddress] = mutableSetOf("report-1")
+        connectedDevice()
+        return characteristic
+    }
+
+    /** The pre-API-33 path the JVM tests take: the stack accepts the notification. */
+    private fun BluetoothGattServer.acceptNotifications() {
+        Mockito.`when`(
+            notifyCharacteristicChanged(
+                Mockito.any(BluetoothDevice::class.java),
+                Mockito.any(BluetoothGattCharacteristic::class.java),
+                Mockito.anyBoolean(),
+            ),
+        ).thenReturn(true)
+    }
+
+    /** Every value the plugin assigned to [characteristic], in order. */
+    private fun valuesSetOn(characteristic: BluetoothGattCharacteristic): List<List<Int>> =
+        Mockito.mockingDetails(characteristic).invocations
+            .filter { it.method.name == "setValue" }
+            .map { invocation -> (invocation.arguments[0] as ByteArray).map(Byte::toInt) }
+
     @Test fun findsServiceByItsServiceUuid() {
         val service = Mockito.mock(BluetoothGattService::class.java)
         Mockito.`when`(service.uuid).thenReturn(UUID.fromString(hid))
@@ -155,46 +198,119 @@ internal class PeripheralRegressionTest {
         Mockito.`when`(characteristic.properties).thenReturn(BluetoothGattCharacteristic.PROPERTY_READ)
         characteristics()[report] = characteristic
         val value = byteArrayOf(42)
-        plugin.updateCharacteristic(report, null, value, null)
+        val results = mutableListOf<Result<Unit>>()
+        plugin.updateCharacteristic(report, null, value, null) { results.add(it) }
         Mockito.verify(characteristic).setValue(value)
+        assertEquals(1, results.size)
+        assertTrue(results.single().isSuccess)
     }
 
-    // #403: below API 33 the payload travels in the shared characteristic value.
-    // A second update queued behind an in-flight notification must not overwrite
-    // it before that drain runs, or the wrong chunk is transmitted.
+    @Test fun acceptedNotificationCompletesOnlyAfterOnNotificationSent() {
+        val server = Mockito.mock(BluetoothGattServer::class.java)
+        val plugin = peripheralPlugin(server).also { it.runPostedRunnablesImmediately() }
+        plugin.subscribedNotifyCharacteristic()
+        server.acceptNotifications()
+        val results = mutableListOf<Result<Unit>>()
+
+        plugin.updateCharacteristic(report, "report-1", byteArrayOf(1), deviceAddress) {
+            results.add(it)
+        }
+
+        assertTrue(results.isEmpty(), "The callback must wait until the packet is sent")
+        plugin.handleNotificationSent(plugin.connectedDevice(), BluetoothGatt.GATT_SUCCESS)
+        assertEquals(1, results.size)
+        assertTrue(results.single().isSuccess)
+    }
+
+    @Test fun failedNotificationSentFailsTheCallback() {
+        val server = Mockito.mock(BluetoothGattServer::class.java)
+        val plugin = peripheralPlugin(server).also { it.runPostedRunnablesImmediately() }
+        plugin.subscribedNotifyCharacteristic()
+        server.acceptNotifications()
+        val results = mutableListOf<Result<Unit>>()
+        plugin.updateCharacteristic(report, "report-1", byteArrayOf(1), deviceAddress) {
+            results.add(it)
+        }
+
+        plugin.handleNotificationSent(plugin.connectedDevice(), BluetoothGatt.GATT_FAILURE)
+
+        assertEquals(1, results.size)
+        assertTrue(results.single().isFailure)
+    }
+
+    // #403: a queued update must not overwrite the value the stack is sending
+    // for the packet already in flight.
     @Test fun queuedUpdateDoesNotOverwriteInFlightCharacteristicValue() {
         val server = Mockito.mock(BluetoothGattServer::class.java)
-        val plugin = peripheralPlugin(server)
-        val characteristic = mockCharacteristic(report, mockService(hid))
-        Mockito.`when`(characteristic.properties).thenReturn(BluetoothGattCharacteristic.PROPERTY_NOTIFY)
-        characteristics()[report] = characteristic
-        val device = plugin.connectedDevice()
-        subscribedCharDevicesMap[deviceAddress] = mutableSetOf(report)
-        @Suppress("DEPRECATION")
-        Mockito.`when`(server.notifyCharacteristicChanged(device, characteristic, false)).thenReturn(true)
+        val plugin = peripheralPlugin(server).also { it.runPostedRunnablesImmediately() }
+        val characteristic = plugin.subscribedNotifyCharacteristic()
+        server.acceptNotifications()
+        val results = mutableListOf<Result<Unit>>()
 
-        val first = byteArrayOf(1, 2, 3)
-        val second = byteArrayOf(4, 5, 6)
-        plugin.updateCharacteristic(report, null, first, deviceAddress)
-        // The first notification is in flight now. Queueing the second must leave
-        // characteristic.value alone until the native queue accepts it.
-        plugin.updateCharacteristic(report, null, second, deviceAddress)
+        plugin.updateCharacteristic(report, "report-1", byteArrayOf(1), deviceAddress) {
+            results.add(it)
+        }
+        assertEquals(listOf(listOf(1)), valuesSetOn(characteristic))
 
-        Mockito.verify(characteristic, Mockito.times(1)).setValue(first)
-        Mockito.verify(characteristic, Mockito.never()).setValue(second)
+        plugin.updateCharacteristic(report, "report-1", byteArrayOf(2), deviceAddress) {
+            results.add(it)
+        }
+        assertEquals(
+            listOf(listOf(1)),
+            valuesSetOn(characteristic),
+        )
+        assertTrue(results.isEmpty(), "The second packet waits for the first to be sent")
 
-        // What onNotificationSent does: release the marker, then drain the queue.
-        plugin.field<MutableSet<String>>("notificationsInFlight").remove(deviceAddress)
-        val drain = UniversalBlePeripheralPlugin::class.java
-            .getDeclaredMethod("drainNotifications", String::class.java)
-        drain.isAccessible = true
-        drain.invoke(plugin, deviceAddress)
+        plugin.handleNotificationSent(plugin.connectedDevice(), BluetoothGatt.GATT_SUCCESS)
+        assertEquals(
+            listOf(listOf(1), listOf(2)),
+            valuesSetOn(characteristic),
+        )
+        assertEquals(1, results.size)
+        assertTrue(results.single().isSuccess)
 
-        // setValue is the same mock invocation as characteristic.value = second.
-        Mockito.verify(characteristic, Mockito.times(1)).setValue(first)
-        Mockito.verify(characteristic, Mockito.times(1)).setValue(second)
-        @Suppress("DEPRECATION")
-        Mockito.verify(server, Mockito.times(2)).notifyCharacteristicChanged(device, characteristic, false)
+        plugin.handleNotificationSent(plugin.connectedDevice(), BluetoothGatt.GATT_SUCCESS)
+        assertEquals(2, results.size)
+        assertTrue(results[1].isSuccess)
+    }
+
+    @Test fun clearPendingNotificationsFailsQueuedUpdatesButKeepsTheOneInFlight() {
+        val server = Mockito.mock(BluetoothGattServer::class.java)
+        val plugin = peripheralPlugin(server).also { it.runPostedRunnablesImmediately() }
+        plugin.subscribedNotifyCharacteristic()
+        server.acceptNotifications()
+        val results = mutableListOf<Result<Unit>>()
+        plugin.updateCharacteristic(report, "report-1", byteArrayOf(1), deviceAddress) {
+            results.add(it)
+        }
+        plugin.updateCharacteristic(report, "report-1", byteArrayOf(2), deviceAddress) {
+            results.add(it)
+        }
+
+        plugin.clearPendingNotifications(deviceAddress)
+
+        assertEquals(1, results.size, "Only the queued update is cancelled")
+        assertTrue(results.single().isFailure)
+        plugin.handleNotificationSent(plugin.connectedDevice(), BluetoothGatt.GATT_SUCCESS)
+        assertEquals(2, results.size)
+        assertTrue(results[1].isSuccess, "The in-flight packet is still settled by its callback")
+    }
+
+    @Test fun resetFailsTheNotificationInFlight() {
+        val server = Mockito.mock(BluetoothGattServer::class.java)
+        val plugin = peripheralPlugin(server).also { it.runPostedRunnablesImmediately() }
+        plugin.subscribedNotifyCharacteristic()
+        server.acceptNotifications()
+        val results = mutableListOf<Result<Unit>>()
+        plugin.updateCharacteristic(report, "report-1", byteArrayOf(1), deviceAddress) {
+            results.add(it)
+        }
+
+        plugin.onAdapterStateChanged(BluetoothAdapter.STATE_TURNING_OFF)
+
+        assertEquals(1, results.size)
+        assertTrue(results.single().isFailure)
+        assertTrue(plugin.field<Map<String, Any>>("notificationsInFlight").isEmpty())
     }
 
     // #385: a service registered a second time must resolve to the new

@@ -29,6 +29,8 @@ import android.os.Handler
 import android.os.ParcelUuid
 import android.util.Log
 import io.flutter.plugin.common.BinaryMessenger
+import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.atomic.AtomicReference
 
 private const val TAG = "UniversalBlePeripheral"
 private const val REQUEST_CODE_ENABLE_BLUETOOTH = 2342717
@@ -79,6 +81,8 @@ class UniversalBlePeripheralPlugin(
         val characteristic: BluetoothGattCharacteristic,
         val value: ByteArray,
         val indicate: Boolean,
+        /** Called exactly once, on [handler], with null when the stack accepted/sent it. */
+        val onSettled: (Throwable?) -> Unit,
     )
 
     /**
@@ -94,7 +98,45 @@ class UniversalBlePeripheralPlugin(
      * another drain or with an update (#403).
      */
     private val pendingNotifications: ArrayDeque<PendingNotification> = ArrayDeque()
-    private val notificationsInFlight: MutableSet<String> = HashSet()
+
+    /**
+     * The notification each client currently owns, keyed by client address. It
+     * is the one [BluetoothGattServerCallback.onNotificationSent] settles; the
+     * key is also the client's "busy" marker, so a later packet cannot overtake
+     * it before that callback.
+     */
+    private val notificationsInFlight: MutableMap<String, PendingNotification> = HashMap()
+
+    /**
+     * Settles [notifications] with [error] on the main thread. A GATT callback
+     * runs on a binder thread, so completing the Pigeon result there would reply
+     * to Dart from the wrong thread.
+     */
+    private fun settleNotifications(notifications: List<PendingNotification>, error: Throwable?) {
+        if (notifications.isEmpty()) return
+        handler.post {
+            notifications.forEach { it.onSettled(error) }
+        }
+    }
+
+    /**
+     * Removes the notifications matching [predicate] from both the pending queue
+     * and the in-flight map, and returns them so their callers can be failed.
+     * Whatever is returned will not be reported by [onNotificationSent] again.
+     */
+    private fun dropNotifications(
+        includeInFlight: Boolean = true,
+        predicate: (PendingNotification) -> Boolean,
+    ): List<PendingNotification> = synchronized(pendingNotifications) {
+        val removed = pendingNotifications.filter(predicate).toMutableList()
+        pendingNotifications.removeAll(predicate)
+        if (includeInFlight) {
+            val droppedInFlight = notificationsInFlight.filterValues(predicate)
+            notificationsInFlight.values.removeAll(predicate)
+            removed.addAll(droppedInFlight.values)
+        }
+        removed
+    }
 
     /**
      * A [BluetoothGattServer] and a [BluetoothLeAdvertiser] do not survive an
@@ -134,8 +176,12 @@ class UniversalBlePeripheralPlugin(
         }.onFailure {
             UniversalBleLogger.logWarning("Failed to unregister the adapter receiver: ${it.message}")
         }
-        resetPeripheralState()
+        // Drop callbacks posted for the previous state first, then let the
+        // reset post the settlements for the notifications it discards. Doing it
+        // the other way round would sweep those settlements away and leave their
+        // Dart futures pending.
         handler.removeCallbacksAndMessages(null)
+        resetPeripheralState()
         isEnableBluetoothPromptPending = false
     }
 
@@ -157,11 +203,14 @@ class UniversalBlePeripheralPlugin(
         // Queued notifications belong to the server that is being dropped, so
         // discard them before the caches that resolve their characteristics.
         clearPendingNotifications(null)
-        synchronized(pendingNotifications) {
+        val droppedInFlight = synchronized(pendingNotifications) {
             // The old server will never report these as sent, and a leftover
             // marker would block that client's queue forever.
+            val current = notificationsInFlight.values.toList()
             notificationsInFlight.clear()
+            current
         }
+        settleNotifications(droppedInFlight, IllegalStateException("Peripheral reset"))
         kotlin.runCatching { gattServer?.close() }
         gattServer = null
         gattServerSession = -1
@@ -352,9 +401,8 @@ class UniversalBlePeripheralPlugin(
 
     override fun removeService(serviceId: String) {
         serviceId.findService()?.let { service ->
-            synchronized(pendingNotifications) {
-                pendingNotifications.removeAll { it.characteristic.service === service }
-            }
+            val removed = dropNotifications { it.characteristic.service === service }
+            settleNotifications(removed, IllegalStateException("Service removed"))
             // The service and its characteristics are no longer registered, so
             // nothing may keep resolving them: a later registration of the same
             // UUID would notify through these orphaned objects (#385). Done even
@@ -372,6 +420,12 @@ class UniversalBlePeripheralPlugin(
         // Queued notifications are dropped before the caches that resolve their
         // characteristics, so none can be re-queued for services that are gone.
         clearPendingNotifications(null)
+        val droppedInFlight = synchronized(pendingNotifications) {
+            val current = notificationsInFlight.values.toList()
+            notificationsInFlight.clear()
+            current
+        }
+        settleNotifications(droppedInFlight, IllegalStateException("Services cleared"))
         try {
             requireGattServer().clearServices()
         } finally {
@@ -492,21 +546,32 @@ class UniversalBlePeripheralPlugin(
         characteristicInstanceId: String?,
         value: ByteArray,
         deviceId: String?,
+        callback: (Result<Unit>) -> Unit,
     ) {
-        requireGattServer()
-        val characteristic =
-            characteristicId.findGattCharacteristic(characteristicInstanceId)
-                ?: throw Exception("Characteristic not found")
-        val targetDevices = synchronized(bluetoothDevicesMap) {
-            if (deviceId != null) {
-                val dev = bluetoothDevicesMap[deviceId]
-                    ?: bluetoothDevicesMap[deviceId.uppercase()]
-                    ?: bluetoothDevicesMap[deviceId.lowercase()]
-                    ?: throw Exception("Device not found")
-                listOf(dev)
-            } else {
-                bluetoothDevicesMap.values.toList()
+        // A failure or an empty subscriber set completes immediately; when there
+        // is something to notify, the callback fires once every target client's
+        // notification has settled.
+        val characteristic: BluetoothGattCharacteristic
+        val targetDevices: List<BluetoothDevice>
+        try {
+            requireGattServer()
+            characteristic =
+                characteristicId.findGattCharacteristic(characteristicInstanceId)
+                    ?: throw Exception("Characteristic not found")
+            targetDevices = synchronized(bluetoothDevicesMap) {
+                if (deviceId != null) {
+                    val dev = bluetoothDevicesMap[deviceId]
+                        ?: bluetoothDevicesMap[deviceId.uppercase()]
+                        ?: bluetoothDevicesMap[deviceId.lowercase()]
+                        ?: throw Exception("Device not found")
+                    listOf(dev)
+                } else {
+                    bluetoothDevicesMap.values.toList()
+                }
             }
+        } catch (e: Throwable) {
+            callback(Result.failure(e))
+            return
         }
         val indicate =
             (characteristic.properties and BluetoothGattCharacteristic.PROPERTY_INDICATE) != 0
@@ -514,18 +579,32 @@ class UniversalBlePeripheralPlugin(
         // subscribedCharDevicesMap, and the descriptor/cleanup paths take those two
         // monitors in the opposite order, so nesting them here would deadlock.
         val subscribedDevices = targetDevices.filter { isSubscribed(it.address, characteristic) }
-        synchronized(pendingNotifications) {
-            if (subscribedDevices.isEmpty()) {
-                // Nobody to notify: the value is only the static one a read returns.
-                // Written under this monitor so it cannot land between another
-                // drain's value assignment and its notify call.
+        if (subscribedDevices.isEmpty()) {
+            // Nobody to notify: the value is only the static one a read returns.
+            // Written under this monitor so it cannot land between another
+            // drain's value assignment and its notify call.
+            synchronized(pendingNotifications) {
                 @Suppress("DEPRECATION")
                 characteristic.value = value.copyOf()
-                return
             }
+            callback(Result.success(Unit))
+            return
+        }
+        val remaining = AtomicInteger(subscribedDevices.size)
+        val firstError = AtomicReference<Throwable?>(null)
+        val settleOne: (Throwable?) -> Unit = { error ->
+            if (error != null) firstError.compareAndSet(null, error)
+            if (remaining.decrementAndGet() == 0) {
+                val err = firstError.get()
+                if (err != null) callback(Result.failure(err)) else callback(Result.success(Unit))
+            }
+        }
+        // Assigning characteristic.value here would race the packet already in
+        // flight (#403): the value is applied per packet in drainNotifications.
+        synchronized(pendingNotifications) {
             subscribedDevices.forEach { device ->
                 pendingNotifications.addLast(
-                    PendingNotification(device, characteristic, value.copyOf(), indicate)
+                    PendingNotification(device, characteristic, value.copyOf(), indicate, settleOne)
                 )
             }
             subscribedDevices.forEach { drainNotifications(it.address) }
@@ -540,17 +619,19 @@ class UniversalBlePeripheralPlugin(
     }
 
     private fun drainNotifications(deviceAddress: String) {
+        // Everything the packet owns is done under one monitor (#403): a second
+        // update submitted while this one is in flight must neither dequeue it
+        // nor overwrite the value the stack is about to send.
         synchronized(pendingNotifications) {
-            if (notificationsInFlight.contains(deviceAddress)) return
+            if (notificationsInFlight.containsKey(deviceAddress)) return
             val index = pendingNotifications.indexOfFirst { it.device.address == deviceAddress }
             if (index < 0) return
             val next = pendingNotifications.removeAt(index)
             val server = gattServer ?: run {
-                // Nothing to send on; keep the payload for the next drain.
                 pendingNotifications.addFirst(next)
                 return
             }
-            notificationsInFlight.add(deviceAddress)
+            notificationsInFlight[deviceAddress] = next
             // The in-flight check, the dequeue, the value assignment and the send
             // all happen under this monitor. Below API 33 the value is carried by
             // the shared characteristic, so another thread writing it in between
@@ -571,21 +652,46 @@ class UniversalBlePeripheralPlugin(
                 }
             }.getOrDefault(false)
             if (!sent) {
-                // Native queue still busy. Put the payload back at the front and wait
-                // for onNotificationSent to retry; never drop a release.
+                // Native queue still busy. Put the payload back at the front and
+                // wait for onNotificationSent to retry; never drop a release.
                 notificationsInFlight.remove(deviceAddress)
                 pendingNotifications.addFirst(next)
             }
         }
     }
 
-    override fun clearPendingNotifications(deviceId: String?) {
-        synchronized(pendingNotifications) {
-            if (deviceId == null) pendingNotifications.clear()
-            else pendingNotifications.removeAll { it.device.address.equals(deviceId, ignoreCase = true) }
-            // In-flight packets are already owned by Android. Keep their busy
-            // markers until onNotificationSent, so a neutral cannot overtake them.
+    /**
+     * Settles the packet [BluetoothGattServerCallback.onNotificationSent] reports
+     * and starts the next queued one. Runs on a binder thread, so the settlement
+     * itself is posted to [handler]. Internal so the unit tests can drive it.
+     */
+    internal fun handleNotificationSent(device: BluetoothDevice, status: Int) {
+        val address = device.address
+        val completed = synchronized(pendingNotifications) {
+            notificationsInFlight.remove(address)
         }
+        // Queue the settlement before the next packet can be handed to the
+        // stack, so two updates for the same client complete in submission
+        // order. Posting never invokes the reply here.
+        if (completed != null) {
+            val error = if (status == BluetoothGatt.GATT_SUCCESS) null
+            else IllegalStateException("Notification failed with status $status")
+            settleNotifications(listOf(completed), error)
+        }
+        drainNotifications(address)
+    }
+
+    override fun clearPendingNotifications(deviceId: String?) {
+        // In-flight packets are already owned by Android. Keep their busy
+        // markers until onNotificationSent, so a neutral cannot overtake them.
+        val removed = if (deviceId == null) {
+            dropNotifications(includeInFlight = false) { true }
+        } else {
+            dropNotifications(includeInFlight = false) {
+                it.device.address.equals(deviceId, ignoreCase = true)
+            }
+        }
+        settleNotifications(removed, IllegalStateException("Notification cancelled"))
     }
 
     override fun getSubscribedClients(
@@ -648,10 +754,8 @@ class UniversalBlePeripheralPlugin(
                 ) {}
             }
         }
-        synchronized(pendingNotifications) {
-            pendingNotifications.removeAll { it.device.address == deviceAddress }
-            notificationsInFlight.remove(deviceAddress)
-        }
+        val removed = dropNotifications { it.device.address == deviceAddress }
+        settleNotifications(removed, IllegalStateException("Device disconnected"))
     }
 
     private val advertiseCallback = object : AdvertiseCallback() {
@@ -712,11 +816,7 @@ class UniversalBlePeripheralPlugin(
 
         override fun onNotificationSent(device: BluetoothDevice, status: Int) {
             super.onNotificationSent(device, status)
-            val address = device.address
-            synchronized(pendingNotifications) {
-                notificationsInFlight.remove(address)
-                drainNotifications(address)
-            }
+            handleNotificationSent(device, status)
         }
 
         override fun onCharacteristicReadRequest(
@@ -892,10 +992,11 @@ class UniversalBlePeripheralPlugin(
                             charSet.remove(subscriptionId)
                         }
                     }
-                    if (!isSubscribed) synchronized(pendingNotifications) {
-                        pendingNotifications.removeAll {
+                    if (!isSubscribed) {
+                        val removed = dropNotifications {
                             it.device.address == address && it.characteristic === characteristic
                         }
+                        settleNotifications(removed, IllegalStateException("Central unsubscribed"))
                     }
                 }
             }

@@ -39,6 +39,22 @@ final class UniversalBlePeripheralPlugin: NSObject, UniversalBlePeripheralChanne
     let value: Data
     let characteristic: CBMutableCharacteristic
     let central: CBCentral
+    /// Called exactly once: `nil` when CoreBluetooth accepted the value, or the
+    /// error that made the notification unsendable.
+    let onSettled: (Error?) -> Void
+  }
+
+  /// Fails the notifications a path discards, so the Dart calls that enqueued
+  /// them do not wait for a settlement that can never arrive.
+  private func cancelNotifications(
+    _ notifications: [PendingNotification],
+    message: String = "Notification cancelled"
+  ) {
+    guard !notifications.isEmpty else { return }
+    let error = UniversalBlePeripheralError.failed(message)
+    for notification in notifications {
+      notification.onSettled(error)
+    }
   }
 
   init(callbackChannel: UniversalBlePeripheralCallback) {
@@ -87,6 +103,7 @@ final class UniversalBlePeripheralPlugin: NSObject, UniversalBlePeripheralChanne
   }
 
   deinit {
+    cancelNotifications(pendingNotifications.removeAll())
     peripheralManager?.stopAdvertising()
     peripheralManager?.removeAllServices()
     clearCentrals()
@@ -237,7 +254,7 @@ final class UniversalBlePeripheralPlugin: NSObject, UniversalBlePeripheralChanne
       }
     }
     pendingServices.removeAll()
-    pendingNotifications.removeAll()
+    cancelNotifications(pendingNotifications.removeAll(), message: "Services cleared")
     serviceRegistry.clear()
     serviceModels.removeAll()
     initialValues.removeAll()
@@ -252,11 +269,12 @@ final class UniversalBlePeripheralPlugin: NSObject, UniversalBlePeripheralChanne
 
   func clearPendingNotifications(deviceId: String?) throws {
     if let deviceId {
-      pendingNotifications.removeAll {
+      let removed = pendingNotifications.removeAll {
         $0.central.identifier.uuidString.caseInsensitiveCompare(deviceId) == .orderedSame
       }
+      cancelNotifications(removed)
     } else {
-      pendingNotifications.removeAll()
+      cancelNotifications(pendingNotifications.removeAll())
     }
   }
 
@@ -310,21 +328,26 @@ final class UniversalBlePeripheralPlugin: NSObject, UniversalBlePeripheralChanne
     characteristicId: String,
     characteristicInstanceId: String?,
     value: FlutterStandardTypedData,
-    deviceId: String?
-  ) throws {
+    deviceId: String?,
+    completion: @escaping (Result<Void, Error>) -> Void
+  ) {
     guard
       let characteristic = serviceRegistry.characteristic(
         characteristicId,
         instanceId: characteristicInstanceId
       )
     else {
-      throw UniversalBlePeripheralError.notFound("\(characteristicId) characteristic not found")
+      completion(
+        .failure(
+          UniversalBlePeripheralError.notFound("\(characteristicId) characteristic not found")))
+      return
     }
     let targets = characteristic.subscribedCentrals ?? []
     let centrals: [CBCentral]
     if let deviceId {
       guard central(for: deviceId) != nil else {
-        throw UniversalBlePeripheralError.notFound("\(deviceId) device not found")
+        completion(.failure(UniversalBlePeripheralError.notFound("\(deviceId) device not found")))
+        return
       }
       centrals = targets.filter {
         $0.identifier.uuidString.caseInsensitiveCompare(deviceId) == .orderedSame
@@ -333,23 +356,60 @@ final class UniversalBlePeripheralPlugin: NSObject, UniversalBlePeripheralChanne
       centrals = targets
     }
     let data = value.toData()
+    // Kept so a read returns the last value. One assignment per update; it is
+    // not copied per chunk and is not what made the queue O(N²).
     initialValues[ObjectIdentifier(characteristic)] = data
+    // Nothing to notify: a static/readable value update is already complete.
+    guard !centrals.isEmpty else {
+      completion(.success(()))
+      return
+    }
+    // Complete once every targeted central has settled, with the first error.
+    // Everything runs on the main queue, so the shared counters need no lock;
+    // `settled` keeps a late double settlement from completing twice.
+    var remaining = centrals.count
+    var firstError: Error?
+    var settled = false
+    let settleOne: (Error?) -> Void = { error in
+      guard !settled else { return }
+      if firstError == nil, let error {
+        firstError = error
+      }
+      remaining -= 1
+      guard remaining <= 0 else { return }
+      settled = true
+      if let firstError {
+        completion(.failure(firstError))
+      } else {
+        completion(.success(()))
+      }
+    }
     // Capture actual subscribers now. A future subscriber must never receive
     // a broadcast queued during a previous session.
     for central in centrals {
       pendingNotifications.append(
-        PendingNotification(value: data, characteristic: characteristic, central: central))
+        PendingNotification(
+          value: data,
+          characteristic: characteristic,
+          central: central,
+          onSettled: settleOne))
     }
     drainPendingNotifications()
   }
 
   private func drainPendingNotifications() {
-    pendingNotifications.drain { notification in
-      guard let manager = peripheralManager, manager.state == .poweredOn else { return false }
-      return manager.updateValue(
-        notification.value, for: notification.characteristic,
-        onSubscribedCentrals: [notification.central])
-    }
+    pendingNotifications.drain(
+      { notification in
+        guard let manager = peripheralManager, manager.state == .poweredOn else { return false }
+        return manager.updateValue(
+          notification.value, for: notification.characteristic,
+          onSubscribedCentrals: [notification.central])
+      },
+      onSent: { notification in
+        // `updateValue` returned true: CoreBluetooth owns the data now. The
+        // remote device acknowledging it is a link-layer concern.
+        notification.onSettled(nil)
+      })
   }
 
   nonisolated func peripheralManagerIsReady(toUpdateSubscribers peripheral: CBPeripheralManager) {
@@ -377,7 +437,9 @@ final class UniversalBlePeripheralPlugin: NSObject, UniversalBlePeripheralChanne
       if peripheral.state == .unknown && !hasBeenPoweredOn { return }
       requestGeneration += 1
       for service in serviceRegistry.allServices { invalidateSubscriptions(of: service) }
-      pendingNotifications.removeAll()
+      cancelNotifications(
+        pendingNotifications.removeAll(),
+        message: "Bluetooth peripheral became unavailable")
       clearCentrals()
       // Fail outstanding adds, so their Dart futures cannot outlive the adapter.
       let pending = pendingServices.values.map { $0.1.uuid }
@@ -461,7 +523,7 @@ final class UniversalBlePeripheralPlugin: NSObject, UniversalBlePeripheralChanne
     _ peripheral: CBPeripheralManager, willRestoreState dict: [String: Any]
   ) {
     peripheralManager = peripheral
-    pendingNotifications.removeAll()
+    cancelNotifications(pendingNotifications.removeAll())
     serviceRegistry.clear()
     clearCentrals()
     let saved = savedIdentities()
@@ -514,7 +576,8 @@ final class UniversalBlePeripheralPlugin: NSObject, UniversalBlePeripheralChanne
 
   private func invalidateSubscriptions(of service: CBMutableService) {
     for characteristic in service.characteristics ?? [] {
-      pendingNotifications.removeAll { $0.characteristic === characteristic }
+      let removed = pendingNotifications.removeAll { $0.characteristic === characteristic }
+      cancelNotifications(removed, message: "Service removed")
       initialValues.removeValue(forKey: ObjectIdentifier(characteristic))
       let subscriptionId =
         serviceRegistry.instanceId(of: characteristic) ?? characteristic.uuid.uuidString
@@ -576,9 +639,10 @@ final class UniversalBlePeripheralPlugin: NSObject, UniversalBlePeripheralChanne
       centralId: central.identifier.uuidString,
       subscriptionId: instanceId ?? characteristic.uuid.uuidString
     )
-    pendingNotifications.removeAll {
+    let removed = pendingNotifications.removeAll {
       $0.central.identifier == central.identifier && $0.characteristic === characteristic
     }
+    cancelNotifications(removed, message: "Central unsubscribed")
     initialValues.removeValue(forKey: ObjectIdentifier(characteristic))
     subscriptionEvent(central, characteristic, subscribed: false)
   }
@@ -770,6 +834,25 @@ final class UniversalBlePeripheralPlugin: NSObject, UniversalBlePeripheralChanne
 
   func setAutoConnect(autoConnect: Bool) throws {
     // Android-only option; no-op on Darwin.
+  }
+
+  func setDesiredConnectionLatency(
+    deviceId: String,
+    latency: PeripheralConnectionLatency
+  ) throws {
+    guard let central = central(for: deviceId) else {
+      throw UniversalBlePeripheralError.notFound("\(deviceId) device not found")
+    }
+    let cbLatency: CBPeripheralManagerConnectionLatency
+    switch latency {
+    case .low:
+      cbLatency = .low
+    case .medium:
+      cbLatency = .medium
+    case .high:
+      cbLatency = .high
+    }
+    ensurePeripheralManager().setDesiredConnectionLatency(cbLatency, for: central)
   }
 }
 
