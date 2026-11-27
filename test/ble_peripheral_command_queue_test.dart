@@ -195,6 +195,9 @@ void main() {
         value: Uint8List.fromList([2, 3]),
         deviceId: 'device-1',
       );
+      // The mock reads the gate when the platform call starts, so this only
+      // releases the second update: the first already captured the completer
+      // above, which never completes.
       mockPlatform.notifyCompleter = null;
 
       await expectLater(stuck, throwsA(isA<TimeoutException>()));
