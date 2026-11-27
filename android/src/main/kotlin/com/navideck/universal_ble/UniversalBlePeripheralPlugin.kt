@@ -35,6 +35,19 @@ import java.util.concurrent.atomic.AtomicReference
 private const val TAG = "UniversalBlePeripheral"
 private const val REQUEST_CODE_ENABLE_BLUETOOTH = 2342717
 
+/** First delay before a refused notification is retried; doubled per refusal. */
+private const val NOTIFICATION_RETRY_BASE_DELAY_MS = 10L
+
+/** Ceiling for the refused-notification backoff, so a stuck client is polled twice a second. */
+private const val NOTIFICATION_RETRY_MAX_DELAY_MS = 500L
+
+/**
+ * Refusals the backoff counts up to. The counter only exists to pick the delay,
+ * so it stops where the ceiling is reached: an int left to grow would eventually
+ * overflow into a negative shift distance.
+ */
+private const val NOTIFICATION_RETRY_MAX_ATTEMPT = 7
+
 /** Bytes of [value] starting at [offset], as ATT expects for a read at that offset. */
 private fun offsetSuffix(value: ByteArray, offset: Int): ByteArray = when {
     offset <= 0 -> value
@@ -89,13 +102,17 @@ class UniversalBlePeripheralPlugin(
      * Notifications waiting for the native transmit queue. Android accepts one
      * notification per client at a time ([BluetoothGattServer.notifyCharacteristicChanged]
      * returns false while the previous one is in flight), so they are drained
-     * FIFO from [BluetoothGattServerCallback.onNotificationSent]. Ordering matters:
-     * a HID release must never overtake the press it releases.
+     * FIFO, normally from [BluetoothGattServerCallback.onNotificationSent].
+     * Ordering matters: a HID release must never overtake the press it releases.
+     *
+     * A refused send leaves nothing for `onNotificationSent` to report, so it
+     * also schedules a delayed retry ([scheduleNotificationRetryLocked]).
      *
      * This monitor also guards the transmit itself. Below API 33 the payload
      * travels in the shared [BluetoothGattCharacteristic.value], so the check,
      * the dequeue, that assignment and the notify call must not interleave with
-     * another drain or with an update (#403).
+     * another drain or with an update (#403). It guards the retry bookkeeping
+     * too, so a retry cannot be scheduled and cancelled at the same time.
      */
     private val pendingNotifications: ArrayDeque<PendingNotification> = ArrayDeque()
 
@@ -106,6 +123,22 @@ class UniversalBlePeripheralPlugin(
      * it before that callback.
      */
     private val notificationsInFlight: MutableMap<String, PendingNotification> = HashMap()
+
+    /**
+     * The pending retry for a client whose send the stack refused, keyed by
+     * client address. A runnable is only installed when there is something to
+     * retry, and at most one exists per client: further refusals coalesce into
+     * it instead of posting another. Guarded by [pendingNotifications].
+     */
+    private val notificationRetries: MutableMap<String, Runnable> = HashMap()
+
+    /**
+     * Consecutive refusals per client, used to back the retry off. An entry is
+     * dropped when a send succeeds or the client's notification path is torn
+     * down, so the map holds at most one int per client. Guarded by
+     * [pendingNotifications].
+     */
+    private val notificationRetryAttempts: MutableMap<String, Int> = HashMap()
 
     /**
      * Settles [notifications] with [error] on the main thread. A GATT callback
@@ -136,6 +169,114 @@ class UniversalBlePeripheralPlugin(
             removed.addAll(droppedInFlight.values)
         }
         removed
+    }
+
+    /**
+     * Schedules one retry of [deviceAddress]'s queue after the stack refused a
+     * send. Coalesced: while a retry is already scheduled, a further refusal
+     * leaves it alone rather than posting a second one. The delay doubles per
+     * consecutive refusal (base [NOTIFICATION_RETRY_BASE_DELAY_MS], capped at
+     * [NOTIFICATION_RETRY_MAX_DELAY_MS]), so a client that stays busy is not
+     * polled in a tight loop.
+     *
+     * Called under the [pendingNotifications] monitor from [drainNotifications];
+     * [handler] runs the retry on the main thread, never on a binder thread.
+     */
+    private fun scheduleNotificationRetryLocked(deviceAddress: String) {
+        if (notificationRetries.containsKey(deviceAddress)) return
+        val attempt = ((notificationRetryAttempts[deviceAddress] ?: 0) + 1)
+            .coerceAtMost(NOTIFICATION_RETRY_MAX_ATTEMPT)
+        notificationRetryAttempts[deviceAddress] = attempt
+        // The ceiling is reached at the last attempt, so this is 10, 20, 40, 80,
+        // 160, 320, 500, 500, ... with no shift distance beyond 6.
+        val delay = (NOTIFICATION_RETRY_BASE_DELAY_MS shl (attempt - 1))
+            .coerceAtMost(NOTIFICATION_RETRY_MAX_DELAY_MS)
+        val retry = Runnable { retryNotificationSend(deviceAddress) }
+        notificationRetries[deviceAddress] = retry
+        handler.postDelayed(retry, delay)
+    }
+
+    /**
+     * Cancels the retry scheduled for [deviceAddress] and forgets its backoff.
+     * The caller must not hold the [pendingNotifications] monitor.
+     */
+    private fun clearNotificationRetry(deviceAddress: String) {
+        synchronized(pendingNotifications) { clearNotificationRetryLocked(deviceAddress) }
+    }
+
+    /**
+     * Cancels the retry scheduled for [deviceAddress] and forgets its backoff.
+     * Matches the key case-insensitively, because a caller-supplied id from Dart
+     * need not be in the stack's native case. Caller holds the
+     * [pendingNotifications] monitor.
+     */
+    private fun clearNotificationRetryLocked(deviceAddress: String) {
+        // The common path: a send went through and there was no refusal before,
+        // so there is nothing to forget.
+        if (notificationRetries.isEmpty() && notificationRetryAttempts.isEmpty()) return
+        val keys = (notificationRetries.keys + notificationRetryAttempts.keys)
+            .filter { it.equals(deviceAddress, ignoreCase = true) }
+        keys.forEach { key ->
+            notificationRetries.remove(key)?.let { handler.removeCallbacks(it) }
+            notificationRetryAttempts.remove(key)
+        }
+    }
+
+    /** Cancels every scheduled retry and forgets their backoff. */
+    private fun clearNotificationRetries() {
+        synchronized(pendingNotifications) {
+            notificationRetries.values.forEach { handler.removeCallbacks(it) }
+            notificationRetries.clear()
+            notificationRetryAttempts.clear()
+        }
+    }
+
+    /**
+     * Cancels [deviceAddress]'s retry only when nothing is queued for it any
+     * more, so a packet of another characteristic (another service, or another
+     * subscription) is still retried.
+     */
+    private fun clearNotificationRetryIfIdle(deviceAddress: String) {
+        synchronized(pendingNotifications) {
+            if (pendingNotifications.none { it.device.address == deviceAddress }) {
+                clearNotificationRetryLocked(deviceAddress)
+            }
+        }
+    }
+
+    /**
+     * Runs a scheduled retry for [deviceAddress] on [handler]. A refused send is
+     * the only caller, so there is no `onNotificationSent` to wait for.
+     *
+     * The subscription is re-checked here, outside the [pendingNotifications]
+     * monitor: [isSubscribed] takes the subscription map, and the descriptor and
+     * cleanup paths take that monitor and this one in the opposite order, so
+     * nesting them would deadlock. A client that unsubscribed while the payload
+     * waited is not the client the update was queued for: its payloads for the
+     * characteristic at the head of the queue are dropped and failed instead of
+     * being retried — which also ends the retry loop — and the remaining
+     * characteristics keep draining. If it resubscribed in the meantime, the
+     * check passes and the payload is still delivered, as any queued update is.
+     */
+    private fun retryNotificationSend(deviceAddress: String) {
+        val head = synchronized(pendingNotifications) {
+            notificationRetries.remove(deviceAddress)
+            pendingNotifications.firstOrNull { it.device.address == deviceAddress }
+        }
+        if (head == null) {
+            clearNotificationRetry(deviceAddress)
+            return
+        }
+        if (!isSubscribed(deviceAddress, head.characteristic)) {
+            // dropNotifications takes the monitor itself, so this must stay
+            // outside it: the subscription check above already released it.
+            val dropped = dropNotifications(includeInFlight = false) {
+                it.device.address == deviceAddress && it.characteristic === head.characteristic
+            }
+            settleNotifications(dropped, IllegalStateException("Central unsubscribed"))
+        }
+        drainNotifications(deviceAddress)
+        clearNotificationRetryIfIdle(deviceAddress)
     }
 
     /**
@@ -201,7 +342,8 @@ class UniversalBlePeripheralPlugin(
         kotlin.runCatching { bluetoothLeAdvertiser?.stopAdvertising(advertiseCallback) }
         restoreAdapterNameIfNeeded()
         // Queued notifications belong to the server that is being dropped, so
-        // discard them before the caches that resolve their characteristics.
+        // discard them (and their retries) before the caches that resolve their
+        // characteristics.
         clearPendingNotifications(null)
         val droppedInFlight = synchronized(pendingNotifications) {
             // The old server will never report these as sent, and a leftover
@@ -403,6 +545,9 @@ class UniversalBlePeripheralPlugin(
         serviceId.findService()?.let { service ->
             val removed = dropNotifications { it.characteristic.service === service }
             settleNotifications(removed, IllegalStateException("Service removed"))
+            // Retries for the removed packets are no longer needed; a client that
+            // still has another service's payload queued keeps its retry.
+            removed.map { it.device.address }.distinct().forEach(::clearNotificationRetryIfIdle)
             // The service and its characteristics are no longer registered, so
             // nothing may keep resolving them: a later registration of the same
             // UUID would notify through these orphaned objects (#385). Done even
@@ -417,8 +562,9 @@ class UniversalBlePeripheralPlugin(
     }
 
     override fun clearServices() {
-        // Queued notifications are dropped before the caches that resolve their
-        // characteristics, so none can be re-queued for services that are gone.
+        // Queued notifications (and their retries) are dropped before the caches
+        // that resolve their characteristics, so none can be re-queued for
+        // services that are gone.
         clearPendingNotifications(null)
         val droppedInFlight = synchronized(pendingNotifications) {
             val current = notificationsInFlight.values.toList()
@@ -550,7 +696,9 @@ class UniversalBlePeripheralPlugin(
     ) {
         // A failure or an empty subscriber set completes immediately; when there
         // is something to notify, the callback fires once every target client's
-        // notification has settled.
+        // notification has settled. A send the stack refuses stays queued and is
+        // retried on a short delay, so the callback waits for that retry instead
+        // of failing.
         val characteristic: BluetoothGattCharacteristic
         val targetDevices: List<BluetoothDevice>
         try {
@@ -625,9 +773,20 @@ class UniversalBlePeripheralPlugin(
         synchronized(pendingNotifications) {
             if (notificationsInFlight.containsKey(deviceAddress)) return
             val index = pendingNotifications.indexOfFirst { it.device.address == deviceAddress }
-            if (index < 0) return
+            if (index < 0) {
+                // Nothing left to retry: do not leave a runnable behind for an
+                // empty queue.
+                clearNotificationRetryLocked(deviceAddress)
+                return
+            }
             val next = pendingNotifications.removeAt(index)
             val server = gattServer ?: run {
+                // Not reachable through the public paths: the server is only
+                // nulled by resetPeripheralState, which empties this queue (and
+                // cancels its retries) before releasing the monitor, and every
+                // enqueue path calls requireGattServer first. Scheduling a retry
+                // here would poll a server that is still null, so the payload
+                // waits for the next update, which re-opens one.
                 pendingNotifications.addFirst(next)
                 return
             }
@@ -652,10 +811,18 @@ class UniversalBlePeripheralPlugin(
                 }
             }.getOrDefault(false)
             if (!sent) {
-                // Native queue still busy. Put the payload back at the front and
-                // wait for onNotificationSent to retry; never drop a release.
+                // The stack is still busy with this client (or, below API 33,
+                // refused without saying why). Put the payload back at the front
+                // and retry on a coalesced delay; never drop a release. Waiting
+                // for onNotificationSent alone would stall until an unrelated
+                // update, because a refusal leaves no packet for it to report.
                 notificationsInFlight.remove(deviceAddress)
                 pendingNotifications.addFirst(next)
+                scheduleNotificationRetryLocked(deviceAddress)
+            } else {
+                // Handed to the stack: no retry is needed any more, and the next
+                // refusal starts the backoff over.
+                clearNotificationRetryLocked(deviceAddress)
             }
         }
     }
@@ -692,6 +859,13 @@ class UniversalBlePeripheralPlugin(
             }
         }
         settleNotifications(removed, IllegalStateException("Notification cancelled"))
+        // Whatever was queued for the client is gone, so a pending retry has
+        // nothing left to send.
+        if (deviceId == null) {
+            clearNotificationRetries()
+        } else {
+            clearNotificationRetry(deviceId)
+        }
     }
 
     override fun getSubscribedClients(
@@ -756,6 +930,8 @@ class UniversalBlePeripheralPlugin(
         }
         val removed = dropNotifications { it.device.address == deviceAddress }
         settleNotifications(removed, IllegalStateException("Device disconnected"))
+        // The client's queue is gone, so its retry must not wake up against it.
+        clearNotificationRetry(deviceAddress)
     }
 
     private val advertiseCallback = object : AdvertiseCallback() {
@@ -997,6 +1173,9 @@ class UniversalBlePeripheralPlugin(
                             it.device.address == address && it.characteristic === characteristic
                         }
                         settleNotifications(removed, IllegalStateException("Central unsubscribed"))
+                        // A retry for another characteristic of this client may
+                        // still be needed; one for the payloads just dropped is not.
+                        clearNotificationRetryIfIdle(address)
                     }
                 }
             }
