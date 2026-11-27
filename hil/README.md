@@ -4,7 +4,7 @@ This is a standalone Flutter application for testing `universal_ble` against
 a physical nRF52 DK. It lives outside the normal package tests because it
 needs the DK and exclusive access to a Bluetooth adapter.
 
-The firmware is in the [`universal_ble_hil_firmware`](https://github.com/usmanmehmood55/universal_ble_hil_firmware)
+The firmware is in the [`universal_ble_hil_firmware`](https://github.com/Navideck/universal_ble_hil_firmware)
 repository. On Windows, fixture commands go over the DK's USB virtual COM
 port. The BLE operations under test still go over the radio. Android and the
 interactive Web runner retain the BLE control path.
@@ -233,10 +233,7 @@ pins in the same change as the harness. The firmware must support the UART
 telemetry command (`fe`) used by the timing sweeps. The flash log is included in
 the test artifact when J-Link runs.
 
-Those releases live in the personal `usmanmehmood55/universal_ble_hil_firmware`
-repository. That is acceptable while this workflow is a draft; before it is
-relied on, move the firmware (or a build-from-source step) under the Navideck
-organization.
+Those releases live in the `Navideck/universal_ble_hil_firmware` repository.
 
 The run uploads the test output as a log artifact. Existing test skips still
 apply; the Apple-only duplicate-UUID suite is not part of Windows CI.

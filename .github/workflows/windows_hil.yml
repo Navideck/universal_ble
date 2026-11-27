@@ -70,8 +70,8 @@ jobs:
       HIL_DEVICE_ID: ${{ vars.HIL_DEVICE_ID }}
       HIL_JLINK_SERIAL: ${{ vars.HIL_JLINK_SERIAL }}
       # Update these together when the Flutter harness needs new firmware.
-      HIL_FIRMWARE_TAG: 'v0.2'
-      HIL_FIRMWARE_SHA256: '105e6b0a525fd91710633a11b8ee276ff4715979aeba07bdb2294519db5caea1'
+      HIL_FIRMWARE_TAG: 'v0.3'
+      HIL_FIRMWARE_SHA256: 'e6cc6de3d1c397a49fce132b65e807f90570aa97f9b7aa1d2e4ea7c8f3da07b3'
 
     steps:
       - name: Create log directory for this attempt
@@ -161,7 +161,7 @@ jobs:
           if (-not (Test-Path -LiteralPath $jlink -PathType Leaf)) {
             throw "Install SEGGER J-Link Commander at $jlink on the Windows runner."
           }
-          $repo = 'usmanmehmood55/universal_ble_hil_firmware'
+          $repo = 'Navideck/universal_ble_hil_firmware'
           $tag = [Uri]::EscapeDataString($env:HIL_FIRMWARE_TAG)
           $expectedHash = $env:HIL_FIRMWARE_SHA256
           $dir = New-Item -ItemType Directory -Path (Join-Path $env:RUNNER_TEMP "hil-firmware-$([guid]::NewGuid())")
